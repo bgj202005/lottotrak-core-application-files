@@ -1,0 +1,40 @@
+<?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
+
+ERROR - 2015-11-30 02:29:55 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 02:29:58 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 02:30:00 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 02:30:03 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 02:30:05 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 02:30:39 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 02:41:49 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 02:42:05 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 02:42:23 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 02:42:25 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 02:50:53 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 02:51:49 --> Severity: Parsing Error --> syntax error, unexpected ';' C:\wamp2\Code_Igniter_Application_Files\application\views\admin\article\edit.php 11
+ERROR - 2015-11-30 02:51:49 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 02:52:07 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 02:52:44 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 03:00:40 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:12:47 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:12:57 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:13:00 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:13:02 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:14:10 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:15:13 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:16:25 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:16:59 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:18:27 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:18:49 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:19:05 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:19:08 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:20:00 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:20:15 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:22:31 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:23:28 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:24:02 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:24:16 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:25:03 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:51:13 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:51:15 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
+ERROR - 2015-11-30 05:57:12 --> 404 Page Not Found: http://localhost/CodeIgniter_CMS/css/admin/bootstrap-datepicker.css
