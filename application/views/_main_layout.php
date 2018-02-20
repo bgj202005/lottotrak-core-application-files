@@ -20,37 +20,33 @@
                                     <ul class="dropdown-menu dropdown-lr animated flipInX" role="menu">
                                         <div class="col-lg-12">
                                             <div class="text-center"><h3><b>Register</b></h3></div>
-            								<?php echo form_open('page/register',array('id'=>'ajax-register-form', 'action' => 'register', 'method' => 'post', 
-                                            'role' => 'form', 'autocomplete' => 'off')); ?>
-                                            <!-- <form id="ajax-register-form" action="register" method="post" role="form" autocomplete="off"> -->
+            								<?php echo form_open('page/register',array('id'=>'ajax-register-form', 'action' => 'register', 'method' => 'post', 'role' => 'form', 'autocomplete' => 'off')); ?>
             									<div class="form-group">
-            										<!-- <input type="text" name="username" id="username" tabindex="1" class="form-control" placeholder="Username" value=""> -->
             									    <?php echo form_input(array('id' => 'username', 'tabindex' => '1', 'class' => 'form-control', 'placeholder' => 'Username',
                                                     'value' => '')); 
                                                     echo form_error('badusername'); ?>    
                                                 </div>
             									<div class="form-group">
-            										<!-- <input type="email" name="email" id="email" tabindex="2" class="form-control" placeholder="Email Address" value=""> -->
-            									   <?php echo form_input(array('id' => 'username', 'tabindex' => '2', 'class' => 'form-control', 'placeholder' => 'Email',
+            										
+            									   <?php echo form_input(array('id' => 'email', 'type' => 'email', 'tabindex' => '2', 'class' => 'form-control', 'placeholder' => 'Email',
                                                     'value' => '')); 
                                                     echo form_error('bademail'); ?> 
                                                 </div>
             									<div class="form-group">
-            										<!-- <input type="password" name="password" id="password" tabindex="3" class="form-control" placeholder="Password"> -->
+            										
             									   <?php echo form_password(array('id' => 'password', 'tabindex' => '3', 'class' => 'form-control', 'placeholder' => 'Password',
                                                     'value' => '')); 
                                                     echo form_error('badpassword'); ?> 
                                                 </div>
             									<div class="form-group">
-            										<!-- <input type="password" name="confirm-password" id="confirm-password" tabindex="4" class="form-control" placeholder="Confirm Password">--> 
-            									   <?php echo form_password(array('id' => '', 'tabindex' => '4', 'class' => 'form-control', 'placeholder' => 'Confirm Password',
+            										 
+            									   <?php echo form_password(array('id' => 'password_confirm', 'tabindex' => '4', 'class' => 'form-control', 'placeholder' => 'Confirm Password',
                                                     'value' => '')); ?>
                                                 </div>
             									<div class="form-group">
             										<div class="row">
             											<div class="col-xs-6 col-xs-offset-3">
-            												<!-- <input type="submit" name="register-submit" id="register-submit" tabindex="5" class="form-control btn btn-primary" value="Register Now"> -->
-                                                            <?php echo ('<p id="register-submit" class="form-control btn btn-primary">Register Now</p>'); ?>
+            												<input type="submit" name="register-submit" id="register-submit" tabindex="5" class="form-control btn btn-primary" value="Register Now">
 
             											</div>
             										</div>
@@ -66,15 +62,17 @@
                                         <div class="col-lg-12">
                                             <div class="text-center"><h3><b>Log In</b></h3></div>
                                             <?php echo form_open('page/login',array('id'=>'login-form', 'action' => 'login', 'method' => 'post', 'role' => 'form', 'autocomplete' => 'off')); ?>
-											<!-- <form id="ajax-login-form" action="login/process" method="post" role="form" autocomplete="off"> -->
+											
                                                 <div class="form-group">
                                                     <label for="username">Username</label>
-                                                    <input type="text" name="username" id="username" tabindex="1" class="form-control"  value="" autocomplete="off">
-                                                </div>
+                                                    <?php echo form_input(array('id' => 'username_login', 'tabindex' => '1', 'class' => 'form-control', 'placeholder' => 'Username',                                   'value' => '')); ?>
+											</div>
             
                                                 <div class="form-group">
                                                     <label for="password">Password</label>
-                                                    <input type="password" name="password" id="password" tabindex="2" class="form-control" autocomplete="off">
+                                                      <?php echo form_password(array('id' => 'password_login', 'tabindex' => '2', 'class' => 'form-control', 'placeholder' => 'Password',
+                                                    'value' => '')); 
+                                                    echo form_error('badpassword'); ?> 
                                                 </div>
             
                                                 <div class="form-group">
@@ -117,28 +115,20 @@
     </div>
 
  <script>
-
-$(document).ready(function(){
-	$("#login-submit").click(function(){
-		var form_data = {
-			username: $('#username').val(),
-			password: $('#password').val(),
-			remember: $('#remember').val(),
-			userform: '1'
-		};
-
-		$.ajax({
-			url: "<?php echo site_url('page/login'); ?>",
-			type: "POST",
-			data: form_data,
-			success: function(msg) {
-				$('body').html(msg);
-			}
-		})
-		return false;
-	});
-});
-
+$(document)
+.on("submit", "#ajax-register-form", function(event) {
+	event.preventDefault();
+	al
+	var _form = $(this);
+	
+	var data = {
+		email: $("input[type='email']", _form).val(),
+		password: $("input[type='password']", _form).val()
+	}
+	
+	console.log=(data);
+	
+})
 </script>
 
 

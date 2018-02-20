@@ -31,3 +31,13 @@ ERROR - 2018-02-19 14:20:36 --> Severity: Notice --> Use of undefined constant C
 ERROR - 2018-02-19 14:20:36 --> Query error: Invalid default value for 'reg_time' - Invalid query: ALTER TABLE `members`
 	ADD `username` VARCHAR(255) NOT NULL,
 	ADD `reg_time` DATETIME NOT NULL DEFAULT 'CURRENT_TIMESTAMP'
+ERROR - 2018-02-19 19:21:14 --> Severity: Notice --> Undefined index: page D:\wamp64\CI_application\application\controllers\page.php 97
+ERROR - 2018-02-19 19:21:14 --> Severity: Notice --> Trying to get property of non-object D:\wamp64\CI_application\application\controllers\page.php 97
+ERROR - 2018-02-19 19:29:12 --> Severity: Notice --> Undefined index: page D:\wamp64\CI_application\application\controllers\page.php 97
+ERROR - 2018-02-19 19:29:12 --> Severity: Notice --> Trying to get property of non-object D:\wamp64\CI_application\application\controllers\page.php 97
+ERROR - 2018-02-19 19:32:43 --> Severity: Notice --> Undefined index: page D:\wamp64\CI_application\application\controllers\page.php 97
+ERROR - 2018-02-19 19:32:43 --> Severity: Notice --> Trying to get property of non-object D:\wamp64\CI_application\application\controllers\page.php 97
+ERROR - 2018-02-19 19:38:49 --> Severity: Notice --> Undefined index: page D:\wamp64\CI_application\application\controllers\page.php 97
+ERROR - 2018-02-19 19:38:49 --> Severity: Notice --> Trying to get property of non-object D:\wamp64\CI_application\application\controllers\page.php 97
+ERROR - 2018-02-19 19:39:08 --> Severity: Notice --> Undefined index: page D:\wamp64\CI_application\application\controllers\page.php 97
+ERROR - 2018-02-19 19:39:08 --> Severity: Notice --> Trying to get property of non-object D:\wamp64\CI_application\application\controllers\page.php 97
