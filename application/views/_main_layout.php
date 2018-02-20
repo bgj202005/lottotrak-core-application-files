@@ -118,26 +118,26 @@
 
  <script>
 
-    $(document).ready(function(){
-        $("#login-submit").click(function(){
-			var form_data = {
-				username: $('#username').val(),
-				password: $('#password').val(),
-				remember: $('#remember').val(),
-				userform: '1'
-			};
-			
-			$.ajax({
-				url: "<?php echo site_url('page/login'); ?>",
-				type: "POST",
-				data: form_data,
-				success: function(msg) {
-					$('body').html(msg);
-				}
-			})
-			return false;
-		});
-    });
+$(document).ready(function(){
+	$("#login-submit").click(function(){
+		var form_data = {
+			username: $('#username').val(),
+			password: $('#password').val(),
+			remember: $('#remember').val(),
+			userform: '1'
+		};
+
+		$.ajax({
+			url: "<?php echo site_url('page/login'); ?>",
+			type: "POST",
+			data: form_data,
+			success: function(msg) {
+				$('body').html(msg);
+			}
+		})
+		return false;
+	});
+});
 
 </script>
 
