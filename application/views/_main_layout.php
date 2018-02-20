@@ -23,20 +23,17 @@
             								<?php echo form_open('page/register',array('id'=>'ajax-register-form', 'action' => 'register', 'method' => 'post', 'role' => 'form', 'autocomplete' => 'off')); ?>
             									<div class="form-group">
             									    <?php echo form_input(array('id' => 'username', 'tabindex' => '1', 'class' => 'form-control', 'placeholder' => 'Username',
-                                                    'value' => '')); 
-                                                    echo form_error('badusername'); ?>    
+                                                    'value' => '')); ?>    
                                                 </div>
             									<div class="form-group">
             										
             									   <?php echo form_input(array('id' => 'email', 'type' => 'email', 'tabindex' => '2', 'class' => 'form-control', 'placeholder' => 'Email',
-                                                    'value' => '')); 
-                                                    echo form_error('bademail'); ?> 
+                                                    'value' => '')); ?> 
                                                 </div>
             									<div class="form-group">
             										
             									   <?php echo form_password(array('id' => 'password', 'tabindex' => '3', 'class' => 'form-control', 'placeholder' => 'Password',
-                                                    'value' => '')); 
-                                                    echo form_error('badpassword'); ?> 
+                                                    'value' => '')); ?> 
                                                 </div>
             									<div class="form-group">
             										 
@@ -44,9 +41,13 @@
                                                     'value' => '')); ?>
                                                 </div>
             									<div class="form-group">
+													<?php // echo validation_errors('<div class="alert alert-warning" role="alert">', '</div>'); ?>
+													<div class="alert alert-danger js-reg-error" style = "display:none"></div>
+												</div>
+											     <div class="form-group">
             										<div class="row">
             											<div class="col-xs-6 col-xs-offset-3">
-            												<input type="submit" name="register-submit" id="register-submit" tabindex="5" class="form-control btn btn-primary" value="Register Now">
+															<input type="submit" name="register-submit" id="register-submit" tabindex="5" class="form-control btn btn-primary" value="Register Now">
 
             											</div>
             										</div>
@@ -71,8 +72,7 @@
                                                 <div class="form-group">
                                                     <label for="password">Password</label>
                                                       <?php echo form_password(array('id' => 'password_login', 'tabindex' => '2', 'class' => 'form-control', 'placeholder' => 'Password',
-                                                    'value' => '')); 
-                                                    echo form_error('badpassword'); ?> 
+                                                    'value' => '')); ?>
                                                 </div>
             
                                                 <div class="form-group">
@@ -81,13 +81,14 @@
                                                             <input type="checkbox" tabindex="3" name="remember" id="remember">
                                                             <label for="remember"> Remember Me</label>
                                                         </div>
-                                                        <div class="col-xs-5 pull-right">
+                                                        <div class="form-group">
+														<?php echo validation_errors('<div class="alert alert-danger js-login-error">', '</div>'); ?>
+														</div>
+														<div class="col-xs-5 pull-right">
                                                             <input type="submit" name="login-submit" id="login-submit" tabindex="4" class="form-control btn btn-primary" value="Log In">
-                                                        	<?php echo form_error('badusernamepassword', 'This is a problem'); ?> 
                                                         </div>
                                                     </div>
                                                 </div>
-            
                                                 <div class="form-group">
                                                     <div class="row">
                                                         <div class="col-lg-12">
@@ -118,56 +119,41 @@
 $(document)
 .on("submit", "#ajax-register-form", function(event) {
 	event.preventDefault();
-	al
+	
 	var _form = $(this);
+	var _error = $(".js-reg-error", _form);
 	
 	var data = {
 		email: $("input[type='email']", _form).val(),
-		password: $("input[type='password']", _form).val()
+		password: $("input[type='password']", _form).val(),
+		password_confirm: $("input[id='password_confirm']", _form).val()
 	}
 	
-	console.log=(data);
+	if (data.email.length < 16) {
+		_error
+			.text("Please enter a longer email address.")
+			.show();
+		return false;
+	} else if (data.password.length < 8) {
+		_error
+			.text("Please enter a passphrase at least 8 characters for the password.")
+			.show();
+		return false;
+	} else if (data.password != data.password_confirm) {
+		_error
+		.text("Password and the confirmed password don't match.")
+		.show();
+		
+		console.log(_form);
+		return false;
+	}
 	
+	_error.hide();
+	
+	return false;
 })
 </script>
 
 
- <!-- <script>
-            document.addEventListener("DOMContentLoaded", function(event) { 
-
-              // process the form
-              $('#ajax-register-form').submit(function(event) {
-
-                  // get the form data
-                  // note, I've added ID tags to your form above
-
-                var u = $('#username').val();
-                var p = $('#password').val();
-
-                  $.ajax({
-                      url : "http://localhost/lottotrak/register", //enter the login controller URL here
-                      type : "POST",
-                      dataType : "json",
-                      data : {
-                          username : u, 
-                          password : p
-                          },
-                      success : function(data) {
-                          // do something, e.g. hide the login form or whatever
-                          alert('logged in');
-                      },
-                      error : function(data) {
-                          // do something
-                          alert('pooped the bed');
-                      }
-                  });
-                  // stop the form from submitting the normal way and refreshing the page
-                  return false;
-              });
-            }); 
-        </script>
- 
--->
-
-    
+     
 <?php $this->load->view('components/page_tail'); ?>
