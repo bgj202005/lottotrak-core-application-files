@@ -41,7 +41,6 @@
                                                     'value' => '')); ?>
                                                 </div>
             									<div class="form-group">
-													<?php // echo validation_errors('<div class="alert alert-warning" role="alert">', '</div>'); ?>
 													<div class="alert alert-danger js-reg-error" style = "display:none"></div>
 												</div>
 											     <div class="form-group">
@@ -122,38 +121,62 @@ $(document)
 	
 	var _form = $(this);
 	var _error = $(".js-reg-error", _form);
-	
-	var data = {
+	var dataObj = {
+		username: $("input[id='username']", _form).val(),
 		email: $("input[type='email']", _form).val(),
 		password: $("input[type='password']", _form).val(),
 		password_confirm: $("input[id='password_confirm']", _form).val()
-	}
+	} 
 	
-	if (data.email.length < 16) {
+	if (!dataObj.username || !dataObj.email || !dataObj.password || !dataObj.password_confirm) {
+		_error
+			.text("No Field(s) can be left blank.")
+			.show();
+		return false;
+	} else if (dataObj.email.length < 16) {
 		_error
 			.text("Please enter a longer email address.")
 			.show();
 		return false;
-	} else if (data.password.length < 8) {
+	} else if (dataObj.password.length < 8) {
 		_error
 			.text("Please enter a passphrase at least 8 characters for the password.")
 			.show();
 		return false;
-	} else if (data.password != data.password_confirm) {
+	} else if (dataObj.password != dataObj.password_confirm) {
 		_error
 		.text("Password and the confirmed password don't match.")
 		.show();
-		
-		console.log(_form);
 		return false;
 	}
+
+	_error.hide(); 
 	
-	_error.hide();
+	$.ajax({
+		type: 'POST',
+		url: '<?php echo site_url(); ?>page/register',
+		data: dataObj,
+		dataType: 'json',
+		async: true,
+	})
+
+	.done(function ajaxDone(data) {
+		  // whatever the data is
+		console.log(data);
+	})
+    
+	.fail(function ajaxFailed(e) {
+		// This failed
+		console.log(e);
+	})
+	
+	.always(function ajaxAlwaysDoThis(DataOBJ) {
+		// This will alway do
+		console.log('Always');
+	})
 	
 	return false;
 })
 </script>
 
-
-     
 <?php $this->load->view('components/page_tail'); ?>

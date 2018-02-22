@@ -24,3 +24,10 @@ ERROR - 2018-02-20 14:33:04 --> Severity: Notice --> Undefined index: page D:\wa
 ERROR - 2018-02-20 14:33:04 --> Severity: Notice --> Trying to get property of non-object D:\wamp64\CI_application\application\controllers\page.php 97
 ERROR - 2018-02-20 14:33:57 --> Severity: Notice --> Undefined index: page D:\wamp64\CI_application\application\controllers\page.php 97
 ERROR - 2018-02-20 14:33:57 --> Severity: Notice --> Trying to get property of non-object D:\wamp64\CI_application\application\controllers\page.php 97
+ERROR - 2018-02-20 16:54:31 --> Severity: Notice --> Undefined index: page D:\wamp64\CI_application\application\controllers\page.php 97
+ERROR - 2018-02-20 16:54:31 --> Severity: Notice --> Trying to get property of non-object D:\wamp64\CI_application\application\controllers\page.php 97
+ERROR - 2018-02-20 16:57:42 --> Severity: Notice --> Undefined index: page D:\wamp64\CI_application\application\controllers\page.php 97
+ERROR - 2018-02-20 16:57:42 --> Severity: Notice --> Trying to get property of non-object D:\wamp64\CI_application\application\controllers\page.php 97
+ERROR - 2018-02-20 17:22:40 --> 404 Page Not Found: http://localhost/lottotrak/user_guide/_static/css/theme.css.map
+ERROR - 2018-02-20 17:22:45 --> 404 Page Not Found: http://localhost/lottotrak/user_guide/_static/css/theme.css.map
+ERROR - 2018-02-20 17:22:49 --> 404 Page Not Found: http://localhost/lottotrak/user_guide/_static/css/theme.css.map

@@ -89,7 +89,8 @@ class Page extends Frontend_Controller {
 	}
 	
 	function register() {
-		 $this->load->library('form_validation');
+		echo "I am here to help."; exit(1);
+		$this->load->library('form_validation');
 		$rules = $this->page_m->new_member_rules; 
 		$this->form_validation->set_rules($rules);
 		$this->form_validation->set_error_delimiters('<div class="error">', '</div>'); // Displaying Errors in Div
