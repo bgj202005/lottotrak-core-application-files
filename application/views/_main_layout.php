@@ -117,7 +117,7 @@
  <script>
 $(document)
 .on("submit", "#ajax-register-form", function(event) {
-	event.preventDefault();
+	event.defaultPrevented;
 	
 	var _form = $(this);
 	var _error = $(".js-reg-error", _form);
@@ -152,17 +152,20 @@ $(document)
 
 	_error.hide(); 
 	
-	$.ajax({
+	 $.ajax({
 		type: 'POST',
-		url: '<?php echo site_url(); ?>page/register',
+		url: '<?php // echo site_url(); ?>page/register',
 		data: dataObj,
 		dataType: 'json',
 		async: true,
-	})
-
+	}) 
+	
 	.done(function ajaxDone(data) {
 		  // whatever the data is
 		console.log(data);
+		if (data.redirect !== undefined) {
+			window.location = data.redirect;
+		} 
 	})
     
 	.fail(function ajaxFailed(e) {
@@ -170,7 +173,7 @@ $(document)
 		console.log(e);
 	})
 	
-	.always(function ajaxAlwaysDoThis(DataOBJ) {
+	.always(function ajaxAlwaysDoThis(data) {
 		// This will alway do
 		console.log('Always');
 	})

@@ -89,8 +89,27 @@ class Page extends Frontend_Controller {
 	}
 	
 	function register() {
-		echo "I am here to help."; exit(1);
-		$this->load->library('form_validation');
+		
+		/*if ($this->input->server('REQUEST_METHOD') == 'POST') { */
+			if ($this->input->is_ajax_request()) {
+				
+				// Make sure the user does not exist
+				// Make sure the Can be added AND is added
+				// Return the proper information back to JavaScript to redirect to.
+			
+				$action = [];
+				$action[] = ["test", "test2", "test3"];
+				$action['redirect'] = '/index.php?this-is-a-redirect';
+				$this->output
+				   		->set_content_type('application/json') //set Json header
+				   		->set_output(json_encode($action, JSON_PRETTY_PRINT))
+						->_display();
+			 exit;// make output json encoded
+			return;
+		} else {
+			exit('test');
+		}
+		/*$this->load->library('form_validation');
 		$rules = $this->page_m->new_member_rules; 
 		$this->form_validation->set_rules($rules);
 		$this->form_validation->set_error_delimiters('<div class="error">', '</div>'); // Displaying Errors in Div
@@ -104,7 +123,7 @@ class Page extends Frontend_Controller {
 		'email' => $this->input->post('email'),
 		'password' => $this->input->post('password'),
 		);
-	}	
+	}	*/
 //		echo "This is the register function.";
 	}
 
