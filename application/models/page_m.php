@@ -40,23 +40,13 @@ class Page_m extends MY_Model
 	        'username' => array (
 	                'field' => 'username',
 	                'label' => 'Username',
-	                'rules' => 'required|min_length[5]|max_length[15]',
+	                'rules' => 'required|min_length[5]|callback__unique_username|max_length[15]',
 	        ),
 	        'email' => array (
 	                'field' => 'email',
 	                'label' => 'Email',
-	                'rules' => 'trim|required|valid_email|xss_clean',
-	        ),
-	        'password' => array (
-	                'field' => 'password',
-	                'label' => 'Password',
-	                'rules' => 'trim|required|min_length[6]|max_length[30]|matches[password_confirm]|xss_clean',
-	        ),
-	        'password_confirm' => array (
-	                'field' => 'password_confirm',
-	                'label' => 'Confirm password',
-	                'rules' => 'trim|required|min_length[6]|max_length[30]|xss_clean',
-	        ),
+	                'rules' => 'trim|required|callback__unique_email|xss_clean',
+	        )
 	);
 	
 	public function get_new ()

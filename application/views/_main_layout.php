@@ -41,13 +41,14 @@
                                                     'value' => '')); ?>
                                                 </div>
             									<div class="form-group">
+													<div class="row">
+														<?php // echo form_error('error', '<div class="alert alert-danger signup_error">', '</div>'); ?>
 													<div class="alert alert-danger js-reg-error" style = "display:none"></div>
 												</div>
 											     <div class="form-group">
             										<div class="row">
             											<div class="col-xs-6 col-xs-offset-3">
 															<input type="submit" name="register-submit" id="register-submit" tabindex="5" class="form-control btn btn-primary" value="Register Now">
-
             											</div>
             										</div>
             									</div>

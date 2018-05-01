@@ -93,19 +93,30 @@ class Page extends Frontend_Controller {
 		/*if ($this->input->server('REQUEST_METHOD') == 'POST') { */
 			if ($this->input->is_ajax_request()) {
 				
-				// Make sure the user does not exist
-				// Make sure the Can be added AND is added
-				// Return the proper information back to JavaScript to redirect to.
-			
+		
+				// Setup the form
+				$new_member_rules = $this->page_m->new_member_rules;
+				$this->form_validation->set_rules($new_member_rules);
+		
+				if ($this->form_validation->run()  == TRUE) {
+
+					redirect('page/dashboard');
+				} else { 
+				// Make sure the user does not exist and the email does not exist.
+					$error = validation_errors();
+					echo json_encode(['js-reg-error'=>$errors]);
+					/* $this->form_validation->set_message('signup_error', '<div class="alert alert-danger signup_error">This Username Already Exists.</div>'); */
+				}
+				
 				$action = [];
-				$action[] = ["test", "test2", "test3"];
-				$action['redirect'] = '/index.php?this-is-a-redirect';
+				
+				/* $action['redirect'] = 'page/dashboard';
 				$this->output
 				   		->set_content_type('application/json') //set Json header
 				   		->set_output(json_encode($action, JSON_PRETTY_PRINT))
 						->_display();
-			 exit;// make output json encoded
-			return;
+			 exit;// make output json encoded 
+			*/ return;
 		} else {
 			exit('test');
 		}
@@ -156,6 +167,43 @@ class Page extends Frontend_Controller {
 		  $data['email']=$this->input->post('email');
 	  // Then pass $data  to Modal to insert bla bla!!
 		}
+	}
+	
+	public function _unique_username()
+	{
+		// Do Not validate if email already exists
+		// Unless it's the email for the current user	
+		
+		//dump($id); exit(1);	
+		$this->db->where('username', $this->input->post('username'));
+			!$id || $this->db->where('id !=', $id);
+			$user = $this->user_m->get();
+		
+			if (count($user)) {
+				$this->form_validation->set_message('_unique_username', '%s already exists. Please type another username');
+				return FALSE;
+			}
+	return TRUE;
+	}
+	
+	public function _unique_email()
+	{
+		// Do Not validate if email already exists
+		// Unless it's the email for the current user
+
+		$this->db->where('email', $this->input->post('email'));
+		!$id || $this->db->where('id !=', $id);
+		$user = $this->user_m->get();
+			
+		if (count($user)) {
+			$this->form_validation->set_message('_unique_email', '%s already exists. Please type another email address');
+			return FALSE;
+		}
+		return TRUE;
+	}
+	
+	function DashBoard() {
+		exit ('Stop');
 	}
 	
 }
