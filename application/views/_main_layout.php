@@ -58,7 +58,7 @@
                                     </ul>
                                 </li>
                                 <li class="dropdown">
-                                    <a href="/login" class="dropdown-toggle" data-toggle="dropdown">Log In <span class="caret"></span></a>
+                                    <a href="login" class="dropdown-toggle" data-toggle="dropdown">Log In <span class="caret"></span></a>
                                     <ul class="dropdown-menu dropdown-lr animated slideInRight" role="menu">
                                         <div class="col-lg-12">
                                             <div class="text-center"><h3><b>Log In</b></h3></div>
@@ -67,12 +67,12 @@
                                               <div class="form-group">
                                               	<label for="username">Username</label>
                                                 <?php echo form_input(array('id' => 'username_login', 'tabindex' => '1', 'class' => 'form-control', 'placeholder' => 'Username',
-                                                'value' => '')); ?>
+                                                    'value' => '', 'autocomplete' => 'false')); ?>
 											  </div>
                                               <div class="form-group">
                                               	<label for="password">Password</label>
                                               	<?php echo form_password(array('id' => 'password_login', 'tabindex' => '2', 'class' => 'form-control', 'placeholder' => 'Password',
-                                                'value' => '')); ?>
+                                              	    'value' => '', 'autocomplete' => 'false')); ?>
                                               </div>
                                               <div class="form-group">
                                               	<div class="row">
@@ -112,7 +112,7 @@
 		    </div>
     </div>
 
- <script>
+<script>
 $(document)
 .on("submit", "#ajax-register-form", function(event) {
 	event.defaultPrevented;
@@ -152,12 +152,12 @@ $(document)
 	
 	 $.ajax({
 		type: 'POST',
-		url: '<?php echo site_url(); ?>page/register',
+		url: '<?php echo site_url(); ?>member/register',
 		data: dataObj,
 		dataType: 'json',
 		async: true,
 	}) 
-	
+
 	.done(function ajaxDone(data) {
 		  // whatever the data is
 		console.log(data);
@@ -178,37 +178,43 @@ $(document)
 	
 	return false;
 })
+
+$(document)
 .on("submit", "#login-form", function(event) {
 	event.defaultPrevented;
 	
 	var _form = $(this);
 	var _error = $(".js-login-error", _form);
 	var dataObj = {
-		username: $("input[id='username']", _form).val(),
-		password: $("input[type='password']", _form).val(),
-	} 
+		username: $("input[id='username_login']", _form).val(),
+		password: $("input[id='password_login']", _form).val(),
+	}
 	
-	if (!dataObj.username || !dataObj.password) {
+	if (!dataObj.username) {
 		_error
-			.text("No Field(s) can be left blank.")
+			.text("Username can not be left blank.")
 			.show();
 		return false;
+	} else if (!dataObj.password) {
+		_error
+		.text("Password can not be left blank.")
+		.show();
+	return false;
 	}
 
 	_error.hide(); 
 	
 	 $.ajax({
 		type: 'POST',
-		url: '<?php echo site_url(); ?>page/login',
-		data: dataObj,
+		url: '<?php echo site_url(); ?>member/login',
+		data: DataObj,
 		dataType: 'json',
 		async: true,
 	}) 
 	
 	.done(function ajaxDone(data) {
-		  // whatever the data is
-		console.log(data);
-		if (data.redirect !== undefined) {
+		// whatever the data is
+		if (datalogin.redirect !== undefined) {
 			window.location = data.redirect;
 		} 
 	})
@@ -225,6 +231,7 @@ $(document)
 	
 	return false;
 })
+
 </script>
 
 <?php $this->load->view('components/page_tail'); ?>
