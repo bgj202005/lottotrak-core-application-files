@@ -20,7 +20,7 @@
                                     <ul class="dropdown-menu dropdown-lr animated flipInX" role="menu">
                                         <div class="col-lg-12">
                                             <div class="text-center"><h3><b>Register</b></h3></div>
-            								<?php echo form_open('page/register',array('id'=>'ajax-register-form', 'action' => 'register', 'method' => 'post', 'role' => 'form', 'autocomplete' => 'off')); ?>
+            								<?php echo form_open('member/register',array('id'=>'ajax-register-form', 'action' => 'register', 'method' => 'post', 'role' => 'form', 'autocomplete' => 'off')); ?>
             									<div class="form-group">
             									    <?php echo form_input(array('id' => 'username', 'tabindex' => '1', 'class' => 'form-control', 'placeholder' => 'Username',
                                                     'value' => '')); ?>    
@@ -62,7 +62,7 @@
                                     <ul class="dropdown-menu dropdown-lr animated slideInRight" role="menu">
                                         <div class="col-lg-12">
                                             <div class="text-center"><h3><b>Log In</b></h3></div>
-                                            <?php echo form_open('page/login',array('id'=>'login-form', 'action' => 'login', 'method' => 'post', 'role' => 'form', 'autocomplete' => 'off')); ?>
+                                            <?php echo form_open('member/login',array('id'=>'login-form', 'action' => 'login', 'method' => 'post', 'role' => 'form', 'autocomplete' => 'off')); ?>
 											
                                               <div class="form-group">
                                               	<label for="username">Username</label>

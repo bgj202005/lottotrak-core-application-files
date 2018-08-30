@@ -59,11 +59,13 @@ class Member extends Frontend_Controller {
     function login() {
         // Retrieve Login Data
         $login_data = array(
-            'username_login' = $this->input->post('username_login'),
-            'password_login' = $this->input->post('password_login'));
+            'username_login' 
+                            => $this->input->post('username_login'),
+            'password_login' 
+                            => $this->input->post('password_login'));
         
         // Compare with Login Data in Database
-        $validate = $this->login_database($login_data);
+        $validate = $this->member_m->login_database($login_data);
         
         // If Match, Save the User Session to remain logged in, Switch to Welcome User!
         // Go to User Details Page, Listing:
