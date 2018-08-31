@@ -6,11 +6,12 @@
 			      <!--  <nav class="navbar navbar-default"> -->
 			       <header> 
 			       <div class="row">
-			          <div class="col-lg-5">
-			            <section>
+			          <div class="col-lg-6">
+			            <section class = "logo"> 
+			            	<?php echo anchor('', '<img src ="images/lottotrak-logo.png">', 'class="logo"'); ?>
 			            	<?php echo anchor('', strtoupper(config_item('site_name')), 'class="navbar-brand"'); ?>
 			          	</section>
-			          </div> <!--  class="col-lg-6" -->
+			          </div> <!--  col-lg-5 -->
 			          <div class = "col-lg-6">
 			          <nav id="main-menu">
 			              <?php echo get_menu($menu); ?>
@@ -101,6 +102,7 @@
                                </li>
                            </ul>
 			           </nav>
+			          </div>
 			          </div>
 			          <div class="clear"></div>
 			          </header>
