@@ -11,7 +11,7 @@ function add_meta_title($string) {
 
 function get_menu($array, $child = FALSE) {
 	
-	$str = '';
+    $str = '';
 	$CI = &get_instance(); 
 	
 	if (count($array)) {

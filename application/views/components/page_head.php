@@ -13,6 +13,7 @@
 <link href="<?php echo site_url('css/animate.css');?>" rel="stylesheet">
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+<script src="https://unpkg.com/popper.js/dist/umd/popper.min.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
 <script src="<?php echo site_url('js/bootstrap.min.js');?>"></script>
 <link href='http://fonts.googleapis.com/css?family=Lato:400,700,900,400italic,700italic,900italic' rel='stylesheet' type='text/css'>

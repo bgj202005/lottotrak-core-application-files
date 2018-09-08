@@ -6,13 +6,15 @@
 			      <!--  <nav class="navbar navbar-default"> -->
 			       <header> 
 			       <div class="row">
-			          <div class="col-lg-6">
+			          <div class="col-lg-2 col-md-2 col-sm-2">
 			            <section class = "logo"> 
-			            	<?php echo anchor('', '<img src ="images/lottotrak-logo.png">', 'class="logo"'); ?>
-			            	<?php echo anchor('', strtoupper(config_item('site_name')), 'class="navbar-brand"'); ?>
+			            	<?php echo anchor('', '<img src ="images/lottotrak-logo.png" class="img-responsive">', 'class="logo"'); ?>
 			          	</section>
-			          </div> <!--  col-lg-5 -->
-			          <div class = "col-lg-6">
+			          </div> <!--  col-lg-3 col-lg-3 col-md-2 col-sm-2 -->
+			          <div class = "col-lg-4 col-md-2 col-sm-2">
+			          <?php echo anchor('', strtoupper(config_item('site_name')), 'class="navbar-brand"'); ?>
+			          </div> <!--  col-lg-3 col-lg-3 col-md-2 col-sm-2 -->
+			          <div class = "col-lg-6 col-md-10 col-sm-10">
 			          <nav id="main-menu">
 			              <?php echo get_menu($menu); ?>
     			           <ul class="nav navbar-nav navbar-inverse navbar-right">
@@ -102,7 +104,7 @@
                                </li>
                            </ul>
 			           </nav>
-			          </div>
+			          </div> <!-- col-lg-9 col-md-10 col-sm-10 -->
 			          </div>
 			          <div class="clear"></div>
 			          </header>
