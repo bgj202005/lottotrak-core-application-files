@@ -4,17 +4,15 @@
 			 <div class="container">
 			      <!-- Static navbar -->
 			      <!--  <nav class="navbar navbar-default"> -->
-			       <header> 
+			       <header>
 			       <div class="row">
-			          <div class="col-lg-2 col-md-2 col-sm-2">
-			            <section class = "logo"> 
+			          <div class="col-lg-6">
+			            <section class = "logo">
 			            	<?php echo anchor('', '<img src ="images/lottotrak-logo.png" class="img-responsive">', 'class="logo"'); ?>
 			          	</section>
+				          <?php echo anchor('', strtoupper(config_item('site_name')), 'class="navbar-brand"'); ?>
 			          </div> <!--  col-lg-3 col-lg-3 col-md-2 col-sm-2 -->
-			          <div class = "col-lg-4 col-md-2 col-sm-2">
-			          <?php echo anchor('', strtoupper(config_item('site_name')), 'class="navbar-brand"'); ?>
-			          </div> <!--  col-lg-3 col-lg-3 col-md-2 col-sm-2 -->
-			          <div class = "col-lg-6 col-md-10 col-sm-10">
+			          <div class = "col-lg-6">
 			          <nav id="main-menu">
 			              <?php echo get_menu($menu); ?>
     			           <ul class="nav navbar-nav navbar-inverse navbar-right">
@@ -26,20 +24,20 @@
             								<?php echo form_open('member/register',array('id'=>'ajax-register-form', 'action' => 'register', 'method' => 'post', 'role' => 'form', 'autocomplete' => 'off')); ?>
             									<div class="form-group">
             									    <?php echo form_input(array('id' => 'username', 'tabindex' => '1', 'class' => 'form-control', 'placeholder' => 'Username',
-                                                    'value' => '')); ?>    
+                                                    'value' => '')); ?>
                                                 </div>
             									<div class="form-group">
-            										
+
             									   <?php echo form_input(array('id' => 'email', 'type' => 'email', 'tabindex' => '2', 'class' => 'form-control', 'placeholder' => 'Email',
-                                                    'value' => '')); ?> 
+                                                    'value' => '')); ?>
                                                 </div>
             									<div class="form-group">
-            										
+
             									   <?php echo form_password(array('id' => 'password', 'tabindex' => '3', 'class' => 'form-control', 'placeholder' => 'Password',
-                                                    'value' => '')); ?> 
+                                                    'value' => '')); ?>
                                                 </div>
             									<div class="form-group">
-            										 
+
             									   <?php echo form_password(array('id' => 'password_confirm', 'tabindex' => '4', 'class' => 'form-control', 'placeholder' => 'Confirm Password',
                                                     'value' => '')); ?>
                                                 </div>
@@ -50,8 +48,8 @@
 													</div>
 											     <div class="form-group">
             										<div class="row">
-            											<div class="col-xs-6 col-xs-offset-3">
-															<input type="submit" name="register-submit" id="register-submit" tabindex="5" class="form-control btn btn-primary" value="Register Now">
+            											<div class="col-xs-6 col-xs-offset-3 text-center">
+																			<input type="submit" name="register-submit" id="register-submit" tabindex="5" class="form-control btn btn-primary" value="Register Now">
             											</div>
             										</div>
             									</div>
@@ -66,12 +64,12 @@
                                         <div class="col-lg-12">
                                             <div class="text-center"><h3><b>Log In</b></h3></div>
                                             <?php echo form_open('member/login',array('id'=>'login-form', 'action' => 'login', 'method' => 'post', 'role' => 'form', 'autocomplete' => 'off')); ?>
-											
+
                                               <div class="form-group">
                                               	<label for="username">Username</label>
                                                 <?php echo form_input(array('id' => 'username_login', 'tabindex' => '1', 'class' => 'form-control', 'placeholder' => 'Username',
                                                     'value' => '', 'autocomplete' => 'false')); ?>
-											  </div>
+											  												</div>
                                               <div class="form-group">
                                               	<label for="password">Password</label>
                                               	<?php echo form_password(array('id' => 'password_login', 'tabindex' => '2', 'class' => 'form-control', 'placeholder' => 'Password',
@@ -120,7 +118,7 @@
 $(document)
 .on("submit", "#ajax-register-form", function(event) {
 	event.defaultPrevented;
-	
+
 	var _form = $(this);
 	var _error = $(".js-reg-error", _form);
 	var dataObj = {
@@ -128,8 +126,8 @@ $(document)
 		email: $("input[type='email']", _form).val(),
 		password: $("input[type='password']", _form).val(),
 		password_confirm: $("input[id='password_confirm']", _form).val()
-	} 
-	
+	}
+
 	if (!dataObj.username || !dataObj.email || !dataObj.password || !dataObj.password_confirm) {
 		_error
 			.text("No Field(s) can be left blank.")
@@ -152,48 +150,48 @@ $(document)
 		return false;
 	}
 
-	_error.hide(); 
-	
+	_error.hide();
+
 	 $.ajax({
 		type: 'POST',
 		url: '<?php echo site_url(); ?>member/register',
 		data: dataObj,
 		dataType: 'json',
 		async: true,
-	}) 
+	})
 
 	.done(function ajaxDone(data) {
 		  // whatever the data is
 		console.log(data);
 		if (data.redirect !== undefined) {
 			window.location = data.redirect;
-		} 
+		}
 	})
-    
+
 	.fail(function ajaxFailed(e) {
 		// This failed
 		console.log(e);
 	})
-	
+
 	.always(function ajaxAlwaysDoThis(data) {
 		// This will alway do
 		console.log('Always');
 	})
-	
+
 	return false;
 })
 
 $(document)
 .on("submit", "#login-form", function(event) {
 	event.defaultPrevented;
-	
+
 	var _form = $(this);
 	var _error = $(".js-login-error", _form);
 	var dataObj = {
 		username: $("input[id='username_login']", _form).val(),
 		password: $("input[id='password_login']", _form).val(),
 	}
-	
+
 	if (!dataObj.username) {
 		_error
 			.text("Username can not be left blank.")
@@ -206,33 +204,33 @@ $(document)
 	return false;
 	}
 
-	_error.hide(); 
-	
+	_error.hide();
+
 	 $.ajax({
 		type: 'POST',
 		url: '<?php echo site_url(); ?>member/login',
 		data: DataObj,
 		dataType: 'json',
 		async: true,
-	}) 
-	
+	})
+
 	.done(function ajaxDone(data) {
 		// whatever the data is
 		if (datalogin.redirect !== undefined) {
 			window.location = data.redirect;
-		} 
+		}
 	})
-    
+
 	.fail(function ajaxFailed(e) {
 		// This failed
 		console.log(e);
 	})
-	
+
 	.always(function ajaxAlwaysDoThis(data) {
 		// This will alway do
 		console.log('Always');
 	})
-	
+
 	return false;
 })
 
