@@ -90,7 +90,7 @@ class User_M extends MY_Model {
 	
 	public function login() {
 		
-	    $user = $this->get_by(array(
+		$user = $this->get_by(array(
 				'email' => $this->input->post('email')),TRUE);
 		
 		//dump($user);
