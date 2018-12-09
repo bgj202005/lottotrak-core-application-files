@@ -6,6 +6,10 @@
 	
 	<table class = "table">
 		<tr>
+			<td><span class="glyphicon glyphicon-user"></span>&nbsp;User Name:</td>
+			<td><?php echo form_input('username'); ?></td>
+		</tr>
+		<tr>
 			<td><span class="glyphicon glyphicon-envelope"></span>&nbsp;Email:</td>
 			<td><?php echo form_input('email'); ?></td>
 		</tr>

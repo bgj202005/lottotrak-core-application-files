@@ -68,17 +68,28 @@ class User extends Admin_Controller {
 
 		if ($this->form_validation->run()  == TRUE) {
 
+			$validate_login = $this->user_m->login();
 			// We can login and redirect
-			if ($this->user_m->login() == TRUE) {
+			//dump($validate_login); exit(1);
+			if ($validate_login == TRUE) {
 				redirect($dashboard);
-			} else {
+			} elseif ($validate_login==FALSE) {
+	
 				$this->session->set_flashdata('error', '<div class="alert alert-danger" role="alert"><p>That <strong>email/password combination</strong> is incorrect.</font></div>');
-				//echo validation_errors(); exit(1);
+					//echo validation_errors(); exit(1);
+					echo '<div id="text-login-msg"><div class="alert alert-warning" role="alert">'.validation_errors().'</div></div>';
+					$this->session->set_flashdata('text-login-email', '<p><div class="alert alert-danger" role="alert">That <strong>email/password combination</strong> is incorrect.</div>');
+					redirect('admin/user/login', 'refresh');
+			} else {
+				exit('stop ghere');
+				// Username is correct?
+				$this->session->set_flashdata('error', '<div class="alert alert-danger" role="alert"><p>That <strong>Username </strong> is incorrect.</font></div>');
 				echo '<div id="text-login-msg"><div class="alert alert-warning" role="alert">'.validation_errors().'</div></div>';
-				$this->session->set_flashdata('text-login-email', '<p><div class="alert alert-danger" role="alert">That <strong>email/password combination</strong> is incorrect.</div>');
+				$this->session->set_flashdata('text-login-email', '<p><div class="alert alert-danger" role="alert">That <strong>Username</strong> is incorrect.</div>');
 				redirect('admin/user/login', 'refresh');
 			}
-		} 
+		}
+	
 		// Load the View
 		$this->data['subview'] = 'admin/user/login';
 		$this->data['title'] = 'Login';

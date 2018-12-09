@@ -5,6 +5,11 @@ class User_M extends MY_Model {
 	protected $_order_by = 'name';
 
 	public $rules = array (
+			'username' => array (
+					'field' => 'username',
+					'label' => 'Username',
+					'rules' => 'trim|required|xss_clean'
+			),
 			'email' => array (
 					'field' => 'email',
 					'label' => 'Email',
@@ -43,7 +48,6 @@ class User_M extends MY_Model {
 					'label' => 'Confirm Password',
 					'rules' => 'trim|matches[password]'
 			),
-				
 	);
 	
 	public $forgot_password_rules = array(
@@ -92,14 +96,13 @@ class User_M extends MY_Model {
 		
 		$user = $this->get_by(array(
 				'email' => $this->input->post('email')),TRUE);
+		$user_validate = $this->input->post('username');
+		// dump($user_validate); exit(1);
 		
-		//dump($user);
-		
-		if (isset($user)) {
-			$hashed_password = $user->password;
+		if (isset($user)&&$user->username==$user_validate) {  // checking for a user and same username
 			
+			$hashed_password = $user->password;
 			if ($this->check_password($hashed_password, $this->input->post('password'))) { 
-	
 				$data = array (
 						'username' => $user->username,
 						'name' => $user->name,
@@ -107,16 +110,15 @@ class User_M extends MY_Model {
 						'id' => $user->id,
 						'loggedin' => TRUE 
 				);
-				
 				$this->session->set_userdata ( $data );
-			} else {
-				return false;
+			return true;
 			}
-		  }
-		
-	return true;
-	} 
-	
+		} elseif (isset($user)&&$user->username!=$user_validate) {
+			return "username";	
+		} else {
+			return false;
+	  }
+    } 
 	public function logout() {
 		
 		$this->session->sess_destroy();
@@ -162,11 +164,12 @@ class User_M extends MY_Model {
 	 * Checks if the email address exists
 	 * 
 	 * @param       $email_value   string
+	 * @param       $username_value   string
 	 * @return      $row object (user) or False
 	 */
 	 public function Email_exists($email_value) {
 	     
-	     $sql = "SELECT id, email, name FROM users WHERE email = '{$email_value}' LIMIT 1";
+	     $sql = "SELECT id, email, name, username FROM users WHERE email = '{$email_value}' LIMIT 1";
 	     $result = $this->db->query($sql);
 	     $row = $result->row();
 	     
