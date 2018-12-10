@@ -69,11 +69,11 @@ class User extends Admin_Controller {
 		if ($this->form_validation->run()  == TRUE) {
 
 			$validate_login = $this->user_m->login();
+			var_dump($validate_login); exit(1);
 			// We can login and redirect
-			//dump($validate_login); exit(1);
-			if ($validate_login == TRUE) {
+			if ($validate_login == true) {
 				redirect($dashboard);
-			} elseif ($validate_login==FALSE) {
+			} elseif ($validate_login == false) {
 	
 				$this->session->set_flashdata('error', '<div class="alert alert-danger" role="alert"><p>That <strong>email/password combination</strong> is incorrect.</font></div>');
 					//echo validation_errors(); exit(1);
@@ -81,7 +81,6 @@ class User extends Admin_Controller {
 					$this->session->set_flashdata('text-login-email', '<p><div class="alert alert-danger" role="alert">That <strong>email/password combination</strong> is incorrect.</div>');
 					redirect('admin/user/login', 'refresh');
 			} else {
-				exit('stop ghere');
 				// Username is correct?
 				$this->session->set_flashdata('error', '<div class="alert alert-danger" role="alert"><p>That <strong>Username </strong> is incorrect.</font></div>');
 				echo '<div id="text-login-msg"><div class="alert alert-warning" role="alert">'.validation_errors().'</div></div>';
@@ -89,7 +88,6 @@ class User extends Admin_Controller {
 				redirect('admin/user/login', 'refresh');
 			}
 		}
-	
 		// Load the View
 		$this->data['subview'] = 'admin/user/login';
 		$this->data['title'] = 'Login';
