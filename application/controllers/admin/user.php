@@ -69,7 +69,6 @@ class User extends Admin_Controller {
 		if ($this->form_validation->run()  == TRUE) {
 
 			$validate_login = $this->user_m->login();
-			var_dump($validate_login); exit(1);
 			// We can login and redirect
 			if ($validate_login == true) {
 				redirect($dashboard);

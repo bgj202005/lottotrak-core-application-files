@@ -1,7 +1,6 @@
 <div class = "model-body">
 	<?php echo validation_errors('<div class="alert alert-warning" role="alert">', '</div>'); 
 	echo $this->session->flashdata('error');
-	
 	echo (isset($action) ? form_open($action) : form_open()); ?>
 	
 	<table class = "table">
