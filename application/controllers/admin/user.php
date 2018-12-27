@@ -55,7 +55,8 @@ class User extends Admin_Controller {
 		redirect('admin/user');
 	}
 	
-	public function login() {
+	public function login() 
+	{
 		
 		//if(!$this->input->is_ajax_request()) { echo "No Valid Request."; }
 		// Redirect a user if he's already logged in
@@ -70,16 +71,21 @@ class User extends Admin_Controller {
 
 			$validate_login = $this->user_m->login();
 			// We can login and redirect
-			if ($validate_login == true) {
+			if (is_bool($validate_login)&&$validate_login == TRUE) 
+			{
 				redirect($dashboard);
-			} elseif ($validate_login == false) {
+			} 
+			elseif (is_bool($validate_login)&&$validate_login == FALSE) 
+			{
 	
 				$this->session->set_flashdata('error', '<div class="alert alert-danger" role="alert"><p>That <strong>email/password combination</strong> is incorrect.</font></div>');
 					//echo validation_errors(); exit(1);
 					echo '<div id="text-login-msg"><div class="alert alert-warning" role="alert">'.validation_errors().'</div></div>';
 					$this->session->set_flashdata('text-login-email', '<p><div class="alert alert-danger" role="alert">That <strong>email/password combination</strong> is incorrect.</div>');
 					redirect('admin/user/login', 'refresh');
-			} else {
+			} 
+			elseif (is_string($validate_login)&&$validate_login == "username") 
+			{
 				// Username is correct?
 				$this->session->set_flashdata('error', '<div class="alert alert-danger" role="alert"><p>That <strong>Username </strong> is incorrect.</font></div>');
 				echo '<div id="text-login-msg"><div class="alert alert-warning" role="alert">'.validation_errors().'</div></div>';

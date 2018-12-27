@@ -92,17 +92,17 @@ class User_M extends MY_Model {
 		parent::__construct();
 	}
 	
-	public function login() {
-		
+	public function login() 
+	{
 		$user = $this->get_by(array(
 				'email' => $this->input->post('email')),TRUE);
 		$user_validate = $this->input->post('username');
-		// dump($user_validate); exit(1);
 		
-		if (isset($user)&&$user->username==$user_validate) {  // checking for a user and same username
-			
+		if (isset($user)&&$user->username==$user_validate) 
+		{  // checking for a user and same username
 			$hashed_password = $user->password;
-			if ($this->check_password($hashed_password, $this->input->post('password'))) { 
+			if ($this->check_password($hashed_password, $this->input->post('password'))) 
+			{ 
 				$data = array (
 						'username' => $user->username,
 						'name' => $user->name,
@@ -111,25 +111,30 @@ class User_M extends MY_Model {
 						'loggedin' => TRUE 
 				);
 				$this->session->set_userdata ( $data );
-			return true;
+				return TRUE;
 			}
-		} elseif (isset($user)&&$user->username!=$user_validate) {
+		} 
+		elseif (isset($user)&&$user->username!=$user_validate) 
+		{
 			return "username";	
-		} else {
-			return false;
-	  }
-    } 
-	public function logout() {
+		} 
+			return FALSE;
+    	}
+	
+	public function logout() 
+	{
 		
 		$this->session->sess_destroy();
 	}
 	
-	public function loggedin() {
+	public function loggedin() 
+	{
 		
 		return (bool) $this->session->userdata('loggedin');
 	}
 	
-	public function get_new() {
+	public function get_new() 
+	{
 		$user = new stdClass();
 		$user->name = '';
 		$user->username = '';
@@ -139,15 +144,18 @@ class User_M extends MY_Model {
 		return $user;
 	}
 	
-	public function hash($password, $unique_salt) {
+	public function hash($password, $unique_salt) 
+	{
 		return crypt($password, '$2a$10$'.$unique_salt);
 	}
 	
-	public function unique_salt() {
+	public function unique_salt() 
+	{
 		return substr(sha1(mt_rand()),0,22);
 	}
 	
-	public function check_password($hash, $password) {
+	public function check_password($hash, $password) 
+	{
 	
 		// first 29 characters include algorithm, cost and salt
 		// let's call it $full_salt
