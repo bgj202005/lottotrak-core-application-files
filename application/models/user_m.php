@@ -1,5 +1,6 @@
  <?php
-class User_M extends MY_Model {
+class User_M extends MY_Model 
+{
 
 	protected $_table_name = 'users';
 	protected $_order_by = 'name';
@@ -88,7 +89,8 @@ class User_M extends MY_Model {
 	
 	protected $_time_stamps = FALSE;
 
-	function __construct() {
+	function __construct() 
+	{
 		parent::__construct();
 	}
 	
@@ -175,12 +177,11 @@ class User_M extends MY_Model {
 	 * @param       $username_value   string
 	 * @return      $row object (user) or False
 	 */
-	 public function Email_exists($email_value) {
-	     
+	 public function Email_exists($email_value) 
+	 {
 	     $sql = "SELECT id, email, name, username FROM users WHERE email = '{$email_value}' LIMIT 1";
 	     $result = $this->db->query($sql);
 	     $row = $result->row();
-	     
 	     return ($result->num_rows() === 1 && $row->email) ? $row : FALSE;
 	 }
 
@@ -191,7 +192,8 @@ class User_M extends MY_Model {
 	  * @return      $email or boolean  string or TRUE/FALSE
 	  */
 	 
-	 public function Retrieve_email($id_key) {
+	 public function Retrieve_email($id_key) 
+	 {
 	     $sql = "SELECT email FROM users WHERE id = '{$id_key}' LIMIT 1";
 	     $result = $this->db->query($sql);
 	     $row = $result->row();
@@ -205,7 +207,8 @@ class User_M extends MY_Model {
 	  * @return      none
 	  */
 	 
-	public function Send_email($id, $email, $name) {
+	public function Send_email($id, $email, $name) 
+	{
 	    $this->load->library('email');
 	    $email_code = md5($this->config->item('salt').$name);
 	    $this->email->set_mailtype('html');
@@ -235,14 +238,18 @@ class User_M extends MY_Model {
 	 * @return      boolean
 	 */
 	
-	public function verify_reset_password($email, $code) {
+	public function verify_reset_password($email, $code) 
+	{
 	    $sql = "SELECT name, email FROM users WHERE email = '{$email}' LIMIT 1";
 	    $result = $this->db->query($sql);
 	    $row = $result->row();
 	    
-	    if ($result->num_rows() === 1) {
+	    if ($result->num_rows() === 1) 
+		{
 	       return ($code == md5($this->config->item('salt').$row->name)) ? TRUE : FALSE;
-	    } else {
+	    } 
+		else 
+		{
 	        return FALSE;
 	    }
 	}

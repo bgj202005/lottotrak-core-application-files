@@ -22,7 +22,7 @@ class User extends Admin_Controller
 	{
 		
 		// Fetch a user or set a new one
-		$id == NULL || $this->data['user'] = $this->user_m->get($id);
+		$id == NULL OR $this->data['user'] = $this->user_m->get($id);
 		$this->data['status'] = ''; //Empty Status
 		
 		if ($id) 
@@ -37,7 +37,7 @@ class User extends Admin_Controller
 		
 		// Setup the form
 		$rules = $this->user_m->rules_admin;
-		$id || $rules['password']['rules'].= '|required';
+		$id OR $rules['password']['rules'].= '|required';
 		$this->form_validation->set_rules($rules);
 		
 		if ($this->form_validation->run()  == TRUE) 
@@ -209,7 +209,7 @@ class User extends Admin_Controller
 		$id = $this->uri->segment(4);
 		//dump($id); exit(1);	
 		$this->db->where('username', $this->input->post('username'));
-			!$id || $this->db->where('id !=', $id);
+			! $id || $this->db->where('id !=', $id);
 			$user = $this->user_m->get();
 			
 			if (count($user)) 
@@ -226,7 +226,7 @@ class User extends Admin_Controller
 		// Unless it's the email for the current user
 		$id = $this->uri->segment(4);
 		$this->db->where('email', $this->input->post('email'));
-		!$id || $this->db->where('id !=', $id);
+		! $id || $this->db->where('id !=', $id);
 		$user = $this->user_m->get();
 			
 		if (count($user)) 
@@ -288,7 +288,7 @@ class User extends Admin_Controller
 	public function update_password() 
 	{
 	   
-	    if (!isset($_POST['email'], $_POST['email_hash']) || $_POST['email_hash'] !== sha1($_POST['email'].$_POST['email_code'])) {
+	    if (! isset($_POST['email'], $_POST['email_hash']) || $_POST['email_hash'] !== sha1($_POST['email'].$_POST['email_code'])) {
 	       die('Error updating your password');
 	}
 	   

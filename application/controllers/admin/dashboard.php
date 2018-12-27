@@ -1,12 +1,15 @@
 <?php
 
-class Dashboard extends Admin_Controller {
+class Dashboard extends Admin_Controller 
+{
 	
-	public function __construct(){
+	public function __construct()
+	{
 		parent::__construct();
 	}
 		
-	public function index() {
+	public function index() 
+	{
 		// Fetch Recently Modified Articles
 		$this->load->helper('url');
 		$this->load->model('article_m');
@@ -18,7 +21,8 @@ class Dashboard extends Admin_Controller {
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 	
-	public function modal() {
+	public function modal() 
+	{
 		$this->load->helper('url');
 		$this->load->view('admin/_layout_modal', $this->data);
 	}
