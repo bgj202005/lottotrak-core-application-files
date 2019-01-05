@@ -93,7 +93,6 @@ class Page extends Admin_Controller {
 	        foreach ($_POST['sortable'] as $order => $menu_item) {
 	            $_POST['sortable'][$order]['menu_id'] = $this->data['menu_id'];
 	        } 
-	        //echo "<pre>"; var_dump($_POST['sortable'][0]); exit(1);
 	        $this->page_m->save_order($_POST['sortable']);
  		}
  		

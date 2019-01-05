@@ -104,12 +104,11 @@ class Page_m extends MY_Model
 	{
 		$this->db->order_by($this->_order_by);
 		$pages = $this->db->get('pages')->result_array();
-		
 		$array = array();
 		
 		foreach ($pages as $page) {
 		    if ((int) $id == (int) $page['menu_id']) { // The Menu Location Must Match
-        		    if (!$page['parent_id']) {
+        		    if (! $page['parent_id']) {
         				// This page has no parent
         				$array[$page['id']] = $page;
         			}
@@ -119,7 +118,7 @@ class Page_m extends MY_Model
         			}
     		    }
 		    }
-    return $array;
+	return $array;
 	}
 	
 	public function get_with_parent ($id = NULL, $single = FALSE)
@@ -133,9 +132,8 @@ class Page_m extends MY_Model
 	{
 		// Fetch pages without parents
 		$this->db->select('id, title, menu_id');
-		$this->db->where('parent_id', 0);
+		$this->db->where('parent_id', 0);  
 		$pages = parent::get();
-		
 		// Return key => value pair array
 		$array = array(
 			0 => 'No parent'
@@ -145,7 +143,6 @@ class Page_m extends MY_Model
 			    $array[$page->id] = $page->title;
 			}
 		}
-		
 		return $array;
 	}
 	

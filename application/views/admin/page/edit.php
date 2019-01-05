@@ -7,12 +7,12 @@
 		<td>Menu Locaton:</td>
 		<td><?php echo form_dropdown('menu_id', array(0 => 'Header Menu',
 				1 => 'Inside Footer Menu', 2 => 'Outside Footer Menu'), $this->input->post('menu_id') 
-				? $this->input->post('menu_id') : $page->menu_id); ?></td>
+				? $this->input->post('menu_id') : $page->menu_id, 'id="menu_id" onchange="disable()"'); ?></td>
 	</tr>
 	<tr>
 		<td>Parent:</td>
 		<td><?php echo form_dropdown('parent_id', $pages_no_parents, $this->input->post('parent_id') 
-				? $this->input->post('parent_id') : $page->parent_id); ?></td>
+				? $this->input->post('parent_id') : $page->parent_id, 'id=parent_id'); ?></td>
 	</tr>
 	<tr>
 		<td>Template:</td>
@@ -38,3 +38,11 @@
 			class="btn btn-primary"'); ?></td>
 	</tr>
 </table>
+<script>
+function disable() {
+  if (document.getElementById("menu_id").value > 0) { 
+     document.getElementById("parent_id").value = 0;  
+	 document.getElementById("parent_id").disabled=true;
+  } else document.getElementById("parent_id").disabled=false;
+}
+</script>

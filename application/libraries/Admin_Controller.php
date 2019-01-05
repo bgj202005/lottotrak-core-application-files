@@ -26,4 +26,12 @@ class Admin_Controller extends MY_Controller
 		}	
 		
 	}
+	function strip_false_tags($s)
+    {
+        //stops non tags being converted into tags
+       $search = array("/\&60;/","/\&62;/");
+	   $replace= array(htmlspecialchars("<"),htmlspecialchars(">"));
+        
+        return preg_replace($search, $replace, $s);
+    }
 }

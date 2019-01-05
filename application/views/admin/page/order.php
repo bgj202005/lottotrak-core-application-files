@@ -1,6 +1,6 @@
 <section>
 	<h2>Order Pages</h2>
-		<p class ="alert alert-info">Drag to order pages and click 'Save'</p>
+		<p class ="alert alert-info" style = "max-width:300px;">Drag to order pages and click 'Save'</p>
 		<div class = "bg-success">/</div>
 		<div id = "orderResult"></div> 
 		<input type = "button" id = "save" value = "Save" class = "btn btn-primary" />
@@ -20,7 +20,7 @@ $(function() {
 				$('#orderResult').html(data);
 				$('#orderResult').slideDown();
 				$('.bg-success').show();
-				$('.bg-success').html('<p>You have saved the order of the pages.</p>');
+				$('.bg-success').html('<p style="max-width:300px;">You have saved the order of the pages.</p>');
 			});
 		});
 		
