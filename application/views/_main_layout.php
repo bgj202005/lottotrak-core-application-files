@@ -13,7 +13,8 @@
 			          </div> <!--  class="col-lg-6" -->
 			          <div class = "col-lg-6">
 			          <nav id="main-menu">
-			              <?php echo get_menu($menu); ?>
+
+						  <?php echo get_menu($menu); ?>
     			           <ul class="nav navbar-nav navbar-inverse navbar-right">
                                 <li class="dropdown">
                                     <a href="register" class="dropdown-toggle" data-toggle="dropdown">Register <span class="caret"></span></a>

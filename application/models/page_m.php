@@ -92,8 +92,9 @@ class Page_m extends MY_Model
 	    if (count($pages)) {
 			foreach ($pages as $order => $page) {
 			    if ($page['item_id'] != '') {
-				    $data = array('parent_id' => (int) $page['parent_id'], 
+					$data = array('parent_id' => (int) $page['parent_id'], 
 					        'menu_id' => (int) $page['menu_id'], 'order' => $order);
+
 					$this->db->set($data)->where($this->_primary_key, $page['item_id'])->update($this->_table_name);
 			 }
 		  }
@@ -105,20 +106,44 @@ class Page_m extends MY_Model
 		$this->db->order_by($this->_order_by);
 		$pages = $this->db->get('pages')->result_array();
 		$array = array();
-		
 		foreach ($pages as $page) {
-		    if ((int) $id == (int) $page['menu_id']) { // The Menu Location Must Match
-        		    if (! $page['parent_id']) {
+		    if ((int) $id == (int) $page['menu_id']) 
+			{ // The Menu Location Must Match
+				  if (! $page['parent_id']) 
+				  {
         				// This page has no parent
         				$array[$page['id']] = $page;
-        			}
-        			else {
-        				// This is a child page
-        				$array[$page['parent_id']]['children'][] = $page;
-        			}
+        		  }
+				  else
+				  {
+        		  // This is a child page
+        		  /* $array[$page['parent_id']]['children'][] = $page; */
+        		   $this->process_children($page, $array);
+				  }
     		    }
 		    }
-	return $array;
+
+		return $array;
+	}
+	
+	function process_children($item, &$arr)
+	{
+		if (is_array($arr))
+		{
+			foreach ($arr as $key => $parent_item)
+			{
+				// Match?
+				if (isset($parent_item['id']) && $parent_item['id'] == $item['parent_id'])
+				{
+					$arr[$key]['children'][$item['id']] = $item;
+				}
+				else
+				{
+			// Keep looking, recursively
+					$this->process_children($item, $arr[$key]);
+				}
+ 			}	
+		}
 	}
 	
 	public function get_with_parent ($id = NULL, $single = FALSE)

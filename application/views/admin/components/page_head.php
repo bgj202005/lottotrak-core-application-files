@@ -18,7 +18,7 @@
 <!-- Include all compiled plugins (below), or include individual files as needed -->
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script> <!--  <?php //echo site_url('js/bootstrap.min.js');?>  -->
 <?php if(isset($sortable) && $sortable ===TRUE): ?>
-    <script src="<?php echo site_url('js/jquery-ui.min.js');?>"></script>
+	<script src="<?php echo site_url('js/jquery-ui.min.js');?>"></script>
     <script src="<?php echo site_url('js/jquery.mjs.nestedSortable.js');?>"></script>
 <?php endif; ?>
 <script src="<?php echo site_url('js/bootstrap-datepicker.js');?>"></script>

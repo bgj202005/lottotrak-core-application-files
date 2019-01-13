@@ -89,13 +89,12 @@ class Page extends Admin_Controller {
 	public function order_ajax()
 	{
 	    $this->data['menu_id'] = $this->uri->segment(4); // Request Header, Footer (inside) or Footer (Outside)
-	    if (isset($_POST['sortable'])) {
-	        foreach ($_POST['sortable'] as $order => $menu_item) {
+		if (isset($_POST['sortable'])) {
+			foreach ($_POST['sortable'] as $order => $menu_item) {
 	            $_POST['sortable'][$order]['menu_id'] = $this->data['menu_id'];
 	        } 
 	        $this->page_m->save_order($_POST['sortable']);
  		}
- 		
 		// fetch all pages
 		$this->data['pages'] = $this->page_m->get_nested($this->data['menu_id']);
 		// Load view
