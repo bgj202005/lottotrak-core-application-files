@@ -9,24 +9,48 @@ function add_meta_title($string) {
 	//return anchor($uri, '<i class="icon-edit"></i>');
 }
 
-function get_menu($array, $child = FALSE, $parent_id = 0) 
+function get_menu ($array, $child = FALSE)
 {
+	$str = '';
+	if (count($array)) 
+ 	{
+	if ($child==FALSE) { $str .= '<ul id="top-menu" class="sm sm-clean">'.PHP_EOL; }
+	foreach ($array as $item) 
+		{
+			$str .= '<li><a href="'.site_url($item['slug']).'">'.e($item['title']).'</a>';
+			// Do we have any children?
+			if (isset($item['children']) && count($item['children'])) 
+			{
+				$str .= '<ul>'. PHP_EOL;
+				$str .= get_menu($item['children'], TRUE);
+				$str .= '</ul>';
+			}
+			//$str .= '</li>' . PHP_EOL;
+			//$str .= $child == TRUE ? '</ul></li>' : '</li>';	
+		}
+	if ($child==FALSE) { $str .= '</ul>'; }
+	}
+return $str;
+}
+
+/*function get_menu($array, $child = FALSE, $parent_id = 0) 
+{ 
 	
 	$str = '';
 	/* $CI = &get_instance(); */ 
 		
 	
-	if (count($array)) 
+	/* if (count($array)) 
 	{
 		/* $str .= $child == FALSE ? '<ul class="nav navbar-nav">'. PHP_EOL : '<ul class = "dropdown-menu">'. PHP_EOL; */
 		
-		if ($child == FALSE) { $str .='<ul id="top-menu" class="sm sm-clean">'.PHP_EOL; }
+		/* if ($child == FALSE) { $str .='<ul id="top-menu" class="sm sm-clean">'.PHP_EOL; } 
 		/* $str .= $child == FALSE ? '<nav id="main-nav"><ul id="main-menu" class="sm sm-clean">'. PHP_EOL : '<ul>'. PHP_EOL; */
 		
-		foreach($array as $item) 
+		/* foreach($array as $item) 
 		{
 			/* $active = $CI->uri->segment(1) == $item['slug'] ? TRUE : FALSE; */
-			if (isset($item['children']) && count($item['children'])) 
+			/* if (isset($item['children']) && count($item['children'])) 
 			{
 				
 				$current_parent = $item['parent_id'];
@@ -45,7 +69,7 @@ function get_menu($array, $child = FALSE, $parent_id = 0)
 						$str .= '<li><a href="'.site_url($item['slug']).'">'.e($item['title']);
 						$str .= ($child == FALSE ? '</a>'. PHP_EOL : '</a></li>'. PHP_EOL);
 					/* if ($child == FALSE) { $str .= '<ul>'.PHP_EOL; } */
-					}
+				/*	}
 					$str .= get_menu($item['children'], TRUE, $current_parent);
 				}			
 			else 
@@ -55,7 +79,7 @@ function get_menu($array, $child = FALSE, $parent_id = 0)
 		}
 	} 
 	if ($child == FALSE) {$str .= '</ul>'.PHP_EOL; }
-	return $str;
+	return $str; */
 	
 	/* if (count($array)) 
 	{
@@ -81,8 +105,8 @@ function get_menu($array, $child = FALSE, $parent_id = 0)
 		}
 		$str .= '</ul>' . PHP_EOL;
 	} 
-	return $str; */
-}
+	return $str; 
+} */
 
 function get_footer_menu($array, $class = NULL) {
 

@@ -11,11 +11,12 @@
 			            	<?php echo anchor('', strtoupper(config_item('site_name')), 'class="navbar-brand"'); ?>
 			          	</section>
 			          </div> <!--  class="col-lg-6" -->
-			          <div class = "col-lg-6">
 			          <nav id="main-menu">
-
-						  <?php echo get_menu($menu); ?>
-    			           <ul class="nav navbar-nav navbar-inverse navbar-right">
+	  			          <div class = "col-lg-5">
+						  	<?php echo get_menu($menu); ?>
+						  </div>
+						  <div class = "col-lg-2">
+							  <ul class="nav navbar-nav navbar-inverse navbar-right">
                                 <li class="dropdown">
                                     <a href="register" class="dropdown-toggle" data-toggle="dropdown">Register <span class="caret"></span></a>
                                     <ul class="dropdown-menu dropdown-lr animated flipInX" role="menu">
@@ -103,8 +104,8 @@
                                    </ul>
                                </li>
                            </ul>
-			           </nav>
-			          </div>
+			           </div>
+					  </nav>
 			          <div class="clear"></div>
 			          </header>
 			          </div>
