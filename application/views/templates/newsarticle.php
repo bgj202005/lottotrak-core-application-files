@@ -5,7 +5,7 @@
             <div class="col-xs-12 col-md-8">
         	   <div class="row">
         	       <?php if($pagination): ?>
-                        <section class = "pagination"><?php echo $pagination; ?></section>
+                        <section><?php echo $pagination; ?></section>
         			<?php endif; ?>
         		</div>
        			<div class = "row">	
@@ -15,7 +15,7 @@
         		</div>
     			<div class="row">
         			<?php if($pagination): ?>
-        				<section class = "pagination"><?php echo $pagination; ?></section>
+        				<section><?php echo $pagination; ?></section>
         			<?php endif; ?>
     		    </div>
     		</div>

@@ -2,11 +2,29 @@
 class Member_m extends MY_Model
 {
     
-    public function login_database($data) {
+    public $new_member_rules = array(
+	        'username' => array (
+	                'field' => 'username',
+	                'label' => 'Username',
+	                'rules' => 'required|min_length[5]|callback__unique_username|max_length[15]',
+	        ),
+	        'email' => array (
+	                'field' => 'email',
+	                'label' => 'Email',
+	                'rules' => 'trim|required|callback__unique_email|valid_email|xss_clean',
+	        ),
+	        'password' => array (
+	                'field' => 'password',
+	                'label' => 'Password',
+	                'rules' => 'trim|required|min_length[6]|max_length[30]|xss_clean',
+	        )
+	);
+	
+	public function login_database($data) {
         
         // Does the User Exist?
         
-        $active_user = $this->get_by(array(
+        	$active_user = $this->get_by(array(
             'username' => $data['user_login'],TRUE));
         
         if (isset($active_user)) {

@@ -4,42 +4,43 @@
     	<div class="row">
     		<div class="col-xs-12 col-md-8">
     			<div class="row">
+    					<h2>Your Profile</h2>
     				<article>
-    					<h2><?php echo e($article->title);?></h2>
-    					<p class="pubdate"><?php echo e($article->pubdate); ?></p>
-    					<?php echo $article->body; ?>
-    				</article>
-    				<table class = "table" style = "width:80%;">
-						<tr>
-							<td>User Name:</td>
-							<td><?php echo form_input('name', set_value('name',$user->name)); ?></td>
-						</tr>
+						<table class = "table" style = "width:80%;">
+							<tr>
+								<td>User Name:</td>
+								<td><?php echo form_input('username', set_value('user_name',$user->user_name)); ?></td>
+							</tr>
+							<tr>
+								<td>First Name:</td>
+								<td><?php echo form_input('firstname', set_value('first_name',$user->first_name)); ?></td>
+							</tr>
+							<tr>
+								<td>Last Name:</td>
+								<td><?php echo form_input('lastname', set_value('last_name',$user->last_name)); ?></td>
+							</tr>
+							<tr>
+								<td>Email:</td>
+								<td><?php echo form_input('email', set_value('email', $user->email)); ?></td>
+							</tr>
 
-						<tr>
-							<td>Email:</td>
-							<td><?php echo form_input('email', set_value('email', $user->email)); ?></td>
-						</tr>
-						
-						<tr>
-							<td>Password:</td>
-							<td><?php echo form_password('password'); ?></td>
-						</tr>
-						<tr>
-							<td>Confirm Password:</td>
-							<td><?php echo form_password('password_confirm'); ?></td>
-						</tr>
-						<tr>
-						<td><?php echo form_submit('submit', 'Submit', '
-								class="btn btn-primary"'); ?></td>
-						</tr>
-				    </table>
+							<tr>
+								<td>Password:</td>
+								<td><?php echo form_password('password'); ?></td>
+							</tr>
+							<tr>
+							<td><?php echo form_submit('submit', 'Submit', '
+									class="btn btn-primary"'); ?></td>
+							</tr>
+						</table>
+					</article>
 				</div>
     		</div>
 	<!--  Sidebar -->
 	<div class="col-xs-12 col-md-4 sidebar">
     	<section>
-        	<h2>Recent News</h2>
-            	<?php $this->load->view('sidebar'); ?>
+        	<h2>Current Lottery Selection</h2>
+            	<?php $this->load->view('lotto_selector'); ?>
     	</section>
 	</div>
     <div class="wrapper">
