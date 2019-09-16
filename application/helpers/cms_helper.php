@@ -1,4 +1,6 @@
 <?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
 function btn_edit($uri) {
 	return anchor($uri, '<i class ="glyphicon glyphicon-edit"');
 }
@@ -32,81 +34,6 @@ function get_menu ($array, $child = FALSE)
 	}
 return $str;
 }
-
-/*function get_menu($array, $child = FALSE, $parent_id = 0) 
-{ 
-	
-	$str = '';
-	/* $CI = &get_instance(); */ 
-		
-	
-	/* if (count($array)) 
-	{
-		/* $str .= $child == FALSE ? '<ul class="nav navbar-nav">'. PHP_EOL : '<ul class = "dropdown-menu">'. PHP_EOL; */
-		
-		/* if ($child == FALSE) { $str .='<ul id="top-menu" class="sm sm-clean">'.PHP_EOL; } 
-		/* $str .= $child == FALSE ? '<nav id="main-nav"><ul id="main-menu" class="sm sm-clean">'. PHP_EOL : '<ul>'. PHP_EOL; */
-		
-		/* foreach($array as $item) 
-		{
-			/* $active = $CI->uri->segment(1) == $item['slug'] ? TRUE : FALSE; */
-			/* if (isset($item['children']) && count($item['children'])) 
-			{
-				
-				$current_parent = $item['parent_id'];
-
-				if ($current_parent!=$parent_id) 
-					{
-						$str .= '<ul>'.PHP_EOL;
-						$str .= '<li><a href="'.site_url($item['slug']).'">'.e($item['title']);
-						$str .= get_menu($item['children'], TRUE, $current_parent);
-					    $str .= '</li>'.PHP_EOL;
-						$str .= '</ul>'.PHP_EOL; 
-				    	//$str .= '</li>'.PHP_EOL; 
-					}
-				else 
-					{
-						$str .= '<li><a href="'.site_url($item['slug']).'">'.e($item['title']);
-						$str .= ($child == FALSE ? '</a>'. PHP_EOL : '</a></li>'. PHP_EOL);
-					/* if ($child == FALSE) { $str .= '<ul>'.PHP_EOL; } */
-				/*	}
-					$str .= get_menu($item['children'], TRUE, $current_parent);
-				}			
-			else 
-			{
-				$str .= '<li><a href="'.site_url($item['slug']).'">'.e($item['title']).'</a></li>'.PHP_EOL;
-			}
-		}
-	} 
-	if ($child == FALSE) {$str .= '</ul>'.PHP_EOL; }
-	return $str; */
-	
-	/* if (count($array)) 
-	{
-		<!-- $str .= $child == FALSE ? '<ul class="nav navbar-nav">'. PHP_EOL : '<ul class = "dropdown-menu">'. PHP_EOL; -->
-		$str .= $child == FALSE ? '<ul class="menu responsive-menu">'. PHP_EOL : '<ul>'. PHP_EOL;
-		
-		foreach($array as $item) 
-		{
-			$active = $CI->uri->segment(1) == $item['slug'] ? TRUE : FALSE;
-			if (isset($item['children']) && count($item['children'])) 
-			{
-				$str .= '<li>';
-			    $str .= '<a href="'.site_url($item['slug']).'">'.e($item['title']);
-				$str .= ($child == FALSE ? '<span class="caret"></span></a>'. PHP_EOL : '<span style = "display:inline;" class="glyphicon glyphicon-menu-right"></span></a>'. PHP_EOL);
-				$str .= get_menu($item['children'], TRUE); 
-			}
-			else 
-			{
-				$str .= $active ? '<li class = "active">' : '<li>';
-				$str .= '<a href="' .site_url($item['slug']).'">'.e($item['title']).'</a>';
-			}
-			$str .= '</li>'. PHP_EOL;
-		}
-		$str .= '</ul>' . PHP_EOL;
-	} 
-	return $str; 
-} */
 
 function get_footer_menu($array, $class = NULL) {
 

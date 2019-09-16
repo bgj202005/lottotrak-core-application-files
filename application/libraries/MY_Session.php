@@ -1,4 +1,6 @@
 <?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
 class MY_session extends CI_Session {
 	
 	function sess_update() 

@@ -1,4 +1,6 @@
 <?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
 class User extends Admin_Controller 
 {
 	
@@ -219,7 +221,6 @@ class User extends Admin_Controller
 			}
 	return TRUE;
 	}
-
 	public function _unique_email($str)
 	{
 		// Do Not validate if email already exists

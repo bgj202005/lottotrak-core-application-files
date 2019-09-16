@@ -1,4 +1,6 @@
 <?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
 class Page_m extends MY_Model
 {
 	protected $_table_name = 'pages';

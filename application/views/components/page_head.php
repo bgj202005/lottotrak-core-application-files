@@ -24,7 +24,6 @@
 <!-- End of Font Awesome -->
     <script src="//maxcdn.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"></script>
 	<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-	
 <!-- Include all compiled plugins (below), or include individual files as needed -->
 <!-- <script src="<?php // echo site_url('js/bootstrap.min.js');?>"></script> -->
 <link href='http://fonts.googleapis.com/css?family=Lato:400,700,900,400italic,700italic,900italic' rel='stylesheet' type='text/css'>
@@ -34,7 +33,7 @@
 <script src="<?php // site_url('js/script.js');?>" type="text/javascript"></script>
 <script src="<?php // echo site_url('js/jquery.hoverIntent.js');?>" type="text/javascript"></script> -->
 <!-- jQuery -->
-<script type="text/javascript" src="<?php echo site_url('js/jquery/jquery.js') ?>"></script>
+<script type="text/javascript" src="<?php // echo site_url('js/jquery/jquery.js') ?>"></script>
 <script src="<?php echo site_url('js/jquery.smartmenus.min.js');?>" type="text/javascript"></script>
 <script src="<?php echo site_url('js/jquery.responsivemenu.js');?>" type="text/javascript"></script>
    	<script>
