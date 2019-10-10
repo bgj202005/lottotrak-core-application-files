@@ -27,27 +27,52 @@ class Member extends Frontend_Controller {
      * @param [integer] $id
      * @return void
      */    
-    private function save_member($id = NULL) 
+    public function member_update($id = NULL, $member) 
 	{
 		// Fetch a user or set a new one
-		$id == NULL OR $this->data['member'] = $this->member_m->get($id);
-		if ($id) 
+        if ($id != NULL) $this->data['member'] = $this->member_m->get($id); 
+        
+        if ($id) 
 		{
 			$this->data['member'] = $this->member_m->get($id); 
 			count($this->data['member']) || $this->data['errors'][] = 'User could not be found';
+            redirect('member/dashboard');
         } 
 		else 
 		{
+            // Initialize Object Array
             $this->data['member'] = $this->member_m->get_new_member();
-            // We can save and redirect
-			$data = $this->user_m->array_from_post(array('username', 'email', 'password'));
 
-			$data['password'] = $this->member_m->hash($data['password'], $this->member_m->unique_salt());
-			$this->member_m->save($data, $id);
-		}
-    }
+            // We can save and redirect
+            $data = $this->member_m->array_from_post(array('first_name', 'last_name', 'email', 'username', 
+            'reg_time', 'city', 'state_prov', 'country_id','lottery_id', 'member_active', 'subscription_key'));
+            $data['username'] = $member['username'];
+            $data['email'] = $member['email'];
+            $data['password'] = $this->member_m->hash_password($member['password']);
+            // Initialize Values
+            $data['first_name'] = $this->data['member']->first_name;
+            $data['last_name'] = $this->data['member']->last_name;
+            $data['city'] = $this->data['member']->city;
+            $data['state_prov'] = $this->data['member']->state_prov;
+            $data['country_id'] = $this->data['member']->country_id;
+            $data['lottery_id'] = $this->data['member']->lottery_id;
+            $data['member_active'] = $this->data['member']->member_active;
+            // 1. get a 12 char length random string token
+            $token = $this->member_m->getToken(12);
+            // 2. make that random token to a secure hash
+            $securetoken = $this->member_m->getSecureHash($token);
+             // 3. convert that secure hash to a url string
+            $urlsecuretoken = $this->member_m->cleanUrl($securetoken);
+            // 4. Include it to the Database set for a week long validation
+            $data['subscription_key'] = $urlsecuretoken;
+            $id = $this->member_m->save($data, $id); 
+        }
+        $email_confirmation = array('urlsecuretoken' => $urlsecuretoken,
+                                    'email' => $member['email']);
+    return $email_confirmation;
+    } 
            
-    function register() {
+    public function register() {
         
         $new_data_member = array (
             'username' => $this->input->post('username'),
@@ -76,8 +101,8 @@ class Member extends Frontend_Controller {
         else
         {
             // Use Token to send a message to validate Email Address before Activating Account.
-            $this->session->$this->session->set_flashdata('token', 'validate');
-            $this->save_member(); // Save to the Database
+            $this->session->set_flashdata('token', 'validate');
+            $this->session->set_flashdata('member', $new_data_member);
             $array = array(
                 'success' => '<div class="alert alert-success">You are now registered with Lottotrak. You\'re account has been created.<br />
                 Redirecting to dashboard in 3 seconds. Please wait...</div>'
@@ -86,38 +111,56 @@ class Member extends Frontend_Controller {
         echo json_encode($array);
     }
 
-function login() {
-// Retrieve Login Data
-if ($this->input->is_ajax_request()) {
-        $login_data = array(
-            'username_login' 
-                            => $this->input->post('username_login'),
-            'password_login' 
-                            => $this->input->post('password_login'));
-}
+    public function validate_email()
+    {
+        if ($this->session->flashdata('token')=='validate') 
+        {
+            $new_member = $this->session->flashdata('member');
+            // Create member account
+            $member = $this->member_update(NULL, $new_member);
+            // Send Confirmation email
+            $this->member_m->send_confirmation_message($member['urlsecuretoken'], $member['email']);  
+            $this->data['subview'] = 'validate_email'; 
+            $this->load->view('_main_layout', $this->data);
+        } 
+        else 
+        {
+            exit('Unauthorized. Intrusion Detected.');         
+        } 
+    }
 
-// Compare with Login Data in Database
-/* $validate = $this->member_m->login_database($login_data); */
+    public function login() {
+    // Retrieve Login Data
+    if ($this->input->is_ajax_request()) {
+            $login_data = array(
+                'username_login' 
+                                => $this->input->post('username_login'),
+                'password_login' 
+                                => $this->input->post('password_login'));
+    }
 
-// If Match, Save the User Session to remain logged in, Switch to Welcome User!
-// Go to User Details Page, Listing:
-// Username (Can't be Changed)
-// Password
-// Email Address
-// City and Country
-// Lottery Game they are currently Playing (Array of Lotteries)
+    // Compare with Login Data in Database
+    /* $validate = $this->member_m->login_database($login_data); */
 
-// If Incorrect Match, Send Error Message back to Login Box to js-login-error div.
+    // If Match, Save the User Session to remain logged in, Switch to Welcome User!
+    // Go to User Details Page, Listing:
+    // Username (Can't be Changed)
+    // Password
+    // Email Address
+    // City and Country
+    // Lottery Game they are currently Playing (Array of Lotteries)
 
-/* if ($validate) {
-    return True;
-}
-return False;    */
-$array = array(
-    'success' => '<div class="alert alert-success">You are now Logged into Lottotrak.</div>'
-);
+    // If Incorrect Match, Send Error Message back to Login Box to js-login-error div.
 
-echo json_encode($array);             
+    /* if ($validate) {
+        return True;
+    }
+    return False;    */
+    $array = array(
+        'success' => '<div class="alert alert-success">You are now Logged into Lottotrak.</div>'
+    );
+
+    echo json_encode($array);             
     }
 
     public function dashboard() {

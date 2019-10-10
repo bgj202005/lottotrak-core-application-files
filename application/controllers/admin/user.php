@@ -48,7 +48,8 @@ class User extends Admin_Controller
 			// We can save and redirect
 			$data = $this->user_m->array_from_post(array('username', 'name', 'email', 'password'));
 
-			$data['password'] = $this->user_m->hash($data['password'], $this->user_m->unique_salt());
+			//$data['password'] = $this->user_m->hash($data['password'], $this->user_m->unique_salt());
+			$data['password'] = $this->user_m->hash($data['password']);
 
 			$this->user_m->save($data, $id);
 			redirect('admin/user');
@@ -158,7 +159,7 @@ class User extends Admin_Controller
 	        if ($form_validate == FALSE) 
 			{
 	           
-			if ($this->session->userdata['image']) 
+			if (isset($this->session->userdata['image'])) 
 			{
 	            	if(file_exists(FCPATH."images/captcha/".$this->session->userdata['image'])) 
 				{
@@ -240,7 +241,7 @@ class User extends Admin_Controller
 	
 	public function _validate_captcha()
 	{
-	    if(trim($this->input->post('captcha')) != $this->session->userdata['captcha']) 
+		if(trim($this->input->post('captcha')) != $this->session->userdata['captcha']) 
 		{
 	        $this->form_validation->set_message('_validate_captcha', 'Wrong captcha code, hmm are you the Terminator?');
 	        return FALSE;
@@ -289,7 +290,8 @@ class User extends Admin_Controller
 	public function update_password() 
 	{
 	   
-	    if (! isset($_POST['email'], $_POST['email_hash']) || $_POST['email_hash'] !== sha1($_POST['email'].$_POST['email_code'])) {
+		if (! isset($_POST['email'],
+		$_POST['email_hash']) || $_POST['email_hash'] !== sha1($_POST['email'].$_POST['email_code'])) {
 	       die('Error updating your password');
 	}
 	   

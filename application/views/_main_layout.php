@@ -194,7 +194,7 @@ $(document).ready(function() {
 	 $('#validation_success_message').html(data.success).fadeIn(1000);
      $('#validation_error').html('');
         setTimeout(function() {
-        window.location.href = "<?php echo base_url(); ?>member";
+        window.location.href = "<?php echo base_url(); ?>member/validate_email";
         }, 3000);
      $('#register_form')[0].reset();
     }

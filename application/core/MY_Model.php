@@ -7,7 +7,7 @@ class MY_Model extends CI_Model {
 	protected $_primary_filter = 'intval';
 	protected $_order_by = '';
 	public $rules = array();
-	protected $_timestamps = FALSE;
+	protected $_time_stamps = FALSE;
 	
 	function __construct() {
 		parent::__construct();

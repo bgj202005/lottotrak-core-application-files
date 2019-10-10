@@ -105,7 +105,7 @@ class User_M extends MY_Model
 		if (isset($user)&&$user->username==$user_validate) 
 		{  // checking for a user and same username
 			$hashed_password = $user->password;
-			if ($this->check_password($hashed_password, $this->input->post('password'))) 
+			if ($this->check_password($this->input->post('password'), $hashed_password)) 
 			{ 
 				$data = array (
 						'username' => $user->username,
@@ -147,18 +147,29 @@ class User_M extends MY_Model
 		
 		return $user;
 	}
+
+	public function hash($password)
+	{
+		return password_hash($password, PASSWORD_DEFAULT);
+	}
 	
-	public function hash($password, $unique_salt) 
+	/* public function hash($password, $unique_salt) 
 	{
 		return crypt($password, '$2a$10$'.$unique_salt);
-	}
+	} */
 	
-	public function unique_salt() 
+	public function check_password($password, $hash)
+	{
+	// returns true or false
+		return password_verify($password, $hash);
+	}
+
+	/* public function unique_salt() 
 	{
 		return substr(sha1(mt_rand()),0,22);
-	}
+	} */
 	
-	public function check_password($hash, $password) 
+	/* public function check_password($hash, $password) 
 	{
 	
 		// first 29 characters include algorithm, cost and salt
@@ -170,7 +181,7 @@ class User_M extends MY_Model
 	
 		// returns true or false
 		return ($hash == $new_hash);
-	}
+	} */
 
 	/**
 	 * Checks if the email address exists
@@ -248,7 +259,7 @@ class User_M extends MY_Model
 	    
 	    if ($result->num_rows() === 1) 
 		{
-	       return ($code == md5($this->config->item('salt').$row->name)) ? TRUE : FALSE;
+	       return ($code == password_verify($row->password, $code)) ? TRUE : FALSE;
 	    } 
 		else 
 		{

@@ -3,7 +3,10 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Member_m extends MY_Model
 {
     protected $_table_name = 'members';
-	protected $_order_by = 'username';
+    protected $_order_by = 'username';
+    protected $_primary_key = 'id';
+	protected $_primary_filter = 'intval';
+    protected $_time_stamps = TRUE;
     
     public $new_member_rules = array(
 	       'username' => array (
@@ -42,16 +45,17 @@ class Member_m extends MY_Model
         $member->username = '';
 		$member->password = '';
         $member->email = '';
+        $member->reg_time = '';
         $member->city = '';
-        $member->province_state = '';
-        $member->country = '';
+        $member->state_prov = '';
+        $member->country_id = 0;
         $member->lottery_id = 0;
-        $member->active = False;        
+        $member->member_active = 0; // 0 = Member not active, 1 = Member Active        
 		
 		return $member;
     }
     /**
-     * Save (Overridden Method from MY_Model)
+     * Save (Overridden Method from MY_Model
      *
      * @param [array] $data
      * @param [integer] $id
@@ -60,7 +64,7 @@ class Member_m extends MY_Model
 
     public function save($data, $id = NULL) {
 		// Set Timestamps
-		if ($this->_time_stamps==TRUE) {
+        if ($this->_time_stamps==TRUE) {
 			$now = date('Y-m-d H:i:s');
 			$data['reg_time'] = $now;
 		}
@@ -91,12 +95,12 @@ class Member_m extends MY_Model
         
         if (isset($active_user)) {
             
-            $hashed_password = $user->password;            
+            $hashed_password = $active_user->password;            
             
-            if ($this->check_password($hashed_password, $data['password_login'])) {
+            if ($this->check_password($data['password_login'], $hashed_password)) {
                 
                 $user_data = array (
-                    'username' => $ctive_user->username,
+                    'username' => $active_user->username,
                     'email' => $active_user->email,
                     'first_name' => $active_user->first_name,
                     'last_name' => $active_user->last_name,
@@ -115,47 +119,124 @@ class Member_m extends MY_Model
         }
     }
     
-    public function hash($password, $unique_salt) {
-        return crypt($password, '$2a$10$'.$unique_salt);
+    public function hash_password($password) {
+        return password_hash($password, PASSWORD_DEFAULT);
     }
     
-    public function unique_salt() {
-        return substr(sha1(mt_rand()),0,22);
-    }
-    
-    public function check_password($hash, $password) {
-        
-        // first 29 characters include algorithm, cost and salt
-        // let's call it $full_salt
-        $full_salt = substr($hash, 0, 29);
-        
-        // run the hash function on $password
-        $new_hash = crypt($password, $full_salt);
+    public function check_password($password, $hash) {
         
         // returns true or false
-        return ($hash == $new_hash);
+        return password_verify($password, $hash);
     }
-    public function validate_email($id, $email, $name) 
+    
+    public function send_confirmation_message($urlsecuretoken, $mailto) 
 	{
 	    $this->load->library('email');
-	    $email_code = md5($this->config->item('salt').$name);
 	    $this->email->set_mailtype('html');
 	    $this->email->from('info@lottotrak.com', 'Lottotrak Administration');
-	    $this->email->to($email);
+	    $this->email->to($mailto);
 	    $this->email->subject('Activate Your Account');
-	    //$URI_Encoded_email = rawurlencode($email);
 	    $message = '<DOCTYPE html PUCLIC "-//W3C//DTD XHTML 1.0 Strict/EN"
 	            "http://www.w3.org/TR/xhtml1-strict-dtd"><HTML>
 	            <meta http-equiv="Content-Type" content="text/html; charseet=urf-8" />
 	            </head><body>';
-	    $message .= '<p>Hi '. $name . ',</p>';
-	    // the link we send will look like: /login/reset_password/john@doe.com/d23c45da23cc367742vn0209vn
-	    $message .= '<p>You have Registered for an account with Lottotrak. Please Activate Your Account by clicking on this link here to <strong><a href ="'.base_url().
-	       	    'member/'.$id.'/'.$email_code . '" />Validate your account</a></strong></p>';
+	    $message .= '<p>Hi <strong></strong>New Lottotrak Member,</strong></p>';
+        $message .= '<p>You have Registered for an account with Lottotrak. To Confirm, this email has been sent to: <strong><u>'.$mailto.'</u></strong>.';
+        $message .='<br /><br />To Activate Your Account by clicking on this link here to <strong><a href ="'.base_url().
+                   'activate/?q='. $urlsecuretoken . ' />Validate your account.</a></strong></p>';
+        $message .= '"<p>If your account is not validated within 5 days, the account will be deleted</p>';           
 	    $message .= '<p>Thank you!</p>';
 	    $message .= '<p>Lottotrak Administrator';
 	    $message .= '</body></html>';
 	    $this->email->message($message);
 	    $this->email->send();
-	}
+    }
+
+    /**
+     * If you are using PHP, this is the best possible secure hash
+     * do not try to implement somthing on your own
+     *
+     * @param string $text
+     * @return string
+     */
+    public function getSecureHash($text)
+    {
+        $hashedText = password_hash($text, PASSWORD_DEFAULT);
+        return $hashedText;
+    }
+
+    /**
+     * generates a random token of the length passed
+     *
+     * @param int $length
+     * @return string
+     */
+    public function getToken($length)
+    {
+        $token = "";
+        $codeAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        $codeAlphabet .= "abcdefghijklmnopqrstuvwxyz";
+        $codeAlphabet .= "0123456789";
+        $max = strlen($codeAlphabet) - 1;
+        for ($i = 0; $i < $length; $i ++) {
+            $token .= $codeAlphabet[$this->cryptoRandSecure(0, $max)];
+        }
+        return $token;
+    }
+
+    public function cryptoRandSecure($min, $max)
+    {
+        $range = $max - $min;
+        if ($range < 1) {
+            return $min; // not so random...
+        }
+        $log = ceil(log($range, 2));
+        $bytes = (int) ($log / 8) + 1; // length in bytes
+        $bits = (int) $log + 1; // length in bits
+        $filter = (int) (1 << $bits) - 1; // set all lower bits to 1
+        do {
+            $rnd = hexdec(bin2hex(openssl_random_pseudo_bytes($bytes)));
+            $rnd = $rnd & $filter; // discard irrelevant bits
+        } while ($rnd >= $range);
+        return $min + $rnd;
+    }
+
+    /**
+     * makes the passed string url safe and return encoded url
+     *
+     * @param string $str
+     * @return string
+     */
+    public function cleanUrl($str, $isEncode = 'true')
+    {
+        $delimiter = "-";
+        $str = str_replace(' ', $delimiter, $str); // Replaces all spaces with hyphens.
+        $str = preg_replace('/[^A-Za-z0-9\-]/', '', $str); // allows only alphanumeric and -
+        $str = trim($str, $delimiter); // remove delimiter from both ends
+        $regexConseqChars = '/' . $delimiter . $delimiter . '+/';
+        $str = preg_replace($regexConseqChars, $delimiter, $str); // remove consequtive delimiter
+        $str = mb_strtolower($str, 'UTF-8'); // convert to all lower
+        if ($isEncode) {
+            $str = urldecode($str); // encode to url
+        }
+        return $str;
+    }
+
+    /**
+     * to mitigate XSS attack
+     */
+    public function xssafe($data, $encoding = 'UTF-8')
+    {
+        return htmlspecialchars($data, ENT_QUOTES | ENT_HTML401, $encoding);
+    }
+
+    /**
+     * convenient method to print XSS mitigated text
+     *
+     * @param string $data
+     */
+    public function xecho($data)
+    {
+        echo $this->xssafe($data);
+    }
 }
