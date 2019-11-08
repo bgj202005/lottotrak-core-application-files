@@ -164,30 +164,11 @@ class User_M extends MY_Model
 		return password_verify($password, $hash);
 	}
 
-	/* public function unique_salt() 
-	{
-		return substr(sha1(mt_rand()),0,22);
-	} */
 	
-	/* public function check_password($hash, $password) 
-	{
-	
-		// first 29 characters include algorithm, cost and salt
-		// let's call it $full_salt
-		$full_salt = substr($hash, 0, 29);
-	
-		// run the hash function on $password
-		$new_hash = crypt($password, $full_salt);
-	
-		// returns true or false
-		return ($hash == $new_hash);
-	} */
-
 	/**
 	 * Checks if the email address exists
 	 * 
 	 * @param       $email_value   string
-	 * @param       $username_value   string
 	 * @return      $row object (user) or False
 	 */
 	 public function Email_exists($email_value) 
@@ -199,7 +180,7 @@ class User_M extends MY_Model
 	 }
 
 	 /**
-	  * Update to the new password
+	  * Return the email address for the administration user from the user id
 	  *
 	  * @params      $id (user)  integer
 	  * @return      $email or boolean  string or TRUE/FALSE
@@ -215,8 +196,8 @@ class User_M extends MY_Model
 	 }
 	 /**
 	  * Sends out email for password reset
-	  *
-	  * @params      $email, $firstname    string
+	  * The relative url will be sent as admin/user/reset_password/id/email_code
+	  * @params		 $id (user), $email, $firstname   integer, string, string
 	  * @return      none
 	  */
 	 
@@ -224,7 +205,7 @@ class User_M extends MY_Model
 	{
 	    $this->load->library('email');
 	    $email_code = md5($this->config->item('salt').$name);
-	    $this->email->set_mailtype('html');
+		$this->email->set_mailtype('html');
 	    $this->email->from('info@lottotrak.com', 'Lottotrak Administration');
 	    $this->email->to($email);
 	    $this->email->subject('You requested a password reset for the Lottotrak Administration');
@@ -259,7 +240,7 @@ class User_M extends MY_Model
 	    
 	    if ($result->num_rows() === 1) 
 		{
-	       return ($code == password_verify($row->password, $code)) ? TRUE : FALSE;
+	       return ($code == md5($this->config->item('salt').$row->name)) ? TRUE : FALSE;
 	    } 
 		else 
 		{

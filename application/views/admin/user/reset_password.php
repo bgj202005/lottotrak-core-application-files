@@ -8,8 +8,8 @@
     	<tr>
     		<td><?php echo form_label('Email:', 'email'); ?></td>
     		<td><?php if (isset($email_hash, $email_code)) { 
-    		  echo form_hidden('email_hash', $email_hash);
-    		  echo form_hidden('email_code', $email_code);
+			  echo form_hidden('email_hash', $email_hash); 
+			  echo form_hidden('email_code', $email_code);
     		} 
     		echo form_hidden('id', $id);
     		if (!isset($email)) $email = '';

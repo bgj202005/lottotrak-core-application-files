@@ -264,12 +264,12 @@ class User extends Admin_Controller
 	        
 	        if ($verified) 
 			{
-	            // Load the View
+				// Load the View
 	            $this->data['id'] = $id;
 	            $this->data['email_hash'] = $email_hash;
 	            $this->data['email_code'] = $email_code;
 	            $this->data['email'] = $email;
-	             $this->data['subview'] = 'admin/user/reset_password';
+	            $this->data['subview'] = 'admin/user/reset_password';
         	    $this->data['title'] = 'Change Your Password';
         	    $this->data['message'] = 'Enter a new password and type the password in again to confirm it is correct.';
         	    $this->data['action'] = '/admin/user/update_password';
@@ -311,7 +311,7 @@ class User extends Admin_Controller
 	   else 
 	   {
 	       // We can save and redirect
-	       $this->data['password'] = $this->user_m->hash($this->data['password'], $this->user_m->unique_salt());
+	       $this->data['password'] = $this->user_m->hash($this->data['password']);
 	       $id = $this->user_m->save($this->data, $id);
 	       // Load the View
 	       $this->data['subview'] = 'admin/user/login';

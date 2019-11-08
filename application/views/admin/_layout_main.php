@@ -14,6 +14,7 @@
         <li class="active"><a href="<?php echo site_url('admin/dashboard');?>">Dashboard<span class="sr-only">(current)</span></a></li>
         <li><?php echo anchor('admin/page', 'Pages');?></li>
         <li><?php echo anchor('admin/article', 'News Articles');?></li>
+        <li><?php echo anchor('admin/lotteries', 'Lotteries');?></li>
         <li><?php echo anchor('admin/page/order/0', 'Header Menu Order ');?></li>
         <li><?php echo anchor('admin/page/order/1', 'Footer Insider Menu Order ');?></li>
         <li><?php echo anchor('admin/page/order/2', 'Footer Outside Menu Order ');?></li>

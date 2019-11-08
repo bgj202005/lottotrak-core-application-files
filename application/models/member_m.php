@@ -19,20 +19,41 @@ class Member_m extends MY_Model
 	                'label' => 'Email',
 	                'rules' => 'trim|required|callback__unique_email|valid_email|xss_clean',
 	        ),
-	        'password' => array (
-	                'field' => 'password',
-	                'label' => 'Password',
-	                'rules' => 'trim|required|min_length[6]|max_length[30]|xss_clean',
-            ),
-            'confirm_password' => array (
-                'field' => 'confirm_password',
-                'label' => 'Confirm Password',
-                'rules' => 'trim|matches[password]'
+    );
+    
+    public $forgot_password_rules = array(
+        'email_forgot' => array (
+                'field' => 'email_forgot',
+                'label' => 'Email Address',
+                'rules' => 'trim|required|valid_email|xss_clean',
         ),
-	);
+    );
+
+    public $update_password_rules = array(
+        'email_hash' => array (
+                'field' => 'email_hash',
+                'label' => 'Email hash',
+                'rules' => 'trim|required',
+        ),
+        'email' => array (
+                'field' => 'email',
+                'label' => 'Email',
+                'rules' => 'trim|required|valid_email|xss_clean',
+        ),
+        'password' => array (
+                'field' => 'password',
+                'label' => 'Password',
+                'rules' => 'trim|required|min_length[6]|max_length[50]|matches[password_confirm]|xss_clean',
+        ),
+        'password_confirm' => array (
+                'field' => 'password_confirm',
+                'label' => 'Confirm password',
+                'rules' => 'trim|required|min_length[6]|max_length[50]|xss_clean',
+        ),
+);
     
     /**
-     * If id does not exist, create a new member with default blank values
+     * create a new member with default blank values
      * @param none
      * @return void
      */
@@ -43,8 +64,7 @@ class Member_m extends MY_Model
         $member->first_name = '';
         $member->last_name = '';
         $member->username = '';
-		$member->password = '';
-        $member->email = '';
+	    $member->email = '';
         $member->reg_time = '';
         $member->city = '';
         $member->state_prov = '';
@@ -86,38 +106,44 @@ class Member_m extends MY_Model
 		return $id;
 	}
     
-    public function login_database($data) {
+    public function login_database() {
         
-        // Does the User Exist?
+        // Does the Member Exist?
         
-        	$active_user = $this->get_by(array(
-            'username' => $data['user_login'],TRUE));
-        
-        if (isset($active_user)) {
+        $nonmember = $this->get_by(array(
+                    'username' => $this->input->post('username_login')),TRUE);
+
+        if (isset($nonmember)) {
             
-            $hashed_password = $active_user->password;            
+            $hashed_password = $nonmember->password;            
             
-            if ($this->check_password($data['password_login'], $hashed_password)) {
+        if ($this->check_password($this->input->post('password_login'), $hashed_password)) {
                 
-                $user_data = array (
-                    'username' => $active_user->username,
-                    'email' => $active_user->email,
-                    'first_name' => $active_user->first_name,
-                    'last_name' => $active_user->last_name,
-                    'city' => $active_user->city,
-                    'state_prov' => $active_user->state_prov,
-                    'country' => $active_user->country,
-                    'lotteries' => $active_user->lotteries,
-                    'id' => $active_user->id,
-                    'loggedin' => TRUE
-                );
+            $member = array (
+                   'username' => $nonmember->username,
+                   'email' => $nonmember->email,
+                   'first_name' => $nonmember->first_name,
+                   'last_name' => $nonmember->last_name,
+                   'city' => $nonmember->city,
+                   'state_prov' => $nonmember->state_prov,
+                   'country_id' => $nonmember->country_id,
+                   'lottery_id' => $nonmember->lottery_id,
+                   'id' => $nonmember->id,
+                   'logged_in' => TRUE
+                   );
                 
-                $this->session->set_userdata ( $data );
-            } else {
-                return false;
-            }
+            $this->session->set_userdata ($member);
+            return TRUE;
+        } else {
+            return FALSE;
         }
+      }
     }
+
+    public function logout_database() 
+	{
+		$this->session->sess_destroy();
+	}
     
     public function hash_password($password) {
         return password_hash($password, PASSWORD_DEFAULT);
@@ -143,8 +169,8 @@ class Member_m extends MY_Model
 	    $message .= '<p>Hi <strong></strong>New Lottotrak Member,</strong></p>';
         $message .= '<p>You have Registered for an account with Lottotrak. To Confirm, this email has been sent to: <strong><u>'.$mailto.'</u></strong>.';
         $message .='<br /><br />To Activate Your Account by clicking on this link here to <strong><a href ="'.base_url().
-                   'activate/?q='. $urlsecuretoken . ' />Validate your account.</a></strong></p>';
-        $message .= '"<p>If your account is not validated within 5 days, the account will be deleted</p>';           
+                   'activate/validation_code/'. $urlsecuretoken . '"/>Validate your account.</a></strong></p>';
+        $message .= '<br /><br /><p>If your account is not validated within 5 days, the account will be deleted</p>';           
 	    $message .= '<p>Thank you!</p>';
 	    $message .= '<p>Lottotrak Administrator';
 	    $message .= '</body></html>';
@@ -239,4 +265,88 @@ class Member_m extends MY_Model
     {
         echo $this->xssafe($data);
     }
+
+    /**
+	 * Checks if the email address exists
+	 * 
+	 * @param       $email_value   string
+	 * @return      $row object (user) or False
+	 */
+	 public function Email_exists($email_value) 
+	 {
+	     $sql = "SELECT id, email, first_name, username FROM members WHERE email = '{$email_value}' LIMIT 1";
+	     $result = $this->db->query($sql);
+	     $row = $result->row();
+	     return ($result->num_rows() === 1 && $row->email) ? $row : FALSE;
+     }
+    
+     /**
+	  * Return the email address for the member from the member id
+	  *
+	  * @params      $id (user)  integer
+	  * @return      $email or boolean  string or TRUE/FALSE
+	  */
+	 
+	 public function Retrieve_email($id_key) 
+	 {
+	     $sql = "SELECT email FROM users WHERE id = '{$id_key}' LIMIT 1";
+	     $result = $this->db->query($sql);
+	     $row = $result->row();
+	     
+	 return ($result->num_rows(1) === 1 && $row->email) ? $row->email : FALSE;
+     }
+     
+     /**
+	  * Sends out email for password reset
+	  * The relative url will be sent as member/reset_password/id/email_code
+	  * @params		 $id (user), $email, $firstname   integer, string, string
+	  * @return      none
+	  */
+
+    public function Send_email($id, $email, $first_name) 
+	{
+        $this->load->library('email');
+        $email_code = md5($this->config->item('salt').$first_name);
+	    $this->email->set_mailtype('html');
+	    $this->email->from('info@lottotrak.com', 'Lottotrak Administration');
+	    $this->email->to($email);
+	    $this->email->subject('You requested a password reset for the Lottotrak Administration');
+	    //$URI_Encoded_email = rawurlencode($email);
+	    $message = '<DOCTYPE html PUCLIC "-//W3C//DTD XHTML 1.0 Strict/EN"
+	            "http://www.w3.org/TR/xhtml1-strict-dtd"><HTML>
+	            <meta http-equiv="Content-Type" content="text/html; charseet=urf-8" />
+	            </head><body>';
+	    $message .= '<p>Hi '. $first_name . ',</p>';
+	    // the link we send will look like: /login/reset_password/john@doe.com/d23c45da23cc367742vn0209vn
+	    $message .= '<p>You have put in a request to reset your password! Please <strong><a href ="'.base_url().
+	       	    'member/reset_password/'.$id.'/'.$email_code . '" />click here</a></strong> to reset your password.</p>';
+	    $message .= '<p>Thank you!</p>';
+	    $message .= '<p>Lottotrak Administrator';
+	    $message .= '</body></html>';
+	    $this->email->message($message);
+	    $this->email->send();
+    }
+    
+    /**
+	 * Verify the reset password code 
+	 *
+	 * @params      $email, $code    string
+	 * @return      boolean
+	 */
+	
+	public function verify_reset_password($email, $code) 
+	{
+	    $sql = "SELECT first_name, email FROM members WHERE email = '{$email}' LIMIT 1";
+	    $result = $this->db->query($sql);
+	    $row = $result->row();
+	    
+	    if ($result->num_rows() === 1) 
+		{
+	       return ($code == md5($this->config->item('salt').$row->first_name)) ? TRUE : FALSE;
+	    } 
+		else 
+		{
+	        return FALSE;
+	    }
+	}
 }

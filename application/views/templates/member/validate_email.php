@@ -26,7 +26,7 @@
 			<!--  Sidebar -->
 			<div class="col-xs-12 col-md-4 sidebar">
 				<section>
-					<h2>Recent News</h2>
+					<h2>Latest Lottery News</h2>
 							<?php // echo anchor($news_article_link, '+ News archive'); ?>
 							<?php $this->load->view('sidebar'); ?>
 				</section>
