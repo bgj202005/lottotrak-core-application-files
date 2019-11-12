@@ -43,12 +43,12 @@ class Member_m extends MY_Model
         'password' => array (
                 'field' => 'password',
                 'label' => 'Password',
-                'rules' => 'trim|required|min_length[6]|max_length[50]|matches[password_confirm]|xss_clean',
-        ),
-        'password_confirm' => array (
-                'field' => 'password_confirm',
-                'label' => 'Confirm password',
                 'rules' => 'trim|required|min_length[6]|max_length[50]|xss_clean',
+        ),
+        'confirm_password' => array (
+                'field' => 'confirm_password',
+                'label' => 'Confirm Password',
+                'rules' => 'trim|matches[password]'
         ),
 );
     
@@ -289,7 +289,7 @@ class Member_m extends MY_Model
 	 
 	 public function Retrieve_email($id_key) 
 	 {
-	     $sql = "SELECT email FROM users WHERE id = '{$id_key}' LIMIT 1";
+	     $sql = "SELECT email FROM members WHERE id = '{$id_key}' LIMIT 1";
 	     $result = $this->db->query($sql);
 	     $row = $result->row();
 	     

@@ -13,15 +13,12 @@
 					else 
 					{ ?> <!--  if ($verified=='active') -->
 						<h3 class="bg-default" style = "color:#FFFFFF">Enter a new password and type the password in again to confirm it is correct</h3>	
-						<?php echo validation_errors('<div class="alert alert-warning" role="alert">', '</div>'); 
-						echo $this->session->flashdata('error'); ?>
-						
 				</div>
 					<div class="row">
 						<div class="col-xs-10 col-md-8">
 						<?php $hidden = array('id' => $id);
-							echo form_hidden('verified', $verified); 
-							echo form_open(base_url().'member/update_password', 'class="form-horizontal"', $hidden); 
+							echo form_open(base_url().'member/update_password', 'class="form-horizontal"', $hidden);
+							echo form_hidden('verified', $verified);  
 							if (isset($email_hash, $email_code)) { 
 								echo form_hidden('email_hash', $email_hash); 
 								echo form_hidden('email_code', $email_code);
@@ -43,7 +40,7 @@
 							<!-- Confirm Password -->
 							<div class="form-group form-group-lg row"> 
                     			<?php $extra = array('class' => 'col-sm-2 control-label');
-                    			echo form_label('Confirm Password', 'confirm_password', $extra); ?>
+                    			echo form_label('Confirm Password', 'confirm_password_label', $extra); ?>
                     			<div class="col-sm-10">
 								<?php $extra = array('class' => 'form-control', 'id' => 'formGroupInputLarge',
 								   'maxlength' => '50', 'size' => '50', 'style'=> 'width:100%');

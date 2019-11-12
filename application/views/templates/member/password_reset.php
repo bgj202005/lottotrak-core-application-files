@@ -4,8 +4,8 @@
 	   <div class="row">
             <div class="col-xs-12 col-md-8">
 			<div class="row">	
-				<h1>Your Password is now reset.</h1>
-				<h2>You must use login to use the new password.</h2>	
+				<h1 class="bg-success" style = "text-align:center; color:snow">Your Password is now reset.</h1>
+				<h2 class="bg-info" style = "text-align:center; color:snow">You must use login to use the new password.</h2>	
 			</div>
 			<div class="row">
 				<div class="col-md-4">

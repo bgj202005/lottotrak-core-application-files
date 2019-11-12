@@ -19,7 +19,7 @@
 						   
                <?php if ($this->session->userdata('logged_in')) 
               { ?>
-              <div class = "col-2">
+              <div class = "col-lg-2">
                 <div id="login_container">
                   <span>Welcome <?=$this->session->userdata('first_name'); ?></span> 
                   <div class = "sm sm-clean"><?php echo anchor('member/logout', '<i class="fa fa-power-off"></i> logout', 'style="float: center" class ="btn btn-default btn-sm"')?></div>
@@ -97,13 +97,13 @@
                 <?php echo form_open('', 'class="seminor-login-form" id ="sem_login"'); ?>
               <div class="form-group">
                   <?php $extra = array('class' => 'form-control', 'id' => 'username_login', 'required autocomplete' => 'off');  
-                echo form_input('username_login','', $extra); 
+                echo form_input('username_login',(!empty(get_cookie('username_login')) ? get_cookie('username_login') : ''), $extra); 
                 $extra = array('class' => 'form-control-placeholder', 'for' => 'username');
                 echo form_label('Username', 'username', $extra); ?>
                 </div>
                 <div class="form-group">
                   <?php $extra = array('class' => 'form-control', 'id' => 'password_login', 'required autocomplete' => 'off');  
-                echo form_password('password_login','', $extra);  
+                echo form_password('password_login',(!empty(get_cookie('password_login')) ? get_cookie('password_login') : ''), $extra);  
                 $extra = array('class' => 'form-control-placeholder', 'for' => 'password');
                 echo form_label('Password', 'password', $extra); ?>
                 </div>

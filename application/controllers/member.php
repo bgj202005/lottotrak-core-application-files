@@ -1,6 +1,7 @@
 <?php 
 defined('BASEPATH') OR exit('No direct script access allowed');
-class Member extends Frontend_Controller {
+class Member extends Frontend_Controller 
+{
     
     function __construct() {
         parent::__construct();
@@ -225,7 +226,7 @@ class Member extends Frontend_Controller {
     	        $email = $this->input->post('email_forgot');
     	        $email_exists = $this->member_m->Email_exists($email);
     	         
-                if ($email_exists->id) 
+                if (is_object($email_exists)) 
 				{
     	            // Email exist, send out email
     	            $this->member_m->Send_email($email_exists->id, $email, $email_exists->first_name);
@@ -282,28 +283,35 @@ class Member extends Frontend_Controller {
 	public function update_password() 
 	{
 	   
-		if (! isset($_POST['email'],
+        if (! isset($_POST['email'],
 		$_POST['email_hash']) || $_POST['email_hash'] !== sha1($_POST['email'].$_POST['email_code'])) {
 	       die('Error updating your password');
-	}
+	    }
 	   
-        $this->data = $this->member_m->array_from_post(array('id', 'email', 'password', 'verified')); // email_hash, email_code not used
-	    $id = $this->data['id'];
+        $this->data['member'] = $this->member_m->array_from_post(array('id', 'email', 'password')); // email_hash, email_code not used
+        
+        $id = $this->data['member']['id'];
+
         // verify that the passwords match, valid email and email hash
         $rules = $this->member_m->update_password_rules;
         $this->form_validation->set_rules($rules);
         
         if ($this->form_validation->run() == FALSE) 
         {
+            // Reload this view
+            $this->data['id'] = $id;
+            $this->data['email_code'] = $this->input->post('email_code');
+            $this->data['email_hash'] = $this->input->post('email_hash');
+            $this->data['verified'] = $this->input->post('verified');
+            $this->data['email'] = $this->input->post('email');
             $this->data['subview'] = 'member/update_password';
             $this->data['meta_title'] = 'Change Your Password';
         } 
         else 
         {
             // We can save and redirect
-            $this->data['password'] = $this->member_m->hash_password($this->data['password']);
-            $this->member_m->_time_stamps = FALSE;
-            $id = $this->member_m->save($this->data, $id);
+            $this->data['member']['password'] = $this->member_m->hash_password($this->data['member']['password']);
+            $id = $this->member_m->save($this->data['member'], $id);
             
             if (isset($id)) 
             {
