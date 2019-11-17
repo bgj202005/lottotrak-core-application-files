@@ -106,6 +106,20 @@ class Member_m extends MY_Model
 		return $id;
 	}
     
+    /**
+     * Get the current cookie experation time 
+     * for one month
+     *
+     * @param none
+     * @return string format using the integer timestamp
+     */
+    private function _cookie_experation_time()
+    {
+        $time = time();
+        $current_time = date("Y-m-d H:i:s", $time);
+    return ($current_time + (30 * 24 * 60 * 60));  // return for 1 month
+    }
+
     public function login_database() {
         
         // Does the Member Exist?
@@ -114,7 +128,13 @@ class Member_m extends MY_Model
                     'username' => $this->input->post('username_login')),TRUE);
 
         if (isset($nonmember)) {
-            
+            // Set Auth Cookies if 'Remember Me' checked
+            if (!empty($this->input->post('rememberme'))) 
+            {
+                set_cookie('username_login', $nonmember->username, _cookie_experation_time());
+                set_cookie('password_login', $this->input->post('password_login'), _cookie_experation_time());
+            }
+
             $hashed_password = $nonmember->password;            
             
         if ($this->check_password($this->input->post('password_login'), $hashed_password)) {
@@ -133,6 +153,8 @@ class Member_m extends MY_Model
                    );
                 
             $this->session->set_userdata ($member);
+            // Set Auth Cookies if 'Remember Me' checked       
+
             return TRUE;
         } else {
             return FALSE;

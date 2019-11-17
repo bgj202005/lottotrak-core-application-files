@@ -16,13 +16,13 @@
 									<?php echo get_menu($menu); ?>
 								</nav>							  
 						   </div>
-						   
                <?php if ($this->session->userdata('logged_in')) 
               { ?>
               <div class = "col-lg-2">
-                <div id="login_container">
-                  <span>Welcome <?=$this->session->userdata('first_name'); ?></span> 
-                  <div class = "sm sm-clean"><?php echo anchor('member/logout', '<i class="fa fa-power-off"></i> logout', 'style="float: center" class ="btn btn-default btn-sm"')?></div>
+                <ul id = "login_container">
+                  <li style="float: left; margin-top: 25px;"><span>Welcome <?=$this->session->userdata('first_name'); ?></span></li> 
+                  <li style="float: left; margin-top:10px"><div class = "sm sm-clean"><?php echo anchor('member/logout', '<i class="fa fa-power-off"></i> logout', 'style="display: inline; text-align: center; padding:15px;" class ="btn btn-default btn-sm"')?></div></li>
+                </ul>
                 </div>
               </div> 
         <?php }     
@@ -64,7 +64,7 @@
                 echo form_label('Email', 'email', $extra); ?>
               </div>
               <div class="form-group forgot-pass-fau text-center">
-                <?php echo anchor('/member/terms-conditions', '<span class="text-primary-fau">By Clicking "REGISTER NOW" you accept our<br>
+                <?php echo anchor(base_url().'terms-and-conditions/', '<span class="text-primary-fau">By Clicking "REGISTER NOW" you accept our<br>
                   Terms and Conditions</span>', 'class="text-secondary"'); ?>
               </div>
               
@@ -110,7 +110,7 @@
                 <div class="form-group">
                   <label class="container-checkbox">
                       Remember Me On This Computer
-                    <?php echo form_checkbox('remember_me', 'rememberme', TRUE); ?>
+                    <?php echo form_checkbox('remember_me', 'rememberme', (!empty(get_cookie('username_login')) ? TRUE : FALSE)); ?>
                     <span class="checkmark-box"></span>
                   </label>
                 </div>
