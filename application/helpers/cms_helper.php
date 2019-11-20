@@ -114,10 +114,10 @@ function btn_delete($uri) {
  function get_excerpt($article, $first = FALSE, $numwords = 50) {
 	$string = '';
  	$url = 'article/'.intval($article->id).'/'. e($article->slug);
-	$string .= (!$first  ? '<h3>'.anchor($url, e($article->title)).'></h3>' : '<h2>'.anchor($url, e($article->title)).'</h2>');
+	$string .= (!$first  ? '<h3>'.anchor($url, e($article->title)).'</h3>' : '<h2>'.anchor($url, e($article->title)).'</h2>');
  	$string .= (!$first  ? '<p class = "pubdate">'. e($article->pubdate).'</p>' : '');
  	$string .= '<p>'. e(limit_to_numwords(strip_tags($article->body), $numwords)).'</p>';
- 	$string .= '<p>'.anchor($url, 'Read More > ...', array('title' => e($article->title), 'class' => 'readmore')).'</p>';
+ 	$string .= '<div align = "left" style = "width:1em;"><p>'.anchor($url, 'Read More > ...', array('title' => e($article->title), 'class' => 'readmore')).'</p></div>';
  return $string;
  }
  
