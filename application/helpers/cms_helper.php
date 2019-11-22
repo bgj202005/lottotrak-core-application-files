@@ -2,7 +2,7 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 function btn_edit($uri) {
-	return anchor($uri, '<i class ="glyphicon glyphicon-edit"');
+	return anchor($uri, '<i class="fa fa-pencil"></i>');
 }
 
 function add_meta_title($string) {
@@ -57,7 +57,7 @@ function e($string) {
 
 function btn_delete($uri) {
 	
-	return anchor($uri, '<i class ="glyphicon glyphicon-remove"></i>', array(
+	return anchor($uri, '<i class="fa fa-times-circle"></i>', array(
 			'onclick' => "return confirm('You are about to delete a record. This can not be undone. Are you sure?');"));
  	}
 

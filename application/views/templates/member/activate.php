@@ -46,7 +46,7 @@
 							<!-- Email Field -->
 							<div class="form-group form-group-lg row"> 
                     			<?php $extra = array('class' => 'col-4 col-form-label-lg');
-                    			echo form_label('Email', 'email', $extra); ?>
+                    			echo form_label('Email:', 'email', $extra); ?>
                     			<div class="col-8">
 								<?php $extra = array('class' => 'form-control', 'id' => 'formGroupInputLarge',
 								   'maxlength' => '50', 'size' => '50', 'style'=> 'width:100%');    
@@ -111,7 +111,7 @@
 							<!-- State or Province Field -->
 							<div class="form-group form-group-lg row"> 
 								<?php $extra = array('class' => 'col-4 col-form-label col-form-label-lg');
-								echo form_label('State or Province', 'state_province', $extra); ?>
+								echo form_label('State / Province:', 'state_province', $extra); ?>
 								<div class="col-8">
 									<?php // $extra = array('class' => 'form-control', 'id' => 'formGroupInputLarge', 'maxlength' => '50', 'size' => '50', 'style'=> 'width:100%');
 									// echo form_input('state_prov',set_value('state_prov', $member->state_prov), $extra); ?>

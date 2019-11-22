@@ -1,29 +1,27 @@
 <?php $this->load->view('admin/components/page_head'); ?>
 <body>
- <nav class="navbar navbar-static-top navbar-inverse">
-  <div class="container-fluid">
-    <!-- Brand and toggle get grouped for better mobile display -->
-    <div class="navbar-header">
-     
-      <a class="navbar-brand" href="<?php echo site_url('admin/dashboard');?>"><?php echo $meta_title; ?></a>
-    </div>
-
+ <!-- <nav class="navbar navbar-static-top navbar-inverse"> -->
+ <nav class="navbar navbar-expand-lg navbar-dark bg-dark">  
+    <a class="navbar-brand" href="<?php echo site_url('admin/dashboard');?>"><?php echo $meta_title; ?></a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
     <!-- Collect the nav links, forms, and other content for toggling -->
-    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
-      <ul class="nav navbar-nav">
-        <li class="active"><a href="<?php echo site_url('admin/dashboard');?>">Dashboard<span class="sr-only">(current)</span></a></li>
-        <li><?php echo anchor('admin/page', 'Pages');?></li>
-        <li><?php echo anchor('admin/article', 'News Articles');?></li>
-        <li><?php echo anchor('admin/lotteries', 'Lotteries');?></li>
-        <li><?php echo anchor('admin/page/order/0', 'Header Menu Order ');?></li>
-        <li><?php echo anchor('admin/page/order/1', 'Footer Insider Menu Order ');?></li>
-        <li><?php echo anchor('admin/page/order/2', 'Footer Outside Menu Order ');?></li>
-        <li><?php echo anchor('admin/user', 'Users');?></li>
-        <li><?php echo anchor_popup(base_url(), '<span class="glyphicon glyphicon-globe"></span>')?></li>        
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav">
+        <li class="nav-item active" style ="margin-top:8px;"><a href="<?php echo site_url('admin/dashboard');?>">Dashboard<span class="sr-only">(current)</span></a></li>
+        <li class="nav-item"><?php echo anchor('admin/page', 'Pages', 'class = "nav-link"');?></li>
+        <li class="nav-item"><?php echo anchor('admin/article', 'Lottery News Articles','class = "nav-link"');?></li>
+        <li class="nav-item"><?php echo anchor('admin/membership', 'Members', 'class = "nav-link"');?></li>
+        <li class="nav-item"><?php echo anchor('admin/lotteries', 'Lotteries', 'class = "nav-link"');?></li>
+        <li class="nav-item"><?php echo anchor('admin/page/order/0', 'Header Menu Order ', 'class = "nav-link"');?></li>
+        <li class="nav-item"><?php echo anchor('admin/page/order/1', 'Footer Insider Menu Order ', 'class = "nav-link"');?></li>
+        <li class="nav-item"><?php echo anchor('admin/page/order/2', 'Footer Outside Menu Order ', 'class = "nav-link"');?></li>
+        <li class="nav-item"><?php echo anchor('admin/user', 'Users', 'class = "nav-link"');?></li>
+        <li class="nav-item"><?php echo anchor_popup(base_url(), '<i class="fa fa-globe" style="color:#fff; padding: 5px; margin-top:5px;"></i>')?></li>        
       </ul>
     </div><!-- /.navbar-collapse -->
-  </div><!-- /.container-fluid -->
-
+  <!-- </div> --><!-- /.container-fluid -->
  </nav>
     <div class = "container-fluid">
     	<div class = "row">
@@ -37,9 +35,9 @@
 		    	</div>
 		    <!--  Sidebar -->
 		    	<div class = "col-md-4">
-		    	<section>
-		    		<?php echo anchor('admin/user/login', '<span class="glyphicon glyphicon-user"></span>  '.$this->session->userdata['email']); ?><br>
-		    		<?php echo anchor('admin/user/logout', '<span class="glyphicon glyphicon-off"></span>   logout')?>
+		    	<section style = "padding: 10px;">
+		    		<?php echo anchor('admin/user/login', '<i class="fa fa-user"></i> '.$this->session->userdata['email']); ?><br>
+		    		<?php echo anchor('admin/user/logout', '<i class="fa fa-power-off"></i>   logout')?>
 		    	</section>
 		    </div>
 		</div>
