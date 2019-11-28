@@ -29,17 +29,12 @@ class Membership_M extends MY_Model
 			'username' => array (
 					'field' => 'username',
 					'label' => 'Username',
-					'rules' => 'trim|required|callback__unique_username|xss_clean'
-			),
-			'name' => array (
-					'field' => 'name',
-					'label' => 'Name',
-					'rules' => 'trim|required|xss_clean'
+					'rules' => 'trim|xss_clean'
 			),
 			'email' => array (
 					'field' => 'email',
 					'label' => 'Email',
-					'rules' => 'trim|required|valid_email|callback__unique_email|xss_clean'
+					'rules' => 'trim|xss_clean'
 			),
 			'password' => array (
 					'field' => 'password',
@@ -96,33 +91,34 @@ class Membership_M extends MY_Model
 		parent::__construct();
 	}
 	
-	
-	public function loggedin() 
-	{
-		
-		return (bool) $this->session->userdata('loggedin');
-	}
-	
+	/**
+	 * Creates a Member Data Standard Object
+	 * 
+	 * @param       none
+	 * @return      none
+	 */
 	public function get_new() 
 	{
-		$user = new stdClass();
-		$user->name = '';
-		$user->username = '';
-		$user->password = '';
-		$user->email = '';
-		
-		return $user;
+		$member = new stdClass();
+		$member->id = NULL;
+		$member->username = '';
+		$member->password = '';
+		$member->email = '';
+		$member->first_name = '';
+		$member->last_name = '';
+		$member->city = '';
+		$member->state_prov = '';
+		$member->country_id = '';
+		$member->lottery_id = 0;
+		$member->member_active = 0;
+		$member->reg_time = date('Y-m-d H:i:s'); // Current Time Stamp
+		return $member;
 	}
 
 	public function hash($password)
 	{
 		return password_hash($password, PASSWORD_DEFAULT);
 	}
-	
-	/* public function hash($password, $unique_salt) 
-	{
-		return crypt($password, '$2a$10$'.$unique_salt);
-	} */
 	
 	public function check_password($password, $hash)
 	{

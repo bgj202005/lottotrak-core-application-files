@@ -7,9 +7,9 @@
 	<![endif]-->
 <!-- Bootstrap Form Helpers -->	
 <script src="<?php echo site_url('js/bootstrap-formhelpers.min.js');?>"></script>	
-<?php echo validation_errors(); ?>
-<?php echo form_open(); ?>
+<?php echo form_open(base_url().'admin/membership/edit/'.$member->id); ?>
 	<h2><?php echo empty($member->id) ? 'Add a new Member' : 'Edit Member: '.$member->username; ?></h2>
+	<?php if (!empty($message)) ?> <h3 style = "text-align:center;"><?=$message; ?></h3>
 	<div class = "modal-body" style = "width:90%">
 	<div class="form-group">
 		<!-- Username Field -->
@@ -34,7 +34,6 @@
 						echo form_error('email', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 					</div>
 				</div>
-				<p class="bg-info" style = "padding: 1em; text-align: center; color:snow;">Please enter a new password and confirm the new password.</p>
 				<!-- Password Field -->
 				<div class="form-group form-group-lg row"> 
 					<?php $extra = array('class' => 'col-4 col-form-label-lg');
@@ -42,7 +41,7 @@
 					<div class="col-8">
 					<?php $extra = array('class' => 'form-control', 'id' => 'formGroupInputLarge',
 						'maxlength' => '50', 'size' => '50', 'style'=> 'width:100%');
-						echo form_password('password',set_value('password', ''), $extra); 
+						echo form_password('password', '' , $extra); 
 						echo form_error('password', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 					</div>
 				</div>
@@ -53,8 +52,8 @@
 					<div class="col-8">
 					<?php $extra = array('class' => 'form-control', 'id' => 'formGroupInputLarge',
 						'maxlength' => '50', 'size' => '50', 'style'=> 'width:100%');
-						echo form_password('confirm_password',set_value('confirm_password', ''), $extra); 
-						echo form_error('confirm_password', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
+						echo form_password('password_confirm', '', $extra); 
+						echo form_error('password_confirm', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 					</div>
 				</div>
 				<!-- Firstname Field -->
@@ -141,11 +140,17 @@
 					<?php $extra = array('class' => 'col-4 col-form-label col-form-label-lg');
 					echo form_label('Account Active', 'account_active', $extra); ?>
 					<div class="col-8" style="margin-top:10px;">
-						<?php echo form_checkbox('member_active', set_value('member_active', $member->member_active), 
-						($member->member_active ? TRUE : FALSE)); ?>
+						<?php echo form_checkbox('member_active', ($member->member_active ? 1 : 0), ($member->member_active ? TRUE : FALSE)); ?>
 					</div>
 				</div>
 				<div style = "text-align: center;"><?php echo form_submit('submit', 'Update Profile', 'class="btn btn-primary btn-lg btn-info"');
+				$js = "location.href='".base_url()."admin/membership'";
+				$attributes = array(
+					'class' 	=> "btn btn-primary btn-lg btn-info", 
+					'onClick' 	=> "$js", 
+					'style' 	=> "margin-left:20px;"
+				);
+				echo form_button('members_list', 'Back to Members List', $attributes);
 			echo form_close(); ?> <!-- </form> -->
 		</div>
 	</div>

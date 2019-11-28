@@ -21,10 +21,10 @@
 					<td>&nbsp;</td>
 				</tr>
 			</div>
-				<tr>
-					<td scope = "row" colspan = 2><?php echo anchor('admin/user/forgotpassword', 'Forgot Your Password?')?></td>
-					<td>&nbsp;</td>
-				</tr>
+			<tr>
+				<td scope = "row" colspan = 2><?php echo anchor('admin/user/forgotpassword', 'Forgot Your Password?')?></td>
+				<td>&nbsp;</td>
+			</tr>
 		</tbody>
 	</table>
 <?php echo form_close();?>

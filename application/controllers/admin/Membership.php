@@ -25,11 +25,11 @@ class Membership extends Admin_Controller
 	{
 		
 		// Fetch a user or set a new one
-		$id == NULL OR $this->data['member'] = $this->membership_m->get($id);
+		//$id == NULL OR $this->data['member'] = $this->membership_m->get($id);
 		
 		if ($id) 
 		{
-			$this->data['member'] = $this->membership_m->get($id); 
+			$this->data['member'] = $this->membership_m->get($id);
 			count($this->data['member']) || $this->data['errors'][] = 'Member could not be found';
 		} 
 		else 
@@ -38,23 +38,42 @@ class Membership extends Admin_Controller
 		}
 		
 		// Setup the form
-		$rules = $this->user_m->rules_admin;
+		$rules = $this->membership_m->rules_admin;
 		$id OR $rules['password']['rules'].= '|required';
-		$this->form_validation->set_rules($rules);
+		$id OR $rules['username']['rules'].= '|required|callback__unique_username';
+		$id OR $rules['email']['rules'].= '|required|valid_email|callback__unique_email';
 		
-		if ($this->form_validation->run()  == TRUE) 
+		if ($id) 
+		{ 
+			if (empty($this->input->post('password'))) 
+			{
+				$_POST['password'] = $this->data['member']->password;
+				$_POST['password_confirm'] = $this->data['member']->password;
+			}
+		}
+
+		$this->form_validation->set_rules($rules);
+
+		if ($this->form_validation->run() == TRUE) 
 		{
 				
+			if (empty($this->input->post('state_prov'))) $_POST['state_prov'] = $this->data['member']->state_prov;
+			
+			$_POST['member_active'] = (is_null($this->input->post('member_active')) ? 0 : 1); 
+		
 			// We can save and redirect
-			$data = $this->user_m->array_from_post(array('username', 'name', 'email', 'password'));
+			$data = $this->membership_m->array_from_post(array('username', 'email', 'password', 
+										'first_name', 'last_name', 'city', 'state_prov', 'country_id', 
+										'lottery_id', 'member_active'));
 
 			//$data['password'] = $this->user_m->hash($data['password'], $this->user_m->unique_salt());
-			$data['password'] = $this->user_m->hash($data['password']);
+			$data['password'] = $this->membership_m->hash($data['password']);
+			// print_r($this->input->post(NULL, FALSE));
+			$this->membership_m->save($data, $id);
+			//redirect('admin/membership');
+			$this->data['message'] = (is_null($id) ? "The Member has been added and an email has been sent." : "The Member profile has been updated.");
+		} else $this->data['message'] = ''; 
 
-			$this->user_m->save($data, $id);
-			redirect('admin/membership');
-		}
-		
 		// Load the View
 		$this->data['subview'] = 'admin/membership/edit';
 		$this->load->view('admin/_layout_main', $this->data);
@@ -63,7 +82,7 @@ class Membership extends Admin_Controller
 	public function delete($id) 
 	{
 		
-		$this->user_m->delete($id);
+		$this->membership_m->delete($id);
 		redirect('admin/membership');
 	}
 	
