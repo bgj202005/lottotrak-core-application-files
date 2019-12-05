@@ -1,6 +1,6 @@
 <?php echo validation_errors(); ?>
 <?php echo form_open(); ?>
-	<h2><?php echo empty($user->id) ? 'Add a new user' : 'Edit User '.$user->name; ?></h2>
+	<h2><?php echo empty($user->id) ? 'Add a new admin user' : 'Edit Administrator: '.$user->name; ?></h2>
 	<div class = "modal-body" style = "width:85%">
 	
 <table class = "table" style = "width:80%;">

@@ -1,5 +1,5 @@
 <section>
-	<h2>News Articles</h2>
+	<h2>Lottery News Articles</h2>
 	<?php echo anchor('admin/article/edit', '<i class = "icon-plus"></i> Add an article'); ?>
 	
 	<table class="table table-striped">

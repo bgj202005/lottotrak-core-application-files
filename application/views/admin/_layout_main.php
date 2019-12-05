@@ -17,7 +17,7 @@
         <li class="nav-item"><?php echo anchor('admin/page/order/0', 'Header Menu Order ', 'class = "nav-link"');?></li>
         <li class="nav-item"><?php echo anchor('admin/page/order/1', 'Footer Insider Menu Order ', 'class = "nav-link"');?></li>
         <li class="nav-item"><?php echo anchor('admin/page/order/2', 'Footer Outside Menu Order ', 'class = "nav-link"');?></li>
-        <li class="nav-item"><?php echo anchor('admin/user', 'Users', 'class = "nav-link"');?></li>
+        <li class="nav-item"><?php echo anchor('admin/user', 'Admins', 'class = "nav-link"');?></li>
         <li class="nav-item"><?php echo anchor_popup(base_url(), '<i class="fa fa-globe" style="color:#fff; padding: 5px; margin-top:5px;"></i>')?></li>        
       </ul>
     </div><!-- /.navbar-collapse -->

@@ -10,6 +10,12 @@ class Membership extends Admin_Controller
 		 $this->load->model('membership_m');
 	}
 	
+	/**
+	 * Retrieves List of All Members
+	 * 
+	 * @param       none
+	 * @return      none
+	 */
 	public function index() 
 	{
 		// Fetch all users from the database

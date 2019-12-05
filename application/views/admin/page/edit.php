@@ -29,12 +29,11 @@
 		<td><?php echo form_input('slug', set_value('slug', $page->slug)); ?></td>
 	</tr>
 	<tr>
-		<td>Body:</td>
-		<td><!--  <textarea class = "tinymce" name = "body"><?php // echo $page->body; ?></textarea> -->
-		<?php echo form_textarea('body', $page->body, 'class="tinymce"'); ?></td>
+		<td>Page Content:</td>
+		<td><?php echo form_textarea('body',  stripslashes($page->body), 'id="editarea"'); ?></td>
 	</tr>
 	<tr>
-	<td><?php echo form_submit('submit', 'Submit', '
+	<td><?php echo form_submit('submit', 'Save and Close', '
 			class="btn btn-primary"'); ?></td>
 	</tr>
 </table>

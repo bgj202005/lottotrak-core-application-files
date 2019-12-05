@@ -3,8 +3,8 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Lotteries_m extends MY_Model
 {
-	protected $_table_name = 'pages';
-	protected $_order_by = 'parent_id, order';
+	protected $_table_name = 'lottery_profile';
+	protected $_order_by = 'id, order';
 	public $rules = array(
 		'parent_id' => array(
 			'field' => 'parent_id', 

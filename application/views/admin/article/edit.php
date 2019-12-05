@@ -42,11 +42,12 @@
 		<td><?php echo form_input('slug', set_value('slug', $article->slug), 'style = "width:100%;"'); ?></td>
 	</tr>
 	<tr>
-		<td style="width: 20%;">Body:</td>
-		<td><?php echo form_textarea('body', $article->body, 'class=tinymce'); ?></td>
+		<td style="width: 20%;">Lottery Article Content:</td>
+		<td><?php echo form_textarea('body', stripslashes($article->body), 'id="editarea"');
+			?></td>
 	</tr>
 	<tr>
-		<td><?php echo form_submit('submit', 'Submit', '
+		<td><?php echo form_submit('submit', 'Save and Close', '
 			class="btn btn-primary"'); ?></td>
 	</tr>
 </table>

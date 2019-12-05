@@ -7,12 +7,19 @@ class Lotteries extends Admin_Controller {
 		 parent::__construct();
 		 $this->load->model('lotteries_m');
 	}
-	
+
+	/**
+	 * Retrieves List of All Lotteries
+	 * 
+	 * @param       none
+	 * @return      none
+	 */
 	public function index() {
-		// Fetch all pages
-		$this->data['pages'] = $this->lotteries_m->get_with_parent();
+		// Fetch all users from the database
+		$this->data['members'] = $this->lotteries_m->get();
 		
 		// Load the view
+
 		$this->data['subview'] = 'admin/lotteries/index';
 		$this->load->view('admin/_layout_main', $this->data);
 	}

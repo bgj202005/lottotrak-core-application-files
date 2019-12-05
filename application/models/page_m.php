@@ -163,7 +163,7 @@ class Page_m extends MY_Model
 		$pages = parent::get();
 		// Return key => value pair array
 		$array = array(
-			0 => 'No parent'
+			0 => 'Top Level'
 		);
 		if (count($pages)) {
 			foreach ($pages as $page) {

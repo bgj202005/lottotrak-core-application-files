@@ -28,15 +28,32 @@
 <script src="<?php echo site_url('js/bootstrap-datepicker.js');?>"></script>
  
 <!-- Load TinyMCE -->
-<script type="text/javascript">
-tinymce.init({
-    selector: "textarea",
+<script src='https://cdn.tiny.cloud/1/no-api-key/tinymce/5/tinymce.min.js' referrerpolicy="origin"></script>
+  <script>
+  tinymce.init({
+    selector: '#editarea',
+    height: 500,
+    menubar: true,
+    automatic_uploads: false,
+    images_upload_credentials: true,
+    images_upload_url: '<?php echo base_url()?>upload.php',
+  images_upload_base_path: '<?php echo base_url()?>',
+  relative_urls: false,
+   document_base_url : "<?php echo base_url()?>",
     plugins: [
-        "advlist autolink lists link image charmap print preview anchor",
-        "searchreplace visualblocks code fullscreen",
-        "insertdatetime media table contextmenu paste"
+        'advlist autolink lists link image charmap print preview anchor',
+        'searchreplace visualblocks code fullscreen',
+        'insertdatetime media table paste code help wordcount',
+        "image imagetools"
     ],
-    toolbar: "insertfile undo redo | styleselect | bold italic | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image"
-});
-</script>
+    toolbar: 'undo redo | formatselect | ' +
+    ' bold italic backcolor | alignleft aligncenter ' +
+    ' alignright alignjustify | bullist numlist outdent indent |' +
+    ' removeformat | help',
+    content_css: [
+        '//fonts.googleapis.com/css?family=Lato:300,300i,400,400i',
+        '//www.tiny.cloud/css/codepen.min.css'
+    ]
+  });
+  </script>
 </head>  

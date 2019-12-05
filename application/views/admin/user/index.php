@@ -1,6 +1,6 @@
 <section>
-	<h2>Users</h2>
-	<?php echo anchor('admin/user/edit', '<i class = "icon-plus"></i> Add a User'); ?>
+	<h2>Admin Users</h2>
+	<?php echo anchor('admin/user/edit', '<i class = "icon-plus"></i> Add a new admin user'); ?>
 	
 	<table class="table table-striped">
 		<thead>
@@ -21,7 +21,7 @@
 	
 	<?php else: ?>
 		<tr>
-			<td colspan="3">We could not find any users.</td>
+			<td colspan="3">We could not find any Administrator Users.</td>
 		</tr>
 <?php endif; ?>
 		</tbody>
