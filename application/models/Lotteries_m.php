@@ -3,7 +3,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Lotteries_m extends MY_Model
 {
-	protected $_table_name = 'lottery_profile';
+	protected $_table_name = 'lottery_profiles';
 	protected $_order_by = 'id, order';
 	public $rules = array(
 		'parent_id' => array(
@@ -21,7 +21,7 @@ class Lotteries_m extends MY_Model
 			'label' => 'Template', 
 			'rules' => 'trim|required|xss_clean'
 		), 
-		'title' => array(
+		'lotteryname' => array(
 			'field' => 'title', 
 			'label' => 'Title', 
 			'rules' => 'trim|required|max_length[100]|xss_clean'
@@ -38,39 +38,33 @@ class Lotteries_m extends MY_Model
 		)
 	);
 
-	public $new_member_rules = array(
-	        'username' => array (
-	                'field' => 'username',
-	                'label' => 'Username',
-	                'rules' => 'required|min_length[5]|max_length[15]',
-	        ),
-	        'email' => array (
-	                'field' => 'email',
-	                'label' => 'Email',
-	                'rules' => 'trim|required|valid_email|xss_clean',
-	        ),
-	        'password' => array (
-	                'field' => 'password',
-	                'label' => 'Password',
-	                'rules' => 'trim|required|min_length[6]|max_length[30]|matches[password_confirm]|xss_clean',
-	        ),
-	        'password_confirm' => array (
-	                'field' => 'password_confirm',
-	                'label' => 'Confirm password',
-	                'rules' => 'trim|required|min_length[6]|max_length[30]|xss_clean',
-	        ),
-	);
-	
 	public function get_new ()
 	{
-		$page = new stdClass();
-		$page->title = '';
-		$page->slug = '';
-		$page->body = '';
-		$page->parent_id = 0;
-		$page->menu_id = 0; // New Menu Location 0 = Header, 1 = Footer Menu (Inside), 2 = Footer Menu (Outside)
-		$page->template = 'page';
-		return $page;
+		$lottery = new stdClass();
+		$lottery->id = NULL;
+		$lottery->name = '';
+		$lottery->description = '';
+		$lottery->image = '';
+		$lottery->country_id = '';
+		$lottery->state_prov = '';
+		$lottery->balls_drawn = 0;
+		$lottery->minimum_ball = 0;
+		$lottery->maximum_ball = 0;
+		$lottery->extra_ball = 0; // 0 = False 1 = True
+		$lottery->duplicate_extra = 0; // 0 = False 1 = True
+		$lottery->extra_minimum_ball = 0;
+		$lottery->extra_maximum_ball = 0;
+		$lottery->days = array(
+			'sunday' => 0,
+			'monday' => 0,
+			'tuesday' => 0,
+			'wednesday' => 0,
+			'thursday' => 0,
+			'friday' => 0,
+			'saturday' => 0
+		);
+		$lottery->last_draw_date = '';
+		return $lottery;
 	}
 /*	public function get_archive_link(){
 		$page = parent::get_by(array('template' => 'newsarticle'), TRUE);

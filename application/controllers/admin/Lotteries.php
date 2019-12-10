@@ -16,7 +16,7 @@ class Lotteries extends Admin_Controller {
 	 */
 	public function index() {
 		// Fetch all users from the database
-		$this->data['members'] = $this->lotteries_m->get();
+		$this->data['lotteries'] = $this->lotteries_m->get();
 		
 		// Load the view
 
@@ -29,17 +29,16 @@ class Lotteries extends Admin_Controller {
 		// Fetch a page or set a new one
 		
 	    if ($id) {
-			$this->data['page'] = $this->page_m->get($id);
+			$this->data['lottery'] = $this->lotteries_m->get($id);
 			//$this->data['page']->body = $this->strip_false_tags($this->data['page']->body); // Strip HTML out of tinymce editor
-			count($this->data['page']) || $this->data['errors'][] = 'page could not be found';
+			count($this->data['lottery']) || $this->data['errors'][] = 'Lottery Profile could not be found';
 		} else {
-			$this->data['page'] = $this->page_m->get_new();
+			$this->data['lottery'] = $this->lotteries_m->get_new();
+			$this->data['message'] = ''; //default to no error message and new lottery
 		}
 		
-		// pages for dropdown
-		$this->data['pages_no_parents'] = $this->page_m->get_no_parents();
 		// Setup the form
-		$rules = $this->page_m->rules;
+		$rules = $this->lotteries_m->rules;
 		$this->form_validation->set_rules($rules);
 		
 		if ($this->form_validation->run()  == TRUE) {
@@ -56,11 +55,11 @@ class Lotteries extends Admin_Controller {
 			) );
 			$data['body'] = addslashes($data['body']);
 			$this->page_m->save($data, $id);
-			redirect('admin/page');
-		}
+			redirect('admin/lotteries');
+		} elseif ($id) $this->data['message'] = "Errors must be corrected.";
 		
 		// Load the View
-		$this->data['subview']  = 'admin/page/edit';
+		$this->data['subview']  = 'admin/lotteries/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 	

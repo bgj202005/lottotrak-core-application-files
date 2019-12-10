@@ -20,9 +20,9 @@
 			</tr>
 		</thead>
 		<tbody>
-	<?php if (count($pages)): foreach($pages as $page): ?>
+	<?php if (count($lotteries)): foreach($lotteries as $lottery): ?>
 	<tr> 
-		<td><?php echo anchor('admin/page/edit/'.$page->id, $page->title);?></td>
+		<td><?php echo anchor('admin/lotteries/edit/'.$page->id, $page->title);?></td>
 		<td><?php echo empty($page->parent_id) ? "No Parent" : $page->parent_title; ?></td>
 		<td><?php switch ($page->menu_id) {
 			case 1:
@@ -41,7 +41,7 @@
 	
 	<?php else: ?>
 		<tr>
-			<td colspan="3">We could not find any pages.</td>
+			<td colspan="12" style = "text-align:center">No Lotteries are available.</td>
 		</tr>
 <?php endif; ?>
 		</tbody>

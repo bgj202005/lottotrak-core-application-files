@@ -10,7 +10,7 @@
 			<div class="form-group">
 				<div class="input-group date" id="datepicker1" data-provide="datepicker"> 
 					<?php echo form_input('pubdate', set_value('pubdate', date("d-m-Y",strtotime(str_replace('/','-',$article->pubdate)))),'class="datepicker" style ="width:100%"'); ?>  
-					<span class="input-group-addon"><span class="glyphicon glyphicon-calendar"></span></span>
+					<span class="input-group-addon"><i class="fa fa-calendar"></i></span>
 				</div>
 			</div> <!--  <div class="input-group date" data-provi/**
 			 * Function Name
