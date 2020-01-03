@@ -42,7 +42,7 @@ class Membership extends Admin_Controller
 		{
 			$this->data['member'] = $this->membership_m->get_new();
 		}
-		
+		$this->data['message'] = '';  // Create a Message object
 		// Setup the form
 		$rules = $this->membership_m->rules_admin;
 		$id OR $rules['password']['rules'].= '|required';
@@ -72,14 +72,13 @@ class Membership extends Admin_Controller
 										'first_name', 'last_name', 'city', 'state_prov', 'country_id', 
 										'lottery_id', 'member_active'));
 
-			//$data['password'] = $this->user_m->hash($data['password'], $this->user_m->unique_salt());
 			$data['password'] = $this->membership_m->hash($data['password']);
-			// print_r($this->input->post(NULL, FALSE));
-			$this->membership_m->save($data, $id);
-			//redirect('admin/membership');
-			$this->data['message'] = (is_null($id) ? "The Member has been added and an email has been sent." : "The Member profile has been updated.");
-		} else $this->data['message'] = ''; 
+			
+			$this->data['member'] = $this->membership_m->array_to_object($this->data['member'], $data);
+			$this->data['member']->id = $this->membership_m->save($data, $id);
 
+			$this->data['message'] = (is_null($id) ? "The Member has been added and an email has been sent." : "The Member profile has been updated.");
+		} 
 		// Load the View
 		$this->data['subview'] = 'admin/membership/edit';
 		$this->load->view('admin/_layout_main', $this->data);

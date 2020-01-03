@@ -4,37 +4,77 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Lotteries_m extends MY_Model
 {
 	protected $_table_name = 'lottery_profiles';
-	protected $_order_by = 'id, order';
+	protected $_order_by = 'id';
 	public $rules = array(
-		'parent_id' => array(
-			'field' => 'parent_id', 
-			'label' => 'Parent', 
-			'rules' => 'trim|intval'
+        'lottery_name' => array(
+            'field' => 'lottery_name',
+            'label' => 'Lottery Name',
+            'rules' => 'trim|required|max_length[100]|callback__unique_lotteryname|xss_clean'
 		),
-        'menu_id' => array(
-            'field' => 'menu_id',
-            'label' => 'Menu Item Location',
-            'rules' => 'trim|intval'
-        ),
-		'template' => array(
-			'field' => 'template', 
-			'label' => 'Template', 
-			'rules' => 'trim|required|xss_clean'
+		'lottery_image' => array(
+            'field' => 'lottery_image',
+            'label' => 'Lottery Image Upload',
+            'rules' => 'callback__file_check'
+		),
+		'balls_drawn' => array(
+			'field' => 'balls_drawn', 
+			'label' => 'Balls Drawn', 
+			'rules' => 'required|max_length[1]|integer|greater_than_equal_to[3]|less_than_equal_to[9]'
 		), 
-		'lotteryname' => array(
-			'field' => 'title', 
-			'label' => 'Title', 
-			'rules' => 'trim|required|max_length[100]|xss_clean'
+		'minimum_ball' => array(
+			'field' => 'minimum_ball', 
+			'label' => 'Minimum Ball', 
+			'rules' => 'required|max_length[2]|integer|greater_than[0]|less_than_equal_to[10]'
 		), 
-		'slug' => array(  
-			'field' => 'slug', 
-			'label' => 'Slug', 
-			'rules' => 'trim|required|max_length[100]|url_title|callback__unique_slug|xss_clean'
-		), 
-		'body' => array(
-			'field' => 'body', 
-			'label' => 'Body', 
-			'rules' => 'trim|required'
+		'maximum_ball' => array(  
+			'field' => 'maximum_ball', 
+			'label' => 'Maximum Ball', 
+			'rules' => 'required|max_length[2]|integer|greater_than[11]|less_than_equal_to[54]'
+		),
+		'minimum_extra_ball' => array(
+			'field' => 'minimum_extra_ball', 
+			'label' => 'Lowest Extra Ball', 
+			'rules' => 'max_length[2]|greater_than[0]|callback__extra_ball_set|integer'
+		),
+		'maximum_extra_ball' => array(
+			'field' => 'maximum_extra_ball', 
+			'label' => 'Hightest Extra Ball', 
+			'rules' => 'max_length[2]|less_than_equal_to[54]|callback__extra_ball_set|integer'
+		),
+		'monday' => array(
+			'field' => 'monday', 
+			'label' => 'Monday', 
+			'rules' => 'callback__require_day_of_week_set'
+		),
+		'tuesday' => array(
+			'field' => 'tuesday', 
+			'label' => 'Tuesday', 
+			'rules' => 'callback__require_day_of_week_set'
+		),
+		'wednesday' => array(
+			'field' => 'wednesday', 
+			'label' => 'Wednesday', 
+			'rules' => 'callback__require_day_of_week_set'
+		),
+		'thursday' => array(
+			'field' => 'thursday', 
+			'label' => 'Thursday', 
+			'rules' => 'callback__require_day_of_week_set'
+		),
+		'friday' => array(
+			'field' => 'friday', 
+			'label' => 'Friday', 
+			'rules' => 'callback__require_day_of_week_set'
+		),
+		'saturday' => array(
+			'field' => 'saturday', 
+			'label' => 'Saturday', 
+			'rules' => 'callback__require_day_of_week_set'
+		),
+		'sunday' => array(
+			'field' => 'sunday', 
+			'label' => 'sunday', 
+			'rules' => 'callback__require_day_of_week_set'
 		)
 	);
 
@@ -42,18 +82,18 @@ class Lotteries_m extends MY_Model
 	{
 		$lottery = new stdClass();
 		$lottery->id = NULL;
-		$lottery->name = '';
-		$lottery->description = '';
-		$lottery->image = '';
-		$lottery->country_id = '';
-		$lottery->state_prov = '';
+		$lottery->lottery_name = '';
+		$lottery->lottery_description = '';
+		$lottery->lottery_image = '';
+		$lottery->lottery_country_id = '';
+		$lottery->lottery_state_prov = '';
 		$lottery->balls_drawn = 0;
 		$lottery->minimum_ball = 0;
 		$lottery->maximum_ball = 0;
 		$lottery->extra_ball = 0; // 0 = False 1 = True
 		$lottery->duplicate_extra = 0; // 0 = False 1 = True
-		$lottery->extra_minimum_ball = 0;
-		$lottery->extra_maximum_ball = 0;
+		$lottery->minimum_extra_ball = 0;
+		$lottery->maximum_extra_ball = 0;
 		$lottery->days = array(
 			'sunday' => 0,
 			'monday' => 0,
@@ -66,10 +106,7 @@ class Lotteries_m extends MY_Model
 		$lottery->last_draw_date = '';
 		return $lottery;
 	}
-/*	public function get_archive_link(){
-		$page = parent::get_by(array('template' => 'newsarticle'), TRUE);
-		return isset($page->slug) ? $page->slug : '';
-	} */
+	
 	
 	public function delete ($id)
 	{
@@ -81,94 +118,88 @@ class Lotteries_m extends MY_Model
 			'parent_id' => 0
 		))->where('parent_id', $id)->update($this->_table_name);
 	}
-	
-	public function save_order($pages)
-	{
-	     
-	    if (count($pages)) {
-			foreach ($pages as $order => $page) {
-			    if ($page['item_id'] != '') {
-					$data = array('parent_id' => (int) $page['parent_id'], 
-					        'menu_id' => (int) $page['menu_id'], 'order' => $order);
 
-					$this->db->set($data)->where($this->_primary_key, $page['item_id'])->update($this->_table_name);
-			 }
-		  }
-	  }
+	/**
+	 * Creates or Updates existing Lottery Database
+	 * 
+	 * @param       none
+	 * @return     
+	 */
+	public function create_lottery_db($post_fields) 
+	{
+		// 1. Convert Lottery Name to a Table Name, Replaces any spaces with underscores.
+		$name_counter = 0;  // if it does exist, a unique identifier will be added even though the name is the same 
+		$lotto_name = $this->lotto_table_convert($post_fields['lottery_name']);
+		// 2. Check for existing table name, if exists, add a number at end of name with underscore e.g. lotto_1
+		$exists = $this->lotto_table_exists($lotto_name);
+		do {
+		if ($exists) {
+			$name_counter++;
+			$lotto_name .= $lotto_name.strval($name_counter);
+		}
+		// 3. If does not exist, create table
+		// 4. Create Starting Date of first Draw
+		// 5. Create fields for each ball based on the number drawn
+		// 6. Create field for extra ball (bonus)
+		$exists = $this->create_lotto_table_fields($lotto_name, $post_fields['balls_drawn'], $post_fields['balls_drawn']);
+		} while ($exists);
 	}
 	
-	public function get_nested ($id)
+	/**
+	 * Convert Lottery Name to Table name conversion
+	 * 
+	 * @param       $str	Corresponding Lottery Name
+	 * @return     	$str replaced with underscores for spaces
+	 */
+	public function lotto_table_convert($str)
 	{
-		$this->db->order_by($this->_order_by);
-		$pages = $this->db->get('pages')->result_array();
-		$array = array();
-		foreach ($pages as $page) {
-		    if ((int) $id == (int) $page['menu_id']) 
-			{ // The Menu Location Must Match
-				  if (! $page['parent_id']) 
-				  {
-        				// This page has no parent
-        				$array[$page['id']] = $page;
-        		  }
-				  else
-				  {
-        		  // This is a child page
-        		  /* $array[$page['parent_id']]['children'][] = $page; */
-        		   $this->process_children($page, $array);
-				  }
-    		    }
-		    }
-
-		return $array;
+		return str_replace(' ', '_', $str);
 	}
 	
-	function process_children($item, &$arr)
+	/**
+	 * If existing Lottery table exists
+	 * 
+	 * @param       $lotto_tbl	Lottery Table Name
+	 * @return     	TRUE/FALSE	TRUE (if exists), FALSE (if does not exist, go ahead and create)
+	 */
+	public function lotto_table_exists($lotto_tbl)
 	{
-		if (is_array($arr))
+		$sql = "select 1 from `".$lotto_tbl."` LIMIT 1";
+	    return $this->db->query($sql);
+	}
+
+	/**
+	 * Create Lotto Table and Fields
+	 * 
+	 * @param       $lotto_tbl, $balls_drawn, $extra	Lottery Table Name, , Balls Drawn, Extra Ball (TRUE / FALSE)
+	 * @return     	TRUE/FALSE	TRUE (if table created), FALSE (error, table not created)
+	 */
+	public function create_lotto_table_fields($lotto_tbl, $balls_drawn, $extra) 
+	{
+		// Query Builder, Create Table Query with Tablename,  Add Field 1 ... Field N from Balls Drawn
+		// If Extra, Add Field Name Extra
+		// Execute Create Table
+		// If False, add a number to table name, create tabke again
+		// Exit on True, Table Created
+		$sql = "CREATE TABLE ".$lotto_tbl." id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY, ";
+		$count_r=0;
+		do {
+			// Add the number of fields cooresponding to the number of balls drawn
+			$sql .= "ball".$count_r." INT(2) UNSIGNED";
+			$count_r++;
+			$sql .= (($count_r!=$balls_drawn) ? ", " : " ");
+		} while($count_r!=$balls_drawn);
+
+		if ($extra) 
 		{
-			foreach ($arr as $key => $parent_item)
-			{
-				// Match?
-				if (isset($parent_item['id']) && $parent_item['id'] == $item['parent_id'])
-				{
-					$arr[$key]['children'][$item['id']] = $item;
-				}
-				else
-				{
-			// Keep looking, recursively
-					$this->process_children($item, $arr[$key]);
-				}
- 			}	
+			// If a bonus / extra ball is included
+			$sql .= "extra INT(1) UNSIGNED, ";
 		}
+		// Final Query Builder Requirement for Foreign key as lottery_id
+		$sql .= "draw_date DATE, lottery_id int not null,  foreign key (lottery_id) references lottery_profiles(id));";
+		
+		$result = $this->db->query($sql);
+	return $result;
 	}
-	
-	public function get_with_parent ($id = NULL, $single = FALSE)
-	{
-		$this->db->select('pages.*, p.slug as parent_slug, p.title as parent_title');
-		$this->db->join('pages as p', 'pages.parent_id=p.id', 'left');
-		return parent::get($id, $single);
-	}
-	
-	public function get_no_parents ()
-	{
-		// Fetch pages without parents
-		$this->db->select('id, title, menu_id');
-		$this->db->where('parent_id', 0);  
-		$pages = parent::get();
-		// Return key => value pair array
-		$array = array(
-			0 => 'No parent'
-		);
-		if (count($pages)) {
-			foreach ($pages as $page) {
-			    $array[$page->id] = $page->title;
-			}
-		}
-		return $array;
-	}
-	
-	public function get_article_link() {
-		$page = parent::get_by(array('template' => 'newsarticle'), TRUE);
-		return isset($page->slug) ? $page->slug : '';  
-	}
+
 }

@@ -100,8 +100,6 @@
 					<?php $extra = array('class' => 'col-4 col-form-label col-form-label-lg');
 					echo form_label('State / Province (If Different)', 'state_province', $extra); ?>
 					<div class="col-8">
-						<?php // $extra = array('class' => 'form-control', 'id' => 'formGroupInputLarge', 'maxlength' => '50', 'size' => '50', 'style'=> 'width:100%');
-						// echo form_input('state_prov',set_value('state_prov', $member->state_prov), $extra); ?>
 						<div class="bfh-selectbox bfh-states" data-country="countries_states2" data-name="state_prov"></div>
 						<?php echo form_error('state_prov', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 					</div>
@@ -111,8 +109,6 @@
 						<?php $extra = array('class' => 'col-4 col-form-label col-form-label-lg');
 						echo form_label('Country', 'country', $extra); ?>
 					<div class="col-8">
-						<?php //$extra = array('class' => 'btn btn-secondary btn-lg dropdown-toggle'); 
-						//echo form_dropdown('country_id', array('0' => 'No Country Listed','1' => 'Canada', '2' => 'United States'), $member->country_id, $extra); ?>
 						<div id="countries_states2" class="bfh-selectbox bfh-countries" data-flags="true" data-country="CA" data-name="country_id"></div>
 						<?php echo form_error('country_id', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 					</div>
@@ -132,7 +128,7 @@
 					<?php $extra = array('class' => 'col-4 col-form-label col-form-label-lg');
 					echo form_label('Registration Date and Time:', 'registration_date_time', $extra); ?>
 					<div class="col-8" style = "margin-top:10px;">
-						<?=date('l, F, d Y h:i:s A', strtotime($member->reg_time));?>
+						<?=date('l, F, d Y h:i:s A', strtotime($member->reg_time)); ?>
 					</div>
 				</div>
 				<!-- Account Active? -->
@@ -143,7 +139,15 @@
 						<?php echo form_checkbox('member_active', ($member->member_active ? 1 : 0), ($member->member_active ? TRUE : FALSE)); ?>
 					</div>
 				</div>
-				<div style = "text-align: center;"><?php echo form_submit('submit', 'Update Profile', 'class="btn btn-primary btn-lg btn-info"');
+				<div style = "text-align: center;">
+				<?php if ($member->id) // If id exists
+					{
+						echo form_submit('submit', 'Update Member Profile', 'class="btn btn-primary btn-lg btn-info"');
+					}
+					else
+					{
+						echo form_submit('submit', 'Create Member Profile', 'class="btn btn-primary btn-lg btn-info"');
+					}
 				$js = "location.href='".base_url()."admin/membership'";
 				$attributes = array(
 					'class' 	=> "btn btn-primary btn-lg btn-info", 

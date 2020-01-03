@@ -81,5 +81,20 @@ class MY_Model extends CI_Model {
 		$this->db->limit(1);
 		$this->db->delete($this->_table_name);
 	}
+
+	/**
+	 * Iterates a array to a standard object
+	 *
+	 * @params      $obj, $arr    	object reference, array to be interated
+	 * @return      $obj		  	Returns object values
+	 */
+	public function array_to_object($obj, $arr)
+	{
+		foreach ($arr as $key => $value)
+		{
+    		$obj->$key = $value;
+		}
+	return $obj;	
+	}
 	
 }

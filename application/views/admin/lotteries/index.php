@@ -2,40 +2,39 @@
 	<h2>Lottery Profiles</h2>
 	<?php echo anchor('admin/lotteries/edit', '<i class = "icon-plus"></i> Add a Lottery'); ?>
 	
-	<table class="table table-striped">
+	<div class="table-responsive">
+	<table class="table-sm table-striped">
 		<thead>
 			<tr> 
-				<td>Lottery Name</td>
-				<td>Country</td>
-				<td>State / Province</td>
-				<td>Pick</td>
-				<td>Lowest Ball Drawn</td>
-				<td>Highest Ball Drawn</td>
-				<td>Extra / Bonus Ball?</td>
-				<td>Allow Duplicate Extra / Bonus?</td>
-				<td>Lowest Extra / Bonus Ball</td>
-				<td>Highest Extra Ball</td>
+				<td style = "white-space: nowrap;">Lottery Name</td>
+				<td style = "white-space: nowrap;">Country</td>
+				<td style = "white-space: nowrap;">State / Province</td>
+				<td style = "white-space: nowrap;">Pick</td>
+				<td style = "white-space: nowrap;">Lowest Ball Drawn</td>
+				<td style = "white-space: nowrap;">Highest Ball Drawn</td>
+				<td style = "white-space: nowrap;">Extra / Bonus Ball?</td>
+				<td style = "white-space: nowrap;">Allow Duplicate Extra / Bonus?</td>
+				<td style = "white-space: nowrap;">Lowest Extra / Bonus Ball</td>
+				<td style = "white-space: nowrap;">Highest Extra Ball</td>
 				<th>Edit</th>
-				<td>Delete</td>
+				<th>Delete</th>
 			</tr>
 		</thead>
 		<tbody>
 	<?php if (count($lotteries)): foreach($lotteries as $lottery): ?>
 	<tr> 
-		<td><?php echo anchor('admin/lotteries/edit/'.$page->id, $page->title);?></td>
-		<td><?php echo empty($page->parent_id) ? "No Parent" : $page->parent_title; ?></td>
-		<td><?php switch ($page->menu_id) {
-			case 1:
-			    echo "Inside Footer";
-			    break;
-			case 2:
-			    echo "Outside Footer";
-			    break;
-			default:
-			     echo "Header Menu";
-		}?></td>
-	    <td><?php echo btn_edit('admin/page/edit/'.$page->id); ?></td>
-	    <td><?php echo btn_delete('admin/page/delete/'.$page->id); ?></td>
+		<td><?php echo anchor('admin/lotteries/edit/'.$lottery->id, $lottery->lottery_name);?></td>
+		<td><?=$lottery->lottery_country_id; ?></td>
+		<td><?=$lottery->lottery_state_prov; ?></td>
+		<td><?=$lottery->balls_drawn; ?></td>
+		<td><?=$lottery->minimum_ball; ?></td>
+		<td><?=$lottery->maximum_ball; ?></td>
+		<td><?=($lottery->extra_ball ? 'Yes' : 'No'); ?></td>
+		<td><?=($lottery->duplicate_extra_ball ? 'Yes' : 'No'); ?></td>
+		<td><?=($lottery->duplicate_extra_ball ? $lottery->minimum_extra_ball : '--'); ?></td>
+		<td><?=($lottery->duplicate_extra_ball ? $lottery->maximum_extra_ball : '--'); ?></td>
+	    <td><?php echo btn_edit('admin/lotteries/edit/'.$lottery->id); ?></td>
+	    <td><?php echo btn_delete('admin/lotteries/delete/'.$lottery->id); ?></td>
 	</tr>
 	<?php endforeach; ?> 
 	
@@ -46,4 +45,5 @@
 <?php endif; ?>
 		</tbody>
 	</table>
+	</div>
 </section>

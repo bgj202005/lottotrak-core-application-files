@@ -68,7 +68,7 @@ class Page extends Admin_Controller {
 	{
 		// Do Not validate if slug already exists
 		// Unless it's the slug for a newt page	
-		$id = $this->uri->segment(4);
+			$id = $this->uri->segment(4);
 			$this->db->where('slug', $this->input->post('slug'));
 			!$id || $this->db->where('id !=', $id);
 			$page = $this->page_m->get();

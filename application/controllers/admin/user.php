@@ -210,7 +210,6 @@ class User extends Admin_Controller
 		// Do Not validate if email already exists
 		// Unless it's the email for the current user	
 		$id = $this->uri->segment(4);
-		//dump($id); exit(1);	
 		$this->db->where('username', $this->input->post('username'));
 			! $id || $this->db->where('id !=', $id);
 			$user = $this->user_m->get();
