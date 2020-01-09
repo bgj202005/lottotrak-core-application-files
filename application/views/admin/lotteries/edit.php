@@ -47,9 +47,9 @@
 										<?php   
 										if (!empty($lottery->lottery_image)) 
 										{ 
-											$image_info = getimagesize(base_url().$lottery->image); 
+											$image_info = getimagesize(base_url().'images/uploads/'.$lottery->lottery_image); 
 											$extra = array('width' => $image_info[0], 'height' => $image_info[1]);
-											echo img(base_url().$lottery->image, FALSE, $extra); } 
+											echo img(base_url().'images/uploads/'.$lottery->lottery_image, FALSE, $extra); } 
 										else 
 										{ 
 											$extra = array('class' => 'col-4 col-form-label col-form-label-md', 'style' => 'white-space: nowrap; overflow:visible');
@@ -65,6 +65,7 @@
 										<?php $extra = array('class' => 'form-control', 'id' => 'formGroupInputLarge',
 										'accept' => 'image/x-png,image/gif,image/jpeg', 'style'=> 'width:100%');  
 										echo form_upload('lottery_image',set_value('lottery_image', $lottery->lottery_image), $extra); 
+										echo form_hidden('image', $lottery->lottery_image);
 										echo form_error('lottery_image', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 									</div>
 								</div>

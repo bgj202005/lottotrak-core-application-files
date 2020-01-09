@@ -5,6 +5,11 @@ function btn_edit($uri) {
 	return anchor($uri, '<i class="fa fa-pencil"></i>');
 }
 
+function btn_import($uri) {
+	return anchor($uri, '<i class="fa fa-arrow-circle-o-up"></i>');
+}
+
+
 function add_meta_title($string) {
 	$CI = &get_instance();
 	$CI->data['meta_title'] = e($string).'-'.$CI->data['meta_title'];

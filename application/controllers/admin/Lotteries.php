@@ -7,6 +7,8 @@ class Lotteries extends Admin_Controller {
 		 parent::__construct();
 		 $this->load->model('lotteries_m');
 		 $this->load->helper('file');
+		 
+		 $this->load->library('image_lib');
 	}
 
 	/**
@@ -16,7 +18,7 @@ class Lotteries extends Admin_Controller {
 	 * @return      none
 	 */
 	public function index() {
-		// Fetch all users from the database
+		// Fetch all lotteries from the database
 		$this->data['lotteries'] = $this->lotteries_m->get();
 		// Load the view
 		$this->data['subview'] = 'admin/lotteries/index';
@@ -25,13 +27,6 @@ class Lotteries extends Admin_Controller {
 	
 	public function edit($id = NULL) {
 		
-		// Setup for File Uploads
-		$config['upload_path']          = base_url().'images/uploads/';
-		$config['allowed_types']        = 'gif|jpg|png';
-		$config['max_size']             = 100;
-		$config['max_width']            = 1024;
-		$config['max_height']           = 768;
-		$this->load->library('upload', $config);
 
 		// Fetch a lottery profile or create a new one
 		if ($id) {
@@ -42,25 +37,65 @@ class Lotteries extends Admin_Controller {
 			$this->data['lottery'] = $this->lotteries_m->get_new();
 		}
 		
+
 		$this->data['message'] = '';  // Create a Message object
+		$error = NULL;				  // Related to Image upload only
 		// Setup the form
+
+		if (isset($_FILES['lottery_image'])) //File being uploaded
+		{
+			// Setup for File Uploads
+			$config['upload_path']          = 'images/uploads/'; 
+			$config['allowed_types']        = 'gif|jpg|png|jpeg';
+			$config['max_size']             = '0'; /* 10000; */
+			$config['max_width']            = '0'; /* 2048; */
+			$config['max_height']           = '0'; /* 1536; */
+			$config['overwrite'] 	        = TRUE;
+			$this->load->library('upload', $config); 
+			/* $this->load->initialize($config); */
+
+			$image_field_name = 'lottery_image';
+			if ($_FILES['lottery_image']['error']!=4)  // Did not select a file to upload.  Indicates the file browse was not selected, so no image to upload
+			{ 
+				if (!$this->upload->do_upload($image_field_name))
+				{
+					$error = array('error' => $this->upload->display_errors());
+				}
+				else
+				{
+					$image_data = $this->upload->data();
+					$config['image_library'] = 'gd2';
+					$config['source_image'] = 'images/uploads/'.$image_data["raw_name"].$image_data['file_ext'];
+					$config['new_image'] = 'images/uploads/'.$image_data["raw_name"].$image_data['file_ext'];
+					$config['create_thumb'] = FALSE;
+					$config['maintain_ratio'] = TRUE;
+					$config['width']         = 175;
+					$config['height']       = 175;
+
+					$this->image_lib->initialize($config);  // Change the dimentions keeping the proportions
+					$this->image_lib->resize();
+				}
+			} 
+		}
+
 		$rules = $this->lotteries_m->rules;
 		$this->form_validation->set_rules($rules);
 		
-		if ($this->form_validation->run() == TRUE) {
+		if ($this->form_validation->run() == TRUE&&is_null($error)) {
 			
 			//if (empty($this->input->post('lottery_state_prov'))) $_POST['lottery_state_prov'] = $this->data['lottery']->lottery_state_prov;
 			
 			$_POST['extra_ball'] = (is_null($this->input->post('extra_ball')) ? 0 : 1);
 			$_POST['duplicate_extra_ball'] = (is_null($this->input->post('duplicate_extra_ball')) ? 0 : 1);
+			$_POST['lottery_image'] = (is_null($_FILES['lottery_image']) ? '': $_FILES['lottery_image']['name']); 
 			// We can save and redirect
 			$data = $this->lotteries_m->array_from_post ( array (
 					'lottery_name',
 					'lottery_description',
 					'balls_drawn',
-					'lottery_image',
 					'lottery_state_prov',
 					'lottery_country_id',
+					'lottery_image',
 					'minimum_ball',
 					'maximum_ball',
 					'extra_ball',
@@ -75,24 +110,26 @@ class Lotteries extends Admin_Controller {
 					'saturday',
 					'sunday',
 			) );
-			
 
+			$data['lottery_image'] = (empty($data['lottery_image']) ? $_POST['image']: $data['lottery_image']);  // Only if not updating the image
 			foreach ($data as $key => $value)
 			{
 				if(intval($value)) 
 				{
 					$data[$key] = intval($value);
 				}
-				if(is_null($value)||empty($value)&&$key!='lottery_state_prov') $data[$key] = 0;  // Revert from NULL to 0 only or FALSE (int 0)
+				if(is_null($value)||empty($value)&&($key!='lottery_state_prov'&&$key!='lottery_image')) $data[$key] = 0;  // Revert from NULL to 0 only or FALSE (int 0)
 			}
-			
-			var_dump($data);
 
 			$this->data['lottery'] = $this->lotteries_m->array_to_object($this->data['lottery'], $data);
 			$this->data['lottery']->id = $this->lotteries_m->save($data, $id);
 			if (!$id) $this->lotteries_m->create_lottery_db($data);
 
 			$this->data['message'] = (is_null($id) ? "The Lottery Profile has been added to the Database." : "The ".$this->data['lottery']->lottery_name." Profile has been updated.");
+		}
+		else 
+		{
+			$this->data['message'] = $error['error'];  // Only Errors associated with Uploading an image.
 		}
 		// Load the View
 		if(!$this->data['lottery']->minimum_extra_ball) $this->data['lottery']->minimum_extra_ball = '';

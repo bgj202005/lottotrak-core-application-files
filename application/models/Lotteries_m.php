@@ -122,8 +122,8 @@ class Lotteries_m extends MY_Model
 	/**
 	 * Creates or Updates existing Lottery Database
 	 * 
-	 * @param       none
-	 * @return     
+	 * @param       $_POST values
+	 * @return     none
 	 */
 	public function create_lottery_db($post_fields) 
 	{
@@ -141,8 +141,8 @@ class Lotteries_m extends MY_Model
 		// 4. Create Starting Date of first Draw
 		// 5. Create fields for each ball based on the number drawn
 		// 6. Create field for extra ball (bonus)
-		$exists = $this->create_lotto_table_fields($lotto_name, $post_fields['balls_drawn'], $post_fields['balls_drawn']);
-		} while ($exists);
+		$exists = $this->create_lotto_table_fields($lotto_name, $post_fields['balls_drawn'], $post_fields['extra_ball']);
+		} while (!$exists);
 	}
 	
 	/**
@@ -164,8 +164,7 @@ class Lotteries_m extends MY_Model
 	 */
 	public function lotto_table_exists($lotto_tbl)
 	{
-		$sql = "select 1 from `".$lotto_tbl."` LIMIT 1";
-	    return $this->db->query($sql);
+	    return $this->db->table_exists($lotto_tbl);
 	}
 
 	/**
@@ -181,22 +180,23 @@ class Lotteries_m extends MY_Model
 		// Execute Create Table
 		// If False, add a number to table name, create tabke again
 		// Exit on True, Table Created
-		$sql = "CREATE TABLE ".$lotto_tbl." id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY, ";
-		$count_r=0;
+		$sql = "CREATE TABLE `".$lotto_tbl."` (`id` INT(11) unsigned NOT NULL AUTO_INCREMENT, ";
+		$count_r=1;
 		do {
 			// Add the number of fields cooresponding to the number of balls drawn
-			$sql .= "ball".$count_r." INT(2) UNSIGNED";
+			$sql .= "`ball".$count_r."` INT(2) unsigned, ";
 			$count_r++;
-			$sql .= (($count_r!=$balls_drawn) ? ", " : " ");
-		} while($count_r!=$balls_drawn);
+			//$sql .= (($count_r!=$balls_drawn) ? ", " : " ");
+		} while($count_r<=$balls_drawn);
 
 		if ($extra) 
 		{
 			// If a bonus / extra ball is included
-			$sql .= "extra INT(1) UNSIGNED, ";
+			$sql .= "`extra` TINYINT(1) unsigned,";
 		}
 		// Final Query Builder Requirement for Foreign key as lottery_id
-		$sql .= "draw_date DATE, lottery_id int not null,  foreign key (lottery_id) references lottery_profiles(id));";
+		$sql .= "`draw_date` DATE, `lottery_id` INT(11) unsigned NOT NULL COMMENT 'foreign key', PRIMARY KEY (`id`), FOREIGN KEY (`lottery_id`) 
+		REFERENCES lottery_profiles(`id`));";
 		
 		$result = $this->db->query($sql);
 	return $result;
