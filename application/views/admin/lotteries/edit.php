@@ -178,7 +178,7 @@
 								{
 									echo form_submit('submit', 'Create Lottery Profile', 'style = "padding:5px;" class="btn btn-primary btn-lg btn-info"');
 								}
-								$js = "location.href='".base_url()."admin/lotteries/import'";
+								$js = "location.href='".base_url()."admin/lotteries/import/".$lottery->id."'";
 								$class = ($lottery->id ? "btn btn-primary btn-lg btn-info" : "btn btn-secondary btn-lg disabled");
 								if ($lottery->id) 
 								{
@@ -199,7 +199,7 @@
 									);
 								}
 								echo form_button('lotteries_import', 'Lottery Import', $attributes); 
-								$js = "location.href='".base_url()."admin/lotteries/import'";
+								$js = "location.href='".base_url()."admin/lotteries/import/".$lottery->id."'";
 								$class = ($lottery->id ? "btn btn-primary btn-lg btn-info" : "btn btn-secondary btn-lg disabled");
 								if ($lottery->id) 
 								{
@@ -273,8 +273,18 @@
 					</div>		
 					<div class="card-body">
 						<h5 class="card-title">Most Recent Draw:</h5>
-						<p>This card has supporting text below as a natural lead-in to additional content.</p>
-						<p><small>Last updated 3 mins ago</small></p>
+						<?php if (!$lastdraw) 
+						{ 
+							echo "<p>This Lottery Database is missing. Please Delete this profile and recreate a new Lottery Profile.</p>";
+						} 
+						elseif ($lastdraw==='nodraws')
+						{ 
+							echo "<p>Although, their is a Lottery Database.  There are no draws in the database</p>";
+						}
+						else  
+						{ 
+							echo "<p><small>The latest draws go here</small></p>";
+						} ?>
 					</div>
 				</div>
 				<div class="card text-white bg-dark mb-3" style="width: 100%;">

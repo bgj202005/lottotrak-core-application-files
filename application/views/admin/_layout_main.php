@@ -2,7 +2,8 @@
 <body>
  <!-- <nav class="navbar navbar-static-top navbar-inverse"> -->
  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">  
-    <a class="navbar-brand" href="<?php echo site_url('admin/dashboard');?>"><?php echo $meta_title; ?></a>
+    <a class="navbar-brand" href="<?php echo site_url('admin/dashboard');?>"><?php // echo $meta_title; ?>
+    <img src="<?php echo base_url();?>images/lottotrak-logo.png" width="186" height="50" class="d-inline-block align-top" alt="Lottotrak Administration" title = "Lottotrak Administration"></a>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
   </button>
@@ -36,7 +37,7 @@
 		    <!--  Sidebar -->
 		    	<div class = "col-md-4">
 		    	<section style = "padding: 10px;">
-		    		<?php echo anchor('admin/user/login', '<i class="fa fa-user"></i> '.$this->session->userdata['email']); ?><br>
+		    		<?php echo anchor('admin//user/edit/'.$this->session->userdata['id'], '<i class="fa fa-user"></i> '.$this->session->userdata['email']); ?><br>
 		    		<?php echo anchor('admin/user/logout', '<i class="fa fa-power-off"></i>   logout')?>
 		    	</section>
 		    </div>

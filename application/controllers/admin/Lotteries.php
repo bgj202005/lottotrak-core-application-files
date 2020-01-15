@@ -55,7 +55,8 @@ class Lotteries extends Admin_Controller {
 			/* $this->load->initialize($config); */
 
 			$image_field_name = 'lottery_image';
-			if ($_FILES['lottery_image']['error']!=4)  // Did not select a file to upload.  Indicates the file browse was not selected, so no image to upload
+			if ($_FILES['lottery_image']['error']!=4)  // Did not select a file to upload.  Indicates the file browse was not selected, 
+			// so no image required to upload
 			{ 
 				if (!$this->upload->do_upload($image_field_name))
 				{
@@ -134,10 +135,28 @@ class Lotteries extends Admin_Controller {
 		// Load the View
 		if(!$this->data['lottery']->minimum_extra_ball) $this->data['lottery']->minimum_extra_ball = '';
 		if(!$this->data['lottery']->maximum_extra_ball) $this->data['lottery']->maximum_ball = '';
+		if ($id) $this->data['lastdraw'] = $this->lotteries_m->last_draw_db($this->data['lottery']->lottery_name);
+		var_dump($this->data['lastdraw']);
 		$this->data['subview']  = 'admin/lotteries/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 	
+	/**
+	 * Retrieves Lottery to import
+	 * 
+	 * @param       $id, Lottery id
+	 * @return      none
+	 */
+
+	public function import($id)
+	{
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		$this->data['message'] = '';  // Create a Message object
+		$error = NULL;				  // Related to Image upload only
+		$this->data['subview']  = 'admin/lotteries/import';
+		$this->load->view('admin/_layout_main', $this->data);
+	}
+
 	public function delete($id) {
 		
 		$this->lotteries_m->delete($id);

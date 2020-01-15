@@ -153,7 +153,7 @@ class Lotteries_m extends MY_Model
 	 */
 	public function lotto_table_convert($str)
 	{
-		return str_replace(' ', '_', $str);
+		return strtolower(str_replace(' ', '_', $str));
 	}
 	
 	/**
@@ -201,5 +201,24 @@ class Lotteries_m extends MY_Model
 		$result = $this->db->query($sql);
 	return $result;
 	}
+	/**
+	 * Returns Last Drawn Numbers from the Lottery Name
+	 * 
+	 * @param       $lottery_name		Corresponding Lottery Name
+	 * @return     	$last_drawn (array), 'nodraws' (string) or FALSE (If Table does not Exist) 
+	 */
+	public function last_draw_db($lottery_name)
+	{
+		$lottery_name = $this->lotto_table_convert($lottery_name); // Converts with Underscores
 
+		if ($this->lotto_table_exists($lottery_name)) 
+		{
+			$sql = "SELECT * FROM `".$lottery_name."` WHERE `draw_date` IN (SELECT MAX(`draw_date`) FROM `".$lottery_name."`) LIMIT 1";
+			$result = $this->db->query($sql);
+			
+			$row = $result->row();
+			return ($result->num_rows() === 1) ? $row : 'nodraws';
+		}
+	return FALSE;
+	}
 }
