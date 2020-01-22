@@ -86,13 +86,21 @@
 					<?php echo form_label('From '.$lottery->minimum_extra_ball.' To '.$lottery->maximum_extra_ball, 'lottery_extra_ball_range_lb', $extra); ?>
 				</div>
 			</div>
+			<!-- Allow importing Bonus / Extra ball as 0, if Bonus Draws? -->
+			<div class="form-group form-group-lg row"> 
+				<?php $extra = array('class' => 'col-4 col-form-label col-form-label-lg');
+				echo form_label('Allow Import of 0 Bonus / Extra Ball?', 'allow_zero_extra_lb', $extra); ?>
+				<div class="col-8">
+					<?php echo form_checkbox('allow_zero_extra', set_value('allow_zero_extra', '1'), set_checkbox('allow_zero_extra', '1', (!empty($lottery->allow_zero_extra))), 'style = "margin:15px 0px 0px 15px;"'); ?>
+				</div>
+			</div>
 			<!-- Upload CVS File -->
 			<div class="form-group form-group-lg row"> 
 				<?php $extra = array('class' => 'col-4 col-form-label col-form-label-lg');
 				echo form_label('Lottery Import CVS File:', 'lottery_import_cvs_file_lb', $extra); ?>
 				<div class="col-8">
 						<?php $extra = array('class' => 'form-control', 'id' => 'formGroupInputLarge',
-						'accept' => 'image/x-png,image/gif,image/jpeg', 'style'=> 'width:80%');  
+						'accept' => '.csv', 'style'=> 'width:80%');  
 						echo form_upload('lottery_upload_cvs',set_value('lottery_upload_cvs', ''), $extra); 
 						echo form_error('lottery_upload_cvs', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 					</div>

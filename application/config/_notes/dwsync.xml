@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<dwsync>
+<file name="autoload.php" server="bradleyjacobsen.com//" local="131883367108974174" remote="131690340000000000" Dst="1" />
+<file name="cms_config.php" server="bradleyjacobsen.com//" local="131883367124415297" remote="131690340000000000" Dst="1" />
+<file name="constants.php" server="bradleyjacobsen.com//" local="131883367125890939" remote="131690340000000000" Dst="1" />
+<file name="config.php" server="bradleyjacobsen.com//" local="131883367128484283" remote="131690340000000000" Dst="1" />
+<file name="database.php" server="bradleyjacobsen.com//" local="131883367128823380" remote="131690340000000000" Dst="1" />
+<file name="doctypes.php" server="bradleyjacobsen.com//" local="131883367132673074" remote="131690340000000000" Dst="1" />
+<file name="foreign_chars.php" server="bradleyjacobsen.com//" local="131883367133510563" remote="131690340000000000" Dst="1" />
+<file name="hooks.php" server="bradleyjacobsen.com//" local="131883367135425446" remote="131690340000000000" Dst="1" />
+<file name="index.html" server="bradleyjacobsen.com//" local="131883367137310399" remote="131690340000000000" Dst="1" />
+<file name="memcached.php" server="bradleyjacobsen.com//" local="131883367138377710" remote="131690340000000000" Dst="1" />
+<file name="migration.php" server="bradleyjacobsen.com//" local="131883367140043096" remote="131690340000000000" Dst="1" />
+<file name="mimes.php" server="bradleyjacobsen.com//" local="131883367142317306" remote="131690340000000000" Dst="1" />
+<file name="pagination.php" server="bradleyjacobsen.com//" local="131883367142875508" remote="131690340000000000" Dst="1" />
+<file name="profiler.php" server="bradleyjacobsen.com//" local="131883367146915002" remote="131690340000000000" Dst="1" />
+<file name="routes.php" server="bradleyjacobsen.com//" local="131883367147822278" remote="131690340000000000" Dst="1" />
+<file name="smileys.php" server="bradleyjacobsen.com//" local="131883367148739820" remote="131690340000000000" Dst="1" />
+<file name="user_agents.php" server="bradleyjacobsen.com//" local="131883367151901638" remote="131690340000000000" Dst="1" />
+</dwsync>

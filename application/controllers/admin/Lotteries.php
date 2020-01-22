@@ -122,6 +122,7 @@ class Lotteries extends Admin_Controller {
 				if(is_null($value)||empty($value)&&($key!='lottery_state_prov'&&$key!='lottery_image')) $data[$key] = 0;  // Revert from NULL to 0 only or FALSE (int 0)
 			}
 
+
 			$this->data['lottery'] = $this->lotteries_m->array_to_object($this->data['lottery'], $data);
 			$this->data['lottery']->id = $this->lotteries_m->save($data, $id);
 			if (!$id) $this->lotteries_m->create_lottery_db($data);
@@ -136,7 +137,6 @@ class Lotteries extends Admin_Controller {
 		if(!$this->data['lottery']->minimum_extra_ball) $this->data['lottery']->minimum_extra_ball = '';
 		if(!$this->data['lottery']->maximum_extra_ball) $this->data['lottery']->maximum_ball = '';
 		if ($id) $this->data['lastdraw'] = $this->lotteries_m->last_draw_db($this->data['lottery']->lottery_name);
-		var_dump($this->data['lastdraw']);
 		$this->data['subview']  = 'admin/lotteries/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -151,6 +151,73 @@ class Lotteries extends Admin_Controller {
 	public function import($id)
 	{
 		$this->data['lottery'] = $this->lotteries_m->get($id);
+
+		/* 	1. Check if the File has been selected (Uploading is first examined)
+				
+			If selected, start the Upload process
+
+			2. if not selected, Check if the url textbox of the location of the file has been entered
+			if the textbox is not empty, 
+				check for a valid url (http: or https:)
+				if valid, copy file to server at uploaded location cvs_zip_upload
+					If Filename is valid zip file
+						unzip in directory, uncompress cvs file
+						delete zip file
+						open cvs file
+						Retrieve header titles
+						Find Date title,
+						Find Ball 1 ... Ball N title
+						Find Bonus / Extra Ball
+				Do 
+				 Array Lottery draw, Date
+					 Ball 1 .. Ball N
+					 Extra / Bonus Ball
+					Save draw in database
+
+				until last draw and not errors
+				Success Message, "The 'last draw date' has been imported successfully to the Lottery_name Database."
+
+				else 
+					not valid url, error "your url is not valid, check the url and type in again. Don't forget, http or https"
+
+			
+			else (filename not selected and url text field blank)
+				Error Message, 'Enter a valid file or url.
+
+
+		*/
+		/* echo '<pre>';
+          print_r($_FILES);
+          exit; */
+		  $config['upload_path'] = 'lotto_zip_cvs_uploads/';
+		  $config['allowed_types'] = 'text/plain|text/anytext|csv|text/x-comma-separated-values|text/comma-separated-values|application/octet-stream|application/vnd.ms-excel|application/x-csv|text/x-csv|text/csv|application/csv|application/excel|application/vnd.msexcel';
+		    
+		  $this->load->library('CSV_Import', $config);
+		  // If upload failed, display error
+		  if (!$this->upload->do_upload()) {
+  
+			  echo $this->upload->display_errors();
+		  
+			} else {
+			  $this->load->library('CSV_Import');
+			  $file_data = $this->upload->data();
+			  $file_path = base_url().'lotto_zip_cvs_uploads/' . $file_data['file_name'];
+			  
+  
+			  if ($this->csvimport->get_array($file_path)) {
+				  $csv_array = $this->csvimport->get_array($file_path);
+				  
+				  foreach ($csv_array as $row) {
+					  $insert_data = array(
+						  'ROLL_NO' => $row['ROLL_NO'],
+						  'MARKS' => $row['MARKS'],
+					  );
+					  // insert data into database
+					  $this->utilities->insertData($insert_data, 'admission_test_result');
+				  }
+			  }
+		  }
+		
 		$this->data['message'] = '';  // Create a Message object
 		$error = NULL;				  // Related to Image upload only
 		$this->data['subview']  = 'admin/lotteries/import';
