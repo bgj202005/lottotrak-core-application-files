@@ -24,8 +24,7 @@ class Page extends Admin_Controller {
 	    if ($id) {
 			$this->data['page'] = $this->page_m->get($id);
 			//$this->data['page']->body = $this->strip_false_tags($this->data['page']->body); // Strip HTML out of tinymce editor
-			count($this->data['page']) || $this->data['errors'][] = 'page could not be found';
-		} else {
+			is_object($this->data['page']) || $this->data['errors'][] = 'page could not be found'; // deprecated php 7.2+ count($this->data['page']) 		} else {
 			$this->data['page'] = $this->page_m->get_new();
 		}
 		

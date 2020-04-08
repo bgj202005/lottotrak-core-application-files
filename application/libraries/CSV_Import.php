@@ -16,7 +16,7 @@
  * @author          Brad Stinson
  */
 
-class CSV_Import {
+class CSV_import {
 
     private $handle = "";
     private $filepath = FALSE;

@@ -34,7 +34,7 @@ class MY_Model extends CI_Model {
 			$method = 'result';
 		}
 	   
-	   if (! count($this->db->order_by('id'))) {
+	   if (!is_array($this->db->order_by('id'))) {  // Depreciated in PHP 7.2 count($this->db->order_by('id')
 	   		$this->db->order_by($this->_order_by);
 	}
 		return $this->db->get($this->_table_name)->$method();

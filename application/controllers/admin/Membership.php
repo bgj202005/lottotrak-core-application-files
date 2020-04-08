@@ -36,7 +36,7 @@ class Membership extends Admin_Controller
 		if ($id) 
 		{
 			$this->data['member'] = $this->membership_m->get($id);
-			count($this->data['member']) || $this->data['errors'][] = 'Member could not be found';
+			is_object($this->data['member']) || $this->data['errors'][] = 'Member could not be found'; //deprecated php 7.2+ count($this->data['member']) 
 		} 
 		else 
 		{

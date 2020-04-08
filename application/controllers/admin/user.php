@@ -30,7 +30,7 @@ class User extends Admin_Controller
 		if ($id) 
 		{
 			$this->data['user'] = $this->user_m->get($id); 
-			count($this->data['user']) || $this->data['errors'][] = 'User could not be found';
+			is_object($this->data['user']) || $this->data['errors'][] = 'User could not be found'; //deprecated php 7.2+ count($this->data['user']) 
 		} 
 		else 
 		{

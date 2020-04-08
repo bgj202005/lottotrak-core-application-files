@@ -25,7 +25,7 @@ class Article extends Admin_Controller {
 	    if ($id) {
 			$this->data['article'] = $this->article_m->get($id);
 			$this->data['article']->body = $this->strip_false_tags($this->data['article']->body); // Strip HTML out of tinymce editor
-			count($this->data['article']) || $this->data['errors'][] = 'article could not be found';
+			is_object($this->data['article']) || $this->data['errors'][] = 'article could not be found'; //deprecated php 7.2+ count($this->data['article']) 
 		} else {
 			$this->data['article'] = $this->article_m->get_new();
 		}

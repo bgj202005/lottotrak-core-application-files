@@ -110,7 +110,7 @@ class Lotteries_m extends MY_Model
 	
 	public function delete ($id)
 	{
-		// Delete a page
+		// Delete a lottery profile and database
 		parent::delete($id);
 		
 		// Reset parent ID for its children
@@ -220,5 +220,74 @@ class Lotteries_m extends MY_Model
 			return ($result->num_rows() === 1) ? $row : 'nodraws';
 		}
 	return FALSE;
+	}
+
+	/**
+	 * Takes the CSV Row and Queries the database to input the field values
+	 * 
+	 * @param       $tbl_name (string), $db_values (array)  -- Corresponding Lottery Name and Draw Data Details
+	 * @return     	TRUE / FALSE			-- SUCCESS / FAIL for INSERT Lottery Draw */
+	public function csv_array_to_query($tbl_name, $db_values)
+	{
+		foreach ($db_values as $key => $value) {
+			if(empty($value)) return FALSE;
+		}
+
+		$str = $this->db->insert_string($tbl_name, $db_values);
+
+		return $this->db->simple_query($str);	// Return TRUE on insert OK or FALSE on failure of insert
+	}
+
+	/**
+	 * Returns the current count of rows that have been imported from the CSV File
+	 * 
+	 * @param       $table				id of Lottery Table
+	 * @return     	rowcount			SUCCESS / FAIL for adding key/value pairs
+	 */
+	public function db_row_count($table)
+	{
+		return $this->db->count_all($table);
+	}
+
+	/**
+	 * Returns True (for range OK), or False (Out of Bounds Error) in ranges of Lottery Numbers (e.i. 1 to 49)
+	 * 
+	 * @param       $range_values, $data_values		array of objects of range values for lottery parameters, array of values from current draw being imported
+	 * @return     	TRUE/FALSE						SUCCESS (TRUE) on draw ranges successful or FAIL (FALSE) on a number out of range
+	 */
+	public function range_check($range_values, $data_values)
+	{
+		$drawn = $range_values->balls_drawn;
+		$max_ball = $range_values->maximum_ball;
+		$min_ball = $range_values->minimum_ball;
+		
+		$ball = 1;
+		do {
+			if (($data_values['ball'.$ball]<$min_ball)||($data_values['ball'.$ball]>$max_ball)) return FALSE;
+			$ball++;
+			$drawn--;
+		} while($drawn>0);
+
+		$extra = $range_values->extra_ball;
+
+		if ($extra)		//Extra as part of the game
+		{
+			$drawn = $range_values->balls_drawn;
+			$min_extra = $range_values->minimum_extra_ball;
+			$max_extra = $range_values->maximum_extra_ball;
+			$duplicate = $range_values->duplicate_extra_ball;
+			if (($data_values['extra']<$min_extra)||($data_values['extra']>$max_extra)) return FALSE;
+			if (!$duplicate)
+			{
+				$drawn = $range_values->balls_drawn;
+				$ball = 1;
+				do {
+					if ($data_values['ball'.$ball]==$data_values['extra']) return FALSE;
+					$ball++;
+					$drawn--;
+				} while($drawn>0);
+			} 
+		}
+	return TRUE; // All Good!
 	}
 }
