@@ -153,48 +153,59 @@ class Lotteries extends Admin_Controller {
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		// Retrieve the lottery table name for the database
 		$this->data['lottery']->table_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
-
+		// Check for existing lottery draws
+		$this->data['lottery']->last_draw =	$this->lotteries_m->last_draw_db($this->data['lottery']->lottery_name);
+		
 		$this->data['message'] = '';  // Create a Message object
 		$error = NULL;				  // Related to Image upload only
 		
 		if(!empty($this->input->post('hidden_field')))
 		{
-			$error = '';
-			$total_data = '';
-			/* session_start(); */
-			$allowed_extension = array('csv');
-			$file_array = explode(".", $_FILES["lottery_upload_csv"]["name"]);
-			$extension = end($file_array);
+			if(empty($this->input->post('import_lottery_url'))) {
+				$error = '';
+				$total_data = '';
+				/* session_start(); */
+				$allowed_extension = array('csv');
+				$file_array = explode(".", $_FILES["lottery_upload_csv"]["name"]);
+				$extension = end($file_array);
 
-			if($_FILES['lottery_upload_csv']['name'] != '') {
-				if(in_array($extension, $allowed_extension))
-				{
-					$new_file_name = rand(). '.' . $extension;
-					$this->session->set_userdata(array('new_file_name' => $new_file_name));
-					move_uploaded_file($_FILES['lottery_upload_csv']['tmp_name'], 'lotto_zip_csv_uploads/'.$new_file_name);
-					$file_content = file('lotto_zip_csv_uploads/'.$new_file_name, FILE_SKIP_EMPTY_LINES);
-					$total_data = count($file_content);
+				if($_FILES['lottery_upload_csv']['name'] != '') {
+					if(in_array($extension, $allowed_extension))
+					{
+						$new_file_name = rand(). '.' . $extension;
+						$this->session->set_userdata(array('new_file_name' => $new_file_name));
+						move_uploaded_file($_FILES['lottery_upload_csv']['tmp_name'], 'lotto_zip_csv_uploads/'.$new_file_name);
+						$file_content = file('lotto_zip_csv_uploads/'.$new_file_name, FILE_SKIP_EMPTY_LINES);
+						$total_data = count($file_content);
+					}
+					else
+					{
+						$error = 'Only CSV File Format is allowed';
+					}
 				}
 				else
 				{
-					$error = 'Only CSV File Format is allowed';
+					$error = 'Please Select File';
 				}
-			}
-			else
+				if($error !='')
+				{
+					$output = array(
+						'error'		=> $error
+					);
+				}
+				else
+				{
+					$output = array(
+						'success' => TRUE,
+						'total_data'	=>	($total_data - 1)
+					);
+				}
+			} 
+			else 
 			{
-				$error = 'Please Select File';
-			}
-			if($error !='')
-			{
+				// Do something with URL
 				$output = array(
-					'error'		=> $error
-				);
-			}
-			else
-			{
-				$output = array(
-					'success' => TRUE,
-					'total_data'	=>	($total_data - 1)
+					'error' => 'The URL has been entered'
 				);
 			}
 			//$this->import_process($id);
@@ -287,9 +298,22 @@ class Lotteries extends Admin_Controller {
 		if (!empty($this->session->userdata('new_file_name')))
 		{
 			$file_data = fopen('lotto_zip_csv_uploads/'.$this->session->userdata('new_file_name'), 'r');
-			fgetcsv($file_data);
+			$header = TRUE;		// Begin with header
+			fgetcsv($file_data); // Set the File Pointer to start of file and move passed the header
 			while($row = fgetcsv($file_data)) 
 			{
+				$n = count($_POST['cvs_field']);
+					if ($n>1)		//There are currently fields that we can't import into the database
+					{
+						for($i=0; $i<$n; $i++)
+						{
+							if(trim($_POST['cvs_field'][$i])!='')
+							{
+								$elim[$row] = ((strtolower($row))==(strtolower(trim($_POST['cvs_field'][$i]))) ? TRUE : FALSE);
+							}
+						}
+					} 
+
 				$draw_data = array(
 					'PRODUCT'		=> 	$row[0],
 					'DRAW NUMBER'	=>	$row[1],
@@ -312,6 +336,8 @@ class Lotteries extends Admin_Controller {
 				if (!empty($this->data['lottery']->extra_ball)) $draw_data['extra'] = $row[$c];
 
 				$draw_data += ['lottery_id'	=> $id];
+				
+				
 				unset($draw_data['PRODUCT']);
 				unset($draw_data['DRAW NUMBER']);
 				unset($draw_data['SEQUENCE']);
@@ -390,6 +416,59 @@ class Lotteries extends Admin_Controller {
 	{
 		$row_count = $this->lotteries_m->db_row_count($table);
 	echo $row_count;
+	}
+
+	/**
+	 * Views all draws with pagination, filtering and Draw Search Options
+	 *  being imported in the database
+	 * @param       $id		current id of draws		
+	 * @return      none
+	 */
+	public function view_draws($id)
+	{
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		// Retrieve the lottery table name for the database
+		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		// Check for existing lottery draws
+		$this->data['message'] = '';  // Create a Message object
+	
+		$this->db->query('SET @draw_number = 0; '); // Add a Draw Number to the Draws
+		$query = $this->db->query('SELECT *, 
+				(@draw_number:=@draw_number + 1) AS draw 
+				FROM '.$tbl_name.' WHERE lottery_id='.$id.' 
+				ORDER BY draw_date ASC;');					
+		
+		$this->data['draws'] = $query->result();
+		
+		if (!$this->data['draws'])
+		{
+			$this->data['message'] = 'There are no draws associated with this lottery. Please import draws.'; 
+		}
+		/* else
+		{
+			/* $count = $this->db->count_all_results($tbl_name);
+			if($pagination>$count) 
+			{
+				$this->load->library('pagination');	
+				$config['base_url'] = site_url($this->uri->segment(1).'/');
+				$config['total_rows'] = $count;
+				$config['per_page'] = $pagination;
+				$config['url_segment'] = 2;
+
+				$this->pagination->initialize($config);
+				$this->data['pagination'] = $this->pagination->create_links();
+				$start_draw = $this->uri->segment(2);
+				$this->draw["start"] = $start_draw;
+
+			$this->data['perpage'] = $pagination;	//	Default set at 25 draws 
+			}
+			else {
+				$this->data['pagination'] = '';
+				$this->data['start'] = 5;
+			}
+		} */
+		$this->data['subview']  = 'admin/lotteries/view';
+		$this->load->view('admin/_layout_main', $this->data);
 	}
 
 	public function delete($id) {

@@ -2,11 +2,15 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 function btn_edit($uri) {
-	return anchor($uri, '<i class="fa fa-pencil"></i>');
+	return anchor($uri, '<i class="fa fa-pencil"></i>', array('title' => 'Edit the lottery profile'));
 }
 
 function btn_import($uri) {
-	return anchor($uri, '<i class="fa fa-arrow-circle-o-up"></i>');
+	return anchor($uri, '<i class="fa fa-arrow-circle-o-up"></i>', array('title' => 'Imports draws into database from cvs file'));
+}
+
+function btn_view($uri) {
+	return anchor($uri, '<i class="fa fa-eye"></i>', array('title' => 'View lottery draws'));
 }
 
 
@@ -63,7 +67,7 @@ function e($string) {
 function btn_delete($uri) {
 	
 	return anchor($uri, '<i class="fa fa-times-circle"></i>', array(
-			'onclick' => "return confirm('You are about to delete a record. This can not be undone. Are you sure?');"));
+			'onclick' => "return confirm('You are about to make a permanent deletion. This can not be undone. Are you sure?');"));
  	}
 
 /**

@@ -273,17 +273,17 @@
 					</div>		
 					<div class="card-body">
 						<h5 class="card-title">Most Recent Draw:</h5>
-						<?php if (!$lastdraw) 
+						<?php if (!empty($lastdraw)&&!$lastdraw) 
 						{ 
 							echo "<p>This Lottery Database is missing. Please Delete this profile and recreate a new Lottery Profile.</p>";
 						} 
-						elseif ($lastdraw==='nodraws')
+						elseif (!empty($lastdraw)&&$lastdraw==='nodraws')
 						{ 
-							echo "<p>Although, their is a Lottery Database.  There are no draws in the database</p>";
+							echo "<p>Although, their is a Lottery Database.  There are no draws in the database.</p>";
 						}
 						else  
 						{ 
-							echo "<p><small>The latest draws go here</small></p>";
+							echo "<p><small>The latest draws will go here.</small></p>";
 						} ?>
 					</div>
 				</div>

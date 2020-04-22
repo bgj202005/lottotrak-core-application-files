@@ -32,7 +32,7 @@
 									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md', 'style' => 'white-space: nowrap;');
 									echo form_label('Lottery Description:', 'lottery_descriptiuon_lb', $extra); ?>
 								<div class="col-8">
-									<?php echo form_label($lottery->lottery_description, 'lottery_description_lb', $extra); ?>
+									<?php echo form_label(wordwrap($lottery->lottery_description, 70, '<br /> ', FALSE), 'lottery_description_lb', $extra); ?>
 								</div>
 							</div>
 							<!-- Current State or Province Field -->
@@ -99,6 +99,30 @@
 									<?php echo form_checkbox('allow_zero_extra', set_value('allow_zero_extra', '1'), set_checkbox('allow_zero_extra', '1', (!empty($lottery->allow_zero_extra))), 'style = "margin:15px 0px 0px 15px;"'); ?>
 								</div>
 							</div>
+							<!-- Eliminate Field in CVS File -->
+							<div class="form-group form-group-lg row"> 
+								<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
+								echo form_label('CVS Fieldname (Exact matched)', 'cvs_field_lb', $extra); ?>
+								<div class="col-8">
+									<div class="table-responsive" style = "width:80%">  
+                               			<table class="table table-bordered" id="dynamic_field">  
+                                    		<tr>  
+												<td style = "width:65%">
+													<?php $extra = array('class' => 'form-control', 'id' => 'formGroupInputLarge',
+													'maxlength' => '50', 'size' => '50', 'style'=> 'width:95%', 'placeholder' => 'CVS Field Name to Remove');  
+													echo form_input('cvs_field[]',set_value('cvs_field[]', ''), $extra); 
+													echo form_error('cvs_field[]', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
+												</td>
+												<td style="width:35%" align="center">
+												<?php 
+													$extra = array('class' => 'btn btn-info', 'id' => 'add');  
+													echo form_button('add','Add More', $extra); ?>
+												</td>
+											</tr>  
+                               			</table>  
+									</div>
+								</div>
+							</div>
 							<!-- Upload CVS File -->
 							<div class="form-group form-group-lg row"> 
 								<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
@@ -131,7 +155,7 @@
 								<div class="form-group" id = "process" style = "display:none;"> 
 									<div class="col-8">
 										<div class = "progress">
-											<div class = "progress-bar progress-bar-striped active bg-success" role = "progressbar" 
+											<div class = "progress-bar progress-bar-striped active" role = "progressbar" 
 											aria-valuemin="0" aria-valuemax = "100">
 												<span id ="process_data">0<span> - <span id = "total_data">0</span>
 											</div>
@@ -156,11 +180,29 @@
 			<div class="col-3" style = "width:100%;">
 				<div class="card border-danger" style="max-width: 20rem; display:block;">					
 					<div class="card-header bg-transparent border-danger">Lottery Draw Import</div>
-						<div class="card-body text-danger" style = "display:block;">
-							<h5 class="card-title">Lottery Draws Do Not Exist</h5>
-							<p class="card-text">Please Import your draws by clicking the Import Button below.</p>		
+						<div class="card-body text-danger">
+							<h5 class="card-title">
+								<?php if ($lottery->last_draw=='nodraws') 
+								{ ?>
+									<h6 id = "nodraws" style="display:block">No Draws Currently Exist</h6>
+								<?php }
+								elseif (!empty($lottery->last_draw->id))
+								{
+									$draw = "";
+									$last_date = "";
+									foreach ($lottery->last_draw as $key => $value) 
+									{
+										if(substr($key, 0, 4)=='ball') $draw .= $value." ";
+										if($key=='extra') $draw .= " + ".$value;
+										if($key=='draw_date') $last_date = date("D, M d, Y",strtotime(str_replace('/','-',$value)));
+									}
+								 
+								echo "<h5 class='alert alert-primary'>Last Draw Date:</h5><h5 class='alert alert-danger'>".$last_date."</h5>";
+								echo "<h6 class='alert alert-success text-dark'>".$draw."</h6>"; 
+								} ?>
+							<p class="card-text">Please Import NEW draws by clicking the Import Button below.</p>		
 						</div>
-					<div class="card-footer bg-transparent border-danger" id = "footer-on">Current Draw(s) N/A</div>
+					<div class="card-footer bg-transparent border-danger" id = "footer-on">Currently Imported: N/A</div>
 				</div>			
 			</div>
 		</div>
@@ -169,6 +211,15 @@
 <script>
 $(document).ready(function() {
 	var clear_timer;
+	var i=1;
+	$('#add').click(function(){  
+           i++;  
+           $('#dynamic_field').append('<tr id="row'+i+'"><td><input type="text" name="cvs_field[]" style="width:90%" placeholder="CVS Fieldname to remove" class="form-control field_list" /></td><td align="center"><button type="button" name="remove" id="'+i+'" class="btn btn-danger btn_remove text-center">X</button></td></tr>');  
+      });  
+      $(document).on('click', '.btn_remove', function(){  
+           var button_id = $(this).attr("id");   
+           $('#row'+button_id+'').remove();  
+      });  
 	$('#import_form').on('submit', function(event) {
 		$('#import_message').html('');
 			event.preventDefault();
@@ -183,7 +234,8 @@ $(document).ready(function() {
 				beforeSend:function() {
 					$('#import').attr('disabled','disabled');
 					$('#import').val('Importing');
-					$('#footer-on').html('Draw #<span id= "draw_number"></span>');
+					$('#nodraws').html('style="display:none"');
+					$('#footer-on').html('Last Imported Draw #<span id= "draw_number"></span>');
 				},
 				success:function(data)
 				{

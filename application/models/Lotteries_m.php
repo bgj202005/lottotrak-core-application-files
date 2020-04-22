@@ -113,10 +113,8 @@ class Lotteries_m extends MY_Model
 		// Delete a lottery profile and database
 		parent::delete($id);
 		
-		// Reset parent ID for its children
-		$this->db->set(array(
-			'parent_id' => 0
-		))->where('parent_id', $id)->update($this->_table_name);
+		// Delete Entire Database (if Exists)
+		
 	}
 
 	/**
@@ -205,13 +203,13 @@ class Lotteries_m extends MY_Model
 	 * Returns Last Drawn Numbers from the Lottery Name
 	 * 
 	 * @param       $lottery_name		Corresponding Lottery Name
-	 * @return     	$last_drawn (array), 'nodraws' (string) or FALSE (If Table does not Exist) 
+	 * @return     	$last_drawn (object), 'nodraws' (string) or FALSE (If Table does not Exist) 
 	 */
 	public function last_draw_db($lottery_name)
 	{
 		$lottery_name = $this->lotto_table_convert($lottery_name); // Converts with Underscores
 
-		if ($this->lotto_table_exists($lottery_name)) 
+		if ($this->lotto_table_exists($lottery_name))
 		{
 			$sql = "SELECT * FROM `".$lottery_name."` WHERE `draw_date` IN (SELECT MAX(`draw_date`) FROM `".$lottery_name."`) LIMIT 1";
 			$result = $this->db->query($sql);
@@ -241,8 +239,8 @@ class Lotteries_m extends MY_Model
 	/**
 	 * Returns the current count of rows that have been imported from the CSV File
 	 * 
-	 * @param       $table				id of Lottery Table
-	 * @return     	rowcount			SUCCESS / FAIL for adding key/value pairs
+	 * @param	int	$table			id of Lottery Table
+	 * @return  bool 				SUCCESS / FAIL for adding key/value pairs
 	 */
 	public function db_row_count($table)
 	{
@@ -252,8 +250,9 @@ class Lotteries_m extends MY_Model
 	/**
 	 * Returns True (for range OK), or False (Out of Bounds Error) in ranges of Lottery Numbers (e.i. 1 to 49)
 	 * 
-	 * @param       $range_values, $data_values		array of objects of range values for lottery parameters, array of values from current draw being imported
-	 * @return     	TRUE/FALSE						SUCCESS (TRUE) on draw ranges successful or FAIL (FALSE) on a number out of range
+	 * @param       obj	$range_values	array of objects of range values for lottery parameters 	
+	 * @param		arr $data_values	array of values from current draw being imported
+	 * @return     	TRUE/FALSE			SUCCESS (TRUE) on draw ranges successful or FAIL (FALSE) on a number out of range
 	 */
 	public function range_check($range_values, $data_values)
 	{
@@ -262,11 +261,13 @@ class Lotteries_m extends MY_Model
 		$min_ball = $range_values->minimum_ball;
 		
 		$ball = 1;
-		do {
+		do 
+		{
 			if (($data_values['ball'.$ball]<$min_ball)||($data_values['ball'.$ball]>$max_ball)) return FALSE;
 			$ball++;
 			$drawn--;
-		} while($drawn>0);
+		} 
+		while($drawn>0);
 
 		$extra = $range_values->extra_ball;
 
@@ -281,13 +282,16 @@ class Lotteries_m extends MY_Model
 			{
 				$drawn = $range_values->balls_drawn;
 				$ball = 1;
-				do {
+				do 
+				{
 					if ($data_values['ball'.$ball]==$data_values['extra']) return FALSE;
 					$ball++;
 					$drawn--;
-				} while($drawn>0);
+				} 
+				while($drawn>0);
 			} 
 		}
 	return TRUE; // All Good!
 	}
+	
 }

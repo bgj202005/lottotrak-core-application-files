@@ -17,6 +17,7 @@
 				<td style = "white-space: nowrap;">Duplicates Allowed?</td>
 				<td style = "white-space: nowrap;">From</td>
 				<td style = "white-space: nowrap;">To</td>
+				<th>View</th>
 				<th>Edit</th>
 				<th>Import</th>
 				<th>Delete</th>
@@ -41,6 +42,7 @@
 		<td style = "text-align:center;"><?=($lottery->duplicate_extra_ball ? 'Yes' : 'No'); ?></td>
 		<td style = "text-align:center;"><?=($lottery->extra_ball ? $lottery->minimum_extra_ball : '--'); ?></td>
 		<td style = "text-align:center;"><?=($lottery->extra_ball ? $lottery->maximum_extra_ball : '--'); ?></td>
+		<td style = "text-align:center;"><?php echo btn_view('admin/lotteries/view_draws/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo btn_edit('admin/lotteries/edit/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo btn_import('admin/lotteries/import/'.$lottery->id); ?></td>
 	    <td style = "text-align:center;"><?php echo btn_delete('admin/lotteries/delete/'.$lottery->id); ?></td>
