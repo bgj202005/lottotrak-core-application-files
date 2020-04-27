@@ -72,7 +72,7 @@ class Activate_m extends MY_Model
         $result = $this->db->query($sql);
         $row = $result->row();
         
-        if (!count($row)) 
+        if (empty($row)) 
 		{
 			return FALSE;
 		}

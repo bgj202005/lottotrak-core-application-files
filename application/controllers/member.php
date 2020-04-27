@@ -180,7 +180,7 @@ class Member extends Frontend_Controller
 	    $result = $this->db->query($sql);
 	    $row = $result->row();
 			
-	    if (count($row)) 
+	    if (!empty($row)) 
 		{
 			$this->form_validation->set_message('_unique_username', '%s already exists. Please type another username');
 			return FALSE;
@@ -194,7 +194,7 @@ class Member extends Frontend_Controller
 	    $result = $this->db->query($sql);
 	    $row = $result->row();
 			
-		if (count($row)) 
+		if (!empty($row)) 
 		{
 			$this->form_validation->set_message('_unique_email', '%s already exists. Please type another email address');
 			return FALSE;
