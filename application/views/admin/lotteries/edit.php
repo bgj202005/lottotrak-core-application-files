@@ -199,7 +199,7 @@
 									);
 								}
 								echo form_button('lotteries_import', 'Lottery Import', $attributes); 
-								$js = "location.href='".base_url()."admin/lotteries/import/".$lottery->id."'";
+								$js = "location.href='".base_url()."admin/lotteries/view_draws/".$lottery->id."'";
 								$class = ($lottery->id ? "btn btn-primary btn-lg btn-info" : "btn btn-secondary btn-lg disabled");
 								if ($lottery->id) 
 								{

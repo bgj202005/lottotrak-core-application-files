@@ -293,5 +293,85 @@ class Lotteries_m extends MY_Model
 		}
 	return TRUE; // All Good!
 	}
+
+	/* Returns the next draw date based on the days of the draw
+	* 
+	* @param	arr	Data object of set days of week
+	* @param 	str	$current
+	* @param 	str $last_draw
+	* @return   str	Next Draw Date 
+	*/
+	public function next_date($days, $current, $last_draw)
+	{
+		$offset = 0;	// Counter to find out how many days until next draw day
+		$found = FALSE;
+		$day_select = array(
+						'monday' => $days->monday,
+						'tuesday' => $days->tuesday,
+						'wednesday' => $days->wednesday,
+						'thursday' => $days->thursday,
+						'friday' => $days->friday,
+						'saturday' => $days->saturday,
+						'sunday'	=> $days->sunday
+		);
+		// Find the current draw day in the array, move the pointer
+		// Find the current day of the last draw, do not update the offset
+		while($current!=key($day_select))
+		{
+			next($day_select);
+		}
+
+		next($day_select);
+		
+		while (!$found)
+		{
+			if(!current($day_select))
+			{
+				$offset++;
+				(key($day_select)=='sunday' ? reset($day_select) : next($day_select));
+			}
+			else
+			{	
+				$offset++;
+				$found = TRUE;
+			}
+		}
+		return date('l M d, Y', strtotime($last_draw.' + '.$offset.' days')); // Returns, for example, Thursday 23rd April 2020
+	}
 	
+	/* Load Draws with Draw Number
+	* 
+	* @param	int	$lottery_id
+	* @param 	str	$name
+	* @return   bool TRUE/FALSE 
+	*/
+	
+	public function load_draws($table, $lottery_id)
+	{
+		$this->db->query('SET @draw_number = 0; '); // Add a Draw Number to the Draw List
+		$query = $this->db->query('SELECT *, 
+				(@draw_number:=@draw_number + 1) AS draw 
+				FROM '.$table.' WHERE lottery_id='.$lottery_id.' 
+				ORDER BY draw_date ASC;');					
+		
+	return $query->result(); 	// Return the Draw History
+	}
+
+	/* Load Draws with Draw Number
+	* 
+	* @param	str	$table		Current table of the Lottery Draws
+	* @param 	arr	$data		key / value pairs of new draw to be inserted
+	* @return   int				returns the next ID number for the record	 
+	*/
+	public function insert_draw($table, $data)
+	{
+		$this->db->set($data);		// Set the query with the key / value pairs
+		$this->db->insert($table);	// Query insert a new record
+	return $this->db->insert_id();	// Return the latest id
+	}
+
+	public function update_draws()
+	{
+
+	}
 }
