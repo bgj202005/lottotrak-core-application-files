@@ -46,7 +46,7 @@
 				<tbody>
 				<?php foreach ($draws as $draw): ?>
 				<tr>
-						<td><input type="checkbox" name = "draw[]" value = "<?= $draw->id; ?>" <?php if(isset($add)) echo "disabled"; 
+						<td><input type="checkbox" name = "draw[]" value = "<?=$draw->id; ?>" <?php if(isset($add)) echo "disabled"; 
 						elseif (isset($edit)&&$selected) 
 						{
 							$flagged = FALSE;
@@ -59,22 +59,48 @@
 								}
 							}
 						} ?>></td>
-						<td><?= $draw->draw.'<span style="float:right; width:50%;">'.btn_delete('admin/lotteries/delete_draw/'.$lottery->id.'/'.$draw->id).'<span>'; ?></td>
+						<td><?= $draw->draw ?></td>
 						<td><?php echo date("D, M d, Y", strtotime(str_replace('/','-',$draw->draw_date))); ?></td>
 						<?php if (isset($edit)&&isset($flagged)&&$flagged)	// Draw is to be edited
 						{ 
-							$extra = array('class' => 'form-control', 'id' => 'formGroupInputLarge',
-										'maxlength' => '2', 'size' => '4');
-							echo '<td>'.form_input('ball_1[]', $draw->ball1, $extra).'</td>';
-							echo '<td>'.form_input('ball_2[]', $draw->ball2, $extra).'</td>';
-							echo '<td>'.form_input('ball_3[]', $draw->ball3, $extra).'</td>';
-							if (intval($lottery->balls_drawn)>=4): echo '<td>'.form_input('ball_4[]', $draw->ball4, $extra).'</td>'; endif;
-							if (intval($lottery->balls_drawn)>=5): echo '<td>'.form_input('ball_5[]', $draw->ball5, $extra).'</td>'; endif;
-							if (intval($lottery->balls_drawn)>=6): echo '<td>'.form_input('ball_6[]', $draw->ball6, $extra).'</td>'; endif;
-							if (intval($lottery->balls_drawn)>=7): echo '<td>'.form_input('ball_7[]', $draw->ball7, $extra).'</td>'; endif;
-							if (intval($lottery->balls_drawn)>=8): echo '<td>'.form_input('ball_8[]', $draw->ball8, $extra).'</td>'; endif;
-							if (intval($lottery->balls_drawn)==9): echo '<td>'.form_input('ball_9[]', $draw->ball9, $extra).'</td>'; endif;
-							if (intval($lottery->extra_ball)==1): echo '<td>'.form_input('extra_ball[]', $draw->extra, $extra).'</td>'; endif;
+							$extra = array('id' => 'formGroupInputLarge', 'maxlength' => '2', 'size' => '4');
+							$extra['class'] = (form_error('ball_1[]') ? 'form-control is-invalid' : 'form-control is-valid');
+							if (empty(set_value('ball_1[]'))) $extra['class'] = 'form-control';
+							echo '<td>'.form_input('ball_1[]', set_value('ball_1[]',$draw->ball1), $extra).'</td>';
+							$extra['class'] = (form_error('ball_2[]') ? 'form-control is-invalid' : 'form-control is-valid');
+							if (empty(set_value('ball_2[]'))) $extra['class'] = 'form-control';
+							echo '<td>'.form_input('ball_2[]', set_value('ball_2[]',$draw->ball2), $extra).'</td>';
+							$extra['class'] = (form_error('ball_3[]') ? 'form-control is-invalid' : 'form-control is-valid');
+							if (empty(set_value('ball_3[]'))) $extra['class'] = 'form-control';
+							echo '<td>'.form_input('ball_3[]', set_value('ball_3[]',$draw->ball3), $extra).'</td>';
+							if (intval($lottery->balls_drawn)>=4): 
+								$extra['class'] = (form_error('ball_4[]') ? 'form-control is-invalid' : 'form-control is-valid');
+								if (empty(set_value('ball_4[]'))) $extra['class'] = 'form-control';
+								echo '<td>'.form_input('ball_4[]', set_value('ball_4[]',$draw->ball4), $extra).'</td>'; endif;
+							if (intval($lottery->balls_drawn)>=5):
+								$extra['class'] = (form_error('ball_5[]') ? 'form-control is-invalid' : 'form-control is-valid');
+								if (empty(set_value('ball_5[]'))) $extra['class'] = 'form-control'; 
+								echo '<td>'.form_input('ball_5[]', set_value('ball_5[]',$draw->ball5), $extra).'</td>'; endif;
+							if (intval($lottery->balls_drawn)>=6): 
+								$extra['class'] = (form_error('ball_6[]') ? 'form-control is-invalid' : 'form-control is-valid');
+								if (empty(set_value('ball_6[]'))) $extra['class'] = 'form-control';
+								echo '<td>'.form_input('ball_6[]', set_value('ball_6[]',$draw->ball6), $extra).'</td>'; endif;
+							if (intval($lottery->balls_drawn)>=7): 
+								$extra['class'] = (form_error('ball_7[]') ? 'form-control is-invalid' : 'form-control is-valid');
+								if (empty(set_value('ball_7[]'))) $extra['class'] = 'form-control';
+								echo '<td>'.form_input('ball_7[]', set_value('ball_7[]', $draw->ball7), $extra).'</td>'; endif;
+							if (intval($lottery->balls_drawn)>=8): 
+								$extra['class'] = (form_error('ball_8[]') ? 'form-control is-invalid' : 'form-control is-valid');
+								if (empty(set_value('ball_8[]'))) $extra['class'] = 'form-control';
+								echo '<td>'.form_input('ball_8[]', set_value('ball_8[]', $draw->ball8), $extra).'</td>'; endif;
+							if (intval($lottery->balls_drawn)==9): 
+								$extra['class'] = (form_error('ball_9[]') ? 'form-control is-invalid' : 'form-control is-valid');
+								if (empty(set_value('ball_9[]'))) $extra['class'] = 'form-control';
+								echo '<td>'.form_input('ball_9[]', set_value('ball_9[]', $draw->ball9), $extra).'</td>'; endif;
+							if (intval($lottery->extra_ball)==1): 
+								$extra['class'] = (form_error('extra_ball[]') ? 'form-control is-invalid' : 'form-control is-valid');
+								if (empty(set_value('extra_ball[]'))) $extra['class'] = 'form-control';
+								echo '<td>'.form_input('extra_ball[]', set_value('extra_ball[]', $draw->extra), $extra).'</td>'; endif;
 						} 
 						else // Only Display
 						{ ?>
@@ -166,7 +192,7 @@
 			'style' 	=> "margin-left:20px; padding:5px;",
 		);
 		if(isset($edit)) $attributes['disabled'] = 'disabled';
-		$label = (isset($add) ? 'Save New Draw' : 'Add Draw: '.$lottery->next_draw_date.' ('.$lottery->num.')');
+		$label = (isset($add) ? 'Save New Draw' : 'Draw: '.$lottery->next_draw_date.' ('.$lottery->num.')');
 		echo form_submit('draw_add', $label, $attributes);
 		$js = "javascript: form.action='".base_url()."admin/lotteries/draw_edit/".$lottery->id."'";
 		$class = "btn btn-primary btn-lg btn-info";

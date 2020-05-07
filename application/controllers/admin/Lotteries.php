@@ -705,14 +705,130 @@ class Lotteries extends Admin_Controller {
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		// Check for existing lottery draws
 		$this->data['message'] = '';  // Create a Message object
+
+		if (!empty($this->input->post('edit')))	// Save to Database
+		{
+			$draw = $this->lotteries_m->array_from_post ( array (
+				'draw[]',
+				'ball_1[]',
+				'ball_2[]',
+				'ball_3[]'
+			) );
+
+			$edit_rules = array(
+				'ball1' => array(
+					'field' => 'ball_1[]', 
+					'label' => 'Ball 1', 
+					'rules' => 'required|greater_than_equal_to['.intval($this->data["lottery"]->minimum_ball).']|numeric|integer|less_than_equal_to['.intval($this->data["lottery"]->maximum_ball).']'
+				), 
+				'ball2' => array(
+					'field' => 'ball_2[]', 
+					'label' => 'Ball 2', 
+					'rules' => 'required|greater_than_equal_to['.intval($this->data["lottery"]->minimum_ball).']|numeric|integer|less_than_equal_to['.intval($this->data["lottery"]->maximum_ball).']'
+				), 
+				'ball3' => array(  
+					'field' => 'ball_3[]', 
+					'label' => 'Ball 3', 
+					'rules' => 'required|greater_than_equal_to['.intval($this->data["lottery"]->minimum_ball).']|numeric|integer|less_than_equal_to['.intval($this->data["lottery"]->maximum_ball).']'
+				)
+			);
+			if (intval($this->data['lottery']->balls_drawn)>=4) {
+				$draw['ball_4[]'] = $this->input->post('ball_4[]');
+				$edit_rules['ball_4[]'] = array(
+					'field' => 'ball_4[]', 
+					'label' => 'Ball 4', 
+					'rules' => 'required|greater_than_equal_to['.intval($this->data["lottery"]->minimum_ball).']|numeric|integer|less_than_equal_to['.intval($this->data["lottery"]->maximum_ball).']'
+				); 
+			}
+			if (intval($this->data['lottery']->balls_drawn)>=5) {
+				$draw['ball_5[]'] = $this->input->post('ball_5[]');
+				$edit_rules['ball_5[]'] = array(
+					'field' => 'ball_5[]', 
+					'label' => 'Ball 5', 
+					'rules' => 'required|greater_than_equal_to['.intval($this->data["lottery"]->minimum_ball).']|numeric|integer|less_than_equal_to['.intval($this->data["lottery"]->maximum_ball).']'
+				);
+			}
+			if (intval($this->data['lottery']->balls_drawn)>=6) 
+			{
+				$draw['ball_6[]'] = $this->input->post('ball_6[]');
+				$edit_rules['ball_6[]'] = array(
+					'field' => 'ball_6[]', 
+					'label' => 'Ball 6', 
+					'rules' => 'required|greater_than_equal_to['.intval($this->data["lottery"]->minimum_ball).']|numeric|integer|less_than_equal_to['.intval($this->data["lottery"]->maximum_ball).']'
+				);
+			}
+			if (intval($this->data['lottery']->balls_drawn)>=7) 
+			{
+				$draw['ball_7[]'] = $this->input->post('ball7[]');
+				$edit_rules['ball_7[]'] = array(
+					'field' => 'ball_7[]', 
+					'label' => 'Ball 7', 
+					'rules' => 'required|greater_than_equal_to['.intval($this->data["lottery"]->minimum_ball).']|numeric|integer|less_than_equal_to['.intval($this->data["lottery"]->maximum_ball).']'
+				);
+			}
+			if (intval($this->data['lottery']->balls_drawn)>=8) 
+			{
+				$draw['ball_8[]'] = $this->input->post('ball_8[]');
+				$edit_rules['ball_8[]'] = array(
+					'field' => 'ball_8[]', 
+					'label' => 'Ball 8', 
+					'rules' => 'required|greater_than_equal_to['.intval($this->data["lottery"]->minimum_ball).']|numeric|integer|less_than_equal_to['.intval($this->data["lottery"]->maximum_ball).']'
+				);
+			}
+			if (intval($this->data['lottery']->balls_drawn)>=9) 
+			{
+				$draw['ball_9[]'] = $this->input->post('ball_9[]');
+				$edit_rules['ball9'] = array(
+					'field' => 'ball_9[]', 
+					'label' => 'Ball 9', 
+					'rules' => 'required|greater_than_equal_to['.intval($this->data["lottery"]->minimum_ball).']|numeric|integer|less_than_equal_to['.intval($this->data["lottery"]->maximum_ball).']'
+				);
+			}
+			if ($this->data['lottery']->extra_ball) 
+			{
+				$draw['extra[]'] = $this->input->post('extra_ball');
+				$edit_rules['extra'] = array(
+					'field' => 'extra_ball[]', 
+					'label' => 'Extra Ball', 
+					'rules' => 'required|greater_than_equal_to['.intval($this->data["lottery"]->minimum_extra_ball).']|numeric|integer|less_than_equal_to['.intval($this->data["lottery"]->maximum_extra_ball).']'
+				);
+			}
+			$draw['lottery_id'] = $id;	// Foreign Key to Lottery Profile
+
+			$this->form_validation->set_rules($edit_rules);
+			
+			if ($this->form_validation->run() == TRUE) {
+				// Draw Updates need to be passed like this ->
+				// 0 => id, ball1, ball2, ball3, ball4, ball5, ball6, extra, lottery_id
+				// 1 => id, ball1, ball2, ball3, ball4, ball5, ball6, extra, lottery_id
+
+				$result = $this->lotteries_m->update_from_post($draw, $tbl_name, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_ball);
+
+				if ($result)
+				{
+					$this->data['message'] = "The Draw(s) have been updated in the database.";  // Successfully added draw message	
+				} 
+				else
+				{
+					$this->data['message'] = "The draw(s) could not be updated in the database. Check the numbers and Save the draw(s) again.";  // Error message	
+				}
+			}
+			else 
+			{
+				$this->data['edit']	= 'edit';
+				$this->data['message'] = "Number Range Error. Check the numbers and Save the draw(s) again.";  // Error message
+			}
+		}
+		else
+		{
+			$this->data['edit']	= 'edit';
+		}
 		
 		$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $id);
-		$this->data['edit']	= 'edit';							// Editing has been selected
 		$this->data['selected'] = $this->input->post('draw');	// Return the posted array
-
-		$c = count($this->data['draws']);					// Determine total count of array of objects
-		$ld = $this->data['draws'][$c-1]->draw_date;		// Return last draw date
-		$day = $this->return_day($ld);						// Returns the day of draw, Saturdday, Sunday, etc.
+		$c = count($this->data['draws']);						// Determine total count of array of objects
+		$ld = $this->data['draws'][$c-1]->draw_date;			// Return last draw date
+		$day = $this->return_day($ld);							// Returns the day of draw, Saturdday, Sunday, etc.
 		$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
 		$this->data['lottery']->num = strval(++$c);
 

@@ -357,7 +357,7 @@ class Lotteries_m extends MY_Model
 	return $query->result(); 	// Return the Draw History
 	}
 
-	/* Load Draws with Draw Number
+	/* Insert Draw with Draw Number
 	* 
 	* @param	str	$table		Current table of the Lottery Draws
 	* @param 	arr	$data		key / value pairs of new draw to be inserted
@@ -370,8 +370,51 @@ class Lotteries_m extends MY_Model
 	return $this->db->insert_id();	// Return the latest id
 	}
 
-	public function update_draws()
+	/* Update Draw()s with Draw Number(s)
+	* 
+	* @param	str	$table		Current table of the Lottery Draws
+	* @param 	arr	$data		key / value pairs of new draw to be inserted
+	* @return   bool			TRUE / FALSE, All Records successfully updated / A Record failed to update
+	*/
+	public function update_draws($table, $data)
 	{
+		$this->db->where('id', $data['id']);
+	return $this->db->update($table, $data);
+	}
 
+	/* Move Post Values to Update Array for Editting Draw(s)
+	* 
+	* @param	obj	$data		Current table of the Lottery Draws
+	* @param 	int	$drawn		key / value pairs of new draw to be inserted
+	* @param	bool $extra		If lottery has an extra ball
+	* @return   bool			TRUE / FALSE, All Records successfully updated / A Record failed to update
+	*/
+	public function update_from_post($data, $tbl, $drawn, $extra)
+	{
+		// Draw Updates need to be passed like this ->
+		// 0 => id, ball1, ball2, ball3, ball4, ball5, ball6, extra, lottery_id
+		// 1 => id, ball1, ball2, ball3, ball4, ball5, ball6, extra, lottery_id
+
+			$c = count($data['draw[]']);
+			$ld = array();
+
+			for ($i = 0; $i < $c; $i++) 
+			{
+				$ld['id'] = $data['draw[]'][$i];
+				$ld['ball1'] = $data['ball_1[]'][$i];
+				$ld['ball2'] = $data['ball_2[]'][$i];
+				$ld['ball3'] = $data['ball_3[]'][$i];
+				if(intval($drawn)>=4) $ld['ball4'] = $data['ball_4[]'][$i];
+				if(intval($drawn)>=5) $ld['ball5'] = $data['ball_5[]'][$i];
+				if(intval($drawn)>=6) $ld['ball6'] = $data['ball_6[]'][$i];
+				if(intval($drawn)>=7) $ld['ball7'] = $data['ball_7[]'][$i];
+				if(intval($drawn)>=8) $ld['ball8'] = $data['ball_8[]'][$i];
+				if(intval($drawn)>=9) $ld['ball9'] = $data['ball_9[]'][$i];
+				if ($extra) $ld['extra'] = $data['extra[]'][$i];
+				$ld['lottery_id'] = $data['lottery_id'];
+				$success = $this->update_draws($tbl, $ld);
+				unset($ld); 
+			}
+		return $success;	
 	}
 }
