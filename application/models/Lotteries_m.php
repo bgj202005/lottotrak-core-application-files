@@ -336,7 +336,7 @@ class Lotteries_m extends MY_Model
 				$found = TRUE;
 			}
 		}
-		return date('l M d, Y', strtotime($last_draw.' + '.$offset.' days')); // Returns, for example, Thursday 23rd April 2020
+		return date('D M d, Y', strtotime($last_draw.' + '.$offset.' days')); // Returns, for example, Thursday 23rd April 2020
 	}
 	
 	/* Load Draws with Draw Number

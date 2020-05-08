@@ -60,7 +60,8 @@
 							}
 						} ?>></td>
 						<td><?= $draw->draw ?></td>
-						<td><?php echo date("D, M d, Y", strtotime(str_replace('/','-',$draw->draw_date))); ?></td>
+						<td><?php 
+							echo date("D, M d, Y", strtotime(str_replace('/','-',$draw->draw_date))); ?></td>
 						<?php if (isset($edit)&&isset($flagged)&&$flagged)	// Draw is to be edited
 						{ 
 							$extra = array('id' => 'formGroupInputLarge', 'maxlength' => '2', 'size' => '4');
@@ -192,7 +193,7 @@
 			'style' 	=> "margin-left:20px; padding:5px;",
 		);
 		if(isset($edit)) $attributes['disabled'] = 'disabled';
-		$label = (isset($add) ? 'Save New Draw' : 'Draw: '.$lottery->next_draw_date.' ('.$lottery->num.')');
+		$label = (isset($add) ? 'Save New Draw' : 'Next: '.$lottery->next_draw_date.' ('.$lottery->num.')');
 		echo form_submit('draw_add', $label, $attributes);
 		$js = "javascript: form.action='".base_url()."admin/lotteries/draw_edit/".$lottery->id."'";
 		$class = "btn btn-primary btn-lg btn-info";

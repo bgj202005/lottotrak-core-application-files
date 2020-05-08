@@ -778,7 +778,7 @@ class Lotteries extends Admin_Controller {
 			if (intval($this->data['lottery']->balls_drawn)>=9) 
 			{
 				$draw['ball_9[]'] = $this->input->post('ball_9[]');
-				$edit_rules['ball9'] = array(
+				$edit_rules['ball_9[]'] = array(
 					'field' => 'ball_9[]', 
 					'label' => 'Ball 9', 
 					'rules' => 'required|greater_than_equal_to['.intval($this->data["lottery"]->minimum_ball).']|numeric|integer|less_than_equal_to['.intval($this->data["lottery"]->maximum_ball).']'
@@ -794,7 +794,7 @@ class Lotteries extends Admin_Controller {
 				);
 			}
 			$draw['lottery_id'] = $id;	// Foreign Key to Lottery Profile
-
+			print_r($draw['extra[]']);
 			$this->form_validation->set_rules($edit_rules);
 			
 			if ($this->form_validation->run() == TRUE) {
@@ -821,7 +821,8 @@ class Lotteries extends Admin_Controller {
 		}
 		else
 		{
-			$this->data['edit']	= 'edit';
+			if (empty($this->input->post('draw'))) $this->data['message'] = "Please Select the Draw Number(s) and click Manually Edit Draw(s) below.";  // Error message
+			else $this->data['edit']	= 'edit';
 		}
 		
 		$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $id);
