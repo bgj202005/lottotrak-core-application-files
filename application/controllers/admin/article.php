@@ -44,8 +44,8 @@ class Article extends Admin_Controller {
 					'body' 
 			) );
 			$data['pubdate'] = date( 'Y-m-d', strtotime(str_replace('/', '-', $data['pubdate'])));
-			$this->article_m->object_from_article_post($data, $this->data['article']);
 			$data['body'] = addslashes($data['body']);				// Sanitize Data going to the database
+			$this->article_m->object_from_article_post($data, $this->data['article']);
 
 			$this->article_m->save($data, $id);
 			if (!$this->uri->segment(5))  redirect('admin/article');	// Save and Exit

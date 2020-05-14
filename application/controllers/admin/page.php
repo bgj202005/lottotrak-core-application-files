@@ -56,8 +56,8 @@ class Page extends Admin_Controller {
 					'menu_id'
 			) );
 			
-			$this->page_m->object_from_page_post($data, $this->data['page']);
 			$data['body'] = addslashes($data['body']);				// Sanitize Data going to the database
+			$this->page_m->object_from_page_post($data, $this->data['page']);
 
 			$this->page_m->save($data, $id);
 			if (!$this->uri->segment(5))  redirect('admin/page');	// Save and Exit		
