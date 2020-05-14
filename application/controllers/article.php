@@ -17,6 +17,7 @@ class Article extends Frontend_Controller {
 		
 		$this->article_m->set_published();
 		$this->data['article'] = $this->article_m->get($id);
+		
 		is_object($this->data['article']) || show_404(uri_string()); // Depreciated in PHP 7.2 count($$this->data['article'])
 		
 		$this->db->limit(6);

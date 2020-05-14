@@ -7,8 +7,10 @@ class Frontend_Controller extends MY_Controller
 		
 		$this->load->helper('form');
 		$this->load->helper('cookie');
+		$this->load->helper('string');
 		$this->load->library('form_validation');
 		$this->load->library('session');
+
     	// Load stuff
     	$this->load->model('page_m');
     	$this->load->model('article_m');

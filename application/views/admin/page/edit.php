@@ -1,5 +1,5 @@
 <?php echo validation_errors(); ?>
-<?php echo form_open(); ?>
+<?php echo form_open(base_url()."admin/page/edit/".$page->id); ?>
 	<h2><?php echo empty($page->id) ? 'Add a new page' : 'Edit page '.$page->title; ?></h2>
 	
 <table class = "table" style = "width:80%;">
@@ -30,12 +30,32 @@
 	</tr>
 	<tr>
 		<td>Page Content:</td>
-		<td><?php echo form_textarea('body',  stripslashes($page->body), 'id="editarea"'); ?></td>
+		<td><?php echo form_textarea('body',  strip_slashes($page->body), 'id="editarea"'); ?>
+	</td>
 	</tr>
 	<tr>
-	<td><?php echo form_submit('submit', 'Save and Close', '
+	<td><?php echo form_submit('page_save', 'Save and Exit', '
 			class="btn btn-primary"'); ?></td>
+	<td><?php 
+		$js = "javascript: form.action='".base_url()."admin/page/edit/".$page->id."/save'";
+		$class = "btn btn-primary";
+		$attributes = array(
+			'class' 	=> "$class",
+			'onClick' 	=> "$js", 
+			'style' 	=> "margin-right:20px; padding:5px;",
+		);
+		echo form_submit('page_edit', 'Save and No Exit', $attributes);  
+		$js = "location.href='".base_url()."admin/page/'";
+		$class = "btn btn-primary";
+		$attributes = array(
+			'class' 	=> "$class",
+			'onClick' 	=> "$js", 
+			'style' 	=> "margin-left:20px; padding:5px;"
+		);
+		echo form_button('page_cancel', 'Cancel Page Edit', $attributes); ?>
+	</td>		
 	</tr>
+		<?php echo form_close(); ?>
 </table>
 <script>
 function disable() {

@@ -6,6 +6,7 @@ class Admin_Controller extends MY_Controller
 		parent::__construct();
 		$this->data['meta_title'] = 'Lottotrak';
 		$this->load->helper('form');
+		$this->load->helper('string');
 		$this->load->library('form_validation');
 		$this->load->library('session');
 		$this->load->model('user_m');

@@ -21,11 +21,20 @@ class Page extends Admin_Controller {
 		
 		// Fetch a page or set a new one
 		
-	    if ($id) {
+		if ($id) 
+		{
 			$this->data['page'] = $this->page_m->get($id);
-			//$this->data['page']->body = $this->strip_false_tags($this->data['page']->body); // Strip HTML out of tinymce editor
-			is_object($this->data['page']) || $this->data['errors'][] = 'page could not be found'; // deprecated php 7.2+ count($this->data['page']) 		} else {
-			$this->data['page'] = $this->page_m->get_new();
+			$this->data['page']->body = $this->strip_false_tags($this->data['page']->body); // Strip HTML out of tinymce editor
+			if(is_object($this->data['page'])||empty($this->data['page']))
+			{
+				$this->data['errors'][] = 'page could not be found';
+			}
+			//count($this->data['page'])  || $this->data['errors'][] = 'page could not be found'; // deprecated php 7.2+ count($this->data['page'])	} else {
+			//$this->data['page'] = $this->page_m->get_new();
+		}
+		else
+		{
+			$this->data['page'] = $this->page_m->get_new();	
 		}
 		
 		// pages for dropdown
@@ -44,11 +53,14 @@ class Page extends Admin_Controller {
 					'body',
 					'template',
 					'parent_id',
-			        'menu_id' 
+					'menu_id'
 			) );
-			$data['body'] = addslashes($data['body']);
+			
+			$this->page_m->object_from_page_post($data, $this->data['page']);
+			$data['body'] = addslashes($data['body']);				// Sanitize Data going to the database
+
 			$this->page_m->save($data, $id);
-			redirect('admin/page');
+			if (!$this->uri->segment(5))  redirect('admin/page');	// Save and Exit		
 		}
 		
 		// Load the View

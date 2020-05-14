@@ -1,6 +1,6 @@
 
 <?php echo validation_errors(); ?>
-<?php echo form_open(); ?>
+<?php echo form_open(base_url()."admin/article/edit/".$article->id); ?>
 <h2><?php echo empty($article->id) ? 'Add a new article' : 'Edit an Article '.$article->title; ?></h2>
 
 <table class="table" style="width: 80%;">
@@ -9,28 +9,12 @@
 		<td>
 			<div class="form-group">
 				<div class="input-group date" id="datepicker1" data-provide="datepicker"> 
-					<?php echo form_input('pubdate', set_value('pubdate', date("d-m-Y",strtotime(str_replace('/','-',$article->pubdate)))),'class="datepicker" style ="width:100%"'); ?>  
+					<?php $attr = array ('maxlength' => '10', 'class' => 'datepicker', 'style' => 'width:12%');  
+					echo form_input('pubdate', set_value('pubdate', date("d-m-Y",strtotime(str_replace('/','-',$article->pubdate)))), $attr); ?>  
 					<span class="input-group-addon"><i class="fa fa-calendar"></i></span>
 				</div>
-			</div> <!--  <div class="input-group date" data-provi/**
-			 * Function Name
-			 *
-			 * Function description
-			 *
-			 * @access	public
-			 * @param	type	name
-			 * @return	type	
-			 */
-			 
-			if (! function_exists('function_name'))
-			{
-				function function_name($param = '')
-				{
-					
-				}
-			}de="datepicker" style = "postion: absolute; float:left; width:30%">
-		<?php // echo form_input('pubdate', set_value('pubdate', $article->pubdate),'class="datepicker" style ="width:100%"'); ?> 
-		 <div class="input-group-addon"><span class="glyphicon glyphicon-th"></span></div></div> -->
+			</div> 
+		 <div class="input-group-addon"><span class="glyphicon glyphicon-th"></span></div></div> 
 		</td>
 	</tr>
 	<tr>
@@ -43,12 +27,30 @@
 	</tr>
 	<tr>
 		<td style="width: 20%;">Lottery Article Content:</td>
-		<td><?php echo form_textarea('body', stripslashes($article->body), 'id="editarea"');
+		<td><?php echo form_textarea('body', strip_slashes($article->body), 'id="editarea"');
 			?></td>
 	</tr>
 	<tr>
-		<td><?php echo form_submit('submit', 'Save and Close', '
+		<td><?php echo form_submit('submit', 'Save and Exit', '
 			class="btn btn-primary"'); ?></td>
+		<td><?php 
+		$js = "javascript: form.action='".base_url()."admin/article/edit/".$article->id."/save'";
+		$class = "btn btn-primary";
+		$attributes = array(
+			'class' 	=> "$class",
+			'onClick' 	=> "$js", 
+			'style' 	=> "margin-right:20px; padding:5px;",
+		);
+		echo form_submit('article_edit', 'Save and No Exit', $attributes);  
+		$js = "location.href='".base_url()."admin/article/'";
+		$class = "btn btn-primary";
+		$attributes = array(
+			'class' 	=> "$class",
+			'onClick' 	=> "$js", 
+			'style' 	=> "margin-left:20px; padding:5px;"
+		);
+		echo form_button('article_cancel', 'Cancel Article Edit', $attributes); ?>
+	</td>	
 	</tr>
 </table>
 

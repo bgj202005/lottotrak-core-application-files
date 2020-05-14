@@ -43,12 +43,12 @@ class Article extends Admin_Controller {
 					'pubdate',
 					'body' 
 			) );
-			
-			//dump($data['pubdate']); exit(1); // date('Y-m-d',  strtotime(str_replace('/', '-', $data['pubdate'])))
-				
 			$data['pubdate'] = date( 'Y-m-d', strtotime(str_replace('/', '-', $data['pubdate'])));
+			$this->article_m->object_from_article_post($data, $this->data['article']);
+			$data['body'] = addslashes($data['body']);				// Sanitize Data going to the database
+
 			$this->article_m->save($data, $id);
-			redirect('admin/article');
+			if (!$this->uri->segment(5))  redirect('admin/article');	// Save and Exit
 		}
 		// Load the View
 		$this->data['subview']  = 'admin/article/edit';
@@ -61,5 +61,4 @@ class Article extends Admin_Controller {
 		redirect('admin/article');
 		
 	}
-	
 }

@@ -177,4 +177,21 @@ class Page_m extends MY_Model
 		$page = parent::get_by(array('template' => 'newsarticle'), TRUE);
 		return isset($page->slug) ? $page->slug : '';  
 	}
+
+	/**
+	 * Takes the $fields array and transfers the field objects to the array
+	 * @param	arr	$fields 	array field values from post
+	 * @param	obj $data		called by reference object values from database (is returned from the database as object)
+	 * @return 	none
+	 * */
+	public function object_from_page_post($fields, &$data)
+	{
+		$data->title  		= $fields['title'];
+		$data->slug  		= $fields['slug'];
+		$data->order  		= $fields['order'];
+		$data->body  		= $fields['body'];
+		$data->parent_id 	= $fields['parent_id'];
+		$data->menu_id 		= $fields['menu_id'];	
+		$data->template 	= $fields['template'];
+	}
 }

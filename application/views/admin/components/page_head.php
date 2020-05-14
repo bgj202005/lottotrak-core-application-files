@@ -18,42 +18,121 @@
 <link href="<?php echo site_url('css/admin/admin.css');?>" rel="stylesheet">
 <link href="<?php echo site_url('css/admin/bootstrap-datepicker3.css');?>" rel="stylesheet">
 
-<script type="text/javascript" src="<?php echo site_url('js/tinymce/tinymce.min.js');?>"></script> 
 <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 <?php if(isset($sortable) && $sortable ===TRUE): ?>
-	<script src="<?php echo site_url('js/jquery-ui.min.js');?>"></script>
-    <script src="<?php echo site_url('js/jquery.mjs.nestedSortable.js');?>"></script>
+  	<script src="<?php echo site_url('js/jquery-ui.min.js');?>"></script>
+    <script src="<?php echo site_url('js/jquery.mjs.nestedSortable.js');?>"></script> 
 <?php endif; ?>
-<script src="<?php echo site_url('js/bootstrap-datepicker.js');?>"></script>
+  <script src="<?php echo site_url('js/bootstrap-datepicker.js');?>"></script>
  
 <!-- Load TinyMCE -->
-<script src='https://cdn.tiny.cloud/1/no-api-key/tinymce/5/tinymce.min.js' referrerpolicy="origin"></script>
+<script src="https://cdn.tiny.cloud/1/m0o7m7f3a0bazb6hfkqddm0ej4v4roygur9habrlfdkului7/tinymce/5/tinymce.min.js" referrerpolicy="origin"></script>
   <script>
   tinymce.init({
     selector: '#editarea',
     height: 500,
-    menubar: true,
-    automatic_uploads: false,
-    images_upload_credentials: true,
-    images_upload_url: '<?php echo base_url()?>upload.php',
-  images_upload_base_path: '<?php echo base_url()?>',
-  relative_urls: false,
-   document_base_url : "<?php echo base_url()?>",
-    plugins: [
-        'advlist autolink lists link image charmap print preview anchor',
-        'searchreplace visualblocks code fullscreen',
-        'insertdatetime media table paste code help wordcount',
-        "image imagetools"
-    ],
-    toolbar: 'undo redo | formatselect | ' +
-    ' bold italic backcolor | alignleft aligncenter ' +
-    ' alignright alignjustify | bullist numlist outdent indent |' +
-    ' removeformat | help',
-    content_css: [
-        '//fonts.googleapis.com/css?family=Lato:300,300i,400,400i',
-        '//www.tiny.cloud/css/codepen.min.css'
-    ]
-  });
-  </script>
+    menu: 
+    {
+    file: { title: 'File', items: 'newdocument restoredraft | preview | print ' },
+    edit: { title: 'Edit', items: 'undo redo | cut copy paste | selectall | searchreplace' },
+    view: { title: 'View', items: 'code | visualaid visualchars visualblocks | spellchecker | preview fullscreen' },
+    insert: { title: 'Insert', items: 'image link media template codesample inserttable | charmap emoticons hr | pagebreak nonbreaking anchor toc | insertdatetime' },
+    format: { title: 'Format', items: 'bold italic underline strikethrough superscript subscript codeformat | formats blockformats fontformats fontsizes align | forecolor backcolor | removeformat' },
+    tools: { title: 'Tools', items: 'spellchecker spellcheckerlanguage | code wordcount' },
+    table: { title: 'Table', items: 'inserttable | cell row column | tableprops deletetable' },
+    help: { title: 'Help', items: 'help' }
+    },
+    plugins: 'a11ychecker advcode casechange formatpainter linkchecker autolink lists checklist media mediaembed pageembed permanentpen powerpaste table advtable tinycomments tinymcespellchecker image',
+      toolbar: 'a11ycheck addcomment showcomments casechange checklist code formatpainter pageembed permanentpen table link image',
+      toolbar_mode: 'floating',
+      tinycomments_mode: 'embedded',
+      tinycomments_author: 'Lottotrak',
+      images_upload_base_path: '/',
+      images_upload_url: '<?php echo base_url(); ?>postAcceptor.php',
+        // enable title field in the Image dialog
+      image_title: true, 
+      // enable automatic uploads of images represented by blob or data URIs
+      automatic_uploads: false,
+      // add custom filepicker only to Image dialog
+      file_picker_types: 'image media',
+      images_reuse_filename: true,
+      images_upload_handler: function (blobInfo, success, failure) {
+      var xhr, formData;
+
+      xhr = new XMLHttpRequest();
+      xhr.withCredentials = false;
+      xhr.open('POST', '<?php echo base_url(); ?>postAcceptor.php');
+
+      xhr.onload = function() {
+        var json;
+        if (xhr.status < 200 || xhr.status >= 300) {
+        failure('HTTP Error: ' + xhr.status);
+        return;
+        }
+
+        json = JSON.parse(xhr.responseText);
+
+        if (!json || typeof json.location != 'string') {
+        failure('Invalid JSON: ' + xhr.responseText);
+        return;
+        }
+        success(json.location);
+      };
+      formData = new FormData();
+      formData.append('file', blobInfo.blob(), fileName(blobInfo));
+      xhr.send(formData);
+      },
+      file_picker_callback: function(cb, value, meta) {
+        var input = document.createElement('input');
+        input.setAttribute('type', 'file');
+        input.setAttribute('accept', 'image/*');
+
+        input.onchange = function() {
+          var file = this.files[0];
+          var reader = new FileReader();
+          
+          reader.onload = function () {
+            var id = 'blobid' + (new Date()).getTime();
+            var blobCache =  tinymce.activeEditor.editorUpload.blobCache;
+            var base64 = reader.result.split(',')[1];
+            var blobInfo = blobCache.create(id, file, base64);
+            blobCache.add(blobInfo);
+
+            // call the callback and populate the Title field with the file name
+            cb(blobInfo.blobUri(), { title: file.name });
+          };
+          reader.readAsDataURL(file);
+        };
+    
+    input.click();
+  },
+  images_upload_handler: function (blobInfo, success, failure) {
+      var xhr, formData;
+      xhr = new XMLHttpRequest();
+      xhr.withCredentials = false;
+
+      xhr.open('POST', '<?php echo base_url(); ?>postAcceptor.php');
+      xhr.onload = function() {
+        var json;
+
+        if (xhr.status != 200) {
+        failure('HTTP Error: ' + xhr.status);
+        return;
+        }
+        json = JSON.parse(xhr.responseText);
+
+        if (!json || typeof json.location != 'string') {
+        failure('Invalid JSON: ' + xhr.responseText);
+        return;
+        }
+        success(json.location);
+      };
+      formData = new FormData();
+      formData.append('file', blobInfo.blob(), fileName(blobInfo));
+      xhr.send(formData);
+      },
+});
+</script>
+<!-- End TinyMCE Script -->
 </head>  
