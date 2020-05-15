@@ -14,7 +14,15 @@
         <li class="nav-item"><?php echo anchor('admin/page', 'Pages', 'class = "nav-link"');?></li>
         <li class="nav-item"><?php echo anchor('admin/article', 'Lottery News Articles','class = "nav-link"');?></li>
         <li class="nav-item"><?php echo anchor('admin/membership', 'Members', 'class = "nav-link"');?></li>
-        <li class="nav-item"><?php echo anchor('admin/lotteries', 'Lotteries', 'class = "nav-link"');?></li>
+        <li class="nav-item dropdown">
+        <?php $attr = array('class' => "nav-link dropdown-toggle", 'id' => "navbarDropdown", 'role'=> "button", 
+        'data-toggle'=> "dropdown",  'aria-haspopup' => "true", 'aria-expanded' => "false");
+        echo anchor('admin/lotteries', 'Lotteries', $attr);?>
+        <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+          <?php echo anchor('admin/lotteries', 'View Lotteries', 'class = "dropdown-item"'); ?>
+          <?php echo anchor('admin/lotteries/edit', 'Add New Lottery Profile', 'class = "dropdown-item"'); ?>
+        </div> 
+        </li>
         <li class="nav-item"><?php echo anchor('admin/page/order/0', 'Header Menu Order ', 'class = "nav-link"');?></li>
         <li class="nav-item"><?php echo anchor('admin/page/order/1', 'Footer Insider Menu Order ', 'class = "nav-link"');?></li>
         <li class="nav-item"><?php echo anchor('admin/page/order/2', 'Footer Outside Menu Order ', 'class = "nav-link"');?></li>
