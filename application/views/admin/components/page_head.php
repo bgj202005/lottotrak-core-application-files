@@ -43,8 +43,10 @@
     table: { title: 'Table', items: 'inserttable | cell row column | tableprops deletetable' },
     help: { title: 'Help', items: 'help' }
     },
-    plugins: 'a11ychecker advcode casechange formatpainter linkchecker autolink lists checklist media mediaembed pageembed permanentpen powerpaste table advtable tinycomments tinymcespellchecker image',
-      toolbar: 'a11ycheck addcomment showcomments casechange checklist code formatpainter pageembed permanentpen table link image',
+    
+    plugins: 'autoresize a11ychecker advcode casechange formatpainter linkchecker autolink lists checklist media mediaembed pageembed permanentpen powerpaste table advtable tinycomments tinymcespellchecker link image',
+      toolbar: 'anchor a11ycheck addcomment showcomments casechange checklist code formatpainter pageembed permanentpen table | link image code',
+      relative_urls: false,
       toolbar_mode: 'floating',
       tinycomments_mode: 'embedded',
       tinycomments_author: 'Lottotrak',

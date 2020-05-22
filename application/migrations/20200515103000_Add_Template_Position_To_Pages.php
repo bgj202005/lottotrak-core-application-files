@@ -8,8 +8,8 @@ class  Migration_Add_template_position_to_pages extends CI_Migration {
 	{
 		$fields  = (array(
 		        'position' => array(
-		                  'type'       => 'INTEGER',
-		                  'constraint' => 10,
+		                  'type'       => 'VARCHAR',
+						  'constraint' => '25',
 		                  'null'	   => FALSE
 		    )
 		));

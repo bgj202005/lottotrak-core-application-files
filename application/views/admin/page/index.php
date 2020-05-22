@@ -8,6 +8,8 @@
 				<td>Title</td>
 				<td>Parent</td>
 				<td>Location</td>
+				<td>Slug</td>
+				<td>Menu Item</td>
 				<th>Edit</th>
 				<td>Delete</td>
 			</tr>
@@ -27,6 +29,8 @@
 			default:
 			     echo "Header Menu";
 		}?></td>
+		<td><?=$page->slug; ?></td>
+		<td><?=(!empty($page->menu_item) ? "<i class='fa fa-check' aria-hidden='true'></i>" : ""); ?></td>
 	    <td><?php echo btn_edit('admin/page/edit/'.$page->id); ?></td>
 	    <td><?php echo btn_delete('admin/page/delete/'.$page->id); ?></td>
 	</tr>

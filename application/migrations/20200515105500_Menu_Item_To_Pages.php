@@ -11,7 +11,8 @@ class  Migration_Menu_Item_To_Pages extends CI_Migration {
 		                  'type'       => 'TINYINT',
 		                  'constraint' => 1,
                           'unsigned'   => TRUE,
-                          'default'     => 0
+						  'default'    => 0,
+						  'null'	   => FALSE		
 		    )
 		));
 		$this->dbforge->add_column('pages', $field);

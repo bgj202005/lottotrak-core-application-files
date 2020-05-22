@@ -37,6 +37,7 @@ class Page extends Admin_Controller {
 			$this->data['page'] = $this->page_m->get_new();	
 		}
 		
+
 		// pages for dropdown
 		$this->data['pages_no_parents'] = $this->page_m->get_no_parents();
 		// Setup the form
@@ -52,10 +53,13 @@ class Page extends Admin_Controller {
 					'order',
 					'body',
 					'template',
+					'position',
+					'menu_item',
 					'parent_id',
 					'menu_id'
 			) );
 			
+			if(is_null($data['menu_item'])) $data['menu_item'] = 0;
 			$data['body'] = addslashes($data['body']);				// Sanitize Data going to the database
 			$this->page_m->object_from_page_post($data, $this->data['page']);
 
@@ -63,6 +67,9 @@ class Page extends Admin_Controller {
 			if (!$this->uri->segment(5))  redirect('admin/page');	// Save and Exit		
 		}
 		
+		// Load the default position
+		$this->data['position_options'] = $this->default_position($this->data['page']->template);
+
 		// Load the View
 		$this->data['subview']  = 'admin/page/edit';
 		$this->load->view('admin/_layout_main', $this->data);
@@ -112,5 +119,95 @@ class Page extends Admin_Controller {
 		$this->data['pages'] = $this->page_m->get_nested($this->data['menu_id']);
 		// Load view
 		$this->load->view('admin/page/order_ajax', $this->data);
+	}
+
+	/**
+	 * Returns the positional array from the template give. homepage, right_sidebar, newsarticle, page 
+	 *
+	 * @param		str $tpl 		Name of Template
+	 * @return      arr $position	Array of positions from the template
+	 */
+	public function default_position($tpl)
+	{
+		switch($tpl)
+		{
+			case 'homepage':
+				return array('top_section' => 'Top Section', 'bottom_left' => 'Bottom Left', 'bottom_right' => 'Bottom Right');
+			case 'sidebar':
+				return array('top_section' => 'Top', 'middle_section' => 'Middle', 'bottom_secton' => 'Bottom');
+			case 'newsarticle':
+				return array('featured_article' => 'featured', 'archived_article' => 'archived');
+			case 'page':
+				return array('full_page' => 'Full Page');
+		}
+	}
+
+	/**
+	 * Ajax call to return the positional array from the template give. homepage, right_sidebar, newsarticle, page 
+	 *
+	 * @param		none
+	 * @return      none			
+	 */
+
+	public function get_position()
+	{
+		//$template = $this->input->post['template'];   // template id
+		header("Content-type: text/javascript");
+		$template = $_POST['template'];
+
+		$position_arr = array();
+
+		switch($template)
+		{
+			case 'homepage' :
+				$position_arr[] = array(
+									array(
+										'id' => 'top_section', 
+										'name' => 'Top Section'
+									),
+									array(
+										'id' => 'bottom_left', 
+										'name' => 'Bottom Left'
+									), 
+									array(
+										'id' => 'bottom_right', 
+										'name' => 'Bottom Right'
+									));
+			break;
+			case 'sidebar':
+				$position_arr[] = array(
+									array(
+										'id' => 'top_section', 
+										'name' => 'Top Section'
+									),
+									array(
+										'id' => 'middle_section', 
+										'name' => 'Middle Section' 
+									), 
+									array(
+										'id' => 'bottom_secton', 
+										'name' => 'Bottom Section'
+									));
+			case 'newsarticle':
+				$position_arr[] = array(
+									array(
+										'id' => 'featured_article', 
+										'name' => 'Featured Article'
+									), 
+									array(
+										'id' => 'archived_article', 
+										'name' => 'Archived Article'
+									));
+			break;
+			case 'page':
+				$position_arr[] = array(
+									array(
+										'id' =>'page', 
+										'name' => 'Full Page'
+									));	
+
+		} 
+		// encoding array to json format
+		echo json_encode($position_arr);
 	}
 }

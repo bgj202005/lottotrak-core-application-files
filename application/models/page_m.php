@@ -19,7 +19,7 @@ class Page_m extends MY_Model
 		'template' => array(
 			'field' => 'template', 
 			'label' => 'Template', 
-			'rules' => 'trim|required|xss_clean'
+			'rules' => 'required'
 		), 
 		'title' => array(
 			'field' => 'title', 
@@ -70,6 +70,7 @@ class Page_m extends MY_Model
 		$page->parent_id = 0;
 		$page->menu_id = 0; // New Menu Location 0 = Header, 1 = Footer Menu (Inside), 2 = Footer Menu (Outside)
 		$page->template = 'page';
+		$page->position = 'full_page';
 		return $page;
 	}
 /*	public function get_archive_link(){
@@ -108,8 +109,9 @@ class Page_m extends MY_Model
 		$this->db->order_by($this->_order_by);
 		$pages = $this->db->get('pages')->result_array();
 		$array = array();
-		foreach ($pages as $page) {
-		    if ((int) $id == (int) $page['menu_id']) 
+		foreach ($pages as $page) 
+		{
+			if ((int) $id == (int) $page['menu_id']&&$page['menu_item']) 
 			{ // The Menu Location Must Match
 				  if (! $page['parent_id']) 
 				  {
@@ -194,4 +196,27 @@ class Page_m extends MY_Model
 		$data->menu_id 		= $fields['menu_id'];	
 		$data->template 	= $fields['template'];
 	}
+	/**
+	 * Takes the $placement field (top_section, bottom_left and bottom_right)
+	 * @param	arr	$placement 	array field values from post
+	 * @return 	obj 			Row of homepage template from the current position on the homepage
+	 * */
+	public function home_pages($placement)
+	{
+		// Fetch pages without parents
+		$this->db->select('id, title, slug, body, menu_id');
+		$this->db->where('position', $placement);  
+		return parent::get(NULL, TRUE);
+	}
+
+	/**
+	 * Takes the $placement field (top_section, bottom_left and bottom_right)
+	 * @param	arr	$placement 	array field values from post
+	 * @return 	obj 			Row of homepage template from the current position on the homepage
+	 * */
+	public function side_bar($placement)
+	{
+		
+	}
+
 }

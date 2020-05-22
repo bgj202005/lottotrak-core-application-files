@@ -149,11 +149,7 @@
 				<?php } ?> <!-- if ($status=='expired') -->
 			<!--  Sidebar -->
 			<div class="col-xs-6 col-md-4 sidebar">
-				<section>
-					<h2>Recent Lottery News</h2>
-							<?php // echo anchor($news_article_link, '+ News archive'); ?>
-							<?php $this->load->view('sidebar'); ?>
-				</section>
+				<?php $this->load->view('sidebar'); ?>
 			</div>
 			<div class="row">
 				<div class="col-md-4">

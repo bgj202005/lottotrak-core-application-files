@@ -12,17 +12,7 @@
         	</div>
         	<!--  Sidebar -->
         	<div class="col-xs-12 col-md-4 sidebar">
-        		<section>
-        			<h2>Latest Lottery News</h2>
-					<?php $this->load->view('sidebar'); ?>
-				</section>
-					<div class="left-pad top-pad" style = "margin-right: 30px;">
-						<div class="wrapper">
-							<a href="#"><img class = "home" src="<?php echo base_url(); ?>images/banner-1.jpg" alt=""></a>
-							<a href="#"><img class = "home" src="<?php echo base_url(); ?>images/banner-2.jpg" alt=""></a>
-						</div>
-						<a class="link" href="#">More propositions</a>
-					</div>
+				<?php $this->load->view('sidebar'); ?>
 			</div>
 			<div class="wrapper">
 				<div class="content-menu">

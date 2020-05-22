@@ -28,7 +28,7 @@ function get_menu ($array, $child = FALSE)
 	if ($child==FALSE) { $str .= '<ul id="top-menu" class="sm sm-clean">'.PHP_EOL; }
 	foreach ($array as $item) 
 		{
-			$str .= '<li><a href="'.site_url($item['slug']).'">'.e($item['title']).'</a>';
+			$str .= '<li><a href="'.site_url($item['slug']).'">'.e(($item['slug']=='home'? "Home" : $item['title'])).'</a>';
 			// Do we have any children?
 			if (isset($item['children']) && count($item['children'])) 
 			{
