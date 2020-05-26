@@ -31,7 +31,13 @@ class Article extends Frontend_Controller {
 		if ($requested_slug != $set_slug) {
 			redirect('article/'. $this->data['article']->id.'/'.$this->data['article']->slug, 'location', '301');
 		}
-		
+		// Load Sidebar
+		$this->data['sidebar_top'] = $this->page_m->side_bar('top_section');
+		$this->data['sidebar_top']->body = strip_slashes($this->data['sidebar_top']->body); // Remove the slashes from the database.
+		$this->data['sidebar_middle'] = $this->page_m->home_pages('middle_section');
+		$this->data['sidebar_middle']->body = strip_slashes($this->data['sidebar_middle']->body); // Remove the slashes from the database.
+		$this->data['sidebar_bottom'] = $this->page_m->side_bar('bottom_section');
+		$this->data['sidebar_bottom']->body = strip_slashes($this->data['sidebar_bottom']->body); // Remove the slashes from the database.
 		// Load view
 		add_meta_title($this->data['article']->title);
 		$this->data['subview'] = 'article';

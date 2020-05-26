@@ -3,7 +3,7 @@
     <div class="content-inner  col-centered">
 	   <div class="row">
             <div class="col-xs-12 col-md-8">
-				<?php if (strtolower($page->slug)=='home'&&$page->position=='top_section') 
+				<?php if (strtolower($page->slug)=='home'&&$page->position=='top_home') 
 				{ 
 					echo "<div class='row'><H1 style = 'text-align:left'>".$page->title."</H1></div>";
 					echo "<div class='row' style = 'margin-left:5%'>".$page->body."</div>"; 

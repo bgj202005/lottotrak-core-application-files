@@ -210,13 +210,16 @@ class Page_m extends MY_Model
 	}
 
 	/**
-	 * Takes the $placement field (top_section, bottom_left and bottom_right)
+	 * Takes the $placement field (top, middle and bottom)
 	 * @param	arr	$placement 	array field values from post
 	 * @return 	obj 			Row of homepage template from the current position on the homepage
 	 * */
 	public function side_bar($placement)
 	{
-		
+		// Fetch pages without parents
+		$this->db->select('id, title, slug, body, menu_id');
+		$this->db->where('position', $placement);  
+		return parent::get(NULL, TRUE);
 	}
 
 }

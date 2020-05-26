@@ -1,13 +1,13 @@
 <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 
-<div class="container-fluid">
+<div class="container">
   <div class="row">
     
     <div class="col">
         <div id="piechart_3d" style="width: 500px; height: 300px;"></div>
     </div>
     <div class="col">
-    <div class="card bg-light mb-3 w-100" style="margin-top: 20px; width: 10rem;">
+      <div class="card bg-light mb-3 mt-2 w-100">
       <div class="card-header"><h3>Latest Lottery News Articles</h3></div>
       <div class="card-body">
             <?php if(count($recent_articles)) : ?>
@@ -17,28 +17,29 @@
             <?php endforeach; ?>
           </ul>
           <?php endif; ?>
-          </div>
         </div>
-      </div>   
-    <div class="row">
-    <div class="col">
-        <div id="chart_div" style="width: 500px; height: 300px;"></div>
+      </div>
     </div>
+  </div>
+    <div class="w-100"></div>   
+  <div class="row">  
     <div class="col">
-    <div class="card bg-light mb-3 w-100" style="width: 10rem;">
-      <div class="card-header"><h3>Recent Pages Included</h3></div>
-      <div class="card-body">
-            <?php if(count($recent_pages)) : ?>
-          <ul class="list-group">
-          <?php foreach($recent_pages as $page): ?>
-            <li class="list-group-item"><?php echo anchor('admin/page/edit/'.$page->id, e($page->title));?> - Visible on Menu: <?=($page->menu_item ? 'Yes' : 'Hidden'); ?></li>
-            <?php endforeach; ?>
-          </ul>
-          <?php endif; ?>
+          <div id="chart_div" style="width: 500px; height: 300px;"></div>
+    </div>
+      <div class="col">
+      <div class="card bg-light mb-3 mt-2 w-100">
+        <div class="card-header"><h3>Recent Pages Included</h3></div>
+        <div class="card-body">
+              <?php if(count($recent_pages)) : ?>
+            <ul class="list-group">
+            <?php foreach($recent_pages as $page): ?>
+              <li class="list-group-item"><?php echo anchor('admin/page/edit/'.$page->id, e($page->title));?> - Visible on Menu: <?=($page->menu_item ? 'Yes' : 'Hidden'); ?></li>
+              <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+            </div>
           </div>
-        </div>
-      </div>  
-     </div>
+        </div>  
     </div>   
   </div>
 

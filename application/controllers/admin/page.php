@@ -136,9 +136,9 @@ class Page extends Admin_Controller {
 		switch($tpl)
 		{
 			case 'homepage':
-				return array('top_section' => 'Top Section', 'bottom_left' => 'Bottom Left', 'bottom_right' => 'Bottom Right');
+				return array('top_home' => 'Top Section', 'bottom_left' => 'Bottom Left', 'bottom_right' => 'Bottom Right');
 			case 'sidebar':
-				return array('top_section' => 'Top', 'middle_section' => 'Middle', 'bottom_secton' => 'Bottom');
+				return array('top_section' => 'Top', 'middle_section' => 'Middle', 'bottom_section' => 'Bottom');
 			case 'newsarticle':
 				return array('featured_article' => 'featured', 'archived_article' => 'archived');
 			case 'page':
