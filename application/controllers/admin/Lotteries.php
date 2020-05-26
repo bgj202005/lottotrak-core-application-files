@@ -21,6 +21,7 @@ class Lotteries extends Admin_Controller {
 		// Fetch all lotteries from the database
 		$this->data['lotteries'] = $this->lotteries_m->get();
 		// Load the view
+		$this->data['current'] = $this->uri->segment(2); // Sets the lotteries menu
 		$this->data['subview'] = 'admin/lotteries/index';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -137,6 +138,7 @@ class Lotteries extends Admin_Controller {
 		if(!$this->data['lottery']->minimum_extra_ball) $this->data['lottery']->minimum_extra_ball = '';
 		if(!$this->data['lottery']->maximum_extra_ball) $this->data['lottery']->maximum_ball = '';
 		if ($id) $this->data['lastdraw'] = $this->lotteries_m->last_draw_db($this->data['lottery']->lottery_name);
+		$this->data['current'] = $this->uri->segment(2); // Sets the Page Menu
 		$this->data['subview']  = 'admin/lotteries/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -277,6 +279,7 @@ class Lotteries extends Admin_Controller {
 				  }
 			  }
 		  } */
+ 	  	$this->data['current'] = $this->uri->segment(2); // Sets the Page Menu
 		$this->data['subview']  = 'admin/lotteries/import';
 		$this->load->view('admin/_layout_main', $this->data);
 		}
@@ -447,6 +450,7 @@ class Lotteries extends Admin_Controller {
 			$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
 			$this->data['lottery']->num = strval(++$c);
 		}
+		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->data['subview']  = 'admin/lotteries/view';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -687,6 +691,7 @@ class Lotteries extends Admin_Controller {
 			$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
 			$this->data['lottery']->num = strval(++$c);
 
+		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->data['subview']  = 'admin/lotteries/view';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -833,6 +838,7 @@ class Lotteries extends Admin_Controller {
 		$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
 		$this->data['lottery']->num = strval(++$c);
 
+		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->data['subview']  = 'admin/lotteries/view';
 		$this->load->view('admin/_layout_main', $this->data);
 	}

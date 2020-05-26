@@ -1,6 +1,6 @@
 
 <?php echo validation_errors(); ?>
-<?php echo form_open(base_url()."admin/article/edit/".$article->id); ?>
+<?php echo form_open(base_url()."admin/article/edit/".(!empty($article->id) ? $article->id : '')); ?>
 <h2><?php echo empty($article->id) ? 'Add a new article' : 'Edit an Article '.$article->title; ?></h2>
 
 <table class="table" style="width: 90%;">
@@ -14,7 +14,18 @@
 					<span class="input-group-addon"><i class="fa fa-calendar"></i></span>
 				</div>
 			</div> 
-		 <div class="input-group-addon"><span class="glyphicon glyphicon-th"></span></div></div> 
+		</td>
+	</tr>
+	<tr>
+		<td style="width: 20%;">Modification Date:</td>
+		<td>
+			<div class="form-group">
+				<div class="input-group date" id="datepicker1" data-provide="datepicker">
+					<?php $extra = array ('maxlength' => '10', 'class' => 'datepicker', 'style' => 'width:12%');
+					echo form_input('modified', set_value('modified', date("d-m-Y")), $extra); ?>
+					<span class="input-group-addon"><i class="fa fa-calendar"></i></span>
+				</div>
+			</div>
 		</td>
 	</tr>
 	<tr>

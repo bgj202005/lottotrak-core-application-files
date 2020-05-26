@@ -13,6 +13,7 @@ class Page extends Admin_Controller {
 		$this->data['pages'] = $this->page_m->get_with_parent();
 		
 		// Load the view
+		$this->data['current'] = $this->uri->segment(2); // Sets the Page Menu
 		$this->data['subview'] = 'admin/page/index';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -71,6 +72,7 @@ class Page extends Admin_Controller {
 		$this->data['position_options'] = $this->default_position($this->data['page']->template);
 
 		// Load the View
+		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->data['subview']  = 'admin/page/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -102,6 +104,8 @@ class Page extends Admin_Controller {
 	{
 		$this->data['sortable'] = TRUE;
 		$this->data['menu_id'] = $this->uri->segment(4); // Request Header, Footer (inside) or Footer (Outside)
+		$this->data['current'] = $this->data['menu_id']; // Hightlight Menu 0, 1 or 2
+
 		$this->data['subview'] = 'admin/page/order';
 		$this->load->view('admin/_layout_main', $this->data);
 	}

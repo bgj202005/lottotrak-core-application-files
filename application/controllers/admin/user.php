@@ -16,6 +16,7 @@ class User extends Admin_Controller
 		$this->data['users'] = $this->user_m->get();
 		
 		// Load the view
+		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->data['subview'] = 'admin/user/index';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -56,6 +57,7 @@ class User extends Admin_Controller
 		}
 		
 		// Load the View
+		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->data['subview'] = 'admin/user/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}

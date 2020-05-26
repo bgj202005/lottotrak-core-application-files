@@ -22,7 +22,7 @@ class Membership extends Admin_Controller
 		$this->data['members'] = $this->membership_m->get();
 		
 		// Load the view
-
+		$this->data['current'] = $this->uri->segment(2); // Sets the membership menu
 		$this->data['subview'] = 'admin/membership/index';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -80,6 +80,7 @@ class Membership extends Admin_Controller
 			$this->data['message'] = (is_null($id) ? "The Member has been added and an email has been sent." : "The Member profile has been updated.");
 		} 
 		// Load the View
+		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->data['subview'] = 'admin/membership/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}

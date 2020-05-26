@@ -1,5 +1,5 @@
 <?php $this->load->view('admin/components/page_head'); ?>
-<body>
+<body style = "background-color:#f5f6fa;">
  <!-- <nav class="navbar navbar-static-top navbar-inverse"> -->
  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">  
     <a class="navbar-brand" href="<?php echo site_url('admin/dashboard');?>"><?php // echo $meta_title; ?>
@@ -10,11 +10,11 @@
     <!-- Collect the nav links, forms, and other content for toggling -->
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav">
-        <li class="nav-item active" style ="margin-top:8px;"><a href="<?php echo site_url('admin/dashboard');?>">Dashboard<span class="sr-only">(current)</span></a></li>
-        <li class="nav-item"><?php echo anchor('admin/page', 'Pages', 'class = "nav-link"');?></li>
-        <li class="nav-item"><?php echo anchor('admin/article', 'Lottery News Articles','class = "nav-link"');?></li>
-        <li class="nav-item"><?php echo anchor('admin/membership', 'Members', 'class = "nav-link"');?></li>
-        <li class="nav-item dropdown">
+        <li class="nav-item<?= ($current=='dashboard' ? ' active' : ''); ?>" style ="margin-top:8px;"><a href="<?php echo site_url('admin/dashboard');?>">Dashboard</a></li>
+        <li class="nav-item<?= ($current=='page' ? ' active' : ''); ?>"><?php echo anchor('admin/page', 'Pages', 'class = "nav-link"');?></li>
+        <li class="nav-item<?= ($current=='article' ? ' active' : ''); ?>"><?php echo anchor('admin/article', 'Lottery News Articles','class = "nav-link"');?></li>
+        <li class="nav-item<?= ($current=='membership' ? ' active' : ''); ?>"><?php echo anchor('admin/membership', 'Members', 'class = "nav-link"');?></li>
+        <li class="nav-item dropdown<?= ($current=='lotteries' ? ' active' : ''); ?>">
         <?php $attr = array('class' => "nav-link dropdown-toggle", 'id' => "navbarDropdown", 'role'=> "button", 
         'data-toggle'=> "dropdown",  'aria-haspopup' => "true", 'aria-expanded' => "false");
         echo anchor('admin/lotteries', 'Lotteries', $attr);?>
@@ -23,10 +23,10 @@
           <?php echo anchor('admin/lotteries/edit', 'Add New Lottery Profile', 'class = "dropdown-item"'); ?>
         </div> 
         </li>
-        <li class="nav-item"><?php echo anchor('admin/page/order/0', 'Header Menu Order ', 'class = "nav-link"');?></li>
-        <li class="nav-item"><?php echo anchor('admin/page/order/1', 'Footer Insider Menu Order ', 'class = "nav-link"');?></li>
-        <li class="nav-item"><?php echo anchor('admin/page/order/2', 'Footer Outside Menu Order ', 'class = "nav-link"');?></li>
-        <li class="nav-item"><?php echo anchor('admin/user', 'Admins', 'class = "nav-link"');?></li>
+        <li class="nav-item<?= ($current=='0' ? ' active' : ''); ?>"><?php echo anchor('admin/page/order/0', 'Header Menu Order ', 'class = "nav-link"');?></li>
+        <li class="nav-item<?= ($current=='1' ? ' active' : ''); ?>"><?php echo anchor('admin/page/order/1', 'Footer Insider Menu Order ', 'class = "nav-link"');?></li>
+        <li class="nav-item<?= ($current=='2' ? ' active' : ''); ?>"><?php echo anchor('admin/page/order/2', 'Footer Outside Menu Order ', 'class = "nav-link"');?></li>
+        <li class="nav-item<?= ($current=='user' ? ' active' : ''); ?>"><?php echo anchor('admin/user', 'Admins', 'class = "nav-link"');?></li>
         <li class="nav-item"><?php echo anchor_popup(base_url(), '<i class="fa fa-globe" style="color:#fff; padding: 5px; margin-top:5px;"></i>')?></li>        
       </ul>
     </div><!-- /.navbar-collapse -->
@@ -44,9 +44,9 @@
 		    	</div>
 		    <!--  Sidebar -->
 		    	<div class = "col-md-4">
-		    	<section style = "padding: 10px;">
-		    		<?php echo anchor('admin//user/edit/'.$this->session->userdata['id'], '<i class="fa fa-user"></i> '.$this->session->userdata['email']); ?><br>
-		    		<?php echo anchor('admin/user/logout', '<i class="fa fa-power-off"></i>   logout')?>
+		    	<section style = "padding: 20px; white-space: nowrap;">
+		    		<?php echo anchor('admin/user/edit/'.$this->session->userdata['id'], '<i class="fa fa-user" style="margin-right:15px;"></i> '.$this->session->userdata['email']); ?><br>
+		    		<?php echo anchor('admin/user/logout', '<i class="fa fa-power-off" style="margin-right:15px;"></i>   logout')?>
 		    	</section>
 		    </div>
 		</div>

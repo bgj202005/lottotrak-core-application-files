@@ -14,6 +14,7 @@ class Article extends Admin_Controller {
 		$this->data['articles'] = $this->article_m->get();
 
 		// Load the view
+		$this->data['current'] = $this->uri->segment(2); // Sets the Article menu
 		$this->data['subview'] = 'admin/article/index';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -41,9 +42,11 @@ class Article extends Admin_Controller {
 					'title',
 					'slug',
 					'pubdate',
+					'modified',
 					'body' 
 			) );
 			$data['pubdate'] = date( 'Y-m-d', strtotime(str_replace('/', '-', $data['pubdate'])));
+			$data['modified'] = date( 'Y-m-d', strtotime(str_replace('/', '-', $data['modified'])));
 			$data['body'] = addslashes($data['body']);				// Sanitize Data going to the database
 			$this->article_m->object_from_article_post($data, $this->data['article']);
 
@@ -51,6 +54,7 @@ class Article extends Admin_Controller {
 			if (!$this->uri->segment(5))  redirect('admin/article');	// Save and Exit
 		}
 		// Load the View
+		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->data['subview']  = 'admin/article/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
