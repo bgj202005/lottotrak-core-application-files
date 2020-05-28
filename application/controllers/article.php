@@ -18,6 +18,7 @@ class Article extends Frontend_Controller {
 		$this->article_m->set_published();
 		$this->data['article'] = $this->article_m->get($id);
 		$this->data['article']->body = strip_slashes($this->data['article']->body); // Remove the slashes from the database.
+		if (!is_null($this->data['article']->description)) $this->data['article']->description = strip_slashes($this->data['article']->description);
 		is_object($this->data['article']) || show_404(uri_string()); // Depreciated in PHP 7.2 count($$this->data['article'])
 		
 		$this->db->limit(6);
@@ -40,6 +41,8 @@ class Article extends Frontend_Controller {
 		$this->data['sidebar_bottom']->body = strip_slashes($this->data['sidebar_bottom']->body); // Remove the slashes from the database.
 		// Load view
 		add_meta_title($this->data['article']->title);
+		add_meta_description($this->data['article']->description);
+		add_meta_canonical($this->data['article']->canonical);
 		$this->data['subview'] = 'article';
 		$this->load->view('_main_layout', $this->data);
 	}

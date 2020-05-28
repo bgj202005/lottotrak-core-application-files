@@ -22,7 +22,7 @@
                         { 
                             /* echo "<div class='row'><H1 style = 'text-align:left'>".$page_bottom_left->title."</H1></div>"; */
                             echo "<div class='row' style = 'margin-left:5%'>".$sidebar_bottom->body."</div>"; 
-                        }	?>    
+                        }	?>
+                         <script data-ad-client="ca-pub-5976356078715284" async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
                 </div>
-                <!-- <a class="link" href="#">More propositions</a> -->
             </div>

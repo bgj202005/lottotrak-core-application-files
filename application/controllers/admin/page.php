@@ -57,10 +57,13 @@ class Page extends Admin_Controller {
 					'position',
 					'menu_item',
 					'parent_id',
-					'menu_id'
+					'menu_id',
+					'description',
+					'canonical'
 			) );
 			
 			if(is_null($data['menu_item'])) $data['menu_item'] = 0;
+			if(is_null($data['canonical'])) $data['canonical'] = 0;
 			$data['body'] = addslashes($data['body']);				// Sanitize Data going to the database
 			$this->page_m->object_from_page_post($data, $this->data['page']);
 

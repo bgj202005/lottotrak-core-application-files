@@ -43,10 +43,14 @@ class Article extends Admin_Controller {
 					'slug',
 					'pubdate',
 					'modified',
-					'body' 
+					'body',
+					'description',
+					'canonical' 
 			) );
-			$data['pubdate'] = date( 'Y-m-d', strtotime(str_replace('/', '-', $data['pubdate'])));
-			$data['modified'] = date( 'Y-m-d', strtotime(str_replace('/', '-', $data['modified'])));
+			if(is_null($data['canonical'])) $data['canonical'] = 0;
+			if (!is_null($data['description'])) $data['description'] = addslashes($data['description']);
+			$data['pubdate'] = date( 'Y-m-d H:i:s', strtotime(str_replace('/', '-', $data['pubdate'])));
+			$data['modified'] = date( 'Y-m-d H:i:s', strtotime(str_replace('/', '-', $data['modified'])));
 			$data['body'] = addslashes($data['body']);				// Sanitize Data going to the database
 			$this->article_m->object_from_article_post($data, $this->data['article']);
 

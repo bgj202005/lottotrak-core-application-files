@@ -16,8 +16,17 @@ function btn_view($uri) {
 
 function add_meta_title($string) {
 	$CI = &get_instance();
-	$CI->data['meta_title'] = e($string).'-'.$CI->data['meta_title'];
-	//return anchor($uri, '<i class="icon-edit"></i>');
+	$CI->data['meta_title'] = e($string).' | '.$CI->config->config['brand_name'];
+}
+
+function add_meta_description($string) {
+	$CI = &get_instance();
+	$CI->data['meta_description'] = e($string);
+}
+
+function add_meta_canonical($bool) {
+	$CI = &get_instance();
+	$CI->data['meta_canonical'] = $bool;
 }
 
 function get_menu ($array, $child = FALSE)
