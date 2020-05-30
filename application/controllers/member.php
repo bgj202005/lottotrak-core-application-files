@@ -5,8 +5,16 @@ class Member extends Frontend_Controller
     
     function __construct() {
         parent::__construct();
+        $this->load->model('page_m');
         $this->load->model('member_m');
         $this->data['recent_news'] = $this->article_m->get_recent();
+        /* Sidebar Articles */
+        $this->data['sidebar_top'] = $this->page_m->side_bar('top_section');
+		$this->data['sidebar_top']->body = strip_slashes($this->data['sidebar_top']->body); // Remove the slashes from the database.
+		$this->data['sidebar_middle'] = $this->page_m->home_pages('middle_section');
+		$this->data['sidebar_middle']->body = strip_slashes($this->data['sidebar_middle']->body); // Remove the slashes from the database.
+		$this->data['sidebar_bottom'] = $this->page_m->side_bar('bottom_section');
+		$this->data['sidebar_bottom']->body = strip_slashes($this->data['sidebar_bottom']->body); // Remove the slashes from the database.
     }
 
     public function index() 

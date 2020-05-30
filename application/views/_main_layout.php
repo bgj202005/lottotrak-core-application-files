@@ -97,27 +97,27 @@
                 <?php echo form_open('', 'class="seminor-login-form" id ="sem_login"'); ?>
               <div class="form-group">
                   <?php $extra = array('class' => 'form-control', 'id' => 'username_login', 'required autocomplete' => 'off');  
-                echo form_input('username_login',(!empty(get_cookie('username_login')) ? get_cookie('username_login') : ''), $extra); 
+                echo form_input('username_login','', $extra); 
                 $extra = array('class' => 'form-control-placeholder', 'for' => 'username');
                 echo form_label('Username', 'username', $extra); ?>
                 </div>
                 <div class="form-group">
                   <?php $extra = array('class' => 'form-control', 'id' => 'password_login', 'required autocomplete' => 'off');  
-                echo form_password('password_login',(!empty(get_cookie('password_login')) ? get_cookie('password_login') : ''), $extra);  
+                echo form_password('password_login','', $extra);  
                 $extra = array('class' => 'form-control-placeholder', 'for' => 'password');
                 echo form_label('Password', 'password', $extra); ?>
                 </div>
                 <div class="form-group">
                   <label class="container-checkbox">
                       Remember Me On This Computer
-                    <?php echo form_checkbox('remember_me', 'rememberme', (!empty(get_cookie('username_login')) ? TRUE : FALSE)); ?>
+                    <?php echo form_checkbox('remember_me', 'lsRememberMe','', array('id' => "rememberMe")); ?>
                     <span class="checkmark-box"></span>
                   </label>
                 </div>
               <span id="login_error_message"></span>
               <span id="login_success_message"></span>
               <div class="btn-check-log">
-                <?php $extra = array('class' => 'btn-check-login', 'id' => 'login_button');
+                <?php $extra = array('class' => 'btn-check-login', 'id' => 'login_button', 'onClick' => 'lsRememberMe()"');
                   echo form_submit('login', 'LOGIN', $extra); ?>
                   </div>
                 <div class="forgot-pass-fau text-center pt-3">
@@ -161,7 +161,8 @@
               </div>
             </div>
       <?php $this->load->view('components/page_tail'); ?>
- <script>
+
+<script>
 $(document).ready(function() {
 	$('#register_form').on('submit', function(event){
   event.preventDefault();
@@ -272,4 +273,24 @@ $(document).ready(function() {
   })
  });
 });
+const RMCHECK = document.getElementById("rememberMe");
+      usernameInput = document.getElementById("username_login");
+      //usernameInput = document.getElementsByName('username_login');
+if (localStorage.checkbox && localStorage.checkbox !== "") {
+  RMCHECK.setAttribute("checked", "checked");
+  usernameInput.value = localStorage.username;
+} else {
+  rmCheck.removeAttribute("checked");
+  usernameInput.value = "";
+}
+function lsRememberMe() {
+  if (RMCHECK.checked && usernameInput.value !== "") {
+    localStorage.username = usernameInput.value;
+    localStorage.checkbox = RMCHECK.value;
+  } else {
+    localStorage.username = "";
+    localStorage.checkbox = "";
+  }
+}
+
 </script>
