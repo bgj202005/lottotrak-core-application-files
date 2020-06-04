@@ -67,6 +67,7 @@ class Page_m extends MY_Model
 		$page->title = '';
 		$page->slug = '';
 		$page->body = '';
+		$page->raw = NULL;
 		$page->parent_id = 0;
 		$page->menu_id = 0; // New Menu Location 0 = Header, 1 = Footer Menu (Inside), 2 = Footer Menu (Outside)
 		$page->template = 'page';
@@ -192,6 +193,7 @@ class Page_m extends MY_Model
 		$data->slug  		= $fields['slug'];
 		$data->order  		= $fields['order'];
 		$data->body  		= $fields['body'];
+		$data->raw			= $fields['raw'];
 		$data->parent_id 	= $fields['parent_id'];
 		$data->menu_id 		= $fields['menu_id'];	
 		$data->template 	= $fields['template'];
@@ -204,7 +206,7 @@ class Page_m extends MY_Model
 	public function home_pages($placement)
 	{
 		// Fetch pages without parents
-		$this->db->select('id, title, slug, body, menu_id');
+		$this->db->select('id, title, slug, body, raw, menu_id');
 		$this->db->where('position', $placement);  
 		return parent::get(NULL, TRUE);
 	}
@@ -217,7 +219,7 @@ class Page_m extends MY_Model
 	public function side_bar($placement)
 	{
 		// Fetch pages without parents
-		$this->db->select('id, title, slug, body, menu_id');
+		$this->db->select('id, title, slug, body, raw, menu_id');
 		$this->db->where('position', $placement);  
 		return parent::get(NULL, TRUE);
 	}

@@ -8,6 +8,7 @@
 <title><?php echo $meta_title; ?></title>
 <?php if (isset($meta_dscription)&&!is_null($meta_description)) echo '<meta name="description" content="'.$meta_description.' " />'; 
 if (isset($meta_canonical)&&$meta_canonical) echo '<link rel="canonical" href="'.($this->uri->segment(1)=='home' ? site_url() : current_url()).'" />'; ?>
+<script data-ad-client="ca-pub-5976356078715284" async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
 <!-- BootstrapCND v4.3 -->
 <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>

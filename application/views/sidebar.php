@@ -9,20 +9,21 @@
                 <?php if ($sidebar_top) 
                         { 
                             /* echo "<div class='row'><H1 style = 'text-align:left'>".$page_bottom_left->title."</H1></div>"; */
-                            echo "<div class='row' style = 'margin-left:5%'>".$sidebar_top->body."</div>"; 
+                            echo "<div class='row' style = 'margin-left:5%;'>".stripslashes($sidebar_top->body)."</div>"; 
+                            if(!is_null($sidebar_top->raw)) echo "<div class='row' style = 'margin-left:5%'>".stripslashes($sidebar_top->raw)."</div>"; 
                         } ?>
-                    <!-- <a href="#"><img class = "home" src="<?php echo base_url() ?>images/banner-1.jpg" alt=""></a> 
-                    <a href="#"><img class = "home" src="<?php echo base_url() ?>images/banner-2.jpg" alt=""></a> -->
+ 
                     <?php if ($sidebar_middle) 
                         { 
                             /* echo "<div class='row'><H1 style = 'text-align:left'>".$page_bottom_left->title."</H1></div>"; */
-                            echo "<div class='row' style = 'margin-left:5%'>".$sidebar_middle->body."</div>"; 
+                            echo "<div class='row' style = 'margin-left:5%;'>".$sidebar_middle->body."</div>";
+                            if(!is_null($sidebar_middle->raw)) echo "<div class='row' style = 'margin-left:5%;'>".stripslashes($sidebar_middle->raw)."</div>"; 
                         } ?>
                     <?php if ($sidebar_bottom) 
                         { 
                             /* echo "<div class='row'><H1 style = 'text-align:left'>".$page_bottom_left->title."</H1></div>"; */
-                            echo "<div class='row' style = 'margin-left:5%'>".$sidebar_bottom->body."</div>"; 
+                            echo "<div class='row' style = 'margin-left:5%;'>".$sidebar_bottom->body."</div>";
+                            if(!is_null($sidebar_top->raw)) echo "<div class='row' style = 'margin-left:5%;'>".stripslashes($sidebar_bottom->raw)."</div>"; 
                         }	?>
-                         <script data-ad-client="ca-pub-5976356078715284" async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
                 </div>
             </div>

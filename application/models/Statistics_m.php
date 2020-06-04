@@ -1,7 +1,7 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-class Lotteries_m extends MY_Model
+class Predictions_m extends MY_Model
 {
 	protected $_table_name = 'lottery_profiles';
 	protected $_order_by = 'id';

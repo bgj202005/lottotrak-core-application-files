@@ -43,7 +43,20 @@ echo form_open(base_url()."admin/page/edit/".(!empty($page->id) ? $page->id : ''
 	</tr>
 	<tr>
 		<td>Page Content:</td>
-		<td><?php echo form_textarea('body',  strip_slashes($page->body), 'id="editarea"'); ?>
+		<td><?php echo form_textarea('body',  stripslashes($page->body), 'id="editarea"'); ?>
+	</td>
+	</tr>
+	<tr>
+		<td>Raw Data (Advertising Snippets):</td>
+		<td><?php // set_value MUST have html_escape set to FALSE to turn off HTML escaping of the raw text area.
+			$data = array('name' => 'raw',
+									 'value' => set_value('raw', stripslashes($page->raw), FALSE),
+									 'rows'	=> '8',
+									 'cols'	=> '10',
+									 'style' => 'resize: none;',
+									 'class' => 'form-control'
+								); 
+			echo form_textarea($data); ?>
 	</td>
 	</tr>
 	<tr>
@@ -59,7 +72,7 @@ echo form_open(base_url()."admin/page/edit/".(!empty($page->id) ? $page->id : ''
       				<div class="card-body">
 						Page Description (150-160 Character Maximum):<br />
 						<?php $data = array('name' => 'description',
-									 'value' => set_value('description', (!empty($article->description) ? $article->description : '')),
+									 'value' => set_value('description', (!empty($page->description) ? $page->description : '')),
 									 'rows'	=> '2',
 									 'cols'	=> '10',
 									 'style' => 'width:95%; resize: none; margin-left: 10px; margin-right:10px; margin-top:5px;',

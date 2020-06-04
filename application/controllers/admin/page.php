@@ -26,6 +26,7 @@ class Page extends Admin_Controller {
 		{
 			$this->data['page'] = $this->page_m->get($id);
 			$this->data['page']->body = $this->strip_false_tags($this->data['page']->body); // Strip HTML out of tinymce editor
+			if(!is_null($this->data['page']->raw)) $this->data['page']->raw = $this->strip_false_tags($this->data['page']->raw);
 			if(is_object($this->data['page'])||empty($this->data['page']))
 			{
 				$this->data['errors'][] = 'page could not be found';
@@ -53,6 +54,7 @@ class Page extends Admin_Controller {
 					'slug',
 					'order',
 					'body',
+					'raw',
 					'template',
 					'position',
 					'menu_item',
@@ -65,10 +67,11 @@ class Page extends Admin_Controller {
 			if(is_null($data['menu_item'])) $data['menu_item'] = 0;
 			if(is_null($data['canonical'])) $data['canonical'] = 0;
 			$data['body'] = addslashes($data['body']);				// Sanitize Data going to the database
+			if(!is_null($data['raw'])) $data['raw'] = addslashes($data['raw']);
 			$this->page_m->object_from_page_post($data, $this->data['page']);
 
 			$this->page_m->save($data, $id);
-			if (!$this->uri->segment(5))  redirect('admin/page');	// Save and Exit		
+			if (!$this->uri->segment(5))  redirect('admin/page');	// Save and Redirect		
 		}
 		
 		// Load the default position

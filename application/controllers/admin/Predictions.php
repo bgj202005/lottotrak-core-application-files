@@ -1,7 +1,7 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-class Lotteries extends Admin_Controller {
+class Predictions extends Admin_Controller {
 	
 	public function __construct() {
 		 parent::__construct();
