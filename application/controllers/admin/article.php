@@ -26,7 +26,11 @@ class Article extends Admin_Controller {
 	    if ($id) {
 			$this->data['article'] = $this->article_m->get($id);
 			$this->data['article']->body = $this->strip_false_tags($this->data['article']->body); // Strip HTML out of tinymce editor
-			is_object($this->data['article']) || $this->data['errors'][] = 'article could not be found'; //deprecated php 7.2+ count($this->data['article']) 
+			if (!is_null($this->data['article']->raw)) $this->data['article']->raw = stripslashes($this->data['article']->raw); // Remove the slashes from the database.
+			if(is_object($this->data['article'])||empty($this->data['article']))
+			{
+				$this->data['errors'][] = 'page could not be found';
+			}
 		} else {
 			$this->data['article'] = $this->article_m->get_new();
 		}
@@ -44,6 +48,7 @@ class Article extends Admin_Controller {
 					'pubdate',
 					'modified',
 					'body',
+					'raw',
 					'description',
 					'canonical' 
 			) );
@@ -52,10 +57,11 @@ class Article extends Admin_Controller {
 			$data['pubdate'] = date( 'Y-m-d H:i:s', strtotime(str_replace('/', '-', $data['pubdate'])));
 			$data['modified'] = date( 'Y-m-d H:i:s', strtotime(str_replace('/', '-', $data['modified'])));
 			$data['body'] = addslashes($data['body']);				// Sanitize Data going to the database
+			if(!is_null($data['raw'])) $data['raw'] = addslashes($data['raw']);
 			$this->article_m->object_from_article_post($data, $this->data['article']);
 
 			$this->article_m->save($data, $id);
-			if (!$this->uri->segment(5))  redirect('admin/article');	// Save and Exit
+			if (!$this->uri->segment(5))  redirect('admin/article');	// Save and Redirect
 		}
 		// Load the View
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted

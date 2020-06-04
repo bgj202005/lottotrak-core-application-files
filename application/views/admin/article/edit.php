@@ -10,7 +10,7 @@ echo form_open(base_url()."admin/article/edit/".(!empty($article->id) ? $article
 		<td>
 			<div class="form-group">
 				<div class="input-group date" id="datepicker1" data-provide="datepicker"> 
-					<?php $attr = array ('maxlength' => '10', 'class' => 'datepicker', 'style' => 'width:11%');  
+					<?php $attr = array ('maxlength' => '10', 'class' => 'datepicker', 'style' => 'width:12%');  
 					echo form_input('pubdate', set_value('pubdate', date("d-m-Y",strtotime(str_replace('/','-',$article->pubdate)))), $attr); ?>  
 					<span class="input-group-addon"><i class="fa fa-calendar"></i></span>
 				</div>
@@ -41,6 +41,19 @@ echo form_open(base_url()."admin/article/edit/".(!empty($article->id) ? $article
 		<td style="width: 20%;">Lottery Article Content:</td>
 		<td><?php echo form_textarea('body', strip_slashes($article->body), 'id="editarea"');
 			?></td>
+	</tr>
+	<tr>
+		<td>Raw Data (Advertising Snippets):</td>
+		<td><?php // set_value MUST have html_escape set to FALSE to turn off HTML escaping of the raw text area.
+			$data = array('name' => 'raw',
+									 'value' => set_value('raw', stripslashes($article->raw), FALSE),
+									 'rows'	=> '8',
+									 'cols'	=> '10',
+									 'style' => 'resize: none;',
+									 'class' => 'form-control'
+								); 
+			echo form_textarea($data); ?>
+		</td>
 	</tr>
 	<tr>
 		<td colspan = "2">
