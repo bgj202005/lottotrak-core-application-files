@@ -228,7 +228,7 @@ class Lotteries_m extends MY_Model
 	public function csv_array_to_query($tbl_name, $db_values)
 	{
 		foreach ($db_values as $key => $value) {
-			if(empty($value)) return FALSE;
+			if(empty($value)&&$value!=='0') return FALSE;
 		}
 
 		$str = $this->db->insert_string($tbl_name, $db_values);
@@ -239,8 +239,8 @@ class Lotteries_m extends MY_Model
 	/**
 	 * Returns the current count of rows that have been imported from the CSV File
 	 * 
-	 * @param	int	$table			id of Lottery Table
-	 * @return  bool 				SUCCESS / FAIL for adding key/value pairs
+	 * @param	integer	$table			id of Lottery Table
+	 * @return  boolean 				SUCCESS / FAIL for adding key/value pairs
 	 */
 	public function db_row_count($table)
 	{
@@ -248,13 +248,14 @@ class Lotteries_m extends MY_Model
 	}
 
 	/**
-	 * Returns True (for range OK), or False (Out of Bounds Error) in ranges of Lottery Numbers (e.i. 1 to 49)
+	 * Returns True (for range OK), or False (Out of Bounds Error) in ranges of Lottery Numbers (e.i. 1 to 49), if the extra is included, do a range check also.
 	 * 
-	 * @param       obj	$range_values	array of objects of range values for lottery parameters 	
-	 * @param		arr $data_values	array of values from current draw being imported
+	 * @param       object	$range_values	array of objects of range values for lottery parameters 	
+	 * @param		array $data_values	array of values from current draw being imported
+	 * @param		boolean $extra			includes the extra / bonus ball (1) TRUE / (0) FALSE
 	 * @return     	TRUE/FALSE			SUCCESS (TRUE) on draw ranges successful or FAIL (FALSE) on a number out of range
 	 */
-	public function range_check($range_values, $data_values)
+	public function range_check($data_values, $range_values)
 	{
 		$drawn = $range_values->balls_drawn;
 		$max_ball = $range_values->maximum_ball;
@@ -268,19 +269,49 @@ class Lotteries_m extends MY_Model
 			$drawn--;
 		} 
 		while($drawn>0);
+		
+		$max_extra_ball = $range_values->maximum_extra_ball;
+		$min_extra_ball = $range_values->minimum_extra_ball;
+		if ($range_values->extra_ball&&($data_values['extra']<$min_extra_ball||$data_values['extra']>$max_extra_ball)) return FALSE; 
+	return TRUE; // All Good!
+	}
 
-		$extra = $range_values->extra_ball;
-
-		if ($extra)		//Extra as part of the game
+	/**
+	 * Returns True If none of the regular balls are duplicate, false if there was duplicate balls found
+	 * 
+	 * @param		array $data_values	array of values from current draw being imported
+	 * @return     	TRUE/FALSE			SUCCESS (TRUE) on duplicate extra ball allowed or Not Applicable (N/A)
+	 */
+	public function duplicate_regular_drawn($extra, $data_values)
+	{
+		unset($data_values['draw_date']);
+		unset($data_values['lottery_id']);
+		if ($extra)
 		{
-			$drawn = $range_values->balls_drawn;
-			$min_extra = $range_values->minimum_extra_ball;
-			$max_extra = $range_values->maximum_extra_ball;
-			$duplicate = $range_values->duplicate_extra_ball;
-			if (($data_values['extra']<$min_extra)||($data_values['extra']>$max_extra)) return FALSE;
+			unset($data_values['extra']);  // Extra Ball not required in this validation
+		}
+
+		$c = count($data_values);
+
+		$r = array_unique($data_values); // Rewmove any Duplicates
+
+		if(count($r)<$c) return FALSE; 
+		
+	return TRUE; // No Duplicates Found in Regular Drawn Set!
+	}
+
+	/**
+	 * Returns True Duplicate Allowed or N/A, or False if a duplicate is not allowed and extra is duplicated from the drawn numbers
+	 * 
+	 * @param		integer $drawn			integer value of number of balls drawn in the set
+	 * @param		array 	$data_values	array of values from current draw being imported
+	 * @param 		boolean $duplicate		allow a duplicate extra (if applies) and returns FALSE if no duplicate values are allowed in the extra / bonus ball
+	 * @return     	TRUE/FALSE				SUCCESS (TRUE) on duplicate extra ball allowed or Not Applicable (N/A)
+	 */
+	public function duplicate_extra_check($drawn, $data_values, $duplicate)
+	{
 			if (!$duplicate)
 			{
-				$drawn = $range_values->balls_drawn;
 				$ball = 1;
 				do 
 				{
@@ -290,16 +321,34 @@ class Lotteries_m extends MY_Model
 				} 
 				while($drawn>0);
 			} 
-		}
-	return TRUE; // All Good!
+	return TRUE; // Duplicates are allowed, or check to see if extra is NOT duplicated or N/A!
 	}
 
-	/* Returns the next draw date based on the days of the draw
+	/**
+	 * Returns True if NOT extra or $extra_value = 0 and the extra number is allowed to be zero. False if the extra value is zero but not allowed during the import 
+	 * 
+	 * @param		boolean	$extra			Lottery has an extra / bonus ball?
+	 * @param		integer $extra_value	integer of the extra ball value
+	 * @param 		boolean $zero			disallows / allows the extra ball (if it applies) to be imported with a zero value
+	 * @return     	TRUE/FALSE				SUCCESS (TRUE) on draw ranges successful or FAIL (FALSE) on a number out of range
+	 */
+	public function zero_extra_check($extra, $extra_value, $zero)
+	{
+		if ($extra)		//Extra as part of the game
+		{
+			// Check that the extra value is 0 AND the extra ball is NOT Allowed. 
+			if ($extra_value==0&&!$zero) return FALSE;
+		}
+	return TRUE; // Zero Extra checks out to be good or N/A!
+	}
+
+	/**
+	* Returns the next draw date based on the days of the draw
 	* 
-	* @param	arr	Data object of set days of week
-	* @param 	str	$current
-	* @param 	str $last_draw
-	* @return   str	Next Draw Date 
+	* @param	array	Data object of set days of week
+	* @param 	string	$current
+	* @param 	string	$last_draw
+	* @return   string	Next Draw Date 
 	*/
 	public function next_date($days, $current, $last_draw)
 	{
@@ -339,11 +388,12 @@ class Lotteries_m extends MY_Model
 		return date('D M d, Y', strtotime($last_draw.' + '.$offset.' days')); // Returns, for example, Thursday 23rd April 2020
 	}
 	
-	/* Load Draws with Draw Number
+	/** 
+	* Load Draws with Draw Number
 	* 
-	* @param	int	$lottery_id
-	* @param 	str	$name
-	* @return   bool TRUE/FALSE 
+	* @param	integer	$lottery_id
+	* @param 	string	$table
+	* @return   object	Database Object of draws
 	*/
 	
 	public function load_draws($table, $lottery_id)
@@ -357,11 +407,12 @@ class Lotteries_m extends MY_Model
 	return $query->result(); 	// Return the Draw History
 	}
 
-	/* Insert Draw with Draw Number
+	/** 
+	* Insert Draw with Draw Number
 	* 
-	* @param	str	$table		Current table of the Lottery Draws
-	* @param 	arr	$data		key / value pairs of new draw to be inserted
-	* @return   int				returns the next ID number for the record	 
+	* @param	string	$table		Current table of the Lottery Draws
+	* @param 	array	$data		key / value pairs of new draw to be inserted
+	* @return   integer				returns the next ID number for the record	 
 	*/
 	public function insert_draw($table, $data)
 	{
@@ -370,11 +421,12 @@ class Lotteries_m extends MY_Model
 	return $this->db->insert_id();	// Return the latest id
 	}
 
-	/* Update Draw()s with Draw Number(s)
+	/** 
+	* Update Draw()s with Draw Number(s)
 	* 
-	* @param	str	$table		Current table of the Lottery Draws
-	* @param 	arr	$data		key / value pairs of new draw to be inserted
-	* @return   bool			TRUE / FALSE, All Records successfully updated / A Record failed to update
+	* @param	string	$table		Current table of the Lottery Draws
+	* @param 	array	$data		key / value pairs of new draw to be inserted
+	* @return   boolean	TRUE / FALSE, All Records successfully updated / A Record failed to update
 	*/
 	public function update_draws($table, $data)
 	{
@@ -382,12 +434,13 @@ class Lotteries_m extends MY_Model
 	return $this->db->update($table, $data);
 	}
 
-	/* Move Post Values to Update Array for Editting Draw(s)
+	/** 
+	* Move Post Values to Update Array for Editing Draw(s)
 	* 
-	* @param	obj	$data		Current table of the Lottery Draws
-	* @param 	int	$drawn		key / value pairs of new draw to be inserted
-	* @param	bool $extra		If lottery has an extra ball
-	* @return   bool			TRUE / FALSE, All Records successfully updated / A Record failed to update
+	* @param	object	$data		Current table of the Lottery Draws
+	* @param 	integer	$drawn		key / value pairs of new draw to be inserted
+	* @param	boolean $extra		If lottery has an extra ball
+	* @return   boolean	TRUE / FALSE, All Records successfully updated / A Record failed to update
 	*/
 	public function update_from_post($data, $tbl, $drawn, $extra)
 	{
@@ -417,4 +470,44 @@ class Lotteries_m extends MY_Model
 			}
 		return $success;	
 	}
+	
+	/** 
+	* Returns TRUE or FALSE for a url (with or without http:/https) active DNS
+	* 
+	* @param	string 	$domain	URL of web address
+	* @return   boolean	TRUE / URL is successfully active, FALSE/ URL is not active or a problem with the syntax
+	*/
+	public function is_valid_domain($domain)
+	{
+		$validation = FALSE;
+		/*Parse URL*/    
+		$urlparts = parse_url(filter_var($domain, FILTER_SANITIZE_URL));
+		/*Check host exist else path assign to host*/    
+		if(!isset($urlparts['host']))
+		{
+			$urlparts['host'] = $urlparts['path'];
+		}
+	
+		if($urlparts['host']!='')
+		{
+		   /*Add scheme if not found*/        
+		   if (!isset($urlparts['scheme']))
+		   	{
+				$urlparts['scheme'] = 'http';
+			}
+			/*Validation*/ 
+			if(checkdnsrr($urlparts['host'], 'A') && in_array($urlparts['scheme'],array('http','https')) && ip2long($urlparts['host']) === FALSE)
+			{ 
+				$urlparts['host'] = preg_replace('/^www\./', '', $urlparts['host']);
+				$url = $urlparts['scheme'].'://'.$urlparts['host']. "/";            
+				
+				if (filter_var($url, FILTER_VALIDATE_URL) !== false && @get_headers($url)) 
+				{
+					$validation = TRUE;
+				}
+			}
+		}
+	return $validation;
+	}
+
 }

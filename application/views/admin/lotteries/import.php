@@ -102,18 +102,18 @@
 							<!-- Eliminate Field in CVS File -->
 							<div class="form-group form-group-lg row"> 
 								<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
-								echo form_label('CVS Fieldname (Exact matched)', 'cvs_field_lb', $extra); ?>
+								echo form_label('CVS Column # (No Spaces)', 'cvs_field_lb', $extra); ?>
 								<div class="col-8">
 									<div class="table-responsive" style = "width:80%">  
                                			<table class="table table-bordered" id="dynamic_field">  
                                     		<tr>  
 												<td style = "width:65%">
-													<?php $extra = array('class' => 'form-control', 'id' => 'formGroupInputLarge',
-													'maxlength' => '50', 'size' => '50', 'style'=> 'width:95%', 'placeholder' => 'CVS Field Name to Remove');  
-													echo form_input('cvs_field[]',set_value('cvs_field[]', ''), $extra); 
+													<?php $extra = array('class' => 'form-control', 'id' => 'current_cvs',
+													'maxlength' => '2', 'size' => '10', 'style'=> 'width:75%', 'placeholder' => 'Column # to Remove');  
+													echo form_input('cvs_field[]','', $extra); 
 													echo form_error('cvs_field[]', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 												</td>
-												<td style="width:35%" align="center">
+												<td style="width:35%">
 												<?php 
 													$extra = array('class' => 'btn btn-info', 'id' => 'add');  
 													echo form_button('add','Add More', $extra); ?>
@@ -140,7 +140,7 @@
 									echo form_label('Import CVS File (URL):', 'import_lottery_url_lb', $extra); ?>
 									<div class="col-8">
 									<?php $extra = array('class' => 'form-control form-control-lg', 'id' => 'FormControlInput',
-										'maxlength' => '50', 'size' => '50', 'style'=> 'width:80%');
+										'maxlength' => '550', 'size' => '50', 'style'=> 'width:80%');
 										echo form_input('import_lottery_url',set_value('import_lottery_url', ''), $extra); 
 										echo form_error('import_lottery_url', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 									</div>
@@ -184,7 +184,7 @@
 							<h5 class="card-title">
 								<?php if ($lottery->last_draw=='nodraws') 
 								{ ?>
-									<h6 id = "nodraws" style="display:block">No Draws Currently Exist</h6>
+									<h6 id = "nodraws" style="display:block" >No Draws Currently Exist</h6>
 								<?php }
 								elseif (!empty($lottery->last_draw->id))
 								{
@@ -212,14 +212,18 @@
 $(document).ready(function() {
 	var clear_timer;
 	var i=1;
+	var cvs=document.getElementsByName('cvs_field[]');
 	$('#add').click(function(){  
            i++;  
-           $('#dynamic_field').append('<tr id="row'+i+'"><td><input type="text" name="cvs_field[]" style="width:90%" placeholder="CVS Fieldname to remove" class="form-control field_list" /></td><td align="center"><button type="button" name="remove" id="'+i+'" class="btn btn-danger btn_remove text-center">X</button></td></tr>');  
-      });  
+           $('#dynamic_field').append('<tr id="row'+i+'"><td><input type="text" name="cvs_field[]" value = "'+cvs[0].value+'" style="width:90%" class="form-control field_list" /></td><td align="center"><button type="button" name="remove" id="'+i+'" class="btn btn-danger btn_remove text-center">X</button></td></tr>');
+		   $('#current_cvs').val('');
+		   $('#current_cvs').placeholder = "Column # to Remove";   
+	  });  
       $(document).on('click', '.btn_remove', function(){  
            var button_id = $(this).attr("id");   
            $('#row'+button_id+'').remove();  
-      });  
+      });
+	    
 	$('#import_form').on('submit', function(event) {
 		$('#import_message').html('');
 			event.preventDefault();
@@ -227,14 +231,14 @@ $(document).ready(function() {
 				url:"<?php echo base_url(); ?>admin/lotteries/import/<?=$lottery->id; ?>", 
 				method: "POST",
 				data: new FormData(this),
-				dataType: 'json',
+				dataType: "json",
 				contentType:false,
 				cache:false,
 				processData:false,
 				beforeSend:function() {
 					$('#import').attr('disabled','disabled');
 					$('#import').val('Importing');
-					$('#nodraws').html('style="display:none"');
+					$('#nodraws').css('display', 'none');
 					$('#footer-on').html('Last Imported Draw #<span id= "draw_number"></span>');
 				},
 				success:function(data)
@@ -244,13 +248,12 @@ $(document).ready(function() {
 						$('#total_data').text(data.total_data);
 						$('.card-title').html("<div class='alert alert-warning' role='alert'>DRAWS CURRENTLY BEING IMPORTED</div>");
 						$('.card-text').html("<div class='alert alert-info' role='alert'>Please adding draws ... please Wait ... </div>");
-						start_import();
 						clear_timer = setInterval(get_import_data, 2000);
-
-						// $('#import_error_message').html('<div class = "alert alert-success">CSV File Uploaded Successfully</div>');
+						start_import();
 					}					
 					if(data.error)
 					{
+						clearInterval(clear_timer);
 						$('#import_message').html('<div class = "alert alert-danger">'+data.error+'</div>');
 						$('#import').attr('disabled',false);
       					$('#import').val('Begin Import / Upload');
@@ -263,8 +266,10 @@ $(document).ready(function() {
 		$('#process').css('display', 'block');
 		$.ajax({
 			url:"<?php echo base_url(); ?>admin/lotteries/import_process/<?=$lottery->id; ?>",
-			dataType: 'json',
-			processData: false,
+			dataType: "json",
+			contentType:false,
+			cache:false,
+			processData:false,
 			success:function(data)
 			{
 				var error = 0;
@@ -278,31 +283,55 @@ $(document).ready(function() {
 					$('.card-title').text("AN ERROR HAS OCCURRED");
 					$('.card-text').text("The import could not continue. Please check CVS File.");
 					error = 1;
-				} else if(data.month_error)
+				} 
+				else if(data.month_error)
 				{
 					$('.card-title').text("MONTH IMPORT ERROR");
-					$('.card-text').html("This is what was attempted on import: "+data.draw_date+". <br /> Please check CVS File.");
+					$('.card-text').html("This is what was attempted on import: "+data.draw_date+". <br /> Please check CSV File.");
 					error = 1;
-				} else if(data.day_error)
+				} 
+				else if(data.day_error)
 				{
 					$('.card-title').text("DAY OF MONTH IMPORT ERROR");
-					$('.card-text').html("This is what was attempted on import: "+data.draw_date+". <br />Please check CVS File.");
+					$('.card-text').html("This is what was attempted on import: "+data.draw_date+". <br />Please check CSV File.");
 					error = 1;
-				} else if(data.year_error)
+				} 
+				else if(data.year_error)
 				{
 					$('.card-title').text("YEAR IMPORT ERROR");
-					$('.card-text').html("This is what was attempted on import: "+data.draw_date+". <br />Please check CVS File.");
+					$('.card-text').html("This is what was attempted on import: "+data.draw_date+". <br />Please check CSV File.");
 					error = 1;
-				} else if(data.range_error)
+				} 
+				else if(data.range_error)
 				{
 					$('.card-title').text("OUT OF RANGE ERROR");
-					$('.card-text').html("One or more numbers are out of range.  This was the last draw date attempted on import: "+data.draw_date+". <br /> Please check CVS File.");
+					$('.card-text').html("One or more numbers are out of range.  This was the last draw date attempted on import: "+data.draw_date+". <br /> Please check CSV File.");
+					error = 1;
+				}
+				else if(data.duplicate_error)
+				{
+					$('.card-title').text("THE EXTRA/BONUS BALL IS NOT ALLOWED TO BE DUPLICATED FROM THE REGULAR DRAWN BALLS");
+					$('.card-text').html("This was the last draw date attempted on import: "+data.draw_date+". <br /> Please check the numbers and try again for this date in the CSV file.");
+					error = 1;
+				}
+
+				else if(data.zero_error)
+				{
+					$('.card-title').text("DRAWS WITH EXTRA/BONUS BALL EQUAL TO ZERO IS NOT ALLOWED");
+					$('.card-text').html("This was the last draw date attempted on import: "+data.draw_date+". <br /> Please check the 'Allow Import of 0 Bonus / Extra Ball' option and import CSV file again.");
+					error = 1;
+				}
+				else if(data.regular_duplicate_error)
+				{
+					$('.card-title').text("DRAW HAS REGULAR DRAWN NUMBERS THAT ARE DUPLICATE. DUPLICATES NOT ALLOWED.");
+					$('.card-text').html("This was the last draw date attempted on import: "+data.draw_date+". <br /> Please check the numbers in this draw, correct and import CSV file again.");
 					error = 1;
 				}
 
 				if (error)
 				{
-					$('#lottery_upload_cvs').val('');
+					clearInterval(clear_timer);
+					$('#process').css('display', 'none');
 					$('#import_message').html('<div class="alert alert-danger">Data Has Been Stopped.</div>');
 					$('#import').attr('disabled',false);
 					$('#import').val('Begin Import / Upload');
@@ -314,10 +343,15 @@ $(document).ready(function() {
 	{
 	$.ajax({
 		url:"<?php echo base_url(); ?>admin/lotteries/process/<?=$this->lotteries_m->lotto_table_convert($lottery->lottery_name); ?>",
+		dataType: "json",
+		contentType:false,
+		cache:false,
+		processData:false,
 		success:function(data)
 			{
 				var total_data = $('#total_data').text();
 				var width = Math.round((data/total_data)*100);
+				var error = 0;
 				$('#process_data').text(data);
 				$('.progress-bar').css('width', width + '%');
 				$('#draw_number').text(data);
@@ -333,8 +367,11 @@ $(document).ready(function() {
 					$('#import').attr('disabled',false);
 					$('#import').val('Begin Import / Upload');
 				}
+
 				if (data.error)
 				{
+					clearInterval(clear_timer);
+					$('#process').css('display', 'none');
 					$('#lottery_upload_cvs').val('');
 					$('#import_message').html('<div class="alert alert-danger">Data Has Been Stopped.</div>');
 					$('#import').attr('disabled',false);

@@ -22,7 +22,7 @@
 		<h3 style = "text-align:center;" id="view_message" class = "text-danger"><?= $message; ?></h3>
 			<div class="table-responsive">
 			<?php echo form_open(''); 
-			echo form_hidden('next_date', $lottery->next_draw_date);
+			if (isset($lottery->next_draw_date)) echo form_hidden('next_date', $lottery->next_draw_date); 
 			if(isset($add)) echo form_hidden('add', $add); 
 			if(isset($edit)) echo form_hidden('edit', $edit); ?>
 			<table id="draws" class="table table-striped table-bordered display" style="width:100%" data-order='[[ 1, "desc" ]]'>
@@ -193,7 +193,15 @@
 			'style' 	=> "margin-left:20px; padding:5px;",
 		);
 		if(isset($edit)) $attributes['disabled'] = 'disabled';
-		$label = (isset($add) ? 'Save New Draw' : 'Next: '.$lottery->next_draw_date.' ('.$lottery->num.')');
+		if(isset($lottery->next_draw_date)&&isset($lottery->num))
+		{
+			$label = (isset($add) ? 'Save New Draw' : 'Next: '.$lottery->next_draw_date.' ('.$lottery->num.')');
+		}
+		else
+		{
+			$label = "No Draws";
+			$attributes['disabled'] = 'disabled';
+		}
 		echo form_submit('draw_add', $label, $attributes);
 		$js = "javascript: form.action='".base_url()."admin/lotteries/draw_edit/".$lottery->id."'";
 		$class = "btn btn-primary btn-lg btn-info";

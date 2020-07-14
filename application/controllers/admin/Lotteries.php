@@ -8,7 +8,8 @@ class Lotteries extends Admin_Controller {
 		 $this->load->model('lotteries_m');
 		 $this->load->helper('file');
 		 $this->load->library('image_lib');
-		 $this->load->library('CSV_Import');
+		 //$this->load->library('CSV_Import');
+		 //$this->output->enable_profiler(TRUE);
 	}
 
 	/**
@@ -158,15 +159,37 @@ class Lotteries extends Admin_Controller {
 		// Check for existing lottery draws
 		$this->data['lottery']->last_draw =	$this->lotteries_m->last_draw_db($this->data['lottery']->lottery_name);
 		
+		$this->session->set_userdata(array('table_name' => $this->data['lottery']->table_name,
+		 									'last_draw' => $this->data['lottery']->last_draw,
+											'balls_drawn' => $this->data['lottery']->balls_drawn,
+											'minimum_ball' => $this->data['lottery']->minimum_ball,
+											'maximum_ball' => $this->data['lottery']->maximum_ball,
+											'minimum_extra_ball' => $this->data['lottery']->minimum_extra_ball,
+											'maximum_extra_ball' => $this->data['lottery']->maximum_extra_ball,
+											'extra_ball' => $this->data['lottery']->extra_ball,
+											'duplicate_extra' => $this->data['lottery']->duplicate_extra_ball,
+											'allow_zero_extra' => (is_null($this->input->post('allow_zero_extra')) ? 0 : 1))
+									);
+		
+		if (is_array($this->input->post("cvs_field"))&&count($this->input->post("cvs_field")))
+		{
+
+			$n = count($this->input->post("cvs_field"));
+			if ($n>0)		//There are currently fields that we can't import into the database
+			{
+				$this->session->set_userdata(array('elim' => $_POST['cvs_field'])); 
+			}
+		}
+										
 		$this->data['message'] = '';  // Create a Message object
 		$error = NULL;				  // Related to Image upload only
 		
 		if(!empty($this->input->post('hidden_field')))
 		{
-			if(empty($this->input->post('import_lottery_url'))) {
+			if(empty($this->input->post('import_lottery_url'))) 
+			{
 				$error = '';
 				$total_data = '';
-				/* session_start(); */
 				$allowed_extension = array('csv');
 				$file_array = explode(".", $_FILES["lottery_upload_csv"]["name"]);
 				$extension = end($file_array);
@@ -205,20 +228,32 @@ class Lotteries extends Admin_Controller {
 			} 
 			else 
 			{
-				// Do something with URL
-				$output = array(
-					'error' => 'The URL has been entered'
-				);
+					$url = $this->input->post('import_lottery_url');
+
+			/* 	1. Check if the File has been selected (Uploading is first examined) 
+				check for a valid url (http: or https:) and active on the internet */
+
+				if ($this->lotteries_m->is_valid_domain($url)) 
+				{
+					$output = array(
+						'error' => $url.' is a valid URL'
+					);
+				}
+
+				else 
+				{
+						// Correct this url
+						$output = array(
+							'error' => $url.' is not an active and valid url.'
+						);
+				}
 			}
-			//$this->import_process($id);
 			echo json_encode($output);
 		}
-
 		else {
-		/* 	1. Check if the File has been selected (Uploading is first examined)
-				
+			/*
 			If selected, start the Upload process
-
+			/* 	1. Check if the File has been selected (Uploading is first examined) 
 			2. if not selected, Check if the url textbox of the location of the file has been entered
 			if the textbox is not empty, 
 				check for a valid url (http: or https:)
@@ -279,17 +314,29 @@ class Lotteries extends Admin_Controller {
 				  }
 			  }
 		  } */
- 	  	$this->data['current'] = $this->uri->segment(2); // Sets the Page Menu
+
+ 	  	$this->data['current'] = $this->uri->segment(2); 
 		$this->data['subview']  = 'admin/lotteries/import';
-		$this->load->view('admin/_layout_main', $this->data);
+		$this->load->view('admin/_layout_main', $this->data); 
 		}
 	}
 
 	public function import_process($id)
 	{
-		$this->data['lottery'] = $this->lotteries_m->get($id);
+		//$this->data['lottery'] = $this->lotteries_m->get($id);
+		$lottery_props = (object) [
+			'balls_drawn'			=> $this->session->userdata('balls_drawn'),
+			'minimum_ball'			=> $this->session->userdata('minimum_ball'),
+			'maximum_ball'			=> $this->session->userdata('maximum_ball'),
+			'minimum_extra_ball'	=> $this->session->userdata('minimum_extra_ball'),
+			'maximum_extra_ball'	=> $this->session->userdata('maximum_extra_ball'),
+			'extra_ball'			=> $this->session->userdata('extra_ball'),
+			'duplicate'				=> $this->session->userdata('duplicate_extra'),
+			'allow_zero_extra'		=> $this->session->userdata('allow_zero_extra')
+		];
+
 		// Retrieve the lottery table name for the database
-		$table = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		$table = $this->session->userdata('table_name'); 
 		header('Content-type: text/html; charset=utf-8');
 		header("Cache-Control: no-cache, must-revalidate");
 		header("Pragma: no-cache");
@@ -301,114 +348,143 @@ class Lotteries extends Admin_Controller {
 		if (!empty($this->session->userdata('new_file_name')))
 		{
 			$file_data = fopen('lotto_zip_csv_uploads/'.$this->session->userdata('new_file_name'), 'r');
-			$header = TRUE;		// Begin with header
-			fgetcsv($file_data); // Set the File Pointer to start of file and move passed the header
+			$header = fgetcsv($file_data); // Set the File Pointer to start of file and move retrieve the header
+			$column_count = count($header);
+			$draw_data = array();
+			$elim = array_fill(0, $column_count, TRUE);	// All values set to TRUE
+						
+			if (is_array($this->session->userdata('elim')))
+			{
+				do
+				{
+					foreach($this->session->userdata('elim') as $column => $key)
+					{
+						if($key!=""&&(intval(trim($key)))==$column_count-1) $elim[$column_count-1] = FALSE;
+					}	
+					$column_count--;
+				} while($column_count>=0);
+			} 
+			
+			// If existing draws in database, go to the next draw date in the csv file
+			$ld = $this->session->userdata('last_draw');
+			$ld = (is_object($ld) ? strtotime($ld->draw_date) : $ld);  // Change date format or return $ld as no draws, if no previous dates have been imported
 			while($row = fgetcsv($file_data)) 
 			{
-				$n = count($_POST['cvs_field']);
-					if ($n>1)		//There are currently fields that we can't import into the database
+				// Eliminate the data that will not be imported in the database
+				$column_count = count($elim);
+				$i = 0;
+				while ($i!=$column_count)
+				{
+					if(!$elim[$i])
 					{
-						for($i=0; $i<$n; $i++)
-						{
-							if(trim($_POST['cvs_field'][$i])!='')
-							{
-								$elim[$row] = ((strtolower($row))==(strtolower(trim($_POST['cvs_field'][$i]))) ? TRUE : FALSE);
-							}
-						}
+						unset($row[$i]);	// Remove this csv column
+					}
+					$i++;
+				}
+				$row = array_values($row);	// Reindex the row without the eliminated column 
+				
+				$cvs_date = explode('/', $row[0]);
+				$cvs_date = (isset($cvs_date[2])&&isset($cvs_date[1])&&isset($cvs_date[0]) ? strtotime($cvs_date[2].'-'.$cvs_date[0].'-'.$cvs_date[1]) : FALSE);
+				
+				if ($ld =='nodraws'||(($ld<$cvs_date&&!$lottery_props->allow_zero_extra)||($ld<=$cvs_date&&$lottery_props->allow_zero_extra)&&($cvs_date!=FALSE))) 
+				{
+					$balls_drawn = intval($this->session->userdata('balls_drawn'));		// balls drawn
+
+					$c = 1; // array counter
+					for ($balls_drawn; $balls_drawn>0; $balls_drawn--) 
+					{
+						$draw_data['ball'.$c] =  $row[$c];
+						$c++;	// Increment row count
+					}
+					
+					if (!empty($lottery_props->extra_ball)) $draw_data['extra'] = $row[$c];
+
+					$draw_data += ['draw_date'	 =>	$row[0], 
+									'lottery_id' => $id];
+					
+					// Check the draw date to make sure it is in the correct format for Month / Day / Year
+					$date = explode('/', $draw_data['draw_date']);
+					
+					if (intval($date[0])<1||(intval($date[0]>12))) // Month between 1 and 12
+					{
+						$draw_data += [
+							'month_error'	=>	TRUE];
+						break;
 					} 
+					else if (intval($date[1])<1||(intval($date[1])>cal_days_in_month(CAL_GREGORIAN, $date[0], $date[2])))
+					{
+						$draw_data += [
+							'day_error'	=>	TRUE];
+						break;
+					} 
+					else if (intval($date[2]<1)||intval($date[2])>intval(date("Y")))
+					{
+						$draw_data += [
+							'year_error'	=>	TRUE];
+						break;
+					}
 
-				$draw_data = array(
-					'PRODUCT'		=> 	$row[0],
-					'DRAW NUMBER'	=>	$row[1],
-					'SEQUENCE'		=>	$row[2],
-					'draw_date'		=>	$row[3],
-				);
+					else if (!$this->lotteries_m->range_check($draw_data, $lottery_props)) 
+					{
+						$draw_data += [
+								'range_error'	=>	TRUE];
+						break;
+					}
+					else if (!$this->lotteries_m->duplicate_extra_check($lottery_props->balls_drawn, $draw_data, $lottery_props->duplicate)) 
+					{
+						$draw_data += [
+								'duplicate_error'	=>	TRUE];
+						break;
+					}
+					else if (!$this->lotteries_m->zero_extra_check($lottery_props->extra_ball, $draw_data['extra'], $lottery_props->allow_zero_extra)) 
+					{
+						$draw_data += [
+								'zero_error'	=>	TRUE];
+						break;
+					}
+					else if (!$this->lotteries_m->duplicate_regular_drawn($lottery_props->extra_ball, $draw_data)) 
+					{
+						$draw_data += [
+								'regular_duplicate_error'	=>	TRUE];
+						break;
+					}
+					$draw_data['draw_date'] = $date[2].'-'.$date[0].'-'.$date[1];	// Re-arranged format for Database
 
-				$draw_data['draw_date'] = date("Y/m/d", strtotime($draw_data['draw_date']));
-				$balls_drawn = intval($this->data['lottery']->balls_drawn);		// balls drawn
+					if (!$this->lotteries_m->csv_array_to_query($table, $draw_data)) 
+					{
+						$draw_data += [
+							'error'	=>	TRUE];
+						break;
+					}
+					else
+					{
+						$ld = $cvs_date; // The new cvs_date becomes the last date.
+						$draw_data += ['success' => TRUE];
+					}
 
-				$c = 4; // array counter
-				$b = 1;	// pick 3, pick 4, pick 5, pick 6, pick 7, pick 8, pick 9 // balls drawn starting at pick 4
-				for ($balls_drawn; $balls_drawn>0; $balls_drawn--) 
-				{
-					$draw_data['ball'.$b] =  $row[$c];
-					$b++;	// Increment ball count
-					$c++;	// Increment row count
-				}
-				
-				if (!empty($this->data['lottery']->extra_ball)) $draw_data['extra'] = $row[$c];
+					sleep(1);
 
-				$draw_data += ['lottery_id'	=> $id];
-				
-				
-				unset($draw_data['PRODUCT']);
-				unset($draw_data['DRAW NUMBER']);
-				unset($draw_data['SEQUENCE']);
+					if(ob_get_level() > 0)
+					{
+						ob_end_flush();
+					}
+				echo json_encode($draw_data);
+				} // if ($ld=='nodraws'||(($ld<=$cvs_date)&&($cvs_date!=FALSE))) 
 
-				// Check the draw date to make sure it is in the correct format for Month / Day / Year
-				$date = explode('/', $draw_data['draw_date']);
-				
-				if (intval($date[1])<1||(intval($date[1]>12))) // Month between 1 and 12
-				{
-					$draw_data = array(
-						'month_error'	=>	TRUE,
-						'draw_date'		=>	$draw_data['draw_date']
-					);
-					break;
-				} 
-				elseif (intval($date[2])<1||(intval($date[2])>cal_days_in_month(CAL_GREGORIAN, $date[1], $date[0])))
-				{
-					$draw_data = array(
-						'day_error'	=>	TRUE,
-						'draw_date'	=>	$draw_data['draw_date']
-					);
-					break;
-				} 
-				elseif (intval($date[0]<1)||intval($date[0])>intval(date("Y")))
-				{
-					$draw_data = array(
-						'year_error'	=>	TRUE,
-						'draw_date'		=>	$draw_data['draw_date']
-					);
-					break;
-				}
-
-				if (!$this->lotteries_m->range_check($this->data['lottery'], $draw_data)) 
-				{
-					$draw_data = array(
-						'range_error'	=>	TRUE,
-						'draw_date'		=>	$draw_data['draw_date']
-					);
-					break;
-				}
-
-				if (!$this->lotteries_m->csv_array_to_query($table, $draw_data)) 
-				{
-					$draw_data = array(
-						'error'	=>	TRUE);
-					break;
-				}
-				else
-				{
-					$draw_data += ['success' => TRUE];
-				}
-
-				sleep(1);
-
-				if(ob_get_level() > 0)
-				{
-					ob_end_flush();
-				}
-				
-			echo json_encode($draw_data);
-				
+			unset($draw_data);		// Remove Current Draw Date for next CSV Row
 			}
 			fclose($file_data);		// Close out File data stream
-		echo json_encode($draw_data);
+			
+			if (isset($draw_data)) {
+				echo json_encode($draw_data);
+				unset($draw_data);
+			}
 		}
-		$this->session->unset_userdata('new_file_name');
+		$this->session->unset_userdata(array('new_file_name', 'table_name', 'last_draw', 'balls_drawn', 'extra_ball', 'minimum_ball', 
+							'maximum_ball', 'minimum_ball', 'minimum_extra_ball', 'maximum_extra_ball', 'duplicate_extra', 'allow_zero_extra', 'elim'));
+		unset($lottery_props);					
 	}
-
+	
 	/**
 	 * Determines the current row count of the csv to data
 	 *  being imported in the database
