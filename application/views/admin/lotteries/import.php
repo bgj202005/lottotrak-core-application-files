@@ -75,6 +75,22 @@
 									<?php echo form_label((!empty($lottery->extra_ball) ? 'YES' : 'NO'), 'extra_ball_lb', $extra); ?>
 								</div>
 							</div>
+							<!-- Draw Days  -->
+							<div class="form-group form-group-lg row"> 
+									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
+									echo form_label('Days of Draw:', 'draw_days_lb', $extra); ?>
+								<div class="col-8">
+									<?php $s = '';
+										if ($lottery->monday) $s .= 'Mondays ';
+										if ($lottery->tuesday) $s .= 'Tuesdays ';
+										if ($lottery->wednesday) $s .= 'Wednesdays ';
+										if ($lottery->thursday) $s .= 'Thursdays ';
+										if ($lottery->friday) $s .= 'Fridays ';
+										if ($lottery->saturday) $s .= 'Saturdays ';
+										if ($lottery->sunday) $s .= 'Sundays ';
+										echo form_label($s, 'draw_days_lb', $extra); ?>
+								</div>
+							</div>
 							<!-- Allow Duplicates? / Extra / Bonus Balls  -->
 							<div class="form-group form-group-lg row"> 
 									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
