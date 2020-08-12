@@ -13,12 +13,12 @@ class Migration_Create_Imports extends CI_Migration {
                                 'unsigned' => TRUE,
                                 'auto_increment' => TRUE
                         ),
-                        'column' => array(
+                        'columns' => array(
                                 'type' => 'TEXT'
                         ),
-                        'header' => array(
+                        /* 'header' => array(
                                 'type' => 'TEXT'
-                        ),
+                        ), */
 	        	'zero_extra' => array(
 	        		'type' => 'TINYINT',
 				'constraint' => 1,
@@ -26,11 +26,11 @@ class Migration_Create_Imports extends CI_Migration {
                                 'default'    => 0,
                                 'null'	   => FALSE
 	        	),        			
-        		'cvs_file' => array(
+        		'csv_file' => array(
                                 'type' => 'VARCHAR',
                                 'constraint' => 100
                         ),
-                        'cvs_url' => array(
+                        'csv_url' => array(
                                 'type' => 'VARCHAR',
                                 'constraint' => 100
                         ),
@@ -42,7 +42,7 @@ class Migration_Create_Imports extends CI_Migration {
                 ));
                 $this->dbforge->add_key('lottery_id');
                 $this->dbforge->create_table('import_data');
-        }
+        } // Removed header, no longer used in elminating columns. Fieldname 'column' was changed from 'column' to 'columns'
 
         public function down()
         {

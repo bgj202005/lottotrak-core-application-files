@@ -3,6 +3,8 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Lotteries extends Admin_Controller {
 	
+	const FILE_PATH = "lotto_zip_csv_uploads/";  // Directory of all uploaded and transferred lottery data files
+	
 	public function __construct() {
 		 parent::__construct();
 		 $this->load->model('lotteries_m');
@@ -154,11 +156,15 @@ class Lotteries extends Admin_Controller {
 	public function import($id)
 	{
 		$this->data['lottery'] = $this->lotteries_m->get($id);
+		$import_results = $this->lotteries_m->import_data_retrieve($id); // False or import result objects
+		if($import_results)  $this->data['import_data'] = $import_results;
 		// Retrieve the lottery table name for the database
 		$this->data['lottery']->table_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		// Check for existing lottery draws
 		$this->data['lottery']->last_draw =	$this->lotteries_m->last_draw_db($this->data['lottery']->lottery_name);
 		
+		$zero_extra = (is_null($this->input->post('allow_zero_extra')) ? 0 : 1);
+		$import_results = $zero_extra; 
 		$this->session->set_userdata(array('table_name' => $this->data['lottery']->table_name,
 		 									'last_draw' => $this->data['lottery']->last_draw,
 											'balls_drawn' => $this->data['lottery']->balls_drawn,
@@ -168,16 +174,21 @@ class Lotteries extends Admin_Controller {
 											'maximum_extra_ball' => $this->data['lottery']->maximum_extra_ball,
 											'extra_ball' => $this->data['lottery']->extra_ball,
 											'duplicate_extra' => $this->data['lottery']->duplicate_extra_ball,
-											'allow_zero_extra' => (is_null($this->input->post('allow_zero_extra')) ? 0 : 1))
+											'allow_zero_extra' => $zero_extra)
 									);
 		
-		if (is_array($this->input->post("cvs_field"))&&count($this->input->post("cvs_field")))
+		if (is_array($this->input->post("csv_field"))&&count($this->input->post("csv_field")))
 		{
 
-			$n = count($this->input->post("cvs_field"));
-			if ($n>0)		//There are currently fields that we can't import into the database
+			$n = count($this->input->post("csv_field"));
+			$csv_filter = '';	// No Filter Elmination at this point	
+			if ($n>0)			//There are currently fields that we can't import into the database
 			{
-				$this->session->set_userdata(array('elim' => $_POST['cvs_field'])); 
+				$this->session->set_userdata(array('elim' => $_POST['csv_field'])); 
+				foreach($this->input->post("csv_field") as $filter => $key)
+				{
+					$csv_filter .= $key.',';
+				}
 			}
 		}
 										
@@ -199,9 +210,10 @@ class Lotteries extends Admin_Controller {
 					{
 						$new_file_name = rand(). '.' . $extension;
 						$this->session->set_userdata(array('new_file_name' => $new_file_name));
-						move_uploaded_file($_FILES['lottery_upload_csv']['tmp_name'], 'lotto_zip_csv_uploads/'.$new_file_name);
-						$file_content = file('lotto_zip_csv_uploads/'.$new_file_name, FILE_SKIP_EMPTY_LINES);
+						move_uploaded_file($_FILES['lottery_upload_csv']['tmp_name'], self::FILE_PATH.$new_file_name);
+						$file_content = file(self::FILE_PATH.$new_file_name, FILE_SKIP_EMPTY_LINES);
 						$total_data = count($file_content);
+						$this->lotteries_m->import_data_save(array('lottery_id' => $id, 'columns' => $csv_filter, 'zero_extra' => $zero_extra, 'csv_file' => $_FILES['lottery_upload_csv']['name'], 'csv_url' => ''));
 					}
 					else
 					{
@@ -228,18 +240,83 @@ class Lotteries extends Admin_Controller {
 			} 
 			else 
 			{
-					$url = $this->input->post('import_lottery_url');
+				$url = $this->input->post('import_lottery_url');
+				$url = strtok($url, '?');	// Remove the query string
 
 			/* 	1. Check if the File has been selected (Uploading is first examined) 
-				check for a valid url (http: or https:) and active on the internet */
+				check for a valid url (http: or https:) and active on the internet 
+				2.  if valid, copy file to server at uploaded location csv_zip_upload
+					If Filename is valid zip file */
 
 				if ($this->lotteries_m->is_valid_domain($url)) 
 				{
-					$output = array(
-						'error' => $url.' is a valid URL'
-					);
-				}
+					$file_path = explode(".", $url);  
+					$ext = end($file_path);
+					if (($ext!="csv")&&($ext!="zip")) 
+					{
+						$output = array(
+							'error' => $url.' has neither a csv or zip file extention for transfer to our server.'
+						);
+					}
+					else 
+					{
+						// Yes, it is either a csv or zip file type
+						// Download it to the correct directory
+						$url_filename = self::FILE_PATH . basename($url);
 
+						$file_name = fopen($url, 'r');  // Open file for reading
+						if (!$file_name)
+						{
+							$output = array(
+								'error' => $url.' does not exist. Please check the url again.'
+							); 
+						} 
+						else
+						{
+							file_put_contents( $url_filename, $file_name);  // Transfer the contents of file to server in directory
+							if ($ext=='zip')
+							{
+								 ## Extract the zip file ---- start
+								 $zip = new ZipArchive;
+								 $res = $zip->open($url_filename);
+								 if ($res === TRUE) {
+								   // Extract file
+									$zip->extractTo(self::FILE_PATH);
+									$unzip_name = $zip->getNameIndex(0);	// Returns the name of the compressed file 	
+									$zip->close();
+									$unzip_ext = explode(".", $unzip_name);
+									$unzip_ext = end($unzip_ext);
+									
+									if ($unzip_ext=='csv') 
+										{
+											$this->session->set_userdata(array('new_file_name' => $unzip_name));
+											$file_content = file(self::FILE_PATH.$unzip_name, FILE_SKIP_EMPTY_LINES);
+											$total_data = count($file_content);
+											$output = array(
+												'success' => TRUE,
+												'total_data'	=>	($total_data - 1)
+											);
+										// Remove the zip file (dot zip in the directory) from the directory
+											unlink($url_filename);
+											$this->lotteries_m->import_data_save(array('lottery_id' => $id, 'columns' => $csv_filter, 'zero_extra' => $zero_extra, 'csv_file' => '', 'csv_url' => $url));
+										}
+									else 
+									{
+										$output =  array(
+											'error' => 'This is not a valid csv file extension.'
+										);
+									}
+								 }
+								 else 
+								 {
+									$output = array(
+										'error' => "Can't Open Zip File, Try Again."
+									);	
+								 }
+							}  
+						}
+					}
+				}
 				else 
 				{
 						// Correct this url
@@ -257,11 +334,11 @@ class Lotteries extends Admin_Controller {
 			2. if not selected, Check if the url textbox of the location of the file has been entered
 			if the textbox is not empty, 
 				check for a valid url (http: or https:)
-				if valid, copy file to server at uploaded location cvs_zip_upload
+				if valid, copy file to server at uploaded location csv_zip_upload
 					If Filename is valid zip file
-						unzip in directory, uncompress cvs file
+						unzip in directory, uncompress csv file
 						delete zip file
-						open cvs file
+						open csv file
 						Retrieve header titles
 						Find Date title,
 						Find Ball 1 ... Ball N title
@@ -282,38 +359,7 @@ class Lotteries extends Admin_Controller {
 			else (filename not selected and url text field blank)
 				Error Message, 'Enter a valid file or url.
 
-		*/
-		/* echo '<pre>';
-          print_r($_FILES);
-          exit; */
-		  /* $config['upload_path'] = 'lotto_zip_cvs_uploads/';
-		  $config['allowed_types'] = 'text/plain|text/anytext|csv|text/x-comma-separated-values|text/comma-separated-values|application/octet-stream|application/vnd.ms-excel|application/x-csv|text/x-csv|text/csv|application/csv|application/excel|application/vnd.msexcel';
-		    
-		  $this->load->library('CSV_Import', $config);
-		  // If upload failed, display error
-		  if (!$this->upload->do_upload()) {
-  
-			  echo $this->upload->display_errors();
-		  
-			} else {
-			  $this->load->library('CSV_Import');
-			  $file_data = $this->upload->data();
-			  $file_path = base_url().'lotto_zip_cvs_uploads/' . $file_data['file_name'];
-			  
-  
-			  if ($this->csvimport->get_array($file_path)) {
-				  $csv_array = $this->csvimport->get_array($file_path);
-				  
-				  foreach ($csv_array as $row) {
-					  $insert_data = array(
-						  'ROLL_NO' => $row['ROLL_NO'],
-						  'MARKS' => $row['MARKS'],
-					  );
-					  // insert data into database
-					  $this->utilities->insertData($insert_data, 'admission_test_result');
-				  }
-			  }
-		  } */
+		 */
 
  	  	$this->data['current'] = $this->uri->segment(2); 
 		$this->data['subview']  = 'admin/lotteries/import';
@@ -347,7 +393,7 @@ class Lotteries extends Admin_Controller {
 		
 		if (!empty($this->session->userdata('new_file_name')))
 		{
-			$file_data = fopen('lotto_zip_csv_uploads/'.$this->session->userdata('new_file_name'), 'r');
+			$file_data = fopen(self::FILE_PATH.$this->session->userdata('new_file_name'), 'r');
 			$header = fgetcsv($file_data); // Set the File Pointer to start of file and move retrieve the header
 			$column_count = count($header);
 			$draw_data = array();
@@ -382,11 +428,10 @@ class Lotteries extends Admin_Controller {
 					$i++;
 				}
 				$row = array_values($row);	// Reindex the row without the eliminated column 
-				
-				$cvs_date = explode('/', $row[0]);
-				$cvs_date = (isset($cvs_date[2])&&isset($cvs_date[1])&&isset($cvs_date[0]) ? strtotime($cvs_date[2].'-'.$cvs_date[0].'-'.$cvs_date[1]) : FALSE);
-				
-				if ($ld =='nodraws'||(($ld<$cvs_date&&!$lottery_props->allow_zero_extra)||($ld<=$cvs_date&&$lottery_props->allow_zero_extra)&&($cvs_date!=FALSE))) 
+				$csv_date = explode('-', $row[0]);
+				$csv_date = (isset($csv_date[2])&&isset($csv_date[1])&&isset($csv_date[0]) ? strtotime($csv_date[2].'-'.$csv_date[1].'-'.$csv_date[0]) : FALSE);
+				$draw_exists = (!$csv_date ? FALSE : $this->lotteries_m->lotto_draw_exists($table, date('Y-m-d', $csv_date))); // Check for an existing draw, only if csv_date does not return false
+				if ($ld =='nodraws'||(($ld<$csv_date&&!$lottery_props->allow_zero_extra)||($ld<=$csv_date&&$lottery_props->allow_zero_extra)&&($csv_date!=FALSE)&&(!$draw_exists))) 
 				{
 					$balls_drawn = intval($this->session->userdata('balls_drawn'));		// balls drawn
 
@@ -458,7 +503,7 @@ class Lotteries extends Admin_Controller {
 					}
 					else
 					{
-						$ld = $cvs_date; // The new cvs_date becomes the last date.
+						$ld = $csv_date; // The new csv_date becomes the last date.
 						$draw_data += ['success' => TRUE];
 					}
 
@@ -469,7 +514,12 @@ class Lotteries extends Admin_Controller {
 						ob_end_flush();
 					}
 				echo json_encode($draw_data);
-				} // if ($ld=='nodraws'||(($ld<=$cvs_date)&&($cvs_date!=FALSE))) 
+				} // if ($ld=='nodraws'||(($ld<=$csv_date)&&($csv_date!=FALSE)))
+				else 
+				{
+					$draw_data = ['error' => TRUE];
+				break;
+				} 
 
 			unset($draw_data);		// Remove Current Draw Date for next CSV Row
 			}

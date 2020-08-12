@@ -81,13 +81,13 @@
 									echo form_label('Days of Draw:', 'draw_days_lb', $extra); ?>
 								<div class="col-8">
 									<?php $s = '';
-										if ($lottery->monday) $s .= 'Mondays ';
-										if ($lottery->tuesday) $s .= 'Tuesdays ';
-										if ($lottery->wednesday) $s .= 'Wednesdays ';
-										if ($lottery->thursday) $s .= 'Thursdays ';
-										if ($lottery->friday) $s .= 'Fridays ';
-										if ($lottery->saturday) $s .= 'Saturdays ';
-										if ($lottery->sunday) $s .= 'Sundays ';
+										if ($lottery->monday) $s .= 'Mondays<br />';
+										if ($lottery->tuesday) $s .= 'Tuesdays<br />';
+										if ($lottery->wednesday) $s .= 'Wednesdays<br />';
+										if ($lottery->thursday) $s .= 'Thursdays<br />';
+										if ($lottery->friday) $s .= 'Fridays<br />';
+										if ($lottery->saturday) $s .= 'Saturdays<br />';
+										if ($lottery->sunday) $s .= 'Sundays';
 										echo form_label($s, 'draw_days_lb', $extra); ?>
 								</div>
 							</div>
@@ -112,22 +112,31 @@
 								<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
 								echo form_label('Allow Import of 0 Bonus / Extra Ball?', 'allow_zero_extra_lb', $extra); ?>
 								<div class="col-8">
-									<?php echo form_checkbox('allow_zero_extra', set_value('allow_zero_extra', '1'), set_checkbox('allow_zero_extra', '1', (!empty($lottery->allow_zero_extra))), 'style = "margin:15px 0px 0px 15px;"'); ?>
+									<?php echo form_checkbox('allow_zero_extra', set_value('allow_zero_extra', '1'), set_checkbox('allow_zero_extra', '1', (!empty($import_data[0]->zero_extra))), 'style = "margin:15px 0px 0px 15px;"'); ?>
 								</div>
 							</div>
-							<!-- Eliminate Field in CVS File -->
-							<div class="form-group form-group-lg row"> 
-								<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
-								echo form_label('CVS Column # (No Spaces)', 'cvs_field_lb', $extra); ?>
+							<!-- Eliminate Field in CSV File -->
+							<div class="form-group form-group-lg row">
+							<?php if(isset($import_data[0]->columns)) 
+									{
+										$extra = array('class' => 'col-4 col-form-label col-form-label-md', 'style' => 'white-space: nowrap;');
+										echo form_label('Last Columns Eliminated from Import:', 'last_lottery_columns_lb', $extra); ?>
+										<div class="col-8">
+											<?php $removal = rtrim($import_data[0]->columns,",");
+											echo form_label($removal.' (Please Re-Enter)', 'last_lottery_columns_imported_lb', $extra); ?>
+										</div> 
+								<?php } 
+								$extra = array('class' => 'col-4 col-form-label col-form-label-md');
+								echo form_label('CSV Column # (No Spaces)', 'cvs_field_lb', $extra); ?>
 								<div class="col-8">
 									<div class="table-responsive" style = "width:80%">  
                                			<table class="table table-bordered" id="dynamic_field">  
                                     		<tr>  
 												<td style = "width:65%">
-													<?php $extra = array('class' => 'form-control', 'id' => 'current_cvs',
+													<?php $extra = array('class' => 'form-control', 'id' => 'current_csv',
 													'maxlength' => '2', 'size' => '10', 'style'=> 'width:75%', 'placeholder' => 'Column # to Remove');  
-													echo form_input('cvs_field[]','', $extra); 
-													echo form_error('cvs_field[]', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
+													echo form_input('csv_field[]','', $extra); 
+													echo form_error('csv_field[]', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 												</td>
 												<td style="width:35%">
 												<?php 
@@ -139,25 +148,33 @@
 									</div>
 								</div>
 							</div>
-							<!-- Upload CVS File -->
-							<div class="form-group form-group-lg row"> 
-								<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
-								echo form_label('Lottery Import CVS File:', 'lottery_import_cvs_file_lb', $extra); ?>
+							<!-- Upload csv File -->
+							<div class="form-group form-group-lg row">
+							<?php if(isset($import_data[0]->csv_file)) 
+									{
+										$extra = array('class' => 'col-4 col-form-label col-form-label-md', 'style' => 'white-space: nowrap;');
+										echo form_label('Last Lottery CSV File Imported:', 'last_lottery_import_lb', $extra); ?>
+										<div class="col-8">
+										<?= form_label($import_data[0]->csv_file, 'last_lottery_import_csv_lb', $extra); ?>
+										</div> 
+								<?php }
+								$extra = array('class' => 'col-4 col-form-label col-form-label-md');
+								echo form_label('Lottery Import CSV File:', 'lottery_import_csv_file_lb', $extra); ?>
 								<div class="col-8">
-										<?php $extra = array('class' => 'form-control', 'id' => 'lottery_upload_cvs',
+										<?php $extra = array('class' => 'form-control', 'id' => 'lottery_upload_csv',
 										'accept' => '.csv', 'style'=> 'width:80%');  
-										echo form_upload('lottery_upload_csv',set_value('lottery_upload_cvs', ''), $extra); 
+										echo form_upload('lottery_upload_csv',set_value('lottery_upload_csv', ''), $extra); 
 										echo form_error('lottery_upload_csv', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 									</div>
 								</div>
-								<!-- Import from URL (Zip File or CVS File -->
+								<!-- Import from URL (Zip File or csv File -->
 								<div class="form-group form-group-lg row"> 
 									<?php $extra = array('class' => 'col-4 control-label col-form-label-md');
-									echo form_label('Import CVS File (URL):', 'import_lottery_url_lb', $extra); ?>
+									echo form_label('Import csv File (URL):', 'import_lottery_url_lb', $extra); ?>
 									<div class="col-8">
 									<?php $extra = array('class' => 'form-control form-control-lg', 'id' => 'FormControlInput',
 										'maxlength' => '550', 'size' => '50', 'style'=> 'width:80%');
-										echo form_input('import_lottery_url',set_value('import_lottery_url', ''), $extra); 
+										echo form_input('import_lottery_url',set_value('import_lottery_url', (isset($import_data[0]->csv_url) ? $import_data[0]->csv_url : '')), $extra); 
 										echo form_error('import_lottery_url', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 									</div>
 								</div>
@@ -228,12 +245,12 @@
 $(document).ready(function() {
 	var clear_timer;
 	var i=1;
-	var cvs=document.getElementsByName('cvs_field[]');
+	var csv=document.getElementsByName('csv_field[]');
 	$('#add').click(function(){  
            i++;  
-           $('#dynamic_field').append('<tr id="row'+i+'"><td><input type="text" name="cvs_field[]" value = "'+cvs[0].value+'" style="width:90%" class="form-control field_list" /></td><td align="center"><button type="button" name="remove" id="'+i+'" class="btn btn-danger btn_remove text-center">X</button></td></tr>');
-		   $('#current_cvs').val('');
-		   $('#current_cvs').placeholder = "Column # to Remove";   
+           $('#dynamic_field').append('<tr id="row'+i+'"><td><input type="text" name="csv_field[]" value = "'+csv[0].value+'" style="width:90%" class="form-control field_list" /></td><td align="center"><button type="button" name="remove" id="'+i+'" class="btn btn-danger btn_remove text-center">X</button></td></tr>');
+		   $('#current_csv').val('');
+		   $('#current_csv').placeholder = "Column # to Remove";   
 	  });  
       $(document).on('click', '.btn_remove', function(){  
            var button_id = $(this).attr("id");   
@@ -297,7 +314,7 @@ $(document).ready(function() {
 				else if(data.error)
 				{
 					$('.card-title').text("AN ERROR HAS OCCURRED");
-					$('.card-text').text("The import could not continue. Please check CVS File.");
+					$('.card-text').text("The import could not continue. Please check csv File.");
 					error = 1;
 				} 
 				else if(data.month_error)
@@ -376,7 +393,7 @@ $(document).ready(function() {
 				{
 					clearInterval(clear_timer);
 					$('#process').css('display', 'none');
-					$('#lottery_upload_cvs').val('');
+					$('#lottery_upload_csv').val('');
 					$('#import_message').html('<div class="alert alert-success">Draw(s) Successfully Imported</div>');
 					$('.card-title').html("<div class='alert alert-success' style = 'text-align:center' role='alert'>IMPORT COMPLETE</div>");
 					$('.card-text').html("<div class='alert alert-info' style = 'text-align:center' role='alert'>Draw Importing <br /><br /> ... Done ... </div>");
@@ -388,7 +405,7 @@ $(document).ready(function() {
 				{
 					clearInterval(clear_timer);
 					$('#process').css('display', 'none');
-					$('#lottery_upload_cvs').val('');
+					$('#lottery_upload_csv').val('');
 					$('#import_message').html('<div class="alert alert-danger">Data Has Been Stopped.</div>');
 					$('#import').attr('disabled',false);
 					$('#import').val('Begin Import / Upload');

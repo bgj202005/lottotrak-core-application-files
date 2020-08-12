@@ -157,12 +157,30 @@ class Lotteries_m extends MY_Model
 	/**
 	 * If existing Lottery table exists
 	 * 
-	 * @param       $lotto_tbl	Lottery Table Name
-	 * @return     	TRUE/FALSE	TRUE (if exists), FALSE (if does not exist, go ahead and create)
+	 * @param	string	$lotto_tbl	Lottery Table Name
+	 * @return  boolean	TRUE/FALSE	TRUE (if exists), FALSE (if does not exist, go ahead and create)
 	 */
 	public function lotto_table_exists($lotto_tbl)
 	{
 	    return $this->db->table_exists($lotto_tbl);
+	}
+
+	/**
+	 * If existing Draw from current imported Lottery draw exists
+	 * 
+	 * @param	string	$lotto_tbl	Lottery Table Name
+	 * @param 	string 	$draw_date	Date of Draw to see if it exists
+	 * @return  boolean	TRUE/FALSE	TRUE (if draw exists), FALSE (if draw does not exist, return FALSE)
+	 */
+	public function lotto_draw_exists($lotto_tbl, $draw_date)
+	{
+		$query = $this->db->get_where($lotto_tbl, array('draw_date' => $draw_date), 1, 0);	// Limit only 1 row & no offset
+	
+	if ($query->num_rows() > 0)
+    {
+        return TRUE;
+    }
+    return FALSE;
 	}
 
 	/**
@@ -508,6 +526,41 @@ class Lotteries_m extends MY_Model
 			}
 		}
 	return $validation;
+	}
+	/**
+	 * Returns the import data, allow import of a 0 bonus / extra, CSV Files (column 0, 1, 2 etc), Lottery imported file or Lottery imported csv url
+	 * 
+	 * @param       integer	$lotto_id	Foriegn Key to the orresponding Lottery
+	 * @return     	object 	$result		Return row, if import data previously exists, else no record and return false			
+	 */
+	public function import_data_retrieve($lotto_id)
+	{
+
+			$sql = "SELECT * FROM `import_data` WHERE `lottery_id`=".$lotto_id." LIMIT 1";
+			$result = $this->db->query($sql);
+			
+			if (empty($result->row())) return FALSE;
+	return $result->result_object;
+	}
+	/** 
+	* Insert Draw with Draw Number
+	* 
+	* @param 	array	$data		key / value pairs of new draw to be inserted / updated
+	* @return   none	
+	*/
+	public function import_data_save($data)
+	{
+		if (!$this->import_data_retrieve($data['lottery_id'])) 
+		{
+			$this->db->set($data);		// Set the query with the key / value pairs
+			$this->db->insert('import_data');
+		}
+		else
+		{
+			$this->db->set($data);		// Set the query with the key / value pairs
+			$this->db->where('lottery_id', $data['lottery_id']);
+			$this->db->update('import_data');
+		}
 	}
 
 }
