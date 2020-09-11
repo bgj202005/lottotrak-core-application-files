@@ -127,7 +127,7 @@
 										</div> 
 								<?php } 
 								$extra = array('class' => 'col-4 col-form-label col-form-label-md');
-								echo form_label('CSV Column # (No Spaces)', 'cvs_field_lb', $extra); ?>
+								echo form_label('CSV Column # (0-Based, No Spaces)', 'cvs_field_lb', $extra); ?>
 								<div class="col-8">
 									<div class="table-responsive" style = "width:80%">  
                                			<table class="table table-bordered" id="dynamic_field">  
@@ -190,7 +190,7 @@
 										<div class = "progress">
 											<div class = "progress-bar progress-bar-striped active" role = "progressbar" 
 											aria-valuemin="0" aria-valuemax = "100">
-												<span id ="process_data">0<span> - <span id = "total_data">0</span>
+												<span id ="process_data">1</span> - <span id = "total_data"></span>
 											</div>
 										</div>
 									</div>
@@ -291,7 +291,10 @@ $(document).ready(function() {
 						$('#import').attr('disabled',false);
       					$('#import').val('Begin Import / Upload');
 					}
-				}	 
+				},
+				error: function(jqXhr, textStatus, errorMessage){
+      			//alert("Error: "+errorMessage+" text:"+textStatus);
+   			}	 
 			})
 		});
 	function start_import()
@@ -309,7 +312,7 @@ $(document).ready(function() {
 				if(data.success)
 				{
 					//alert("successful");
-					//alert(data);
+					//alert(data.success);
 				}
 				else if(data.error)
 				{
@@ -369,7 +372,10 @@ $(document).ready(function() {
 					$('#import').attr('disabled',false);
 					$('#import').val('Begin Import / Upload');
 				}
-			}
+			},
+			error: function(jqXhr, textStatus, errorMessage){
+      			//alert("Error: "+errorMessage+" text:"+textStatus);
+   			}
 		})
 	}
 	function get_import_data()
@@ -388,7 +394,6 @@ $(document).ready(function() {
 				$('#process_data').text(data);
 				$('.progress-bar').css('width', width + '%');
 				$('#draw_number').text(data);
-
 				if(width >= 100)
 				{
 					clearInterval(clear_timer);

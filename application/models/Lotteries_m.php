@@ -169,12 +169,39 @@ class Lotteries_m extends MY_Model
 	 * If existing Draw from current imported Lottery draw exists
 	 * 
 	 * @param	string	$lotto_tbl	Lottery Table Name
+	 * @param 	array 	$balls		Array of balls drawn for this draw
+	 * @param 	boolean $exta		Bonus ball / Extra ball drawn (1 = applies)
 	 * @param 	string 	$draw_date	Date of Draw to see if it exists
 	 * @return  boolean	TRUE/FALSE	TRUE (if draw exists), FALSE (if draw does not exist, return FALSE)
 	 */
-	public function lotto_draw_exists($lotto_tbl, $draw_date)
+	public function lotto_draw_exists($lotto_tbl, $balls, $extra, $draw_date)
 	{
-		$query = $this->db->get_where($lotto_tbl, array('draw_date' => $draw_date), 1, 0);	// Limit only 1 row & no offset
+		if ($extra)
+		{
+			$num_extra	= array_pop($balls);		// Retrieve the Extra and Remove the extra number from the array
+			if(!$num_extra)				// Check for Extra / Bonus Balls with zero values that indicate a bonus / extra draw					
+			{
+				$n = 1;
+				$compare_balls = array();
+				foreach($balls as $ball)
+				{
+					$compare_balls['ball'.$n] = $ball;
+					$n++;
+				}
+				$compare_balls['extra'] = 0;								// Add the extra / bonus
+				$compare_balls['draw_date'] = $draw_date;					// Add the draw date
+
+				$query = $this->db->get_where($lotto_tbl, $compare_balls, 1, 0);	// Limit only 1 row & no offset
+			}
+			else
+			{
+				$query = $this->db->get_where($lotto_tbl, array('draw_date' => $draw_date), 1, 0);	// Limit only 1 row & no offset
+			}
+		}
+		else 
+		{
+			$query = $this->db->get_where($lotto_tbl, array('draw_date' => $draw_date), 1, 0);	// Limit only 1 row & no offset
+		}
 	
 	if ($query->num_rows() > 0)
     {
@@ -288,9 +315,12 @@ class Lotteries_m extends MY_Model
 		} 
 		while($drawn>0);
 		
-		$max_extra_ball = $range_values->maximum_extra_ball;
-		$min_extra_ball = $range_values->minimum_extra_ball;
-		if ($range_values->extra_ball&&($data_values['extra']<$min_extra_ball||$data_values['extra']>$max_extra_ball)) return FALSE; 
+		if ($range_values->extra_ball) 
+		{
+			$max_extra_ball = $range_values->maximum_extra_ball;
+			$min_extra_ball = $range_values->minimum_extra_ball;
+			if (($range_values->allow_zero_extra&&$data_values['extra']!=0)&&($data_values['extra']<$min_extra_ball||$data_values['extra']>$max_extra_ball)) return FALSE; 
+		}	
 	return TRUE; // All Good!
 	}
 
@@ -561,6 +591,19 @@ class Lotteries_m extends MY_Model
 			$this->db->where('lottery_id', $data['lottery_id']);
 			$this->db->update('import_data');
 		}
+	}
+
+	/** 
+	* Drawn_only
+	* 
+	* @param 	array	$draw		Includes the date and numbers drawn
+	* @return   array	$numbers	Includes the numbers drawn without the date
+	*/
+	public function drawn_only($draw)
+	{
+		unset($draw[0]);				// Remove the date
+		$numbers = array_values($draw);	// Reindex the array
+	return $numbers;					// Return the drawn numbers without the date
 	}
 
 }

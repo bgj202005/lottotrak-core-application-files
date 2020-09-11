@@ -245,8 +245,8 @@ class Lotteries extends Admin_Controller {
 
 			/* 	1. Check if the File has been selected (Uploading is first examined) 
 				check for a valid url (http: or https:) and active on the internet 
-				2.  if valid, copy file to server at uploaded location csv_zip_upload
-					If Filename is valid zip file */
+			2.  if valid, copy file to server at uploaded location csv_zip_upload
+				If Filename is valid zip file */
 
 				if ($this->lotteries_m->is_valid_domain($url)) 
 				{
@@ -273,6 +273,11 @@ class Lotteries extends Admin_Controller {
 						} 
 						else
 						{
+							/* if valid, copy file to server at uploaded location csv_zip_upload
+							If Filename is valid zip file
+							unzip in directory, uncompress csv file
+							delete current zip file
+							open csv file */
 							file_put_contents( $url_filename, $file_name);  // Transfer the contents of file to server in directory
 							if ($ext=='zip')
 							{
@@ -327,43 +332,11 @@ class Lotteries extends Admin_Controller {
 			}
 			echo json_encode($output);
 		}
-		else {
-			/*
-			If selected, start the Upload process
-			/* 	1. Check if the File has been selected (Uploading is first examined) 
-			2. if not selected, Check if the url textbox of the location of the file has been entered
-			if the textbox is not empty, 
-				check for a valid url (http: or https:)
-				if valid, copy file to server at uploaded location csv_zip_upload
-					If Filename is valid zip file
-						unzip in directory, uncompress csv file
-						delete zip file
-						open csv file
-						Retrieve header titles
-						Find Date title,
-						Find Ball 1 ... Ball N title
-						Find Bonus / Extra Ball
-				Do 
-				 Array Lottery draw, Date
-					 Ball 1 .. Ball N
-					 Extra / Bonus Ball
-					Save draw in database
-
-				until last draw and not errors
-				Success Message, "The 'last draw date' has been imported successfully to the Lottery_name Database."
-
-				else 
-					not valid url, error "your url is not valid, check the url and type in again. Don't forget, http or https"
-
-			
-			else (filename not selected and url text field blank)
-				Error Message, 'Enter a valid file or url.
-
-		 */
-
- 	  	$this->data['current'] = $this->uri->segment(2); 
-		$this->data['subview']  = 'admin/lotteries/import';
-		$this->load->view('admin/_layout_main', $this->data); 
+		else 
+		{
+ 	  		$this->data['current'] = $this->uri->segment(2); 
+			$this->data['subview']  = 'admin/lotteries/import';
+			$this->load->view('admin/_layout_main', $this->data); 
 		}
 	}
 
@@ -428,10 +401,11 @@ class Lotteries extends Admin_Controller {
 					$i++;
 				}
 				$row = array_values($row);	// Reindex the row without the eliminated column 
-				$csv_date = explode('-', $row[0]);
-				$csv_date = (isset($csv_date[2])&&isset($csv_date[1])&&isset($csv_date[0]) ? strtotime($csv_date[2].'-'.$csv_date[1].'-'.$csv_date[0]) : FALSE);
-				$draw_exists = (!$csv_date ? FALSE : $this->lotteries_m->lotto_draw_exists($table, date('Y-m-d', $csv_date))); // Check for an existing draw, only if csv_date does not return false
-				if ($ld =='nodraws'||(($ld<$csv_date&&!$lottery_props->allow_zero_extra)||($ld<=$csv_date&&$lottery_props->allow_zero_extra)&&($csv_date!=FALSE)&&(!$draw_exists))) 
+				$csv_date = (in_array('-', $row[0])) ? explode('-', $row[0]) : explode('/', $row[0]);	// Two formats of csv using either dash or forward slash to separate m, d, y
+				$unix_date = (isset($csv_date[2])&&isset($csv_date[1])&&isset($csv_date[0]) ? strtotime($csv_date[0].'/'.$csv_date[1].'/'.$csv_date[2]) : FALSE);  // m / d / yyyy is assumed with '/'
+
+				$draw_exists = (!$unix_date ? FALSE : $this->lotteries_m->lotto_draw_exists($table, $this->lotteries_m->drawn_only($row), $lottery_props->extra_ball, date('Y-m-d', $unix_date))); // Check for an existing draw, only if csv_date does not return false
+				if (($ld =='nodraws'||(($ld<=$unix_date))&&($unix_date!=FALSE)&&(!$draw_exists))) 
 				{
 					$balls_drawn = intval($this->session->userdata('balls_drawn'));		// balls drawn
 
@@ -490,7 +464,7 @@ class Lotteries extends Admin_Controller {
 					else if (!$this->lotteries_m->duplicate_regular_drawn($lottery_props->extra_ball, $draw_data)) 
 					{
 						$draw_data += [
-								'regular_duplicate_error'	=>	TRUE];
+								"regular_duplicate_error"	=>	TRUE];
 						break;
 					}
 					$draw_data['draw_date'] = $date[2].'-'.$date[0].'-'.$date[1];	// Re-arranged format for Database
@@ -501,13 +475,11 @@ class Lotteries extends Admin_Controller {
 							'error'	=>	TRUE];
 						break;
 					}
-					else
-					{
-						$ld = $csv_date; // The new csv_date becomes the last date.
-						$draw_data += ['success' => TRUE];
-					}
+					$ld = $unix_date; // The new unix_date (converted date) becomes the last date that was added to the database.
+					$draw_data += ['success' => TRUE];
 
-					sleep(1);
+					//sleep(1);
+					usleep(500000); // 0.5 of a second delay
 
 					if(ob_get_level() > 0)
 					{
@@ -515,6 +487,10 @@ class Lotteries extends Admin_Controller {
 					}
 				echo json_encode($draw_data);
 				} // if ($ld=='nodraws'||(($ld<=$csv_date)&&($csv_date!=FALSE)))
+				elseif($draw_exists)		// Only if draw exists, go to the next draw.
+				{
+					unset($draw_exists);	// Go to next draw, without existing the loop
+				}
 				else 
 				{
 					$draw_data = ['error' => TRUE];
