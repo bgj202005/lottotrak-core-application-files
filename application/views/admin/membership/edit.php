@@ -109,7 +109,7 @@
 						<?php $extra = array('class' => 'col-4 col-form-label col-form-label-lg');
 						echo form_label('Country', 'country', $extra); ?>
 					<div class="col-8">
-						<div id="countries_states2" class="bfh-selectbox bfh-countries" data-flags="true" data-country="CA" data-name="country_id"></div>
+						<div id="countries_states2" class="bfh-selectbox bfh-countries" data-flags="true" data-country="<?=$member->country_id; ?>" data-name="country_id"></div>
 						<?php echo form_error('country_id', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 					</div>
 				</div><!-- Current Lottery Field -->
@@ -117,9 +117,8 @@
 					<?php $extra = array('class' => 'col-4 col-form-label col-form-label-lg');
 					echo form_label('Lottery', 'lottery', $extra); ?>
 					<div class="col-8">
-						<?php $extra = array('class' => 'btn btn-secondary btn-lg dropdown-toggle');  
-						echo form_dropdown('lottery_id', array('0' => 'No Lottery Listed',
-					'1' => 'Canada 649', '2' => 'Power Ball'), $member->lottery_id, $extra); 
+					<?php $extra = array('class' => 'btn btn-secondary btn-lg');
+					echo form_multiselect('lottery_id[]', $lotteries['list'], $lotteries['selected'], $extra);
 					echo form_error('lottery_id', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>	
 					</div>
 				</div>

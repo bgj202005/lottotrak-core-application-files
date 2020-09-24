@@ -10,7 +10,6 @@
 <section>
 	<h2>Members List</h2>
 	<?php echo anchor('admin/membership/edit', '<i class = "icon-plus"></i>Add a new Member'); ?>
-	
 	<table class="table table-striped">
 		<thead>
 			<tr> 
@@ -39,7 +38,7 @@
 		<td><?=$member->city;?></td>
 		<td><span class="bfh-states" data-country="<?=$member->country_id; ?>" data-state="<?=$member->state_prov; ?>"></span></td>
 		<td><span class="bfh-countries" data-country="<?=$member->country_id;?>" data-flags="true"></span></td>
-		<td><?=$member->lottery_id;?></td>
+		<td class = "btn-sm"><?=$member->lottery_names;?></td>
 	    <td><?php echo btn_edit('admin/membership/edit/'.$member->id); ?></td>
 		<td><?php echo btn_delete('admin/membership/delete/'.$member->id); ?></td>
 		<td><?=($member->member_active ? 'Yes' : 'No'); ?></td>

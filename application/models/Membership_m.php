@@ -109,7 +109,7 @@ class Membership_M extends MY_Model
 		$member->city = '';
 		$member->state_prov = '';
 		$member->country_id = '';
-		$member->lottery_id = 0;
+		$member->lottery_id = '';
 		$member->member_active = 0;
 		$member->reg_time = date('Y-m-d H:i:s'); // Current Time Stamp
 		return $member;
@@ -125,7 +125,6 @@ class Membership_M extends MY_Model
 	// returns true or false
 		return password_verify($password, $hash);
 	}
-
 	
 	/**
 	 * Checks if the email address exists
@@ -144,7 +143,7 @@ class Membership_M extends MY_Model
 	 /**
 	  * Return the email address for the administration user from the user id
 	  *
-	  * @params      $id (user)  integer
+	  * @param	     $id (user) integer
 	  * @return      $email or boolean  string or TRUE/FALSE
 	  */
 	 
@@ -159,7 +158,7 @@ class Membership_M extends MY_Model
 	 /**
 	  * Sends out email for password reset
 	  * The relative url will be sent as admin/user/reset_password/id/email_code
-	  * @params		 $id (user), $email, $firstname   integer, string, string
+	  * @param		 $id (user), $email, $firstname   integer, string, string
 	  * @return      none
 	  */
 	 
@@ -190,7 +189,7 @@ class Membership_M extends MY_Model
 	/**
 	 * Verify the reset password code 
 	 *
-	 * @params      $email, $code    string
+	 * @param	    $email, $code    string
 	 * @return      boolean
 	 */
 	
@@ -209,4 +208,50 @@ class Membership_M extends MY_Model
 	        return FALSE;
 	    }
 	}
+	
+	/**
+	 * Retrieve the List of Lotteries base on Country
+	 *
+	 * @param	    string	$country_code	Two letter designation for country
+	 * @return      array	List of Lotteries in the Country
+	 */
+	public function lotteries_list($country_code = 'CA')
+	{
+	
+	$query = $this->db->query("SELECT lottery_name from lottery_profiles where lottery_country_id = '".$country_code."'");
+	
+	$c = 1;
+	$result = array();
+		foreach ($query->result_array() as $row)
+		{
+			$result[$c] = $row['lottery_name'];
+			$c++;	
+		}
+	
+	return $result;
+	}
+	/**
+	 * Retrieve the Selected Lotteries
+	 *
+	 * @param	    string	$lotto_id	Lotteries currently selected
+	 * @return      string				String of currently selected lotteries on there account.
+	 */
+	public function lotteries_selected($lotto_id)
+	{
+	
+		$id = array();
+		$result = "";
+		$id = explode(',', $lotto_id);
+			foreach($id as $c)
+			{
+				$query = $this->db->query("SELECT lottery_name from lottery_profiles where id = '".$c."'");
+				$row = $query->row();
+				if (isset($row))
+				{
+					$result .= $row->lottery_name;
+					$result	.= '<br />';
+				}
+			}
+	return $result;
+	}		
 }

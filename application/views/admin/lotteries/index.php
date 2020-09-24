@@ -19,6 +19,7 @@
 				<td style = "white-space: nowrap;">To</td>
 				<th>View</th>
 				<th>Edit</th>
+				<th>Prizes</th>
 				<th>Import</th>
 				<th>Delete</th>
 			</tr>
@@ -44,6 +45,7 @@
 		<td style = "text-align:center;"><?=($lottery->extra_ball ? $lottery->maximum_extra_ball : '--'); ?></td>
 		<td style = "text-align:center;"><?php echo btn_view('admin/lotteries/view_draws/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo btn_edit('admin/lotteries/edit/'.$lottery->id); ?></td>
+		<td style = "text-align:center;"><?php echo btn_prizes('admin/lotteries/prizes/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo btn_import('admin/lotteries/import/'.$lottery->id); ?></td>
 	    <td style = "text-align:center;"><?php echo btn_delete('admin/lotteries/delete/'.$lottery->id); ?></td>
 	</tr>

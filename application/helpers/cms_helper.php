@@ -13,6 +13,9 @@ function btn_view($uri) {
 	return anchor($uri, '<i class="fa fa-eye"></i>', array('title' => 'View lottery draws'));
 }
 
+function btn_prizes($uri) {
+	return anchor($uri, '<i class="fa fa-usd"></i>', array('title' => 'Lottery Prize Breakdown'));
+}
 
 function add_meta_title($string) {
 	$CI = &get_instance();

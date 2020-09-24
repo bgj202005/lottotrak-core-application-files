@@ -41,6 +41,7 @@ class Lotteries extends Admin_Controller {
 			$this->data['lottery'] = $this->lotteries_m->get_new();
 		}
 		
+		
 
 		$this->data['message'] = '';  // Create a Message object
 		$error = NULL;				  // Related to Image upload only
@@ -145,13 +146,30 @@ class Lotteries extends Admin_Controller {
 		$this->data['subview']  = 'admin/lotteries/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
-	
+
 	/**
-	 * Retrieves Lottery to import
+	 * Lottery Prize Breakdown
 	 * 
 	 * @param       $id, Lottery id
 	 * @return      none
 	 */
+
+	public function prizes($id)
+	
+	/**
+	 * Displays the Prizes Page
+	 * 
+	 * @param       integer	$id, Lottery id
+	 * @return      none
+	 */
+	{
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		$this->data['lottery']->prizes = $this->lotteries_m->list_prizes($this->data['lottery']->balls_drawn, $this->data['lottery']->extra_ball);
+		$this->data['lottery']->set_prizes = $this->lotteries_m->load_prizes($id);
+		$this->data['current'] = $this->uri->segment(2); 
+		$this->data['subview']  = 'admin/lotteries/prizes';
+		$this->load->view('admin/_layout_main', $this->data); 
+	}
 
 	public function import($id)
 	{

@@ -78,6 +78,99 @@ class Lotteries_m extends MY_Model
 		)
 	);
 
+	public $prize_rules = array(
+		'9_win' => array(
+			'field' => '9_win', 
+			'label' => '9 Balls', 
+			'rules' => 'callback__require_one_prize'
+		),
+		'8_win_extra' => array(
+			'field' => '8_win_extra', 
+			'label' => '8 plus the Extra (Bonus)', 
+			'rules' => 'callback__require_one_prize'
+		),
+		'8_win' => array(
+			'field' => '8_win', 
+			'label' => '8 Balls', 
+			'rules' => 'callback__require_one_prize'
+		),
+		'7_win_extra' => array(
+			'field' => '7_win_extra', 
+			'label' => '7 plus the Extra (Bonus)', 
+			'rules' => 'callback__require_one_prize'
+		),
+		'7_win' => array(
+			'field' => '7_win', 
+			'label' => '7 Balls', 
+			'rules' => 'callback__require_one_prize'
+		),
+		'6_win_extra' => array(
+			'field' => '6_win_extra', 
+			'label' => '6 plus the Extra (Bonus)', 
+			'rules' => 'callback__require_one_prize'
+		),
+		'6_win' => array(
+			'field' => '6_win', 
+			'label' => '6 Balls', 
+			'rules' => 'callback__require_one_prize'
+		),
+		'5_win_extra' => array(
+			'field' => '5_win_extra', 
+			'label' => '5 plus the Extra (Bonus)', 
+			'rules' => 'callback__require_one_prize'
+		),
+		'5_win' => array(
+			'field' => '5_win', 
+			'label' => '5 Balls', 
+			'rules' => 'callback__require_one_prize'
+		),
+		'4_win_extra' => array(
+			'field' => '4_win_extra', 
+			'label' => '4 plus the Extra (Bonus)', 
+			'rules' => 'callback__require_one_prize'
+		),
+		'4_win' => array(
+			'field' => '4_win', 
+			'label' => '4 Balls', 
+			'rules' => 'callback__require_one_prize'
+		),
+		'3_win_extra' => array(
+			'field' => '3_win_extra', 
+			'label' => '3 plus the Extra (Bonus)', 
+			'rules' => 'callback__require_one_prize'
+		),
+		'3_win' => array(
+			'field' => '3_win', 
+			'label' => '3 Balls', 
+			'rules' => 'callback__require_one_prize'
+		),
+		'2_win_extra' => array(
+			'field' => '2_win_extra', 
+			'label' => '2 plus the Extra (Bonus)', 
+			'rules' => 'callback__require_one_prize'
+		),
+		'2_win' => array(
+			'field' => '2_win', 
+			'label' => '2 Balls', 
+			'rules' => 'callback__require_one_prize'
+		),
+		'1_win_extra' => array(
+			'field' => '1_win_extra', 
+			'label' => '1 Ball plus the Extra (Bonus)', 
+			'rules' => 'callback__require_one_prize'
+		),
+		'1_win' => array(
+			'field' => '1_win', 
+			'label' => '1 Ball', 
+			'rules' => 'callback__require_one_prize'
+		),
+		'extra' => array(
+			'field' => 'extra', 
+			'label' => 'Extra / Bonus Ball Only', 
+			'rules' => 'callback__require_one_prize'
+		)
+	);
+
 	public function get_new ()
 	{
 		$lottery = new stdClass();
@@ -594,7 +687,7 @@ class Lotteries_m extends MY_Model
 	}
 
 	/** 
-	* Drawn_only
+	* Drawn_only, Only the drawn numbers returned without the date of the draw
 	* 
 	* @param 	array	$draw		Includes the date and numbers drawn
 	* @return   array	$numbers	Includes the numbers drawn without the date
@@ -604,6 +697,50 @@ class Lotteries_m extends MY_Model
 		unset($draw[0]);				// Remove the date
 		$numbers = array_values($draw);	// Reindex the array
 	return $numbers;					// Return the drawn numbers without the date
+	}
+
+	/** 
+	* list_prizes, Returns the field values of the lottery prize table with the id and lottery id removed
+	* 
+	* @param 	integer	$max			Maximum number of balls that are played
+	* @param 	boolean $extra			If an extra is included, TRUE / FALSE
+	* @return   array	$field names	Prize Field Names only from the number of balls drawn
+	*/
+	public function list_prizes($max, $extra)
+	{
+		$prizes = array();	// Create a single dimensional array of the field values of the 'lottery_prizes' table
+		$prizes = $this->db->list_fields('lottery_prize_profiles');
+		unset($prizes[0]); 	// unset id 
+		unset($prizes[19]); // unset lottery_id
+		rsort($prizes);		// Sort the Field Values in Descending Order
+		$c = 0; 			// counter
+		foreach($prizes as $prize)
+		{
+			if(intval(substr($prize, 0, 1))>intval($max)) unset($prizes[$c]);
+		// Remove all Extras, if FALSE
+			if(!$extra) 
+			{
+				if (strstr( $prize, 'extra')) unset($prizes[$c]);
+			}
+		// Lastly, Remove the maximum ball drawn plus the extra
+			elseif($extra&&(strstr($prize, $max.'_win_extra'))) unset($prizes[$c]);
+			$c++;
+		}
+	return array_values($prizes);	// Reindex the array
+	}
+
+	/** 
+	* load_prizes, Returns the field values of the lottery prize table with the id and lottery id removed
+	* 
+	* @param 	integer	$id					Lottery id of given lottery profile
+	* @return   array	$result or FALSE 	Returns array of prizes for the given lottery profile, returns FALSE on no prizes associated with given lottery profile
+	**/
+	public function load_prizes($id)
+	{
+		$query = $this->db->query('SELECT *	FROM lottery_prize_profiles WHERE lottery_id='.$id);					
+		
+	$result = $query->result_array(); 	// Return the Prize Profile
+	return (!empty($result) ? $result : FALSE); 
 	}
 
 }

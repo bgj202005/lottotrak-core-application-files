@@ -20,8 +20,13 @@ class Membership extends Admin_Controller
 	{
 		// Fetch all users from the database
 		$this->data['members'] = $this->membership_m->get();
-		
-		// Load the view
+		if (count($this->data['members']))
+		{ 
+			foreach($this->data['members'] as $member)
+			{
+				$member->lottery_names = $this->membership_m->lotteries_selected($member->lottery_id); 
+			}
+		}
 		$this->data['current'] = $this->uri->segment(2); // Sets the membership menu
 		$this->data['subview'] = 'admin/membership/index';
 		$this->load->view('admin/_layout_main', $this->data);
@@ -37,6 +42,8 @@ class Membership extends Admin_Controller
 		{
 			$this->data['member'] = $this->membership_m->get($id);
 			is_object($this->data['member']) || $this->data['errors'][] = 'Member could not be found'; //deprecated php 7.2+ count($this->data['member']) 
+			$this->data['lotteries']['selected'] = (!empty($this->input->post('lottery_id')) ? $this->input->post('lottery_id') : explode(',', $this->data['member']->lottery_id));	// Retrieve Number of Lotteries (Max of 3) the member wants to play
+			$this->data['lotteries']['list'] = $this->membership_m->lotteries_list($this->data['member']->country_id);
 		} 
 		else 
 		{
@@ -70,8 +77,10 @@ class Membership extends Admin_Controller
 			// We can save and redirect
 			$data = $this->membership_m->array_from_post(array('username', 'email', 'password', 
 										'first_name', 'last_name', 'city', 'state_prov', 'country_id', 
-										'lottery_id', 'member_active'));
+										'lottery_id[]', 'member_active'));
 
+			$data['lottery_id'] = (string) implode(",", $data['lottery_id[]']); // Combine everything in a single string
+			unset($data['lottery_id[]']); // Remove the data array
 			$data['password'] = $this->membership_m->hash($data['password']);
 			
 			$this->data['member'] = $this->membership_m->array_to_object($this->data['member'], $data);
