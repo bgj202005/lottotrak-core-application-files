@@ -82,92 +82,92 @@ class Lotteries_m extends MY_Model
 		'9_win' => array(
 			'field' => '9_win', 
 			'label' => '9 Balls', 
-			'rules' => 'callback__require_one_prize'
+			'rules' => 'callback__require_one_prize_set'
 		),
 		'8_win_extra' => array(
 			'field' => '8_win_extra', 
 			'label' => '8 plus the Extra (Bonus)', 
-			'rules' => 'callback__require_one_prize'
+			'rules' => 'callback__require_one_prize_set'
 		),
 		'8_win' => array(
 			'field' => '8_win', 
 			'label' => '8 Balls', 
-			'rules' => 'callback__require_one_prize'
+			'rules' => 'callback__require_one_prize_set'
 		),
 		'7_win_extra' => array(
 			'field' => '7_win_extra', 
 			'label' => '7 plus the Extra (Bonus)', 
-			'rules' => 'callback__require_one_prize'
+			'rules' => 'callback__require_one_prize_set'
 		),
 		'7_win' => array(
 			'field' => '7_win', 
 			'label' => '7 Balls', 
-			'rules' => 'callback__require_one_prize'
+			'rules' => 'callback__require_one_prize_set'
 		),
 		'6_win_extra' => array(
 			'field' => '6_win_extra', 
 			'label' => '6 plus the Extra (Bonus)', 
-			'rules' => 'callback__require_one_prize'
+			'rules' => 'callback__require_one_prize_set'
 		),
 		'6_win' => array(
 			'field' => '6_win', 
 			'label' => '6 Balls', 
-			'rules' => 'callback__require_one_prize'
+			'rules' => 'callback__require_one_prize_set'
 		),
 		'5_win_extra' => array(
 			'field' => '5_win_extra', 
 			'label' => '5 plus the Extra (Bonus)', 
-			'rules' => 'callback__require_one_prize'
+			'rules' => 'callback__require_one_prize_set'
 		),
 		'5_win' => array(
 			'field' => '5_win', 
 			'label' => '5 Balls', 
-			'rules' => 'callback__require_one_prize'
+			'rules' => 'callback__require_one_prize_set'
 		),
 		'4_win_extra' => array(
 			'field' => '4_win_extra', 
 			'label' => '4 plus the Extra (Bonus)', 
-			'rules' => 'callback__require_one_prize'
+			'rules' => 'callback__require_one_prize_set'
 		),
 		'4_win' => array(
 			'field' => '4_win', 
 			'label' => '4 Balls', 
-			'rules' => 'callback__require_one_prize'
+			'rules' => 'callback__require_one_prize_set'
 		),
 		'3_win_extra' => array(
 			'field' => '3_win_extra', 
 			'label' => '3 plus the Extra (Bonus)', 
-			'rules' => 'callback__require_one_prize'
+			'rules' => 'callback__require_one_prize_set'
 		),
 		'3_win' => array(
 			'field' => '3_win', 
 			'label' => '3 Balls', 
-			'rules' => 'callback__require_one_prize'
+			'rules' => 'callback__require_one_prize_set'
 		),
 		'2_win_extra' => array(
 			'field' => '2_win_extra', 
 			'label' => '2 plus the Extra (Bonus)', 
-			'rules' => 'callback__require_one_prize'
+			'rules' => 'callback__require_one_prize_set'
 		),
 		'2_win' => array(
 			'field' => '2_win', 
 			'label' => '2 Balls', 
-			'rules' => 'callback__require_one_prize'
+			'rules' => 'callback__require_one_prize_set'
 		),
 		'1_win_extra' => array(
 			'field' => '1_win_extra', 
 			'label' => '1 Ball plus the Extra (Bonus)', 
-			'rules' => 'callback__require_one_prize'
+			'rules' => 'callback__require_one_prize_set'
 		),
 		'1_win' => array(
 			'field' => '1_win', 
 			'label' => '1 Ball', 
-			'rules' => 'callback__require_one_prize'
+			'rules' => 'callback__require_one_prize_set'
 		),
 		'extra' => array(
 			'field' => 'extra', 
 			'label' => 'Extra / Bonus Ball Only', 
-			'rules' => 'callback__require_one_prize'
+			'rules' => 'callback__require_one_prize_set'
 		)
 	);
 
@@ -686,6 +686,41 @@ class Lotteries_m extends MY_Model
 		}
 	}
 
+	/**
+	 * Returns the Lottery Prize Profile, if does not exist return FALSE
+	 * 
+	 * @param       integer	$lotto_id	Foriegn Key to the orresponding Lottery
+	 * @return     	object 	$result		Return row, if prize profile previously exists, else no record found and return false			
+	 */
+	public function prizes_data_retrieve($lotto_id)
+	{
+
+			$sql = "SELECT * FROM `lottery_prize_profiles` WHERE `lottery_id`=".$lotto_id." LIMIT 1";
+			$result = $this->db->query($sql);
+			
+			if (empty($result->row())) return FALSE;
+	return $result->result_object;
+	}
+	/** 
+	* Insert / Update Prize Profile of current lottery
+	* 
+	* @param 	array	$data		key / value pairs of new Prize Profile to be inserted / updated
+	* @return   none	
+	*/
+	public function prizes_data_save($data)
+	{
+		if (!$this->prizes_data_retrieve($data['lottery_id'])) 
+		{
+			$this->db->set($data);		// Set the query with the key / value pairs
+			$this->db->insert('lottery_prize_profiles');
+		}
+		else
+		{
+			$this->db->set($data);		// Set the query with the key / value pairs
+			$this->db->where('lottery_id', $data['lottery_id']);
+			$this->db->update('lottery_prize_profiles');
+		}
+	}
 	/** 
 	* Drawn_only, Only the drawn numbers returned without the date of the draw
 	* 
@@ -737,9 +772,12 @@ class Lotteries_m extends MY_Model
 	**/
 	public function load_prizes($id)
 	{
-		$query = $this->db->query('SELECT *	FROM lottery_prize_profiles WHERE lottery_id='.$id);					
+		$query = $this->db->query('SELECT `extra`, `1_win`, `1_win_extra`, `2_win`, `2_win_extra`, `3_win`, 
+		`3_win_extra`, `4_win`, `4_win_extra`, `5_win`, `5_win_extra`, `6_win`, `6_win_extra`, 
+		`7_win`, `7_win_extra`, `8_win`, `8_win_extra`, `9_win` FROM `lottery_prize_profiles` WHERE lottery_id='.$id);					
 		
-	$result = $query->result_array(); 	// Return the Prize Profile
+	$result = $query->row_array(); 	// Return the Prize Profile
+
 	return (!empty($result) ? $result : FALSE); 
 	}
 

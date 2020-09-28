@@ -2,7 +2,7 @@
 	<div class="container">
 			<?php echo form_open(base_url().'admin/lotteries/prizes/'.$lottery->id); ?>
 			<h2><?php echo 'Current Lottery: '.$lottery->lottery_name; ?></h2>
-			<h3 style = "text-align:center;" id="prize_error_message"></h3>
+			<?php if (!empty($message)) ?> <h3 class="bg-warning" style = "text-align:center;"><?=$message; ?></h3>
 			<div class="row">
 				<div class="col-9" style ="width:100%;">
 					<div class = "card">
@@ -97,11 +97,13 @@
 												<div class="row">
 													<div class="col-md-6">
 														<?php // $row = 0; 
+														echo '<p class="h5" style = "margin-bottom:10px;">'.form_checkbox('checkall', '', '', 'id = "checkall"').' Check All / Check None</p>'; 
 														foreach($lottery->prizes as $prize): 
 														// if($row%4==0): echo "<div class='col-md-6>"; endif; ?>
 														<div class="form-check" style = "word-wrap: none; margin-bottom:5px;">
-															<?php $extra = array('class' => 'label-text');
-															echo form_checkbox($prize, set_value($prize, '1'), set_checkbox($prize, '1', (isset($lottery->set_prize[$prize])))); ?>
+															<?php $extra = array('class' => 'checkbox');
+															//var_dump($lottery->set_prizes[$prize]);
+															echo form_checkbox($prize, set_value($prize, '1'), set_checkbox($prize, '1', (isset($lottery->set_prizes[$prize]))), $extra); ?>
 															<label>
 															<?php if ($prize=='extra'): echo "Extra / Bonus Ball Only"; endif;
 															if ($prize=='9_win'): echo "9 / ".$lottery->balls_drawn." Balls"; endif;
@@ -150,3 +152,31 @@
 		</div>
 	</div>
 </section>
+<script type='text/javascript'>
+ $(document).ready(function(){
+   // Check or Uncheck All checkboxes
+   $("#checkall").change(function(){
+     var checked = $(this).is(':checked');
+     if(checked){
+       $(".checkbox").each(function(){
+         $(this).prop("checked",true);
+       });
+     }else{
+       $(".checkbox").each(function(){
+         $(this).prop("checked",false);
+       });
+     }
+   });
+ 
+  // Changing state of CheckAll checkbox 
+  $(".checkbox").click(function(){
+ 
+    if($(".checkbox").length == $(".checkbox:checked").length) {
+      $("#checkall").prop("checked", true);
+    } else {
+      $("#checkall").removeAttr("checked");
+    }
+
+  });
+});
+</script>

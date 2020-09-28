@@ -159,13 +159,52 @@ class Lotteries extends Admin_Controller {
 	/**
 	 * Displays the Prizes Page
 	 * 
-	 * @param       integer	$id, Lottery id
+	 * @param       integer		$id, Lottery id of current lottery
 	 * @return      none
 	 */
 	{
 		$this->data['lottery'] = $this->lotteries_m->get($id);
+		$this->data['message'] = '';	// Defaulted to No Error Messages
+		if($this->input->post(NULL, TRUE))
+		{
+			$post_prizes = array();
+			if ($this->input->post('9_win')!==NULL) $post_prizes += ['9_win' => '1'];
+			if ($this->input->post('8_win_extra')!==NULL) $post_prizes += ['8_win_extra' => '1'];
+			if ($this->input->post('8_win')!==NULL) $post_prizes += ['8_win' => '1'];
+			if ($this->input->post('7_win_extra')!==NULL) $post_prizes += ['7_win_extra' => '1'];
+			if ($this->input->post('7_win')!==NULL) $post_prizes += ['7_win' => '1'];
+			if ($this->input->post('6_win_extra')!==NULL) $post_prizes += ['6_win_extra' => '1'];
+			if ($this->input->post('6_win')!==NULL) $post_prizes += ['6_win' => '1'];
+			if ($this->input->post('5_win_extra')!==NULL) $post_prizes += ['5_win_extra' => '1'];
+			if ($this->input->post('5_win')!==NULL) $post_prizes += ['5_win' => '1'];
+			if ($this->input->post('4_win_extra')!==NULL) $post_prizes += ['4_win_extra' => '1'];
+			if ($this->input->post('4_win')!==NULL) $post_prizes += ['4_win' => '1'];
+			if ($this->input->post('3_win_extra')!==NULL) $post_prizes += ['3_win_extra' => '1'];
+			if ($this->input->post('3_win')!==NULL) $post_prizes += ['3_win' => '1'];
+			if ($this->input->post('2_win_extra')!==NULL) $post_prizes += ['2_win_extra' => '1'];
+			if ($this->input->post('2_win')!==NULL) $post_prizes += ['2_win' => '1'];
+			if ($this->input->post('1_win_extra')!==NULL) $post_prizes += ['1_win_extra' => '1'];
+			if ($this->input->post('1_win')!==NULL) $post_prizes += ['1_win' => '1'];
+			if ($this->input->post('extra')!==NULL) $post_prizes += ['extra' => '1'];
+			
+			$prize_rules = $this->lotteries_m->prize_rules;
+			$this->form_validation->set_rules($prize_rules);
+		
+			if ($this->form_validation->run() == TRUE) 
+			{
+				$this->data['lottery'] = $this->lotteries_m->array_to_object($this->data['lottery'], $post_prizes);
+				if(!empty($post_prizes)) $post_prizes += ['lottery_id' => $id];
+				$this->lotteries_m->prizes_data_save($post_prizes);
+				$this->data['message'] = "Prize Categories have been saved.";
+			}
+			else
+			{
+				$this->data['message'] = "No Prize Category is selected. Please enter at least one prize category.";
+			}
+		}
 		$this->data['lottery']->prizes = $this->lotteries_m->list_prizes($this->data['lottery']->balls_drawn, $this->data['lottery']->extra_ball);
 		$this->data['lottery']->set_prizes = $this->lotteries_m->load_prizes($id);
+			
 		$this->data['current'] = $this->uri->segment(2); 
 		$this->data['subview']  = 'admin/lotteries/prizes';
 		$this->load->view('admin/_layout_main', $this->data); 
@@ -674,6 +713,45 @@ class Lotteries extends Admin_Controller {
             $this->form_validation->set_message('_file_check', 'Please choose a file to upload.');
             return TRUE;
         }
+	}
+
+	/**
+	 * Returns TRUE if at least one prize category is set, or 
+	 * FALSE is all the prize categories are not set
+	 * 
+	 * @param       none 			
+	 * @return      boolean  		TRUE (if at least one prize is set), FALSE (if no prizes are set, we need at least one prize category)
+	 */
+	public function _require_one_prize_set() 
+	{
+		$get_user_posts = $this->input->post(NULL, FALSE); 
+		if (is_array($get_user_posts)) 
+		{
+			foreach($get_user_posts as $key => $value) 
+			{
+				if ($key=='9_win'&&$value=='1') return TRUE;
+				if ($key=='8_win_extra'&&$value=='1') return TRUE;
+				if ($key=='8_win'&&$value=='1') return TRUE;
+				if ($key=='7_win_extra'&&$value=='1') return TRUE;
+				if ($key=='7_win'&&$value=='1') return TRUE;
+				if ($key=='6_win_extra'&&$value=='1') return TRUE;
+				if ($key=='6_win'&&$value=='1') return TRUE;
+				if ($key=='5_win_extra'&&$value=='1') return TRUE;
+				if ($key=='5_win'&&$value=='1') return TRUE;
+				if ($key=='4_win_extra'&&$value=='1') return TRUE;
+				if ($key=='4_win'&&$value=='1') return TRUE;
+				if ($key=='3_win_extra'&&$value=='1') return TRUE;
+				if ($key=='3_win'&&$value=='1') return TRUE;
+				if ($key=='2_win_extra'&&$value=='1') return TRUE;
+				if ($key=='2_win'&&$value=='1') return TRUE;
+				if ($key=='1_win_extra'&&$value=='1') return TRUE;
+				if ($key=='1_win'&&$value=='1') return TRUE;
+				if ($key=='extra'&&$value=='1') return TRUE;
+			}	
+		}
+		
+	$this->form_validation->set_message('_require_one_prize_set', 'There is no prizes set for this lottery.<br />Select at least one prize category for this lottery.');
+	return FALSE;	
 	}
 	
 	/**

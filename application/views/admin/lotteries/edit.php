@@ -11,7 +11,7 @@
 	<div class="container">
 		<?php echo form_open_multipart(base_url().'admin/lotteries/edit/'.$lottery->id); ?>
 		<h2><?php echo empty($lottery->id) ? 'Add a new Lottery' : 'Edit Lottery: '.$lottery->lottery_name; ?></h2>
-		<?php if (!empty($message)) ?> <h3 style = "text-align:center;"><?=$message; ?></h3>
+		<?php if (!empty($message)) ?> <h3 class="bg-warning" style = "text-align:center;"><?=$message; ?></h3>
 		<div class="row">
 			<div class="col-sm-8" style ="width:100%;">
 				<div class ="card">
