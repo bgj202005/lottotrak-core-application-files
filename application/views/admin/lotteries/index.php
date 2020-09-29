@@ -47,7 +47,7 @@
 		<td style = "text-align:center;"><?php echo btn_edit('admin/lotteries/edit/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo btn_prizes('admin/lotteries/prizes/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo btn_import('admin/lotteries/import/'.$lottery->id); ?></td>
-	    <td style = "text-align:center;"><?php echo btn_delete('admin/lotteries/delete/'.$lottery->id); ?></td>
+	    <td style = "text-align:center;"><?php echo btn_lottery_delete('admin/lotteries/delete/'.$lottery->id, $lottery->lottery_name); ?></td>
 	</tr>
 	<?php endforeach; ?> 
 	

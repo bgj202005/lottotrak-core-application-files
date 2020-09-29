@@ -76,11 +76,18 @@ function e($string) {
 	return htmlentities($string);
 } 
 
-function btn_delete($uri) {
+function btn_lottery_delete($uri, $name) {
 	
 	return anchor($uri, '<i class="fa fa-times-circle"></i>', array(
-			'onclick' => "return confirm('You are about to make a permanent deletion. This can not be undone. Are you sure?');"));
- 	}
+			'onclick' => "return confirm('You are about to make a permanent deletion of the $name\'s Profile, Draw Database and Prize Profile. This can not be UNDONE. Are you sure?');"));
+	 }
+	 
+function btn_delete($uri) {
+
+return anchor($uri, '<i class="fa fa-times-circle"></i>', array(
+		'onclick' => "return confirm('You are about to make a permanent deletion. This can not be UNDONE. Are you sure?');"));
+	}
+
 
 /**
  	 * Dump helper. Functions to dump variables to the screen, in a nicley formatted manner.
