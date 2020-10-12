@@ -99,7 +99,7 @@
 									echo form_label('Number of Balls Drawn:', 'balls_drawn_lb', $extra); ?>
 									<div class="col-8">
 									<?php $extra = array('class' => 'form-control', 'id' => 'formGroupInputLarge',
-										'maxlength' => '50', 'size' => '50', 'style'=> 'width:15%');    
+										'maxlength' => '50', 'size' => '50', 'style'=> 'width:15%', 'onchange' => 'changedBallsDrawn(this.value)');    
 										echo form_input('balls_drawn',set_value('balls_drawn', $lottery->balls_drawn), $extra); 
 										echo form_error('balls_drawn', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 									</div>
@@ -131,7 +131,7 @@
 									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
 									echo form_label('Extra / Bonus Ball?', 'extra_ball_lb', $extra); ?>
 									<div class="col-8" style="margin-top:10px;">
-										<input type = "checkbox" name = "extra_ball" value = "1" <?php echo (!empty($lottery->extra_ball) ? 'checked' : ''); ?> /> 
+										<input type = "checkbox" name = "extra_ball" value = "1" <?php echo (!empty($lottery->extra_ball) ? 'checked' : ''); ?> onchange = 'changedExtraBall(this.value)'/> 
 										<?php //echo form_checkbox('extra_ball', '1', set_checkbox('extra_ball', '1', (!empty($lottery->extra_ball)))); ?>
 									</div>
 								</div>
@@ -151,7 +151,7 @@
 									<div class="col-8">
 									<?php $extra = array('class' => 'form-control', 'id' => 'formGroupInputLarge',
 										'maxlength' => '50', 'size' => '50', 'style'=> 'width:15%');
-										echo form_input('minimum_extra_ball',set_value('minimum_extra_ball', $lottery->minimum_extra_ball), $extra); 
+										echo form_input('minimum_extra_ball',(!empty($lottery->minimum_extra_ball) ? set_value('minimum_extra_ball', $lottery->minimum_extra_ball) : ''), $extra); 
 										echo form_error('extra_ball', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>');
 										echo form_error('minimum_extra_ball', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 									</div>
@@ -163,7 +163,7 @@
 									<div class="col-8">
 									<?php $extra = array('class' => 'form-control', 'id' => 'formGroupInputLarge',
 										'maxlength' => '50', 'size' => '50', 'style'=> 'width:15%');
-										echo form_input('maximum_extra_ball',set_value('maximum_extra_ball', $lottery->maximum_extra_ball), $extra);
+										echo form_input('maximum_extra_ball',(!empty($lottery->maximum_extra_ball) ? set_value('maximum_extra_ball', $lottery->maximum_extra_ball) : ''), $extra);
 										echo form_error('extra_ball', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>');
 										echo form_error('maximum_extra_ball', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 									</div>
@@ -172,7 +172,8 @@
 							<div style = "text-align: center;">
 							<?php if ($lottery->id) // If $id
 								{ 
-									echo form_submit('submit', 'Update Lottery Profile', 'style = "padding:5px;" class="btn btn-primary btn-lg btn-info"');
+									$extra = array('style' => 'padding:5px;', 'class' => 'btn btn-primary btn-lg btn-info');
+									echo form_submit('submit', 'Update Lottery Profile', $extra);
 								}
 								else
 								{
@@ -310,4 +311,17 @@ $(function() {
     clearBtn: true
   });
 });
+</script>
+<script>
+var balls_drawn  = document.getElementsByName("balls_drawn")[0].value;
+
+function changedBallsDrawn(val)
+{
+	if (parseInt(val) > parseInt(balls_drawn)) return confirm("You have changed the Number of Balls drawn from "+balls_drawn+" To "+val+". This will expand the Database. Press OK and the Update Lottery Profile button to Proceed.");
+	else if (parseInt(val) < parseInt(balls_drawn)) return confirm("You have changed the Number of Balls drawn from "+balls_drawn+" To "+val+". This will reduce the Database. Press OK and the Update Lottery Profile button to Proceed.");
+}
+function changedExtraBall(val)
+{
+	return confirm("You have changed the Extra / Bonus Ball and will change the structure of the database. Press OK and the Update Lottery Profile button to Proceed.");
+}
 </script>

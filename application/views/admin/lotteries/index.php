@@ -1,7 +1,7 @@
 <section>
 	<h2>Lottery Profiles</h2>
 	<?php echo anchor('admin/lotteries/edit', '<i class = "icon-plus"></i> Add a Lottery'); ?>
-	
+	<?php if (!empty($message)) ?> <h4 class="bg-warning" style = "margin-top: 20px; text-align:center;"><?=$message; ?></h4>
 	<div class="table-responsive">
 	<table class="table-sm table-striped">
 		<thead>

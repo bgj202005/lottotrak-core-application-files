@@ -7,6 +7,7 @@ class Lotteries extends Admin_Controller {
 	
 	public function __construct() {
 		 parent::__construct();
+		 $this->load->dbforge();
 		 $this->load->model('lotteries_m');
 		 $this->load->helper('file');
 		 $this->load->library('image_lib');
@@ -26,6 +27,8 @@ class Lotteries extends Admin_Controller {
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the lotteries menu
 		$this->data['subview'] = 'admin/lotteries/index';
+		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
+		else $this->data['message'] = '';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 	
@@ -84,6 +87,9 @@ class Lotteries extends Admin_Controller {
 			} 
 		}
 
+		$_POST['extra_ball'] = (is_null($this->input->post('extra_ball')) ? 0 : 1);
+		$_POST['duplicate_extra_ball'] = (is_null($this->input->post('duplicate_extra_ball')) ? 0 : 1);
+
 		$rules = $this->lotteries_m->rules;
 		$this->form_validation->set_rules($rules);
 		
@@ -91,8 +97,6 @@ class Lotteries extends Admin_Controller {
 			
 			//if (empty($this->input->post('lottery_state_prov'))) $_POST['lottery_state_prov'] = $this->data['lottery']->lottery_state_prov;
 			
-			$_POST['extra_ball'] = (is_null($this->input->post('extra_ball')) ? 0 : 1);
-			$_POST['duplicate_extra_ball'] = (is_null($this->input->post('duplicate_extra_ball')) ? 0 : 1);
 			$_POST['lottery_image'] = (is_null($_FILES['lottery_image']) ? '': $_FILES['lottery_image']['name']); 
 			// We can save and redirect
 			$data = $this->lotteries_m->array_from_post ( array (
@@ -139,8 +143,8 @@ class Lotteries extends Admin_Controller {
 			$this->data['message'] = $error['error'];  // Only Errors associated with Uploading an image.
 		}
 		// Load the View
-		if(!$this->data['lottery']->minimum_extra_ball) $this->data['lottery']->minimum_extra_ball = '';
-		if(!$this->data['lottery']->maximum_extra_ball) $this->data['lottery']->maximum_ball = '';
+		if(($this->data['lottery']->extra_ball&&!$this->data['lottery']->minimum_extra_ball)||(!$this->data['lottery']->extra_ball)) $this->data['lottery']->minimum_extra_ball = '';
+		if(($this->data['lottery']->extra_ball&&!$this->data['lottery']->maximum_extra_ball)||(!$this->data['lottery']->extra_ball)) $this->data['lottery']->maximum_extra_ball = '';
 		if ($id) $this->data['lastdraw'] = $this->lotteries_m->last_draw_db($this->data['lottery']->lottery_name);
 		$this->data['current'] = $this->uri->segment(2); // Sets the Page Menu
 		$this->data['subview']  = 'admin/lotteries/edit';
@@ -591,6 +595,13 @@ class Lotteries extends Admin_Controller {
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		// Check to see if the actual table exists in the db?
+		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
+		{
+			$this->session->set_flashdata('message', 'There is an INTERNAL error deleting this lottery. '.$tbl_name.' Does not exist. The Draw Database has been RE-CREATED.');
+			$this->lotteries_m->create_lotto_table_fields($tbl_name, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_ball); // Re-create the Draw Databasse
+			redirect('admin/lotteries');
+		}
 		// Check for existing lottery draws
 		$this->data['message'] = '';  // Create a Message object
 		$this->data['request'] = '';  // only view draws		
@@ -615,7 +626,8 @@ class Lotteries extends Admin_Controller {
 	}
 
 	public function delete($id) {
-		$this->lotteries_m->delete($id);
+		if(!$this->lotteries_m->delete($id)) $this->session->set_flashdata('message', 'There is a problem Deleting this Lottery. The Lottery Profile, Prize Profile
+	 and Draws must EXIST.');
 		redirect('admin/lotteries');
 	}
 

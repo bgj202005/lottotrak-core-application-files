@@ -203,11 +203,33 @@ class Lotteries_m extends MY_Model
 	
 	public function delete ($id)
 	{
-		// Delete a lottery profile and database
+		
+		$sql = "SELECT `lottery_name` FROM `lottery_profiles` WHERE `id`=".$id." LIMIT 1";
+		$result = $this->db->query($sql);
+
+		$row = $result->row();
+
+		if (empty($row)) return FALSE;	// No Such Lottery, Did it ever exist?
+
+		if($this->lotto_table_exists($this->lotto_table_convert($row->lottery_name)))
+		{
+		// Delete Entire Database (if Exist Only)
+			$this->dbforge->drop_table($row->lottery_name, TRUE);	// Blow the entire Database of ALL the draws out of existence
+		}
+		else
+		{
+			return FALSE;
+		}
+
+		// Delete the complete Lottery Prize Profile
+		$this->db->delete('lottery_prize_profiles', array('id' => $id));  	// Produces: // DELETE FROM lottery_prize_profiles  WHERE id = $id
+		if (!$this->db->affected_rows()) return FALSE;					 	// Does not exist
+		// Delete any import data information
+		$this->db->delete('import_data', array('id' => $id));  				// Produces: // DELETE FROM import_data WHERE id = $id
+
+		// And Finally, Delete a lottery profile, leaving no trace of this lottery in the database
 		parent::delete($id);
-		
-		// Delete Entire Database (if Exists)
-		
+		return TRUE;
 	}
 
 	/**
@@ -780,5 +802,4 @@ class Lotteries_m extends MY_Model
 
 	return (!empty($result) ? $result : FALSE); 
 	}
-
 }
