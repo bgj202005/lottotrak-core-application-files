@@ -1,33 +1,40 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-function btn_edit($uri) {
+function btn_edit($uri) 
+{
 	return anchor($uri, '<i class="fa fa-pencil"></i>', array('title' => 'Edit the lottery profile'));
 }
 
-function btn_import($uri) {
+function btn_import($uri) 
+{
 	return anchor($uri, '<i class="fa fa-arrow-circle-o-up"></i>', array('title' => 'Imports draws into database from cvs file'));
 }
 
-function btn_view($uri) {
+function btn_view($uri) 
+{
 	return anchor($uri, '<i class="fa fa-eye"></i>', array('title' => 'View lottery draws'));
 }
 
-function btn_prizes($uri) {
+function btn_prizes($uri) 
+{
 	return anchor($uri, '<i class="fa fa-usd"></i>', array('title' => 'Lottery Prize Breakdown'));
 }
 
-function add_meta_title($string) {
+function add_meta_title($string) 
+{
 	$CI = &get_instance();
 	$CI->data['meta_title'] = e($string).' | '.$CI->config->config['brand_name'];
 }
 
-function add_meta_description($string) {
+function add_meta_description($string) 
+{
 	$CI = &get_instance();
 	$CI->data['meta_description'] = e($string);
 }
 
-function add_meta_canonical($bool) {
+function add_meta_canonical($bool) 
+{
 	$CI = &get_instance();
 	$CI->data['meta_canonical'] = $bool;
 }
@@ -56,7 +63,8 @@ function get_menu ($array, $child = FALSE)
 return $str;
 }
 
-function get_footer_menu($array, $class = NULL) {
+function get_footer_menu($array, $class = NULL) 
+{
 
    $str = '';
     if (count($array)) {
@@ -72,21 +80,24 @@ function get_footer_menu($array, $class = NULL) {
     return $str; 
 }
 
-function e($string) {
+function e($string) 
+{
 	return htmlentities($string);
 } 
 
-function btn_lottery_delete($uri, $name) {
+function btn_lottery_delete($uri, $name) 
+{
 	
 	return anchor($uri, '<i class="fa fa-times-circle"></i>', array(
 			'onclick' => "return confirm('You are about to make a permanent deletion of the $name\'s Profile, Draw Database and Prize Profile. This can not be UNDONE. Are you sure?');"));
-	 }
+ }
 	 
-function btn_delete($uri) {
+function btn_delete($uri) 
+{
 
 return anchor($uri, '<i class="fa fa-times-circle"></i>', array(
 		'onclick' => "return confirm('You are about to make a permanent deletion. This can not be UNDONE. Are you sure?');"));
-	}
+}
 
 
 /**
@@ -94,7 +105,8 @@ return anchor($uri, '<i class="fa fa-times-circle"></i>', array(
  	* @author Joost van Veen
  	* @version 1.0
  	*/
- 	if (!function_exists('dump')) {
+	 if (!function_exists('dump')) 
+	 {
  		function dump ($var, $label = 'Dump', $echo = TRUE)
  		{
  			// Store dump in variable
@@ -139,7 +151,8 @@ return anchor($uri, '<i class="fa fa-times-circle"></i>', array(
  	return $string;
  	}
  	
- function get_excerpt($article, $first = FALSE, $numwords = 50) {
+ function get_excerpt($article, $first = FALSE, $numwords = 50) 
+ {
 	$string = '';
  	$url = 'article/'.intval($article->id).'/'. e($article->slug);
 	$string .= (!$first  ? '<h3>'.anchor($url, e($article->title)).'</h3>' : '<h2>'.anchor($url, e($article->title)).'</h2>');
@@ -149,7 +162,8 @@ return anchor($uri, '<i class="fa fa-times-circle"></i>', array(
  return $string;
  }
  
- function limit_to_numwords($string, $numwords) {
+ function limit_to_numwords($string, $numwords) 
+ {
  		$excerpt = explode(' ', $string, $numwords + 1);
  		if (count($excerpt) >= $numwords) {
  			array_pop($excerpt);
@@ -157,3 +171,21 @@ return anchor($uri, '<i class="fa fa-times-circle"></i>', array(
  		$excerpt = implode(' ', $excerpt);
  	return $excerpt;
  }
+
+/** For PHP <= 7.3.0 :
+* array_key_last helper
+* 
+* @param      array 		any associative array
+* @return     array  		return the last key or NULl, if not an array
+*/
+ if (! function_exists("array_key_last")) 
+{
+	function array_key_last($array) 
+	{
+			if (!is_array($array) || empty($array)) 
+			{
+				return NULL;
+			}
+		return array_keys($array)[count($array)-1];
+	}
+}

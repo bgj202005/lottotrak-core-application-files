@@ -233,10 +233,10 @@ class Lotteries_m extends MY_Model
 	}
 
 	/**
-	 * Creates or Updates existing Lottery Database
+	 * Creates Lottery Database Structure
 	 * 
-	 * @param       $_POST values
-	 * @return     none
+	 * @param	any	$_POST values	Lottery	Field Names: id, ball1, ball2, ball3, ball4, ball5, ball6, ball7, ball8, ball9, extra, draw_date, lottery_id (foreign key)
+	 * @return  none
 	 */
 	public function create_lottery_db($post_fields) 
 	{
@@ -257,12 +257,39 @@ class Lotteries_m extends MY_Model
 		$exists = $this->create_lotto_table_fields($lotto_name, $post_fields['balls_drawn'], $post_fields['extra_ball']);
 		} while (!$exists);
 	}
+
+	/**
+	 * Creates Lottery Database Structure
+	 * 
+	 * @param	any	$_POST values	Lottery	Field Names: id, ball1, ball2, ball3, ball4, ball5, ball6, ball7, ball8, ball9, extra, draw_date, lottery_id (foreign key)
+	 * @return  boolean
+	 */
+	public function update_lottery_db($post_fields) 
+	{
+		// 1. Convert Lottery Name to a Table Name, Replaces any spaces with underscores.
+		$name_counter = 0;  // if it does exist, a unique identifier will be added even though the name is the same 
+		$lotto_name = $this->lotto_table_convert($post_fields['lottery_name']);
+		// 2. Check for existing table name, if exists, add a number at end of name with underscore e.g. lotto_1
+		$exists = $this->lotto_table_exists($lotto_name);
+		if ($exists) {
+		// 3. If does not exist, exist as FALSE
+		// 4. Check all fields that exist 
+		// 5. Create fields for each ball based on the number drawn
+		// 6. Create field for extra ball (bonus)
+		$exists = $this->update_lotto_table_fields($lotto_name, $post_fields['balls_drawn'], $post_fields['extra_ball']);
+		} 
+		else
+		{
+			return FALSE;	// Table does not exist and exist on FALSE
+		}
+	return TRUE;	
+	}
 	
 	/**
 	 * Convert Lottery Name to Table name conversion
 	 * 
-	 * @param       $str	Corresponding Lottery Name
-	 * @return     	$str replaced with underscores for spaces
+	 * @param	string	$str	Corresponding Lottery Name
+	 * @return  string	$str replaced with underscores for spaces
 	 */
 	public function lotto_table_convert($str)
 	{
@@ -328,7 +355,7 @@ class Lotteries_m extends MY_Model
 	/**
 	 * Create Lotto Table and Fields
 	 * 
-	 * @param       $lotto_tbl, $balls_drawn, $extra	Lottery Table Name, , Balls Drawn, Extra Ball (TRUE / FALSE)
+	 * @param       string 		$lotto_tbl, $balls_drawn, $extra	Lottery Table Name, Balls Drawn, Extra Ball (TRUE / FALSE)
 	 * @return     	TRUE/FALSE	TRUE (if table created), FALSE (error, table not created)
 	 */
 	public function create_lotto_table_fields($lotto_tbl, $balls_drawn, $extra) 
@@ -359,6 +386,68 @@ class Lotteries_m extends MY_Model
 		$result = $this->db->query($sql);
 	return $result;
 	}
+
+	/**
+	 * Update Lottery Fields from current Lottery DB, this will alter current table structure either remove columns or adding columns to the database
+	 * Can be detremental if done improperly
+	 * 
+	 * @param       string 		$lotto_tbl, $balls_drawn, $extra	Lottery Table Name, Balls Drawn, Extra Ball (TRUE / FALSE)
+	 * @return     	none		no return values on exit of function
+	 */
+	public function update_lotto_table_fields($lotto_tbl, $balls_drawn, $extra) 
+	{
+		
+		// Capture the list of Fields from the table
+		$fields = $this->db->list_fields($lotto_tbl);
+		$fields = array_flip($fields);	// Convert to associative array, id => 0, ball1 => 1, ball2 => 2, etc.
+		unset($fields['id']);			// Don't Require
+		unset($fields['draw_date']);	// Don't Require
+		unset($fields['lottery_id']);	// Don't Require
+
+		if($extra&&isset($fields['extra'])) unset($fields['extra']);
+		elseif(!$extra&&(isset($fields['extra']))) $this->dbforge->drop_column($lotto_tbl, 'extra');
+		elseif($extra&&(!isset($fields['extra']))) 
+		{
+			$after = array_key_last($fields);	// get the key value
+			$attr = array(
+				'extra' => array('type' => 'TINYINT(1) unsigned', 'after' => $after));
+				 $this->dbforge->add_column($lotto_tbl, $attr);
+		}
+		if(isset($fields['extra'])) unset($fields['extra']);	// OK, all done with the extra / bonus ball but remove this field, if the key / value pair is still set
+
+		$field_count = count($fields);
+		if($balls_drawn!=$field_count)
+		{
+			$last_ball = intval(substr(array_key_last($fields), -1));	// Returns the last key in array, get the last character and return it as an integer
+			if($balls_drawn<$field_count)	
+			{
+				
+				$ball_diff = $field_count-$balls_drawn;						// Calculate the balls to be removed, whereas, the field count is larger than the balls drawn
+				// We need to drop some columns
+				do
+				{
+					$this->dbforge->drop_column($lotto_tbl, 'ball'.$last_ball);
+					$last_ball--;
+					$ball_diff--;
+				} while($ball_diff>0);	
+			}
+			else // $balls_drawn>$field_count
+			{
+				$ball_diff = $balls_drawn-$field_count;						// Calculate the balls to be removed, whereas, the balls drawn is greater than the actual field count in the db
+				// We need to add some columns, after the last ball field column
+				do
+				{
+					$ball = strval(intval($last_ball+1));
+					$attr = array(
+						'ball'.$ball => array('type' => 'INT(2) unsigned', 'after' => 'ball'.$last_ball));
+						 $this->dbforge->add_column($lotto_tbl, $attr);
+					$last_ball++;
+					$ball_diff--;
+				} while($ball_diff>0); 	
+			}
+		}
+	}
+
 	/**
 	 * Returns Last Drawn Numbers from the Lottery Name
 	 * 

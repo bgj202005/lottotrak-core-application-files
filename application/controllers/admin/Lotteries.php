@@ -135,6 +135,7 @@ class Lotteries extends Admin_Controller {
 			$this->data['lottery'] = $this->lotteries_m->array_to_object($this->data['lottery'], $data);
 			$this->data['lottery']->id = $this->lotteries_m->save($data, $id);
 			if (!$id) $this->lotteries_m->create_lottery_db($data);
+			else $this->lotteries_m->update_lottery_db($data);
 
 			$this->data['message'] = (is_null($id) ? "The Lottery Profile has been added to the Database." : "The ".$this->data['lottery']->lottery_name." Profile has been updated.");
 		}
