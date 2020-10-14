@@ -211,21 +211,21 @@ class Lotteries_m extends MY_Model
 
 		if (empty($row)) return FALSE;	// No Such Lottery, Did it ever exist?
 
-		if($this->lotto_table_exists($this->lotto_table_convert($row->lottery_name)))
+		$lotto_table = $this->lotto_table_convert($row->lottery_name);
+		if($this->lotto_table_exists($lotto_table))
 		{
 		// Delete Entire Database (if Exist Only)
-			$this->dbforge->drop_table($row->lottery_name, TRUE);	// Blow the entire Database of ALL the draws out of existence
+			$this->dbforge->drop_table($lotto_table, TRUE);	// Blow the entire Database of ALL the draws out of existence
 		}
 		else
 		{
 			return FALSE;
 		}
 
-		// Delete the complete Lottery Prize Profile
-		$this->db->delete('lottery_prize_profiles', array('id' => $id));  	// Produces: // DELETE FROM lottery_prize_profiles  WHERE id = $id
-		if (!$this->db->affected_rows()) return FALSE;					 	// Does not exist
-		// Delete any import data information
-		$this->db->delete('import_data', array('id' => $id));  				// Produces: // DELETE FROM import_data WHERE id = $id
+		// Delete the complete Lottery Prize Profile, Optional, will Delete if exists
+		$this->db->delete('lottery_prize_profiles', array('lottery_id' => $id));  	// Produces: // DELETE FROM lottery_prize_profiles  WHERE lottery_id = $id
+		// Delete any import data information, Optional, will Delete if exists
+		$this->db->delete('import_data', array('lottery_id' => $id));  				// Produces: // DELETE FROM import_data WHERE lottery_id = $id
 
 		// And Finally, Delete a lottery profile, leaving no trace of this lottery in the database
 		parent::delete($id);

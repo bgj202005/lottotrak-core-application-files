@@ -627,8 +627,8 @@ class Lotteries extends Admin_Controller {
 	}
 
 	public function delete($id) {
-		if(!$this->lotteries_m->delete($id)) $this->session->set_flashdata('message', 'There is a problem Deleting this Lottery. The Lottery Profile, Prize Profile
-	 and Draws must EXIST.');
+		if(!$this->lotteries_m->delete($id)) $this->session->set_flashdata('message', 'There is a problem Deleting this Lottery. The Lottery Profile (Structure & Data)
+	 and Draw table (Structure only) must EXIST.');
 		redirect('admin/lotteries');
 	}
 
