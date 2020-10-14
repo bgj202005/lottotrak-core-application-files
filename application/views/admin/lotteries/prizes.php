@@ -1,3 +1,12 @@
+<!-- Bootstrap Form Helpers -->
+<link href="<?php echo site_url('css/bootstrap-formhelpers.min.css');?>" rel="stylesheet" media="screen">
+<!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+	<!--[if lt IE 9]>
+	  <script src="js/html5shiv.js"></script>
+	  <script src="js/respond.min.js"></script>
+	<![endif]-->
+<!-- Bootstrap Form Helpers -->	
+<script src="<?php echo site_url('js/bootstrap-formhelpers.min.js');?>"></script>
 <section>
 	<div class="container">
 			<?php echo form_open(base_url().'admin/lotteries/prizes/'.$lottery->id); ?>
@@ -16,6 +25,7 @@
 									<?php echo form_label(wordwrap($lottery->lottery_description, 70, '<br /> ', FALSE), 'lottery_description_lb', $extra); ?>
 								</div>
 							</div>
+
 							<!-- Current State or Province Field -->
 							<div class="form-group form-group-lg row"> 
 								<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
