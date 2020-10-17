@@ -5,10 +5,10 @@ class Statistics extends Admin_Controller {
 	
 	public function __construct() {
 		 parent::__construct();
+		 $this->load->model('lotteries_m');
 		 $this->load->model('statistics_m');
 		 $this->load->helper('file');
 		 $this->load->library('image_lib');
-		 $this->load->library('CSV_Import');
 	}
 
 	/**
