@@ -1,6 +1,5 @@
 <section>
-	<h2>Lottery Profiles</h2>
-	<?php echo anchor('admin/lotteries/edit', '<i class = "icon-plus"></i> Add a Lottery'); ?>
+	<h2>Lottery Profile Statistics</h2>
 	
 	<div class="table-responsive">
 	<table class="table-sm table-striped">
@@ -10,17 +9,12 @@
 				<td style = "white-space: nowrap;">Lottery Name</td>
 				<td style = "white-space: nowrap;">State / Province</td>
 				<td style = "white-space: nowrap;">Country</td>
-				<td style = "white-space: nowrap;">Pick</td>
-				<td style = "white-space: nowrap;">From</td>
-				<td style = "white-space: nowrap;">To</td>
-				<td style = "white-space: nowrap;">Extra / Bonus Ball?</td>
-				<td style = "white-space: nowrap;">Duplicates Allowed?</td>
-				<td style = "white-space: nowrap;">From</td>
-				<td style = "white-space: nowrap;">To</td>
-				<th>View</th>
-				<th>Edit</th>
-				<th>Import</th>
-				<th>Delete</th>
+				<td style = "white-space: nowrap;">Average Sum (100 Draws)</td>
+				<td style = "white-space: nowrap;">Sum (Last Draw)</td>
+				<td style = "white-space: nowrap;">Repeaters</td>
+				<th>Commulative Stats</th>
+				<th>Followers</th>
+				<th>Calculate</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -35,17 +29,12 @@
 		<td style = "text-align:center;"><?php echo anchor('admin/lotteries/edit/'.$lottery->id, $lottery->lottery_name);?></td>
 		<td style = "text-align:center;"><?=$lottery->lottery_state_prov; ?></td>
 		<td style = "text-align:center;"><?=$lottery->lottery_country_id; ?></td>
-		<td style = "text-align:center;"><?=$lottery->balls_drawn; ?></td>
-		<td style = "text-align:center;"><?=$lottery->minimum_ball; ?></td>
-		<td style = "text-align:center;"><?=$lottery->maximum_ball; ?></td>
-		<td style = "text-align:center;"><?=($lottery->extra_ball ? 'Yes' : 'No'); ?></td>
-		<td style = "text-align:center;"><?=($lottery->duplicate_extra_ball ? 'Yes' : 'No'); ?></td>
-		<td style = "text-align:center;"><?=($lottery->extra_ball ? $lottery->minimum_extra_ball : '--'); ?></td>
-		<td style = "text-align:center;"><?=($lottery->extra_ball ? $lottery->maximum_extra_ball : '--'); ?></td>
-		<td style = "text-align:center;"><?php echo btn_view('admin/lotteries/view_draws/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><?php echo btn_edit('admin/lotteries/edit/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><?php echo btn_import('admin/lotteries/import/'.$lottery->id); ?></td>
-	    <td style = "text-align:center;"><?php echo btn_delete('admin/lotteries/delete/'.$lottery->id); ?></td>
+		<td style = "text-align:center;">123</td>
+		<td style = "text-align:center;">108</td>
+		<td style = "text-align:center;">12 21</td>
+		<td style = "text-align:center;"><?php echo $statistics->btn_stat('admin/statistics/view_draws/'.$lottery->id); ?></td>
+		<td style = "text-align:center;"><?php echo $statistics->btn_followers('admin/statistics/followers/'.$lottery->id); ?></td>
+		<td style = "text-align:center;"><?php echo $statistics->btn_calculate('admin/statistics/calculate/'.$lottery->id); ?></td>
 	</tr>
 	<?php endforeach; ?> 
 	

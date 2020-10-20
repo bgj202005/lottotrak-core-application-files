@@ -77,6 +77,5 @@ class Statistics_m extends MY_Model
 			'rules' => 'callback__require_day_of_week_set'
 		)
 	);
-
 	
 }

@@ -28,7 +28,7 @@
         'data-toggle'=> "dropdown",  'aria-haspopup' => "true", 'aria-expanded' => "false");
         echo anchor('admin/statistics', 'Statistics', $attr);?>
           <div class="dropdown-menu" aria-labelledby="navbarDropdown">
-            <?php echo anchor('admin/lotteries', 'View Lottery Stats', 'class = "dropdown-item"'); ?>
+            <?php echo anchor('admin/statistics', 'View Lottery Stats', 'class = "dropdown-item"'); ?>
           </div> 
         </li>
         <li class="nav-item dropdown<?= ($current=='predictions' ? ' active' : ''); ?>">
@@ -36,7 +36,7 @@
         'data-toggle'=> "dropdown",  'aria-haspopup' => "true", 'aria-expanded' => "false");
         echo anchor('admin/predictions', 'Predictions', $attr);?>
           <div class="dropdown-menu" aria-labelledby="navbarDropdown">
-            <?php echo anchor('admin/lotteries', 'View Lottery Predictions', 'class = "dropdown-item"'); ?>
+            <?php echo anchor('admin/predictions', 'View Lottery Predictions', 'class = "dropdown-item"'); ?>
           </div> 
         </li>
         <li class="nav-item<?= ($current=='0' ? ' active' : ''); ?>"><?php echo anchor('admin/page/order/0', 'Header Order ', 'class = "nav-link"');?></li>
