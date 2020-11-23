@@ -5,77 +5,555 @@ class Statistics_m extends MY_Model
 {
 	protected $_table_name = 'lottery_stats';
 	protected $_order_by = 'id';
-	public $rules = array(
-        'lottery_name' => array(
-            'field' => 'lottery_name',
-            'label' => 'Lottery Name',
-            'rules' => 'trim|required|max_length[100]|callback__unique_lotteryname|xss_clean'
-		),
-		'lottery_image' => array(
-            'field' => 'lottery_image',
-            'label' => 'Lottery Image Upload',
-            'rules' => 'callback__file_check'
-		),
-		'balls_drawn' => array(
-			'field' => 'balls_drawn', 
-			'label' => 'Balls Drawn', 
-			'rules' => 'required|max_length[1]|integer|greater_than_equal_to[3]|less_than_equal_to[9]'
-		), 
-		'minimum_ball' => array(
-			'field' => 'minimum_ball', 
-			'label' => 'Minimum Ball', 
-			'rules' => 'required|max_length[2]|integer|greater_than[0]|less_than_equal_to[10]'
-		), 
-		'maximum_ball' => array(  
-			'field' => 'maximum_ball', 
-			'label' => 'Maximum Ball', 
-			'rules' => 'required|max_length[2]|integer|greater_than[11]|less_than_equal_to[54]'
-		),
-		'minimum_extra_ball' => array(
-			'field' => 'minimum_extra_ball', 
-			'label' => 'Lowest Extra Ball', 
-			'rules' => 'max_length[2]|greater_than[0]|callback__extra_ball_set|integer'
-		),
-		'maximum_extra_ball' => array(
-			'field' => 'maximum_extra_ball', 
-			'label' => 'Hightest Extra Ball', 
-			'rules' => 'max_length[2]|less_than_equal_to[54]|callback__extra_ball_set|integer'
-		),
-		'monday' => array(
-			'field' => 'monday', 
-			'label' => 'Monday', 
-			'rules' => 'callback__require_day_of_week_set'
-		),
-		'tuesday' => array(
-			'field' => 'tuesday', 
-			'label' => 'Tuesday', 
-			'rules' => 'callback__require_day_of_week_set'
-		),
-		'wednesday' => array(
-			'field' => 'wednesday', 
-			'label' => 'Wednesday', 
-			'rules' => 'callback__require_day_of_week_set'
-		),
-		'thursday' => array(
-			'field' => 'thursday', 
-			'label' => 'Thursday', 
-			'rules' => 'callback__require_day_of_week_set'
-		),
-		'friday' => array(
-			'field' => 'friday', 
-			'label' => 'Friday', 
-			'rules' => 'callback__require_day_of_week_set'
-		),
-		'saturday' => array(
-			'field' => 'saturday', 
-			'label' => 'Saturday', 
-			'rules' => 'callback__require_day_of_week_set'
-		),
-		'sunday' => array(
-			'field' => 'sunday', 
-			'label' => 'sunday', 
-			'rules' => 'callback__require_day_of_week_set'
-		)
-	);
 	
+	/**
+	 * Validates that statistics are available from the Retrieves all the Statistics per draw
+	 * 
+	 * @param	string		$lottery		Current Lottery table name
+	 * @return	boolean		TRUE / FALSE	Stats have been calculated (true), Stats do not exist (False)		
+	 */
+	public function lottery_stats_exist($lottery)
+	{
+		// Fields in the database to be compared, must be exactly 8
+		$stats = array('sum_draw','sum_digits','even','odd', 'range_draw', 'repeat_decade', 'repeat_last');
+		
+		$i = 0;
+		// Make a comparision, if 8 fields are found return TRUE, otherwise return FALSE
+		foreach($stats as $stat)
+		{
+			if($this->db->field_exists($stat, $lottery))
+			{
+				++$i;
+			} 
+		}
+			
+	return ($i==7 ? TRUE : FALSE);	// Must be 7 fields or 0 Fields (returns FALSE!)
+	}	
+	
+	/**
+	 * Expand the columns on the lottery draws table in the database
+	 * 
+	 * @param	string	$table			Actual Name of the Table
+	 * @return	boolean	TRUE / FALSE	TRUE on added columns successfully to lottery database, FALSE on did not successfully add columns to database		
+	 */
+	public function lottery_expand_columns($table)
+	{
+		$fields = array (
+			'sum_draw'	=> array(
+						'type' => 'INT',
+                		'constraint' => '11',
+                		'unsigned' => TRUE
+			),
+			'sum_digits' =>	array(
+						'type' => 'INT',
+						'constraint' => '11',
+						'unsigned' => TRUE
+			),
+			'even'		 =>	array(
+						'type' => 'INT',
+						'constraint' => '2',
+						'unsigned' => TRUE
+			),
+			'odd'		 => array(
+						'type' => 'INT',
+						'constraint' => '2',
+						'unsigned' => TRUE
+			),
+			'range_draw' => array(
+						'type' => 'INT',
+						'constraint' => '11',
+						'unsigned' => TRUE
+			),
+			'repeat_decade' => array(
+						'type' => 'INT',
+						'constraint' => '2',
+						'unsigned' => TRUE
+			),
+			'repeat_last'	=> array(
+						'type' => 'INT',
+						'constraint' => '2',
+						'unsigned' => TRUE
+			)
+		);
+	return $this->dbforge->add_column($table, $fields);		// Add Statistic Columns to Lottery Database, return SUCCESS / FAILURE
+	}
+	/**
+	 * Returns the number of rows in the table
+	 * 
+	 * @param	string	$table			Actual Name of the Table
+	 * @return	integer					Returns the number of rows in the table		
+	 */
+	public function lottery_rows($table)
+	{
+		return $this->db->count_all($table);	
+	}
+	/**
+	 * Returns the first id number in the table
+	 * 
+	 * @param	string	$table			Actual Name of the Table
+	 * @return	string	id				Returns the starting index id from the lottery table.		
+	 */
+	public function lottery_start_id($table)
+	{
+		
+		$this->db->select_min('id');	// Target is the index id.
+		return $this->db->get($table);	
+	}
+
+	/**
+	 * Returns the number of rows that have the statistics fields but have no statistic data, used to update the current lottery database draws with no statistics
+	 * 
+	 * @param	string	$table			Actual Name of the Table
+	 * @return	integer					Returns the number of rows in the table		
+	 */
+	public function lottery_next_rows($table)
+	{
+		$conditions = array('sum_draw ' => NULL, 'sum_digits ' => NULL, 'even ' => NULL, 'odd ' => NULL, 'range_draw ' => NULL, 'repeat_decade ' => NULL, 'repeat_decade ' => NULL);
+		$this->db->where($conditions);
+		$this->db->from($table);
+		return $this->db->count_all_results();
+	}
+	/**
+	 * Returns the next available index id with active records that have no statistics, used to update the current lottery database draws with no statistics
+	 * 
+	 * @param	string	$table			Actual Name of the Table
+	 * @return	string	$row->id		Returns the starting index id from the lottery table.		
+	 */
+	public function lottery_next_id($table)
+	{
+		$this->db->reset_query();	// Clear any previous queries that are cached
+		$conditions = array('sum_draw ' => NULL, 'sum_digits ' => NULL, 'even ' => NULL, 'odd ' => NULL, 'range_draw ' => NULL, 'repeat_decade ' => NULL, 'repeat_decade ' => NULL);
+		$query = $this->db->select('id')
+						->where($conditions)
+						->order_by('id', 'ASC')
+						->limit(1)
+						->get($table);
+		$row = $query->row_array();
+	return $row['id'];	// This will return the next available id that has no statistics for that draw.
+	}
+
+	/**
+	 * Update Lottery Draw from current Lottery Draw DB
+	 * 
+	 * 
+	 * @param string  			$table		Converted Lottery Table Name provided from lottery_table_convert
+	 * @param integer 			$id			Current index id to be updated in
+	 * @param array 			$balls		Associative array of the draw with, draw date, balls 1 ... N with/without extra/bonus ball
+	 * @return integer/boolean  	index #id or FALSE 	Success or Failure on updating the statistics portion of the draw			
+	 */
+	public function lottery_draw_update($table, $id, $balls)
+	{
+		// Validate the $id with the draw date
+		// If $id does not exist, (if this incremental index id was deleted, for example), use the id based on the draw date of the draw
+		$query = $this->db->select('id')
+				->where('draw_date', $balls['draw_date']) // This draw date must exist!!
+				->order_by('id ASC')
+				->limit(1,0)
+				->get($table);	// Retrieve the id and only return 1 row
+				
+		$row = $query->row();
+
+		if ($row->id!=$id) $id = $row->id;  // Draw index id does not match current one since we validated the actual draw date to retrieve the id
+
+		unset($balls['id']);	// Can not update the index id, as a duplicate error will result
+		// Update Statistics to Draw
+		$this->db->where('id', $id);
+		$this->db->where('draw_date', $balls['draw_date']);
+
+	if (!$this->db->update($table, $balls)) return FALSE;	
+
+	return $id;	// Return the $id of the draw record
+	}
+
+	/**
+	 * Returns the first id number in the table
+	 * 
+	 * @param	string $table		Name of Lottery Draw Table, index id of lottery draw record, n
+	 * @param 	integer $id			index id of lottery draw record
+	 * @param 	integer $max		maximum number of balls draw
+	 * @return	array  $draw		Returns the starting index id from the lottery table.		
+	 */
+	public function lottery_draw_stats($table, $id, $max)
+	{
+		$this->db->reset_query();	// Clear any previous queries that are cached
+		$query = $this->db->where('id', $id)
+						  ->get($table);
+		$draw = $query->row_array(); // Return the Draw Details as an array, since it will not be passed in as an array
+		if($draw)
+		{
+			$draw['sum_draw'] = $this->lottery_draw_sum($draw,$max);
+			$draw['sum_digits'] = $this->lottery_draw_sumdigits($draw,$max);
+			$draw['even'] = $this->lottery_draw_even($draw,$max);
+			$draw['odd'] = $this->lottery_draw_odd($draw,$max);
+			$draw['range_draw'] = $this->lottery_draw_range($draw,$max);
+			$draw['repeat_decade'] = $this->lottery_draw_decade($draw,$max);
+			$draw['repeat_last'] = $this->lottery_draw_last($draw,$max);
+		} 
+		else
+		{
+			return FALSE;	// Something went wrong
+		}
+	return $draw;	// Return the draw with the individual stats
+	}
+	/**
+	 * Returns the sum of the current drawn numbers array
+	 * 
+	 * @param	array				Current Draw Array
+	 * @param 	integer $max		maximum number of balls drawn
+	 * @return	integer $sum		Returns the sum of the drawn numbers		
+	 */
+	public function lottery_draw_sum($draw, $max)
+	{
+		$sum = 0;  // Initialize to total sum to 0
+		$n = 1;
+		do
+		{
+			$sum = $sum + intval($draw['ball'.$n]);
+			$n++;
+			$max--;
+		} while($max>0);
+	
+	return $sum;	
+	}
+	/**
+	 * Returns the sum of the current drawn numbers array
+	 * 
+	 * @param	array				Current Draw Array
+	 * @param 	integer $max		maximum number of balls drawn
+	 * @return	integer $sum		Returns the sum of the digits of the drawn numbers		
+	 */
+	public function lottery_draw_sumdigits($draw, $max)
+	{
+		$sum = 0; // Initialize to total sum to 0
+		$n = 1;
+		do
+		{
+			$sum = (intval($draw['ball'.$n]) < 10 ? $sum+intval($draw['ball'.$n]): $sum+(intval(substr($draw['ball'.$n],0,1)))+(intval(substr($draw['ball'.$n],1,1))));
+			$n++;
+			$max--;
+		} while($max>0);
+	return $sum;
+	}
+	/**
+	 * Return only the even number of balls drawn for the current drawn numbers array
+	 * 
+	 * @param	array				Current Draw Array
+	 * @param 	integer $max		maximum number of balls drawn
+	 * @return	integer $sum		Returns the even number of drawn numbers		
+	 */
+	public function lottery_draw_even($draw, $max)
+	{
+		$even = 0; 	// Set Even Number to 0
+		$n = 1;
+		do
+		{
+			if(!intval($draw['ball'.$n]%2)) $even++;
+			$n++;
+			$max--;
+		} while($max>0);
+	return $even;	// Return only the even numbers
+	}
+	/**
+	 * Returns only the odd numnbers drawn from the current drawn numbers array
+	 * 
+	 * @param	array				Current Draw Array
+	 * @param 	integer $max		maximum number of balls drawn
+	 * @return	integer $sum		Returns the odd number of drawn numbers		
+	 */
+	public function lottery_draw_odd($draw, $max)
+	{
+		$odd = 0; 	// Set Odd Number to 0
+		$n = 1;
+		do
+		{
+			if(intval($draw['ball'.$n]%2)) $odd++;
+			$n++;
+			$max--;
+		} while($max>0);
+	return $odd;	// return only the odd numbers
+	}
+	/**
+	 * Return the range of numbers drawnn for the current drawn numbers array
+	 * 
+	 * @param	array				Current Draw Array
+	 * @param 	integer $max		maximum number of balls drawn
+	 * @return	integer $range		Returns the range of drawn numbers		
+	 */
+	public function lottery_draw_range($draw, $max)
+	{
+		$range = 0;		// Set the range to 0
+		$range = intval($draw['ball'.$max])-intval($draw['ball1']);
+	return $range;	// Return the range of balls drawn from the first ball to ball N
+	}
+	/**
+	 * Returns the number the Maximum drawn numbers that are repeating in the same decade (more than 2 must be in the same decade) and only return the largest number
+	 * 
+	 * @param	array				Current Draw Array
+	 * @param 	integer $max		maximum number of balls drawn
+	 * @return	integer $decades	Returns the number of drawn numbers in the given decades		
+	 */
+	public function lottery_draw_decade($draw, $max)
+	{
+		$n = 1;
+		$decades = 0;
+		$decade1 = 0;
+		$decade2 = 0;
+		$decade3 = 0;
+		$decade4 = 0;
+		$decade5 = 0;
+		$decade6 = 0;
+		$decade7 = 0;
+		$decade8 = 0;
+		$decade9 = 0;
+
+		do
+		{
+			if(intval($draw['ball'.$n])<10) $decade1++;
+			elseif(intval($draw['ball'.$n])<20) $decade2++;
+			elseif(intval($draw['ball'.$n])<30) $decade3++;
+			elseif(intval($draw['ball'.$n])<40) $decade4++;
+			elseif(intval($draw['ball'.$n])<50) $decade5++;
+			elseif(intval($draw['ball'.$n])<60) $decade6++;
+			elseif(intval($draw['ball'.$n])<70) $decade7++;
+			elseif(intval($draw['ball'.$n])<80) $decade8++;
+			elseif(intval($draw['ball'.$n])<90) $decade9++;
+			$n++;   
+			$max--;
+		} while($max>0);
+
+		$decades = $decade1;	// Start with the first decade 0 - 9
+		if($decades<$decade2) $decades = $decade2;	// 10 - 19
+		if($decades<$decade3) $decades = $decade3;	// 20 - 29
+		if($decades<$decade4) $decades = $decade4;	// 30 - 39
+		if($decades<$decade5) $decades = $decade5;	// 40 - 49
+		if($decades<$decade6) $decades = $decade6;	// 50 - 59
+		if($decades<$decade7) $decades = $decade7;	// 60 - 69
+		if($decades<$decade8) $decades = $decade8;	// 70 - 79
+		if($decades<$decade9) $decades = $decade9;	// 80 - 89
+		
+	return $decades;
+	}
+	/**
+	 * Returns the number of maximum number of repeating last digits for the current drawn numbers
+	 * 
+	 * @param	array				Current Draw Array
+	 * @param 	integer $max		Name of Lottery Draw Table, index id of lottery draw record, maximum number of balls drawn
+	 * @return	integer $last		Returns the number of repeating last digit of drawn numbers		
+	 */
+	public function lottery_draw_last($draw, $max)
+	{
+		$n = 1;
+		$last = 0;		// Set the last digit to 0
+		$zeros = 0;		// How many zeros?
+		$ones = 0;		// How Many Ones?
+		$twos = 0;		// How Many Twos?
+		$threes = 0;	// How Many Threes?
+		$fours = 0;		// How Many Fours? 
+		$fives = 0;		// How Many Fives? 
+		$sixs = 0;		// How Many Sixs? 
+		$sevens = 0;	// How Many Sevens? 
+		$eights = 0;	// How Many eights? 
+		$nines = 0;		// How Many nines?
+		do
+		{	if(intval($draw['ball'.$n])<9) $draw['ball'.$n] = '0'.$draw['ball'.$n];
+			if(substr($draw['ball'.$n],1,1)=='0') $zeros++;
+			if(substr($draw['ball'.$n],1,1)=='1') $ones++;
+			if(substr($draw['ball'.$n],1,1)=='2') $twos++;
+			if(substr($draw['ball'.$n],1,1)=='3') $threes++;
+			if(substr($draw['ball'.$n],1,1)=='4') $fours++;
+			if(substr($draw['ball'.$n],1,1)=='5') $fives++;
+			if(substr($draw['ball'.$n],1,1)=='6') $sixs++;
+			if(substr($draw['ball'.$n],1,1)=='7') $sevens++;
+			if(substr($draw['ball'.$n],1,1)=='8') $eights++;
+			if(substr($draw['ball'.$n],1,1)=='9') $nines++;
+			$n++;
+			$max--;
+		} while($max>0);
+		// Only update the the number of last digits for the maximum only
+		
+		$last = $zeros;	// Start with the last zeros
+		if($last<$ones) $last = $ones;	// Last 1's
+		if($last<$twos) $last = $twos;	// Last 2's
+		if($last<$threes) $last = $threes;	// Last 3's
+		if($last<$fours) $last = $fours;	// Last 4's
+		if($last<$fives) $last = $fives;	// Last 5's
+		if($last<$sixs) $last = $sixs;	// Last 6's
+		if($last<$sevens) $last = $sevens;	// Last 7's
+		if($last<$eights) $last = $eights;	// Last 8's
+		if($last<$nines) $last = $nines;	// Last 9's
+
+	return $last;		// Return the Maximum number of last digits from this draw	
+	}
+	/**
+	 * Returns the number of repeating last digits for the current drawn numbers array
+	 * 
+	 * @param	string	$tbl						Current Lottery Data Table Name
+	 * @return	integer/boolean  $sum or FALSE		Returns the average sum of the last 100 draws in this lottery.		
+	 */
+	public function average_sum_100($tbl, $drawn)
+	{	
+		if (!$this->lotteries_m->lotto_table_exists($tbl)) return 'NA';
+		$draws = $this->db_row($tbl, 2);
+
+		$sums = 0;
+
+		for($s = 0; $s < 100; $s++)
+		{
+			$b = 1;
+			$sum = 0;
+			do
+			{
+				$sum = $sum + intval($draws[$s]['ball'.$b]);	
+				$b++;	
+			} 
+			while($b<=$drawn);
+		$sums = $sums+$sum;
+		}
+	$sums = $sums / 100;
+		return (integer) round($sums,0);	
+	}
+
+	/**
+	 * Returns the sum of last draw or the most recent drawn numbers
+	 * 
+	 * @param	string	$tbl						Current Lottery Data Table Name
+	 * @return	integer/'NA'  $sum / string value	Returns the sum from the last draw or NA if the draw database does not exist		
+	 */
+	public function sum_last($tbl, $drawn)
+	{	
+		if (!$this->lotteries_m->lotto_table_exists($tbl)) return 'NA';
+		$row_last = (array) $this->db_row($tbl, 0);
+
+		$b = 1;
+		$sum = 0;
+		do
+		{
+			$sum = $sum + intval($row_last['ball'.$b]);	
+			$b++;	
+		} 
+		while($b<=$drawn);
+	
+	return $sum;
+	}
+
+	/**
+	 * Returns the number of repeating last digits for the current drawn numbers array
+	 * 
+	 * @param	string			$tbl				Current Lottery Data Table Name
+	 * @return	integer/boolean  $sum or FALSE		Returns the number of repeating numbers from the last draw with the draw before the latest draw.		
+	 */
+	public function repeaters($tbl, $drawn)
+	{	
+		if (!$this->lotteries_m->lotto_table_exists($tbl)) return 'NA';	// Draw Database Does not Exist
+		$row_last = (array) $this->db_row($tbl, 0);
+		$row_previous = (array) $this->db_row($tbl, 1);
+
+		$b = 1;
+		$current = array();
+		$previous = array();
+		do {
+			$current['ball'.$b] = $row_last['ball'.$b];
+			$previous['ball'.$b] = $row_previous['ball'.$b];
+			$b++;
+		} while($b<=$drawn);
+		$duplicates = array_intersect_assoc($current, $previous); // Compare for the simularites
+
+		if(!empty($duplicates)) 
+		{
+			$s = "";
+			foreach($duplicates as $duplicate)
+			{
+				$s .= $duplicate." ";
+			}
+		}
+		else
+		{
+			$s = "None";	// No Repeating Numbers
+		}
+	return $s;
+	}
+
+	/**
+	 * Returns the last date of the most recent draw or N/A, if the draw database does not exist
+	 * 
+	 * @param	string			$tbl									Current Lottery Data Table Name
+	 * @return	string			draw date (YYYY-MM-DD format)			Returns the last date of the most recent draw		
+	 */
+	public function last_date($tbl)
+	{	
+		if (!$this->lotteries_m->lotto_table_exists($tbl)) return 'NA';	// Draw Database Does not Exist
+		$draw = $this->db_row($tbl, 0);
+		return $draw->draw_date;	// Return the draw date (YYYY-MM-DD format)			
+	}
+
+	/**
+	 * Returns the most recent last drawn numbers or N/A if the draw database does not exist
+	 * 
+	 * @param	string			$tbl				Current Lottery Data Table Name
+	 * @param	integer			$drawn				Number of Drawn Numbers for this lottery
+	 * @param	boolean			$extra				TRUE, has extra ball,  FALSE, has no extra ball
+	 * @return	string								Returns the last drawn numbers in a string format, N! N2 N3 ... + EXTRA		
+	 */
+	public function last_draw($tbl, $drawn, $extra)
+	{	
+		if (!$this->lotteries_m->lotto_table_exists($tbl)) return 'NA';	// Draw Database Does not Exist
+		$draw = $this->db_row($tbl, 0);		
+		
+		if (isset($draw))
+		{
+			$s = $draw->ball1.' '.$draw->ball2.' '.$draw->ball3;	// Build the first 3 numbers
+			if($drawn>3) $s .= ' '.$draw->ball4;
+			if($drawn>4) $s .= ' '.$draw->ball5;
+			if($drawn>5) $s .= ' '.$draw->ball6;
+			if($drawn>6) $s .= ' '.$draw->ball7;
+			if($drawn>7) $s .= ' '.$draw->ball8;
+			if($drawn>9) $s .= ' '.$draw->ball9;
+			if($extra) $s .= ' + '.$draw->extra;
+		}
+		else return 'NA';
+	return $s;	// Return Drawn Numbers in 'N1 N2 N3 ... + Extra' Format	
+	}
+
+	/**
+	 * Returns the last row, previous row or next row from the lottery database query
+	 * 
+	 * @param	string			$tbl							Current Lottery Data Table Name
+	 * @param 	integer			$row							Return the last, previous or next database object. Default to the last row of the database draws
+	 * @return	object 			last row, previous row or next row depending on the row value of lottery records		
+	 */
+	public function db_row($tbl, $row = 0)
+	{	
+		$query = $this->db->query('SELECT * FROM '.$tbl. ' ORDER BY `id` DESC LIMIT 100');
+		
+		switch($row)
+		{
+			case 0:
+				return $query->row(0); // Last Row
+			case 1:
+				return $query->row(1); // Previous to the Last Row
+			case 2:
+				return $query->result_array(); // Return the Lottery Draw Results for the last 100 draws.
+		}
+	}
+	/**
+	 * Returns the Average Sum of draws based on a given Range of Draws
+	 * 
+	 * @param	array	$tbl 		Current Draws for Calculation
+	 * @param 	integer $max		maximum number of balls drawn
+	 * @return	integer $sum		Returns the sum of the drawn numbers		
+	 */
+	public function lottery_average_sums($tbl, $max)
+	{
+		$sum = 0;  // Initialize to total sum to 0
+		$n = 1;
+		do
+		{
+			$sum = $sum + intval($draw['ball'.$n]);
+			$n++;
+			$max--;
+		} while($max>0);
+	
+	return $sum;	
+	}
+	/**
 }

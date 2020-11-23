@@ -259,7 +259,7 @@ class Lotteries_m extends MY_Model
 	}
 
 	/**
-	 * Creates Lottery Database Structure
+	 * Updates Lottery Fields 
 	 * 
 	 * @param	any	$_POST values	Lottery	Field Names: id, ball1, ball2, ball3, ball4, ball5, ball6, ball7, ball8, ball9, extra, draw_date, lottery_id (foreign key)
 	 * @return  boolean
@@ -267,7 +267,6 @@ class Lotteries_m extends MY_Model
 	public function update_lottery_db($post_fields) 
 	{
 		// 1. Convert Lottery Name to a Table Name, Replaces any spaces with underscores.
-		$name_counter = 0;  // if it does exist, a unique identifier will be added even though the name is the same 
 		$lotto_name = $this->lotto_table_convert($post_fields['lottery_name']);
 		// 2. Check for existing table name, if exists, add a number at end of name with underscore e.g. lotto_1
 		$exists = $this->lotto_table_exists($lotto_name);
