@@ -136,6 +136,7 @@ class Statistics extends Admin_Controller {
 	$this->data['lottery'] = $this->lotteries_m->get($id);
 	// Retrieve the lottery table name for the database
 	$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+	$drawn = $this->data['lottery']->balls_drawn;	// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 	// Check to see if the actual table exists in the db?
 	if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 	{
@@ -154,7 +155,7 @@ class Statistics extends Admin_Controller {
 				$error = FALSE;		// No Errors found at this point							
 				do{
 				// Update each draw, calculate the Total Sum, Total Sum of Digits, Evens, Odds, Range of Draw, Repeating Decade, Repeating Last Digit
-				$draw = $this->statistics_m->lottery_draw_stats($tbl_name, $lt_id, $this-data['lottery']->balls_drawn);
+				$draw = $this->statistics_m->lottery_draw_stats($tbl_name, $lt_id, $drawn);
 
 				if (!$this->statistics_m->lottery_draw_update($tbl_name, $lt_id, $draw))
 				{
@@ -207,23 +208,62 @@ class Statistics extends Admin_Controller {
 				redirect('admin/statistics');
 			}
 		}
+			$stats = array();
 			// Average Sum of Last 10 Draws (Integer)
+			$stats['sum_10'] = $this->statistics_m->lottery_average_sum($tbl_name, $drawn, 10);
 			// Average Sum of Last 100 Draws (Integer) 
+			$stats['sum_100'] = $this->statistics_m->lottery_average_sum($tbl_name, $drawn, 100);
+			// Average Sum of Last 200 Draws (Integer)
+			$stats['sum_200'] = $this->statistics_m->lottery_average_sum($tbl_name, $drawn, 200);
+			// Average Sum of Last 300 Draws (Integer)
+			$stats['sum_300'] = $this->statistics_m->lottery_average_sum($tbl_name, $drawn, 300);
 			// Average Sum of Last 400 Draws (Integer)
+			$stats['sum_400'] = $this->statistics_m->lottery_average_sum($tbl_name, $drawn, 400);
 			// Average Sum of Last 500 Draws (Integer)
+			$stats['sum_500'] = $this->statistics_m->lottery_average_sum($tbl_name, $drawn, 500);
 			// Average Sum of Digits in Last 10 Draws (Integer)
+			$stats['digits_10'] = $this->statistics_m->lottery_average_sumdigits($tbl_name, $drawn, 10);
 			// Average Sum of Digits in Last 100 Draws (Integer)
+			$stats['digits_100'] = $this->statistics_m->lottery_average_sumdigits($tbl_name, $drawn, 100);
 			// Average Even Numbers the last 10 Draws (Integer)
-			// Average Odd Numbers the last 10 Draws (Integer)
+			$stats['even_10'] = $this->statistics_m->lottery_average_evens($tbl_name, $drawn, 10);
 			// Average Even Numbers the last 100 Draws (Integer)
+			$stats['even_100'] = $this->statistics_m->lottery_average_evens($tbl_name, $drawn, 100);
+			// Average Odd Numbers the last 10 Draws (Integer)
+			$stats['odd_10'] = $this->statistics_m->lottery_average_odds($tbl_name, $drawn, 10);
 			// Average Odd Numbers the last 100 Draws (Integer)
+			$stats['odd_100'] = $this->statistics_m->lottery_average_odds($tbl_name, $drawn, 100);
 			// Average Range of Numbers in the last 10 Draws (Integer)
+			$stats['range_10'] = $this->statistics_m->lottery_average_range($tbl_name, $drawn, 10);
 			// Average Range of Numbers in the last 100 Draws (integer)
+			$stats['range_100'] = $this->statistics_m->lottery_average_range($tbl_name, $drawn, 100);
 			// Average Maximum Repeating Decade in the last 10 Draws (Integer)
+			$stats['repeat_decade_10'] = $this->statistics_m->lottery_average_decade($tbl_name, $drawn, 10);
 			// Average Maximum Repeating Decade in the last 100 Draws (integer)
+			$stats['repeat_decade_100'] = $this->statistics_m->lottery_average_decade($tbl_name, $drawn, 100);
 			// Average Maximum Repeating Last Digit in the last 10 Draws (Integer)
+			$stats['repeat_last_10'] = $this->statistics_m->lottery_average_last($tbl_name, $drawn, 10);
 			// Average Maximum Repeating Last Digit in the last 100 Draws (Integer)
+			$stats['repeat_last_100'] = $this->statistics_m->lottery_average_last($tbl_name, $drawn, 100);
+			$stats['lottery_id'] = $id;		// Must be associated with the lottery_id
 			// Do until draws statistically calculated, Report on Screen
+			if(!$this->statistics_m->get($id, TRUE))	// No previous lottery global statistics exist, create a new lottery statistics record
+			{
+				if(!$this->statistics_m->save($stats))
+				{
+					$this->session->set_flashdata('message', 'There is a problem adding the Statistics for '.$this->data['lottery']->lottery_name.' Please try again.');
+					redirect('admin/statistics');
+				}
+
+			}
+			else // Previous lottery statistics exist, update!
+			{
+				if(!$this->statistics_m->save($stats, $id))
+				{
+					$this->session->set_flashdata('message', 'There is a problem updating the Statistics for '.$this->data['lottery']->lottery_name.' Please try again.');
+					redirect('admin/statistics');
+				}
+			}						
 			$this->session->set_flashdata('message', 'The Draw Statistics Have been Updated.');
 			redirect('admin/statistics');
 	}

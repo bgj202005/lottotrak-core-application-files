@@ -216,8 +216,7 @@ class Statistics_m extends MY_Model
 	return $sum;	
 	}
 	/**
-	 * Returns the sum of the current drawn numbers array
-	 * 
+	 * Returns the sum of the individual digits and totals them as tghe final sum in the draw 
 	 * @param	array				Current Draw Array
 	 * @param 	integer $max		maximum number of balls drawn
 	 * @return	integer $sum		Returns the sum of the digits of the drawn numbers		
@@ -540,20 +539,425 @@ class Statistics_m extends MY_Model
 	 * 
 	 * @param	array	$tbl 		Current Draws for Calculation
 	 * @param 	integer $max		maximum number of balls drawn
-	 * @return	integer $sum		Returns the sum of the drawn numbers		
+	 * @param 	integer	$range		Number of the number of draws to calculate from the latest draw
+	 * @return	integer $ave_sum		Returns the Average sum of the drawn numbers		
 	 */
-	public function lottery_average_sums($tbl, $max)
+	public function lottery_average_sum($tbl, $max = 3, $range = 10)
 	{
-		$sum = 0;  // Initialize to total sum to 0
-		$n = 1;
-		do
+		$this->db->reset_query();	// Clear any previous queries that are cached
+		
+		$sql = "";
+		$ave_sum = 0;
+		switch ($max)
 		{
-			$sum = $sum + intval($draw['ball'.$n]);
-			$n++;
-			$max--;
-		} while($max>0);
-	
-	return $sum;	
+			case 3:
+				$sql = "SELECT (ball1+ball2+ball3)";
+			case 4:
+				$sql .= "SELECT (ball1+ball2+ball3+ball4)";
+				break;
+			case 5:
+				$sql .= "SELECT (ball1+ball2+ball3+ball4+ball5)";
+				break;
+			case 6:	
+				$sql .= "SELECT (ball1+ball2+ball3+ball4+ball5+ball6)";
+				break;
+			case 7:	
+				$sql .= "SELECT (ball1+ball2+ball3+ball4+ball5+ball6+ball7)";
+				break;
+			case 8:
+				$sql .= "SELECT (ball1+ball2+ball3+ball4+ball5+ball6+ball7+ball8)";
+				break;
+			case 9:
+				$sql .= "SELECT (ball1+ball2+ball3+ball4+ball5+ball6+ball7+ball8+ball9)";
+		} 
+
+		$sql .= " as sum FROM ".$tbl;
+		$sql .= " ORDER BY id DESC ";
+		$sql .= "LIMIT ".$range;
+
+		$query = $this->db->query($sql);
+		if(!$query) return FALSE;
+		$added = $query->result_object(); // Return the range of object sums
+		foreach($added as $row)
+		{
+			$ave_sum = $ave_sum + $row->sum;
+		}
+		$ave_sum = $ave_sum / $range;	// Find the Average Sum for the Range
+
+	return (integer) round($ave_sum,0);	
 	}
 	/**
+	 * Returns the average sum of the individual digits for the drawn numbers over a range of drawns
+	 * 
+	 * @param	array				Current Draw Array
+	 * @param 	integer $max		maximum number of balls drawn
+	 * @return	integer $sum		Returns the sum of the digits of the drawn numbers		
+	 */
+	public function lottery_average_sumdigits($tbl, $max = 3, $range = 10)
+	{
+		$sum = 0; // Initialize to total sum to 0
+		
+		$this->db->reset_query();	// Clear any previous queries that are cached
+		$query = $this->db->select('*')
+				->order_by('id DESC')
+				->limit($range,0)
+				->get($tbl);	// Retrieve the id and only return 1 row
+		
+		if(!$query) return FALSE;
+		foreach ($query->result_array() as $row)
+		{
+			$total = 0;
+			$n = 1;
+			$t = $max;
+			do
+			{
+				$total = (intval($row['ball'.$n]) < 10 ? $sum+intval($row['ball'.$n]): $sum+(intval(substr($row['ball'.$n],0,1)))+(intval(substr($row['ball'.$n],1,1))));
+				$n++;
+				$t--;
+			} while($t>0);
+			$sum = $total;
+		}
+		$sum = $sum / $range; // Get the Average of the sums of the individual digits
+		
+	return (integer) round($sum,0);
+	}
+	/**
+	 * Return only the average even number of balls drawn for a range of draws
+	 * 
+	 * @param	string	$tbl		Name of Lottery Table
+	 * @param 	integer $max		maximum number of balls drawn
+	 * @param 	integer $range		Range of Draws to Calculate, 10, 100, 500, etc.
+	 * @return	integer $evens		Returns the even number of drawn numbers on average		
+	 */
+	public function lottery_average_evens($tbl, $max = 3, $range = 10)
+	{
+		$this->db->reset_query();	// Clear any previous queries that are cached
+		$sql = "ball1, ball2, ball3";
+		switch ($max)
+		{
+			case 4:
+				$sql .= ", ball4,";
+				break;
+			case 5:
+				$sql .= ",ball4, ball5";
+				break;
+			case 6:	
+				$sql .= ", ball4, ball5, ball6";
+				break;
+			case 7:	
+				$sql .= ", ball4, ball5, ball6, ball7";
+				break;
+			case 8:
+				$sql .= ", ball4, ball5, ball6, ball7, ball8";
+				break;
+			case 9:
+				$sql .= ", ball4, ball5, ball6, ball7, ball8, ball9";
+		} 
+
+		$query = $this->db->select($sql)
+				->order_by('id DESC')
+				->limit($range)
+				->get($tbl);	// Retrieve the id and only return 1 row
+
+		$evens = 0;
+		$temp = $max;	// Tempoarily store the number of drawn balls
+		foreach ($query->result_array() as $row)
+		{
+			$n = 1;
+			do
+			{
+				if(!intval($row['ball'.$n]%2)) $evens++;
+				$n++;
+				$max--;
+			} 
+			while($max>0);
+			$max = $temp;  // Recover the number of Drawn Balls
+		}
+
+		$evens = $evens / $range; // Get the Average of Even Numbers over a given range
+		
+	return (integer) round($evens,0);
+	}
+	/**
+	* Return only the average odd number of balls drawn for a range of draws
+	 * 
+	 * @param	string	$tbl		Name of Lottery Table
+	 * @param 	integer $max		maximum number of balls drawn
+	 * @param 	integer $range		Range of Draws to Calculate, 10, 100, 500, etc.
+	 * @return	integer $odds		Returns the odd number of drawn numbers on average			
+	 */
+	public function lottery_average_odds($tbl, $max = 3, $range = 10)
+	{
+		$this->db->reset_query();	// Clear any previous queries that are cached
+		$sql = "ball1, ball2, ball3";
+		switch ($max)
+		{
+			case 4:
+				$sql .= ", ball4,";
+				break;
+			case 5:
+				$sql .= ",ball4, ball5";
+				break;
+			case 6:	
+				$sql .= ", ball4, ball5, ball6";
+				break;
+			case 7:	
+				$sql .= ", ball4, ball5, ball6, ball7";
+				break;
+			case 8:
+				$sql .= ", ball4, ball5, ball6, ball7, ball8";
+				break;
+			case 9:
+				$sql .= ", ball4, ball5, ball6, ball7, ball8, ball9";
+		} 
+
+		$query = $this->db->select($sql)
+				->order_by('id DESC')
+				->limit($range)
+				->get($tbl);	// Retrieve the id and only return 1 row
+
+		$odds = 0;
+		$temp = $max;	// Tempoarily store the number of drawn balls
+		foreach ($query->result_array() as $row)
+		{
+			$n = 1;
+			do
+			{
+				if(intval($row['ball'.$n]%2)) $odds++;
+				$n++;
+				$max--;
+			} 
+			while($max>0);
+			$max = $temp;  // Recover the number of Drawn Balls
+		}
+
+		$odds = $odds / $range; // Get the Average of Even Numbers over a given range
+		
+	return (integer) round($odds,0);
+	}
+	/**
+	 * Return the range of numbers drawnn for the current drawn numbers array
+	 * 
+	 * @param	string	$tbl		Name of Lottery Table
+	 * @param 	integer $max		maximum number of balls drawn
+	 * @param 	integer $range		Range of Draws to Calculate, 10, 100, 500, etc.
+	 * @return	integer $range		Returns the range of drawn numbers		
+	 */
+	public function lottery_average_range($tbl, $max = 3, $range = 10)
+	{
+		$this->db->reset_query();	// Clear any previous queries that are cached
+		$sql = "ball1";				// Only the first ball drawn
+		switch ($max)				
+		{  							// Only the last ball is required for the range
+			case 3:
+				$sql .= ", ball3,";
+				break;
+			case 4:
+				$sql .= ", ball4,"; 
+				break;
+			case 5:
+				$sql .= ", ball5"; 
+				break;
+			case 6:	
+				$sql .= ", ball6"; 
+				break;
+			case 7:	
+				$sql .= ", ball7";
+				break;
+			case 8:
+				$sql .= ", ball8";
+				break;
+			case 9:
+				$sql .= ", ball9";
+		} 
+		$query = $this->db->select($sql)
+				->order_by('id DESC')
+				->limit($range)
+				->get($tbl);	// Retrieve the id and only return 1 row
+		
+		$diff = 0;		// Set the difference between the first ball and last ball
+		foreach ($query->result_array() as $row)
+		{
+			$diff = intval($row['ball'.$max])-intval($row['ball1']);
+		}
+		$diff = $diff / $range; // Get the Average of Even Numbers over a given range
+		
+	return (integer) round($diff,0); // Return the range of balls drawn from the first ball to ball N	
+	}
+	/**
+	 * Returns the number the Aveage maximum drawn numbers that are repeating in the same decade (more than 2 must be in the same decade) and only return the largest number
+	 * 
+	 * @param	string	$tbl		Name of Lottery Table
+	 * @param 	integer $max		maximum number of balls drawn
+	 * @param 	integer $range		Range of Draws to Calculate, 10, 100, 500, etc.
+	 * @return	integer $dec_ave	Returns the average maximum number of decades during a range
+	 **/	
+	public function lottery_average_decade($tbl, $max = 3, $range = 10)
+	{
+		$this->db->reset_query();	// Clear any previous queries that are cached
+		$sql = "ball1, ball2, ball3";
+		switch ($max)
+		{
+			case 4:
+				$sql .= ", ball4,";
+				break;
+			case 5:
+				$sql .= ",ball4, ball5";
+				break;
+			case 6:	
+				$sql .= ", ball4, ball5, ball6";
+				break;
+			case 7:	
+				$sql .= ", ball4, ball5, ball6, ball7";
+				break;
+			case 8:
+				$sql .= ", ball4, ball5, ball6, ball7, ball8";
+				break;
+			case 9:
+				$sql .= ", ball4, ball5, ball6, ball7, ball8, ball9";
+		} 
+
+		$query = $this->db->select($sql)
+				->order_by('id DESC')
+				->limit($range)
+				->get($tbl);	// Retrieve the id and only return 1 row
+		$dec_ave = 0;
+		$temp = $max;
+		
+		foreach ($query->result_array() as $row)
+		{
+			$n = 1;
+			$decades = 0;
+			$decade1 = 0;
+			$decade2 = 0;
+			$decade3 = 0;
+			$decade4 = 0;
+			$decade5 = 0;
+			$decade6 = 0;
+			$decade7 = 0;
+			$decade8 = 0;
+			$decade9 = 0;
+
+			do
+			{
+				if(intval($row['ball'.$n])<10) $decade1++;
+				elseif(intval($row['ball'.$n])<20) $decade2++;
+				elseif(intval($row['ball'.$n])<30) $decade3++;
+				elseif(intval($row['ball'.$n])<40) $decade4++;
+				elseif(intval($row['ball'.$n])<50) $decade5++;
+				elseif(intval($row['ball'.$n])<60) $decade6++;
+				elseif(intval($row['ball'.$n])<70) $decade7++;
+				elseif(intval($row['ball'.$n])<80) $decade8++;
+				elseif(intval($row['ball'.$n])<90) $decade9++;
+				$n++;   
+				$max--;
+			} while($max>0);
+			$max = $temp;
+
+			$decades = $decade1;	// Start with the first decade 0 - 9
+			if($decades<$decade2) $decades = $decade2;	// 10 - 19
+			if($decades<$decade3) $decades = $decade3;	// 20 - 29
+			if($decades<$decade4) $decades = $decade4;	// 30 - 39
+			if($decades<$decade5) $decades = $decade5;	// 40 - 49
+			if($decades<$decade6) $decades = $decade6;	// 50 - 59
+			if($decades<$decade7) $decades = $decade7;	// 60 - 69
+			if($decades<$decade8) $decades = $decade8;	// 70 - 79
+			if($decades<$decade9) $decades = $decade9;	// 80 - 89
+			$dec_ave = $dec_ave+$decades;	// Add the commulative total for $decades
+		}
+		
+		$dec_ave = $dec_ave / $range;		// Caclulate the average maximum decade over a range
+		
+	return (integer) round($dec_ave,0); // Returns the average maximum decade rounded off
+	}
+	/**
+	 * Returns the number of maximum number of repeating last digits for the current drawn numbers
+	 * 
+	 * @param	string	$tbl		Name of Lottery Table
+	 * @param 	integer $max		maximum number of balls drawn
+	 * @param 	integer $range		Range of Draws to Calculate, 10, 100, 500, etc.
+	 * @return	integer $last_ave	Returns the average maximum same last drawn digits for a given range
+	 **/
+	public function lottery_average_last($tbl, $max = 3, $range = 10)
+	{
+		$this->db->reset_query();	// Clear any previous queries that are cached
+		$sql = "ball1, ball2, ball3";
+		switch ($max)
+		{
+			case 4:
+				$sql .= ", ball4,";
+				break;
+			case 5:
+				$sql .= ",ball4, ball5";
+				break;
+			case 6:	
+				$sql .= ", ball4, ball5, ball6";
+				break;
+			case 7:	
+				$sql .= ", ball4, ball5, ball6, ball7";
+				break;
+			case 8:
+				$sql .= ", ball4, ball5, ball6, ball7, ball8";
+				break;
+			case 9:
+				$sql .= ", ball4, ball5, ball6, ball7, ball8, ball9";
+		} 
+
+		$query = $this->db->select($sql)
+				->order_by('id DESC')
+				->limit($range)
+				->get($tbl);	// Retrieve the id and only return 1 row
+		$last_ave = 0;
+
+		$temp = $max;
+
+		foreach ($query->result_array() as $row)
+		{
+			$n = 1;
+			$last = 0;		// Set the last digit to 0
+			$zeros = 0;		// How many zeros?
+			$ones = 0;		// How Many Ones?
+			$twos = 0;		// How Many Twos?
+			$threes = 0;	// How Many Threes?
+			$fours = 0;		// How Many Fours? 
+			$fives = 0;		// How Many Fives? 
+			$sixs = 0;		// How Many Sixs? 
+			$sevens = 0;	// How Many Sevens? 
+			$eights = 0;	// How Many eights? 
+			$nines = 0;		// How Many nines?
+			do
+			{	if(intval($row['ball'.$n])<9) $row['ball'.$n] = '0'.$row['ball'.$n];
+				if(substr($row['ball'.$n],1,1)=='0') $zeros++;
+				if(substr($row['ball'.$n],1,1)=='1') $ones++;
+				if(substr($row['ball'.$n],1,1)=='2') $twos++;
+				if(substr($row['ball'.$n],1,1)=='3') $threes++;
+				if(substr($row['ball'.$n],1,1)=='4') $fours++;
+				if(substr($row['ball'.$n],1,1)=='5') $fives++;
+				if(substr($row['ball'.$n],1,1)=='6') $sixs++;
+				if(substr($row['ball'.$n],1,1)=='7') $sevens++;
+				if(substr($row['ball'.$n],1,1)=='8') $eights++;
+				if(substr($row['ball'.$n],1,1)=='9') $nines++;
+				$n++;
+				$max--;
+			} while($max>0);
+			$max = $temp;
+			// Only update the the number of last digits for the maximum only
+			
+			$last = $zeros;	// Start with the last zeros
+			if($last<$ones) $last = $ones;	// Last 1's
+			if($last<$twos) $last = $twos;	// Last 2's
+			if($last<$threes) $last = $threes;	// Last 3's
+			if($last<$fours) $last = $fours;	// Last 4's
+			if($last<$fives) $last = $fives;	// Last 5's
+			if($last<$sixs) $last = $sixs;	// Last 6's
+			if($last<$sevens) $last = $sevens;	// Last 7's
+			if($last<$eights) $last = $eights;	// Last 8's
+			if($last<$nines) $last = $nines;	// Last 9's
+			$last_ave = $last_ave+$last;		// Add the commulative total for $decades
+		}
+
+		$last_ave = $last_ave / $range;		// Caclulate the average maximum last digit over a given range
+		
+	return (integer) round($last_ave,0); // Returns the average maximum decade rounded off
+	}
 }
