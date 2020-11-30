@@ -95,11 +95,25 @@ class Statistics_m extends MY_Model
 	 */
 	public function lottery_start_id($table)
 	{
-		
+		$this->db->reset_query();	// Clear any previous queries that are cached
 		$this->db->select_min('id');	// Target is the index id.
 		return $this->db->get($table);	
 	}
 
+	/**
+	 * Returns the (auto incremented) index id, from the Lottery id
+	 * 
+	 * @param	integer			$lotto		Lottery_id
+	 * @return	integer	 		$row->id	Index id from lottery_stats		
+	 */
+	public function update_stats_id($lotto)
+	{
+		$query = $this->db->select('id')
+                ->where('lottery_id', $lotto)
+				->get($this->_table_name);
+		$row = $query->row();
+	return $row->id;	// returns the index from the lottery_id
+	}
 	/**
 	 * Returns the number of rows that have the statistics fields but have no statistic data, used to update the current lottery database draws with no statistics
 	 * 
@@ -116,20 +130,21 @@ class Statistics_m extends MY_Model
 	/**
 	 * Returns the next available index id with active records that have no statistics, used to update the current lottery database draws with no statistics
 	 * 
-	 * @param	string	$table			Actual Name of the Table
-	 * @return	string	$row->id		Returns the starting index id from the lottery table.		
+	 * @param	string	$table				Actual Name of the Table
+	 * @return	string	$row->id or FALSE	Returns the starting index id from the lottery table or NULL, if no draws are available		
 	 */
 	public function lottery_next_id($table)
 	{
 		$this->db->reset_query();	// Clear any previous queries that are cached
-		$conditions = array('sum_draw ' => NULL, 'sum_digits ' => NULL, 'even ' => NULL, 'odd ' => NULL, 'range_draw ' => NULL, 'repeat_decade ' => NULL, 'repeat_decade ' => NULL);
+		$conditions = array('sum_draw ' => NULL, 'sum_digits ' => NULL, 'even ' => NULL, 'odd ' => NULL, 'range_draw ' => NULL, 
+							'repeat_decade ' => NULL, 'repeat_decade ' => NULL, 'extra !=' => '0');
 		$query = $this->db->select('id')
 						->where($conditions)
 						->order_by('id', 'ASC')
 						->limit(1)
 						->get($table);
 		$row = $query->row_array();
-	return $row['id'];	// This will return the next available id that has no statistics for that draw.
+	return (!is_null($row) ? $row['id'] : FALSE); // This will return the next available id that has no statistics for that draw and was not a bonus draw
 	}
 
 	/**
@@ -600,7 +615,7 @@ class Statistics_m extends MY_Model
 		$this->db->reset_query();	// Clear any previous queries that are cached
 		$query = $this->db->select('*')
 				->order_by('id DESC')
-				->limit($range,0)
+				->limit($range)
 				->get($tbl);	// Retrieve the id and only return 1 row
 		
 		if(!$query) return FALSE;
@@ -746,39 +761,41 @@ class Statistics_m extends MY_Model
 	public function lottery_average_range($tbl, $max = 3, $range = 10)
 	{
 		$this->db->reset_query();	// Clear any previous queries that are cached
-		$sql = "ball1";				// Only the first ball drawn
+		$select = "ball1";				// Only the first ball drawn
 		switch ($max)				
 		{  							// Only the last ball is required for the range
 			case 3:
-				$sql .= ", ball3,";
+				$select .= ", ball3,";
 				break;
 			case 4:
-				$sql .= ", ball4,"; 
+				$select .= ", ball4,"; 
 				break;
 			case 5:
-				$sql .= ", ball5"; 
+				$select .= ", ball5"; 
 				break;
 			case 6:	
-				$sql .= ", ball6"; 
+				$select .= ", ball6"; 
 				break;
 			case 7:	
-				$sql .= ", ball7";
+				$select .= ", ball7";
 				break;
 			case 8:
-				$sql .= ", ball8";
+				$select .= ", ball8";
 				break;
 			case 9:
-				$sql .= ", ball9";
+				$select .= ", ball9";
 		} 
-		$query = $this->db->select($sql)
+		$query = $this->db->select($select)
 				->order_by('id DESC')
 				->limit($range)
-				->get($tbl);	// Retrieve the id and only return 1 row
+				->get($tbl);
+		if (!$query) return FALSE;	
 		
 		$diff = 0;		// Set the difference between the first ball and last ball
+		$n = $max;
 		foreach ($query->result_array() as $row)
 		{
-			$diff = intval($row['ball'.$max])-intval($row['ball1']);
+			$diff = (intval($row['ball'.$n])-intval($row['ball1'])) + $diff;
 		}
 		$diff = $diff / $range; // Get the Average of Even Numbers over a given range
 		

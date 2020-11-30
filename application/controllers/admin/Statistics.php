@@ -9,7 +9,7 @@ class Statistics extends Admin_Controller {
 		 $this->load->model('lotteries_m');
 		 $this->load->model('statistics_m');
 		 $this->load->helper('file');
-		 //$this->output->enable_profiler(TRUE);
+		// $this->output->enable_profiler(TRUE);
 	}
 
 	/**
@@ -186,25 +186,33 @@ class Statistics extends Admin_Controller {
 		{
 			$lt_rows = $this->statistics_m->lottery_next_rows($tbl_name);	// Return the Rows in the table to update
 			$lt_id =  $this->statistics_m->lottery_next_id($tbl_name);
-			$draw = array();	// Empty Set Array
-			$error = FALSE;		// No Errors found at this point							
-			do{
-			// Update each draw, calculate the Total Sum, Total Sum of Digits, Evens, Odds, Range of Draw, Repeating Decade, Repeating Last Digit
-			$draw = $this->statistics_m->lottery_draw_stats($tbl_name, $lt_id, $this->data['lottery']->balls_drawn);
+			if ($lt_id)	// The next id was returned, continue with the statistics calculations
+			{
+				$draw = array();	// Empty Set Array
+				$error = FALSE;		// No Errors found at this point							
+				do{
+				// Update each draw, calculate the Total Sum, Total Sum of Digits, Evens, Odds, Range of Draw, Repeating Decade, Repeating Last Digit
+				$draw = $this->statistics_m->lottery_draw_stats($tbl_name, $lt_id, $this->data['lottery']->balls_drawn);
 
-			if (!$this->statistics_m->lottery_draw_update($tbl_name, $lt_id, $draw))
-			{
-				$error = TRUE; // Unable to update draw row, exist with the error flag set to TRUE
-				break;
+				if (!$this->statistics_m->lottery_draw_update($tbl_name, $lt_id, $draw))
+				{
+					$error = TRUE; // Unable to update draw row, exist with the error flag set to TRUE
+					break;
+				}
+				$error = FALSE;	// Keep going, update successful.
+				//echo json_encode($lt_id);
+				$lt_id++;
+				$lt_rows--;
+				} while($lt_rows>0);
+				if ($error) 
+				{
+					$this->session->set_flashdata('message', 'There is a Problem with updating the draw database. Stopped at Draw id:'.$lt_id.'.');
+					redirect('admin/statistics');
+				}
 			}
-			$error = FALSE;	// Keep going, update successful.
-			//echo json_encode($lt_id);
-			$lt_id++;
-			$lt_rows--;
-			} while($lt_rows>0);
-			if ($error) 
+			else // The query resulted in NULL indicating the statistics are up-to-date
 			{
-				$this->session->set_flashdata('message', 'There is a Problem with updating the draw database. Stopped at Draw id:'.$lt_id.'.');
+				$this->session->set_flashdata('message', 'The Statistics are up-to-date. Please Calculate after the next draw.');
 				redirect('admin/statistics');
 			}
 		}
@@ -258,13 +266,22 @@ class Statistics extends Admin_Controller {
 			}
 			else // Previous lottery statistics exist, update!
 			{
-				if(!$this->statistics_m->save($stats, $id))
+				$index_id = $this->statistics_m->update_stats_id($id);
+				if($index_id)
 				{
-					$this->session->set_flashdata('message', 'There is a problem updating the Statistics for '.$this->data['lottery']->lottery_name.' Please try again.');
+					if(!$this->statistics_m->save($stats, $index_id))
+					{
+						$this->session->set_flashdata('message', 'There is a problem updating the Statistics for '.$this->data['lottery']->lottery_name.' Please try again.');
+						redirect('admin/statistics');
+					}
+				}
+				else 
+				{
+					$this->session->set_flashdata('message', 'There is a problem updating the Statistics for '.$this->data['lottery']->lottery_name.' Index_id was not found.');
 					redirect('admin/statistics');
 				}
 			}						
-			$this->session->set_flashdata('message', 'The Draw Statistics Have been Updated.');
+			$this->session->set_flashdata('message', 'The Draw Statistics Have been Updated.'); // Yahoo! Statistics Updated!
 			redirect('admin/statistics');
 	}
 
