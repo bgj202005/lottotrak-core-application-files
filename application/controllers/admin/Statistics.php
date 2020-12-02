@@ -28,7 +28,9 @@ class Statistics extends Admin_Controller {
 
 			$lottery->last_date = $this->statistics_m->last_date($tbl_name);
 			$lottery->last_draw = $this->statistics_m->last_draw($tbl_name, $lottery->balls_drawn, $lottery->extra_ball);
-			$lottery->average_sum = $this->statistics_m->average_sum_100($tbl_name, $lottery->balls_drawn);
+			$c = $this->statistics_m->lottery_rows($tbl_name);
+			if($c>100) $c = 100;
+			$lottery->average_sum = $this->statistics_m->lottery_average_sum($tbl_name, $lottery->balls_drawn, $c);
 			$lottery->sum_last = $this->statistics_m->sum_last($tbl_name, $lottery->balls_drawn);
 			$lottery->repeaters = $this->statistics_m->repeaters($tbl_name, $lottery->balls_drawn);
 		}
@@ -96,6 +98,7 @@ class Statistics extends Admin_Controller {
 	{
 		$this->data['message'] = '';	// Defaulted to No Error Messages
 		$this->data['lottery'] = $this->lotteries_m->get($id);
+		$this->data['statistics'] = $this->statistics_m->get_by('lottery_id='.$id, TRUE);
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		// Check to see if the actual table exists in the db?
@@ -119,7 +122,7 @@ class Statistics extends Admin_Controller {
 		}
 		
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
-		$this->data['subview']  = 'admin/lotteries/view';
+		$this->data['subview']  = 'admin/dashboard/statistics/view';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 
@@ -200,7 +203,6 @@ class Statistics extends Admin_Controller {
 					break;
 				}
 				$error = FALSE;	// Keep going, update successful.
-				//echo json_encode($lt_id);
 				$lt_id++;
 				$lt_rows--;
 				} while($lt_rows>0);

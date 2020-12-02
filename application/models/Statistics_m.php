@@ -398,35 +398,7 @@ class Statistics_m extends MY_Model
 
 	return $last;		// Return the Maximum number of last digits from this draw	
 	}
-	/**
-	 * Returns the number of repeating last digits for the current drawn numbers array
-	 * 
-	 * @param	string	$tbl						Current Lottery Data Table Name
-	 * @return	integer/boolean  $sum or FALSE		Returns the average sum of the last 100 draws in this lottery.		
-	 */
-	public function average_sum_100($tbl, $drawn)
-	{	
-		if (!$this->lotteries_m->lotto_table_exists($tbl)) return 'NA';
-		$draws = $this->db_row($tbl, 2);
-
-		$sums = 0;
-
-		for($s = 0; $s < 100; $s++)
-		{
-			$b = 1;
-			$sum = 0;
-			do
-			{
-				$sum = $sum + intval($draws[$s]['ball'.$b]);	
-				$b++;	
-			} 
-			while($b<=$drawn);
-		$sums = $sums+$sum;
-		}
-	$sums = $sums / 100;
-		return (integer) round($sums,0);	
-	}
-
+	
 	/**
 	 * Returns the sum of last draw or the most recent drawn numbers
 	 * 

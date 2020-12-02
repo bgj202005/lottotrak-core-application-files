@@ -1,3 +1,16 @@
+<style>
+	table{
+    	width:100%;
+	}
+	tr{
+		font-size: 0.85em;
+	}
+	label {
+    	display: inline-flex;
+    	margin-bottom: .5rem;
+    	margin-top: .5rem;
+}
+</style>	
 <section>
 	<h2>Lottery Profile Statistics</h2>
 	<?php if (isset($message)) : ?> <h4 class="bg-warning" id = "message" style = "margin-top: 20px; text-align:center;"><?=$message; endif; ?></h4>
@@ -33,11 +46,11 @@
 				$extra = array('width' => $image_info[0]/2, 'height' => $image_info[1]/2);
 				echo img(base_url().'images/uploads/'.$lottery->lottery_image, FALSE, $extra); 
 			} ?></td>
-		<td style = "text-align:center;"><?php echo anchor('admin/lotteries/edit/'.$lottery->id, $lottery->lottery_name);?></td>
+		<td style = "text-align:center;"><?php echo anchor('admin/statistics/view_draws/'.$lottery->id, $lottery->lottery_name);?></td>
 		<td style = "text-align:center;"><?=$lottery->lottery_state_prov; ?></td>
 		<td style = "text-align:center;"><?=$lottery->lottery_country_id; ?></td>
-		<td style = "text-align:center;" class = "small text-left"><?=($lottery->last_date!='NA' ? date("D, M-d-Y",strtotime(str_replace('/','-',$lottery->last_date))) : 'N/A'); ?></td>
-		<td style = "text-align:center;" class = "small text-left"><?=($lottery->last_draw!='NA' ? $lottery->last_draw : 'N/A'); ?></td>
+		<td style = "text-align:center;"><?=($lottery->last_date!='NA' ? date("D, M-d-Y",strtotime(str_replace('/','-',$lottery->last_date))) : 'N/A'); ?></td>
+		<td style = "text-align:center;"><?=($lottery->last_draw!='NA' ? $lottery->last_draw : 'N/A'); ?></td>
 		<td style = "text-align:center;"><?=$lottery->average_sum; ?></td>
 		<td style = "text-align:center;"><?=$lottery->sum_last; ?></td>
 		<td style = "text-align:center;"><?=$lottery->repeaters; ?></td>
