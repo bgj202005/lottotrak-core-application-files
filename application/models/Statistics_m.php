@@ -403,7 +403,7 @@ class Statistics_m extends MY_Model
 	 * Returns the sum of last draw or the most recent drawn numbers
 	 * 
 	 * @param	string	$tbl						Current Lottery Data Table Name
-	 * @return	integer/'NA'  $sum / string value	Returns the sum from the last draw or NA if the draw database does not exist		
+	 * @return	integer /'NA'  $sum / string value	Returns the sum from the last draw or NA if the draw database does not exist		
 	 */
 	public function sum_last($tbl, $drawn)
 	{	
@@ -503,8 +503,8 @@ class Statistics_m extends MY_Model
 	/**
 	 * Returns the last row, previous row or next row from the lottery database query
 	 * 
-	 * @param	string			$tbl							Current Lottery Data Table Name
-	 * @param 	integer			$row							Return the last, previous or next database object. Default to the last row of the database draws
+	 * @param	string			$tbl	Current Lottery Data Table Name
+	 * @param 	integer			$row	Return the last, previous or next database object. Default to the last row of the database draws
 	 * @return	object 			last row, previous row or next row depending on the row value of lottery records		
 	 */
 	public function db_row($tbl, $row = 0)
@@ -948,5 +948,198 @@ class Statistics_m extends MY_Model
 		$last_ave = $last_ave / $range;		// Caclulate the average maximum last digit over a given range
 		
 	return (integer) round($last_ave,0); // Returns the average maximum decade rounded off
+	}
+	/**
+	 * If existing Record for the Followers table exist
+	 * 
+	 * @param	integer	$id		Lottery ID of current Lottery
+	 * @return  array	$query 	result set query or FALSE	
+	 */
+	public function followers_exists($id)
+	{
+		$query = $this->db->where('lottery_id', $id)
+                ->limit(1, 0)
+                ->get('lottery_followers');
+		return $query->row_array();
+	}
+	/**
+	 * If existing Record for the Followers table exist
+	 * 
+	 * @param 	string 	$name		specific lottery table name
+	 * @param	array	$last		$last drawn numbers (index, date, ball1 ... ball N, Extra (Bonus ball), lottery id)
+	 * @param 	integer $max		maximum number of balls drawn
+	 * @param	boolean	$bonus		If an extra / bonus ball is included (1 = TRUE, 0 = False)
+	 * @param  	integer	$range		Range of number of draws (default is 100). If less than 100, the number must be set in $range
+	 * @return  string	$followers	Followers string in this format that follow with the number of occurrences (minumum 3 Occurrences)
+	 * 								e.g. 10=>3=4|22=3,17=>10=5|37=4|48=4
+	 */
+	public function followers_calculate($name, $last, $max, $bonus, $range = 100)
+	{
+		// Build Query
+		$s = 'ball'; 
+		$i = 1; 	// Default Ball 1
+		if($range>100) $range++; 	// Add one to range to eliminate the draw we are comparing with the records only if the number of draws are 100 or more.
+		do
+		{	
+			$s .= $i;
+			$i++;
+			if($i<=$max) $s .= ', ball';
+		} 
+		while($i<=$max);
+
+		if($bonus) $s .= ', extra';
+		
+		// Calculate
+		$b = 1; // ball 1
+		// Initialize and create blank associate array
+		$followers = '';	// set as a blank string
+		do
+		{
+			$sql = "SELECT ".$s." FROM ".$name." WHERE id <>".$last['id']." ORDER BY id DESC LIMIT ".$range; 
+			// Execute Query
+			$query = $this->db->query($sql);
+			$row = $query->first_row('array');
+			$c_b = $last['ball'.$b]; // Current ball to investigate
+			$followlist = array();
+			do {
+
+				if($this->is_drawn($c_b, $row, $max))
+				{
+					$row = $query->next_row('array');
+					if(!is_null($row))
+					{
+						if(!empty($followlist))
+						{
+							$followlist = $this->update_followers($followlist, $row);
+						}
+						else
+						{
+							$followlist = $this->add_followers($row);
+						}
+					}
+				}
+				else
+				{
+					$row = $query->next_row('array');
+				}
+			} while(!is_null($row));
+		
+		// Build Follower string
+		$followers .= (!empty($followlist) ? $this->follower_string($c_b, $followlist) : ''); // Empty Set? Then Skip
+		// while not out of range
+		// Return $follower number associative numbers that have 3 and above in this format, save in this format e.g. ball drawn 10 => 22=3,37=4,42=4
+		// update ball counter
+		// while ball count < $max
+			$b++;
+			if(($b<$max)&&(!empty($followlist))) $followers .= ',';
+			unset($followlist);		// Destroy the old followerlist
+			$query->free_result();	// Removes the Memory associated with the result resource ID
+		} while ($b<$max);
+		return substr($followers, 0, -1);
+	}
+	/**
+	 * Return if the drawn number was drawn from the current row
+	 * 
+	 * @param	integer	$num		Drawn number from the most recent draw
+	 * @param 	array 	$curr		Current set of drawn numbers
+	 * @param	integer	$pick		How many numbers are drawn without the extra / bonus ball		
+	 * @return	boolean $found		Found the ball drawn during this draw
+	 */
+	private function is_drawn($num, $curr, $pick)
+	{
+		$found = FALSE;
+		$i=1;
+		// 		if query ball equals current ball then
+		//   	for each query ball that does not exist, +1 for each ball add to associative array
+		//		if query ball exists in associative array then +1 for existing associative query ball
+		do
+		{
+			if ($num==$curr['ball'.$i]) 
+			{
+				$found = TRUE;
+				break;		// exit loop
+			}
+			$i++;
+		} while($i<$pick);
+	return $found;		// Return the range of balls drawn from the first ball to ball N
+	}
+	/**
+	 * Return the added only list of followers after the current draw
+	 * 
+	 * @param	array	$row		Current Draw to compare and add to the followers list		
+	 * @return	array	$list		List of updated followers
+	 */
+	private function add_followers($row)
+	{
+	
+		$list = array();	// Empty set array
+		foreach($row as $balls_drawn => $key)
+		{
+			$list += array(
+				$key => 1); 
+		}
+	return $list;		// Return the followers of the current draw
+	}
+	/**
+	 * Return if the drawn number was drawn from the current row
+	 * 
+	 * @param	array	$list		List of followers and the totals
+	 * @param	array	$row		Current Draw to compare and update		
+	 * @return	array	$list		List of updated followers
+	 */
+	private function update_followers($list, $row)
+	{
+		foreach($row as $balls_drawn => $key)
+		{
+			if(array_key_exists($key, $list))
+			{
+				$list[$key]++;	// Auto increment the array from the $key
+
+			}
+			else
+			{
+				$list += array(		// If it does not exist, add the key and set the value to one.
+					$key => 1);
+			}
+		}
+	return $list;		// Return the range of balls drawn from the first ball to ball N
+	}
+	/**
+	 * Return the added only list of followers after the current draw
+	 * @param	integer	$ball		Ball that the list is associated with, for example, Drawn ball 10 had Ball 3 (with 4 occurences) and Ball 22 (with 3 occurences)
+	 * @param	array	$list		Associative Array of followers and the counts		
+	 * @return	string	$str		Return formatted string of the follower numbers with the counts in this format, 10>3=4|22=3
+	 */
+	private function follower_string($ball,$list)
+	{
+		$str = "";
+		foreach($list as $follows => $key)
+		{
+			if($key>2) $str .= $follows.'='.$key.'|'; // Format 3=4 Occurences with pipe and continue until the last follower has been added.
+		}
+		$str = (!empty($str) ? $ball.'>'.$str :  ''); // Format '10>'  Drawn Ball Number 10
+
+	return substr($str, 0, -1);		// Return the followers of the current draw without the extra Pipe character on the end of string
+	}
+	/** 
+	* Insert / Update Follower Profile of current lottery
+	* 
+	* @param 	array	$data		key / value pairs of Follower Profile to be inserted / updated
+	* @param	boolean $exist		add a new entry (FALSE), if no previous follower has been added otherwise update the existing follower row (TRUE), default is FALSE
+	* @return   none	
+	*/
+	public function follower_data_save($data, $exist = FALSE)
+	{
+		if (!$exist) 
+		{
+			$this->db->set($data);		// Set the query with the key / value pairs
+			$this->db->insert('lottery_followers');
+		}
+		else
+		{
+			$this->db->set($data);		// Set the query with the key / value pairs
+			$this->db->where('lottery_id', $data['lottery_id']);
+			$this->db->update('lottery_followers');
+		}
 	}
 }

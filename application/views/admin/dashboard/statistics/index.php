@@ -73,38 +73,20 @@
 </section>
 <script>
 $(document).ready(function(){
-  $('#calculate').click(function(){
-	$('#status').css('display', 'block'); 
+  $('.calculate').click(function(){
+	$('#status').css('display', 'block');
+	$('#message').css('display', 'none'); 
 	document.getElementById("status").innerHTML = "Updating Lottery. Please Wait.";
-	//clear_timer = setInterval(get_database_stats, 500);
-    setTimeout(fade_out, 1500);
+	setTimeout(fade_out, 1500);
+	});
+	$('.followers').click(function(){
+	$('#status').css('display', 'block');
+	$('#message').css('display', 'none'); 
+	document.getElementById("status").innerHTML = "Updating the  Associated Followers from the last draw. Please Wait.";
+	setTimeout(fade_out, 1500);
 	});
 	function fade_out() {
       $("#status").fadeOut();
     }
-	function get_database_stats() {
-		$.ajax({
-    	url:"<?php echo base_url(); ?>admin/statistics/update/<?=$this->lotteries_m->lotto_table_convert($lottery->lottery_name); ?>",
-		dataType: "json",
-		success:function(data)
-		{
-			$('#counter').css('display', 'block');
-			$('#count').text(data);
-			var width = Math.round((data.count/data.total)*100);
-			if(width >= 100)
-			{
-				clearInterval(clear_timer);
-				$('#counter').css('display', 'none');
-				//$('#message').html('<div class="alert alert-success">Successfully Updated the Statistics for each draw.</div>');
-			}
-			if (data.error)
-			{
-				clearInterval(clear_timer);
-				$('#counter').css('display', 'none');
-				//$('#message').html('<div class="alert alert-danger">Problem with updating Statistics.</div>');
-			}
-		}
-	  } ) 
-	}
 });
 </script>

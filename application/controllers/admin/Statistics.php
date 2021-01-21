@@ -5,10 +5,12 @@ class Statistics extends Admin_Controller {
 	
 	public function __construct() {
 		 parent::__construct();
+
 		 $this->load->dbforge();
 		 $this->load->model('lotteries_m');
 		 $this->load->model('statistics_m');
 		 $this->load->helper('file');
+		 $this->load->helper('html');
 		// $this->output->enable_profiler(TRUE);
 	}
 
@@ -64,7 +66,7 @@ class Statistics extends Admin_Controller {
 	 */
 	public function btn_followers($uri)
 	{
-		return anchor($uri, '<i class="fa fa-retweet fa-2x" aria-hidden="true">', array('title' => 'View Historic Follower Statistics after the last draw'));
+		return anchor($uri, '<i class="fa fa-retweet fa-2x" aria-hidden="true">', array('title' => 'View Historic Follower Statistics after the last draw', 'class' => 'followers'));
 	}
 
 	/**
@@ -86,7 +88,7 @@ class Statistics extends Admin_Controller {
 	 */
 	public function btn_calculate($uri)
 	{
-		return anchor($uri, '<i class="fa fa-calculator fa-2x" aria-hidden="true">', array('title' => 'Calculate the Current History or Update to the latest Draw', 'id' => 'calculate'));
+		return anchor($uri, '<i class="fa fa-calculator fa-2x" aria-hidden="true">', array('title' => 'Calculate the Current History or Update to the latest Draw', 'class' => 'calculate'));
 	}
 	/**
 	 * Views all draws with associated statistics, pagination and statistics filtering
@@ -123,6 +125,7 @@ class Statistics extends Admin_Controller {
 		
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->data['subview']  = 'admin/dashboard/statistics/view';
+		$this->data['stat_method'] = $this;				// Access the methods in the view
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 
@@ -139,7 +142,8 @@ class Statistics extends Admin_Controller {
 	$this->data['lottery'] = $this->lotteries_m->get($id);
 	// Retrieve the lottery table name for the database
 	$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
-	$drawn = $this->data['lottery']->balls_drawn;	// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
+	$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
+	$extra_ball = $this->data['lottery']->extra_ball;	// Make sure the extra ball is even used.
 	// Check to see if the actual table exists in the db?
 	if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 	{
@@ -155,20 +159,23 @@ class Statistics extends Admin_Controller {
 				$lt_rows = $this->statistics_m->lottery_rows($tbl_name);	// Return the Rows in the table to update
 				$lt_id =  $this->statistics_m->lottery_start_id($tbl_name);
 				$draw = array();	// Empty Set Array
-				$error = FALSE;		// No Errors found at this point							
+				$error = FALSE;		// Default state, No Errors
 				do{
 				// Update each draw, calculate the Total Sum, Total Sum of Digits, Evens, Odds, Range of Draw, Repeating Decade, Repeating Last Digit
-				$draw = $this->statistics_m->lottery_draw_stats($tbl_name, $lt_id, $drawn);
+					$draw = $this->statistics_m->lottery_draw_stats($tbl_name, $lt_id, $drawn);
 
-				if (!$this->statistics_m->lottery_draw_update($tbl_name, $lt_id, $draw))
-				{
-					$error = TRUE; // Unable to update draw row, exist with the error flag set to TRUE
-					break;
-				}
-				$error = FALSE;	// Keep going, update successful.
+					if ($extra_ball&&$draw['extra'])
+					{
+						if (!$this->statistics_m->lottery_draw_update($tbl_name, $lt_id, $draw))
+						{
+							$error = TRUE; // Unable to update draw row, exist with the error flag set to TRUE
+							break;
+						}
+						$error = FALSE;	// Keep going, update successful.		
+					}	
 
-				$lt_id++;
-				$lt_rows--;
+					$lt_id++;
+					$lt_rows--;
 				} while($lt_rows>0);
 				if ($error) 
 				{
@@ -197,12 +204,15 @@ class Statistics extends Admin_Controller {
 				// Update each draw, calculate the Total Sum, Total Sum of Digits, Evens, Odds, Range of Draw, Repeating Decade, Repeating Last Digit
 				$draw = $this->statistics_m->lottery_draw_stats($tbl_name, $lt_id, $this->data['lottery']->balls_drawn);
 
-				if (!$this->statistics_m->lottery_draw_update($tbl_name, $lt_id, $draw))
+				if ($extra_ball&&$draw['extra'])	// Both conditions must exist for the draw to be updated with statistics. Indicates bonus extra draws	 
 				{
-					$error = TRUE; // Unable to update draw row, exist with the error flag set to TRUE
-					break;
+					if (!$this->statistics_m->lottery_draw_update($tbl_name, $lt_id, $draw))
+					{
+						$error = TRUE; 	// Unable to update draw row, exist with the error flag set to TRUE
+						break;			// exit from loop, error has resulted.
+					}
+					$error = FALSE;	// Keep going, update successful.
 				}
-				$error = FALSE;	// Keep going, update successful.
 				$lt_id++;
 				$lt_rows--;
 				} while($lt_rows>0);
@@ -309,5 +319,163 @@ class Statistics extends Admin_Controller {
 		$data = ['count' =>	$count,
 				'total' => $total];
 		echo json_encode($data);
+	}
+	/**
+	 * Returns the number of repeats comparing the previous draw from the current one. Return the repeats as TRUE or FALSE values
+	 * 
+	 * @param	object	$before		Draw previous
+	 * @param	object	$today		Draw Current
+	 * @param	integer	$max		Maximum number of drawn balls
+	 * @return	object	$repeats	Object of boolean values for the number of balls drawn
+	 */
+	public function last_repeaters($before, $today, $max)
+	{
+		$repeats = array();	// Empty Array
+		$before = (array) $before;	// Cast to Array
+		$today = (array) $today;	// Cast to Array
+
+		$n = 1;	// Begin with Ball 1
+		$c = 1;	// Counter
+		while($n<=$max)
+		{
+			do
+			{
+				if($today['ball'.$n]==$before['ball'.$c]) $repeats['ball'.$n] = TRUE;
+				$c++;
+			} while($c<=$max);
+			$c=1; // Reset to the first ball
+			$n++;
+		}
+	return (object) $repeats;	
+	}
+
+	/**
+	 * Display Repeater Icon (location, just after the drawn ball)
+	 * 
+	 * @param 	   	none	
+	 * @return      img repeater png
+	 */
+	public function icon_repeater() 
+	{
+		return img('images/assets/repeat-icon.png', FALSE, 'class="repeater"');
+	}
+	/**
+	 * View the follower numbers after the current draw. Default is 100 draws.
+	 * 
+	 * @param		$id		current id of Lottery	
+	 * @return      none
+	 */
+	public function followers($id)
+	{
+		$this->data['message'] = '';	// Defaulted to No Error Messages
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		// Retrieve the lottery table name for the database
+		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
+		$include_extra = FALSE;	// The extra ball is not included in the follower calculation.
+		// Check to see if the actual table exists in the db?
+		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
+		{
+			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
+			redirect('admin/statistics');
+		}
+		$all = $this->lotteries_m->db_row_count($tbl_name); // Return the total number of draws for this lottery
+		if($all>100)
+		{
+			$interval = (integer) $all / 100; // Create the drop down in multiples of 100 and typecast to an integer value (truncates the floating point portion)
+			if(!$interval) $interval = 1;	// 1 to 100 draws
+		}
+		else
+		{
+			$interval = 0;
+		}
+		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
+		// 1. Check for a record for the current lottery in the friends table
+		$followers = $this->statistics_m->followers_exists($id);
+		if(!is_null($followers))
+		{
+			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
+			$range = $this->uri->segment(5,0); // Return segment range
+			$sel_range = 1;
+			if($range>100) $sel_range = (integer) $range / 100;
+			if($range!=0)	
+			{
+				if(intval($followers['range'])>(intval($range))) // Any Change in Selection of the Draws?
+				{
+					
+					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $include_extra, $range);
+					$followers = array(
+						'range'				=> $range,
+						'lottery_followers'	=> $str_followers,
+						'draw_id'			=> $this->data['lottery']->last_drawn['id'],
+						'lottery_id'		=> $id
+					);
+					$this->statistics_m->follower_data_save($followers, TRUE);
+				}
+			}
+			else
+			{
+				$range = $all;
+			}
+		}
+		else // 3. If does not exist, calculate for the given draw range, return results and save to follower table
+		{
+			// range is set with either less than 100 rows (based on the exact number of draws) or calculate the number of followers using only 100 rows
+			$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $include_extra, ($all<100 ? $all : 100));
+			
+			$followers = array(
+				'range'				=> $all,
+				'lottery_followers'	=> $str_followers,
+				'draw_id'			=> $this->data['lottery']->last_drawn['id'],
+				'lottery_id'		=> $id
+			);
+			$this->statistics_m->follower_data_save($followers, FALSE);
+		}
+		
+		// 4. Extract the follower string into the array counter parts
+		$next_draw = (!is_null($followers) ? explode(",", $followers['lottery_followers']) : explode(",", $str_followers));
+		foreach($next_draw as $ball_drawn)
+		{
+			$n = strstr($ball_drawn, '>', TRUE); // Strip off each number
+			$f = substr(strstr($ball_drawn, '>', FALSE),1); // Remove the '>' from the string
+			for($b = 1; $b<$drawn; $b++)
+			{
+				if($this->data['lottery']->last_drawn['ball'.$b]==$n) $this->data['lottery']->last_drawn[$n] = $f;
+			}
+		}
+
+		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
+		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
+		$this->data['lottery']->last_drawn['range'] = $range;
+		$this->data['lottery']->last_drawn['all'] = $all;
+		$this->data['current'] = $this->uri->segment(2); 				// Sets the Admins Menu Highlighted
+		$this->data['subview']  = 'admin/dashboard/statistics/followers';
+		$this->load->view('admin/_layout_main', $this->data);
+	}
+	
+	/**
+	 * View the friends of drawn numbers that most often are drawn with this number. Default is 100 draws.
+	 * 
+	 * @param		$id		current id of draws	
+	 * @return  	none
+	 */
+	public function friends($id)
+	{
+		$this->data['message'] = '';	// Defaulted to No Error Messages
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		// Retrieve the lottery table name for the database
+		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
+		$extra_ball = $this->data['lottery']->extra_ball;	// Make sure the extra ball is even used.
+		// Check to see if the actual table exists in the db?
+		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
+		{
+			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
+			redirect('admin/statistics');
+		}
+
+		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
+		$this->data['subview']  = 'admin/dashboard/statistics/friends';
+		$this->load->view('admin/_layout_main', $this->data);
 	}
 }

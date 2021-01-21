@@ -1,4 +1,3 @@
-<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 <link href="https://unpkg.com/bootstrap-table@1.18.0/dist/bootstrap-table.min.css" rel="stylesheet">
 <link href="https://unpkg.com/bootstrap-table@1.18.0/dist/extensions/reorder-rows/bootstrap-table-reorder-rows.css" rel="stylesheet">
 
@@ -13,12 +12,19 @@
 	tr{
 		font-size: 0.80em;
 	}
+	th {
+		text-align:center;
+	}
 	table.stats tr{
-		font-size: 0.54em;
+		font-size: 0.70em;
 	}
 	td.fontincrease { 
-		font-size: 	1.70em;
+		font-size: 	1.21em;
 		text-align: center; 
+		white-space: nowrap;
+	}
+	.repeater {
+		margin-left: 10px;
 	}
 	#draws_paginate{
     float:right;
@@ -26,12 +32,14 @@
 	
 </style>
 	<h2><?php echo 'View Statistics for: '.$lottery->lottery_name; ?></h2>	
+	<h5 style = "text-align:left"><?php echo anchor('admin/statistics', 'Back to Statistics Dashboard', 'title="Back to Statistics"'); ?></h5>
 	<section>
 		<table id="history"
-		class = "stats"
+		class = "stats table-sm"
 		data-pagination="true"
 		data-search="false">
 			<thead>
+				<tr><th colspan = "18">AVERAGE STATISTICS</th></tr>
 				<tr>
 					<th data-field="sum_10">S (last 10)</th>
 					<th data-field="sum_100">S (last 100)</th>
@@ -42,8 +50,8 @@
 					<th data-field="digits_10">S Digits (10)</th>
 					<th data-field="digits_100">S Digits(100)</th>
 					<th data-field="even_10">Ev (10)</th>
-					<th data-field="even_100">Ev (100)</th>
 					<th data-field="odd_10">Od (10)</th>
+					<th data-field="even_100">Ev (100)</th>
 					<th data-field="odd_100">Od (100)</th>
 					<th data-field="range_10">Range (10)</th>
 					<th data-field="range_100">Range (100)</th>
@@ -64,8 +72,8 @@
 					<td class="fontincrease"><?=$statistics->digits_10; ?></td>
 					<td class="fontincrease"><?=$statistics->digits_100; ?></td>
 					<td class="fontincrease"><?=$statistics->even_10; ?></td>
-					<td class="fontincrease"><?=$statistics->even_100; ?></td>
 					<td class="fontincrease"><?=$statistics->odd_10; ?></td>
+					<td class="fontincrease"><?=$statistics->even_100; ?></td>
 					<td class="fontincrease"><?=$statistics->odd_100; ?></td>
 					<td class="fontincrease"><?=$statistics->range_10; ?></td>
 					<td class="fontincrease"><?=$statistics->range_100; ?></td>
@@ -82,13 +90,12 @@
 	</section>
 	<section>
 		<div class="table-responsive">
-		<table class="table table-striped"
+		<table class="table table-striped table-sm"
 			id="draws"
 			data-pagination="true"
 			data-search="true"
 			data-show-toggle="true"
 			data-use-row-attr-func="true"
-			data-defer-url="json/data1.json"
 			data-filter-control="true"
 			data-show-search-clear-button="true"
 			data-order='[[ 1, "desc" ]]'>
@@ -116,27 +123,38 @@
 				</tr>
 			</thead>
 			<tbody>
-				<?php foreach ($draws as $draw): ?>
+				<?php $curr = new \stdClass;
+					foreach ($draws as $draw): 
+					$curr = $draw;	// The current draw object begins with $draw object 
+				?>
 				<tr>
-					<td><?= $draw->draw ?></td>
-					<td><?php echo date("D, M d, Y", strtotime(str_replace('/','-',$draw->draw_date))); ?></td>
-					<td><?= $draw->ball1; ?></td>
-					<td><?= $draw->ball2; ?></td>
-					<td><?= $draw->ball3; ?></td>
-					<?php if (intval($lottery->balls_drawn)>=4): ?><td><?= $draw->ball4; ?></td><?php endif; ?>
-					<?php if (intval($lottery->balls_drawn)>=5): ?><td><?= $draw->ball5; ?></td><?php endif; ?>
-					<?php if (intval($lottery->balls_drawn)>=6): ?><td><?= $draw->ball6; ?></td><?php endif; ?>
-					<?php if (intval($lottery->balls_drawn)>=7): ?><td><?= $draw->ball7; ?></td><?php endif; ?>
-					<?php if (intval($lottery->balls_drawn)>=8): ?><td><?= $draw->ball8; ?></td><?php endif; ?>
-					<?php if (intval($lottery->balls_drawn)==9): ?><td><?= $draw->ball9; ?></td><?php endif; ?>			
-					<?php if (intval($lottery->extra_ball)==1): ?><td><?= $draw->extra; ?><?php endif; ?></td>
-					<td><?= $draw->sum_draw; ?></td>
-					<td><?= $draw->sum_digits; ?></td>
-					<td><?= $draw->even; ?></td>
-					<td><?= $draw->odd; ?></td>
-					<td><?= $draw->range_draw; ?></td>
-					<td><?= $draw->repeat_decade; ?></td>
-					<td><?= $draw->repeat_last; ?></td>
+					<td class="fontincrease"><?= $draw->draw; ?></td>
+					<?php if($draw->draw!=1): 
+						$curr = $draw;	// Current Draw Object is passed to current draw object ($curr)
+						$r = $stat_method->last_repeaters($prev, $curr, $lottery->balls_drawn); 
+						$prev = $curr;	// Ok, not the first draw, make the current draw object the previous draw object
+					else:
+						$prev = $draw;	// Store the starting draw object
+					endif; 
+					?>
+					<td style = "white-space: nowrap;"><?php echo date("D, M d, Y", strtotime(str_replace('/','-',$draw->draw_date))); ?></td>
+					<td class="fontincrease"><?=$draw->ball1; if(isset($r->ball1)) echo $stat_method->icon_repeater(); ?></td>
+					<td class="fontincrease"><?=$draw->ball2; if(isset($r->ball2)) echo $stat_method->icon_repeater(); ?></td>
+					<td class="fontincrease"><?=$draw->ball3; if(isset($r->ball3)) echo $stat_method->icon_repeater(); ?></td>
+					<?php if (intval($lottery->balls_drawn)>=4): ?><td class="fontincrease"><?=$draw->ball4; if(isset($r->ball4)) echo $stat_method->icon_repeater();?></td><?php endif; ?>
+					<?php if (intval($lottery->balls_drawn)>=5): ?><td class="fontincrease"><?=$draw->ball5; if(isset($r->ball5)) echo $stat_method->icon_repeater();?></td><?php endif; ?>
+					<?php if (intval($lottery->balls_drawn)>=6): ?><td class="fontincrease"><?=$draw->ball6; if(isset($r->ball6)) echo $stat_method->icon_repeater();?></td><?php endif; ?>
+					<?php if (intval($lottery->balls_drawn)>=7): ?><td class="fontincrease"><?=$draw->ball7; if(isset($r->ball7)) echo $stat_method->icon_repeater();?></td><?php endif; ?>
+					<?php if (intval($lottery->balls_drawn)>=8): ?><td class="fontincrease"><?=$draw->ball8; if(isset($r->ball8)) echo $stat_method->icon_repeater();?></td><?php endif; ?>
+					<?php if (intval($lottery->balls_drawn)==9): ?><td class="fontincrease"><?=$draw->ball9; if(isset($r->ball9)) echo $stat_method->icon_repeater();?></td><?php endif; ?>			
+					<?php if (intval($lottery->extra_ball)==1): ?><td class="fontincrease"><?=$draw->extra; ?><?php endif; ?></td>
+					<td class="fontincrease"><?=$draw->sum_draw; ?></td>
+					<td class="fontincrease"><?=$draw->sum_digits; ?></td>
+					<td class="fontincrease"><?=$draw->even; ?></td>
+					<td class="fontincrease"><?=$draw->odd; ?></td>
+					<td class="fontincrease"><?=$draw->range_draw; ?></td>
+					<td class="fontincrease"><?=$draw->repeat_decade; ?></td>
+					<td class="fontincrease"><?=$draw->repeat_last; ?></td>
 				</tr>
 				<?php  endforeach; ?>
 			</tbody>	
