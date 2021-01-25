@@ -105,11 +105,40 @@
 									{
 										$trailer = explode('|', $lottery->last_drawn[$lottery->last_drawn['ball'.$b]]); ?>
 										<h5 class="card-title">After Ball <?=$lottery->last_drawn['ball'.$b]?> has been drawn in <?=$lottery->last_drawn['range']?> draws.</h5>
-									<?php foreach($trailer as $t):  
+									<?php $t_picks = array(); 
+										foreach($trailer as $t):  
 										$picks = explode('=', $t);
-										echo "<p class='card-text'> The ".$picks[0].' has been drawn '.$picks[1]." Times.</p>";
+										$t_picks += array(
+												$picks[0] => $picks[1]
+										);
 										unset($picks);
-									endforeach; 
+									endforeach;
+									arsort($t_picks); // Sort from the most picks to the least picks
+									$s_picks = "";
+									$counts = current($t_picks);
+									do
+									{
+										if($counts==current($t_picks))
+										{
+											$s_picks .= 'Number <strong>'.key($t_picks).'</strong>';
+											$current = next($t_picks);
+											if($counts!=$current)
+											{
+												$s_picks .= ' has been drawn <strong>'.$counts.'</strong> Times.</p>';
+												echo "<p class='card-text'> ".$s_picks.'</p>';
+												$s_picks = ""; 
+											} 
+											else
+											{	
+												$s_picks .= ' AND ';
+												$counts = $current;	
+											}
+										}
+										else
+										{
+											$counts = next($t_picks);
+										}
+									} while(!is_null(key($t_picks)));
 									unset($trailer); 
 									}
 								else {
