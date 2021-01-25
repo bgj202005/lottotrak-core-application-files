@@ -382,7 +382,7 @@ class Statistics extends Admin_Controller {
 		$all = $this->lotteries_m->db_row_count($tbl_name); // Return the total number of draws for this lottery
 		if($all>100)
 		{
-			$interval = (integer) $all / 100; // Create the drop down in multiples of 100 and typecast to an integer value (truncates the floating point portion)
+			$interval = intval($all / 100); // Create the drop down in multiples of 100 and typecast to an integer value (truncates the floating point portion)
 			if(!$interval) $interval = 1;	// 1 to 100 draws
 		}
 		else
@@ -396,11 +396,12 @@ class Statistics extends Admin_Controller {
 		{
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
 			$range = $this->uri->segment(5,0); // Return segment range
+			if(!$range) $range = $followers['range'];
 			$sel_range = 1;
-			if($range>100) $sel_range = (integer) $range / 100;
+			if($range>100) $sel_range = intval($range / 100);
 			if($range!=0)	
 			{
-				if(intval($followers['range'])>(intval($range))) // Any Change in Selection of the Draws?
+				if(intval($followers['range'])!=(intval($range))) // Any Change in Selection of the Draws?
 				{
 					
 					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $include_extra, $range);

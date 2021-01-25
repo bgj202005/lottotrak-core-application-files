@@ -41,7 +41,7 @@
 		color:#000000;
 	}
 	.card-text {
-		color:steelblue;
+		color:steelblue; 
 	}
 </style>
 	<h2><?php echo 'View Followers for: '.$lottery->lottery_name; ?></h2>
@@ -64,7 +64,7 @@
 								</li>
 								<?php $b++;
 								}
-								while ($b<$max); ?>
+								while ($b<=$max); ?>
 								<li>
 									<?php if($lottery->extra_ball): ?>
 										<li class="nav-item">
@@ -87,7 +87,7 @@
 													if($i!=$interval): ?>
 														<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?> " href="<?=base_url('admin/statistics/followers/'.$lottery->id.'/'.$step);?>">Last <?=$step;?></a>
 													<?php else : ?>
-														<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?> " href="<?=base_url('admin/statistics/followers/'.$lottery->id)?>">All Draws (<?=$lottery->last_drawn['all'];?>)</a>
+														<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?> " href="<?=base_url('admin/statistics/followers/'.$lottery->id.'/'.$lottery->last_drawn['all']);?>">All Draws (<?=$lottery->last_drawn['all'];?>)</a>
 													<?php endif;
 												endfor; ?> 
 												<?php endif;?>
@@ -97,7 +97,7 @@
 							</ul>
 						</div>
 						<div class="tab-content" id="myTabContent">
-							<?php $b = 1; 
+							<?php $b = 1;
 							do
 							{ ?> 
 							<div class="tab-pane fade p-3 <?php if($b==1) echo 'show active'; ?>" id="ball<?=$b?>" role="tabpanel" aria-labelledby="tab-<?=$b;?>">
@@ -120,7 +120,7 @@
 							</div>
 							<?php $b++;
 							}
-							while ($b<$max);?>
+							while ($b<=$max);?>
 						</div>
 					</div>
 				</div>

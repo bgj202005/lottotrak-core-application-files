@@ -978,7 +978,6 @@ class Statistics_m extends MY_Model
 		// Build Query
 		$s = 'ball'; 
 		$i = 1; 	// Default Ball 1
-		if($range>100) $range++; 	// Add one to range to eliminate the draw we are comparing with the records only if the number of draws are 100 or more.
 		do
 		{	
 			$s .= $i;
@@ -1031,10 +1030,10 @@ class Statistics_m extends MY_Model
 		// update ball counter
 		// while ball count < $max
 			$b++;
-			if(($b<$max)&&(!empty($followlist))) $followers .= ',';
+			if(($b<=$max)&&(!empty($followlist))) $followers .= ',';
 			unset($followlist);		// Destroy the old followerlist
 			$query->free_result();	// Removes the Memory associated with the result resource ID
-		} while ($b<$max);
+		} while ($b<=$max);
 		return substr($followers, 0, -1);
 	}
 	/**
@@ -1115,7 +1114,7 @@ class Statistics_m extends MY_Model
 		$str = "";
 		foreach($list as $follows => $key)
 		{
-			if($key>2) $str .= $follows.'='.$key.'|'; // Format 3=4 Occurences with pipe and continue until the last follower has been added.
+			if($key>3) $str .= $follows.'='.$key.'|'; // Format 3=4 Occurences with pipe and continue until the last follower has been added.
 		}
 		$str = (!empty($str) ? $ball.'>'.$str :  ''); // Format '10>'  Drawn Ball Number 10
 
