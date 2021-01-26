@@ -487,11 +487,12 @@ class Statistics extends Admin_Controller {
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 
 		$friends = $this->statistics_m->friends_exists($id);
+		$range = $this->uri->segment(5,0); // Return segment range
+		if(!$range) $range = $friends['range'];
+		$sel_range = 1;
+
 		if(!is_null($friends))
 		{
-			$range = $this->uri->segment(5,0); // Return segment range
-			if(!$range) $range = $friends['range'];
-			$sel_range = 1;
 			if($range>100) $sel_range = intval($range / 100);
 			if($range!=0)	
 			{
