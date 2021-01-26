@@ -474,7 +474,64 @@ class Statistics extends Admin_Controller {
 			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
 			redirect('admin/statistics');
 		}
+		$all = $this->lotteries_m->db_row_count($tbl_name); // Return the total number of draws for this lottery
+		if($all>100)
+		{
+			$interval = intval($all / 100); // Create the drop down in multiples of 100 and typecast to an integer value (truncates the floating point portion)
+			if(!$interval) $interval = 1;	// 1 to 100 draws
+		}
+		else
+		{
+			$interval = 0;
+		}
+		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 
+		$friends = $this->statistics_m->friends_exists($id);
+		if(!is_null($friends))
+		{
+			$range = $this->uri->segment(5,0); // Return segment range
+			if(!$range) $range = $friends['range'];
+			$sel_range = 1;
+			if($range>100) $sel_range = intval($range / 100);
+			if($range!=0)	
+			{
+				if(intval($friends['range'])!=(intval($range))) // Any Change in Selection of the Draws?
+				{
+					$str_friends = '';
+					//$str_friends = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $include_extra, $range);
+					$friends = array(
+						'range'				=> $range,
+						'lottery_friends'	=> $str_friends,
+						'draw_id'			=> $this->data['lottery']->last_drawn['id'],
+						'lottery_id'		=> $id
+					);
+					//$this->statistics_m->follower_data_save($followers, TRUE);
+				}
+			}
+			else
+			{
+				$range = $all;
+			}
+		}
+		else 
+		{
+		
+			$str_friends = '';
+			//$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $include_extra, ($all<100 ? $all : 100));
+			
+			$friends = array(
+				'range'				=> $all,
+				'lottery_followers'	=> $str_friends,
+				'draw_id'			=> $this->data['lottery']->last_drawn['id'],
+				'lottery_id'		=> $id
+			);
+			//$this->statistics_m->follower_data_save($followers, FALSE);
+		}
+
+		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
+		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
+		$this->data['lottery']->last_drawn['range'] = $range;
+		$this->data['lottery']->last_drawn['all'] = $all;
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->data['subview']  = 'admin/dashboard/statistics/friends';
 		$this->load->view('admin/_layout_main', $this->data);

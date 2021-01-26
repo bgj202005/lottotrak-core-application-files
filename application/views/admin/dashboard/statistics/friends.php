@@ -41,40 +41,45 @@
 	}
 </style>
 	<h2><?php echo 'View Friends for: '.$lottery->lottery_name; ?></h2>	
+	<?php $max = $lottery->maximum_ball; 
+	   $b = 1; ?>
 	<h5 style = "text-align:left"><?php echo anchor('admin/statistics', 'Back to Statistics Dashboard', 'title="Back to Statistics"'); ?></h5>
 	<section>
 		<div class="container">
 			<div class="row">
 				<div class="col-12">
-					<div class="card mt-3 tab-card">
-						<div class="card-header tab-card-header">
-						<ul class="nav nav-tabs card-header-tabs" id="myTab" role="tablist">
-							<li class="nav-item">
-								<a class="nav-link" id="one-tab" data-toggle="tab" href="#one" role="tab" aria-controls="One" aria-selected="true">One</a>
-							</li>
-							<li class="nav-item">
-								<a class="nav-link" id="two-tab" data-toggle="tab" href="#two" role="tab" aria-controls="Two" aria-selected="false">Two</a>
-							</li>
-							<li class="nav-item">
-								<a class="nav-link" id="three-tab" data-toggle="tab" href="#three" role="tab" aria-controls="Three" aria-selected="false">Three</a>
-							</li>
-						</ul>
-						</div>
-
-						<div class="tab-content" id="myTabContent">
-						<div class="tab-pane fade show active p-3" id="one" role="tabpanel" aria-labelledby="one-tab">
-							<h5 class="card-title">Tab Card One</h5>
-							<p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p>
-						</div>
-						<div class="tab-pane fade p-3" id="two" role="tabpanel" aria-labelledby="two-tab">
-							<h5 class="card-title">Tab Card Two</h5>
-							<p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p>
-						</div>
-						<div class="tab-pane fade p-3" id="three" role="tabpanel" aria-labelledby="three-tab">
-							<h5 class="card-title">Tab Card Three</h5>
-							<p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p>
-						</div>
-						</div>
+					<div class="card-header tab-card-header">
+							<ul class="nav nav-tabs card-header-tabs" id="myTab" role="tablist">
+								<?php do
+								{ ?>
+								<li class="nav-item">
+									<a class="nav-link" id="tab-<?=$b;?>" data-toggle="tab" href="#ball<?=$b; ?>" role="tab" aria-controls="<?=$b;?>" aria-selected="true"><?=$b?></a>
+								</li>
+								<?php $b++;
+								}
+								while ($b<=$max); ?>
+							</ul>
+								<div class="dropdown" style = "margin-left: 50px;">
+									<button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+											Draw Range
+									</button>
+									<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+										<?php $interval = (integer) $lottery->last_drawn['interval'];
+										if(!$interval) : ?>
+											<a class="dropdown-item active" href="<?=base_url('admin/statistics/followers/'.$lottery->id)?>">All Draws (<?=$lottery->last_drawn['range'];?>) </a>
+										<?php else:
+											$sel_range = (integer) $lottery->last_drawn['sel_range']; // Selected a different range from the complete range of draws?
+											for($i = 1; $i <= $interval; $i++):
+												$step = $i * 100;	// in multiples of 100
+												if($i!=$interval): ?>
+													<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?> " href="<?=base_url('admin/statistics/followers/'.$lottery->id.'/'.$step);?>">Last <?=$step;?></a>
+												<?php else : ?>
+													<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?> " href="<?=base_url('admin/statistics/followers/'.$lottery->id.'/'.$lottery->last_drawn['all']);?>">All Draws (<?=$lottery->last_drawn['all'];?>)</a>
+												<?php endif;
+											endfor; ?> 
+											<?php endif;?>
+									</div>
+								</div>
 					</div>
 				</div>
 			</div>
