@@ -467,7 +467,9 @@ class Statistics extends Admin_Controller {
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
+		$max_ball = $this->data['lottery']->maximum_ball;	// Get the highest ball drawn for this lottery, e.g. 49 in Lottery 649, 50 in Lottomax
 		$extra_ball = $this->data['lottery']->extra_ball;	// Make sure the extra ball is even used.
+		$include_extra = FALSE;	// The extra ball is not included in the follower calculation.
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 		{
@@ -498,15 +500,14 @@ class Statistics extends Admin_Controller {
 			{
 				if(intval($friends['range'])!=(intval($range))) // Any Change in Selection of the Draws?
 				{
-					$str_friends = '';
-					//$str_friends = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $include_extra, $range);
+					$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $include_extra, $range);
 					$friends = array(
 						'range'				=> $range,
 						'lottery_friends'	=> $str_friends,
 						'draw_id'			=> $this->data['lottery']->last_drawn['id'],
 						'lottery_id'		=> $id
 					);
-					//$this->statistics_m->follower_data_save($followers, TRUE);
+					$this->statistics_m->friends_data_save($friends, TRUE);
 				}
 			}
 			else
@@ -516,17 +517,14 @@ class Statistics extends Admin_Controller {
 		}
 		else 
 		{
-		
-			$str_friends = '';
-			//$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $include_extra, ($all<100 ? $all : 100));
-			
+			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $include_extra, ($all<100 ? $all : 100));
 			$friends = array(
 				'range'				=> $all,
-				'lottery_followers'	=> $str_friends,
+				'lottery_friends'	=> $str_friends,
 				'draw_id'			=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'		=> $id
 			);
-			//$this->statistics_m->follower_data_save($followers, FALSE);
+			$this->statistics_m->friends_data_save($friends, FALSE);
 		}
 
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)

@@ -976,7 +976,7 @@ class Statistics_m extends MY_Model
 		return $query->row_array();
 	}
 	/**
-	 * If existing Record for the Followers table exist
+	 * Calculate the number of trailing (follower) numbers based on the last draw
 	 * 
 	 * @param 	string 	$name		specific lottery table name
 	 * @param	array	$last		$last drawn numbers (index, date, ball1 ... ball N, Extra (Bonus ball), lottery id)
@@ -1043,11 +1043,11 @@ class Statistics_m extends MY_Model
 		// update ball counter
 		// while ball count < $max
 			$b++;
-			if(($b<=$max)&&(!empty($followlist))) $followers .= ',';
+			if(($b<$max)&&(!empty($followlist))) $followers .= ',';
 			unset($followlist);		// Destroy the old followerlist
 			$query->free_result();	// Removes the Memory associated with the result resource ID
-		} while ($b<=$max);
-		return substr($followers, 0, -1);
+		} while ($b<$max);
+		return $followers;
 	}
 	/**
 	 * Return if the drawn number was drawn from the current row
@@ -1087,13 +1087,13 @@ class Statistics_m extends MY_Model
 		$list = array();	// Empty set array
 		foreach($row as $balls_drawn => $key)
 		{
-			$list += array(
-				$key => 1); 
+			$list += [
+				$key => 1]; 
 		}
 	return $list;		// Return the followers of the current draw
 	}
 	/**
-	 * Return if the drawn number was drawn from the current row
+	 * Return the updated list of followers that were was drawn from the current draw
 	 * 
 	 * @param	array	$list		List of followers and the totals
 	 * @param	array	$row		Current Draw to compare and update		
@@ -1106,12 +1106,11 @@ class Statistics_m extends MY_Model
 			if(array_key_exists($key, $list))
 			{
 				$list[$key]++;	// Auto increment the array from the $key
-
 			}
 			else
 			{
-				$list += array(		// If it does not exist, add the key and set the value to one.
-					$key => 1);
+				$list += [		// If it does not exist, add the key and set the value to one.
+					$key => 1];
 			}
 		}
 	return $list;		// Return the range of balls drawn from the first ball to ball N
@@ -1152,6 +1151,234 @@ class Statistics_m extends MY_Model
 			$this->db->set($data);		// Set the query with the key / value pairs
 			$this->db->where('lottery_id', $data['lottery_id']);
 			$this->db->update('lottery_followers');
+		}
+	}
+	/**
+	 * Calculate the Friends of the Lottery from Ball 1 to Ball N range, include the extra ball if TRUE. Based on the range of draws covered
+	 * 
+	 * @param 	string 	$name		specific lottery table name
+	 * @param 	integer $max		maximum number of balls drawn
+	 * @param	integer	$top		Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649
+	 * @param	boolean	$bonus		If an extra / bonus ball is included (1 = TRUE, 0 = False)
+	 * @param  	integer	$range		Range of number of draws (default is 100). If less than 100, the number must be set in $range
+	 * @return  string	$friends	Friends string in this format: 1>9=4:01/24/2020,2>11=8:09/18/2020,3>44=10:06/22/2019  ,etc. 
+	 */
+	public function friends_calculate($name, $max, $top, $bonus, $range = 100)
+	{
+		// Build Query
+		$s = 'ball'; 
+		$i = 1; 	// Default Ball 1
+		do
+		{	
+			$s .= $i;
+			$i++;
+			if($i<=$max) $s .= ', ball';
+		} 
+		while($i<=$max);
+
+		$s .= ', draw_date'; // Include the draw date is this query
+
+		if($bonus) $s .= ', extra';
+		
+		// Initialize and create blank associate array
+		$friends = '';	// set as a blank string
+		$b = 1; // Number 1 to Number N from the size of the Lottery
+		do
+		{
+			// Calculate
+			$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." ORDER BY id DESC LIMIT ".$range.") as t ORDER BY t.id ASC"; 
+			// Execute Query
+			$query = $this->db->query($sql);
+			$row = $query->first_row('array'); // Doing the reverse to the first row because of the descending order.
+			$friendlist = array();
+			do {
+				if($this->is_drawn($b, $row, $max))
+				{
+					if(!is_null($row))
+					{
+						if(!empty($friendlist))
+						{
+							$friendlist = $this->update_friends($b, $friendlist, $row);
+						}
+						else
+						{
+							$friendlist = $this->add_friends($b, $row);
+						}
+					}
+					$row = $query->next_row('array'); // Go to the next draw for examination
+				}
+				else
+				{
+					$row = $query->next_row('array');
+				}
+			} while(!is_null($row)); // Do until all draws complete
+		
+		// Check duplicate occurrences in the array. If duplicate, go with most recent draw date following the latest trend for that number. return only 1 friend array
+		$friendlist = $this->duplicate_friends($friendlist);
+		// Build Friend string
+		$friends .= $this->friends_string($friendlist); // Empty Set? Then Skip
+		// while not out of range
+		// Returns $friendr number associative numbers, save in this format e.g. friend ball drawn 10>6:2020/12/06
+		// update ball counter
+		// while ball count < $max
+			$b++;
+			if(($b<$top)&&(!empty($friendlist))) $friends .= ','; //If there are numbers to do in a pick 3 to pick 9 system
+			unset($friendlist);	// Destroy the old friendlist
+			$query->free_result();	// Removes the Memory associated with the result resource ID
+		} while ($b<$top);
+		return $friends;
+	}
+	/**
+	 * Return the added only list of friends of the ball drawn for this ball number
+	 * 
+	 * @param 	integer	$ball		Current Ball being not included in the friends list
+	 * @param	array	$row		Current Draw to compare and add to the followers list		
+	 * @return	array	$list		List of updated followers
+	 */
+	private function add_friends($ball, $row)
+	{
+		$list = array();	// Empty set array
+		foreach($row as $balls_drawn => $key)
+		{
+			// Every Ball is counted as a friend except the ball that is currently examined
+			if(($ball!=$key)&&($balls_drawn!='draw_date')) $list += [
+				$key => 1,
+				(intval($key)<10 ? '0'.$key : $key).'_draw_date' => $row['draw_date']
+			]; 
+		}
+	return $list;		// Return the followers of the current draw
+	}
+	/**
+	 * Return the updated list of friends of the ball drawn for this ball number
+	 * 
+	 * @param	integer	$ball		Current Ball being not included in the friends list
+	 * @param	array	$list		List of followers and the totals
+	 * @param	array	$row		Current Draw to compare and update		
+	 * @return	array	$list		List of updated followers
+	 */
+	private function update_friends($ball, $list, $row)
+	{
+		foreach($row as $balls_drawn => $key)
+		{
+			if(($ball!=$key)&&($balls_drawn!='draw_date')&&(array_key_exists($key, $list)))
+			{
+				$list[$key]++;
+				$list[(intval($key)<10 ? '0'.$key : $key).'_draw_date'] = $row['draw_date'];
+			}
+			elseif(($ball!=$key)&&($balls_drawn!='draw_date'))
+			{
+				$list += [
+					$key => 1, 	// If it does not exist, add the key and set the value to one.
+					(intval($key)<10 ? '0'.$key : $key).'_draw_date' => $row['draw_date']
+				]; 
+			}
+		}
+	return $list;		// Return the range of balls drawn from the first ball to ball N
+	}
+	/**
+	 * Check for Duplicates in the friend list. Sort the duplicates list from Descending down. 
+	 * If duplicates found, keep all the duplicates with the most recent date. If No duplicates, return single record
+	 * Remove all other duplicates in the list. All keys are unique but the values are not. Values can be duplicate for different keys
+	 * @param 	array	$duplicates		Complete friendlist
+	 * @return	array	$friend			Return the updated friend with draw date
+	 */
+	private function duplicate_friends($duplicates)
+	{
+	
+	// Complete a key sort, no boolean check required
+	ksort($duplicates);
+
+	$counts = array();	// declare a blank associative array for counts
+	$dates = array();   // and ditto for the dates
+
+	// Strip out counts and the dates into their own arrays
+	
+	foreach($duplicates as $key => $value) // $date could be the count or it could be the date
+	{
+		if(strpos($key, '_draw_date')) 
+		{
+			$dates[$key] = $value; // Actually the date
+		}
+		else
+		{
+			$counts[$key] = $value; // Actually the count
+		}
+	}
+	
+	return $this->one_friend($counts, $dates);		// Return the followers of the current draw
+	}
+
+	/**
+	 * Check for Multiples of the same count.  Get the most recent date and elimate all other associative array elements
+	 * If only a single top count, eliminate all other associative array elements 
+	 * Return only a single associate array element as the only friend to the companion number
+	 * @param 	array	$totals			All the counts for the given ball
+	 * @param	array	$d_dates		All the draw dates for the given counts
+	 * @return	array	friend			Return the updated single friend only array element as Number => xx, count => xx, draw_date => yyyy/mm/dd
+	 */
+	private function one_friend($totals, $d_dates)
+	{
+		$max = max($totals); // Determine the highest count
+
+		// First Iteration
+		foreach($totals as $key => $value)
+		{
+			if($value==$max)
+			{
+				$k = $key;
+			}
+		}
+		$max_date = strtotime($d_dates[(intval($k)<10 ? '0'.$k : $k).'_draw_date']);	// convert to a unix date
+
+		// Second iteration for looking for the most recent draw date
+		foreach($totals as $key => $value)
+		{
+			$d = strtotime($d_dates[(intval($key)<10 ? '0'.$key : $key).'_draw_date']);
+			if(($value==$max)&&($d>$max_date)) // Date must be greater than the max date to make it more recent
+			{
+				$max_date = $d; // This iteration has found a more recent date
+				$k = $key;		// Make this key, the new key as the friend
+			}
+		}
+
+		$friend = [
+			'number'	=> $k,
+			'count'		=> $totals[$k],
+			'draw_date'	=> $d_dates[(intval($k)<10 ? '0'.$k : $k).'_draw_date']
+		];
+		
+	return $friend;	// Return the followers of the current draw
+	}
+	/**
+	 * Return the added only list of followers after the current draw
+	 * @param	array	$list		Associative Array of followers and the counts		
+	 * @return	string	$str		Return formatted string of the follower numbers with the counts in this format, 24>7|2020-12-25, e.g. YYYY-MM-DD
+	 */
+	private function friends_string($list)
+	{
+		$str = $list['number'].'>'.$list['count'].'|'.$list['draw_date']; // Format 3=4 Occurences with pipe and continue until the last follower has been added.
+
+	return $str;	// Return the followers of the current draw without the extra Pipe character on the end of string
+	}
+	/** 
+	* Insert / Update Friend Profile of current lottery
+	* 
+	* @param 	array	$data		key / value pairs of Friend Profile to be inserted / updated
+	* @param	boolean $exist		add a new entry (FALSE), if no previous friends has been added otherwise update the existing friends row (TRUE), default is FALSE
+	* @return   none	
+	*/
+	public function friend_data_save($data, $exist = FALSE)
+	{
+		if (!$exist) 
+		{
+			$this->db->set($data);		// Set the query with the key / value pairs
+			$this->db->insert('lottery_friends');
+		}
+		else
+		{
+			$this->db->set($data);		// Set the query with the key / value pairs
+			$this->db->where('lottery_id', $data['lottery_id']);
+			$this->db->update('lottery_friends');
 		}
 	}
 }

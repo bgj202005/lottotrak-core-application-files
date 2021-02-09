@@ -91,15 +91,15 @@
 						<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
 							<?php $interval = (integer) $lottery->last_drawn['interval'];
 							if(!$interval) : ?>
-								<a class="dropdown-item active" href="<?=base_url('admin/statistics/followers/'.$lottery->id)?>">All Draws (<?=$lottery->last_drawn['range'];?>) </a>
+								<a class="dropdown-item active" href="<?=base_url('admin/statistics/friends/'.$lottery->id)?>">All Draws (<?=$lottery->last_drawn['range'];?>) </a>
 							<?php else:
 								$sel_range = (integer) $lottery->last_drawn['sel_range']; // Selected a different range from the complete range of draws?
 								for($i = 1; $i <= $interval; $i++):
 									$step = $i * 100;	// in multiples of 100
 									if($i!=$interval): ?>
-										<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?> " href="<?=base_url('admin/statistics/followers/'.$lottery->id.'/'.$step);?>">Last <?=$step;?></a>
+										<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?> " href="<?=base_url('admin/statistics/friends/'.$lottery->id.'/'.$step);?>">Last <?=$step;?></a>
 									<?php else : ?>
-										<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?> " href="<?=base_url('admin/statistics/followers/'.$lottery->id.'/'.$lottery->last_drawn['all']);?>">All Draws (<?=$lottery->last_drawn['all'];?>)</a>
+										<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?> " href="<?=base_url('admin/statistics/friends/'.$lottery->id.'/'.$lottery->last_drawn['all']);?>">All Draws (<?=$lottery->last_drawn['all'];?>)</a>
 									<?php endif;
 								endfor; ?> 
 								<?php endif;?>
