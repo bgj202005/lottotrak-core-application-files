@@ -3,22 +3,22 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 function btn_edit($uri) 
 {
-	return anchor($uri, '<i class="fa fa-pencil"></i>', array('title' => 'Edit the lottery profile'));
+	return anchor($uri, '<i class="fa fa-pencil fa-2x" aria-hidden="true"></i>', array('title' => 'Edit the lottery profile'));
 }
 
 function btn_import($uri) 
 {
-	return anchor($uri, '<i class="fa fa-arrow-circle-o-up"></i>', array('title' => 'Imports draws into database from cvs file'));
+	return anchor($uri, '<i class="fa fa-arrow-circle-o-up fa-2x" aria-hidden="true"></i>', array('title' => 'Imports draws into database from cvs file'));
 }
 
 function btn_view($uri) 
 {
-	return anchor($uri, '<i class="fa fa-eye"></i>', array('title' => 'View lottery draws'));
+	return anchor($uri, '<i class="fa fa-eye fa-2x" aria-hidden="true"></i>', array('title' => 'View lottery draws'));
 }
 
 function btn_prizes($uri) 
 {
-	return anchor($uri, '<i class="fa fa-usd"></i>', array('title' => 'Lottery Prize Breakdown'));
+	return anchor($uri, '<i class="fa fa-usd fa-2x" aria-hidden="true"></i>', array('title' => 'Lottery Prize Breakdown'));
 }
 
 function add_meta_title($string) 
@@ -88,14 +88,14 @@ function e($string)
 function btn_lottery_delete($uri, $name) 
 {
 	
-	return anchor($uri, '<i class="fa fa-times-circle"></i>', array(
+	return anchor($uri, '<i class="fa fa-times-circle fa-2x" aria-hidden="true"></i>', array(
 			'onclick' => "return confirm('You are about to make a permanent deletion of the $name\'s Profile, Draw Database and Prize Profile. This can not be UNDONE. Are you sure?');"));
  }
 	 
 function btn_delete($uri) 
 {
 
-return anchor($uri, '<i class="fa fa-times-circle"></i>', array(
+return anchor($uri, '<i class="fa fa-times-circle fa-2x" aria-hidden="true"></i>', array(
 		'onclick' => "return confirm('You are about to make a permanent deletion. This can not be UNDONE. Are you sure?');"));
 }
 

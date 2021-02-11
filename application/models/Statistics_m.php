@@ -1319,15 +1319,11 @@ class Statistics_m extends MY_Model
 	private function one_friend($totals, $d_dates)
 	{
 		$max = max($totals); // Determine the highest count
-
-		// First Iteration
-		foreach($totals as $key => $value)
+		foreach($totals as $total => $key)
 		{
-			if($value==$max)
-			{
-				$k = $key;
-			}
+			if($total==$max) $k = $key;  // Retrieve the key from the highest count
 		}
+
 		$max_date = strtotime($d_dates[(intval($k)<10 ? '0'.$k : $k).'_draw_date']);	// convert to a unix date
 
 		// Second iteration for looking for the most recent draw date
