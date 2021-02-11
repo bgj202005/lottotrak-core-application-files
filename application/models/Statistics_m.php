@@ -1222,10 +1222,10 @@ class Statistics_m extends MY_Model
 		// update ball counter
 		// while ball count < $max
 			$b++;
-			if(($b<$top)&&(!empty($friendlist))) $friends .= ','; //If there are numbers to do in a pick 3 to pick 9 system
+			if(($b<=$top)&&(!empty($friendlist))) $friends .= ','; //If there are numbers to do in a pick 3 to pick 9 system
 			unset($friendlist);	// Destroy the old friendlist
 			$query->free_result();	// Removes the Memory associated with the result resource ID
-		} while ($b<$top);
+		} while ($b<=$top);
 		return $friends;
 	}
 	/**
@@ -1361,13 +1361,13 @@ class Statistics_m extends MY_Model
 	return $str;	// Return the followers of the current draw without the extra Pipe character on the end of string
 	}
 	/** 
-	* Insert / Update Friend Profile of current lottery
+	* Insert / Update Friends Profile of current lottery
 	* 
 	* @param 	array	$data		key / value pairs of Friend Profile to be inserted / updated
 	* @param	boolean $exist		add a new entry (FALSE), if no previous friends has been added otherwise update the existing friends row (TRUE), default is FALSE
 	* @return   none	
 	*/
-	public function friend_data_save($data, $exist = FALSE)
+	public function friends_data_save($data, $exist = FALSE)
 	{
 		if (!$exist) 
 		{

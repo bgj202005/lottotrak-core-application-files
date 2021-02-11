@@ -73,13 +73,14 @@
 							<div class="tab-pane fade p-3 <?php if($b==1) echo 'show active'; ?>" id="ball<?=$b?>" role="tabpanel" aria-labelledby="tab-<?=$b;?>">
 
 								<div style = "color: #000000;" id="ball-<?=$b;?>">
-										This is the <?='Ball '.$b; ?> Tab. Keep Clicking.
+										This is Ball <strong><?=$b;?></strong>. It's closest friend is Ball <strong><?php echo $lottery->friend['ball'.$b].'</strong>, being drawn <strong>'.$lottery->friend['count'.$b].
+										'</strong> times. <br />The last time it was drawn was on <strong>'.date("D, M-d-Y",strtotime(str_replace('/',' - ',$lottery->friend['date'.$b]))).'</strong>'; ?>
 								</div>
 							</div>
 							<?php $b++;
 							}
 							while ($b<=$max); ?>
-							<p class="card-text">These are the numbers that have the highest probability of being drawn.</p>  	
+							<p class="card-text">These are the numbers that have the highest probability of being drawn for the next draw.</p>  	
 						</div>
 					</div>
 				</div>

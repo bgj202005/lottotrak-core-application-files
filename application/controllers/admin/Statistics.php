@@ -425,7 +425,7 @@ class Statistics extends Admin_Controller {
 			$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $include_extra, ($all<100 ? $all : 100));
 			
 			$followers = array(
-				'range'				=> $all,
+				'range'				=> 100,
 				'lottery_followers'	=> $str_followers,
 				'draw_id'			=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'		=> $id
@@ -519,12 +519,27 @@ class Statistics extends Admin_Controller {
 		{
 			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $include_extra, ($all<100 ? $all : 100));
 			$friends = array(
-				'range'				=> $all,
+				'range'				=> 100,
 				'lottery_friends'	=> $str_friends,
 				'draw_id'			=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'		=> $id
 			);
 			$this->statistics_m->friends_data_save($friends, FALSE);
+		}
+		
+		// 4. Extract the friends string into the array counter parts
+		$next_draw = (!is_null($friends) ? explode(",", $friends['lottery_friends']) : explode(",", $str_friends)); // DB or ??
+		$b = 1;
+		foreach($next_draw as $all_balls)
+		{
+			$n = strstr($all_balls, '>', TRUE); // Strip off each number
+			$d = substr($all_balls, strpos($all_balls, "|") + 1);
+			$tm = strstr($all_balls, '|', TRUE);
+			$c = substr($tm, strpos($tm, ">") + 1);    // Strip off the count
+			$this->data['lottery']->friend['ball'.$b] = $n; 
+			$this->data['lottery']->friend['count'.$b] = $c;
+			$this->data['lottery']->friend['date'.$b] = $d;
+			$b++;
 		}
 
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
