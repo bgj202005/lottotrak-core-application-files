@@ -68,7 +68,7 @@
 								<li>
 									<?php if($lottery->extra_ball): ?>
 										<li class="nav-item">
-										<a class="nav-link" id="tab-<?=$b;?>" data-toggle="tab" href="#ball<?=$b; ?>" role="tab" aria-controls="<?=$b;?>" aria-selected="true">  +  <?=$lottery->last_drawn['extra']?></a>
+										<a class="nav-link" id="tab-<?=$b;?>" data-toggle="tab" href="#extra" role="tab" aria-controls="<?=$b;?>" aria-selected="true">  +  <?=$lottery->last_drawn['extra']?></a>
 									</li>
 									<?php endif;?>
 								</li>
@@ -78,7 +78,8 @@
 										</button>
 										<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
 											<?php $interval = (integer) $lottery->last_drawn['interval'];
-											if(!$interval) : ?>
+											if(!$interval) : 
+												$sel_range = $lottery->last_drawn['range']; ?>
 												<a class="dropdown-item active" href="<?=base_url('admin/statistics/followers/'.$lottery->id)?>">All Draws (<?=$lottery->last_drawn['range'];?>) </a>
 											<?php else:
 												$sel_range = (integer) $lottery->last_drawn['sel_range']; // Selected a different range from the complete range of draws?
@@ -91,6 +92,30 @@
 													<?php endif;
 												endfor; ?> 
 												<?php endif;?>
+										</div>
+										<div class="form-check" style="margin-top: 10px;">
+										<?php 
+											$js = "location.href='".base_url()."admin/statistics/followers/".$lottery->id."/".(!$interval ? $sel_range : ($sel_range*100))."/extra'";
+											$attr = array(
+												'onClick' 	=> "$js", 
+												'class'		=> "form-check-input"
+											);
+											$extra = array('for' => 'extra_lb');
+											echo form_checkbox('extra_included', set_value('extra_included', '1'), set_checkbox('extra_included', '1', (!empty($lottery->extra_included))), $attr);
+											echo form_label('Extra (Bonus) Ball Included?', 'extra_lb', $extra);
+										?>
+										</div>
+										<div class="form-check" style="margin-top: 10px;">
+										<?php
+											$js = "location.href='".base_url()."admin/statistics/followers/".$lottery->id."/".(!$interval ? $sel_range : ($sel_range*100))."/draws'";
+											$attr = array(
+												'onClick' 	=> "$js", 
+												'class'		=> "form-check-input"
+											);
+										$extra = array('for' => 'extra_draw_lb');
+											echo form_checkbox('extra_draws', '1', set_checkbox('extra_draws', '1', (!empty($lottery->extra_draws))), $attr);
+											echo form_label('Extra Draw(s) Included?', 'extra_draw_lb', $extra); 
+										?>
 										</div>
 									</div>
 								</li>			

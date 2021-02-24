@@ -1,6 +1,5 @@
 <section>
-	<h2>Lottery Profiles</h2>
-	<?php echo anchor('admin/lotteries/edit', '<i class = "icon-plus"></i> Add a Lottery'); ?>
+	<h2>Lottery Predictions for Listed Lotteries</h2>
 	
 	<div class="table-responsive">
 	<table class="table-sm table-striped">
@@ -14,13 +13,10 @@
 				<td style = "white-space: nowrap;">From</td>
 				<td style = "white-space: nowrap;">To</td>
 				<td style = "white-space: nowrap;">Extra / Bonus Ball?</td>
-				<td style = "white-space: nowrap;">Duplicates Allowed?</td>
-				<td style = "white-space: nowrap;">From</td>
-				<td style = "white-space: nowrap;">To</td>
-				<th>View</th>
-				<th>Edit</th>
-				<th>Import</th>
-				<th>Delete</th>
+				<th>Generate</th>
+				<th>Files</th>
+				<th>Win History</th>
+				<th>Calculate</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -39,13 +35,10 @@
 		<td style = "text-align:center;"><?=$lottery->minimum_ball; ?></td>
 		<td style = "text-align:center;"><?=$lottery->maximum_ball; ?></td>
 		<td style = "text-align:center;"><?=($lottery->extra_ball ? 'Yes' : 'No'); ?></td>
-		<td style = "text-align:center;"><?=($lottery->duplicate_extra_ball ? 'Yes' : 'No'); ?></td>
-		<td style = "text-align:center;"><?=($lottery->extra_ball ? $lottery->minimum_extra_ball : '--'); ?></td>
-		<td style = "text-align:center;"><?=($lottery->extra_ball ? $lottery->maximum_extra_ball : '--'); ?></td>
-		<td style = "text-align:center;"><?php echo btn_view('admin/lotteries/view_draws/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><?php echo btn_edit('admin/lotteries/edit/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><?php echo btn_import('admin/lotteries/import/'.$lottery->id); ?></td>
-	    <td style = "text-align:center;"><?php echo btn_delete('admin/lotteries/delete/'.$lottery->id); ?></td>
+		<td style = "text-align:center;"><?php echo $predictions->btn_generate('admin/predictions/generate/'.$lottery->id); ?></td>
+		<td style = "text-align:center;"><?php echo $predictions->btn_files('admin/lotteries/edit/'.$lottery->id); ?></td>
+		<td style = "text-align:center;"><?php echo $predictions->btn_wins('admin/lotteries/import/'.$lottery->id); ?></td>
+	    <td style = "text-align:center;"><?php echo $predictions->btn_calculate('admin/lotteries/delete/'.$lottery->id); ?></td>
 	</tr>
 	<?php endforeach; ?> 
 	

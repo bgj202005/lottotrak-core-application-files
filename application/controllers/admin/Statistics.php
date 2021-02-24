@@ -11,7 +11,7 @@ class Statistics extends Admin_Controller {
 		 $this->load->model('statistics_m');
 		 $this->load->helper('file');
 		 $this->load->helper('html');
-		// $this->output->enable_profiler(TRUE);
+		//$this->output->enable_profiler(TRUE);
 	}
 
 	/**
@@ -372,7 +372,6 @@ class Statistics extends Admin_Controller {
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
-		$include_extra = FALSE;	// The extra ball is not included in the follower calculation.
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 		{
@@ -392,19 +391,23 @@ class Statistics extends Admin_Controller {
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 		// 1. Check for a record for the current lottery in the friends table
 		$followers = $this->statistics_m->followers_exists($id);
+		$sel_range = 1;
+		$this->data['lottery']->extra_included = 0; // No Extra Ball as part of the calculation
+		$this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
 		if(!is_null($followers))
 		{
+			$this->data['lottery']->extra_included = $this->uri->segment(6)=='extra' ? $this->statistics_m->extra_included($id, TRUE, 'lottery_followers') : $this->statistics_m->extra_included($id, FALSE, 'lottery_followers');
+			$this->data['lottery']->extra_draws = ($this->uri->segment(6)=='draws' ? $this->statistics_m->extra_draws($id, TRUE, 'lottery_followers') : $this->statistics_m->extra_draws($id, FALSE, 'lottery_followers'));
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
 			$range = $this->uri->segment(5,0); // Return segment range
 			if(!$range) $range = $followers['range'];
-			$sel_range = 1;
 			if($range>100) $sel_range = intval($range / 100);
 			if($range!=0)	
 			{
 				if(intval($followers['range'])!=(intval($range))) // Any Change in Selection of the Draws?
 				{
 					
-					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $include_extra, $range);
+					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range);
 					$followers = array(
 						'range'				=> $range,
 						'lottery_followers'	=> $str_followers,
@@ -422,10 +425,11 @@ class Statistics extends Admin_Controller {
 		else // 3. If does not exist, calculate for the given draw range, return results and save to follower table
 		{
 			// range is set with either less than 100 rows (based on the exact number of draws) or calculate the number of followers using only 100 rows
-			$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $include_extra, ($all<100 ? $all : 100));
+			$range = ($all<100 ? $all : 100);
+			$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range);
 			
 			$followers = array(
-				'range'				=> 100,
+				'range'				=> $range,
 				'lottery_followers'	=> $str_followers,
 				'draw_id'			=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'		=> $id
@@ -439,7 +443,7 @@ class Statistics extends Admin_Controller {
 		{
 			$n = strstr($ball_drawn, '>', TRUE); // Strip off each number
 			$f = substr(strstr($ball_drawn, '>', FALSE),1); // Remove the '>' from the string
-			for($b = 1; $b<$drawn; $b++)
+			for($b = 1; $b<=$drawn; $b++)
 			{
 				if($this->data['lottery']->last_drawn['ball'.$b]==$n) $this->data['lottery']->last_drawn[$n] = $f;
 			}
@@ -469,7 +473,6 @@ class Statistics extends Admin_Controller {
 		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$max_ball = $this->data['lottery']->maximum_ball;	// Get the highest ball drawn for this lottery, e.g. 49 in Lottery 649, 50 in Lottomax
 		$extra_ball = $this->data['lottery']->extra_ball;	// Make sure the extra ball is even used.
-		$include_extra = FALSE;	// The extra ball is not included in the follower calculation.
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 		{
@@ -490,17 +493,22 @@ class Statistics extends Admin_Controller {
 
 		$friends = $this->statistics_m->friends_exists($id);
 		$range = $this->uri->segment(5,0); // Return segment range
+		
 		if(!$range) $range = $friends['range'];
-		$sel_range = 1;
+		$sel_range = 1;								// All Defaults
+		$this->data['lottery']->extra_included = 0; // No Extra Ball as part of the calculation
+		$this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
 
 		if(!is_null($friends))
 		{
+			$this->data['lottery']->extra_included = $this->uri->segment(6)=='extra' ? $this->statistics_m->extra_included($id, TRUE, 'lottery_friends') : $this->statistics_m->extra_included($id, FALSE, 'lottery_friends');
+			$this->data['lottery']->extra_draws = ($this->uri->segment(6)=='draws' ? $this->statistics_m->extra_draws($id, TRUE, 'lottery_friends') : $this->statistics_m->extra_draws($id, FALSE, 'lottery_friends'));
 			if($range>100) $sel_range = intval($range / 100);
 			if($range!=0)	
 			{
 				if(intval($friends['range'])!=(intval($range))) // Any Change in Selection of the Draws?
 				{
-					$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $include_extra, $range);
+					$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range);
 					$friends = array(
 						'range'				=> $range,
 						'lottery_friends'	=> $str_friends,
@@ -517,9 +525,10 @@ class Statistics extends Admin_Controller {
 		}
 		else 
 		{
-			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $include_extra, ($all<100 ? $all : 100));
+			$range = ($all<100 ? $all : 100);
+			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range);
 			$friends = array(
-				'range'				=> 100,
+				'range'				=> $range,
 				'lottery_friends'	=> $str_friends,
 				'draw_id'			=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'		=> $id

@@ -72,10 +72,16 @@
 							{ ?>
 							<div class="tab-pane fade p-3 <?php if($b==1) echo 'show active'; ?>" id="ball<?=$b?>" role="tabpanel" aria-labelledby="tab-<?=$b;?>">
 
-								<div style = "color: #000000;" id="ball-<?=$b;?>">
-										This is Ball <strong><?=$b;?></strong>. It's closest friend is Ball <strong><?php echo $lottery->friend['ball'.$b].'</strong>, being drawn <strong>'.$lottery->friend['count'.$b].
-										'</strong> times. <br />The last time it was drawn was on <strong>'.date("D, M-d-Y",strtotime(str_replace('/',' - ',$lottery->friend['date'.$b]))).'</strong>'; ?>
-								</div>
+								<?php if($lottery->friend['ball'.$b]): ?> 
+									<div style = "color: #000000;" id="ball-<?=$b;?>">
+											This is Ball <strong><?=$b;?></strong>. It's closest friend is Ball <strong><?php echo $lottery->friend['ball'.$b].'</strong>, being drawn <strong>'.$lottery->friend['count'.$b].
+											'</strong> times. <br />The last time both <strong>'.$b.'</strong> and <strong>'.$lottery->friend['ball'.$b].'</strong> were drawn together was on <strong>'.date("l, F j, Y",strtotime(str_replace('/',' - ',$lottery->friend['date'.$b]))).'</strong>.';?>
+									</div>
+								<?php else : ?>
+									<div style = "color: #000000;" id="ball-<?=$b;?>">
+											This is Ball <strong><?=$b;?></strong>. There is no close friend with this Ball for the given range of <strong><?php echo $lottery->last_drawn['range'];?></strong> Draws.
+									</div>
+								<?php endif; ?>
 							</div>
 							<?php $b++;
 							}
@@ -85,14 +91,15 @@
 					</div>
 				</div>
 				<div class="col-4">
-					<div class="dropdown" style = "margin-left: 50px;">
+					<div class="dropdown" style = "margin-left: 50px; margin-bottom: 2em;">
 						<button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 							Draw Range
 						</button>
 						<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
 							<?php $interval = (integer) $lottery->last_drawn['interval'];
-							if(!$interval) : ?>
-								<a class="dropdown-item active" href="<?=base_url('admin/statistics/friends/'.$lottery->id)?>">All Draws (<?=$lottery->last_drawn['range'];?>) </a>
+							if(!$interval) : 
+								$sel_range = $lottery->last_drawn['range']; ?>
+								<a class="dropdown-item active" href="<?=base_url('admin/statistics/friends/'.$lottery->id)?>">All Draws (<?=$sel_range;?>) </a>
 							<?php else:
 								$sel_range = (integer) $lottery->last_drawn['sel_range']; // Selected a different range from the complete range of draws?
 								for($i = 1; $i <= $interval; $i++):
@@ -105,6 +112,30 @@
 								endfor; ?> 
 								<?php endif;?>
 						</div>
+						<div class="form-check" style="margin-top: 10px;">
+						<?php 
+							$js = "location.href='".base_url()."admin/statistics/friends/".$lottery->id."/".(!$interval ? $sel_range : ($sel_range*100))."/extra'";
+							$attr = array(
+								'onClick' 	=> "$js", 
+								'class'		=> "form-check-input"
+							);
+							$extra = array('for' => 'extra_lb');
+							echo form_checkbox('extra_included', set_value('extra_included', '1'), set_checkbox('extra_included', '1', (!empty($lottery->extra_included))), $attr);
+							echo form_label('Extra (Bonus) Ball Included?', 'extra_lb', $extra);
+						?>
+						</div>
+						<div class="form-check" style="margin-top: 10px;">
+						<?php
+							$js = "location.href='".base_url()."admin/statistics/friends/".$lottery->id."/".(!$interval ? $sel_range : ($sel_range*100))."/draws'";
+							$attr = array(
+								'onClick' 	=> "$js", 
+								'class'		=> "form-check-input"
+							);
+						$extra = array('for' => 'extra_draw_lb');
+							echo form_checkbox('extra_draws', '1', set_checkbox('extra_draws', '1', (!empty($lottery->extra_draws))), $attr);
+							echo form_label('Extra Draw(s) Included?', 'extra_draw_lb', $extra); 
+						?>
+						</div>		
 					</div>
 				</div>
 			</div>

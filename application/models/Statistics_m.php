@@ -975,6 +975,61 @@ class Statistics_m extends MY_Model
                 ->get('lottery_friends');
 		return $query->row_array();
 	}
+
+	/**
+	 * Toggle Extra (Bonus) Ball included in the query
+	 * 
+	 * @param	integer	$id				Lottery_id for the follower and friend methods
+	 * @param 	string 	$table	 		Either of two tables, lottery_followers or lottery_friends
+	 * @return  boolean	TRUE / FALSE  	If previously set, then save as unset (FALSE), If previously unset, then save as set (TRUE), Return TRUE or FALSE	
+	 */
+	public function extra_included($id, $update = FALSE, $table)
+	{
+		$query = $this->db->select('extra_included')
+					->where('lottery_id', $id)
+                	->limit(1, 0)
+                	->get($table);
+		$included = $query->row()->extra_included;
+
+		if($update)
+		{
+			$included = (!$included ? 1 : 0); // Toggle the Extra (Bonus) Ball to included
+
+			$this->db->set('extra_included', $included);
+			$this->db->where('lottery_id', $id);
+			$this->db->update($table);
+		}
+	return (!$included ? 0 : 1); // included has been updated, FALSE to don't use and TRUE to include the extra ball
+	}
+
+	/**
+	 * Toggle Extra (Bonus) Ball included in the query for friends
+	 * 
+	 * @param	integer	$id				Lottery_id for the follower and friend methods
+	 * @param 	string 	$table	 		Either of two tables, lottery_followers or lottery_friends	
+	 * @return  boolean	TRUE / FALSE  	If previously set, then save as unset (FALSE), If previously unset, then save as set (TRUE), Return TRUE or FALSE	
+	 */
+	public function extra_draws($id, $update = FALSE, $table)
+	{
+		$query = $this->db->select('extra_draws')
+				->where('lottery_id', $id)
+                ->limit(1, 0)
+                ->get($table);
+		$included = $query->row()->extra_draws;
+
+		if($update)
+		{
+			$included = (!$included ? '1' : '0'); // Toggle the Extra (Bonus) Draws to included
+
+			$data = array(
+				'extra_draws' => $included
+			);
+			$this->db->where('lottery_id', $id);
+			$this->db->update($table, $data);
+		}
+	return (!$included ? 0 : 1); // included has been updated, FALSE to don't use and TRUE to include the extra (Bonus) draws
+	}
+
 	/**
 	 * Calculate the number of trailing (follower) numbers based on the last draw
 	 * 
@@ -982,11 +1037,12 @@ class Statistics_m extends MY_Model
 	 * @param	array	$last		$last drawn numbers (index, date, ball1 ... ball N, Extra (Bonus ball), lottery id)
 	 * @param 	integer $max		maximum number of balls drawn
 	 * @param	boolean	$bonus		If an extra / bonus ball is included (1 = TRUE, 0 = False)
+	 * @param	boolean $draws		If extra (bonus) draws are included in the calculation (1 = TRUE, 0 = FALSE)
 	 * @param  	integer	$range		Range of number of draws (default is 100). If less than 100, the number must be set in $range
 	 * @return  string	$followers	Followers string in this format that follow with the number of occurrences (minumum 3 Occurrences)
 	 * 								e.g. 10=>3=4|22=3,17=>10=5|37=4|48=4
 	 */
-	public function followers_calculate($name, $last, $max, $bonus, $range = 100)
+	public function followers_calculate($name, $last, $max, $bonus, $draws, $range = 100)
 	{
 		// Build Query
 		$s = 'ball'; 
@@ -999,7 +1055,11 @@ class Statistics_m extends MY_Model
 		} 
 		while($i<=$max);
 
-		if($bonus) $s .= ', extra';
+		$s .= ', extra';
+		$b_max = $max;	// The maximum of the ONLY the balls drawn
+		if($bonus) $max++;
+
+		$w = (!$draws ? ' WHERE extra <> 0 ' : ' '); 
 		
 		// Calculate
 		$b = 1; // ball 1
@@ -1007,15 +1067,15 @@ class Statistics_m extends MY_Model
 		$followers = '';	// set as a blank string
 		do
 		{
-			$sql = "SELECT ".$s." FROM ".$name." WHERE id <>".$last['id']." ORDER BY id DESC LIMIT ".$range; 
+			$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." WHERE id <>".$last['id']." ORDER BY id DESC LIMIT ".$range.") as t".$w."ORDER BY t.id ASC"; 
+			//$sql = "SELECT ".$s." FROM ".$name." WHERE id <>".$last['id']." ORDER BY id DESC LIMIT ".$range; 
 			// Execute Query
 			$query = $this->db->query($sql);
 			$row = $query->first_row('array');
-			$c_b = $last['ball'.$b]; // Current ball to investigate
+			$c_b = ($bonus&&($b>$b_max) ? $last['extra'] : $last['ball'.$b]); // If there is an Extra / Bonus Ball and this bonus ball has exceeded the regularly drawn numbers, retrieve the extra ball
 			$followlist = array();
 			do {
-
-				if($this->is_drawn($c_b, $row, $max))
+				if($this->is_drawn($c_b, $row, $b_max, $bonus))
 				{
 					$row = $query->next_row('array');
 					if(!is_null($row))
@@ -1037,16 +1097,16 @@ class Statistics_m extends MY_Model
 			} while(!is_null($row));
 		
 		// Build Follower string
-		$followers .= (!empty($followlist) ? $this->follower_string($c_b, $followlist) : ''); // Empty Set? Then Skip
-		// while not out of range
+		if(empty($followlist)) $followlist = NULL; 
+		$followers .= $this->follower_string($c_b, $followlist); 
 		// Return $follower number associative numbers that have 3 and above in this format, save in this format e.g. ball drawn 10 => 22=3,37=4,42=4
 		// update ball counter
 		// while ball count < $max
 			$b++;
-			if(($b<$max)&&(!empty($followlist))) $followers .= ',';
+			if(($b<=$max)&&(!empty($followlist))) $followers .= ',';
 			unset($followlist);		// Destroy the old followerlist
 			$query->free_result();	// Removes the Memory associated with the result resource ID
-		} while ($b<$max);
+		} while ($b<=$max);
 		return $followers;
 	}
 	/**
@@ -1054,10 +1114,11 @@ class Statistics_m extends MY_Model
 	 * 
 	 * @param	integer	$num		Drawn number from the most recent draw
 	 * @param 	array 	$curr		Current set of drawn numbers
-	 * @param	integer	$pick		How many numbers are drawn without the extra / bonus ball		
+	 * @param	integer	$pick		How many numbers are drawn without the extra / bonus ball	
+	 * @param 	boolean $ex			Extra / Bonus ball include flag. TRUE / FALSE	
 	 * @return	boolean $found		Found the ball drawn during this draw
 	 */
-	private function is_drawn($num, $curr, $pick)
+	private function is_drawn($num, $curr, $pick, $ex)
 	{
 		$found = FALSE;
 		$i=1;
@@ -1072,7 +1133,11 @@ class Statistics_m extends MY_Model
 				break;		// exit loop
 			}
 			$i++;
-		} while($i<$pick);
+		} while($i<=$pick);
+		if($ex&&($num==$curr['extra'])) // If the bonus / extra ball is included in the drawn number analysis
+		{
+			$found = TRUE;
+		}	
 	return $found;		// Return the range of balls drawn from the first ball to ball N
 	}
 	/**
@@ -1085,10 +1150,10 @@ class Statistics_m extends MY_Model
 	{
 	
 		$list = array();	// Empty set array
-		foreach($row as $balls_drawn => $key)
+		foreach($row as $key => $balls_drawn)
 		{
 			$list += [
-				$key => 1]; 
+				$balls_drawn => 1]; 
 		}
 	return $list;		// Return the followers of the current draw
 	}
@@ -1101,16 +1166,16 @@ class Statistics_m extends MY_Model
 	 */
 	private function update_followers($list, $row)
 	{
-		foreach($row as $balls_drawn => $key)
+		foreach($row as $key => $balls_drawn)
 		{
-			if(array_key_exists($key, $list))
+			if(array_key_exists($balls_drawn, $list))
 			{
-				$list[$key]++;	// Auto increment the array from the $key
+				$list[$balls_drawn]++;	// Auto increment the array from the $key
 			}
 			else
 			{
 				$list += [		// If it does not exist, add the key and set the value to one.
-					$key => 1];
+					$balls_drawn => 1];
 			}
 		}
 	return $list;		// Return the range of balls drawn from the first ball to ball N
@@ -1124,12 +1189,15 @@ class Statistics_m extends MY_Model
 	private function follower_string($ball,$list)
 	{
 		$str = "";
-		foreach($list as $follows => $key)
+		if(is_null($list)) $str = '0>0=0|'; // Empty Set
+		else
 		{
-			if($key>3) $str .= $follows.'='.$key.'|'; // Format 3=4 Occurences with pipe and continue until the last follower has been added.
+			foreach($list as $key => $follows)
+			{
+				if($follows>=4) $str .= $key.'='.$follows.'|'; // Format 3=4 Occurences with pipe and continue until the last follower has been added.
+			}
+			$str = (!empty($str) ? $ball.'>'.$str :  ''); // Format '10>'  Drawn Ball Number 10
 		}
-		$str = (!empty($str) ? $ball.'>'.$str :  ''); // Format '10>'  Drawn Ball Number 10
-
 	return substr($str, 0, -1);		// Return the followers of the current draw without the extra Pipe character on the end of string
 	}
 	/** 
@@ -1160,10 +1228,11 @@ class Statistics_m extends MY_Model
 	 * @param 	integer $max		maximum number of balls drawn
 	 * @param	integer	$top		Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649
 	 * @param	boolean	$bonus		If an extra / bonus ball is included (1 = TRUE, 0 = False)
+	 * @param	boolean $draws		If extra (bonus) draws are included in the calculation (1 = TRUE, 0 = FALSE)
 	 * @param  	integer	$range		Range of number of draws (default is 100). If less than 100, the number must be set in $range
 	 * @return  string	$friends	Friends string in this format: 1>9=4:01/24/2020,2>11=8:09/18/2020,3>44=10:06/22/2019  ,etc. 
 	 */
-	public function friends_calculate($name, $max, $top, $bonus, $range = 100)
+	public function friends_calculate($name, $max, $top, $bonus = 0, $draws = 0, $range = 100)
 	{
 		// Build Query
 		$s = 'ball'; 
@@ -1176,9 +1245,9 @@ class Statistics_m extends MY_Model
 		} 
 		while($i<=$max);
 
-		$s .= ', draw_date'; // Include the draw date is this query
+		$s .= ', extra, draw_date'; // Include the draw date is this query
 
-		if($bonus) $s .= ', extra';
+		$w = (!$draws ? ' WHERE extra <> 0 ' : ' ');
 		
 		// Initialize and create blank associate array
 		$friends = '';	// set as a blank string
@@ -1186,23 +1255,23 @@ class Statistics_m extends MY_Model
 		do
 		{
 			// Calculate
-			$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." ORDER BY id DESC LIMIT ".$range.") as t ORDER BY t.id ASC"; 
+			$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." ORDER BY id DESC LIMIT ".$range.") as t".$w."ORDER BY t.id ASC"; 
 			// Execute Query
 			$query = $this->db->query($sql);
 			$row = $query->first_row('array'); // Doing the reverse to the first row because of the descending order.
 			$friendlist = array();
 			do {
-				if($this->is_drawn($b, $row, $max))
+				if($this->is_drawn($b, $row, $max, $bonus))
 				{
 					if(!is_null($row))
 					{
 						if(!empty($friendlist))
 						{
-							$friendlist = $this->update_friends($b, $friendlist, $row);
+							$friendlist = $this->update_friends($b, $friendlist, $row, $bonus);
 						}
 						else
 						{
-							$friendlist = $this->add_friends($b, $row);
+							$friendlist = $this->add_friends($b, $row, $bonus);
 						}
 					}
 					$row = $query->next_row('array'); // Go to the next draw for examination
@@ -1214,7 +1283,7 @@ class Statistics_m extends MY_Model
 			} while(!is_null($row)); // Do until all draws complete
 		
 		// Check duplicate occurrences in the array. If duplicate, go with most recent draw date following the latest trend for that number. return only 1 friend array
-		$friendlist = $this->duplicate_friends($friendlist);
+		$friendlist = (!empty($friendlist) ? $this->duplicate_friends($friendlist) : NULL);
 		// Build Friend string
 		$friends .= $this->friends_string($friendlist); // Empty Set? Then Skip
 		// while not out of range
@@ -1222,7 +1291,7 @@ class Statistics_m extends MY_Model
 		// update ball counter
 		// while ball count < $max
 			$b++;
-			if(($b<=$top)&&(!empty($friendlist))) $friends .= ','; //If there are numbers to do in a pick 3 to pick 9 system
+			if($b<=$top) $friends .= ','; //If there are numbers to do in a pick 3 to pick 9 system
 			unset($friendlist);	// Destroy the old friendlist
 			$query->free_result();	// Removes the Memory associated with the result resource ID
 		} while ($b<=$top);
@@ -1232,18 +1301,20 @@ class Statistics_m extends MY_Model
 	 * Return the added only list of friends of the ball drawn for this ball number
 	 * 
 	 * @param 	integer	$ball		Current Ball being not included in the friends list
-	 * @param	array	$row		Current Draw to compare and add to the followers list		
+	 * @param	array	$row		Current Draw to compare and add to the followers list
+	 * @param	boolean	$ex			Extra / Bonus Ball TRUE / FALSE - FALSE and ball is equal to the current draw, DO NOT INCLUDE as friends
 	 * @return	array	$list		List of updated followers
 	 */
-	private function add_friends($ball, $row)
+	private function add_friends($ball, $row, $ex)
 	{
 		$list = array();	// Empty set array
-		foreach($row as $balls_drawn => $key)
+		if(!$ex&&($ball==$row['extra'])) return $list;
+		foreach($row as $key => $balls_drawn)
 		{
 			// Every Ball is counted as a friend except the ball that is currently examined
-			if(($ball!=$key)&&($balls_drawn!='draw_date')) $list += [
-				$key => 1,
-				(intval($key)<10 ? '0'.$key : $key).'_draw_date' => $row['draw_date']
+			if(($ball!=$balls_drawn)&&($key!='draw_date')) $list += [
+				$balls_drawn => 1,
+				(intval($balls_drawn)<10 ? '0'.$balls_drawn : $balls_drawn).'_draw_date' => $row['draw_date']
 			]; 
 		}
 	return $list;		// Return the followers of the current draw
@@ -1253,23 +1324,26 @@ class Statistics_m extends MY_Model
 	 * 
 	 * @param	integer	$ball		Current Ball being not included in the friends list
 	 * @param	array	$list		List of followers and the totals
-	 * @param	array	$row		Current Draw to compare and update		
+	 * @param	array	$row		Current Draw to compare and update
+	 * @param	boolean	$ex			Extra / Bonus Ball TRUE / FALSE - FALSE and ball is equal to the current draw, DO NOT INCLUDE as friends
 	 * @return	array	$list		List of updated followers
 	 */
-	private function update_friends($ball, $list, $row)
+	private function update_friends($ball, $list, $row, $ex)
 	{
-		foreach($row as $balls_drawn => $key)
+		
+		if(!$ex&&($ball==$row['extra'])) return $list;
+		foreach($row as $key => $balls_drawn)
 		{
-			if(($ball!=$key)&&($balls_drawn!='draw_date')&&(array_key_exists($key, $list)))
+			if(($ball!=$balls_drawn)&&($key!='draw_date')&&(array_key_exists($balls_drawn, $list)))
 			{
-				$list[$key]++;
-				$list[(intval($key)<10 ? '0'.$key : $key).'_draw_date'] = $row['draw_date'];
+				$list[$balls_drawn]++;
+				$list[(intval($balls_drawn)<10 ? '0'.$balls_drawn : $balls_drawn).'_draw_date'] = $row['draw_date'];
 			}
-			elseif(($ball!=$key)&&($balls_drawn!='draw_date'))
+			elseif(($ball!=$balls_drawn)&&($key!='draw_date'))
 			{
 				$list += [
-					$key => 1, 	// If it does not exist, add the key and set the value to one.
-					(intval($key)<10 ? '0'.$key : $key).'_draw_date' => $row['draw_date']
+					$balls_drawn => 1, 	// If it does not exist, add the key and set the value to one.
+					(intval($balls_drawn)<10 ? '0'.$balls_drawn : $balls_drawn).'_draw_date' => $row['draw_date']
 				]; 
 			}
 		}
@@ -1319,9 +1393,9 @@ class Statistics_m extends MY_Model
 	private function one_friend($totals, $d_dates)
 	{
 		$max = max($totals); // Determine the highest count
-		foreach($totals as $total => $key)
+		foreach($totals as $key => $value)
 		{
-			if($total==$max) $k = $key;  // Retrieve the key from the highest count
+			if($value==$max) $k = $key;  // Retrieve the key from the highest count
 		}
 
 		$max_date = strtotime($d_dates[(intval($k)<10 ? '0'.$k : $k).'_draw_date']);	// convert to a unix date
@@ -1352,7 +1426,7 @@ class Statistics_m extends MY_Model
 	 */
 	private function friends_string($list)
 	{
-		$str = $list['number'].'>'.$list['count'].'|'.$list['draw_date']; // Format 3=4 Occurences with pipe and continue until the last follower has been added.
+		$str = (!is_null($list) ? $list['number'].'>'.$list['count'].'|'.$list['draw_date'] : '0>0|yyyy-mm-dd'); // Format 3=4 Occurences with pipe and continue until the last follower has been added.
 
 	return $str;	// Return the followers of the current draw without the extra Pipe character on the end of string
 	}

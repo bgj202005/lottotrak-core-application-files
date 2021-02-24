@@ -5,10 +5,10 @@ class Predictions extends Admin_Controller {
 	
 	public function __construct() {
 		 parent::__construct();
+		 $this->load->model('lotteries_m');
 		 $this->load->model('predictions_m');
 		 $this->load->helper('file');
 		 $this->load->library('image_lib');
-		 $this->load->library('CSV_Import');
 	}
 
 	/**
@@ -21,9 +21,53 @@ class Predictions extends Admin_Controller {
 		// Fetch all lotteries from the database
 		$this->data['lotteries'] = $this->lotteries_m->get();
 		// Load the view
-		$this->data['current'] = $this->uri->segment(2); // Sets the lotteries menu
-		$this->data['subview'] = 'admin/lotteries/index';
+		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
+		$this->data['predictions'] = $this;		// Access the methods in the view
+		$this->data['subview'] = 'admin/dashboard/predictions/index';
 		$this->load->view('admin/_layout_main', $this->data);
+	}
+	/**
+	 * Generate Full Wheeling Tables
+	 * 
+	 * @param       string	$uri	uri admin address of the statistics page
+	 * @return      none
+	 */
+	public function btn_generate($uri) 
+	{
+		return anchor($uri, '<i class="fa fa-circle-o-notch fa-2x" aria-hidden="true">', array('title' => 'Generate Wheeling Table Text Files'));
+	}
+
+	/**
+	 * Saved Full Wheeling Table Files for Filtering
+	 * 
+	 * @param       string	$uri	uri admin address of the statistics page
+	 * @return      none
+	 */
+	public function btn_files($uri)
+	{
+		return anchor($uri, '<i class="fa fa-file-text-o fa-2x" aria-hidden="true">', array('title' => 'View Historic Follower Statistics after the last draw', 'class' => 'followers'));
+	}
+
+	/**
+	 * View Historic Wins from Generated Full Wheeling Tables with Filters
+	 * 
+	 * @param      string	$uri	uri admin address of the statistics page
+	 * @return      none
+	 */
+	public function btn_wins($uri)
+	{
+		return anchor($uri, '<i class="fa fa-history fa-2x" aria-hidden="true">', array('title' => 'View Historic Wins History from the wheeling table and filtering'));
+	}
+
+	/**
+	 * Calculate the Current History or Update to the latest Draw
+	 * 
+	 * @param       string	$uri	uri admin address of the statistics page
+	 * @return      none
+	 */
+	public function btn_calculate($uri)
+	{
+		return anchor($uri, '<i class="fa fa-calculator fa-2x" aria-hidden="true">', array('title' => 'Calculate the Current History or Update to the latest Draw', 'class' => 'calculate'));
 	}
 }
 	
