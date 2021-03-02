@@ -11,7 +11,7 @@ class Statistics extends Admin_Controller {
 		 $this->load->model('statistics_m');
 		 $this->load->helper('file');
 		 $this->load->helper('html');
-		//$this->output->enable_profiler(TRUE);
+		 $this->output->enable_profiler(TRUE);
 	}
 
 	/**
@@ -122,7 +122,6 @@ class Statistics extends Admin_Controller {
 			$this->session->set_flashdata('message', 'There are no draws associated with this lottery. Please import draws.');
 			redirect('admin/statistics'); 
 		}
-		
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->data['subview']  = 'admin/dashboard/statistics/view';
 		$this->data['stat_method'] = $this;				// Access the methods in the view
@@ -138,18 +137,18 @@ class Statistics extends Admin_Controller {
 	public function calculate($id)
 	{
 	// 1. Determine if the draws have the columns with the Statistics data
-	$this->data['message'] = '';	// Defaulted to No Error Messages
-	$this->data['lottery'] = $this->lotteries_m->get($id);
-	// Retrieve the lottery table name for the database
-	$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
-	$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
-	$extra_ball = $this->data['lottery']->extra_ball;	// Make sure the extra ball is even used.
-	// Check to see if the actual table exists in the db?
-	if (!$this->lotteries_m->lotto_table_exists($tbl_name))
-	{
-		$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
-		redirect('admin/statistics');
-	}
+		$this->data['message'] = '';	// Defaulted to No Error Messages
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		// Retrieve the lottery table name for the database
+		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
+		$extra_ball = $this->data['lottery']->extra_ball;	// Make sure the extra ball is even used.
+		// Check to see if the actual table exists in the db?
+		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
+		{
+			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
+			redirect('admin/statistics');
+		}
 		if(!$this->statistics_m->lottery_stats_exist($tbl_name)) // Stats Exists?
 		{
 			// If FALSE, No Statistics have been previously calculated:
@@ -274,7 +273,6 @@ class Statistics extends Admin_Controller {
 					$this->session->set_flashdata('message', 'There is a problem adding the Statistics for '.$this->data['lottery']->lottery_name.' Please try again.');
 					redirect('admin/statistics');
 				}
-
 			}
 			else // Previous lottery statistics exist, update!
 			{
@@ -296,7 +294,6 @@ class Statistics extends Admin_Controller {
 			$this->session->set_flashdata('message', 'The Draw Statistics Have been Updated.'); // Yahoo! Statistics Updated!
 			redirect('admin/statistics');
 	}
-
 	/**
 	 * Update the current count of the current lottery database that is calculated
 	 * 
@@ -492,9 +489,9 @@ class Statistics extends Admin_Controller {
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 
 		$friends = $this->statistics_m->friends_exists($id);
-		$range = $this->uri->segment(5,0); // Return segment range
-		
-		if(!$range) $range = $friends['range'];
+		$new_range = $this->uri->segment(5,0); // Return segment range
+		$old_range = $friends['range'];
+		if(!$new_range) $new_range = $old_range;	// Database Range
 		$sel_range = 1;								// All Defaults
 		$this->data['lottery']->extra_included = 0; // No Extra Ball as part of the calculation
 		$this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
@@ -503,14 +500,14 @@ class Statistics extends Admin_Controller {
 		{
 			$this->data['lottery']->extra_included = $this->uri->segment(6)=='extra' ? $this->statistics_m->extra_included($id, TRUE, 'lottery_friends') : $this->statistics_m->extra_included($id, FALSE, 'lottery_friends');
 			$this->data['lottery']->extra_draws = ($this->uri->segment(6)=='draws' ? $this->statistics_m->extra_draws($id, TRUE, 'lottery_friends') : $this->statistics_m->extra_draws($id, FALSE, 'lottery_friends'));
-			if($range>100) $sel_range = intval($range / 100);
-			if($range!=0)	
+			if($new_range>100) $sel_range = intval($new_range / 100);
+			if($new_range!=0)	
 			{
-				if(intval($friends['range'])!=(intval($range))) // Any Change in Selection of the Draws?
+				if(intval($old_range)!=(intval($new_range))) // Any Change in Selection of the Draws? then update ... e.i. 200 draws in db and 300 in query url
 				{
-					$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range);
+					$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range);
 					$friends = array(
-						'range'				=> $range,
+						'range'				=> $new_range,
 						'lottery_friends'	=> $str_friends,
 						'draw_id'			=> $this->data['lottery']->last_drawn['id'],
 						'lottery_id'		=> $id
@@ -520,15 +517,15 @@ class Statistics extends Admin_Controller {
 			}
 			else
 			{
-				$range = $all;
+				$new_range = $all;
 			}
 		}
 		else 
 		{
-			$range = ($all<100 ? $all : 100);
-			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range);
+			$new_range = ($all<100 ? $all : 100);
+			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range);
 			$friends = array(
-				'range'				=> $range,
+				'range'				=> $new_range,
 				'lottery_friends'	=> $str_friends,
 				'draw_id'			=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'		=> $id
@@ -553,7 +550,7 @@ class Statistics extends Admin_Controller {
 
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
-		$this->data['lottery']->last_drawn['range'] = $range;
+		$this->data['lottery']->last_drawn['range'] = $new_range;
 		$this->data['lottery']->last_drawn['all'] = $all;
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->data['subview']  = 'admin/dashboard/statistics/friends';

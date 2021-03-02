@@ -1152,8 +1152,11 @@ class Statistics_m extends MY_Model
 		$list = array();	// Empty set array
 		foreach($row as $key => $balls_drawn)
 		{
-			$list += [
-				$balls_drawn => 1]; 
+			if($balls_drawn!=0) 
+			{
+				$list += [
+					$balls_drawn => 1]; 
+			}
 		}
 	return $list;		// Return the followers of the current draw
 	}
@@ -1168,11 +1171,11 @@ class Statistics_m extends MY_Model
 	{
 		foreach($row as $key => $balls_drawn)
 		{
-			if(array_key_exists($balls_drawn, $list))
+			if(($balls_drawn!=0)&&(array_key_exists($balls_drawn, $list)))
 			{
 				$list[$balls_drawn]++;	// Auto increment the array from the $key
 			}
-			else
+			elseif($balls_drawn!=0)
 			{
 				$list += [		// If it does not exist, add the key and set the value to one.
 					$balls_drawn => 1];
@@ -1312,7 +1315,7 @@ class Statistics_m extends MY_Model
 		foreach($row as $key => $balls_drawn)
 		{
 			// Every Ball is counted as a friend except the ball that is currently examined
-			if(($ball!=$balls_drawn)&&($key!='draw_date')) $list += [
+			if(($ball!=$balls_drawn)&&($balls_drawn!=0)&&($key!='draw_date')) $list += [
 				$balls_drawn => 1,
 				(intval($balls_drawn)<10 ? '0'.$balls_drawn : $balls_drawn).'_draw_date' => $row['draw_date']
 			]; 
@@ -1334,12 +1337,12 @@ class Statistics_m extends MY_Model
 		if(!$ex&&($ball==$row['extra'])) return $list;
 		foreach($row as $key => $balls_drawn)
 		{
-			if(($ball!=$balls_drawn)&&($key!='draw_date')&&(array_key_exists($balls_drawn, $list)))
+			if(($ball!=$balls_drawn)&&($balls_drawn!=0)&&($key!='draw_date')&&(array_key_exists($balls_drawn, $list)))
 			{
 				$list[$balls_drawn]++;
 				$list[(intval($balls_drawn)<10 ? '0'.$balls_drawn : $balls_drawn).'_draw_date'] = $row['draw_date'];
 			}
-			elseif(($ball!=$balls_drawn)&&($key!='draw_date'))
+			elseif(($ball!=$balls_drawn)&&($balls_drawn!=0)&&($key!='draw_date'))
 			{
 				$list += [
 					$balls_drawn => 1, 	// If it does not exist, add the key and set the value to one.
