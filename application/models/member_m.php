@@ -131,8 +131,8 @@ class Member_m extends MY_Model
             // Set Auth Cookies if 'Remember Me' checked
             if (!empty($this->input->post('rememberme'))) 
             {
-                set_cookie('username_login', $nonmember->username, _cookie_experation_time());
-                set_cookie('password_login', $this->input->post('password_login'), _cookie_experation_time());
+                set_cookie('member_name_login', $nonmember->username, _cookie_experation_time());
+                set_cookie('member_password_login', $this->input->post('password_login'), _cookie_experation_time());
             }
 
             $hashed_password = $nonmember->password;            
@@ -140,16 +140,16 @@ class Member_m extends MY_Model
         if ($this->check_password($this->input->post('password_login'), $hashed_password)) {
                 
             $member = array (
-                   'username' => $nonmember->username,
-                   'email' => $nonmember->email,
-                   'first_name' => $nonmember->first_name,
-                   'last_name' => $nonmember->last_name,
-                   'city' => $nonmember->city,
-                   'state_prov' => $nonmember->state_prov,
-                   'country_id' => $nonmember->country_id,
-                   'lottery_id' => $nonmember->lottery_id,
-                   'id' => $nonmember->id,
-                   'logged_in' => TRUE
+                   'member_name' => $nonmember->username,
+                   'member_email' => $nonmember->email,
+                   'member_first_name' => $nonmember->first_name,
+                   'member_last_name' => $nonmember->last_name,
+                   'member_city' => $nonmember->city,
+                   'member_state_prov' => $nonmember->state_prov,
+                   'member_country_id' => $nonmember->country_id,
+                   'member_lottery_id' => $nonmember->lottery_id,
+                   'member_id' => $nonmember->id,
+                   'member_logged_in' => TRUE
                    );
                 
             $this->session->set_userdata ($member);
@@ -164,7 +164,10 @@ class Member_m extends MY_Model
 
     public function logout_database() 
 	{
-		$this->session->sess_destroy();
+		//$this->session->sess_destroy();
+        // Remove the complete signature of the member
+        $this->session->unset_userdata('member_name'); // Logout only the member on the front end but any other members/admins are untouched
+        $this->session->unset_userdata('member_logged_in');
 	}
     
     public function hash_password($password) {
@@ -181,7 +184,7 @@ class Member_m extends MY_Model
 	{
 	    $this->load->library('email');
 	    $this->email->set_mailtype('html');
-	    $this->email->from('info@lottotrak.com', 'Lottotrak Administration');
+	    $this->email->from('youwin@lottotrak.com', 'Lottotrak Administration');
 	    $this->email->to($mailto);
 	    $this->email->subject('Activate Your Account');
 	    $message = '<DOCTYPE html PUCLIC "-//W3C//DTD XHTML 1.0 Strict/EN"
@@ -330,7 +333,7 @@ class Member_m extends MY_Model
         $this->load->library('email');
         $email_code = md5($this->config->item('salt').$first_name);
 	    $this->email->set_mailtype('html');
-	    $this->email->from('info@lottotrak.com', 'Lottotrak Administration');
+	    $this->email->from('youwin@lottotrak.com', 'Lottotrak Administration');
 	    $this->email->to($email);
 	    $this->email->subject('You requested a password reset for the Lottotrak Administration');
 	    //$URI_Encoded_email = rawurlencode($email);

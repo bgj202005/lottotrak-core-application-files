@@ -16,12 +16,12 @@
 									<?php echo get_menu($menu); ?>
 								</nav>							  
 						   </div>
-               <?php if ($this->session->userdata('logged_in')) 
+               <?php if ($this->session->userdata('member_logged_in')) 
               { ?>
               <div class = "col-lg-2">
                 <ul id = "login_container">
-                  <li style="float: left; margin-top: 25px;"><span>Welcome <?=$this->session->userdata('first_name'); ?></span></li> 
-                  <li style="float: left; margin-top:10px"><div class = "sm sm-clean"><?php echo anchor('member/logout', '<i class="fa fa-power-off"></i> logout', 'style="display: inline; text-align: center; padding:15px;" class ="btn btn-default btn-sm"')?></div></li>
+                  <li style="float: left; margin-top: 25px;"><span>Welcome <?=$this->session->userdata('member_first_name'); ?></span></li> 
+                  <li style="float: left; margin-top:10px"><div class = "sm sm-clean"><?php echo anchor('member/logout/', '<i class="fa fa-power-off"></i> logout', 'style="display: inline; text-align: center; padding:15px;" class ="btn btn-default btn-sm"')?></div></li>
                 </ul>
                 </div>
               </div> 

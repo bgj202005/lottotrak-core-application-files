@@ -24,7 +24,7 @@
 			<tr> 
 				<td style = "text-align:center; white-space: nowrap;">Logo</td>
 				<td style = "text-align:center; white-space: nowrap;">Lottery</td>
-				<td style = "text-align:center; white-space: nowrap;">State/Province</td>
+				<td style = "text-align:center; white-space: nowrap;">State/Prov</td>
 				<td style = "text-align:center; white-space: nowrap;">Country</td>
 				<td style = "text-align:center; white-space: nowrap;">Date</td>
 				<td style = "text-align:center; white-space: nowrap;">Drawn Numbers</td>
@@ -35,6 +35,7 @@
 				<th>Followers</th>
 				<th>Friends</th>
 				<th>Calculate</th>
+				<th style = "text-align:center; white-space: nowrap;">ReCalc?</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -49,8 +50,8 @@
 		<td style = "text-align:center;"><?php echo anchor('admin/statistics/view_draws/'.$lottery->id, $lottery->lottery_name);?></td>
 		<td style = "text-align:center;"><?=$lottery->lottery_state_prov; ?></td>
 		<td style = "text-align:center;"><?=$lottery->lottery_country_id; ?></td>
-		<td style = "text-align:center;"><?=($lottery->last_date!='NA' ? date("D, M-d-Y",strtotime(str_replace('/','-',$lottery->last_date))) : 'N/A'); ?></td>
-		<td style = "text-align:center;"><?=($lottery->last_draw!='NA' ? $lottery->last_draw : 'N/A'); ?></td>
+		<td style = "text-align:center; white-space: nowrap;"><?=($lottery->last_date!='NA' ? date("D, M-d-Y",strtotime(str_replace('/','-',$lottery->last_date))) : 'N/A'); ?></td>
+		<td style = "text-align:center; white-space: nowrap;"><?=($lottery->last_draw!='NA' ? $lottery->last_draw : 'N/A'); ?></td>
 		<td style = "text-align:center;"><?=$lottery->average_sum; ?></td>
 		<td style = "text-align:center;"><?=$lottery->sum_last; ?></td>
 		<td style = "text-align:center;"><?=$lottery->repeaters; ?></td>
@@ -58,6 +59,7 @@
 		<td style = "text-align:center;"><?php echo $statistics->btn_followers('admin/statistics/followers/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_friends('admin/statistics/friends/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_calculate('admin/statistics/calculate/'.$lottery->id); ?></td>
+		<td style = "text-align:center;"> <input type="checkbox" name="recalc" value="recalc" id="recalc" onClick="redirect('<?=base_url();?>admin/statistics/calculate/recalc')">
 	</tr>
 	<?php endforeach; ?> 
 	
@@ -89,4 +91,6 @@ $(document).ready(function(){
       $("#status").fadeOut();
     }
 });
+function redirect(url) {
+   window.location.href = url; }
 </script>

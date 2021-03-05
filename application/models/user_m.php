@@ -127,7 +127,11 @@ class User_M extends MY_Model
 	
 	public function logout() 
 	{
-		
+		$this->session->unset_userdata('username');
+		$this->session->unset_userdata('name');
+		$this->session->unset_userdata('email');
+		$this->session->unset_userdata('id');
+		$this->session->unset_userdata('loggedin');
 		$this->session->sess_destroy();
 	}
 	
@@ -164,7 +168,6 @@ class User_M extends MY_Model
 		return password_verify($password, $hash);
 	}
 
-	
 	/**
 	 * Checks if the email address exists
 	 * 
