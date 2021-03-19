@@ -34,7 +34,7 @@ class Predictions extends Admin_Controller {
 	 */
 	public function btn_generate($uri) 
 	{
-		return anchor($uri, '<i class="fa fa-circle-o-notch fa-2x" aria-hidden="true">', array('title' => 'Generate Wheeling Table Text Files'));
+		return anchor($uri, '<i class="fa fa-circle-o-notch fa-2x" aria-hidden="true">', array('title' => 'Generate Full Wheeling Table Text Files'));
 	}
 
 	/**
@@ -45,7 +45,7 @@ class Predictions extends Admin_Controller {
 	 */
 	public function btn_files($uri)
 	{
-		return anchor($uri, '<i class="fa fa-file-text-o fa-2x" aria-hidden="true">', array('title' => 'View Historic Follower Statistics after the last draw', 'class' => 'followers'));
+		return anchor($uri, '<i class="fa fa-file-text-o fa-2x" aria-hidden="true">', array('title' => 'View Generated Full Wheeling Table Files', 'class' => 'followers'));
 	}
 
 	/**
@@ -56,7 +56,7 @@ class Predictions extends Admin_Controller {
 	 */
 	public function btn_wins($uri)
 	{
-		return anchor($uri, '<i class="fa fa-history fa-2x" aria-hidden="true">', array('title' => 'View Historic Wins History from the wheeling table and filtering'));
+		return anchor($uri, '<i class="fa fa-money fa-2x" aria-hidden="true">', array('title' => 'View Historic Win History and Prizes from the wheeling table and filtering'));
 	}
 
 	/**
@@ -67,7 +67,8 @@ class Predictions extends Admin_Controller {
 	 */
 	public function btn_calculate($uri)
 	{
-		return anchor($uri, '<i class="fa fa-calculator fa-2x" aria-hidden="true">', array('title' => 'Calculate the Current History or Update to the latest Draw', 'class' => 'calculate'));
+		return anchor($uri, '<i class="fa fa-calculator fa-2x" aria-hidden="true">', array('title' => 'Calculate the Number of Combinations from Total Number of Predictions
+		(e.g. 15 Balls) for a sample size (e.g. Pick - 6, Pick 7)', 'class' => 'calculate'));
 	}
 }
 	

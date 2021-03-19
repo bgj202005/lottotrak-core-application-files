@@ -11,7 +11,7 @@ class Statistics extends Admin_Controller {
 		 $this->load->model('statistics_m');
 		 $this->load->helper('file');
 		 $this->load->helper('html');
-		 $this->output->enable_profiler(TRUE);
+		 //$this->output->enable_profiler(TRUE);
 	}
 
 	/**
@@ -56,6 +56,17 @@ class Statistics extends Admin_Controller {
 	public function btn_stat($uri) 
 	{
 		return anchor($uri, '<i class="fa fa-line-chart fa-2x" aria-hidden="true">', array('title' => 'View Commulative Statistics'));
+	}
+
+	/**
+	 * View the Hot Warm Cold Numbers, Overdue and Consecutive numbers of each draw
+	 * 
+	 * @param       string	$uri	uri admin address of the statistics page
+	 * @return      none
+	 */
+	public function btn_hwc($uri) 
+	{
+		return anchor($uri, '<i class="fa fa-thermometer-full fa-2x" aria-hidden="true">', array('title' => 'Calculate and View the Hot - Warm - Cold of the Numbers'));
 	}
 
 	/**
@@ -143,17 +154,19 @@ class Statistics extends Admin_Controller {
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$extra_ball = $this->data['lottery']->extra_ball;	// Make sure the extra ball is even used.
+		// Check if recalc is needed
+		$recalc = $this->uri->segment(5,NULL); // Return segment recalc or NULL
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 		{
 			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
 			redirect('admin/statistics');
 		}
-		if(!$this->statistics_m->lottery_stats_exist($tbl_name)) // Stats Exists?
+		if(!$this->statistics_m->lottery_stats_exist($tbl_name, is_null($recalc))) // Stats Exists?
 		{
 			// If FALSE, No Statistics have been previously calculated:
 			// Expand the draw database with the 8 field columns. 
-			if($this->statistics_m->lottery_expand_columns($tbl_name))
+			if($this->statistics_m->lottery_expand_columns($tbl_name, is_null($recalc)))  // Columns need to be expanded and recalc is not selected
 			{
 				$lt_rows = $this->statistics_m->lottery_rows($tbl_name);	// Return the Rows in the table to update
 				$lt_id =  $this->statistics_m->lottery_start_id($tbl_name);

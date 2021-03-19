@@ -10,10 +10,12 @@ class Statistics_m extends MY_Model
 	 * Validates that statistics are available from the Retrieves all the Statistics per draw
 	 * 
 	 * @param	string		$lottery		Current Lottery table name
+	 * @param 	boolean		$stats			Recalc? TRUE - No Fields Exist are required
 	 * @return	boolean		TRUE / FALSE	Stats have been calculated (true), Stats do not exist (False)		
 	 */
-	public function lottery_stats_exist($lottery)
+	public function lottery_stats_exist($lottery, $stats=TRUE)
 	{
+		if(!$stats) return FALSE; // is recalc?
 		// Fields in the database to be compared, must be exactly 8
 		$stats = array('sum_draw','sum_digits','even','odd', 'range_draw', 'repeat_decade', 'repeat_last');
 		
@@ -34,10 +36,12 @@ class Statistics_m extends MY_Model
 	 * Expand the columns on the lottery draws table in the database
 	 * 
 	 * @param	string	$table			Actual Name of the Table
+	 * @param 	boolean $expand			Complete an expand or exit (Recalc? TRUE)
 	 * @return	boolean	TRUE / FALSE	TRUE on added columns successfully to lottery database, FALSE on did not successfully add columns to database		
 	 */
-	public function lottery_expand_columns($table)
+	public function lottery_expand_columns($table, $expand = FALSE)
 	{
+		if(!$expand) return TRUE; // is recalc?
 		$fields = array (
 			'sum_draw'	=> array(
 						'type' => 'INT',
@@ -95,9 +99,11 @@ class Statistics_m extends MY_Model
 	 */
 	public function lottery_start_id($table)
 	{
-		$this->db->reset_query();	// Clear any previous queries that are cached
-		$this->db->select_min('id');	// Target is the index id.
-		return $this->db->get($table);	
+		$this->db->reset_query();				// Clear any previous queries that are cached
+		$query = $this->db->select_min('id')	// Target is the index id.
+				->get($table);
+		$row = $query->row();
+		return $row->id;	
 	}
 
 	/**

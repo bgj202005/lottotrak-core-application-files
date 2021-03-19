@@ -13,10 +13,10 @@
 				<td style = "white-space: nowrap;">From</td>
 				<td style = "white-space: nowrap;">To</td>
 				<td style = "white-space: nowrap;">Extra / Bonus Ball?</td>
-				<th>Generate</th>
+				<th>Combinatorial</th>
+				<th>Generate Wheel</th>
 				<th>Files</th>
-				<th>Win History</th>
-				<th>Calculate</th>
+				<th>Prize History</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -35,10 +35,10 @@
 		<td style = "text-align:center;"><?=$lottery->minimum_ball; ?></td>
 		<td style = "text-align:center;"><?=$lottery->maximum_ball; ?></td>
 		<td style = "text-align:center;"><?=($lottery->extra_ball ? 'Yes' : 'No'); ?></td>
+	    <td style = "text-align:center;"><?php echo $predictions->btn_calculate('admin/predictions/combinations/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $predictions->btn_generate('admin/predictions/generate/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><?php echo $predictions->btn_files('admin/lotteries/edit/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><?php echo $predictions->btn_wins('admin/lotteries/import/'.$lottery->id); ?></td>
-	    <td style = "text-align:center;"><?php echo $predictions->btn_calculate('admin/lotteries/delete/'.$lottery->id); ?></td>
+		<td style = "text-align:center;"><?php echo $predictions->btn_files('admin/predictionss/files/'.$lottery->id); ?></td>
+		<td style = "text-align:center;"><?php echo $predictions->btn_wins('admin/predictions/history/'.$lottery->id); ?></td>
 	</tr>
 	<?php endforeach; ?> 
 	
