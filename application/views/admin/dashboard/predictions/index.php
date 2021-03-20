@@ -13,7 +13,7 @@
 				<td style = "white-space: nowrap;">From</td>
 				<td style = "white-space: nowrap;">To</td>
 				<td style = "white-space: nowrap;">Extra / Bonus Ball?</td>
-				<th>Combinatorial</th>
+				<th>Combinations</th>
 				<th>Generate Wheel</th>
 				<th>Files</th>
 				<th>Prize History</th>
