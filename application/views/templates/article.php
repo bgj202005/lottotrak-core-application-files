@@ -8,15 +8,15 @@
     					<h2><?php echo e($article->title);?></h2>
     					<p class="pubdate"><?php echo e($article->pubdate); ?></p>
     					<?php echo $article->body; ?>
-    				</article>
-    			</div>
+					</article>
+				</div>
+				<div class = "row">
+					<?php if(!is_null($article->raw)) echo stripslashes($article->raw); ?> 
+				</div>
     		</div>
 	<!--  Sidebar -->
 	<div class="col-xs-12 col-md-4 sidebar">
-    	<section>
-        	<h2>Recent News</h2>
-            	<?php $this->load->view('sidebar'); ?>
-    	</section>
+		<?php $this->load->view('sidebar'); ?>	
 	</div>
     <div class="wrapper">
         <div class="content-menu">

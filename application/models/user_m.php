@@ -1,5 +1,8 @@
  <?php
-class User_M extends MY_Model {
+ defined('BASEPATH') OR exit('No direct script access allowed');
+ 
+class User_M extends MY_Model 
+{
 
 	protected $_table_name = 'users';
 	protected $_order_by = 'name';
@@ -88,7 +91,8 @@ class User_M extends MY_Model {
 	
 	protected $_time_stamps = FALSE;
 
-	function __construct() {
+	function __construct() 
+	{
 		parent::__construct();
 	}
 	
@@ -101,7 +105,7 @@ class User_M extends MY_Model {
 		if (isset($user)&&$user->username==$user_validate) 
 		{  // checking for a user and same username
 			$hashed_password = $user->password;
-			if ($this->check_password($hashed_password, $this->input->post('password'))) 
+			if ($this->check_password($this->input->post('password'), $hashed_password)) 
 			{ 
 				$data = array (
 						'username' => $user->username,
@@ -123,7 +127,11 @@ class User_M extends MY_Model {
 	
 	public function logout() 
 	{
-		
+		$this->session->unset_userdata('username');
+		$this->session->unset_userdata('name');
+		$this->session->unset_userdata('email');
+		$this->session->unset_userdata('id');
+		$this->session->unset_userdata('loggedin');
 		$this->session->sess_destroy();
 	}
 	
@@ -143,55 +151,46 @@ class User_M extends MY_Model {
 		
 		return $user;
 	}
+
+	public function hash($password)
+	{
+		return password_hash($password, PASSWORD_DEFAULT);
+	}
 	
-	public function hash($password, $unique_salt) 
+	/* public function hash($password, $unique_salt) 
 	{
 		return crypt($password, '$2a$10$'.$unique_salt);
-	}
+	} */
 	
-	public function unique_salt() 
+	public function check_password($password, $hash)
 	{
-		return substr(sha1(mt_rand()),0,22);
-	}
-	
-	public function check_password($hash, $password) 
-	{
-	
-		// first 29 characters include algorithm, cost and salt
-		// let's call it $full_salt
-		$full_salt = substr($hash, 0, 29);
-	
-		// run the hash function on $password
-		$new_hash = crypt($password, $full_salt);
-	
-		// returns true or false
-		return ($hash == $new_hash);
+	// returns true or false
+		return password_verify($password, $hash);
 	}
 
 	/**
 	 * Checks if the email address exists
 	 * 
 	 * @param       $email_value   string
-	 * @param       $username_value   string
 	 * @return      $row object (user) or False
 	 */
-	 public function Email_exists($email_value) {
-	     
+	 public function Email_exists($email_value) 
+	 {
 	     $sql = "SELECT id, email, name, username FROM users WHERE email = '{$email_value}' LIMIT 1";
 	     $result = $this->db->query($sql);
 	     $row = $result->row();
-	     
 	     return ($result->num_rows() === 1 && $row->email) ? $row : FALSE;
 	 }
 
 	 /**
-	  * Update to the new password
+	  * Return the email address for the administration user from the user id
 	  *
 	  * @params      $id (user)  integer
 	  * @return      $email or boolean  string or TRUE/FALSE
 	  */
 	 
-	 public function Retrieve_email($id_key) {
+	 public function Retrieve_email($id_key) 
+	 {
 	     $sql = "SELECT email FROM users WHERE id = '{$id_key}' LIMIT 1";
 	     $result = $this->db->query($sql);
 	     $row = $result->row();
@@ -200,15 +199,16 @@ class User_M extends MY_Model {
 	 }
 	 /**
 	  * Sends out email for password reset
-	  *
-	  * @params      $email, $firstname    string
+	  * The relative url will be sent as admin/user/reset_password/id/email_code
+	  * @params		 $id (user), $email, $firstname   integer, string, string
 	  * @return      none
 	  */
 	 
-	public function Send_email($id, $email, $name) {
+	public function Send_email($id, $email, $name) 
+	{
 	    $this->load->library('email');
 	    $email_code = md5($this->config->item('salt').$name);
-	    $this->email->set_mailtype('html');
+		$this->email->set_mailtype('html');
 	    $this->email->from('info@lottotrak.com', 'Lottotrak Administration');
 	    $this->email->to($email);
 	    $this->email->subject('You requested a password reset for the Lottotrak Administration');
@@ -235,14 +235,18 @@ class User_M extends MY_Model {
 	 * @return      boolean
 	 */
 	
-	public function verify_reset_password($email, $code) {
+	public function verify_reset_password($email, $code) 
+	{
 	    $sql = "SELECT name, email FROM users WHERE email = '{$email}' LIMIT 1";
 	    $result = $this->db->query($sql);
 	    $row = $result->row();
 	    
-	    if ($result->num_rows() === 1) {
+	    if ($result->num_rows() === 1) 
+		{
 	       return ($code == md5($this->config->item('salt').$row->name)) ? TRUE : FALSE;
-	    } else {
+	    } 
+		else 
+		{
 	        return FALSE;
 	    }
 	}

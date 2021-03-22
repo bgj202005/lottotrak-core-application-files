@@ -1,4 +1,6 @@
 <?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
 class User extends Admin_Controller 
 {
 	
@@ -14,6 +16,7 @@ class User extends Admin_Controller
 		$this->data['users'] = $this->user_m->get();
 		
 		// Load the view
+		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->data['subview'] = 'admin/user/index';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -22,13 +25,13 @@ class User extends Admin_Controller
 	{
 		
 		// Fetch a user or set a new one
-		$id == NULL || $this->data['user'] = $this->user_m->get($id);
+		$id == NULL OR $this->data['user'] = $this->user_m->get($id);
 		$this->data['status'] = ''; //Empty Status
 		
 		if ($id) 
 		{
 			$this->data['user'] = $this->user_m->get($id); 
-			count($this->data['user']) || $this->data['errors'][] = 'User could not be found';
+			is_object($this->data['user']) || $this->data['errors'][] = 'User could not be found'; //deprecated php 7.2+ count($this->data['user']) 
 		} 
 		else 
 		{
@@ -37,7 +40,7 @@ class User extends Admin_Controller
 		
 		// Setup the form
 		$rules = $this->user_m->rules_admin;
-		$id || $rules['password']['rules'].= '|required';
+		$id OR $rules['password']['rules'].= '|required';
 		$this->form_validation->set_rules($rules);
 		
 		if ($this->form_validation->run()  == TRUE) 
@@ -46,13 +49,15 @@ class User extends Admin_Controller
 			// We can save and redirect
 			$data = $this->user_m->array_from_post(array('username', 'name', 'email', 'password'));
 
-			$data['password'] = $this->user_m->hash($data['password'], $this->user_m->unique_salt());
+			//$data['password'] = $this->user_m->hash($data['password'], $this->user_m->unique_salt());
+			$data['password'] = $this->user_m->hash($data['password']);
 
 			$this->user_m->save($data, $id);
 			redirect('admin/user');
 		}
 		
 		// Load the View
+		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->data['subview'] = 'admin/user/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -156,7 +161,7 @@ class User extends Admin_Controller
 	        if ($form_validate == FALSE) 
 			{
 	           
-			if ($this->session->userdata['image']) 
+			if (isset($this->session->userdata['image'])) 
 			{
 	            	if(file_exists(FCPATH."images/captcha/".$this->session->userdata['image'])) 
 				{
@@ -207,9 +212,8 @@ class User extends Admin_Controller
 		// Do Not validate if email already exists
 		// Unless it's the email for the current user	
 		$id = $this->uri->segment(4);
-		//dump($id); exit(1);	
 		$this->db->where('username', $this->input->post('username'));
-			!$id || $this->db->where('id !=', $id);
+			! $id || $this->db->where('id !=', $id);
 			$user = $this->user_m->get();
 			
 			if (count($user)) 
@@ -219,14 +223,13 @@ class User extends Admin_Controller
 			}
 	return TRUE;
 	}
-
 	public function _unique_email($str)
 	{
 		// Do Not validate if email already exists
 		// Unless it's the email for the current user
 		$id = $this->uri->segment(4);
 		$this->db->where('email', $this->input->post('email'));
-		!$id || $this->db->where('id !=', $id);
+		! $id || $this->db->where('id !=', $id);
 		$user = $this->user_m->get();
 			
 		if (count($user)) 
@@ -239,7 +242,7 @@ class User extends Admin_Controller
 	
 	public function _validate_captcha()
 	{
-	    if(trim($this->input->post('captcha')) != $this->session->userdata['captcha']) 
+		if(trim($this->input->post('captcha')) != $this->session->userdata['captcha']) 
 		{
 	        $this->form_validation->set_message('_validate_captcha', 'Wrong captcha code, hmm are you the Terminator?');
 	        return FALSE;
@@ -262,12 +265,12 @@ class User extends Admin_Controller
 	        
 	        if ($verified) 
 			{
-	            // Load the View
+				// Load the View
 	            $this->data['id'] = $id;
 	            $this->data['email_hash'] = $email_hash;
 	            $this->data['email_code'] = $email_code;
 	            $this->data['email'] = $email;
-	             $this->data['subview'] = 'admin/user/reset_password';
+	            $this->data['subview'] = 'admin/user/reset_password';
         	    $this->data['title'] = 'Change Your Password';
         	    $this->data['message'] = 'Enter a new password and type the password in again to confirm it is correct.';
         	    $this->data['action'] = '/admin/user/update_password';
@@ -288,7 +291,8 @@ class User extends Admin_Controller
 	public function update_password() 
 	{
 	   
-	    if (!isset($_POST['email'], $_POST['email_hash']) || $_POST['email_hash'] !== sha1($_POST['email'].$_POST['email_code'])) {
+		if (! isset($_POST['email'],
+		$_POST['email_hash']) || $_POST['email_hash'] !== sha1($_POST['email'].$_POST['email_code'])) {
 	       die('Error updating your password');
 	}
 	   
@@ -308,7 +312,7 @@ class User extends Admin_Controller
 	   else 
 	   {
 	       // We can save and redirect
-	       $this->data['password'] = $this->user_m->hash($this->data['password'], $this->user_m->unique_salt());
+	       $this->data['password'] = $this->user_m->hash($this->data['password']);
 	       $id = $this->user_m->save($this->data, $id);
 	       // Load the View
 	       $this->data['subview'] = 'admin/user/login';

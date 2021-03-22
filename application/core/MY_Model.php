@@ -1,4 +1,5 @@
 <?php
+defined('BASEPATH') OR exit('No direct script access allowed');
 class MY_Model extends CI_Model {
 	
 	protected $_table_name = '';
@@ -6,7 +7,7 @@ class MY_Model extends CI_Model {
 	protected $_primary_filter = 'intval';
 	protected $_order_by = '';
 	public $rules = array();
-	protected $_timestamps = FALSE;
+	protected $_time_stamps = FALSE;
 	
 	function __construct() {
 		parent::__construct();
@@ -33,7 +34,7 @@ class MY_Model extends CI_Model {
 			$method = 'result';
 		}
 	   
-	   if (!count($this->db->order_by('id'))) {
+	   if (!is_array($this->db->order_by('id'))) {  // Depreciated in PHP 7.2 count($this->db->order_by('id')
 	   		$this->db->order_by($this->_order_by);
 	}
 		return $this->db->get($this->_table_name)->$method();
@@ -79,6 +80,21 @@ class MY_Model extends CI_Model {
 		$this->db->where($this->_primary_key, $id);
 		$this->db->limit(1);
 		$this->db->delete($this->_table_name);
+	}
+
+	/**
+	 * Iterates a array to a standard object
+	 *
+	 * @params      $obj, $arr    	object reference, array to be interated
+	 * @return      $obj		  	Returns object values
+	 */
+	public function array_to_object($obj, $arr)
+	{
+		foreach ($arr as $key => $value)
+		{
+    		$obj->$key = $value;
+		}
+	return $obj;	
 	}
 	
 }

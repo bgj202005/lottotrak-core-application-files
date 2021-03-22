@@ -54,4 +54,18 @@ class Article_m extends MY_Model
 		
 		$this->db->where('pubdate <=', date('Y-m-d'));
 	}
+
+	/**
+	 * Takes the $fields array and transfers the field objects to the array
+	 * @param	arr	$fields 	array field values from post
+	 * @param	obj $data		called by reference object values from database (is returned from the database as object)
+	 * @return 	none
+	 * */
+	public function object_from_article_post($fields, &$data)
+	{
+		$data->title  		= $fields['title'];
+		$data->slug  		= $fields['slug'];
+		$data->body  		= $fields['body'];
+		$data->pubdate	 	= $fields['pubdate'];
+	}
 }

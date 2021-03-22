@@ -1,10 +1,12 @@
 <?php
+defined('BASEPATH') OR exit('No direct script access allowed');
 class Admin_Controller extends MY_Controller
 {
 	function __construct() {
 		parent::__construct();
 		$this->data['meta_title'] = 'Lottotrak';
 		$this->load->helper('form');
+		$this->load->helper('string');
 		$this->load->library('form_validation');
 		$this->load->library('session');
 		$this->load->model('user_m');
@@ -26,4 +28,12 @@ class Admin_Controller extends MY_Controller
 		}	
 		
 	}
+	function strip_false_tags($s)
+    {
+        //stops non tags being converted into tags
+       $search = array("/\&60;/","/\&62;/");
+	   $replace= array(htmlspecialchars("<"),htmlspecialchars(">"));
+        
+        return preg_replace($search, $replace, $s);
+    }
 }

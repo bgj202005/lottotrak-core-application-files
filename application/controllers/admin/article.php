@@ -1,4 +1,6 @@
 <?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
 class Article extends Admin_Controller {
 	
 	public function __construct() {
@@ -12,6 +14,7 @@ class Article extends Admin_Controller {
 		$this->data['articles'] = $this->article_m->get();
 
 		// Load the view
+		$this->data['current'] = $this->uri->segment(2); // Sets the Article menu
 		$this->data['subview'] = 'admin/article/index';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -23,7 +26,11 @@ class Article extends Admin_Controller {
 	    if ($id) {
 			$this->data['article'] = $this->article_m->get($id);
 			$this->data['article']->body = $this->strip_false_tags($this->data['article']->body); // Strip HTML out of tinymce editor
-			count($this->data['article']) || $this->data['errors'][] = 'article could not be found';
+			if (!is_null($this->data['article']->raw)) $this->data['article']->raw = stripslashes($this->data['article']->raw); // Remove the slashes from the database.
+			if(is_object($this->data['article'])||empty($this->data['article']))
+			{
+				$this->data['errors'][] = 'page could not be found';
+			}
 		} else {
 			$this->data['article'] = $this->article_m->get_new();
 		}
@@ -39,16 +46,25 @@ class Article extends Admin_Controller {
 					'title',
 					'slug',
 					'pubdate',
-					'body' 
+					'modified',
+					'body',
+					'raw',
+					'description',
+					'canonical' 
 			) );
-			
-			//dump($data['pubdate']); exit(1); // date('Y-m-d',  strtotime(str_replace('/', '-', $data['pubdate'])))
-				
-			$data['pubdate'] = date( 'Y-m-d', strtotime(str_replace('/', '-', $data['pubdate'])));
+			if(is_null($data['canonical'])) $data['canonical'] = 0;
+			if (!is_null($data['description'])) $data['description'] = addslashes($data['description']);
+			$data['pubdate'] = date( 'Y-m-d H:i:s', strtotime(str_replace('/', '-', $data['pubdate'])));
+			$data['modified'] = date( 'Y-m-d H:i:s', strtotime(str_replace('/', '-', $data['modified'])));
+			$data['body'] = addslashes($data['body']);				// Sanitize Data going to the database
+			if(!is_null($data['raw'])) $data['raw'] = addslashes($data['raw']);
+			$this->article_m->object_from_article_post($data, $this->data['article']);
+
 			$this->article_m->save($data, $id);
-			redirect('admin/article');
+			if (!$this->uri->segment(5))  redirect('admin/article');	// Save and Redirect
 		}
 		// Load the View
+		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->data['subview']  = 'admin/article/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -59,5 +75,4 @@ class Article extends Admin_Controller {
 		redirect('admin/article');
 		
 	}
-	
 }

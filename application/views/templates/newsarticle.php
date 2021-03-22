@@ -5,7 +5,7 @@
             <div class="col-xs-12 col-md-8">
         	   <div class="row">
         	       <?php if($pagination): ?>
-                        <section class = "pagination"><?php echo $pagination; ?></section>
+                        <section><?php echo $pagination; ?></section>
         			<?php endif; ?>
         		</div>
        			<div class = "row">	
@@ -15,34 +15,17 @@
         		</div>
     			<div class="row">
         			<?php if($pagination): ?>
-        				<section class = "pagination"><?php echo $pagination; ?></section>
+        				<section><?php echo $pagination; ?></section>
         			<?php endif; ?>
     		    </div>
     		</div>
     	    <!--  Sidebar -->
     	    <div class="col-xs-12 col-md-4 sidebar">
-    	    	<section>
-    	    		<h2>Recent News</h2>
-    				<?php $this->load->view('sidebar'); ?>
-    	    	</section>
-    	    </div>
+				<?php $this->load->view('sidebar'); ?>
+			</div>
     	    <div class="wrapper">
             <div class="content-menu">
             	<?php echo get_footer_menu($footer_menu_inside); ?>
-            	<!--  <ul>
-                	<li><a href="#">Texas Hold’em</a></li>
-                    <li><a href="#">Omaha</a></li>
-                    <li><a href="#">Omaha Hi-Lo</a></li>
-                    <li><a href="#">Stud</a></li>
-                    <li><a href="#">Stud Hi-Lo</a></li>
-                    <li><a href="#">Draw</a></li>
-                    <li><a href="#">2-7 Triple Draw</a></li>
-                    <li><a href="#">2-7 Single Draw</a></li>
-                    <li><a href="#">HORSE</a></li>
-                    <li><a href="#">Razz</a></li>
-                    <li><a href="#">8-Game Mix</a></li>
-                    <li class="last"><a href="#">Badugi</a></li>
-               </ul> -->
                 <div class="clear"></div>
             </div>
         </div>
