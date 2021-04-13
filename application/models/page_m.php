@@ -223,5 +223,5 @@ class Page_m extends MY_Model
 		$this->db->where('position', $placement);  
 		return parent::get(NULL, TRUE);
 	}
-
+	
 }

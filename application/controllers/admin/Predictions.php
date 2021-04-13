@@ -26,6 +26,23 @@ class Predictions extends Admin_Controller {
 		$this->data['subview'] = 'admin/dashboard/predictions/index';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
+
+	/**
+	 * Initialize the calculation form for the generator
+	 * 
+	 * @param       $id		Lottery id
+	 * @return      none
+	 */
+	public function combinations($id)
+	{
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		$predict = $this->input->post('predict', TRUE);
+		$this->data['lottery']->predict = (isset($predict) ? $predict : '');
+		// Load the view
+		$this->data['current'] = $this->uri->segment(2); // Sets the Statistics menu
+		$this->data['subview'] = 'admin/dashboard/predictions/combinations';
+		$this->load->view('admin/_layout_main', $this->data);
+	}
 	/**
 	 * Generate Full Wheeling Tables
 	 * 
@@ -69,6 +86,18 @@ class Predictions extends Admin_Controller {
 	{
 		return anchor($uri, '<i class="fa fa-calculator fa-2x" aria-hidden="true">', array('title' => 'Calculate the Number of Combinations from Total Number of Predictions
 		(e.g. 15 Balls) for a sample size (e.g. Pick - 6, Pick 7)', 'class' => 'calculate'));
+	}
+
+	/**
+	 * Predictions for the next draw
+	 * 
+	 * @param       string	$uri	uri admin address of the statistics page
+	 * @return      none
+	 */
+	public function btn_predicts($uri)
+	{
+		return anchor($uri, '<i class="fa fa-eye fa-2x" aria-hidden="true">', 
+		array('title' => 'The Best Predictions for the next draw', 'class' => 'predict'));
 	}
 }
 	

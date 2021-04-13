@@ -116,5 +116,28 @@ class Predictions_m extends MY_Model
 		// Delete Entire Database (if Exists)
 		
 	}
+
+
+/** This function returns the total count of the number of possible unique
+ * 	combinations there are of N distinct items selected R at a time. The
+ * 	sequential order of the items in each group is NOT important.
+ * 	Only the collective content matters, regardless of order. 
+ *	 Author   : Jay Tanner - 2014
+ *   Language : PHP v5.x
+ * 	 @param		integer	$N	distinct items (3 - 9 Numbers Drawn)
+ *   @param 	integer $R  Number of Predicted Numbers (3 - 50)
+ *	 @return	integer	$C	Number of Distinct Combinations
+*/
+
+  	public function bcComb_N_R ($N, $R)
+	{
+	$C = 1;
+
+	for ($i=0;   $i < $N-$R;   $i++)
+		{
+		$C = bcdiv(bcmul($C, $N-$i), $i+1);
+		}
+	return $C;
+	}
 	
 }

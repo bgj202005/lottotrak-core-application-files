@@ -64,14 +64,12 @@ class User extends Admin_Controller
 	
 	public function delete($id) 
 	{
-		
 		$this->user_m->delete($id);
 		redirect('admin/user');
 	}
 	
 	public function login() 
 	{
-		
 		//if(!$this->input->is_ajax_request()) { echo "No Valid Request."; }
 		// Redirect a user if he's already logged in
 		/* $this->load->helper('url'); */

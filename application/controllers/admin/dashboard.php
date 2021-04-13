@@ -8,23 +8,24 @@ class Dashboard extends Admin_Controller
 	{
 		parent::__construct();
 		$this->load->helper('url');
-
+		$this->load->model('article_m');
+		$this->load->model('page_m');
+		$this->load->model('maintenance_m');
 	}
 		
 	public function index() 
 	{
 		// Fetch Recently Modified Articles
-		$this->load->model('article_m');
 		$this->db->order_by('modified desc');
 		$this->db->limit(5);
 		$this->data['recent_articles'] = $this->article_m->get();
 		// Fetch Most Recent Pages
-		$this->load->model('page_m');
 		$this->db->order_by('id desc'); // new updated column //
 		$this->db->limit(5);
 		$this->data['recent_pages'] = $this->page_m->get(); 
 		
 		$this->data['current'] = $this->uri->segment(2); // Sets the default
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview'] = 'admin/dashboard/index';
 		$this->load->view('admin/_layout_main', $this->data);
 	}

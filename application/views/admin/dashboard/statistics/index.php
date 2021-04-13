@@ -86,7 +86,7 @@ $(document).ready(function(){
 	$('.followers').click(function(){
 	$('#status').css('display', 'block');
 	$('#message').css('display', 'none'); 
-	document.getElementById("status").innerHTML = "Updating the  Associated Followers from the last draw. Please Wait.";
+	document.getElementById("status").innerHTML = "Updating the Associated Followers from the last draw. Please Wait.";
 	setTimeout(fade_out, 1500);
 	});
 	function fade_out() {
