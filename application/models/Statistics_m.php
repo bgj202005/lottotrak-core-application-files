@@ -109,6 +109,21 @@ class Statistics_m extends MY_Model
 	/**
 	 * Returns the (auto incremented) index id, from the Lottery id
 	 * 
+	 * @param	integer		$lotto_id 		Lottery_id
+	 * @return	boolean		TRUE/FALSE		Existing Statistics Record? 		
+	 */
+	public function stats_id($lotto_id)
+	{
+		if ($this->db->simple_query('select * FROM '.$this->_table_name.' WHERE lottery_id ='.$lotto_id))
+		{
+			return TRUE;	// Existing Record is found in the lottery_stats table
+		}
+	return FALSE;	// returns FALSE, indicating there is no existing Record
+	}
+
+	/**
+	 * Returns the (auto incremented) index id, from the Lottery id
+	 * 
 	 * @param	integer			$lotto		Lottery_id
 	 * @return	integer	 		$row->id	Index id from lottery_stats		
 	 */

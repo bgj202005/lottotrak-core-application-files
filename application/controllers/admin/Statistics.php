@@ -277,9 +277,9 @@ class Statistics extends Admin_Controller {
 			$stats['repeat_last_100'] = $this->statistics_m->lottery_average_last($tbl_name, ($draws < 100 ? $draws : 100));
 			$stats['lottery_id'] = $id;		// Must be associated with the lottery_id
 			// Do until draws statistically calculated, Report on Screen
-			if(!$this->statistics_m->get($id, TRUE))	// No previous lottery global statistics exist, create a new lottery statistics record
+			if(!$this->statistics_m->stats_id($id))	// No previous lottery global statistics exist, create a new lottery statistics record
 			{
-				if(!$this->statistics_m->save($stats))
+				if(!$this->statistics_m->save($stats, NULL))
 				{
 					$this->session->set_flashdata('message', 'There is a problem adding the Statistics for '.$this->data['lottery']->lottery_name.' Please try again.');
 					redirect('admin/statistics');
