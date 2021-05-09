@@ -50,6 +50,22 @@ class Predictions_m extends MY_Model
 			if (empty($result->row())) return FALSE;
 	return $result->result_object;
 	}
+
+	/**
+	 * Returns a Lottery Combination Record (only one), if does not exist return FALSE
+	 * 
+	 * @param       string	$name		The name of the file_name of the combination file without the .txt extention
+	 * @return     	object 	$result		Return row, if lottery combination file(s) previously exists for the given lottery, else no record found and return false			
+	 */
+	public function lottery_combination_record($name)
+	{
+
+			$sql = "SELECT * FROM `lottery_combination_files` WHERE `file_name`=".$name." LIMIT 1";
+			$result = $this->db->query($sql);
+			
+			if (empty($result->row())) return FALSE;
+	return $result->result_object;
+	}
 	/** 
 	* Insert Lottery Combination File data of current lottery
 	* 

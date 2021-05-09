@@ -44,7 +44,7 @@ class Statistics extends Admin_Controller {
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the Statistics menu
 		$this->data['subview'] = 'admin/dashboard/statistics/index';
-		$this->data['statistics'] = $this;		// Access the methods in the view
+		$this->data['statistics'] = $this;				// Access the methods in the view
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 

@@ -133,6 +133,56 @@ class Predictions extends Admin_Controller {
 	}
 
 	/**
+	 * Begin the generation process, go to a form that selects the proper combination 
+	 * File or start the generate combinations calls to html and php.
+	 * @param       $id		Lottery id
+	 * @return      none
+	 */
+	public function generate($id)
+	{
+		$this->data['message'] = '';			// Defaulted to No Error Messages
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_files($id); 
+		if(count($this->data['lottery']->generate)>1) 
+		{
+			$this->data['subview'] = 'admin/dashboard/predictions/file_select';
+		}
+		else
+		{
+			$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; //Calculated Combinations
+			$this->data['predict']=$this->data['lottery']->generate[0]->N;			//Number of Predictions
+			$this->data['pick']=$this->data['lottery']->generate[0]->R;				// Pick Game
+			unset($this->data['lottery']->generate);
+			$this->data['subview'] = 'admin/dashboard/predictions/generate';
+		}
+		// Load the view
+		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
+		$this->load->view('admin/_layout_main', $this->data);
+	}
+	/**
+	 * Get the data from the selected combination file record, begin the combination calculation process
+	 * with HTML and PHP using ajax calls
+	 * @param       $id		Lottery id
+	 * @return      none
+	 */
+	public function generate_select($id)
+	{
+		$this->data['message'] = '';	// Defaulted to No Error Messages
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		$file_name = $this->input->form('file');  // POST value from radio selection
+		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_record($file_name);
+		
+		$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; //Calculated Combinations
+		$this->data['predict']=$this->data['lottery']->generate[0]->NN;		//Number of Predictions
+		$this->data['pick']=$this->data['lottery']->generate[0]->R;				// Pick Game
+		unset($this->data['lottery']->generate);
+		// Load the view
+		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
+		
+		$this->load->view('admin/_layout_main', $this->data);
+	}
+
+	/**
 	 * Generate Full Wheeling Tables
 	 * 
 	 * @param       string	$uri	uri admin address of the statistics page
