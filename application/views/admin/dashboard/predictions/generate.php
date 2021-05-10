@@ -171,7 +171,7 @@
 							<div class = "col-12" style = "margin-top:2em;">
 								<div class="form-group form-group-lg row"> 
 									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md', 'style' => 'white-space: nowrap;');
-										echo form_label('Number of Balls to Predict ('.$lottery->balls_drawn.' to '.$lottery->maximum_ball.') (N):', 'ballpredict_lb', $extra); ?>
+										echo form_label('Number of Balls to Predict (N):', 'ballpredict_lb', $extra); ?>
 									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md'); 
 									echo form_label($predict,'predict_lb', $extra); ?>
 								</div>
@@ -192,8 +192,10 @@
 											<p class="card-text">Combination # Here</p>
 										</div>
 									</div>
-										<div class="progress blue pull-right" style = "margin-left: 5em;"> <span class="progress-left"> <span class="progress-bar"></span> </span> <span class="progress-right"> <span class="progress-bar"></span> </span>
-											<div class="progress-value">90%</div>
+										<div class="progress blue pull-right" style = "margin-left: 2em; margin-top: -2px;">
+										<span class="progress-left"> <span class="progress-bar"></span></span>
+										<span class="progress-right"> <span class="progress-bar"></span></span>
+											<div class="progress-value">100%</div>
 										</div>
 								</div>
 								<div class="form-group form-group-lg row">

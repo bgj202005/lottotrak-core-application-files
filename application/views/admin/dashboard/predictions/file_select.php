@@ -64,11 +64,12 @@
 									<table class="table table-bordered" style = "margin:1em;">
 										<thead>
 											<tr>
-												<th scope="col">#</th>
-												<th scope="col">Filename</th>
-												<th scope="col">N</th>
-												<th scope="col">R</th>
-												<th scope="col">Combinations</th>
+												<th scope="col" style = "text-align:center;">#</th>
+												<th scope="col" style = "text-align:left;">Filename</th>
+												<th scope="col" style = "text-align:center;">N</th>
+												<th scope="col" style = "text-align:center;">R</th>
+												<th scope="col" style = "text-align:center;">Combinations</th>
+												<th scope="col" style = "text-align:center;">Options</th>
 											</tr>
 										</thead>
 										<tbody>
@@ -76,7 +77,7 @@
 										foreach($lottery->generate as $file)
 										{ ?>
 											<tr>	
-											<th scope="row"><?=$row;?></th>
+											<th scope="row" style = "text-align:center;"><?=$row;?></th>
 											<div class="form-check">
 												<?php $extra = array('class' => 'form-check-input', 'name' => 'Radio_'.$file->id,
 												'id' => 'Radio_'.$file->id, 'style' => 'margin-left:1px; margin-right:5px; margin-top:10px;',
@@ -84,9 +85,10 @@
 												echo '<td>'.form_radio('file', $file->file_name, $extra);
 												$extra = array('class' => 'col-4 col-form-label col-form-label-md', 'style' => 'white-space: nowrap;'); 
 												echo form_label($file->file_name.'.txt', 'file_name_lb_'.$file->id, $extra).'</td>';
-												echo '<td>'.form_label($file->N, 'balls_predict_lb_'.$file->id, $extra).'</td>';
-												echo '<td>'.form_label($file->R, 'pick_game_lb_'.$file->id, $extra).'</td>';
-												echo '<td>'.form_label($file->CCCC, 'combinations_lb_'.$file->id, $extra).'</td>'; 
+												echo '<td style = "text-align:center;">'.form_label($file->N, 'balls_predict_lb_'.$file->id, $extra).'</td>';
+												echo '<td style = "text-align:center;">'.form_label($file->R, 'pick_game_lb_'.$file->id, $extra).'</td>';
+												echo '<td style = "text-align:center;">'.form_label($file->CCCC, 'combinations_lb_'.$file->id, $extra).'</td>';
+												echo '<td style = "text-align:center;">'.$predictions->btn_trash('admin/predictions/delete/'.$file->file_name, $file->file_name).'</td>';
 												echo '</tr>';?>
 											</div>
 											<?php $row++; 

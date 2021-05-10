@@ -120,7 +120,7 @@ class Predictions extends Admin_Controller {
 				{
 					$txt = "";	// Blank Text
 					fwrite($combo_file, $txt);
-					$this->data['message'] = 'The FILE:'.$file_name.'.txt has been successfully created and saved.<br />You can generate the Combinations.';
+					$this->data['message'] = 'The FiLE:'.$file_name.'.txt has been successfully created and saved.<br />You can generate the Combinations.';
 				}
 				fclose($combo_file);
 			}
@@ -145,6 +145,7 @@ class Predictions extends Admin_Controller {
 		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_files($id); 
 		if(count($this->data['lottery']->generate)>1) 
 		{
+			$this->data['predictions'] = $this;		// Access the methods in the view
 			$this->data['subview'] = 'admin/dashboard/predictions/file_select';
 		}
 		else
@@ -169,16 +170,16 @@ class Predictions extends Admin_Controller {
 	{
 		$this->data['message'] = '';	// Defaulted to No Error Messages
 		$this->data['lottery'] = $this->lotteries_m->get($id);
-		$file_name = $this->input->form('file');  // POST value from radio selection
+		$file_name = $this->input->post('file', TRUE);  // POST value from radio selection
 		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_record($file_name);
 		
 		$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; //Calculated Combinations
-		$this->data['predict']=$this->data['lottery']->generate[0]->NN;		//Number of Predictions
+		$this->data['predict']=$this->data['lottery']->generate[0]->N;		//Number of Predictions
 		$this->data['pick']=$this->data['lottery']->generate[0]->R;				// Pick Game
 		unset($this->data['lottery']->generate);
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
-		
+		$this->data['subview'] = 'admin/dashboard/predictions/generate';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 
@@ -237,6 +238,21 @@ class Predictions extends Admin_Controller {
 	{
 		return anchor($uri, '<i class="fa fa-eye fa-2x" aria-hidden="true">', 
 		array('title' => 'The Best Predictions for the next draw', 'class' => 'predict'));
+	}
+
+	/**
+	 * Predictions for the next draw
+	 * 
+	 * @param       string	$uri		uri admin address of the statistics page
+	 * @param 		string $file_name	File name of the text file without the .txt extension
+	 * @return      none
+	 */
+
+	public function btn_trash($uri, $file_name)
+	{
+		return anchor($uri, '<i class="fa fa-trash-o fa-2x" aria-hidden="true">', 
+		array('title' => 'Delete this file and database record', 'class' => 'trash',
+		'onclick' => "return confirm('You are about to make a permanent deletion of the filename: $file_name.txt. Both the Filename and the Database Record will be deleted. This can not be UNDONE. Are you sure?')"));
 	}
 	/**
 	 * Checks to see if the combinations are out of range between pick 3 to pick 9 and not greater than the maximum ball drawn
