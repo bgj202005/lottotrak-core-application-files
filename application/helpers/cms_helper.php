@@ -87,14 +87,12 @@ function e($string)
 
 function btn_lottery_delete($uri, $name) 
 {
-	
 	return anchor($uri, '<i class="fa fa-times-circle fa-2x" aria-hidden="true"></i>', array(
 			'onclick' => "return confirm('You are about to make a permanent deletion of the $name\'s Profile, Draw Database and Prize Profile. This can not be UNDONE. Are you sure?');"));
  }
 	 
 function btn_delete($uri) 
 {
-
 return anchor($uri, '<i class="fa fa-times-circle fa-2x" aria-hidden="true"></i>', array(
 		'onclick' => "return confirm('You are about to make a permanent deletion. This can not be UNDONE. Are you sure?');"));
 }

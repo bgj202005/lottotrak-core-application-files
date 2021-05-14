@@ -78,5 +78,35 @@ class Predictions_m extends MY_Model
 		$this->db->set($data);		// Set the query with the key / value pairs
 		return $this->db->insert('lottery_combination_files');
 	}
-	
+	/**
+	 * Removes the record in the database from the filename (excluding the .txt extension)
+	 * 
+	 * @param       string	$name			The name of the file_name of the combination file without the .txt extention
+	 * @return     	boolean	TRUE/FALSE		Returns TRUE on successful removal of the record, FALSE if the record could not be deleted
+	 */
+	public function delete_combination_record($name)
+	{
+		$this -> db -> where('file_name', $name);
+    return $this -> db -> delete('lottery_combination_files');
+	}
+	/**
+	 * Returns a Lottery Combination Record (only one), if does not exist return FALSE
+	 * 
+	 * @param       string	$name			The name of the file_name of the combination file without the .txt extention
+	 * @return     	boolean	TRUE/FALSE		Returns TRUE on successful removal of the file in the /combinations/ directory, FALSE if the file could not be deleted
+	 */
+	public function delete_combination_file($name)
+	{
+		if(DIRECTORY_SEPARATOR=='\\')
+		{
+		// Windows	
+			$full_path = 'd:\\wamp64\\www\\lottotrak\\'.self::DIR.'\\'.$name.'.txt';
+		}
+		else 
+		// Linux
+		{
+			$full_path = DIRECTORY_SEPARATOR.self::DIR.DIRECTORY_SEPARATOR.$name.'.txt';
+		}
+	return unlink($full_path); // Remove File, TRUE successful, FALSE on error
+	}
 }

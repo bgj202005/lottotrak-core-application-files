@@ -88,7 +88,7 @@
 												echo '<td style = "text-align:center;">'.form_label($file->N, 'balls_predict_lb_'.$file->id, $extra).'</td>';
 												echo '<td style = "text-align:center;">'.form_label($file->R, 'pick_game_lb_'.$file->id, $extra).'</td>';
 												echo '<td style = "text-align:center;">'.form_label($file->CCCC, 'combinations_lb_'.$file->id, $extra).'</td>';
-												echo '<td style = "text-align:center;">'.$predictions->btn_trash('admin/predictions/delete/'.$file->file_name, $file->file_name).'</td>';
+												echo '<td style = "text-align:center;">'.$predictions->btn_trash('admin/predictions/delete/'.$lottery->id.'/'.$file->file_name, $file->file_name).'</td>';
 												echo '</tr>';?>
 											</div>
 											<?php $row++; 
@@ -101,8 +101,8 @@
 									<?php $extra = array('class' => 'btn btn-primary btn-lg btn-info d-flex', 
 														'style' => "padding:5px; display: block; margin:20px 30px;");
 										echo form_submit('submit', 'Select File', $extra);
-										$js = "javascript: form.action='".base_url()."/admin/predictions/combo_save/".$lottery->id."'";
-										$js = "location.href='".base_url()."/admin/predictions/'";
+										$js = "javascript: form.action='".base_url()."admin/predictions/combo_save/".$lottery->id."'";
+										$js = "location.href='".base_url()."admin/predictions/'";
 										$attributes = array(
 										'class' 	=> "btn btn-primary btn-lg btn-info",
 										'onClick' 	=> "$js", 

@@ -30,7 +30,7 @@ class Predictions extends Admin_Controller {
 	/**
 	 * Initialize the calculation form for the generator
 	 * 
-	 * @param       $id		Lottery id
+	 * @param       integer	$id		Lottery id
 	 * @return      none
 	 */
 	public function combinations($id)
@@ -64,7 +64,7 @@ class Predictions extends Admin_Controller {
 	 * Adds a record to the database and creates a blank text file for generating the full wheeling table
 	 * Check for a duplicate filename, return error or add new db record and save filename in combinations directory
 	 * 
-	 * @param       $id		Lottery id
+	 * @param       integer	$id		Lottery id
 	 * @return      none
 	 */
 
@@ -135,14 +135,14 @@ class Predictions extends Admin_Controller {
 	/**
 	 * Begin the generation process, go to a form that selects the proper combination 
 	 * File or start the generate combinations calls to html and php.
-	 * @param       $id		Lottery id
+	 * @param       integer $id		Lottery id
 	 * @return      none
 	 */
 	public function generate($id)
 	{
 		$this->data['message'] = '';			// Defaulted to No Error Messages
 		$this->data['lottery'] = $this->lotteries_m->get($id);
-		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_files($id); 
+		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_files($id);
 		if(count($this->data['lottery']->generate)>1) 
 		{
 			$this->data['predictions'] = $this;		// Access the methods in the view
@@ -150,7 +150,7 @@ class Predictions extends Admin_Controller {
 		}
 		else
 		{
-			$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; //Calculated Combinations
+			$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; 	//Calculated Combinations
 			$this->data['predict']=$this->data['lottery']->generate[0]->N;			//Number of Predictions
 			$this->data['pick']=$this->data['lottery']->generate[0]->R;				// Pick Game
 			unset($this->data['lottery']->generate);
@@ -160,10 +160,11 @@ class Predictions extends Admin_Controller {
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
 		$this->load->view('admin/_layout_main', $this->data);
 	}
+	
 	/**
 	 * Get the data from the selected combination file record, begin the combination calculation process
 	 * with HTML and PHP using ajax calls
-	 * @param       $id		Lottery id
+	 * @param       integer	$id		Lottery id
 	 * @return      none
 	 */
 	public function generate_select($id)
@@ -180,6 +181,49 @@ class Predictions extends Admin_Controller {
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
 		$this->data['subview'] = 'admin/dashboard/predictions/generate';
+		$this->load->view('admin/_layout_main', $this->data);
+	}
+
+	/**
+	 * Get the data from the selected combination file record, begin the combination calculation process
+	 * with HTML and PHP using ajax calls
+	 * @param		integer	$id			Lottery id
+	 * @return      none
+	 */
+	public function delete($id)
+	{		
+		$this->data['message'] = '';	// Defaulted to No Error Messages
+		$name = $this->uri->segment(5,NULL); // Return segment file_name or NULL
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+
+		if(is_null($name))
+		{
+			$this->data['message'] = 'There is no Filename avaiable to delete the database record and file.';
+		}
+		if(!is_null($name)&&!$this->predictions_m->delete_combination_record($name))
+		{
+			$this->data['message'] = 'The record for the filename '.$name.'.txt could not be found.';
+		}
+		if(!is_null($name)&&!$this->predictions_m->delete_combination_file($name))
+		{
+			$this->data['message'] = 'The file with the filename '.$name.'.txt could not be found in the combinations directory.';
+		}
+		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_files($id);
+		if(count($this->data['lottery']->generate)>1) 
+		{
+			$this->data['predictions'] = $this;		// Access the methods in the view
+			$this->data['subview'] = 'admin/dashboard/predictions/file_select';
+		}
+		else
+		{
+			$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; 	//Calculated Combinations
+			$this->data['predict']=$this->data['lottery']->generate[0]->N;			//Number of Predictions
+			$this->data['pick']=$this->data['lottery']->generate[0]->R;				// Pick Game
+			unset($this->data['lottery']->generate);
+			$this->data['subview'] = 'admin/dashboard/predictions/generate';
+		}
+		// Load the view
+		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 
