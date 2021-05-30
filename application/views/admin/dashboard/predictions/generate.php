@@ -168,6 +168,8 @@
 						</div>
 						<div class="tab-content" id="myTabContent">
 							<?php if (!empty($message)) ?> <h3 class="bg-warning" style = "text-align:center;"><?=$message; ?></h3>
+							<?php $attributes = array('id' => 'frmgenerate'); 
+							echo form_open(base_url().'admin/predictions/combo_gen/'.$lottery->id, $attributes); ?>
 							<div class = "col-12" style = "margin-top:2em;">
 								<div class="form-group form-group-lg row"> 
 									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md', 'style' => 'white-space: nowrap;');
@@ -179,7 +181,8 @@
 								<div class="form-group form-group-lg row"> 
 									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
 									echo form_label('Pick (R):', 'lottery_pick_lb', $extra);
-									echo form_label($pick, 'lottery_pick_lb', $extra); ?> 
+									echo form_label($pick, 'lottery_pick_lb', $extra); 
+									echo form_hidden('filename', $filename); ?> 
 								</div>
 								
 								<!-- Combination Counter Display -->
@@ -188,21 +191,29 @@
 									<div class="card bg-light mb-3 pull-left" style="width: 25em; max-width: 25rem;">
 										<div class="card-header">Combination Counter</div>
 										<div class="card-body">
-											<h5 class="card-title">Row # Here</h5>
-											<p class="card-text">Combination # Here</p>
+											<h5 class="card-title"><div id="row_number">Row # Here</div></h5>
+											<p class="card-text"><div id="result">Combination # Here</div></p>
 										</div>
 									</div>
 										<div class="progress blue pull-right" style = "margin-left: 2em; margin-top: -2px;">
 										<span class="progress-left"> <span class="progress-bar"></span></span>
 										<span class="progress-right"> <span class="progress-bar"></span></span>
-											<div class="progress-value">100%</div>
+											<div class="progress-value">0%</div>
 										</div>
 								</div>
 								<div class="form-group form-group-lg row">
 									<?php $extra = array('class' => 'btn btn-primary btn-lg btn-info', 
 														'style' => "display: block; margin:20px 20px");
 										echo form_submit('submit', 'Generate Full Wheel Combination', $extra);
-										$js = "location.href='".base_url()."/admin/predictions/'";
+										$js = "location.href='".base_url()."admin/predictions/delete/$lottery->id/$filename";
+										$attributes = array(
+										'href' 		=> base_url()."admin/predictions/delete/'.$lottery->id.'/'.$filename",
+										'class' 	=> "btn btn-primary btn-lg btn-info",
+										'id'		=> 'delete',
+										'style' 	=> "padding:5px; margin: 0 auto; display: block; margin:20px 20px;"
+									);
+										echo form_button('delete', 'Delete File: <strong>'.$filename.'.txt</strong>', $attributes); 
+										$js = "location.href='".base_url()."admin/predictions/'";
 										$attributes = array(
 										'class' 	=> "btn btn-primary btn-lg btn-info",
 										'onClick' 	=> "$js", 
@@ -217,3 +228,69 @@
 			</div>
 		</div>
 	</section>
+	<script>
+	$(document).ready(function(){
+
+	 $('#delete').on('click', function () {
+       if(confirm("You are about to make a permanent deletion. Both the Filename and the Database Record will be deleted. This can not be UNDONE. Are you sure Y/N?"))
+		{
+			window.location.href = "<?=base_url();?>admin/predictions/delete/<?=$lottery->id;?>/<?=$filename;?>";
+			return TRUE;
+		}
+		else
+		{
+			return FALSE;
+		}
+    });
+	
+	// this is the id of the form
+	$("#frmgenerate").submit(function(e) {
+
+    //e.preventDefault(); // avoid to execute the actual submit of the form.
+
+    var form = $(this);
+    var url = form.attr('action');
+	var URL_counter = "<?php echo base_url().'admin/predictions/combo_counter/'.$lottery->id;?>";
+	var progress = 0;
+	var clear_timer;
+    
+    $.ajax({
+           type: "POST",
+           url: url,
+           data: form.serialize(), // serializes the form's elements.
+		   dataType: "json",
+           success: function(data)
+           {
+              //alert(data);
+			  //$('#row_number').html(data);
+			  // $('.progress-value').html('<p>'+progress+'%</p>');
+			  //$('.loading-1')
+    		  //setTimeout(combination, 5000);
+			  clear_timer = setInterval(combination, 2000);
+			  //alert(data); // show response from the php script.
+           }
+		 });
+		 function combination()
+		{
+			$('#result').html('<p>The Data is now stopped here.</p>');
+			 $.ajax({
+			url:url_counter,
+			success:function(data)
+			{
+				var len = data.length;
+				for(var c=0; c<len; c++){
+					$('#row_number').html(data[c].row);
+					$('#result').html(data[c].result);
+				}
+				progress = progress + 5;
+				$('.progress-value').html('<p>'+progress+'%</p>');
+				if(progress>=100)
+				{
+					clearInterval(clear_timer);
+				}
+			}
+		})
+		} 
+	});
+ });
+</script>

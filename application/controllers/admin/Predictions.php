@@ -7,8 +7,7 @@ class Predictions extends Admin_Controller {
 		 parent::__construct();
 		 $this->load->model('lotteries_m');
 		 $this->load->model('predictions_m');
-		 $this->load->helper('file');
-		 $this->load->library('image_lib');
+		 $this->load->library('Math_Combinatorics'); // * Originally from the Pear Libraries *
 	}
 
 	/**
@@ -80,16 +79,7 @@ class Predictions extends Admin_Controller {
 		$file_name .= $this->data['lottery']->predict;
 		$file_name .= (intval($this->data['combinations'])<1000 ? '0'.$this->data['combinations'] : $this->data['combinations']);
 		
-		if(DIRECTORY_SEPARATOR=='\\')
-		{
-		// Windows	
-			$path = 'd:\\wamp64\\www\\lottotrak\\'.predictions_m::DIR.'\\'.$file_name.'.txt';
-		}
-		else 
-		// Linux
-		{
-			$path = DIRECTORY_SEPARATOR.predictions_m::DIR.DIRECTORY_SEPARATOR.$file_name.'.txt';
-		}
+		$path = $this->predictions_m->full_path($file_name);
 
 		if(file_exists($path)) 
 		{
@@ -153,6 +143,7 @@ class Predictions extends Admin_Controller {
 			$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; 	//Calculated Combinations
 			$this->data['predict']=$this->data['lottery']->generate[0]->N;			//Number of Predictions
 			$this->data['pick']=$this->data['lottery']->generate[0]->R;				// Pick Game
+			$this->data['filename']=$this->data['lottery']->generate[0]->file_name;	// File name of text file
 			unset($this->data['lottery']->generate);
 			$this->data['subview'] = 'admin/dashboard/predictions/generate';
 		}
@@ -174,14 +165,71 @@ class Predictions extends Admin_Controller {
 		$file_name = $this->input->post('file', TRUE);  // POST value from radio selection
 		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_record($file_name);
 		
-		$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; //Calculated Combinations
-		$this->data['predict']=$this->data['lottery']->generate[0]->N;		//Number of Predictions
-		$this->data['pick']=$this->data['lottery']->generate[0]->R;				// Pick Game
+		$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; 		//Calculated Combinations
+		$this->data['predict']=$this->data['lottery']->generate[0]->N;				//Number of Predictions
+		$this->data['pick']=$this->data['lottery']->generate[0]->R;					// Pick Game
+		$this->data['filename']=$this->data['lottery']->generate[0]->file_name;		// File name of text file
 		unset($this->data['lottery']->generate);
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
 		$this->data['subview'] = 'admin/dashboard/predictions/generate';
 		$this->load->view('admin/_layout_main', $this->data);
+	}
+
+	/**
+	 * Combination Generator, that cycles through all the combinations between html and php 
+	 * Completes a number of combinations before the text file is updated on the server
+	 * @param       integer $id		Lottery id
+	 * @return      none
+	 */
+	public function combo_gen($id)
+	{
+		$this->data['message'] = '';			// Defaulted to No Error Messages
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		$file_name = $this->input->post('filename', TRUE);  // POST value from radio selection
+		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_record($file_name);
+		$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; 	//Calculated Combinations
+		$this->data['predict']=$this->data['lottery']->generate[0]->N;			//Number of Predictions
+		$this->data['pick']=$this->data['lottery']->generate[0]->R;				// Pick Game
+		$this->data['filename']=$this->data['lottery']->generate[0]->file_name;		// File name of text file
+		unset($this->data['lottery']->generate);
+		//$this->data['subview'] = 'admin/dashboard/predictions/generate';
+		$predict[] = array();	// declare a blank number prediction array
+		$combinations[] = array();
+		$predict = $this->predictions_m->wheeled($this->data['predict']);
+		$combinations = $this->math_combinatorics->combinations($predict, $this->data['pick']); // Based on the pick game 
+		if(!$this->predictions_m->text_combo_save($this->data['filename'],$combinations)) //Separate into the proper format and save to the text file
+		{
+			$this->data['message'] = "An error has occurred to convert the combinations to a text file.";
+		}
+		
+			$str_value = implode(' ', $combinations[0]);
+			$return_arr[] = array('row'	=> '1',
+								  'result'	=> $str_value);
+			unset($combinations);
+
+		$this->session->set_userdata($return_arr);
+
+		// Load the view
+		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
+		$this->load->view('admin/_layout_main', $this->data);
+
+		echo json_encode($return_arr);
+
+	}
+
+	/**
+	 * Combination Counter
+	 * with HTML and PHP using ajax calls
+	 * @param       integer	$id		Lottery id
+	 * @return      none
+	 */
+	public function combo_counter($id)
+	{
+		$return_arr[] = array('row'	=> $this->session->row,
+						'result'	=>	$this->session->result);
+		$return_arr['row'] = '2';
+		echo json_encode($return_arr);
 	}
 
 	/**
@@ -214,6 +262,10 @@ class Predictions extends Admin_Controller {
 			$this->data['predictions'] = $this;		// Access the methods in the view
 			$this->data['subview'] = 'admin/dashboard/predictions/file_select';
 		}
+		elseif(!$this->data['lottery']->generate)
+		{
+			redirect('admin/predictions'); 	// No More Files available, Redirect
+		}
 		else
 		{
 			$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; 	//Calculated Combinations
@@ -228,14 +280,37 @@ class Predictions extends Admin_Controller {
 	}
 
 	/**
+	 * Activate the link, if there are combo files waiting to be generated
+	 * 
+	 * @param       int		$id				Lottery_id associated with Combination Generated Files
+	 * @return      boolean TRUE / FALSE	True on Combination Files in the DB or FALSE that there is no record of the combination files.
+	 */
+	public function active($id) 
+	{
+		return ($this->predictions_m->lottery_combination_files($id) ? TRUE : FALSE);
+	}
+	/**
 	 * Generate Full Wheeling Tables
 	 * 
 	 * @param       string	$uri	uri admin address of the statistics page
 	 * @return      none
 	 */
-	public function btn_generate($uri) 
+	public function btn_generate($uri, $disabled = FALSE) 
 	{
-		return anchor($uri, '<i class="fa fa-circle-o-notch fa-2x" aria-hidden="true">', array('title' => 'Generate Full Wheeling Table Text Files'));
+		$style = '';
+		$a = '';
+		$title = 'Existing text files can be generated now!';
+		if(!$disabled) 
+		{
+			$title = '';
+			$a = 'disabled';
+			$style = "pointer-events: none";
+		}
+		$attributes = array('title' => $title,
+							'style' => $style,
+							'disabled' => $a);
+
+	return anchor($uri, '<i class="fa fa-circle-o-notch fa-2x" aria-hidden="true">', $attributes);
 	}
 
 	/**
@@ -244,9 +319,22 @@ class Predictions extends Admin_Controller {
 	 * @param       string	$uri	uri admin address of the statistics page
 	 * @return      none
 	 */
-	public function btn_files($uri)
+	public function btn_files($uri, $disabled = FALSE)
 	{
-		return anchor($uri, '<i class="fa fa-file-text-o fa-2x" aria-hidden="true">', array('title' => 'View Generated Full Wheeling Table Files', 'class' => 'followers'));
+		$style = '';
+		$a = '';
+		$title = 'Existing text files can be viewed now!';
+		if(!$disabled) 
+		{
+			$title = '';
+			$a = 'disabled';
+			$style = "pointer-events: none";
+		}
+		$attributes = array('title' => $title,
+							'style' => $style,
+							'disabled' => $a);
+
+		return anchor($uri, '<i class="fa fa-file-text-o fa-2x" aria-hidden="true">', $attributes);
 	}
 
 	/**

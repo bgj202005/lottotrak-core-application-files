@@ -78,6 +78,28 @@ class Predictions_m extends MY_Model
 		$this->db->set($data);		// Set the query with the key / value pairs
 		return $this->db->insert('lottery_combination_files');
 	}
+
+	/**
+	 * Returns the complete full path of the combination file including .txt file extension
+	 * 
+	 * @param       string	$name			Filename of the combination file without the .txt extention
+	 * @return     	string	$full_path		The complete path of the filename. Different depending on Windows or Linux machines
+	 */
+	public function full_path($name)
+	{
+		if(DIRECTORY_SEPARATOR=='\\')
+		{
+		// Windows	
+			$full_path = 'd:\\wamp64\\www\\lottotrak\\'.self::DIR.'\\'.$name.'.txt';
+		}
+		else 
+		// Linux
+		{
+			$full_path = DIRECTORY_SEPARATOR.self::DIR.DIRECTORY_SEPARATOR.$name.'.txt';
+		}
+	return $full_path; // Full Path of Filename
+	}
+
 	/**
 	 * Removes the record in the database from the filename (excluding the .txt extension)
 	 * 
@@ -97,16 +119,53 @@ class Predictions_m extends MY_Model
 	 */
 	public function delete_combination_file($name)
 	{
-		if(DIRECTORY_SEPARATOR=='\\')
-		{
-		// Windows	
-			$full_path = 'd:\\wamp64\\www\\lottotrak\\'.self::DIR.'\\'.$name.'.txt';
-		}
-		else 
-		// Linux
-		{
-			$full_path = DIRECTORY_SEPARATOR.self::DIR.DIRECTORY_SEPARATOR.$name.'.txt';
-		}
+		$full_path = $this->full_path($name);
+
 	return unlink($full_path); // Remove File, TRUE successful, FALSE on error
+	}
+	/** Iterates the number of predictions and returns them in an array to
+	 * be used in the Math Combinatorics combination methods
+ 	* @param	integer	$Pr		Predicted Numbers (e.g. 1 to 15)
+ 	* @return	array	$combs	Array of the number of predicted (1,2,3,4,5,6,7,8,9...15)
+	*/
+ 	public function wheeled($Pr)
+	{
+		$c = 1;
+		$combs = array();
+		for ($i=0;   $i < $Pr;   $i++)
+			{
+				$combs[] = $c; // Add next predicted element onto the array
+				$c++;
+			}
+	return $combs;
+	}
+	/** 
+	* Sort the array into a text line and save to the provided text file after complete
+	* 
+	* @param 	array	$data		Array of Combinations in the form of [0] => [1] = 1, [2] = 2, [3] = 3, [4] = 4, [5] = 5, [6] = 6
+	* @param 	string 	$name		Filename without the .txt extension
+	* @return   boolean $success	TRUE / FALSE, TRUE = Saved to text file successfully, FALSE = Something when wrong	
+	*/
+	public function text_combo_save($name, $combo_array)
+	{
+		
+		$success = TRUE;
+		$fp = fopen($name.'txt', 'a');
+		if($fp)	
+		{
+			foreach($combo_array as $combo => $key)
+			{
+				$str = implode(' ', $combo[$key]);
+				fwrite($fp, $str);
+				fwrite($fp, "\n"); // NB double quotes must be used here
+			}
+			fclose($fp);
+		}
+		else	// Can't Open the File?
+		{
+			$success = FALSE;
+		}
+
+	return $success;
 	}
 }

@@ -463,10 +463,11 @@ class Lotteries extends Admin_Controller {
 					$i++;
 				}
 				$row = array_values($row);	// Reindex the row without the eliminated column 
-				$csv_date = (in_array('-', $row[0])) ? explode('-', $row[0]) : explode('/', $row[0]);	// Two formats of csv using either dash or forward slash to separate m, d, y
+				// 
+				$csv_date = (strpos($row[0], '-')) ? explode('-', $row[0]) : explode('/', $row[0]);	// Two formats of csv using either dash or forward slash to separate m, d, y
 				$unix_date = (isset($csv_date[2])&&isset($csv_date[1])&&isset($csv_date[0]) ? strtotime($csv_date[0].'/'.$csv_date[1].'/'.$csv_date[2]) : FALSE);  // m / d / yyyy is assumed with '/'
 
-				$draw_exists = (!$unix_date ? FALSE : $this->lotteries_m->lotto_draw_exists($table, $this->lotteries_m->drawn_only($row), $lottery_props->extra_ball, date('Y-m-d', $unix_date))); // Check for an existing draw, only if csv_date does not return false
+				$draw_exists = ( !$unix_date ? FALSE : $this->lotteries_m->lotto_draw_exists($table, $this->lotteries_m->drawn_only($row), $lottery_props->extra_ball, date('Y-m-d', $unix_date))); // Check for an existing draw, only if csv_date does not return false
 				if (($ld =='nodraws'||(($ld<=$unix_date))&&($unix_date!=FALSE)&&(!$draw_exists))) 
 				{
 					$balls_drawn = intval($this->session->userdata('balls_drawn'));		// balls drawn
@@ -484,21 +485,21 @@ class Lotteries extends Admin_Controller {
 									'lottery_id' => $id];
 					
 					// Check the draw date to make sure it is in the correct format for Month / Day / Year
-					$date = explode('/', $draw_data['draw_date']);
+					//$date = explode('/', $draw_data['draw_date']);
 					
-					if (intval($date[0])<1||(intval($date[0]>12))) // Month between 1 and 12
+					if (intval($csv_date[1])<1||(intval($csv_date[1]>12))) // Month between 1 and 12
 					{
 						$draw_data += [
 							'month_error'	=>	TRUE];
 						break;
 					} 
-					else if (intval($date[1])<1||(intval($date[1])>cal_days_in_month(CAL_GREGORIAN, $date[0], $date[2])))
+					else if (intval($csv_date[2])<1&&(intval($csv_date[2])<=cal_days_in_month(CAL_GREGORIAN, $csv_date[1], $csv_date[0])))
 					{
 						$draw_data += [
 							'day_error'	=>	TRUE];
 						break;
 					} 
-					else if (intval($date[2]<1)||intval($date[2])>intval(date("Y")))
+					else if (intval($csv_date[0]<1)||intval($csv_date[0])>intval(date("Y")))
 					{
 						$draw_data += [
 							'year_error'	=>	TRUE];
@@ -529,7 +530,7 @@ class Lotteries extends Admin_Controller {
 								"regular_duplicate_error"	=>	TRUE];
 						break;
 					}
-					$draw_data['draw_date'] = $date[2].'-'.$date[0].'-'.$date[1];	// Re-arranged format for Database
+					//$draw_data['draw_date'] = $csv_date[2].'-'.$csv_date[0].'-'.$csv_date[1];	// Re-arranged format for Database
 
 					if (!$this->lotteries_m->csv_array_to_query($table, $draw_data)) 
 					{

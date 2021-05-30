@@ -197,10 +197,9 @@
 								</div>
 								<div style = "text-align: center;">
 									<?php echo form_submit('import', 'Begin Import / Upload', 'class="btn btn-primary btn-lg btn-info" id = "import"');
-									$js = "location.href='".base_url()."admin/lotteries'";
 									$attributes = array(
 										'class' 	=> "btn btn-primary btn-lg btn-info", 
-										'onClick' 	=> "$js", 
+										'id'		=> "lottery_list",
 										'style' 	=> "margin-left:20px;"
 									);
 									echo form_button('lottery_list', 'Back to Lotteries List', $attributes);
@@ -246,6 +245,10 @@ $(document).ready(function() {
 	var clear_timer;
 	var i=1;
 	var csv=document.getElementsByName('csv_field[]');
+	var url_import = '<?php echo base_url();?>admin/lotteries/import/<?=$lottery->id;?>';
+	var url_start = '<?php echo base_url();?>admin/lotteries/import_process/<?=$lottery->id;?>';
+	var url_get_import = '<?php echo base_url();?>admin/lotteries/process/<?=$this->lotteries_m->lotto_table_convert($lottery->lottery_name);?>';
+
 	$('#add').click(function(){  
            i++;  
            $('#dynamic_field').append('<tr id="row'+i+'"><td><input type="text" name="csv_field[]" value = "'+csv[0].value+'" style="width:90%" class="form-control field_list" /></td><td align="center"><button type="button" name="remove" id="'+i+'" class="btn btn-danger btn_remove text-center">X</button></td></tr>');
@@ -256,17 +259,27 @@ $(document).ready(function() {
            var button_id = $(this).attr("id");   
            $('#row'+button_id+'').remove();  
       });
+	  $("#lottery_list").click(function(){
+		  var url_exit = "<?php echo base_url();?>admin/lotteries";
+		  if (window.confirm("Do you want to exit before the import is complete?"))
+	  		{	
+			clearInterval(clear_timer);
+			window.location.href = url_exit;
+			}
+			else return false;
+	  });
 	    
 	$('#import_form').on('submit', function(event) {
 		$('#import_message').html('');
 			event.preventDefault();
 			$.ajax({
-				url:"<?php echo base_url(); ?>admin/lotteries/import/<?=$lottery->id; ?>", 
+				url:url_import, 
 				method: "POST",
 				data: new FormData(this),
 				dataType: "json",
 				contentType:false,
 				cache:false,
+				async: false,
 				processData:false,
 				beforeSend:function() {
 					$('#import').attr('disabled','disabled');
@@ -280,7 +293,7 @@ $(document).ready(function() {
 					{
 						$('#total_data').text(data.total_data);
 						$('.card-title').html("<div class='alert alert-warning' role='alert'>DRAWS CURRENTLY BEING IMPORTED</div>");
-						$('.card-text').html("<div class='alert alert-info' role='alert'>Please adding draws ... please Wait ... </div>");
+						$('.card-text').html("<div class='alert alert-info' role='alert'>Adding draws ... please Wait ... </div>");
 						clear_timer = setInterval(get_import_data, 2000);
 						start_import();
 					}					
@@ -301,17 +314,13 @@ $(document).ready(function() {
 	{
 		$('#process').css('display', 'block');
 		$.ajax({
-			url:"<?php echo base_url(); ?>admin/lotteries/import_process/<?=$lottery->id; ?>",
-			dataType: "json",
-			contentType:false,
-			cache:false,
-			processData:false,
+			url:url_start,
 			success:function(data)
 			{
 				var error = 0;
 				if(data.success)
 				{
-					//alert("successful");
+					alert("successful");
 					//alert(data.success);
 				}
 				else if(data.error)
@@ -381,19 +390,15 @@ $(document).ready(function() {
 	function get_import_data()
 	{
 	$.ajax({
-		url:"<?php echo base_url(); ?>admin/lotteries/process/<?=$this->lotteries_m->lotto_table_convert($lottery->lottery_name); ?>",
-		dataType: "json",
-		contentType:false,
-		cache:false,
-		processData:false,
+		url:url_get_import,
 		success:function(data)
 			{
 				var total_data = $('#total_data').text();
 				var width = Math.round((data/total_data)*100);
 				var error = 0;
-				$('#process_data').text(data);
+				$('#process_data').html(data);
 				$('.progress-bar').css('width', width + '%');
-				$('#draw_number').text(data);
+				$('#draw_number').html(data);
 				if(width >= 100)
 				{
 					clearInterval(clear_timer);
