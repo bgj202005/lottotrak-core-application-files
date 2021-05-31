@@ -115,7 +115,7 @@ class Predictions extends Admin_Controller {
 				fclose($combo_file);
 			}
 		}
-
+		$this->data['save'] = FALSE; // Don't allow for duplicate saving of the same filename on the same screen.
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
 		$this->data['subview'] = 'admin/dashboard/predictions/combinations';
@@ -271,6 +271,7 @@ class Predictions extends Admin_Controller {
 			$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; 	//Calculated Combinations
 			$this->data['predict']=$this->data['lottery']->generate[0]->N;			//Number of Predictions
 			$this->data['pick']=$this->data['lottery']->generate[0]->R;				// Pick Game
+			$this->data['filename']=$this->data['lottery']->generate[0]->file_name;	
 			unset($this->data['lottery']->generate);
 			$this->data['subview'] = 'admin/dashboard/predictions/generate';
 		}
