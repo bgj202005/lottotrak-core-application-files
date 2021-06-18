@@ -62,7 +62,11 @@
 		    	<div class = "col-md-4">
 		    	<section style = "padding: 20px; white-space: nowrap;">
 		    		<?php echo anchor('admin/user/edit/'.$this->session->userdata['id'], '<i class="fa fa-user" style="margin-right:15px;"></i> '.$this->session->userdata['email']); ?><br />
-            <?php echo anchor('admin/maintenance', '<i class="fa fa-toggle-on" style="margin-right:10px;"></i> frontend online') ?><br />
+            <?php if($maintenance):
+                echo anchor('admin/maintenance/', '<i class="fa fa-toggle-off" style="margin-right:10px;"></i> frontend offline');
+                else: 
+                echo anchor('admin/maintenance/', '<i class="fa fa-toggle-on" style="margin-right:10px;"></i> frontend online');
+                endif;?><br />
 		    		<?php echo anchor('admin/user/logout', '<i class="fa fa-power-off" style="margin-right:15px;"></i>   logout')?>
 		    	</section>
 		    </div>

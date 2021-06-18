@@ -142,30 +142,57 @@ class Predictions_m extends MY_Model
 	/** 
 	* Sort the array into a text line and save to the provided text file after complete
 	* 
-	* @param 	array	$data		Array of Combinations in the form of [0] => [1] = 1, [2] = 2, [3] = 3, [4] = 4, [5] = 5, [6] = 6
-	* @param 	string 	$name		Filename without the .txt extension
+	* @param 	string 	$name				Filename without the .txt extension
+	* @param 	array	$combs_array		Array of Combinations in the form of [0] => [1] = 1, [2] = 2, [3] = 3, [4] = 4, [5] = 5, [6] = 6
 	* @return   boolean $success	TRUE / FALSE, TRUE = Saved to text file successfully, FALSE = Something when wrong	
 	*/
-	public function text_combo_save($name, $combo_array)
+	public function text_combs_save($name, $combs_array)
 	{
-		
 		$success = TRUE;
-		$fp = fopen($name.'txt', 'a');
+		$returned_path = $this->full_path($name); 
+		$fp = fopen($returned_path, 'a');
 		if($fp)	
 		{
-			foreach($combo_array as $combo => $key)
+			foreach($combs_array as $combo => $key)
 			{
-				$str = implode(' ', $combo[$key]);
+				$str = implode(' ', $key);
 				fwrite($fp, $str);
 				fwrite($fp, "\n"); // NB double quotes must be used here
 			}
-			fclose($fp);
 		}
 		else	// Can't Open the File?
 		{
 			$success = FALSE;
 		}
-
+		fclose($fp);
 	return $success;
+	}
+
+	/** 
+	* Sort the array into a text line and save to the provided text file after complete
+	* 
+	* @param 	string	$name			Filename without the .txt extension
+	* @param	integer	$combs_count	Number of actual combinations in the array
+	* @return   boolean $saved			TRUE / FALSE, True $combos >= $combos_count, Everything else is FALSE
+	*/
+	public function combs_already($name, $combs_count)
+	{
+		$saved = FALSE;
+		$returned_path = $this->full_path($name); 
+		$combs = 0;
+		$fp = fopen($returned_path, 'r');
+		while (!feof($fp)) 
+		{
+			$combs++;
+			if($combs>=$combs_count)
+			{
+				$saved = TRUE;
+				break; // Abruptly leave the loop
+			}
+			if(!fgets($fp)) break; // No Return of anything, indicated no combinations have been previously saved.
+		}
+		fclose($fp);	
+		
+	return $saved; // Returns TRUE or False based on the actual count of the combinations in the text file.
 	}
 }

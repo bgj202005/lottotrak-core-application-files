@@ -6,7 +6,7 @@ class Article extends Admin_Controller {
 	public function __construct() {
 		 parent::__construct();
 		 $this->load->model('article_m');
-		 		
+		 $this->load->model('maintenance_m');		
 	}
 	
 	public function index() {
@@ -15,6 +15,8 @@ class Article extends Admin_Controller {
 
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the Article menu
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview'] = 'admin/article/index';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -65,6 +67,8 @@ class Article extends Admin_Controller {
 		}
 		// Load the View
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/edit'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview']  = 'admin/article/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}

@@ -3,11 +3,13 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Predictions extends Admin_Controller {
 	
+	
 	public function __construct() {
 		 parent::__construct();
 		 $this->load->model('lotteries_m');
 		 $this->load->model('predictions_m');
 		 $this->load->library('Math_Combinatorics'); // * Originally from the Pear Libraries *
+		 $this->load->model('maintenance_m'); 
 	}
 
 	/**
@@ -16,13 +18,17 @@ class Predictions extends Admin_Controller {
 	 * @param       none
 	 * @return      none
 	 */
-	public function index() { 
+	public function index() 
+	{ 
 		// Fetch all lotteries from the database
 		$this->data['lotteries'] = $this->lotteries_m->get();
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
 		$this->data['predictions'] = $this;		// Access the methods in the view
 		$this->data['subview'] = 'admin/dashboard/predictions/index';
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 
@@ -55,6 +61,8 @@ class Predictions extends Admin_Controller {
 		}
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/combinations'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview'] = 'admin/dashboard/predictions/combinations';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -118,6 +126,8 @@ class Predictions extends Admin_Controller {
 		$this->data['save'] = FALSE; // Don't allow for duplicate saving of the same filename on the same screen.
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/combinations'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview'] = 'admin/dashboard/predictions/combinations';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -149,6 +159,8 @@ class Predictions extends Admin_Controller {
 		}
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/generate'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 	
@@ -172,6 +184,8 @@ class Predictions extends Admin_Controller {
 		unset($this->data['lottery']->generate);
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/generate'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview'] = 'admin/dashboard/predictions/generate';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -184,7 +198,8 @@ class Predictions extends Admin_Controller {
 	 */
 	public function combo_gen($id)
 	{
-		$this->data['message'] = '';			// Defaulted to No Error Messages
+		$message = "";							// Defaulted to No Error Messages
+		$error = FALSE;
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		$file_name = $this->input->post('filename', TRUE);  // POST value from radio selection
 		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_record($file_name);
@@ -198,38 +213,102 @@ class Predictions extends Admin_Controller {
 		$combinations[] = array();
 		$predict = $this->predictions_m->wheeled($this->data['predict']);
 		$combinations = $this->math_combinatorics->combinations($predict, $this->data['pick']); // Based on the pick game 
-		if(!$this->predictions_m->text_combo_save($this->data['filename'],$combinations)) //Separate into the proper format and save to the text file
+		$this->data['combinations'] = count($combinations);
+		if(!$this->predictions_m->combs_already($this->data['filename'], $this->data['combinations']))
 		{
-			$this->data['message'] = "An error has occurred to convert the combinations to a text file.";
+			if(!$this->predictions_m->text_combs_save($this->data['filename'],$combinations)) //Separate into the proper format and save to the text file
+			{
+			//$this->data['message'] = "An error has occurred to convert the combinations to a text file.";
+				$message = "An error has occurred to convert the combinations to a text file.";
+				$error = TRUE;
+			}
+			else 
+			{
+				$error = FALSE;
+				//$message = "The Data File has ADDED the Combinations to the ".$this->data['filename'].".txt file.";
+			}
+		}
+		else
+		{
+			//$this->data['message'] = "This Combination File:".$this->data['filename'].".txt ALREADY have the combinations added to the file.";
+			$message = "This Combination File:".$this->data['filename'].".txt ALREADY have the combinations added to the file.";
+			$error = TRUE;
+		}
+		if($error)
+		{
+			$output = array(
+			'success'	=> FALSE,
+			'error'  => $message
+			);
+		} 
+		else
+		{
+			$output = array(
+			'success'  => TRUE,
+			'message'  => $message
+		);
 		}
 		
-			$str_value = implode(' ', $combinations[0]);
-			$return_arr[] = array('row'	=> '1',
-								  'result'	=> $str_value);
-			unset($combinations);
-
-		$this->session->set_userdata($return_arr);
-
+		echo json_encode($output);
 		// Load the view
-		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
-		$this->load->view('admin/_layout_main', $this->data);
-
-		echo json_encode($return_arr);
-
+		//$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
+		//$this->data['subview'] = 'admin/dashboard/predictions/generate';
+		//$this->load->view('admin/_layout_main', $this->data);
 	}
 
 	/**
 	 * Combination Counter
 	 * with HTML and PHP using ajax calls
-	 * @param       integer	$id		Lottery id
-	 * @return      none
+	 * @param string	$name		progress percentage until complete
+	 * @param integer	$combs		Total Number of Combinations in the table
+	 * @return      	none
 	 */
-	public function combo_counter($id)
+	public function combo_counter($name, $combs)
 	{
-		$return_arr[] = array('row'	=> $this->session->row,
-						'result'	=>	$this->session->result);
-		$return_arr['row'] = '2';
-		echo json_encode($return_arr);
+		$fp = fopen($this->predictions_m->full_path($name), "r");
+		$combotext = '';
+		if(!$this->session->userdata('percent'))
+		{
+			$interval = intval($combs / 10);
+			$percent = 0; // Start will 0%
+			$offset = 0;
+		}
+		else // The percentage has previously been saved as a session variable.
+		{
+			$percent = $this->session->userdata('percent');
+			$interval = $this->session->userdata('interval');
+			$offset = $this->session->userdata('offset');
+			//fseek($fp, $offset, SEEK_SET);	// Reposition the Text File Data Pointer to the new location
+		}
+		$i = $interval;
+		while($i>0 || !feof($fp))
+		{
+			$combotext .= fgets($fp);
+			$i--;
+		}
+		$offset = ftell($fp);
+		$percent = $percent + 10;	// Update the percentage on this count
+		
+		$newdata = array('percent'	=> $percent,
+						 'interval'	=>	$interval,
+						 'offset'	=>	$offset
+		);
+
+		$this->session->set_userdata($newdata);	// Create or Update the existing Session
+		if($percent>=100) 
+		{
+			$this->session->unset_userdata('percent'); // Destroy all the session data
+			$this->session->unset_userdata('internal');
+			$this->session->unset_userdata('offset');
+		}
+
+		fclose($fp);	// Close any further reading from the text file
+
+		$output = array(
+		'success'  => true,
+		'combotext' => $combotext
+		);
+		echo json_encode($output);
 	}
 
 	/**

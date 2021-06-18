@@ -40,9 +40,10 @@ class Statistics extends Admin_Controller {
 
 		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
 		else $this->data['message'] = '';
-		$this->data['maintenance'] = $this->maintenance_m->maintenance_check(); 
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the Statistics menu
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview'] = 'admin/dashboard/statistics/index';
 		$this->data['statistics'] = $this;				// Access the methods in the view
 		$this->load->view('admin/_layout_main', $this->data);
@@ -135,6 +136,8 @@ class Statistics extends Admin_Controller {
 			redirect('admin/statistics'); 
 		}
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/view_draws'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview']  = 'admin/dashboard/statistics/view';
 		$this->data['stat_method'] = $this;				// Access the methods in the view
 		$this->load->view('admin/_layout_main', $this->data);
@@ -462,6 +465,8 @@ class Statistics extends Admin_Controller {
 		$this->data['lottery']->last_drawn['range'] = $range;
 		$this->data['lottery']->last_drawn['all'] = $all;
 		$this->data['current'] = $this->uri->segment(2); 				// Sets the Admins Menu Highlighted
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/followers'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview']  = 'admin/dashboard/statistics/followers';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -564,6 +569,8 @@ class Statistics extends Admin_Controller {
 		$this->data['lottery']->last_drawn['range'] = $new_range;
 		$this->data['lottery']->last_drawn['all'] = $all;
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/friends'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview']  = 'admin/dashboard/statistics/friends';
 		$this->load->view('admin/_layout_main', $this->data);
 	}

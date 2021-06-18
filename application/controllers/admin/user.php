@@ -7,6 +7,7 @@ class User extends Admin_Controller
 	public function __construct() 
 	{
 		 parent::__construct();
+		 $this->load->model('maintenance_m');	
 		 $this->data['status'] = ''; //Empty Status
 	}
 	
@@ -17,6 +18,8 @@ class User extends Admin_Controller
 		
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview'] = 'admin/user/index';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -58,6 +61,8 @@ class User extends Admin_Controller
 		
 		// Load the View
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/edit'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview'] = 'admin/user/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}

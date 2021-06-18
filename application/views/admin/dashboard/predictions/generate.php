@@ -41,7 +41,7 @@
 		color:#000000;
 	}
 	.card-text {
-		color:steelblue; brad	
+		color:steelblue;	
 	}
 	.progress {
     width: 150px;
@@ -51,7 +51,7 @@
     background: none;
     margin: 20px;
     box-shadow: none;
-    position: relative
+    position: relative;
 }
 
 .progress:after {
@@ -62,7 +62,7 @@
     border: 12px solid #fff;
     position: absolute;
     top: 0;
-    left: 0
+    left: 0;
 }
 
 .progress>span {
@@ -71,11 +71,11 @@
     overflow: hidden;
     position: absolute;
     top: 0;
-    z-index: 1
+    z-index: 1;
 }
 
 .progress .progress-left {
-    left: 0
+    left: 0;
 }
 
 .progress .progress-bar {
@@ -94,11 +94,11 @@
     border-bottom-right-radius: 80px;
     border-left: 0;
     -webkit-transform-origin: center left;
-    transform-origin: center left
+    transform-origin: center left;
 }
 
 .progress .progress-right {
-    right: 0
+    right: 0;
 }
 
 .progress .progress-right .progress-bar {
@@ -108,7 +108,7 @@
     border-right: 0;
     -webkit-transform-origin: center right;
     transform-origin: center right;
-    animation: loading-1 1.8s linear forwards
+    animation: loading-1 1.8s linear forwards;
 }
 
 .progress .progress-value {
@@ -122,37 +122,37 @@
     text-align: center;
     position: absolute;
     top: 5%;
-    left: 5%
+    left: 5%;
 }
 
 .progress.blue .progress-bar {
-    border-color: #049dff
+    border-color: #049dff;
 }
 
 .progress.blue .progress-left .progress-bar {
-    animation: loading-2 1.5s linear forwards 1.8s
+    animation: loading-2 1.5s linear forwards 1.8s;
 }
 
 @keyframes loading-1 {
     0% {
         -webkit-transform: rotate(0deg);
-        transform: rotate(0deg)
+        transform: rotate(0deg);
     }
 
     100% {
         -webkit-transform: rotate(180deg);
-        transform: rotate(180deg)
+        transform: rotate(180deg);
     }
 }
 @keyframes loading-2 {
 		0% {
 			-webkit-transform: rotate(0deg);
-			transform: rotate(0deg)
+			transform: rotate(0deg);
 		}
 
 		100% {
 			-webkit-transform: rotate(144deg);
-			transform: rotate(180deg)
+			transform: rotate(180deg);
 		}
 	}
 }
@@ -167,7 +167,7 @@
 							<H1 style = "text-align:center;">Generate Combinations for <?=$lottery->lottery_name;?></H1>
 						</div>
 						<div class="tab-content" id="myTabContent">
-							<?php if (!empty($message)) ?> <h3 class="bg-warning" style = "text-align:center;"><?=$message; ?></h3>
+							<?php if (!empty($message)) ?> <span id="message"></span>
 							<?php $attributes = array('id' => 'frmgenerate'); 
 							echo form_open(base_url().'admin/predictions/combo_gen/'.$lottery->id, $attributes); ?>
 							<div class = "col-12" style = "margin-top:2em;">
@@ -191,8 +191,16 @@
 									<div class="card bg-light mb-3 pull-left" style="width: 25em; max-width: 25rem;">
 										<div class="card-header">Combination Counter</div>
 										<div class="card-body">
-											<h5 class="card-title"><div id="row_number">Row # Here</div></h5>
-											<p class="card-text"><div id="result">Combination # Here</div></p>
+											<h5 class="card-title"><div id="row_number">Combination File: <?=$filename;?>.txt</div></h5>
+											<p class="card-text"><div id="result">
+											<?php $data = array('name' => 'combinations',
+																'id'	=>	'combinations',
+																'rows'	=> 10, 
+																'cols' => 40,
+																'value' => '',
+																'style'	=> 'overflow-y: scroll; height: 300px; resize: none;');
+											echo form_textarea($data); ?>
+											</div></p>
 										</div>
 									</div>
 										<div class="progress blue pull-right" style = "margin-left: 2em; margin-top: -2px;">
@@ -229,7 +237,17 @@
 		</div>
 	</section>
 	<script>
+	// Do not Run until submit and combinations need to be created for the text file
+	$('.progress.blue .progress-bar').css('border-color', '#FFFFFF');
+	$('.progress .progress-right .progress-bar').css('animation', 'loading-1 0.0s linear forwards');
+	$('.progress.blue .progress-left .progress-bar').css('animation', 'loading-2 0.0s linear forwards 0.0s');	
+		// this is the id of the form
 	$(document).ready(function(){
+
+	 var clear_timer;
+	 var progress = 0;
+	 var URL_counter = "<?=base_url();?>admin/predictions/combo_counter/<?=$filename;?>/<?=$combinations;?>";
+	 var URL = "<?=base_url().'admin/predictions/combo_gen/'.$lottery->id;?>";
 
 	 $('#delete').on('click', function () {
        if(confirm("You are about to make a permanent deletion. Both the Filename and the Database Record will be deleted. This can not be UNDONE. Are you sure Y/N?"))
@@ -243,54 +261,65 @@
 		}
     });
 	
-	// this is the id of the form
 	$("#frmgenerate").submit(function(e) {
 
-    //e.preventDefault(); // avoid to execute the actual submit of the form.
-
-    var form = $(this);
-    var url = form.attr('action');
-	var URL_counter = "<?php echo base_url().'admin/predictions/combo_counter/'.$lottery->id;?>";
-	var progress = 0;
-	var clear_timer;
+    e.preventDefault(); // avoid to execute the actual submit of the form.
     
     $.ajax({
-           type: "POST",
-           url: url,
-           data: form.serialize(), // serializes the form's elements.
-		   dataType: "json",
-           success: function(data)
-           {
-              //alert(data);
-			  //$('#row_number').html(data);
-			  // $('.progress-value').html('<p>'+progress+'%</p>');
-			  //$('.loading-1')
-    		  //setTimeout(combination, 5000);
-			  clear_timer = setInterval(combination, 2000);
-			  //alert(data); // show response from the php script.
-           }
-		 });
-		 function combination()
-		{
-			$('#result').html('<p>The Data is now stopped here.</p>');
-			 $.ajax({
-			url:url_counter,
-			success:function(data)
-			{
-				var len = data.length;
-				for(var c=0; c<len; c++){
-					$('#row_number').html(data[c].row);
-					$('#result').html(data[c].result);
-				}
-				progress = progress + 5;
-				$('.progress-value').html('<p>'+progress+'%</p>');
-				if(progress>=100)
+            type: "POST",
+            url: URL,
+			data: new FormData(this),
+    		dataType:"json",
+    		contentType:false,
+			async: false,
+	   		cache:false,
+    		processData:false,
+            success: function(data)
+            {
+            	
+				if(data.success)
+			  	{
+					clear_timer = setInterval(combination, 1000);
+					$('.progress.blue .progress-bar').css('border-color', '#049dff');
+					$('.progress .progress-right .progress-bar').css('animation', 'loading-1 6.8s linear forwards');
+					$('.progress.blue .progress-left .progress-bar').css('animation', 'loading-2 6.5s linear forwards 1.8s');
+					$('#message').html('<h3 class="bg-warning" style = "margin: 15px; text-align:center;">'+data.message+'</h3>');
+			  	}
+			  	if(data.error)
 				{
-					clearInterval(clear_timer);
+					$('#message').html('<h3 class="bg-warning" style = "margin: 15px; text-align:center;">'+data.error+'</h3>');
 				}
-			}
-		})
-		} 
-	});
+			  //alert(data);
+	 		  //$('#row_number').html(data);
+	 		  //$('.progress-value').html('<p>'+progress+'%</p>');
+	 		  //$('.loading-1')
+     		  //setTimeout(combination, 5000);
+	 		  
+	 		  //alert(data); // show response from the php script.
+            }
+	 	 });
+	 	 function combination()
+	 	{
+	 		 $.ajax({
+	 		url:URL_counter,
+			dataType:"json",
+	 		success:function(data)
+	 		{
+				 if(data.success)
+				 {
+					progress = progress + 10;
+					if(progress>100) progress=100;	// Remain at 100%
+					$('.progress-value').html('<p>'+progress+'%</p>');
+					$("#combinations").append(data.combotext+'\r\n');
+					if(progress>=100)
+					{
+						$('#message').html('<h3 class="bg-warning" style = "margin: 15px; text-align:center;">The Data File has ADDED the Combinations to the <?=$filename;?>.txt file.</h3>');
+						clearInterval(clear_timer);
+					}
+				 }
+	 		}
+	 	})
+	 	} 
+	 });
  });
 </script>

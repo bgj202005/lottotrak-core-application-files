@@ -6,6 +6,7 @@ class Page extends Admin_Controller {
 	public function __construct() {
 		 parent::__construct();
 		 $this->load->model('page_m');
+		 $this->load->model('maintenance_m');
 	}
 	
 	public function index() {
@@ -14,6 +15,8 @@ class Page extends Admin_Controller {
 		
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the Page Menu
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview'] = 'admin/page/index';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -79,6 +82,8 @@ class Page extends Admin_Controller {
 
 		// Load the View
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/edit'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview']  = 'admin/page/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -111,6 +116,8 @@ class Page extends Admin_Controller {
 		$this->data['sortable'] = TRUE;
 		$this->data['menu_id'] = $this->uri->segment(4); // Request Header, Footer (inside) or Footer (Outside)
 		$this->data['current'] = $this->data['menu_id']; // Hightlight Menu 0, 1 or 2
+		$this->session->set_userdata('uri', 'admin/page/order/'.$this->data['current']);
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 
 		$this->data['subview'] = 'admin/page/order';
 		$this->load->view('admin/_layout_main', $this->data);

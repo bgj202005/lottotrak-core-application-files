@@ -11,6 +11,7 @@ class Lotteries extends Admin_Controller {
 		 $this->load->model('lotteries_m');
 		 $this->load->helper('file');
 		 $this->load->library('image_lib');
+		 $this->load->model('maintenance_m');
 		 //$this->load->library('CSV_Import');
 		 //$this->output->enable_profiler(TRUE);
 	}
@@ -26,6 +27,8 @@ class Lotteries extends Admin_Controller {
 		$this->data['lotteries'] = $this->lotteries_m->get();
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the lotteries menu
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview'] = 'admin/lotteries/index';
 		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
 		else $this->data['message'] = '';
@@ -43,9 +46,6 @@ class Lotteries extends Admin_Controller {
 			//load file helper
 			$this->data['lottery'] = $this->lotteries_m->get_new();
 		}
-		
-		
-
 		$this->data['message'] = '';  // Create a Message object
 		$error = NULL;				  // Related to Image upload only
 		// Setup the form
@@ -147,7 +147,9 @@ class Lotteries extends Admin_Controller {
 		if(($this->data['lottery']->extra_ball&&!$this->data['lottery']->minimum_extra_ball)||(!$this->data['lottery']->extra_ball)) $this->data['lottery']->minimum_extra_ball = '';
 		if(($this->data['lottery']->extra_ball&&!$this->data['lottery']->maximum_extra_ball)||(!$this->data['lottery']->extra_ball)) $this->data['lottery']->maximum_extra_ball = '';
 		if ($id) $this->data['lastdraw'] = $this->lotteries_m->last_draw_db($this->data['lottery']->lottery_name);
-		$this->data['current'] = $this->uri->segment(2); // Sets the Page Menu
+		$this->data['current'] = $this->uri->segment(2); // Sets the Lottery Menu as Active
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/edit'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview']  = 'admin/lotteries/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -210,7 +212,9 @@ class Lotteries extends Admin_Controller {
 		$this->data['lottery']->prizes = $this->lotteries_m->list_prizes($this->data['lottery']->balls_drawn, $this->data['lottery']->extra_ball);
 		$this->data['lottery']->set_prizes = $this->lotteries_m->load_prizes($id);
 			
-		$this->data['current'] = $this->uri->segment(2); 
+		$this->data['current'] = $this->uri->segment(2);
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/prizes');
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check(); 
 		$this->data['subview']  = 'admin/lotteries/prizes';
 		$this->load->view('admin/_layout_main', $this->data); 
 	}
@@ -396,7 +400,9 @@ class Lotteries extends Admin_Controller {
 		}
 		else 
 		{
- 	  		$this->data['current'] = $this->uri->segment(2); 
+ 	  		$this->data['current'] = $this->uri->segment(2);
+			   $this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/import'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check(); 
 			$this->data['subview']  = 'admin/lotteries/import';
 			$this->load->view('admin/_layout_main', $this->data); 
 		}
@@ -623,6 +629,8 @@ class Lotteries extends Admin_Controller {
 			$this->data['lottery']->num = strval(++$c);
 		}
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/view'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview']  = 'admin/lotteries/view';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -904,6 +912,8 @@ class Lotteries extends Admin_Controller {
 			$this->data['lottery']->num = strval(++$c);
 
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/view'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview']  = 'admin/lotteries/view';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -1051,6 +1061,8 @@ class Lotteries extends Admin_Controller {
 		$this->data['lottery']->num = strval(++$c);
 
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/view'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview']  = 'admin/lotteries/view';
 		$this->load->view('admin/_layout_main', $this->data);
 	}

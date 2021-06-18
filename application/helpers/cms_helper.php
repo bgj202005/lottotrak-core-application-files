@@ -131,6 +131,22 @@ return anchor($uri, '<i class="fa fa-times-circle fa-2x" aria-hidden="true"></i>
  			exit;
  		}
  	}
+/**
+	 * Simple helper to debug to the console
+	 * 
+	 * @param  Array, String $data
+	 * @return String
+ */
+	if (!function_exists('debug_to_console')) {
+		function debug_to_console( $data ) {
+			if ( is_array( $data ) )
+				$output = "<script>console.log( 'Debug Objects: " . implode( ',', $data) . "' );</script>";
+			else
+				$output = "<script>console.log( 'Debug Objects: " . $data . "' );</script>";
+
+			echo $output;
+		}
+	} 
 
  	function article_link($article) {
  		return 'article/'. intval($article->id).'/'. e($article->slug);

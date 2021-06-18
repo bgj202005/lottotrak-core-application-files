@@ -8,6 +8,7 @@ class Membership extends Admin_Controller
 	{
 		 parent::__construct();
 		 $this->load->model('membership_m');
+		 $this->load->model('maintenance_m');
 	}
 	
 	/**
@@ -28,6 +29,8 @@ class Membership extends Admin_Controller
 			}
 		}
 		$this->data['current'] = $this->uri->segment(2); // Sets the membership menu
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview'] = 'admin/membership/index';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -90,13 +93,14 @@ class Membership extends Admin_Controller
 		} 
 		// Load the View
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/edit'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview'] = 'admin/membership/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 	
 	public function delete($id) 
 	{
-		
 		$this->membership_m->delete($id);
 		redirect('admin/membership');
 	}

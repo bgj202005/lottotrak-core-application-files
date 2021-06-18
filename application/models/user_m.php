@@ -112,7 +112,8 @@ class User_M extends MY_Model
 						'name' => $user->name,
 						'email' => $user->email,
 						'id' => $user->id,
-						'loggedin' => TRUE 
+						'loggedin' => TRUE,
+						'uri'	=> 'admin/dashboard/' 
 				);
 				$this->session->set_userdata ( $data );
 				return TRUE;
@@ -132,6 +133,7 @@ class User_M extends MY_Model
 		$this->session->unset_userdata('email');
 		$this->session->unset_userdata('id');
 		$this->session->unset_userdata('loggedin');
+		$this->session->unset_userdata('uri');
 		$this->session->sess_destroy();
 	}
 	

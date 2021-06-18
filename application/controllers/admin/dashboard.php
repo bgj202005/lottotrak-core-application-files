@@ -25,6 +25,7 @@ class Dashboard extends Admin_Controller
 		$this->data['recent_pages'] = $this->page_m->get(); 
 		
 		$this->data['current'] = $this->uri->segment(2); // Sets the default
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview'] = 'admin/dashboard/index';
 		$this->load->view('admin/_layout_main', $this->data);
