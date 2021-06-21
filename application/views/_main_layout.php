@@ -13,7 +13,7 @@
 							</div> <!--  class="col-lg-6" -->
 							<div class="col-lg-5">
 						   		<nav>
-									<?php echo get_menu($menu); ?>
+									<?php echo get_menu($menu, $maintenance); ?>
 								</nav>							  
 						   </div>
                <?php if ($this->session->userdata('member_logged_in')) 
@@ -160,8 +160,8 @@
               </div>
               </div>
             </div>
-      <?php $this->load->view('components/page_tail'); ?>
 
+  <?php $this->load->view('components/page_tail'); ?>
 <script>
 $(document).ready(function() {
 	$('#register_form').on('submit', function(event){

@@ -39,7 +39,14 @@ function add_meta_canonical($bool)
 	$CI->data['meta_canonical'] = $bool;
 }
 
-function get_menu ($array, $child = FALSE)
+function add_meta_noindex() 
+{
+	$CI = &get_instance();
+	$CI->data['meta_noindex'] = TRUE;
+}
+
+
+function get_menu ($array, $m = FALSE, $child = FALSE)
 {
 	$str = '';
 	if (count($array)) 
@@ -47,12 +54,13 @@ function get_menu ($array, $child = FALSE)
 	if ($child==FALSE) { $str .= '<ul id="top-menu" class="sm sm-clean">'.PHP_EOL; }
 	foreach ($array as $item) 
 		{
-			$str .= '<li><a href="'.site_url($item['slug']).'">'.e(($item['slug']=='home'? "Home" : $item['title'])).'</a>';
+			$str .= (!$m ? '<li><a href="'.site_url($item['slug']).'">'.e(($item['slug']=='home'? "Home" : $item['title'])).'</a>'
+			: '<li><a href="'.site_url($item['slug']).'" class = "disabled">'.e(($item['slug']=='home'? "Home" : $item['title'])).'</a>');
 			// Do we have any children?
 			if (isset($item['children']) && count($item['children'])) 
 			{
 				$str .= '<ul>'. PHP_EOL;
-				$str .= get_menu($item['children'], TRUE);
+				$str .= get_menu($item['children'], $m, TRUE);
 				$str .= '</ul>';
 			}
 			//$str .= '</li>' . PHP_EOL;
@@ -63,7 +71,7 @@ function get_menu ($array, $child = FALSE)
 return $str;
 }
 
-function get_footer_menu($array, $class = NULL) 
+function get_footer_menu($array, $m = FALSE, $class = NULL) 
 {
 
    $str = '';
@@ -72,7 +80,8 @@ function get_footer_menu($array, $class = NULL)
         foreach($array as $item) {
             if(!isset($item['slug'])) { $item['slug'] = null; $item['title'] = null; }
             $str .= '<li>';
-            $str .= '<a href="' .site_url($item['slug']).'">'.e($item['title']).'</a>';
+            $str .= (!$m ? '<a href="' .site_url($item['slug']).'">'.e($item['title']).'</a>' 
+			: '<a href="' .site_url($item['slug']).'" class = "disabled">'.e($item['title']).'</a>');
             $str .= '</li>'. PHP_EOL;
         }
         $str .= '</ul>' . PHP_EOL;

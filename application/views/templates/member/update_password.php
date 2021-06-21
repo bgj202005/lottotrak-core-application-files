@@ -95,7 +95,7 @@
 				<div class="col-xs-12 col-md-8">
 					<div class="wrapper">
 						<div class="content-menu">
-							<?php echo get_footer_menu($footer_menu_inside); ?>
+							<?php echo get_footer_menu($footer_menu_inside, $maintenance); ?>
 							<div class="clear"></div>
 					  </div>
 				   </div>

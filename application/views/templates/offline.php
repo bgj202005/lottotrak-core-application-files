@@ -9,18 +9,11 @@ p {
 </style>
 <section id="content">
     <div class="content-inner  col-centered">
-        <div class="row">
-            <div class="col-xs-12 col-md-8">
-                <div class="row">
-        			<article>
-        				<h2><p>Error 404. The Page <?=$slug?> does not EXIST.</p></h2>
+        <div class="row d-flex justify-content-center">
+        			<article style = "margin-top: 15em; margin-bottom: 15em;">
+        				<h2><p>Lottotrak is currently undergoing Maintenance</p></h2>
+						<h3><p>Please check back soon.</p></h3>
         			</article>
-	           </div>
-        	</div>
-        	<!--  Sidebar -->
-        	<div class="col-xs-12 col-md-4 sidebar">
-				<?php $this->load->view('sidebar'); ?>
-			</div>
 			<div class="wrapper">
 				<div class="content-menu">
 					<?php echo get_footer_menu($footer_menu_inside, $maintenance); ?>

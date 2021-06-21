@@ -6,7 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
 <title><?php echo $meta_title; ?></title>
-<?php if (isset($meta_description)&&(!is_null($meta_description))) echo '<meta name="description" content="'.$meta_description.' " />'; 
+<?php if (isset($meta_description)&&(!is_null($meta_description))) echo '<meta name="description" content="'.$meta_description.' " />';
+if(isset($meta_noindex)&&$meta_noindex) echo '<meta name="robots" content="noindex, nofollow">'; 
 if (isset($meta_canonical)&&$meta_canonical) echo '<link rel="canonical" href="'.($this->uri->segment(1)=='home' ? site_url() : current_url()).'" />'; ?>
 <script data-ad-client="ca-pub-5976356078715284" async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
 <!-- BootstrapCND v4.3 -->

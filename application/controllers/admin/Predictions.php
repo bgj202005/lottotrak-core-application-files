@@ -356,6 +356,7 @@ class Predictions extends Admin_Controller {
 		}
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 

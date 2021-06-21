@@ -5,7 +5,7 @@
         	<div class="col-lg-12">
             	<div class="footer-inner col-centered">
                 	 
-                    <?php echo get_footer_menu($footer_menu_outside, 'footer-menu'); ?>
+                    <?php echo get_footer_menu($footer_menu_outside, $maintenance, 'footer-menu'); ?>
 					
 					<p class="credit">
 						Copyright (c) <?php echo date('Y'); ?><a href="http://lottotrak.com"> Lottotrak</a>
