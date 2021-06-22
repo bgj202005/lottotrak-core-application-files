@@ -29,8 +29,18 @@
 	<tr> 
 		<td style = "text-align:center;"><?php if (!empty($lottery->lottery_image)) 
 			{ 
-				$image_info = getimagesize(base_url().'images/uploads/'.$lottery->lottery_image); 
-				$extra = array('width' => $image_info[0]/2, 'height' => $image_info[1]/2);
+				if (DIRECTORY_SEPARATOR === '/') 
+				{
+    			// unix, linux, mac
+					$path = $this->input->server('document_root').'images/uploads/'.$lottery->lottery_image;
+				}
+				else
+				{
+				// windows	
+					$path =	base_url().'images/uploads/'.$lottery->lottery_image;
+				}
+				$image_info = getimagesize($path); 
+				$extra = array('width' => $image_info[0]/2, 'height' => $image_info[1]/2, 'alt'	=> '');
 				echo img(base_url().'images/uploads/'.$lottery->lottery_image, FALSE, $extra); 
 			} ?></td>
 		<td style = "text-align:center;"><?php echo anchor('admin/lotteries/edit/'.$lottery->id, $lottery->lottery_name);?></td>
