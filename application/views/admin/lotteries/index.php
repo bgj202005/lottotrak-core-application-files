@@ -32,7 +32,7 @@
 				if (DIRECTORY_SEPARATOR === '/') 
 				{
     			// unix, linux, mac
-					$path = $this->input->server('document_root').'images/uploads/'.$lottery->lottery_image;
+					$path = $this->input->server('DOCUMENT_ROOT').'images/uploads/'.$lottery->lottery_image;
 				}
 				else
 				{
