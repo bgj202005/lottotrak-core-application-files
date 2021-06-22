@@ -44,7 +44,17 @@
 	<tr>
 		<td style = "text-align:center;"><?php if (!empty($lottery->lottery_image)) 
 			{ 
-				$image_info = getimagesize(base_url().'images/uploads/'.$lottery->lottery_image); 
+				if (DIRECTORY_SEPARATOR === '/') 
+				{
+    			// unix, linux, mac
+					$path = $this->input->server('DOCUMENT_ROOT').'/images/uploads/'.$lottery->lottery_image;
+				}
+				else
+				{
+				// windows	
+					$path =	base_url().'images/uploads/'.$lottery->lottery_image;
+				}
+				$image_info = getimagesize($path); 
 				$extra = array('width' => $image_info[0]/2, 'height' => $image_info[1]/2);
 				echo img(base_url().'images/uploads/'.$lottery->lottery_image, FALSE, $extra); 
 			} ?></td>
