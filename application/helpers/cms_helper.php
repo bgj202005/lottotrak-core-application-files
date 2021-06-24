@@ -39,6 +39,11 @@ function add_meta_canonical($bool)
 	$CI->data['meta_canonical'] = $bool;
 }
 
+/**
+	 * Add a Meta No Index tag to pages such as the Maintenance page and 404 Error page
+	 * @param       none
+	 * @return      none
+ */
 function add_meta_noindex() 
 {
 	$CI = &get_instance();
