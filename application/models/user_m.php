@@ -116,7 +116,7 @@ class User_M extends MY_Model
 						'uri'	=> 'admin/dashboard/' 
 				);
 				$this->session->set_userdata ( $data );
-				$this->logged($user->id,1); // Admin is actively logged
+				$this->maintenance_m->logged($user->id,1); // Admin is actively logged
 				return TRUE;
 			}
 		} 
@@ -129,7 +129,7 @@ class User_M extends MY_Model
 	
 	public function logout() 
 	{
-		$this->logged($this->session->userdata('id'),0); // Admin is actively not logged
+		$this->maintenance_m->logged($this->session->userdata('id'),0); // Admin is actively not logged
 		$this->session->unset_userdata('username');
 		$this->session->unset_userdata('name');
 		$this->session->unset_userdata('email');

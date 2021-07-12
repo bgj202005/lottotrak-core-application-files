@@ -105,11 +105,8 @@ class MY_Model extends CI_Model {
 	*/
 	public function logged_online($user=0)
 	{
-		$count = 0;
-
 		$table = ($user ? 'users' : 'members');
 		$logged = $this->db->query('select * FROM '.$table.' WHERE logged_in=1');
-    	
 	return $logged->num_rows();
 	}	
 }
