@@ -7,6 +7,7 @@ class User extends Admin_Controller
 	public function __construct() 
 	{
 		 parent::__construct();
+		 $this->load->model('user_m');	
 		 $this->load->model('maintenance_m');	
 		 $this->data['status'] = ''; //Empty Status
 	}
@@ -14,12 +15,14 @@ class User extends Admin_Controller
 	public function index() 
 	{
 		// Fetch all users from the database
-		$this->data['users'] = $this->user_m->get();
+		$this->data['administrators'] = $this->user_m->get();
 		
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins	 
 		$this->data['subview'] = 'admin/user/index';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -63,6 +66,8 @@ class User extends Admin_Controller
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/edit'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins	 
 		$this->data['subview'] = 'admin/user/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}

@@ -17,6 +17,8 @@ class Page extends Admin_Controller {
 		$this->data['current'] = $this->uri->segment(2); // Sets the Page Menu
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		$this->data['users'] = $this->page_m->logged_online(0);	// Members
+		$this->data['admins'] = $this->page_m->logged_online(1);	// Admins	 
 		$this->data['subview'] = 'admin/page/index';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -84,6 +86,8 @@ class Page extends Admin_Controller {
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/edit'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		$this->data['users'] = $this->page_m->logged_online(0);	// Members
+		$this->data['admins'] = $this->page_m->logged_online(1);	// Admins	 
 		$this->data['subview']  = 'admin/page/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -118,7 +122,8 @@ class Page extends Admin_Controller {
 		$this->data['current'] = $this->data['menu_id']; // Hightlight Menu 0, 1 or 2
 		$this->session->set_userdata('uri', 'admin/page/order/'.$this->data['current']);
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
-
+		$this->data['users'] = $this->page_m->logged_online(0);		// Members
+		$this->data['admins'] = $this->page_m->logged_online(1);	// Admins	 
 		$this->data['subview'] = 'admin/page/order';
 		$this->load->view('admin/_layout_main', $this->data);
 	}

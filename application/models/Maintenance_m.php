@@ -40,4 +40,15 @@ class Maintenance_m extends MY_Model
 		$this->db->update('maintenance', array('maintenance' => $active));	
 	return $active;
 	}
+	/**
+	 * Turns on/off the admin as a logged in user
+	 * @param	integer	$admin_id	Admin user id
+	 * @param	integer	$active		Currently logged in is 1 or logged out is 0
+	 * @return 	none
+	 * */
+	public function logged($admin_id, $active = 0)
+	{
+		$this->db->where('id', $admin_id);
+		$this->db->update('users', array('logged_in' => $active, 'last_active' => time()));	
+	}
 }

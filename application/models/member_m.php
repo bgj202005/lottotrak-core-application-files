@@ -151,8 +151,8 @@ class Member_m extends MY_Model
                    'member_id' => $nonmember->id,
                    'member_logged_in' => TRUE
                    );
-                
             $this->session->set_userdata ($member);
+            $this->logged($nonmember->id,1); // Member is actively logged
             // Set Auth Cookies if 'Remember Me' checked       
 
             return TRUE;
@@ -165,6 +165,7 @@ class Member_m extends MY_Model
     public function logout_database() 
 	{
 		//$this->session->sess_destroy();
+        $this->logged($this->session->userdata('member_id'),0); // Member is actively not logged
         // Remove the complete signature of the member
         $this->session->unset_userdata('member_name'); // Logout only the member on the front end but any other members/admins are untouched
         $this->session->unset_userdata('member_logged_in');
@@ -373,5 +374,18 @@ class Member_m extends MY_Model
 		{
 	        return FALSE;
 	    }
+	}
+ 
+ 	
+     /**
+	 * Turns on/off the member as a logged in user
+	 * @param	integer	$member_id	Member user id
+	 * @param	integer	$active		Currently logged in is 1 or logged out is 0
+	 * @return 	none
+	 * */
+	public function logged($member_id, $active = 0)
+	{
+		$this->db->where('id', $member_id);
+		$this->db->update('members', array('logged_in' => $active, 'last_active' => time()));	
 	}
 }
