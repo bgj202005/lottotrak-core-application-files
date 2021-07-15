@@ -5,7 +5,6 @@ class Page extends Frontend_Controller {
 	
 	function __construct() {
 		parent::__construct();
-		$this->load->model('maintenance_m'); 
 	}
 
 	public function index() 
@@ -52,6 +51,7 @@ class Page extends Frontend_Controller {
 				add_meta_title($this->data['page']->title);
 				add_meta_description($this->data['page']->description);
 				add_meta_canonical($this->data['page']->canonical);
+				$this->data['page_m'] = $this->page_m; 	
 				$this->data['subview'] = $this->data['page']->template;
 				$this->load->view('_main_layout', $this->data);
 			}

@@ -66,7 +66,7 @@
             <i class="fa fa-user-circle-o" aria-hidden="true" style="margin-right:10px; color: #4183C4; text-decoration: none; background-color: transparent;">
             <span style = "margin-left:10px;"><span id = "admins"><?php echo sprintf("%02d", $admins); ?></span> Admins Online</span></i> <br />
             <i class="fa fa-user-times" aria-hidden="true" style="margin-right:10px; color: #4183C4; text-decoration: none; background-color: transparent;">
-            <span style = "margin-left:10px;">XX Visitors Online</span></i><br />
+            <span style = "margin-left:10px;"><span id = "visitors"><?php echo sprintf("%02d", $visitors); ?></span> Visitors Online</span></i><br />
 		    		<?php echo anchor('admin/user/edit/'.$this->session->userdata['id'], '<i class="fa fa-user" style="margin-right:15px;"></i> '.$this->session->userdata['email']); ?><br />
             <?php if($maintenance):
                 echo anchor('admin/maintenance/', '<i class="fa fa-toggle-off" style="margin-right:10px;"></i> frontend offline');

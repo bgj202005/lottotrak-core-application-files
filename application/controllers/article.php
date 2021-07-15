@@ -5,7 +5,6 @@ class Article extends Frontend_Controller {
 	
 	public function __construct() {
 		parent::__construct();
-		$this->load->model('maintenance_m');
 		$this->data['recent_news'] = $this->article_m->get_recent();
 	}
 	
@@ -52,6 +51,7 @@ class Article extends Frontend_Controller {
 				add_meta_title($this->data['article']->title);
 				add_meta_description($this->data['article']->description);
 				add_meta_canonical($this->data['article']->canonical);
+				$this->data['page_m'] = $this->page_m;
 				$this->data['subview'] = 'article';
 				$this->load->view('_main_layout', $this->data);
 			}
@@ -89,7 +89,7 @@ class Article extends Frontend_Controller {
 	   $this->data['sidebar_middle']->body = stripslashes($this->data['sidebar_middle']->body); // Remove the slashes from the database.
 	   $this->data['sidebar_bottom'] = $this->page_m->side_bar('bottom_section');
 	   $this->data['sidebar_bottom']->body = stripslashes($this->data['sidebar_bottom']->body); // Remove the slashes from the database.
-
+	   $this->data['page_m'] = $this->page_m;
        $this->data['subview'] = 'offline';
 	   $this->load->view('_main_layout', $this->data);
     }

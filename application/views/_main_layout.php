@@ -1,4 +1,5 @@
-<?php $this->load->view('components/page_head'); ?>
+<?php $this->load->view('components/page_head'); 
+$page_m->active_users(); ?>
 <body id = "page1">
 	 <div class="bg">
 			 <div class="container-fluid">

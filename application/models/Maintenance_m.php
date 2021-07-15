@@ -51,4 +51,15 @@ class Maintenance_m extends MY_Model
 		$this->db->where('id', $admin_id);
 		$this->db->update('users', array('logged_in' => $active, 'last_active' => time()));	
 	}
+	/**
+	 * Looks at the current visitors on the website, excluding admins or members
+	 * @param	none	
+	 * @return 	integer $visitors['active_count']  Current Active Visitors on the website. Not Admins or Members
+	 * */
+	public function active_visitors()
+	{
+		$query = $this->db->query("SELECT * FROM `visitors`");
+		$visitors = $query->row_array();	// A non-object value and an array
+	return (int) $visitors['active_count']; // Return value must be an integer
+	}
 }

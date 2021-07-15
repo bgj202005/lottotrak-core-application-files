@@ -26,6 +26,6 @@ class Migration_Add_Users_Logged_In_Last_Active extends CI_Migration {
     public function down()
     {
         $this->dbforge->drop_column('users', 'logged_in');
-        $this->dbforge->drop_column('last_active', 'last_active');
+        $this->dbforge->drop_column('users', 'last_active');
     }
 }

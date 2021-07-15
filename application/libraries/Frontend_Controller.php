@@ -14,6 +14,7 @@ class Frontend_Controller extends MY_Controller
     	// Load stuff
     	$this->load->model('page_m');
     	$this->load->model('article_m');
+		$this->load->model('maintenance_m'); 
 	
     	// Fetch Navigation
     	$this->data['menu'] = $this->page_m->get_nested(0);

@@ -28,7 +28,8 @@ class Dashboard extends Admin_Controller
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
-		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins	 
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins
 		$this->data['subview'] = 'admin/dashboard/index';
 		$this->load->view('admin/_layout_main', $this->data);
 	}

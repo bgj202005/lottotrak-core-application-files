@@ -45,7 +45,8 @@ class Statistics extends Admin_Controller {
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
-		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins	 
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	 
 		$this->data['subview'] = 'admin/dashboard/statistics/index';
 		$this->data['statistics'] = $this;				// Access the methods in the view
 		$this->load->view('admin/_layout_main', $this->data);
@@ -141,7 +142,8 @@ class Statistics extends Admin_Controller {
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/view_draws'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
-		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins	
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	
 		$this->data['subview']  = 'admin/dashboard/statistics/view';
 		$this->data['stat_method'] = $this;				// Access the methods in the view
 		$this->load->view('admin/_layout_main', $this->data);
@@ -472,7 +474,8 @@ class Statistics extends Admin_Controller {
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/followers'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
-		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins	 
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	 
 		$this->data['subview']  = 'admin/dashboard/statistics/followers';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -578,7 +581,8 @@ class Statistics extends Admin_Controller {
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/friends'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
-		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins	 
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	 
 		$this->data['subview']  = 'admin/dashboard/statistics/friends';
 		$this->load->view('admin/_layout_main', $this->data);
 	}

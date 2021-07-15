@@ -5,7 +5,6 @@ class Member extends Frontend_Controller
     
     function __construct() {
         parent::__construct();
-        $this->load->model('page_m');
         $this->load->model('member_m');
         $this->data['recent_news'] = $this->article_m->get_recent();
         /* Sidebar Articles */

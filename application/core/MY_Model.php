@@ -108,5 +108,31 @@ class MY_Model extends CI_Model {
 		$table = ($user ? 'users' : 'members');
 		$logged = $this->db->query('select * FROM '.$table.' WHERE logged_in=1');
 	return $logged->num_rows();
-	}	
+	}
+
+	/**
+	* Reset Old Loggings, if they are automatically logged out
+	* 
+	* @param	string	$tble 	'members', 'admins', default = 'members'		
+	* @return   none	
+	*/
+	public function deactivate_old($tbl='members')
+	{
+		$this->db->reset_query();
+		$expiration = intval(time()+$this->config->item('sess_expiration'));	// Current Time + 2 Hour period
+		$activities = $this->db->select('*')
+                	->where('logged_in', '1')
+					->where('last_active <=', $expiration)
+                	->get($tbl);
+
+		if($this->db->count_all_results())
+		{
+			foreach($activities->result_object() as $activity)
+			{
+				$this->db->where('id', $activity->id);
+				$this->db->update($tbl, array('logged_in' => 0));	
+			}
+		} 
+	}
+
 }

@@ -116,6 +116,8 @@ class User_M extends MY_Model
 						'uri'	=> 'admin/dashboard/' 
 				);
 				$this->session->set_userdata ( $data );
+				$this->deactivate_old('users');	// Ckear any old users that were expired
+				$this->deactivate_old('members');	// Clear any old members that were expired
 				$this->maintenance_m->logged($user->id,1); // Admin is actively logged
 				return TRUE;
 			}
