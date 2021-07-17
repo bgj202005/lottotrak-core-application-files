@@ -255,5 +255,33 @@ class User_M extends MY_Model
 	        return FALSE;
 	    }
 	}
+	/**
+	 * funtion getIP will be used to get IP address of admin for the Administration
+	 * @param	none
+	 * @return 	none
+	 **/
+	public function adminIP() 
+	{
+	//      if a value for $_SERVER['HTTP_X_FORWARDED_FOR'] is available
+	//      $ip is obtained and returned
+	$ip = $this->input->server('HTTP_X_FORWARDED_FOR');
+	if(isset($ip))
+	{
+		if($ip=='::1') $ip = "127.0.1.1"; // Localhost
+		return $ip;
+	}
+	// Option 2 to get the IP address of visitor
+	//      if a value for $_SERVER['REMOTE_ADDR'] is available
+	//      $ip is obtained and returned
+	$ip = $this->input->server('REMOTE_ADDR');
+	if(isset($ip))
+	{
+		if($ip=='::1') $ip = "127.0.1.1"; // Localhost
+		return $ip;
+	}
+	// IP has not been obtained, so a default IP is returned
+	//      The default value will be used very few times, so
+	return "0.0.0.0";
+	}
 
 }

@@ -48,8 +48,10 @@ class Maintenance_m extends MY_Model
 	 * */
 	public function logged($admin_id, $active = 0)
 	{
+		
+		$ip = sprintf("%u", ip2long($this->user_m->adminIP())); // Convert the IP address to INT, convert to back using long2ip(sprintf("%d", $ip_address));
 		$this->db->where('id', $admin_id);
-		$this->db->update('users', array('logged_in' => $active, 'last_active' => time()));	
+		$this->db->update('users', array('logged_in' => $active, 'last_active' => time(), 'ip_address' => $ip));	
 	}
 	/**
 	 * Looks at the current visitors on the website, excluding admins or members

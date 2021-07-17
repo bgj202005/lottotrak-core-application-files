@@ -375,7 +375,6 @@ class Member_m extends MY_Model
 	        return FALSE;
 	    }
 	}
- 
  	
      /**
 	 * Turns on/off the member as a logged in user
@@ -385,7 +384,8 @@ class Member_m extends MY_Model
 	 * */
 	public function logged($member_id, $active = 0)
 	{
-		$this->db->where('id', $member_id);
-		$this->db->update('members', array('logged_in' => $active, 'last_active' => time()));	
+        $ip = sprintf("%u", ip2long($this->page_m->getIP())); // Convert the IP address to INT, convert to back using long2ip(sprintf("%d", $ip_address));
+        $this->db->where('id',  $member_id);
+		$this->db->update('members', array('logged_in' => $active, 'last_active' => time(), 'ip_address' => $ip));	
 	}
 }

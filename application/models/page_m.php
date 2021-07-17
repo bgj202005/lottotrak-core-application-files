@@ -256,36 +256,35 @@ class Page_m extends MY_Model
 				fclose($cf);
 				// OPTION 2, for PHP5 or superior
 				// file_put_contents ($folder."$ip.txt", "0");
-
-		// ########################  FUNCTIONS  #########################################
-		// funtion getIP will be used to get IP address of visitor
 	}
 	/**
-	 * Takes the $placement field (top_section, bottom_left and bottom_right)
+	 * funtion getIP will be used to get IP address of visitor for the frontend
 	 * @param	none
 	 * @return 	none
 	 **/
 	public function getIP() 
 	{
-			// Option 1 to get the IP address of visitor
-			//      if a value for $_SERVER['HTTP_X_FORWARDED_FOR'] is available
-			//      $ip is obtained and returned
-			$ip = $this->input->server('HTTP_X_FORWARDED_FOR');
-			if(isset($ip))
-			{
-					return $ip;
-			}
-			// Option 2 to get the IP address of visitor
-			//      if a value for $_SERVER['REMOTE_ADDR'] is available
-			//      $ip is obtained and returned
-			$ip = $this->input->server('REMOTE_ADDR');
-			if(isset($ip))
-			{
-					return $ip;
-			}
-			// IP has not been obtained, so a default IP is returned
-			//      The default value will be used very few times, so
-			return "0.0.0.0";
+	// Option 1 to get the IP address of visitor
+	//      if a value for $_SERVER['HTTP_X_FORWARDED_FOR'] is available
+	//      $ip is obtained and returned
+	$ip = $this->input->server('HTTP_X_FORWARDED_FOR');
+	if(isset($ip))
+	{
+		if($ip=='::1') $ip = "127.0.1.1"; // Localhost
+		return $ip;
+	}
+	// Option 2 to get the IP address of visitor
+	//      if a value for $_SERVER['REMOTE_ADDR'] is available
+	//      $ip is obtained and returned
+	$ip = $this->input->server('REMOTE_ADDR');
+	if(isset($ip))
+	{
+		if($ip=='::1') $ip = "127.0.1.1"; // Localhost
+		return $ip;
+	}
+	// IP has not been obtained, so a default IP is returned
+	//      The default value will be used very few times, so
+	return "0.0.0.0";
 	}
 	/**
 	 * COUNT NUMBER OF ACTIVE USERS
@@ -310,48 +309,56 @@ class Page_m extends MY_Model
 
 	// GET IP ADDRESS OF USER (a function in the bottom is used)
 	$ip=$this->getIP();
-	if($ip='::1') $ip = "127.0.1.1"; // Localhost
-	// REGISTER THE USER
-	//      A file will be created. The name of the file will contain the IP of the user.
-	//      In case the file already exists, it will be overwritted.
-	//      The creation time of the file will indicate how long ago the user
-	//              with this IP visited a page containing this active users counter
-			// OPTION 1, for PHP4 or superior
-			$cf = fopen($folder.$ip, "w");
-			fwrite($cf, "");
-			fclose($cf);
-			// OPTION 2, for PHP5 or superior
-			// file_put_contents ($folder."$ip.txt", "0");
+	$int_ip = sprintf("%u", ip2long($ip)); // Convert to the integer equivalent
+	$simple_sql = $this->db->simple_query("SELECT * FROM `members` WHERE logged_in = '1' AND ip_address = '.$int_ip.'");
+	if(!$simple_sql->num_rows)
+	{
 
-	// COUNT NUMBER OF ACTIVE USERS
-	//      All files within folder $folder will be checked
-	//      Files $timeold seconds old (defined above) will be deleted
-	//      Files created up to $timeold seconds ago will be accounted as active users
+		// REGISTER THE USER
+		//      A file will be created. The name of the file will contain the IP of the user.
+		//      In case the file already exists, it will be overwritted.
+		//      The creation time of the file will indicate how long ago the user
+		//              with this IP visited a page containing this active users counter
+				// OPTION 1, for PHP4 or superior
+				$cf = fopen($folder.$ip, "w");
+				fwrite($cf, "");
+				fclose($cf);
+				// OPTION 2, for PHP5 or superior
+				// file_put_contents ($folder."$ip.txt", "0");
 
-		// a counter; no users at this moment
-		$counter=0;
-		// get the list of files within $folder
-		$dir = dir($folder);
-		// check all files one by one (variable $temp will be the name of each file)
-		while($temp = $dir->read())
-		{
-			// the ones bellow are not files, so continue to next $temp
-			if ($temp=="." or $temp==".."){continue;}
-			// For real files, get the last modification time
-			//   (number of seconds since January 1st, 1970)
-			//    and save the data to variable $filecreatedtime
-			$filecreatedtime=date("U", filemtime($folder.$temp));
-			// check whether the file is $timeold seconds old
-			if ($actualtime>($filecreatedtime+$timeold))
+		// COUNT NUMBER OF ACTIVE USERS
+		//      All files within folder $folder will be checked
+		//      Files $timeold seconds old (defined above) will be deleted
+		//      Files created up to $timeold seconds ago will be accounted as active users
+
+			// a counter; no users at this moment
+			$counter=0;
+
+			// get the list of files within $folder
+			$dir = dir($folder);
+			// check all files one by one (variable $temp will be the name of each file)
+			while($temp = $dir->read())
 			{
-				// the file IS old, so delete it
-				unlink ($folder.$temp);                                                                   //
+				// the ones bellow are not files, so continue to next $temp
+				if ($temp=="." or $temp==".."){continue;}
+				// For real files, get the last modification time
+				//   (number of seconds since January 1st, 1970)
+				//    and save the data to variable $filecreatedtime
+				$filecreatedtime=date("U", filemtime($folder.$temp));
+				// check whether the file is $timeold seconds old
+				if ($actualtime>($filecreatedtime+$timeold))
+				{
+					// the file IS old, so delete it
+					unlink ($folder.$temp);
+				}
+				else
+				{
+					// the file IS NOT old, so an active user will be accounted
+					$counter++;
+				}
 			}
-			else
-			{
-				// the file IS NOT old, so an active user will be accounted
-				$counter++;
-			}
+			$this->db->set('active_count', $counter, FALSE); // Update Database Counter
+			$this->db->update('visitors');
 		}
 	}
 }
