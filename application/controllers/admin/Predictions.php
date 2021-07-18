@@ -379,6 +379,28 @@ class Predictions extends Admin_Controller {
 	}
 
 	/**
+	 * go to a form that lists the number of combination files 
+	 * Files generate combinations calls to html and php.
+	 * @param       integer	$id		Lottery Identifier
+	 * @return      none
+	 */
+	public function files($id)
+	{
+		$this->data['message'] = '';			// Defaulted to No Error Messages
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		$this->data['lottery']->generate = $this->predictions_m->all_combination_files();
+		// Load the view
+		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	
+		$this->data['predictions'] = $this;		// Access the methods in the view
+		$this->data['subview'] = 'admin/dashboard/predictions/combo_select';
+		$this->load->view('admin/_layout_main', $this->data);
+	}
+	
+	/**
 	 * Activate the link, if there are combo files waiting to be generated
 	 * 
 	 * @param       int		$id				Lottery_id associated with Combination Generated Files
@@ -484,6 +506,17 @@ class Predictions extends Admin_Controller {
 		return anchor($uri, '<i class="fa fa-trash-o fa-2x" aria-hidden="true">', 
 		array('title' => 'Delete this file and database record', 'class' => 'trash',
 		'onclick' => "return confirm('You are about to make a permanent deletion of the filename: $file_name.txt. Both the Filename and the Database Record will be deleted. This can not be UNDONE. Are you sure?')"));
+	}
+	/**
+	 * View Combinations
+	 * 
+	 * @param       string	$uri	uri admin address of the statistics page
+	 * @return      none
+	 */
+	public function btn_view($uri)
+	{
+		return anchor($uri, '<i class="fa fa-eye fa-2x" aria-hidden="true">', 
+		array('title' => 'View the Complete List of Combinations', 'class' => 'view'));
 	}
 	/**
 	 * Checks to see if the combinations are out of range between pick 3 to pick 9 and not greater than the maximum ball drawn
