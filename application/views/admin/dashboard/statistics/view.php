@@ -86,7 +86,11 @@
 		</table>
 	</section>
 	<section>
-		S = Sum			Ev = Evens			Od = Odds		M = Maximum		
+		S = Sum			Ev = Evens			Od = Odds		M = Maximum<br />		
+		<?php $extra = array('class' => 'checkbox', 'id' => 'trends');
+			  echo form_checkbox($trend, 1, ($trend ? TRUE : FALSE), $extra); 
+			  $extra = array('class' => 'col-2 col-form-label col-form-label-md', 'style' => 'font-weight:bold;');
+			  echo form_label('Trends of Draws', 'trends_lb', $extra); ?>
 	</section>
 	<section>
 		<div class="table-responsive">
@@ -124,29 +128,78 @@
 			</thead>
 			<tbody>
 				<?php $curr = new \stdClass;
-					foreach ($draws as $draw): 
+				foreach ($draws as $draw): 
 					$curr = $draw;	// The current draw object begins with $draw object 
 				?>
 				<tr>
-					<td class="fontincrease"><?= $draw->draw; ?></td>
+					<td class="fontincrease"><?=$draw->draw; ?></td>
 					<?php if($draw->draw!=1): 
 						$curr = $draw;	// Current Draw Object is passed to current draw object ($curr)
 						$r = $stat_method->last_repeaters($prev, $curr, $lottery->balls_drawn); 
+						$old = $prev;	// Specific to Trending Numbers
 						$prev = $curr;	// Ok, not the first draw, make the current draw object the previous draw object
 					else:
 						$prev = $draw;	// Store the starting draw object
+						$old = $prev;
 					endif; 
 					?>
 					<td style = "white-space: nowrap;"><?php echo date("D, M d, Y", strtotime(str_replace('/','-',$draw->draw_date))); ?></td>
-					<td class="fontincrease"><?=$draw->ball1; if(isset($r->ball1)) echo $stat_method->icon_repeater(); ?></td>
-					<td class="fontincrease"><?=$draw->ball2; if(isset($r->ball2)) echo $stat_method->icon_repeater(); ?></td>
-					<td class="fontincrease"><?=$draw->ball3; if(isset($r->ball3)) echo $stat_method->icon_repeater(); ?></td>
-					<?php if (intval($lottery->balls_drawn)>=4): ?><td class="fontincrease"><?=$draw->ball4; if(isset($r->ball4)) echo $stat_method->icon_repeater();?></td><?php endif; ?>
-					<?php if (intval($lottery->balls_drawn)>=5): ?><td class="fontincrease"><?=$draw->ball5; if(isset($r->ball5)) echo $stat_method->icon_repeater();?></td><?php endif; ?>
-					<?php if (intval($lottery->balls_drawn)>=6): ?><td class="fontincrease"><?=$draw->ball6; if(isset($r->ball6)) echo $stat_method->icon_repeater();?></td><?php endif; ?>
-					<?php if (intval($lottery->balls_drawn)>=7): ?><td class="fontincrease"><?=$draw->ball7; if(isset($r->ball7)) echo $stat_method->icon_repeater();?></td><?php endif; ?>
-					<?php if (intval($lottery->balls_drawn)>=8): ?><td class="fontincrease"><?=$draw->ball8; if(isset($r->ball8)) echo $stat_method->icon_repeater();?></td><?php endif; ?>
-					<?php if (intval($lottery->balls_drawn)==9): ?><td class="fontincrease"><?=$draw->ball9; if(isset($r->ball9)) echo $stat_method->icon_repeater();?></td><?php endif; ?>			
+					<td class="fontincrease"><?=$draw->ball1; 
+					if(isset($r->ball1)):
+						echo $stat_method->icon_repeater(); 
+					else: if($trend): echo $stat_method->trend($old->ball1, $curr->ball1); endif; 
+					endif;?>
+					</td>
+					<td class="fontincrease"><?=$draw->ball2; 
+					if(isset($r->ball2)):
+						echo $stat_method->icon_repeater();
+					else: if($trend): echo $stat_method->trend($old->ball2, $curr->ball2); endif; 
+					endif;?>
+					</td>
+					<td class="fontincrease"><?=$draw->ball3; 
+					if(isset($r->ball3)):
+						echo $stat_method->icon_repeater();
+					else: if($trend): echo $stat_method->trend($old->ball3, $curr->ball3); endif; 
+					endif;?>
+					</td>
+					<?php if (intval($lottery->balls_drawn)>=4): ?><td class="fontincrease"><?=$draw->ball4; 
+					if(isset($r->ball4)):
+						echo $stat_method->icon_repeater();
+					else: if($trend): echo $stat_method->trend($old->ball4, $curr->ball4); endif; 
+					endif;?>
+					</td>
+					<?php endif; ?>
+					<?php if (intval($lottery->balls_drawn)>=5): ?><td class="fontincrease"><?=$draw->ball5;
+					if(isset($r->ball5)):
+						echo $stat_method->icon_repeater();
+					else: if($trend): echo $stat_method->trend($old->ball5, $curr->ball5); endif; 
+					endif;?>
+					</td>
+					<?php endif; ?>
+					<?php if (intval($lottery->balls_drawn)>=6): ?><td class="fontincrease"><?=$draw->ball6; 
+					if(isset($r->ball6)): 
+						echo $stat_method->icon_repeater();
+					else: if($trend): echo $stat_method->trend($old->ball6, $curr->ball6); endif;
+					endif; ?>
+					</td><?php endif; ?>
+					<?php if (intval($lottery->balls_drawn)>=7): ?><td class="fontincrease"><?=$draw->ball7;
+					if(isset($r->ball7)): echo $stat_method->icon_repeater();
+					else: if($trend): echo $stat_method->trend($old->ball7, $curr->ball7); endif;
+					endif; ?> 
+					</td>
+					<?php endif; ?>
+					<?php if (intval($lottery->balls_drawn)>=8): ?><td class="fontincrease"><?=$draw->ball8;
+					if(isset($r->ball8)): echo $stat_method->icon_repeater();
+					else: if($trend): echo $stat_method->trend($old->ball8, $curr->ball8); endif;
+					endif; ?> 
+					</td>
+					<?php endif; ?>
+					<?php if (intval($lottery->balls_drawn)==9): ?><td class="fontincrease"><?=$draw->ball9;
+					if(isset($r->ball9)): echo $stat_method->icon_repeater();
+					else: if($trend): echo $stat_method->trend($old->ball9, $curr->ball9); endif;
+					endif; ?> 
+					</td>
+					<?php endif; ?>			
 					<?php if (intval($lottery->extra_ball)==1): ?><td class="fontincrease"><?=$draw->extra; ?><?php endif; ?></td>
 					<td class="fontincrease"><?=$draw->sum_draw; ?></td>
 					<td class="fontincrease"><?=$draw->sum_digits; ?></td>
@@ -167,5 +220,14 @@
 	$(function() {
 		$('#history').bootstrapTable()
 	})
+	var trends = document.getElementById("trends");
+	document.getElementById("trends").onclick = function(){
+		if(trends.checked==true) {
+			location.href = "<?php echo base_url().'admin/statistics/view_draws/'.$lottery->id.'/trends/';?>";
+		}
+		else {
+			location.href = "<?php echo base_url().'admin/statistics/view_draws/'.$lottery->id;?>";
+		}
+	}
 	</script>
 	</section>

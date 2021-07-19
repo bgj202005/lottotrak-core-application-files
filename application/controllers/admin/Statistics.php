@@ -119,6 +119,8 @@ class Statistics extends Admin_Controller {
 		$this->data['statistics'] = $this->statistics_m->get_by('lottery_id='.$id, TRUE);
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		$this->data['trend'] = 0;
+		if(!empty($this->uri->segment(5))) $this->data['trend'] = 1;
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 		{
@@ -375,6 +377,49 @@ class Statistics extends Admin_Controller {
 	public function icon_repeater() 
 	{
 		return img('images/assets/repeat-icon.png', FALSE, 'class="repeater"');
+	}
+	/**
+	 * Display Trend Up Icon (location, just after the drawn ball)
+	 * 
+	 * @param 	   	none	
+	 * @return      <i tag  font awesome up></i>
+	 */
+	public function icon_up() 
+	{
+		return '<i class="fa fa-arrow-up" aria-hidden="true" style = "color:red"></i>';
+	}
+	/**
+	 * Display Trend Down Icon (location, just after the drawn ball)
+	 * 
+	 * @param 	   	none	
+	 * @return      <i tag font awesome down></i>
+	 */
+	public function icon_down() 
+	{
+		return '<i class="fa fa-arrow-down" aria-hidden="true" style = "color:green"</i>';
+	}
+	/**
+	 * This method looks at the previous draw with the next draw and compares an up or down trend for each draw
+	 * 
+	 * @param		integer		$prev		current ball number	
+	 * @param 		integer 	$next		next draw number
+	 * @return      string		$icon		The font awesome icon
+	 */
+	public function trend($prev, $next)
+	{
+		if ($prev<$next)
+		{
+			$icon = $this->icon_up();
+		}
+		if($prev>$next)
+		{
+			$icon = $this->icon_down();
+		}
+		elseif ($prev==$next)
+		{
+			$icon = ''; // Display Blank
+		}
+	return $icon;
 	}
 	/**
 	 * View the follower numbers after the current draw. Default is 100 draws.
