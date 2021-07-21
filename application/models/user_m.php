@@ -256,7 +256,7 @@ class User_M extends MY_Model
 	    }
 	}
 	/**
-	 * funtion getIP will be used to get IP address of admin for the Administration
+	 * funtion getIP will be used to get IP address of the active admin
 	 * @param	none
 	 * @return 	none
 	 **/
@@ -283,5 +283,4 @@ class User_M extends MY_Model
 	//      The default value will be used very few times, so
 	return "0.0.0.0";
 	}
-
 }

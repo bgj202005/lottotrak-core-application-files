@@ -54,12 +54,49 @@ class Maintenance_m extends MY_Model
 		$this->db->update('users', array('logged_in' => $active, 'last_active' => time(), 'ip_address' => $ip));	
 	}
 	/**
-	 * Looks at the current visitors on the website, excluding admins or members
+	 * Looks at the current visitors on the frontend of website 
 	 * @param	none	
 	 * @return 	integer $visitors['active_count']  Current Active Visitors on the website. Not Admins or Members
 	 * */
 	public function active_visitors()
 	{
+		$folder=FCPATH.'visitor_ips\\'; 
+		// TIME SINCE LAST ACTIVITY OF AN USERS TO BE CONSIDERED NON-ACTIVE
+		$timeold=300;   // seconds
+
+	// ###############  THE WORKING PART OF THE SCRIPT ##############################
+
+		// GET ACTUAL TIME
+		$actualtime=date("U");   // seconds since January 1st, 1970.
+		// a counter; no users at this moment
+		$counter=0;
+
+			// get the list of files within $folder
+		$dir = dir($folder);
+			// check all files one by one (variable $temp will be the name of each file)
+		while($temp = $dir->read())
+		{
+			// the ones bellow are not files, so continue to next $temp
+			if ($temp=="." or $temp==".."){continue;}
+			// For real files, get the last modification time
+			//   (number of seconds since January 1st, 1970)
+			//    and save the data to variable $filecreatedtime
+			$filecreatedtime=date("U", filemtime($folder.$temp));
+			// check whether the file is $timeold seconds old
+			if ($actualtime>($filecreatedtime+$timeold))
+			{
+				// the file IS old, so delete it
+				unlink ($folder.$temp);
+			}
+			else
+			{
+				// the file IS NOT old, so an active user will be accounted
+				$counter++;
+			}
+		}
+		$this->db->set('active_count', $counter, FALSE); // Update Database Counter
+		$this->db->update('visitors');
+
 		$query = $this->db->query("SELECT * FROM `visitors`");
 		$visitors = $query->row_array();	// A non-object value and an array
 	return (int) $visitors['active_count']; // Return value must be an integer

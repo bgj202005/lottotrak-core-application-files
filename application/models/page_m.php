@@ -293,72 +293,71 @@ class Page_m extends MY_Model
 	 **/
 	public function active_users()
 	{
-	// ###############  SET UP THE VARIABLES  ########################################
-	// FOLDER USED TO STORE TEMPORAL FILES
-	//    IMPORTANT: the folder must have proper permissions to allow writing files
-	//    The name of the temporal files contains the IP address of the user
-	//    ($_SERVER["DOCUMENT_ROOT"] is the root folder for the website)
-	$folder=FCPATH.'visitor_ips\\'; //$this->input->server("DOCUMENT_ROOT")."/lottotrak/visitor_ips/";
-	// TIME SINCE LAST ACTIVITY OF AN USERS TO BE CONSIDERED NON-ACTIVE
-	$timeold=300;   // seconds
+		// ###############  SET UP THE VARIABLES  ########################################
+		// FOLDER USED TO STORE TEMPORAL FILES
+		//    IMPORTANT: the folder must have proper permissions to allow writing files
+		//    The name of the temporal files contains the IP address of the user
+		//    ($_SERVER["DOCUMENT_ROOT"] is the root folder for the website)
+		$folder=FCPATH.'visitor_ips\\'; //$this->input->server("DOCUMENT_ROOT")."/lottotrak/visitor_ips/";
+		// TIME SINCE LAST ACTIVITY OF AN USERS TO BE CONSIDERED NON-ACTIVE
+		$timeold=300;   // seconds or 5 minutes0
 
-	// ###############  THE WORKING PART OF THE SCRIPT ##############################
+		// ###############  THE WORKING PART OF THE SCRIPT ##############################
 
-	// GET ACTUAL TIME
-	$actualtime=date("U");   // seconds since January 1st, 1970.
+		// GET ACTUAL TIME
+		$actualtime=date("U");   // seconds since January 1st, 1970.
 
-	// GET IP ADDRESS OF USER (a function in the bottom is used)
-	$ip=$this->getIP();
-	$int_ip = sprintf("%u", ip2long($ip)); // Convert to the integer equivalent
-	$simple_sql = $this->db->simple_query("SELECT * FROM `members` WHERE logged_in = '1' AND ip_address = '.$int_ip.'");
-	if(!$simple_sql->num_rows)
-	{
-
-		// REGISTER THE USER
-		//      A file will be created. The name of the file will contain the IP of the user.
-		//      In case the file already exists, it will be overwritted.
-		//      The creation time of the file will indicate how long ago the user
-		//              with this IP visited a page containing this active users counter
-				// OPTION 1, for PHP4 or superior
+		// GET IP ADDRESS OF USER (a function in the bottom is used)
+		$ip=$this->getIP();
+		$int_ip = sprintf("%u", ip2long($ip)); // Convert to the integer equivalent
+		$simple_sql = $this->db->simple_query("SELECT * FROM `members` WHERE logged_in = '1' AND ip_address = '.$int_ip.'");
+		if(!$simple_sql->num_rows)
+		{
+			// REGISTER THE USER
+			//      A file will be created. The name of the file will contain the IP of the user.
+			//      In case the file already exists, it will be overwritted.
+			//      The creation time of the file will indicate how long ago the user
+			//              with this IP visited a page containing this active users counter
+					// OPTION 1, for PHP4 or superior
 				$cf = fopen($folder.$ip, "w");
 				fwrite($cf, "");
 				fclose($cf);
-				// OPTION 2, for PHP5 or superior
-				// file_put_contents ($folder."$ip.txt", "0");
+					// OPTION 2, for PHP5 or superior
+					// file_put_contents ($folder."$ip.txt", "0");
 
-		// COUNT NUMBER OF ACTIVE USERS
-		//      All files within folder $folder will be checked
-		//      Files $timeold seconds old (defined above) will be deleted
-		//      Files created up to $timeold seconds ago will be accounted as active users
+				// COUNT NUMBER OF ACTIVE USERS
+				//      All files within folder $folder will be checked
+				//      Files $timeold seconds old (defined above) will be deleted
+				//      Files created up to $timeold seconds ago will be accounted as active users
 
-			// a counter; no users at this moment
-			$counter=0;
+				// a counter; no users at this moment
+				$counter=0;
 
-			// get the list of files within $folder
-			$dir = dir($folder);
-			// check all files one by one (variable $temp will be the name of each file)
-			while($temp = $dir->read())
-			{
-				// the ones bellow are not files, so continue to next $temp
-				if ($temp=="." or $temp==".."){continue;}
-				// For real files, get the last modification time
-				//   (number of seconds since January 1st, 1970)
-				//    and save the data to variable $filecreatedtime
-				$filecreatedtime=date("U", filemtime($folder.$temp));
-				// check whether the file is $timeold seconds old
-				if ($actualtime>($filecreatedtime+$timeold))
+				// get the list of files within $folder
+				$dir = dir($folder);
+				// check all files one by one (variable $temp will be the name of each file)
+				while($temp = $dir->read())
 				{
-					// the file IS old, so delete it
-					unlink ($folder.$temp);
+					// the ones bellow are not files, so continue to next $temp
+					if ($temp=="." or $temp==".."){continue;}
+					// For real files, get the last modification time
+					//   (number of seconds since January 1st, 1970)
+					//    and save the data to variable $filecreatedtime
+					$filecreatedtime=date("U", filemtime($folder.$temp));
+					// check whether the file is $timeold seconds old
+					if ($actualtime>($filecreatedtime+$timeold))
+					{
+						// the file IS old, so delete it
+						unlink ($folder.$temp);
+					}
+					else
+					{
+						// the file IS NOT old, so an active user will be accounted
+						$counter++;
+					}
 				}
-				else
-				{
-					// the file IS NOT old, so an active user will be accounted
-					$counter++;
-				}
-			}
-			$this->db->set('active_count', $counter, FALSE); // Update Database Counter
-			$this->db->update('visitors');
+				$this->db->set('active_count', $counter, FALSE); // Update Database Counter
+				$this->db->update('visitors');
 		}
 	}
 }
