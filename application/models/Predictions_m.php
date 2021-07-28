@@ -74,7 +74,6 @@ class Predictions_m extends MY_Model
 	 */
 	public function lottery_combination_record($name)
 	{
-
 			$sql = "SELECT * FROM `lottery_combination_files` WHERE `file_name`=".$name." LIMIT 1";
 			$result = $this->db->query($sql);
 			
@@ -209,5 +208,104 @@ class Predictions_m extends MY_Model
 		fclose($fp);	
 		
 	return $saved; // Returns TRUE or False based on the actual count of the combinations in the text file.
+	}
+
+	/**
+	 * Returns the complete list of combinations based on the number of combinations
+	 * 
+	 * @param       string	$name			The name of the file_name of the combination file without the .txt extention
+	 * @param 		integer	$pick			Number of balls picked
+	 * @return     	object	$draws			Drawn numbers placed from the text file into the array and typecast to an object
+	 */
+	public function load_draws($name, $pick)
+	{
+		$fp = fopen($this->predictions_m->full_path($name), "r");
+		$combotext = "";
+		$draws = [];
+		if($fp)
+		{
+			while(!feof($fp))
+			{
+				$combotext = fgets($fp);
+				if(!empty($combotext))	// Check for blank lines near the end of the file //
+				{
+					$drawing = explode(' ', $combotext);
+					switch($pick)
+					{
+						case 3:
+							array_push($draws, (object) [
+							'ball1'	=> $drawing[0],
+							'ball2'	=> $drawing[1],
+							'ball3'	=> $drawing[2],
+							]);
+							break;
+						case 4:
+							array_push($draws, (object) [
+							'ball1'	=> $drawing[0],
+							'ball2'	=> $drawing[1],
+							'ball3'	=> $drawing[2],
+							'ball4'	=> $drawing[3],
+							]);
+							break;
+						case 5:
+							array_push($draws, (object) [
+							'ball1'	=> $drawing[0],
+							'ball2'	=> $drawing[1],
+							'ball3'	=> $drawing[2],
+							'ball4'	=> $drawing[3],
+							'ball5'	=> $drawing[4],
+							]);
+							break;
+						case 6:
+							array_push($draws, (object) [
+							'ball1'	=> $drawing[0],
+							'ball2'	=> $drawing[1],
+							'ball3'	=> $drawing[2],
+							'ball4'	=> $drawing[3],
+							'ball5'	=> $drawing[4],
+							'ball6'	=> $drawing[5],
+							]);
+							break;
+						case 7:
+							array_push($draws, (object) [
+							'ball1'	=> $drawing[0],
+							'ball2'	=> $drawing[1],
+							'ball3'	=> $drawing[2],
+							'ball4'	=> $drawing[3],
+							'ball5'	=> $drawing[4],
+							'ball6'	=> $drawing[5],
+							'ball7'	=> $drawing[6],
+							]);
+							break;
+						case 8:
+							array_push($draws, (object) [
+							'ball1'	=> $drawing[0],
+							'ball2'	=> $drawing[1],
+							'ball3'	=> $drawing[2],
+							'ball4'	=> $drawing[3],
+							'ball5'	=> $drawing[4],
+							'ball6'	=> $drawing[5],
+							'ball7'	=> $drawing[6],
+							'ball8'	=> $drawing[7],
+							]);
+							break;
+						default:
+							array_push($draws, (object) [
+							'ball1'	=> $drawing[0],
+							'ball2'	=> $drawing[1],
+							'ball3'	=> $drawing[2],
+							'ball4'	=> $drawing[3],
+							'ball5'	=> $drawing[4],
+							'ball6'	=> $drawing[5],
+							'ball7'	=> $drawing[6],
+							'ball8'	=> $drawing[7],
+							'ball9'	=> $drawing[8],
+							]);
+					}
+				}
+			}
+		}
+		else return FALSE;
+	return $draws;
 	}
 }

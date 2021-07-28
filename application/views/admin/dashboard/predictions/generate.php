@@ -281,8 +281,8 @@
 			  	{
 					clear_timer = setInterval(combination, 1000);
 					$('.progress.blue .progress-bar').css('border-color', '#049dff');
-					$('.progress .progress-right .progress-bar').css('animation', 'loading-1 6.8s linear forwards');
-					$('.progress.blue .progress-left .progress-bar').css('animation', 'loading-2 6.5s linear forwards 1.8s');
+					$('.progress .progress-right .progress-bar').css('animation', 'loading-1 2.8s linear forwards');
+					$('.progress.blue .progress-left .progress-bar').css('animation', 'loading-2 2.5s linear forwards 1.8s');
 					$('#message').html('<h3 class="bg-warning" style = "margin: 15px; text-align:center;">'+data.message+'</h3>');
 			  	}
 			  	if(data.error)

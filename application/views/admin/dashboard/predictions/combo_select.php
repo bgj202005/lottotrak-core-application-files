@@ -58,7 +58,7 @@
 						<div class="tab-content" id="myTabContent">
 							<?php if (!empty($message)) ?> <h3 class="bg-warning" style = "text-align:center;"><?=$message; ?></h3>
 							<?php echo validation_errors('<H2><div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">','</div></H2>'); ?>
-							<?php echo form_open(base_url().'admin/predictions/generate_select/'.$lottery->id); ?>
+							<?php echo form_open(base_url().'admin/predictions/combo_view/'.$lottery->id); ?>
 							<div class = "col-12" style = "margin-top:2em;">
 								<div class="form-group form-group-lg row">
 									<table class="table table-bordered" style = "margin:1em;">
@@ -88,8 +88,8 @@
 												echo '<td style = "text-align:center;">'.form_label($file->N, 'balls_predict_lb_'.$file->id, $extra).'</td>';
 												echo '<td style = "text-align:center;">'.form_label($file->R, 'pick_game_lb_'.$file->id, $extra).'</td>';
 												echo '<td style = "text-align:center;">'.form_label($file->CCCC, 'combinations_lb_'.$file->id, $extra).'</td>';
-												echo '<td style = "text-align:center;">'.$predictions->btn_view('admin/predictions/view/'.$lottery->id.'/'.$file->file_name, $file->file_name).'</td>';
-												echo '<td style = "text-align:center;">'.$predictions->btn_trash('admin/predictions/delete/'.$lottery->id.'/'.$file->file_name, $file->file_name).'</td>';
+												echo '<td style = "text-align:center;">'.$predictions->btn_view('admin/predictions/combo_view/'.$lottery->id.'/'.$file->file_name).'</td>';
+												echo '<td style = "text-align:center;">'.$predictions->btn_trash('admin/predictions/delete/'.$lottery->id.'/'.$file->file_name.'/combo_view', $file->file_name).'</td>';
 												echo '</tr>';?>
 											</div>
 											<?php $row++; 
@@ -102,7 +102,6 @@
 									<?php $extra = array('class' => 'btn btn-primary btn-lg btn-info d-flex', 
 														'style' => "padding:5px; display: block; margin:20px 30px;");
 										echo form_submit('submit', 'Select File', $extra);
-										$js = "javascript: form.action='".base_url()."admin/predictions/combo_save/".$lottery->id."'";
 										$js = "location.href='".base_url()."admin/predictions/'";
 										$attributes = array(
 										'class' 	=> "btn btn-primary btn-lg btn-info",

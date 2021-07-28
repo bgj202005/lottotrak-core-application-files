@@ -360,6 +360,10 @@ class Predictions extends Admin_Controller {
 		{
 			redirect('admin/predictions'); 	// No More Files available, Redirect
 		}
+		elseif(!is_null($this->uri->segment(6,NULL)))
+		{
+			redirect('admin/predictions'); 	// No More Files available, Redirect
+		}
 		else
 		{
 			$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; 	//Calculated Combinations
@@ -388,7 +392,7 @@ class Predictions extends Admin_Controller {
 	{
 		$this->data['message'] = '';			// Defaulted to No Error Messages
 		$this->data['lottery'] = $this->lotteries_m->get($id);
-		$this->data['lottery']->generate = $this->predictions_m->all_combination_files();
+		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_files($id); //$this->predictions_m->all_combination_files();
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
@@ -400,6 +404,35 @@ class Predictions extends Admin_Controller {
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 	
+	/**
+	 * Views all Combinations from this file, filtering and Draw Search Options
+	 *  being imported in the database
+	 * @param       $id		current id of draws		
+	 * @return      none
+	 */
+	public function combo_view($id)
+	{
+		$this->data['message'] = '';
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		$filename = (!empty($this->input->post('file')) ? $this->input->post('file') : $this->uri->segment(5));
+		$this->data['file'] = $this->predictions_m->lottery_combination_record($filename);
+
+		$this->data['draws'] = $this->predictions_m->load_draws($filename, (int) $this->data['file'][0]->R);
+		if(!$this->data['draws'])
+		{
+			$this->data['message'] = 'The Combination File of Picks could not be loaded.';
+		}
+		
+		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'combo_view'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		$this->data['subview']  = 'admin/dashboard/predictions/combo_view';
+		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	
+		$this->load->view('admin/_layout_main', $this->data);
+	}
+
 	/**
 	 * Activate the link, if there are combo files waiting to be generated
 	 * 
