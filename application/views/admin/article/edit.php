@@ -89,7 +89,7 @@ echo form_open(base_url()."admin/article/edit/".(!empty($article->id) ? $article
 		<td><?php echo form_submit('submit', 'Save and Exit', '
 			class="btn btn-primary"'); ?></td>
 		<td><?php 
-		$js = "javascript: form.action='".base_url()."admin/article/edit/".$article->id."/save'";
+		$js = (!empty($article->id) ? "javascript: form.action='".base_url()."admin/article/edit/".$article->id."/save'" : "javascript: form.action='".base_url()."admin/article/edit/save'");
 		$class = "btn btn-primary";
 		$attributes = array(
 			'class' 	=> "$class",

@@ -33,6 +33,7 @@ class Article_m extends MY_Model
 		$article->title = '';
 		$article->slug = '';
 		$article->body = '';
+		$article->raw = NULL;
 		$article->pubdate = date('Y-m-d');
 		return $article;
 	}
