@@ -118,7 +118,7 @@
 					echo form_label('Lottery', 'lottery', $extra); ?>
 					<div class="col-8">
 					<?php $extra = array('class' => 'btn btn-secondary btn-lg');
-					echo form_multiselect('lottery_id[]', $lotteries['list'], $lotteries['selected'], $extra);
+					echo form_multiselect('lottery_id[]', $lotteries['list'], (isset($lotteries['selected']) ? $lotteries['selected'] : ''), $extra);
 					echo form_error('lottery_id', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>	
 					</div>
 				</div>

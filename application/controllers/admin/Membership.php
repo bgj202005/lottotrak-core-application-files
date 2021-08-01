@@ -54,6 +54,7 @@ class Membership extends Admin_Controller
 		else 
 		{
 			$this->data['member'] = $this->membership_m->get_new();
+			$this->data['lotteries']['list'] = $this->membership_m->lotteries_list();
 		}
 		$this->data['message'] = '';  // Create a Message object
 		// Setup the form
