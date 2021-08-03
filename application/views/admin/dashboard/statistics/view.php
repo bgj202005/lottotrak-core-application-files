@@ -36,7 +36,7 @@
 	<section>
 		<table id="history"
 		class = "stats table-sm"
-		data-pagination="true"
+		data-pagination="false"
 		data-search="false">
 			<thead>
 				<tr><th colspan = "18">AVERAGE STATISTICS</th></tr>
