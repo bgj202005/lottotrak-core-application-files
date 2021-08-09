@@ -470,6 +470,9 @@ class Statistics extends Admin_Controller {
 				{
 					
 					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range);
+					/** NEW included nonfollower calculations **/
+					$max = $this->data['lottery']->maximum_ball;
+					$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max);
 					$followers = array(
 						'range'				=> $range,
 						'lottery_followers'	=> $str_followers,
@@ -477,6 +480,14 @@ class Statistics extends Admin_Controller {
 						'lottery_id'		=> $id
 					);
 					$this->statistics_m->follower_data_save($followers, TRUE);
+					/** NEW included nonfollower Data Save **/
+					$nonfollowers = array(
+						'range'					=> $range,
+						'lottery_nonfollowers'	=> $str_nonfollowers,
+						'draw_id'				=> $this->data['lottery']->last_drawn['id'],
+						'lottery_id'			=> $id
+					);
+					$this->statistics_m->nonfollower_data_save($nonfollowers, TRUE);
 				}
 			}
 			else
@@ -497,6 +508,15 @@ class Statistics extends Admin_Controller {
 				'lottery_id'		=> $id
 			);
 			$this->statistics_m->follower_data_save($followers, FALSE);
+			$max = $this->data['lottery']->maximum_ball;
+			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max);
+			$nonfollowers = array(
+						'range'					=> $range,
+						'lottery_nonfollowers'	=> $str_nonfollowers,
+						'draw_id'				=> $this->data['lottery']->last_drawn['id'],
+						'lottery_id'			=> $id
+					);
+			$this->statistics_m->nonfollower_data_save($nonfollowers, FALSE);
 		}
 		
 		// 4. Extract the follower string into the array counter parts
@@ -510,7 +530,17 @@ class Statistics extends Admin_Controller {
 				if($this->data['lottery']->last_drawn['ball'.$b]==$n) $this->data['lottery']->last_drawn[$n] = $f;
 			}
 		}
-
+		// 5. Do the same for non-following string into the array counter parts also
+		$next_draw = (!is_null($nonfollowers) ? explode(",", $nonfollowers['lottery_nonfollowers']) : explode(",", $str_nonfollowers));
+		foreach($next_draw as $ball_drawn)
+		{
+			$n = strstr($ball_drawn, '>', TRUE); // Strip off each number
+			$nf = substr(strstr($ball_drawn, '>', FALSE),1); // Remove the '>' from the string
+			for($b = 1; $b<=$drawn; $b++)
+			{
+				if($this->data['lottery']->last_drawn['ball'.$b]==$n) $this->data['lottery']->last_drawn[$n.'nf'] = $nf;
+			}
+		}
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
 		$this->data['lottery']->last_drawn['range'] = $range;

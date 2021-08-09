@@ -1005,6 +1005,156 @@ class Statistics_m extends MY_Model
 			$this->db->update('lottery_followers');
 		}
 	}
+	/** NEW CALCULATION 
+	 * Calculate the number of never trailing (follower) numbers based on the last draw and the draw rang
+	 * 
+	 * @param 	string 	$name			specific lottery table name
+	 * @param	array	$last			$last drawn numbers (index, date, ball1 ... ball N, Extra (Bonus ball), lottery id)
+	 * @param 	integer $max			maximum number of balls drawn
+	 * @param	boolean	$bonus			If an extra / bonus ball is included (1 = TRUE, 0 = False)
+	 * @param	boolean $draws			If extra (bonus) draws are included in the calculation (1 = TRUE, 0 = FALSE)
+	 * @param  	integer	$range			Range of number of draws (default is 100). If less than 100, the number must be set in $range
+	 * @param	integer	$top			Last Ball in Lottery that is drawn, e.g. 649 - 49 balls maximum
+	 * @return  string	$nonfollowers	non-Followers string in this format that follow with the number of occurrences (minumum 3 Occurrences)
+	 * 									e.g. 10=>3=4|22=3,17=>10=5|37=4|48=4
+	 */
+	public function nonfollowers_calculate($name, $last, $max, $bonus, $draws, $range = 100, $top)
+	{
+		// Build Query
+		$s = 'ball'; 
+		$i = 1; 	// Default Ball 1
+		do
+		{	
+			$s .= $i;
+			$i++;
+			if($i<=$max) $s .= ', ball';
+		} 
+		while($i<=$max);
+
+		$s .= ', extra';
+		$b_max = $max;	// The maximum of the ONLY the balls drawn
+		if($bonus) $max++;
+
+		$w = (!$draws ? ' WHERE extra <> 0 ' : ' '); 
+		
+		// Calculate
+		$b = 1; // ball 1
+		// Initialize and create blank associate array
+		$nonfollowers = '';	// set as a blank string
+		do
+		{
+			$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." WHERE id <>".$last['id']." ORDER BY id DESC LIMIT ".$range.") as t".$w."ORDER BY t.id ASC"; 
+			//$sql = "SELECT ".$s." FROM ".$name." WHERE id <>".$last['id']." ORDER BY id DESC LIMIT ".$range; 
+			// Execute Query
+			$query = $this->db->query($sql);
+			$row = $query->first_row('array');
+			$c_b = ($bonus&&($b>$b_max) ? $last['extra'] : $last['ball'.$b]); // If there is an Extra / Bonus Ball and this bonus ball has exceeded the regularly drawn numbers, retrieve the extra ball
+			$followlist = array();
+			$nonfollowlist = array();
+			do {
+				if($this->is_drawn($c_b, $row, $b_max, $bonus))
+				{
+					$row = $query->next_row('array');
+					if(!is_null($row))
+					{
+						if(!empty($followlist))
+						{
+							$followlist = $this->update_followers($followlist, $row);
+						}
+						else
+						{
+							$followlist = $this->add_followers($row);
+						}
+					}
+				}
+				else
+				{
+					$row = $query->next_row('array');
+				}
+			} while(!is_null($row));
+		
+		// Build Follower string
+		if(empty($followlist)) $followlist = NULL; 
+		$nonfollowlist = $this->non_followers($followlist, $top);
+		$nonfollowers .= $this->nonfollower_string($c_b, $nonfollowlist); 
+		// Return $follower number associative numbers that have 3 and above in this format, save in this format e.g. ball drawn 10 => 22,37,42
+		// update ball counter
+		// while ball count < $max
+			$b++;
+			if($b<=$max) $nonfollowers .= ',';
+			unset($followlist);		// Destroy the old followerlist
+			unset($nonfollowlist);
+			$query->free_result();	// Removes the Memory associated with the result resource ID
+		} while ($b<=$max);
+		return $nonfollowers;
+	}
+	/**
+	 * Return the updated list of followers that were was drawn from the current draw
+	 * 
+	 * @param	array	$list		List of followers and the totals
+	 * @param	integer	$last		Last Ball that is drawn for this lottery		
+	 * @return	array	$non_list	List of all non-followers (That have never been drawn for the given range)
+	 */
+	private function non_followers($list, $last)
+	{
+		if(is_null($list)) return NULL;
+		$non_list = array();
+		$start = 1;		// Start will ball 1
+		$i = 0;
+		do
+		{
+			if(!isset($list[$start]))
+			{
+				$non_list[$i] = $start;
+				$i++;
+			}
+			$start++;	//Update the ball count
+		}
+		while($start<$last);
+	return $non_list;		// Return the range of balls drawn from the first ball to ball N
+	}
+	/**
+	 * Return the added only list of followers after the current draw
+	 * @param	integer	$ball		Ball that the list is associated with, for example, Drawn ball 10 had Ball 3 fall after 10 (with 4 occurences)
+	 * @param	array	$list		Associative Array of followers and the counts		
+	 * @return	string	$str		Return formatted string of the non-follower numbers with the counts in this format, 10>3|22
+	 */
+	private function nonfollower_string($ball,$list)
+	{
+		$str = "";
+		if(empty($list)) $str = $ball.'>0|'; // Empty Set
+		else
+		{
+			$str = $ball.'>';
+			foreach($list as $key)
+			{
+				$str .= $key.'|'; // Format 3=4 Occurences with pipe and continue until the last follower has been added.
+			}
+		}
+	return substr($str, 0, -1);		// Return the followers of the current draw without the extra Pipe character on the end of string
+	}
+
+	/** 
+	* Insert / Update Follower Profile of current lottery
+	* 
+	* @param 	array	$data		key / value pairs of Follower Profile to be inserted / updated
+	* @param	boolean $exist		add a new entry (FALSE), if no previous follower has been added otherwise update the existing follower row (TRUE), default is FALSE
+	* @return   none	
+	*/
+	public function nonfollower_data_save($data, $exist = FALSE)
+	{
+		if (!$exist) 
+		{
+			$this->db->set($data);		// Set the query with the key / value pairs
+			$this->db->insert('lottery_nonfollowers');
+		}
+		else
+		{
+			$this->db->set($data);		// Set the query with the key / value pairs
+			$this->db->where('lottery_id', $data['lottery_id']);
+			$this->db->update('lottery_nonfollowers');
+		}
+	}
 	/**
 	 * Calculate the Friends of the Lottery from Ball 1 to Ball N range, include the extra ball if TRUE. Based on the range of draws covered
 	 * 

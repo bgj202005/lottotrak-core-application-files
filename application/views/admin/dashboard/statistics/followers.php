@@ -126,49 +126,53 @@
 							do
 							{ ?> 
 							<div class="tab-pane fade p-3 <?php if($b==1) echo 'show active'; ?>" id="ball<?=$b?>" role="tabpanel" aria-labelledby="tab-<?=$b;?>">
-								<?php if(array_key_exists($lottery->last_drawn['ball'.$b], $lottery->last_drawn))
-									{
+								<?php if(array_key_exists($lottery->last_drawn['ball'.$b], $lottery->last_drawn)):
 										$trailer = explode('|', $lottery->last_drawn[$lottery->last_drawn['ball'.$b]]); ?>
 										<h5 class="card-title">After Ball <?=$lottery->last_drawn['ball'.$b]?> has been drawn in <?=$lottery->last_drawn['range']?> draws.</h5>
-									<?php $t_picks = array(); 
-										foreach($trailer as $t):  
-										$picks = explode('=', $t);
-										$t_picks += array(
-												$picks[0] => $picks[1]
-										);
-										unset($picks);
-									endforeach;
-									arsort($t_picks); // Sort from the most picks to the least picks
-									$s_picks = "";
-									$counts = current($t_picks);
-									do
-									{
-										if($counts==current($t_picks))
+										<?php $t_picks = array(); 
+											foreach($trailer as $t):  
+												$picks = explode('=', $t);
+												$t_picks += array(
+														$picks[0] => $picks[1]
+												);
+												unset($picks);
+											endforeach;
+										arsort($t_picks); // Sort from the most picks to the least picks
+										$s_picks = "";
+										$counts = current($t_picks);
+										do
 										{
-											$s_picks .= 'Number <strong>'.key($t_picks).'</strong>';
-											$current = next($t_picks);
-											if($counts!=$current)
-											{
-												$s_picks .= ' has been drawn <strong>'.$counts.'</strong> Times.</p>';
-												echo "<p class='card-text'> ".$s_picks.'</p>';
-												$s_picks = ""; 
-											} 
-											else
-											{	
-												$s_picks .= ' AND ';
-												$counts = $current;	
-											}
-										}
-										else
-										{
-											$counts = next($t_picks);
-										}
-									} while(!is_null(key($t_picks)));
-									unset($trailer); 
-									}
-								else {
+											if($counts==current($t_picks)):
+												$s_picks .= 'Number <strong>'.key($t_picks).'</strong>';
+												$current = next($t_picks);
+												if($counts!=$current):
+													$s_picks .= ' has been drawn <strong>'.$counts.'</strong> Times.</p>';
+													echo "<p class='card-text'> ".$s_picks."</p>";
+													$s_picks = ""; 
+												else:
+													$s_picks .= ' AND ';
+													$counts = $current;	
+												endif;
+											else:
+												$counts = next($t_picks);
+											endif;
+										} while(!is_null(key($t_picks)));
+										unset($trailer);
+										/* Display the non - following numbers for the given range */
+										/* Determine the number from the ball position and then access the ball+nf for not followed */
+										$nonfollowers = explode('|', $lottery->last_drawn[$lottery->last_drawn['ball'.$b].'nf']); 
+										$non_picks = "";
+										if($nonfollowers[0]): /* Check for all non followers have followed */
+											$non_picks .= "These Numbers have <strong>NEVER</strong> followed this number for ".$lottery->last_drawn['range']." Draws:<br />";
+											foreach($nonfollowers as $nf):  
+												$non_picks .= 'Number: <strong>'.$nf.'</strong><br />';	
+											endforeach;
+											echo "<p class='card-text'> ".$non_picks."</p>";
+										endif;
+										unset($nonfollowers);  
+								else: 
 									echo "<p class='card-text'> No Criteria High enough to Use for this Ball. </p>";
-								} ?>
+								endif; ?>
 								
 								<p class="card-text">These are the numbers that have the highest probability of being drawn.</p>
 							</div>
