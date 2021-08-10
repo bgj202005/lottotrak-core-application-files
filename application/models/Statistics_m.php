@@ -114,7 +114,9 @@ class Statistics_m extends MY_Model
 	 */
 	public function stats_id($lotto_id)
 	{
-		if ($this->db->simple_query('select * FROM '.$this->_table_name.' WHERE lottery_id ='.$lotto_id))
+		$this->db->where('lottery_id',$lotto_id);
+    	$exist = $this->db->get($this->_table_name);
+    	if ($exist->num_rows() > 0)
 		{
 			return TRUE;	// Existing Record is found in the lottery_stats table
 		}
