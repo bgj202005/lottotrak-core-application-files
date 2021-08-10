@@ -163,7 +163,7 @@
 										$nonfollowers = explode('|', $lottery->last_drawn[$lottery->last_drawn['ball'.$b].'nf']); 
 										$non_picks = "";
 										if($nonfollowers[0]): /* Check for all non followers have followed */
-											$non_picks .= "These Numbers have <strong>NEVER</strong> followed this number for ".$lottery->last_drawn['range']." Draws:<br />";
+											$non_picks .= "These Numbers have <strong>NEVER</strong> followed this Ball <strong>".$lottery->last_drawn['ball'.$b]."</strong> for ".$lottery->last_drawn['range']." Draws:<br />";
 											foreach($nonfollowers as $nf):  
 												$non_picks .= 'Number: <strong>'.$nf.'</strong><br />';	
 											endforeach;

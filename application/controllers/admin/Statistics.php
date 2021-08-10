@@ -452,7 +452,8 @@ class Statistics extends Admin_Controller {
 		}
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 		// 1. Check for a record for the current lottery in the friends table
-		$followers = $this->statistics_m->followers_exists($id);
+		$followers = $this->statistics_m->followers_exists($id);		// Existing follower row 
+		$nonfollowers = $this->statistics_m->nonfollowers_exists($id);	// Non Follower existing row
 		$sel_range = 1;
 		$this->data['lottery']->extra_included = 0; // No Extra Ball as part of the calculation
 		$this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
@@ -531,8 +532,8 @@ class Statistics extends Admin_Controller {
 			}
 		}
 		// 5. Do the same for non-following string into the array counter parts also
-		$next_draw = (!is_null($nonfollowers) ? explode(",", $nonfollowers['lottery_nonfollowers']) : explode(",", $str_nonfollowers));
-		foreach($next_draw as $ball_drawn)
+		$nf_next = (!is_null($nonfollowers) ? explode(",", $nonfollowers['lottery_nonfollowers']) : explode(",", $str_nonfollowers));
+		foreach($nf_next as $ball_drawn)
 		{
 			$n = strstr($ball_drawn, '>', TRUE); // Strip off each number
 			$nf = substr(strstr($ball_drawn, '>', FALSE),1); // Remove the '>' from the string

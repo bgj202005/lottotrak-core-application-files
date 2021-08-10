@@ -746,6 +746,19 @@ class Statistics_m extends MY_Model
 		return $query->row_array();
 	}
 	/**
+	 * If existing Record for the nonFollowers table exist
+	 * 
+	 * @param	integer	$id		Lottery ID of current Lottery
+	 * @return  array	$query 	result set query or FALSE	
+	 */
+	public function nonfollowers_exists($id)
+	{
+		$query = $this->db->where('lottery_id', $id)
+                ->limit(1, 0)
+                ->get('lottery_nonfollowers');
+		return $query->row_array();
+	}
+	/**
 	 * If existing Record for the Friends table exist
 	 * 
 	 * @param	integer	$id		Lottery ID of current Lottery
