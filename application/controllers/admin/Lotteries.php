@@ -144,7 +144,7 @@ class Lotteries extends Admin_Controller {
 		}
 		else 
 		{
-			$this->data['message'] = $error['error'];  // Only Errors associated with Uploading an image.
+			$this->data['message'] = isset($error['error']);  // Only Errors associated with Uploading an image.
 		}
 		// Load the View
 		if(($this->data['lottery']->extra_ball&&!$this->data['lottery']->minimum_extra_ball)||(!$this->data['lottery']->extra_ball)) $this->data['lottery']->minimum_extra_ball = '';
@@ -410,12 +410,13 @@ class Lotteries extends Admin_Controller {
 		else 
 		{
  	  		$this->data['current'] = $this->uri->segment(2);
-			   $this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/import'.($id ? '/'.$id : ''));
-		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
-		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
-		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins	
-		$this->data['subview']  = 'admin/lotteries/import';
-		$this->load->view('admin/_layout_main', $this->data); 
+			$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/import'.($id ? '/'.$id : ''));
+			$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+			$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
+			$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+			$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	  	
+			$this->data['subview']  = 'admin/lotteries/import';
+			$this->load->view('admin/_layout_main', $this->data); 
 		}
 	}
 
