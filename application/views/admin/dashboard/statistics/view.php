@@ -93,6 +93,47 @@
 			  echo form_label('Trends of Draws', 'trends_lb', $extra); ?>
 	</section>
 	<section>
+		<div class = 'table-responsive'>
+		<table id="evenodds"
+		class="table table-striped table-sm"
+		data-pagination="false"
+		data-search="false">
+			<thead>
+				<tr><th colspan = "10">EVEN / ODD HISTORY</th></tr>
+				<tr>
+					<th data-field="evens" data-halign="center" data-align="center">EVENS</th>
+					<th data-field="odds" data-halign="center" data-align="center">ODDS</th>
+					<th data-field="All" data-halign="center" data-align="center">ALL</th>
+					<th data-field="All%" data-halign="center" data-align="center">ALL %</th>
+					<th data-field="Last_10" data-halign="center" data-align="center">LAST 10</th>
+					<th data-field="10%" data-halign="center" data-align="center">LAST 10 %</th>
+					<th data-field="Last_100" data-halign="center" data-align="center">LAST 100</th>
+					<th data-field="100%" data-halign="center" data-align="center">LAST 100 %</th>
+					<th data-field="Last_200" data-halign="center" data-align="center">LAST 200</th>
+					<th data-field="200%" data-halign="center" data-align="center">LAST 200 %</th>
+					
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach($evensodds as $parity): ?>
+				<tr>
+					<td class="fontincrease"><?=$parity->even; ?></td>
+					<td class="fontincrease"><?=$parity->odd;?></td>
+					<td class="fontincrease"><?=$parity->count;?></td>
+					<td class="fontincrease"><?=intval(($parity->count/$parity->total)*100).'%';?></td>
+					<td class="fontincrease"><?=$parity->count_10;?></td>
+					<td class="fontincrease"><?=intval(($parity->count_10/10)*100).'%';?></td>
+					<td class="fontincrease"><?=(!empty($parity->count_100) ? $parity->count_100 : '-');?></td>
+					<td class="fontincrease"><?=(!empty($parity->count_100) ? intval(($parity->count_100/100)*100).'%' : '-');?></td>
+					<td class="fontincrease"><?=(!empty($parity->count_200) ? $parity->count_200 : '-');?></td>
+					<td class="fontincrease"><?=(!empty($parity->count_200) ? intval(($parity->count_200/200)*100).'%' : '-');?></td>
+				</tr>
+				<?php endforeach; ?>
+			</tbody>	
+		</table>
+		</div>
+	</section>
+	<section>
 		<div class="table-responsive">
 		<table class="table table-striped table-sm"
 			id="draws"

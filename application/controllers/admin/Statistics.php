@@ -116,7 +116,7 @@ class Statistics extends Admin_Controller {
 	{
 		$this->data['message'] = '';	// Defaulted to No Error Messages
 		$this->data['lottery'] = $this->lotteries_m->get($id);
-		$this->data['statistics'] = $this->statistics_m->get_by('lottery_id='.$id, TRUE);
+		
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$this->data['trend'] = 0;
@@ -140,6 +140,8 @@ class Statistics extends Admin_Controller {
 			$this->session->set_flashdata('message', 'There are no draws associated with this lottery. Please import draws.');
 			redirect('admin/statistics'); 
 		}
+		$this->data['statistics'] = $this->statistics_m->get_by('lottery_id='.$id, TRUE);
+		$this->data['evensodds'] = $this->statistics_m->evensodds_sum($tbl_name, $id);
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/view_draws'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();

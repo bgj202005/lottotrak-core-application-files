@@ -1400,4 +1400,63 @@ class Statistics_m extends MY_Model
 			$this->db->update('lottery_friends');
 		}
 	}
+	/**
+	 * Returns the list of evens, odds, number of occureeces and the percentage of the occurences for the given range
+	 * 
+	 * @param	string			$tbl		Table of Lottery
+	 * @param	integer			$lotto_id	Current Lottery Data Table Name
+	 * @return	object 			$all		evens, odds, total for each even/odd combination and the percentage (%) of occurences for each even/odd combination		
+	 */
+	public function evensodds_sum($tbl, $lotto_id)
+	{	
+		$query = $this->db->query('SELECT even, odd, count(*) as count from '.$tbl.' where lottery_id='.$lotto_id.' group by 1, 2');
+		$all = $query->result(); // Retrieve the total result from the query
+		$total = 0;
+		foreach($all as $parity)
+		{
+			$total += $parity->count; 
+		}
+		
+		$interval = intval($total/100);
+		if($interval>=2) $interval = 2;	// Maximum 500 draws to compare
+		foreach($all as $key => $compare)
+		{
+			if(!isset($all[$key]->total)) $all[$key]->total=$total;
+			if(!isset($all[$key]->last_10)) $all[$key]->count_10=0;
+			if(!isset($all[$key]->last_100)&&$interval>=1) $all[$key]->count_100=0;
+			if(!isset($all[$key]->last_200)&&$interval>=2) $all[$key]->count_200=0;
+		}
+
+		$range = 10;
+		do
+		{
+			$this->db->reset_query();
+			$query = $this->db->query('SELECT even, odd from '.$tbl.' where lottery_id='.$lotto_id.' ORDER BY id DESC LIMIT '.$range);
+			$subject = $query->result();
+			for($index = 0; $index<$range; $index++)
+			{
+				foreach($all as $key => $compare)
+				{
+					if(($compare->even==$subject[$index]->even)&&($compare->odd==$subject[$index]->odd)) 
+					{
+						switch($range)
+						{
+							case 10:
+								$all[$key]->count_10++;
+								break;
+							case 100:
+								$all[$key]->count_100++;
+								break;
+							case 200:
+								$all[$key]->count_200++;
+						}
+					}
+				}
+			}
+			($range==10 ? $range=100 : $range += 100);
+			$interval--;
+		} 
+		while($interval>=0);
+	return $all; // Return the updated query with odd / even data
+	}
 }
