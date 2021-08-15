@@ -97,19 +97,20 @@
 		<table id="evenodds"
 		class="table table-striped table-sm"
 		data-pagination="false"
-		data-search="false">
+		data-search="false"
+		data-order='[[ 1, "asc" ]]'>
 			<thead>
 				<tr><th colspan = "10">EVEN / ODD HISTORY</th></tr>
 				<tr>
-					<th data-field="evens" data-halign="center" data-align="center">EVENS</th>
-					<th data-field="odds" data-halign="center" data-align="center">ODDS</th>
-					<th data-field="All" data-halign="center" data-align="center">ALL</th>
+					<th data-field="evens" data-halign="center" data-align="center">EVEN</th>
+					<th data-field="odds" data-halign="center" data-align="center">ODD</th>
+					<th data-field="All" data-halign="center" data-align="center" data-sortable="true">ALL <?=$evensodds[0]->total;?> DRAWS</th>
 					<th data-field="All%" data-halign="center" data-align="center">ALL %</th>
-					<th data-field="Last_10" data-halign="center" data-align="center">LAST 10</th>
+					<th data-field="Last_10" data-halign="center" data-align="center" data-sortable="true">LAST 10</th>
 					<th data-field="10%" data-halign="center" data-align="center">LAST 10 %</th>
-					<th data-field="Last_100" data-halign="center" data-align="center">LAST 100</th>
+					<th data-field="Last_100" data-halign="center" data-align="center" data-sortable="true">LAST 100</th>
 					<th data-field="100%" data-halign="center" data-align="center">LAST 100 %</th>
-					<th data-field="Last_200" data-halign="center" data-align="center">LAST 200</th>
+					<th data-field="Last_200" data-halign="center" data-align="center" data-sortable="true">LAST 200</th>
 					<th data-field="200%" data-halign="center" data-align="center">LAST 200 %</th>
 					
 				</tr>
@@ -270,5 +271,8 @@
 			location.href = "<?php echo base_url().'admin/statistics/view_draws/'.$lottery->id;?>";
 		}
 	}
+	$(function() {
+		$('#evenodds').bootstrapTable()
+	})	
 	</script>
 	</section>
