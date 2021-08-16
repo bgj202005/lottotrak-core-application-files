@@ -280,6 +280,7 @@ class Page extends Frontend_Controller {
 
 	   $this->data['recent_news'] = $this->article_m->get_recent();
        $this->data['subview'] = 'offline';
+	   $this->data['page_m'] = $this->page_m;
 	   $this->load->view('_main_layout', $this->data);
     }
 }
