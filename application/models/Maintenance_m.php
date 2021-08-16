@@ -60,7 +60,8 @@ class Maintenance_m extends MY_Model
 	 * */
 	public function active_visitors()
 	{
-		$folder=FCPATH.'visitor_ips\\'; 
+		// Linux or Windows?
+		$folder = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN' ? FCPATH.'visitor_ips'.DIRECTORY_SEPARATOR: $_SERVER["DOCUMENT_ROOT"].'/visitor_ips/'); 
 		// TIME SINCE LAST ACTIVITY OF AN USERS TO BE CONSIDERED NON-ACTIVE
 		$timeold=300;   // seconds
 

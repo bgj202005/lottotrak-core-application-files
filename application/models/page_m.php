@@ -237,7 +237,7 @@ class Page_m extends MY_Model
 		//    IMPORTANT: the folder must have proper permissions to allow writing files
 		//    The name of the temporal files contains the IP address of the user
 		//    ($_SERVER["DOCUMENT_ROOT"] is the root folder for the website)
-		$folder = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN' ? FCPATH.'visitor_ips'.DIRECTORY_SEPARATOR: $_SERVER["DOCUMENT_ROOT"]."/visitor_ips/"); 
+		$folder = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN' ? FCPATH.'visitor_ips'.DIRECTORY_SEPARATOR: $_SERVER["DOCUMENT_ROOT"].'/visitor_ips/'); 
 
 
 		// ###############  THE WORKING PART OF THE SCRIPT ##############################
@@ -298,7 +298,7 @@ class Page_m extends MY_Model
 		//    IMPORTANT: the folder must have proper permissions to allow writing files
 		//    The name of the temporal files contains the IP address of the user
 		//    ($_SERVER["DOCUMENT_ROOT"] is the root folder for the website)
-		$folder = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN' ? FCPATH.'visitor_ips'.DIRECTORY_SEPARATOR: $_SERVER["DOCUMENT_ROOT"]."/visitor_ips/");     
+		$folder = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN' ? FCPATH.'visitor_ips'.DIRECTORY_SEPARATOR: $_SERVER["DOCUMENT_ROOT"].'/visitor_ips/');     
 		
 		// TIME SINCE LAST ACTIVITY OF AN USERS TO BE CONSIDERED NON-ACTIVE
 		$timeold=300;   // seconds or 5 minutes0
