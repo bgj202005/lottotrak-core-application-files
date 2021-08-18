@@ -157,7 +157,9 @@
 												$counts = next($t_picks);
 											endif;
 										} while(!is_null(key($t_picks)));
-										unset($trailer);
+										unset($trailer);?>
+										<p class="card-text">These are the numbers listed above that have the highest probability of being drawn.</p>
+										<?php
 										/* Display the non - following numbers for the given range */
 										/* Determine the number from the ball position and then access the ball+nf for not followed */
 										$nonfollowers = explode('|', $lottery->last_drawn[$lottery->last_drawn['ball'.$b].'nf']); 
@@ -173,8 +175,6 @@
 								else: 
 									echo "<p class='card-text'> No Criteria High enough to Use for this Ball. </p>";
 								endif; ?>
-								
-								<p class="card-text">These are the numbers that have the highest probability of being drawn.</p>
 							</div>
 							<?php $b++;
 							}
