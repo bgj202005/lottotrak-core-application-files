@@ -67,7 +67,7 @@
 		<td style = "text-align:center;"><?=$lottery->sum_last; ?></td>
 		<td style = "text-align:center;"><?=$lottery->repeaters; ?></td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_stat('admin/statistics/view_draws/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><?php echo $statistics->btn_hwc('admin/statistics/hwc/'.$lottery->id); ?></td>
+		<td style = "text-align:center;"><?php echo $statistics->btn_hwc('admin/statistics/h_w_c/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_followers('admin/statistics/followers/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_friends('admin/statistics/friends/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_calculate('admin/statistics/calculate/'.$lottery->id); ?></td>

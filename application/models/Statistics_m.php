@@ -549,6 +549,7 @@ class Statistics_m extends MY_Model
 		{
 			case 3:
 				$sql = "SELECT (ball1+ball2+ball3)";
+				break;
 			case 4:
 				$sql .= "SELECT (ball1+ball2+ball3+ball4)";
 				break;
@@ -769,6 +770,19 @@ class Statistics_m extends MY_Model
 		$query = $this->db->where('lottery_id', $id)
                 ->limit(1, 0)
                 ->get('lottery_friends');
+		return $query->row_array();
+	}
+	/**
+	 * If existing Record for the h_w_c table exist
+	 * 
+	 * @param	integer	$id		Lottery ID of current Lottery
+	 * @return  array	$query 	result set query or FALSE	
+	 */
+	public function h_w_c_exists($id)
+	{
+		$query = $this->db->where('lottery_id', $id)
+                ->limit(1, 0)
+                ->get('lottery_h_w_c');
 		return $query->row_array();
 	}
 
@@ -1458,5 +1472,324 @@ class Statistics_m extends MY_Model
 		} 
 		while($interval>=0);
 	return $all; // Return the updated query with odd / even data
+	}
+	/**
+	 * Returns the list of hots, warms and colds for a given range and date
+	 * 
+	 * @param	string			$lotto_tbl	Table of Lottery
+	 * @param	integer			$picks		Number of balls drawn (pick 6, pick 7, etc.) excluding the extra / bonus ball
+	 * @param	boolean			$bonus		Bonus / Extra ball included in query. 0 = no, 1 = yes
+	 * @param	boolean			$draws		Extra Draws (without the the extra ball included) in the query. 
+	 * @param	integer			$range		Range of draws to calculate, 10 draws, 100 draws, 200 draws, etc.
+	 * @param 	integer 		$w			Start of the warm numbers begin. e.g 1-16 Hots, 17-33 Warms, 34-49 Colds in 49 system
+	 * @param 	integer 		$c			Cold count of the numbers .e.g 16 hot, 17 warm adn 16 cold for a pick 6 - 49 system
+	 * @param	string			$last		last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
+	 * @return	string 			$hwc_string	returns as key value pairs with the number and the heat number.  Numbers are returned based on their heat value
+	 * 										e.g. 4 as a key and 58 as the value for heat in the given range and date	
+	 */
+	public function h_w_c_calculate($lotto_tbl, $picks, $bonus = 0, $draws = 0, $range = 0, $w, $c, $last = '')
+	{
+		// Build query
+		$sql_range = ($range ? ' ORDER BY draw_date DESC LIMIT '.$range : ' ORDER BY draw_date DESC');
+		$sql_date = (!empty($last) ? ' WHERE draw_date <= '.$last : '');
+		$sql_draws = (!$draws ? '': ' WHERE extra <> 0');
+		$sql = 'SELECT ball_drawn, count(*) as heat 
+				FROM ((SELECT ball1 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.') UNION ALL
+      			(SELECT ball2 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.') UNION ALL
+     			(SELECT ball3 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($picks>=4) $sql .= ' UNION ALL (SELECT ball4 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($picks>=5) $sql .= ' UNION ALL (SELECT ball5 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($picks>=6) $sql .= ' UNION ALL (SELECT ball6 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($picks>=7) $sql .= ' UNION ALL (SELECT ball7 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($picks>=8) $sql .= ' UNION ALL (SELECT ball8 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($picks==9) $sql .= ' UNION ALL (SELECT ball9 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($bonus) $sql .= 'UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.$sql_date.' WHERE extra <> 0 '.$sql_range.')';
+		$sql .= ') as hwc
+				GROUP BY ball_drawn
+				ORDER BY heat DESC;';
+		
+		/* From phpmyadmin 
+		select ball_drawn, count(*) as heat
+		from ((select ball1 as ball_drawn from daily_grand where draw_date >= '2016-10-16' AND draw_date <= '2016-12-29' order by draw_date desc limit 5) union all
+		(select ball2 as ball_drawn from daily_grand where draw_date >= '2016-10-16' AND draw_date <= '2016-12-29' order by draw_date desc limit 5) union all
+		(select ball3 as ball_drawn from daily_grand where draw_date >= '2016-10-16' AND draw_date <= '2016-12-29' order by draw_date desc limit 5) union all
+		(select ball4 as ball_drawn from daily_grand where draw_date >= '2016-10-16' AND draw_date <= '2016-12-29' order by draw_date desc limit 5) union all
+		(select ball5 as ball_drawn from daily_grand where draw_date >= '2016-10-16' AND draw_date <= '2016-12-29' order by draw_date desc limit 5)
+			) g
+		group by ball_drawn
+		order by heat DESC; /*		
+		/*where draw_date >= '2016-10-16' AND draw_date <= '2016-12-29' */
+ 		$query = $this->db->query($sql);
+		$hwc_string = ""; // List string in the format of number=hits,
+		$i = 1; // non-zero integer
+		foreach ($query->result() as $hwc)
+		{
+        	$hwc_string .= $this->hwc_string($hwc->ball_drawn, $hwc->heat,$i,$w,$c);
+			if(($i==($w-1))||($i==(($c)-1))) $hwc_string = substr($hwc_string, 0, -1);
+			$i++;
+		}
+
+	return substr($hwc_string, 0, -1);		// Return the hwc string without the last comma in the string
+	}
+	/**
+	 * Return the added only list of followers after the current draw
+	 * @param	integer	$ball_drawn		Current ball being added to the hwc_string
+  	 * @param	integer	$heat			Current occurence being added to the hwc_string
+	 * @param 	integer $count			Current ball number of the lottery. Default is always 1 but must be set
+	 * @param 	integer $warms			Start of the warm ball in the lottery
+	 * @param 	integer $colds			Start of the cold ball in the lottery
+	 * @return	string	$str			Return formatted string of the follower numbers with the counts in this format, 24>7|2020-12-25, e.g. YYYY-MM-DD
+	 */
+	private function hwc_string($ball_drawn, $heat, $count=1, $warms, $colds)
+	{
+		$str = "";
+		if($count==$warms) // Must land on the starting warm number
+		{
+			$str = ">".$ball_drawn."=".$heat.','; // Format is number=occurences and warm boundary
+		}
+		elseif($count==$colds) // Must land on the starting cold number
+		{
+			$str = "<".$ball_drawn."=".$heat.','; // Format is number=occurences and cold boundary
+		}
+		else
+		{
+			$str = $ball_drawn."=".$heat.","; // Format is number=occurences for all - hot - warm - cold
+		}
+	return $str;	// Return the hwc in the string during the iteration
+	}
+	/**
+	 * Return the added only list of hot numbers after the current draw
+	 * @param	string	$str_heat	Current ball being added to the hwc_string
+	 * @return	string	$str		Return only the hot numbers in the group and truncate the rest of the string
+	 */
+	public function hots($str_heat)
+	{
+		$str = substr($str_heat, 0, strpos($str_heat, ">"));
+	return $str;	// Return the hots only without the '>'
+	}
+	/**
+	 * Return the added only list of cold numbers after the current draw
+	 * @param	string	$str_heat	Current ball being added to the hwc_string
+	 * @return	string	$str		Return only the cold numbers in the group and truncate the rest of the string
+	 */
+	public function colds($str_heat)
+	{
+		$str_len = strlen($str_heat);
+		$str_pos = strpos($str_heat, "<");
+		$str_diff = $str_pos-$str_len; // should be negative
+		$str = substr($str_heat, $str_diff);
+	return substr($str, 1);	// Return the hots only without the '>'
+	}
+
+	/**
+	 * Return the added only list of cold numbers after the current draw
+	 * @param	string	$str_heat	Current ball being added to the hwc_string
+	 * @return	string	$str		Return only the cold numbers in the group and truncate the rest of the string
+	 */
+	public function warms($str_heat)
+	{
+		$str = $this->return_warms($str_heat, '>', '<');
+
+	return $str; // ($str = warm counts in the string)
+	}
+	/**
+	 * Return only the warm portion of the full h_w_c string\
+	 * @param	string	$str_full	The Full H_W_C string
+	 * @return	string				Return only the warm portion numbers in the group and truncate the the hots and colds (before the > and the <)
+	 */
+	private function return_warms($str_full, $start, $end)
+	{
+		$str_full = ' ' . $str_full;
+		$ini = strpos($str_full, $start);
+		if ($ini == 0) return '';
+		$ini += strlen($start);
+		$len = strpos($str_full, $end, $ini) - $ini;
+	return substr($str_full, $ini, $len);
+	}
+	/**
+	 * Return the added only list of hot numbers after the current draw
+	 * @param	string	$hot		String of hot numbers
+	 * @param	string	$warm		String of warm numbers
+	 * @param	string	$cold		String of cold numbers
+	 * @param	string	$ld			Name of Lottery Database
+	 * @param	integer	$max		Maximum number of balls drawn, e.g. Pick 6 and 6 balls picked
+	 * @param	integer	$range		Range of draws to analyse
+	 * @return	string	$str		Return only the hot numbers in the group and truncate the rest of the string
+	 */
+	public function overdue($hots, $warms, $colds, $ld, $max, $range)
+	{
+		$str = ""; // Initialize the Overdue string, format will be the same as h_w_c string, e.i. Number 4 = 10 Last number of draws since last drawn
+		$last_date = $this->last_date($ld); // Return the last draw date
+		$arr_hots = explode(',', $hots);	// Convert to a hot array
+		$arr_warms = explode(',', $warms);  // Convert to a warm array 
+		$arr_colds = explode(',', $colds);	// Convert to a cold array
+
+		$select = "SELECT `draw_date` FROM ".$ld;
+
+		foreach($arr_hots as $ahot)
+		{
+			$heat = explode('=', $ahot);
+			$due = intval(round(($range / $heat[1]))); // Round to nearest whole number
+			if($max>=3)
+			{
+				$where = " WHERE ball1=".$heat[0]." OR ball2=".$heat[0]." OR ball3=".$heat[0];
+			}
+			if($max>=4)
+			{
+				$where .= " OR ball4=".$heat[0];
+			}
+			if($max>=5)
+			{
+				$where .= " OR ball5=".$heat[0];
+			}
+			if($max>=6)
+			{
+				$where .= " OR ball6=".$heat[0];
+			}
+			if($max>=7)
+			{
+				$where .= " OR ball7=".$heat[0];
+			}
+			if($max>=8)
+			{
+				$where .= " OR ball8=".$heat[0];
+			}
+			if($max==9)
+			{
+				$where .= " OR ball9=".$heat[0];
+			}
+			$limit = " ORDER BY `draw_date` DESC LIMIT 1";
+			// Query Build
+			$sql = $select.$where.$limit;
+			$query = $this->db->query($sql);
+			$found_date = $query->row()->draw_date;
+			$query->free_result(); // The $query result object will no longer be available
+			$sql = "SELECT * FROM ".$ld." WHERE `draw_date` > '".$found_date."' AND `draw_date` <= '".$last_date."'";
+
+			$query = $this->db->query($sql);
+			$count = $query->num_rows();
+			$query->free_result(); // The $query result object will no longer be available again
+			if($count>$due)
+			{
+				$str .= $heat[0]."=".$count.",";
+			}
+		}
+		foreach($arr_warms as $awarm)
+		{
+			$heat = explode('=', $awarm);
+			$due = intval(round(($range / $heat[1]))); // Round to nearest whole number
+			if($max>=3)
+			{
+				$where = " WHERE ball1=".$heat[0]." OR ball2=".$heat[0]." OR ball3=".$heat[0];
+			}
+			if($max>=4)
+			{
+				$where .= " OR ball4=".$heat[0];
+			}
+			if($max>=5)
+			{
+				$where .= " OR ball5=".$heat[0];
+			}
+			if($max>=6)
+			{
+				$where .= " OR ball6=".$heat[0];
+			}
+			if($max>=7)
+			{
+				$where .= " OR ball7=".$heat[0];
+			}
+			if($max>=8)
+			{
+				$where .= " OR ball8=".$heat[0];
+			}
+			if($max==9)
+			{
+				$where .= " OR ball9=".$heat[0];
+			}
+			$limit = " ORDER BY `draw_date` DESC LIMIT 1";
+			// Query Build
+			$sql = $select.$where.$limit;
+			$query = $this->db->query($sql);
+			$found_date = $query->row()->draw_date;
+			$query->free_result(); // The $query result object will no longer be available
+			$sql = "SELECT * FROM ".$ld." WHERE `draw_date` > '".$found_date."' AND `draw_date` <= '".$last_date."'";
+			$query = $this->db->query($sql);
+			$count = $query->num_rows();
+			$query->free_result(); // The $query result object will no longer be available again
+			if($count>$due)
+			{
+				$str .= $heat[0]."=".$count.",";
+			}
+		}	
+		foreach($arr_colds as $acold)
+		{
+			$heat = explode('=', $acold);
+			$due = intval(round(($range / $heat[1]))); // Round to nearest whole number
+			if($max>=3)
+			{
+				$where = " WHERE ball1=".$heat[0]." OR ball2=".$heat[0]." OR ball3=".$heat[0];
+			}
+			if($max>=4)
+			{
+				$where .= " OR ball4=".$heat[0];
+			}
+			if($max>=5)
+			{
+				$where .= " OR ball5=".$heat[0];
+			}
+			if($max>=6)
+			{
+				$where .= " OR ball6=".$heat[0];
+			}
+			if($max>=7)
+			{
+				$where .= " OR ball7=".$heat[0];
+			}
+			if($max>=8)
+			{
+				$where .= " OR ball8=".$heat[0];
+			}
+			if($max==9)
+			{
+				$where .= " OR ball9=".$heat[0];
+			}
+			$limit = " ORDER BY `draw_date` DESC LIMIT 1";
+			// Query Build
+			$sql = $select.$where.$limit;
+			$query = $this->db->query($sql);
+			$found_date = $query->row()->draw_date;
+			$query->free_result(); // The $query result object will no longer be available
+			$sql = "SELECT * FROM ".$ld." WHERE `draw_date` > '".$found_date."' AND `draw_date` <= '".$last_date."'";
+			$query = $this->db->query($sql);
+			$count = $query->num_rows();
+			$query->free_result(); // The $query result object will no longer be available again
+			if($count>$due)
+			{
+				$str .= $heat[0]."=".$count.",";
+			}
+		}		
+
+	return substr($str, 0, -1);	// Return the overdues only without an extra ','
+	}
+	/** 
+	* Insert / Update the hot warms and colds, including overdues list of the currently saved lottery
+	* 
+	* @param 	array	$data		key / value pairs of Friend Profile to be inserted / updated
+	* @param	boolean $exist		add a new entry (FALSE), if no previous friends has been added otherwise update the existing friends row (TRUE), default is FALSE
+	* @return   none	
+	*/
+	public function hwc_data_save($data, $exist = FALSE)
+	{
+		if (!$exist) 
+		{
+			$this->db->set($data);		// Set the query with the key / value pairs
+			$this->db->insert('lottery_h_w_c');
+		}
+		else
+		{
+			$this->db->set($data);		// Set the query with the key / value pairs
+			$this->db->where('lottery_id', $data['lottery_id']);
+			$this->db->update('lottery_h_w_c');
+		}
 	}
 }

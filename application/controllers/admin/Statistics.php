@@ -426,7 +426,7 @@ class Statistics extends Admin_Controller {
 	/**
 	 * View the follower numbers after the current draw. Default is 100 draws.
 	 * 
-	 * @param		$id		current id of Lottery	
+	 * @param		$id		current id of Lottery related to the draw database of the lottery	
 	 * @return      none
 	 */
 	public function followers($id)
@@ -581,7 +581,7 @@ class Statistics extends Admin_Controller {
 	/**
 	 * View the friends of drawn numbers that most often are drawn with this number. Default is 100 draws.
 	 * 
-	 * @param		$id		current id of draws	
+	 * @param		$id		current lottery id for the draw database	
 	 * @return  	none
 	 */
 	public function friends($id)
@@ -682,6 +682,178 @@ class Statistics extends Admin_Controller {
 		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
 		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	 
 		$this->data['subview']  = 'admin/dashboard/statistics/friends';
+		$this->load->view('admin/_layout_main', $this->data);
+	}
+	/**
+	 * View the Hots, Warms and Colds of Draw based on range. Default is 100 draws or up to the number of draws in the database.
+	 * 
+	 * @param		$id		current lottery id of draws	
+	 * @return  	none
+	 */
+	public function h_w_c($id)
+	{
+		$this->data['message'] = '';	// Defaulted to No Error Messages
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		// Retrieve the lottery table name for the database
+		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
+		$max_ball = $this->data['lottery']->maximum_ball;	// Get the highest ball drawn for this lottery, e.g. 49 in Lottery 649, 50 in Lottomax
+		$extra_ball = $this->data['lottery']->extra_ball;	// Make sure the extra ball is even used.
+		// Check to see if the actual table exists in the db?
+		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
+		{
+			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
+			redirect('admin/statistics');
+		}
+		$all = $this->lotteries_m->db_row_count($tbl_name); // Return the total number of draws for this lottery
+		if($all>100)
+		{
+			$interval = intval($all / 100); // Create the drop down in multiples of 100 and typecast to an integer value (truncates the floating point portion)
+			if(!$interval) $interval = 1;	// 1 to 100 draws
+		}
+		else
+		{
+			$interval = 0;
+		}
+		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
+
+		$h_w_c = $this->statistics_m->h_w_c_exists($id);
+
+		if(!is_null($h_w_c))
+		{
+			$new_range = $this->uri->segment(5,0); // Return segment range
+			$old_range = $h_w_c['range'];
+			if(!$new_range) $new_range = $old_range;	// Database Range
+			$w_start = $h_w_c['w'];
+			$c_start = $h_w_c['c'];
+			$this->data['lottery']->extra_included = $this->uri->segment(6)=='extra' ? $this->statistics_m->extra_included($id, TRUE, 'lottery_h_w_c') : $this->statistics_m->extra_included($id, FALSE, 'lottery_h_w_c');
+			$this->data['lottery']->extra_draws = ($this->uri->segment(6)=='draws' ? $this->statistics_m->extra_draws($id, TRUE, 'lottery_h_w_c') : $this->statistics_m->extra_draws($id, FALSE, 'lottery_h_w_c'));
+			$sel_range = ($new_range>100 ? $sel_range = intval($new_range / 100) : $sel_range = 1);
+			
+			if($new_range!=0)	
+			{
+				if(intval($old_range)!=(intval($new_range))) // Any Change in Selection of the Draws? then update ... e.i. 200 draws in db and 300 in query url
+				{
+					$str_hwc = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '');
+					
+					$strhots = $this->statistics_m->hots($str_hwc);
+					$strwarms = $this->statistics_m->warms($str_hwc);
+					$strcolds = $this->statistics_m->colds($str_hwc);
+					$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl_name, $drawn, $new_range);
+					$hwc = array(
+						'range'				=> $new_range,
+						'hots'				=> $strhots,
+						'warms'				=> $strwarms,
+						'colds'				=> $strcolds,
+						'overdue'			=> $stroverdue,
+						'draw_id'			=> $this->data['lottery']->last_drawn['id'],
+						'lottery_id'		=> $id,
+						'extra_included'	=> $this->data['lottery']->extra_included,
+						'extra_draws'		=> $this->data['lottery']->extra_draws,
+						'w'					=> $w_start,
+						'c'					=> $c_start	
+					);
+					$this->statistics_m->hwc_data_save($hwc, TRUE);
+				}
+				else  
+				{
+					//$new_range = $all;
+					$sel_range = intval($h_w_c['range'] / 100);
+					if(!$sel_range) $sel_range = 1; // Less than 100 draws
+					$strhots = $h_w_c['hots']; // Pull from DB
+					$strwarms = $h_w_c['warms'];
+					$strcolds = $h_w_c['colds'];;
+					$stroverdue = $h_w_c['overdue'];
+				}
+			}
+		}
+		else 
+		{
+			$sel_range = 1;								// All Defaults
+			$this->data['lottery']->extra_included = 0; // No Extra Ball as part of the calculation
+			$this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
+			$new_range = ($all<100 ? $all : 100);
+			$interval = $max_ball/3; // Divide by 3 and truncate the remainder
+			if(is_float($interval))	// If there is a fractional part, the default for the warms largest. e.g. 49 Balls / 16 Hots, 17 Warms, 16 Colds
+			{
+				$interval = intval($interval);			// Get rid of the fractional part
+				$w_start = ($max_ball-($interval*2)-1); // Start with the starting warm number, intervals are even and warms have the interval + fraction
+				$c_start = ($max_ball-$interval)+1;	 	// Max Ball minus the internval plus one ball
+			}
+			else
+			{
+				$w_start = ($max_ball-($interval*2)); // Start with the starting warm number, intervals are even and warms have the interval + fraction
+				$c_start = ($max_ball-$interval);	 // Max Ball minus the interval 
+			}
+			$str_hwc = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '');
+			$strhots = $this->statistics_m->hots($str_hwc);
+			$strwarms = $this->statistics_m->warms($str_hwc);
+			$strcolds = $this->statistics_m->colds($str_hwc);
+			$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl_name, $drawn, $new_range);
+			$hwc = array(
+						'range'				=> $new_range,
+						'hots'				=> $strhots,
+						'warms'				=> $strwarms,
+						'colds'				=> $strcolds,
+						'overdue'			=> $stroverdue,
+						'draw_id'			=> $this->data['lottery']->last_drawn['id'],
+						'lottery_id'		=> $id,
+						'extra_included'	=> $this->data['lottery']->extra_included,
+						'extra_draws'		=> $this->data['lottery']->extra_draws,
+						'w'					=> $w_start,
+						'c'					=> $c_start	
+					);
+			$this->statistics_m->hwc_data_save($hwc, FALSE);
+		}
+		
+		$hots = explode(",", $strhots); // Convert to Arrays
+		$warms = explode(",", $strwarms); 
+		$colds = explode(",", $strcolds); 
+		$overdue = explode(",", $stroverdue); 
+
+		// Iterate Hots
+		foreach($hots as $all_hots)
+		{
+			$n = strstr($all_hots, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+			$c = substr(strstr($all_hots, '='), 1); // Strip off to the left of the equal sign count
+			$this->data['lottery']->hots[$n] = $c; 
+		}
+
+		// Interate Warms
+		foreach($warms as $all_warms)
+		{
+			$n = strstr($all_warms, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+			$c = substr(strstr($all_warms, '='), 1); // Strip off to the left of the equal sign count
+			$this->data['lottery']->warms[$n] = $c; 
+		}
+
+		// Iterate Colds
+		foreach($colds as $all_colds)
+		{
+			$n = strstr($all_colds, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+			$c = substr(strstr($all_colds, '='), 1); // Strip off to the left of the equal sign count
+			$this->data['lottery']->colds[$n] = $c; 
+		}
+
+		// Iterate Overdues
+		foreach($overdue as $all_overdue)
+		{
+			$n = strstr($all_overdue, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+			$c = substr(strstr($all_overdue, '='), 1); // Strip off to the left of the equal sign count
+			$this->data['lottery']->overdue[$n] = $c; 
+		}
+
+		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
+		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
+		$this->data['lottery']->last_drawn['range'] = $new_range;
+		$this->data['lottery']->last_drawn['all'] = $all;
+		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/h_w_c'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	 
+		$this->data['subview']  = 'admin/dashboard/statistics/h_w_c';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 }

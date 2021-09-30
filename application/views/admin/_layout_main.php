@@ -29,6 +29,7 @@
         echo anchor('admin/statistics', 'Statistics', $attr);?>
           <div class="dropdown-menu" aria-labelledby="navbarDropdown">
             <?php echo anchor('admin/statistics', 'View Lottery Stats', 'class = "dropdown-item"'); ?>
+            <?php echo anchor('admin/history', 'View Lottery Win History', 'class = "dropdown-item"'); ?>
           </div> 
         </li>
         <li class="nav-item dropdown<?= ($current=='predictions' ? ' active' : ''); ?>">
