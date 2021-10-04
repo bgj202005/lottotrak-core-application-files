@@ -1671,7 +1671,7 @@ class Statistics_m extends MY_Model
 			$query->free_result(); // The $query result object will no longer be available again
 			if($count>$due)
 			{
-				$str .= $heat[0]."=".$count.",";
+				$str .= $heat[0]."=".$count."|".$due.",";
 			}
 		}
 		foreach($arr_warms as $awarm)
@@ -1718,7 +1718,7 @@ class Statistics_m extends MY_Model
 			$query->free_result(); // The $query result object will no longer be available again
 			if($count>$due)
 			{
-				$str .= $heat[0]."=".$count.",";
+				$str .= $heat[0]."=".$count."|".$due.",";
 			}
 		}	
 		foreach($arr_colds as $acold)
@@ -1765,7 +1765,7 @@ class Statistics_m extends MY_Model
 			$query->free_result(); // The $query result object will no longer be available again
 			if($count>$due)
 			{
-				$str .= $heat[0]."=".$count.",";
+				$str .= $heat[0]."=".$count."|".$due.",";
 			}
 		}		
 

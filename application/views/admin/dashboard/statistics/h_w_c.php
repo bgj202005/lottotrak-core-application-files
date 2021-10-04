@@ -117,9 +117,9 @@
 								</div>		
 							</div>
 						<div class = "text-center" style = "display:inline-block;">
-							<?php echo form_label("Hots", "id => 'lb_hots'");?><input type="number" id = "hots" value="16" min="1" max="50" step="1" style = "margin:10px 10px -5px;" />
-							<?php echo form_label("Warms", "id => 'lb_warms'");?><input type="number" id = "warms" value="18" min="1" max="50" step="1" style = "margin:10px 10px -5px;" />
-							<?php echo form_label("Colds", "id => 'lb_colds'");?><input type="number" id = "colds" value="16" min="1" max="50" step="1" style = "margin:10px 10px -5px;" />
+							<?php echo form_label("Hots", "id => 'lb_hots'");?><input type="number" id = "hots" value="<?=$lottery->H;?>" min="1" max="50" step="1" style = "margin:10px 10px -5px;" />
+							<?php echo form_label("Warms", "id => 'lb_warms'");?><input type="number" id = "warms" value="<?=$lottery->W;?>" min="1" max="50" step="1" style = "margin:10px 10px -5px;" />
+							<?php echo form_label("Colds", "id => 'lb_colds'");?><input type="number" id = "colds" value="<?=$lottery->C;?>" min="1" max="50" step="1" style = "margin:10px 10px -5px;" />
 						</div>
 						<div class="container" id="content" style = "margin:20px;">
 							<div class = "row justify-content-center">
@@ -135,6 +135,7 @@
 									</thead>
 									<tbody>
 										<?php foreach($lottery->hots as $ball => $count):	
+											
 											echo "<tr class='table-danger'>";
 											echo "<td class='text-center'>".$ball."</td>";
 											echo "<td class='text-center'>".$count."</td>";
@@ -180,7 +181,7 @@
 										endforeach; ?>
 									</tbody>
 								</table>
-								<table class="table" style = "max-width: 185px;">
+								<table class="table" style = "max-width: 220px;">
 									<thead>
 										<tr>
 											<th class="text-center" colspan="2">Overdue</th>
@@ -188,13 +189,16 @@
 										<tr>
 											<th class="text-center">Ball</th>
 											<th class="text-center">Draws Skipped</th>
+											<th class="text-center">Draw Average</th>
 										</tr>
 									</thead>
 									<tbody>
 										<?php foreach($lottery->overdue as $ball => $count):	
+											$skips = explode('|', $count); // break the actual overdue draws and the average that the ball is drawn
 											echo "<tr class='table-info'>";
 											echo "<td class='text-center'>".$ball."</td>";
-											echo "<td class='text-center'>".$count."</td>";
+											echo "<td class='text-center'>".$skips[0]."</td>";
+											echo "<td class='text-center'>".$skips[1]."</td>";
 											echo "</tr>";
 										endforeach; ?>
 									</tbody>

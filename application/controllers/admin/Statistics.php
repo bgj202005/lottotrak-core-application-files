@@ -725,7 +725,11 @@ class Statistics extends Admin_Controller {
 			$old_range = $h_w_c['range'];
 			if(!$new_range) $new_range = $old_range;	// Database Range
 			$w_start = $h_w_c['w'];
+			$this->data['lottery']->H = $w_start-1;  			// Number of Hots Distributed e.g. 16 Hots
 			$c_start = $h_w_c['c'];
+			$this->data['lottery']->W = $c_start-$w_start;  	// Number of Warms Distributed e.g 18 Colds
+			$this->data['lottery']->C = $max_ball-($c_start-1); 	// Number of Colds Distributed e.g 16 Colds
+
 			$this->data['lottery']->extra_included = $this->uri->segment(6)=='extra' ? $this->statistics_m->extra_included($id, TRUE, 'lottery_h_w_c') : $this->statistics_m->extra_included($id, FALSE, 'lottery_h_w_c');
 			$this->data['lottery']->extra_draws = ($this->uri->segment(6)=='draws' ? $this->statistics_m->extra_draws($id, TRUE, 'lottery_h_w_c') : $this->statistics_m->extra_draws($id, FALSE, 'lottery_h_w_c'));
 			$sel_range = ($new_range>100 ? $sel_range = intval($new_range / 100) : $sel_range = 1);
@@ -779,11 +783,17 @@ class Statistics extends Admin_Controller {
 				$interval = intval($interval);			// Get rid of the fractional part
 				$w_start = ($max_ball-($interval*2)-1); // Start with the starting warm number, intervals are even and warms have the interval + fraction
 				$c_start = ($max_ball-$interval)+1;	 	// Max Ball minus the internval plus one ball
+				$this->data['lottery']->H = $w_start-1;
+				$this->data['lottery']->W = $c_start-$w_start;  	
+				$this->data['lottery']->C = $max_ball-($c_start-1); 	 
 			}
 			else
 			{
-				$w_start = ($max_ball-($interval*2)); // Start with the starting warm number, intervals are even and warms have the interval + fraction
-				$c_start = ($max_ball-$interval);	 // Max Ball minus the interval 
+				$w_start = ($max_ball-($interval*2)); 	// Start with the starting warm number, intervals are even and warms have the interval + fraction
+				$c_start = ($max_ball-$interval);	 	// Max Ball minus the interval
+				$this->data['lottery']->H = $w_start-1;
+				$this->data['lottery']->W = $c_start-$w_start;  	
+				$this->data['lottery']->C = $max_ball-($c_start-1);  
 			}
 			$str_hwc = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '');
 			$strhots = $this->statistics_m->hots($str_hwc);
