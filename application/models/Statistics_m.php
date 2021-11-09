@@ -6,6 +6,53 @@ class Statistics_m extends MY_Model
 	protected $_table_name = 'lottery_stats';
 	protected $_order_by = 'id';
 	
+	// Based on the lottery maximum range for the balls being drawn, miniumum ball = 11, maximum ball = 54 for any lottery created
+	public $hwc_defaults = array(
+				'11'	=>		'3-5-3',
+				'12'	=>		'4-4-4',
+				'13'	=>		'4-5-4',
+				'14'	=>		'4-6-4',
+				'15'	=>		'5-5-5',
+				'16'	=>		'5-6-5',
+				'17'	=>		'5-7-5',
+				'18'	=>		'6-6-6',
+				'19'	=>		'6-7-6',
+				'20'	=>		'6-8-6',
+				'21'	=>		'7-7-7',
+				'22'	=>		'7-8-7',
+				'23'	=>		'7-9-7',
+				'24'	=>		'8-8-8',
+				'25'	=>		'8-9-8',
+				'26'	=>		'8-10-8',
+				'27'	=>		'9-9-9',
+				'28'	=>		'9-10-9',
+				'29'	=>		'9-11-9',
+				'30'	=>		'10-10-10',
+				'31'	=>		'10-11-10',
+				'32'	=>		'10-12-10',
+				'33'	=>		'11-11-11',
+				'34'	=>		'11-12-11',
+				'35'	=>		'11-13-11',
+				'36'	=>		'12-12-12',
+				'37'	=>		'12-13-12',
+				'38'	=>		'12-14-12',
+				'39'	=>		'13-13-13',
+				'40'	=>		'13-14-13',
+				'41'	=>		'13-15-13',
+				'42'	=>		'14-14-14',
+				'43'	=>		'14-15-14',
+				'44'	=>		'14-16-14',
+				'45'	=>		'15-15-15',
+				'46'	=>		'15-16-15',
+				'47'	=>		'15-17-15',
+				'48'	=>		'16-16-16',
+				'49'	=>		'16-17-16',
+				'50'	=>		'16-18-16',
+				'51'	=>		'17-17-17',
+				'52'	=>		'17-18-17',
+				'53'	=>		'18-18-18',
+				'54'	=>		'18-19-18'
+	);
 	/**
 	 * Validates that statistics are available from the Retrieves all the Statistics per draw
 	 * 
@@ -1507,7 +1554,6 @@ class Statistics_m extends MY_Model
 		$sql .= ') as hwc
 				GROUP BY ball_drawn
 				ORDER BY heat DESC;';
-		
 		/* From phpmyadmin 
 		select ball_drawn, count(*) as heat
 		from ((select ball1 as ball_drawn from daily_grand where draw_date >= '2016-10-16' AND draw_date <= '2016-12-29' order by draw_date desc limit 5) union all
@@ -1613,10 +1659,13 @@ class Statistics_m extends MY_Model
 	 * @param	string	$cold		String of cold numbers
 	 * @param	string	$ld			Name of Lottery Database
 	 * @param	integer	$max		Maximum number of balls drawn, e.g. Pick 6 and 6 balls picked
+	 * @param	boolean	$bonus		Bonus / Extra ball included in query. 0 = no, 1 = yes
+	 * @param	boolean	$draws		Extra Draws (without the the extra ball included) in the query. 
 	 * @param	integer	$range		Range of draws to analyse
+	 * @param	string	$last		last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
 	 * @return	string	$str		Return only the hot numbers in the group and truncate the rest of the string
 	 */
-	public function overdue($hots, $warms, $colds, $ld, $max, $range)
+	public function overdue($hots, $warms, $colds, $ld, $max, $bonus = 0, $draws = 0, $range, $last = '')
 	{
 		$str = ""; // Initialize the Overdue string, format will be the same as h_w_c string, e.i. Number 4 = 10 Last number of draws since last drawn
 		$last_date = $this->last_date($ld); // Return the last draw date
@@ -1658,13 +1707,18 @@ class Statistics_m extends MY_Model
 			{
 				$where .= " OR ball9=".$heat[0];
 			}
+			if($bonus) // Only include bonus if set
+			{
+				$where .= " OR extra=".$heat[0];
+			}
 			$limit = " ORDER BY `draw_date` DESC LIMIT 1";
 			// Query Build
 			$sql = $select.$where.$limit;
 			$query = $this->db->query($sql);
 			$found_date = $query->row()->draw_date;
-			$query->free_result(); // The $query result object will no longer be available
-			$sql = "SELECT * FROM ".$ld." WHERE `draw_date` > '".$found_date."' AND `draw_date` <= '".$last_date."'";
+			$query->free_result(); 								// The $query result object will no longer be available
+			$sql_draws = (!$draws ? ' AND extra <> 0': '' ); 	// If no extra draws are included, the extra ball is usually zero.
+			$sql = "SELECT * FROM ".$ld." WHERE `draw_date` > '".$found_date."' AND `draw_date` <= '".$last_date."'".$sql_draws;
 
 			$query = $this->db->query($sql);
 			$count = $query->num_rows();
@@ -1706,13 +1760,18 @@ class Statistics_m extends MY_Model
 			{
 				$where .= " OR ball9=".$heat[0];
 			}
+			if($bonus) // Only include bonus if set
+			{
+				$where .= " OR extra=".$heat[0];
+			}
 			$limit = " ORDER BY `draw_date` DESC LIMIT 1";
 			// Query Build
 			$sql = $select.$where.$limit;
 			$query = $this->db->query($sql);
 			$found_date = $query->row()->draw_date;
 			$query->free_result(); // The $query result object will no longer be available
-			$sql = "SELECT * FROM ".$ld." WHERE `draw_date` > '".$found_date."' AND `draw_date` <= '".$last_date."'";
+			$sql_draws = (!$draws ? ' AND extra <> 0': '' ); 	// If no extra draws are included, the extra ball is usually zero.
+			$sql = "SELECT * FROM ".$ld." WHERE `draw_date` > '".$found_date."' AND `draw_date` <= '".$last_date."'".$sql_draws;
 			$query = $this->db->query($sql);
 			$count = $query->num_rows();
 			$query->free_result(); // The $query result object will no longer be available again
@@ -1753,13 +1812,18 @@ class Statistics_m extends MY_Model
 			{
 				$where .= " OR ball9=".$heat[0];
 			}
+			if($bonus) // Only include bonus if set
+			{
+				$where .= " OR extra=".$heat[0];
+			}
 			$limit = " ORDER BY `draw_date` DESC LIMIT 1";
 			// Query Build
 			$sql = $select.$where.$limit;
 			$query = $this->db->query($sql);
 			$found_date = $query->row()->draw_date;
 			$query->free_result(); // The $query result object will no longer be available
-			$sql = "SELECT * FROM ".$ld." WHERE `draw_date` > '".$found_date."' AND `draw_date` <= '".$last_date."'";
+			$sql_draws = (!$draws ? ' AND extra <> 0': '' ); 	// If no extra draws are included, the extra ball is usually zero.
+			$sql = "SELECT * FROM ".$ld." WHERE `draw_date` > '".$found_date."' AND `draw_date` <= '".$last_date."'".$sql_draws;
 			$query = $this->db->query($sql);
 			$count = $query->num_rows();
 			$query->free_result(); // The $query result object will no longer be available again

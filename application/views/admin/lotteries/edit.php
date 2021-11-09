@@ -13,7 +13,7 @@
 		<h2><?php echo empty($lottery->id) ? 'Add a new Lottery' : 'Edit Lottery: '.$lottery->lottery_name; ?></h2>
 		<?php if (!empty($message)) ?> <h3 class="bg-warning" style = "text-align:center;"><?=$message; ?></h3>
 		<div class="row">
-			<div class="col-sm-8" style ="width:100%;">
+			<div class="col-sm-7" style ="width:100%;">
 				<div class ="card">
 					<div class = "card-body">
 						<div class="form-group">
@@ -235,7 +235,7 @@
 					</div>				
 				</div>
 			</div>
-			<div class="col-sm-4">
+			<div class="col-sm-5">
 				<!-- Last Draw Date field -->
 				<div class="card text-white bg-info mb-3" style="width: 100%;">
 					<div class="card-header">

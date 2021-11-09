@@ -692,7 +692,9 @@ class Statistics extends Admin_Controller {
 	 */
 	public function h_w_c($id)
 	{
-		$this->data['message'] = '';	// Defaulted to No Error Messages
+		$this->data['message'] = '';						// Defaulted to No Error Messages
+		$blnheat = FALSE;									// CHANGE flag. default is FALSE, 
+															//if the form was submitted, the database values will compared to the submitted ones.
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
@@ -719,31 +721,55 @@ class Statistics extends Admin_Controller {
 
 		$h_w_c = $this->statistics_m->h_w_c_exists($id);
 
-		if(!is_null($h_w_c))
+		if(!is_null($h_w_c))	// Existing HWC?
 		{
-			$new_range = $this->uri->segment(5,0); // Return segment range
+			$new_range = $this->uri->segment(5,0); 					// Return segment range
 			$old_range = $h_w_c['range'];
-			if(!$new_range) $new_range = $old_range;	// Database Range
-			$w_start = $h_w_c['w'];
-			$this->data['lottery']->H = $w_start-1;  			// Number of Hots Distributed e.g. 16 Hots
-			$c_start = $h_w_c['c'];
-			$this->data['lottery']->W = $c_start-$w_start;  	// Number of Warms Distributed e.g 18 Colds
-			$this->data['lottery']->C = $max_ball-($c_start-1); 	// Number of Colds Distributed e.g 16 Colds
+			if(!$new_range) $new_range = $old_range;				// Database Range
+			$hots = $h_w_c['h_count'];
+			$warms = $h_w_c['w_count'];
+			$colds = $h_w_c['c_count'];
+			if(empty($this->input->post(NULL, true)))
+			{
+				$w_start = intval($hots+1);							// Warms
+				$this->data['lottery']->H = $hots;  				// Number of Hots Distributed e.g. 16 Hots
+				$c_start = ($max_ball-intval($colds))+1; 			// Return the Cold value
+				$this->data['lottery']->W = $warms;  				// Number of Warms Distributed e.g 18 Colds
+				$this->data['lottery']->C = $colds; 				// Number of Colds Distributed e.g 16 Colds
+			}
+			else
+			{
+				$hot_form = $this->input->post('hots');				// POST values for hots, warms, colds
+				$warm_form = $this->input->post('warms');
+				$cold_form = $this->input->post('colds');
+				if(($hot_form!=$hots)||($warm_form!=$hots)||($cold_form!=$colds))	// Has a change been requested
+				{
+					$blnheat = TRUE;								// A change has been made 
+					$w_start = intval($hot_form+1);
+					$this->data['lottery']->H = $hot_form;
+					$c_start = ($max_ball-intval($cold_form))+1;  	
+					$this->data['lottery']->W = $warm_form;  					
+					$this->data['lottery']->C = $cold_form; 
+				}
+				
+			}
 
 			$this->data['lottery']->extra_included = $this->uri->segment(6)=='extra' ? $this->statistics_m->extra_included($id, TRUE, 'lottery_h_w_c') : $this->statistics_m->extra_included($id, FALSE, 'lottery_h_w_c');
+			if($h_w_c['extra_included']!=$this->data['lottery']->extra_included) $blnheat = TRUE; // A change in extra included has occurred
 			$this->data['lottery']->extra_draws = ($this->uri->segment(6)=='draws' ? $this->statistics_m->extra_draws($id, TRUE, 'lottery_h_w_c') : $this->statistics_m->extra_draws($id, FALSE, 'lottery_h_w_c'));
+			if($h_w_c['extra_draws']!=$this->data['lottery']->extra_draws) $blnheat = TRUE; // A change in extra draws has occurred
 			$sel_range = ($new_range>100 ? $sel_range = intval($new_range / 100) : $sel_range = 1);
 			
 			if($new_range!=0)	
 			{
-				if(intval($old_range)!=(intval($new_range))) // Any Change in Selection of the Draws? then update ... e.i. 200 draws in db and 300 in query url
+				if(intval($old_range)!=(intval($new_range))||($blnheat)) // Any Change in Selection of the Draws? then update ... e.i. 200 draws in db and 300 in query url
 				{
 					$str_hwc = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '');
 					
 					$strhots = $this->statistics_m->hots($str_hwc);
 					$strwarms = $this->statistics_m->warms($str_hwc);
 					$strcolds = $this->statistics_m->colds($str_hwc);
-					$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl_name, $drawn, $new_range);
+					$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '');
 					$hwc = array(
 						'range'				=> $new_range,
 						'hots'				=> $strhots,
@@ -755,7 +781,10 @@ class Statistics extends Admin_Controller {
 						'extra_included'	=> $this->data['lottery']->extra_included,
 						'extra_draws'		=> $this->data['lottery']->extra_draws,
 						'w'					=> $w_start,
-						'c'					=> $c_start	
+						'c'					=> $c_start,
+						'h_count'			=> 	$this->data['lottery']->H,
+						'w_count'			=> 	$this->data['lottery']->W,
+						'c_count'			=> 	$this->data['lottery']->C
 					);
 					$this->statistics_m->hwc_data_save($hwc, TRUE);
 				}
@@ -764,7 +793,7 @@ class Statistics extends Admin_Controller {
 					//$new_range = $all;
 					$sel_range = intval($h_w_c['range'] / 100);
 					if(!$sel_range) $sel_range = 1; // Less than 100 draws
-					$strhots = $h_w_c['hots']; // Pull from DB
+					$strhots = $h_w_c['hots']; 		// Pull from DB
 					$strwarms = $h_w_c['warms'];
 					$strcolds = $h_w_c['colds'];;
 					$stroverdue = $h_w_c['overdue'];
@@ -777,24 +806,13 @@ class Statistics extends Admin_Controller {
 			$this->data['lottery']->extra_included = 0; // No Extra Ball as part of the calculation
 			$this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
 			$new_range = ($all<100 ? $all : 100);
-			$interval = $max_ball/3; // Divide by 3 and truncate the remainder
-			if(is_float($interval))	// If there is a fractional part, the default for the warms largest. e.g. 49 Balls / 16 Hots, 17 Warms, 16 Colds
-			{
-				$interval = intval($interval);			// Get rid of the fractional part
-				$w_start = ($max_ball-($interval*2)-1); // Start with the starting warm number, intervals are even and warms have the interval + fraction
-				$c_start = ($max_ball-$interval)+1;	 	// Max Ball minus the internval plus one ball
-				$this->data['lottery']->H = $w_start-1;
-				$this->data['lottery']->W = $c_start-$w_start;  	
-				$this->data['lottery']->C = $max_ball-($c_start-1); 	 
-			}
-			else
-			{
-				$w_start = ($max_ball-($interval*2)); 	// Start with the starting warm number, intervals are even and warms have the interval + fraction
-				$c_start = ($max_ball-$interval);	 	// Max Ball minus the interval
-				$this->data['lottery']->H = $w_start-1;
-				$this->data['lottery']->W = $c_start-$w_start;  	
-				$this->data['lottery']->C = $max_ball-($c_start-1);  
-			}
+			$heat = explode('-', $this->statistics_m->hwc_defaults[$max_ball]); 	// Break out the H-W-C into a new array
+			$w_start = intval($heat[0]+1);							// Warms
+			$this->data['lottery']->H = $heat[0];  					// Number of Hots Distributed e.g. 16 Hots
+			$c_start = ($max_ball-intval($heat[2]))+1; 				// Return the Cold value
+			$this->data['lottery']->W = $heat[1];  					// Number of Warms Distributed e.g 18 Colds
+			$this->data['lottery']->C = $heat[2]; 					// Num
+			
 			$str_hwc = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '');
 			$strhots = $this->statistics_m->hots($str_hwc);
 			$strwarms = $this->statistics_m->warms($str_hwc);
@@ -811,7 +829,10 @@ class Statistics extends Admin_Controller {
 						'extra_included'	=> $this->data['lottery']->extra_included,
 						'extra_draws'		=> $this->data['lottery']->extra_draws,
 						'w'					=> $w_start,
-						'c'					=> $c_start	
+						'c'					=> $c_start,
+						'h_count'			=> 	$this->data['lottery']->H,
+						'w_count'			=> 	$this->data['lottery']->W,
+						'c_count'			=> 	$this->data['lottery']->C	
 					);
 			$this->statistics_m->hwc_data_save($hwc, FALSE);
 		}
