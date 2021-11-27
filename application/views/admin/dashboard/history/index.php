@@ -15,7 +15,6 @@
 	<h2>Lottery Actual Win History</h2>
 	<?php if (isset($message)) : ?> <h4 class="bg-warning" id = "message" style = "margin-top: 20px; text-align:center;"><?=$message; endif; ?></h4>
 	<h4 id = "status" style = "margin-top: 20px; text-align:center; display:none;"></h4>	
-	<h3 class="bg-success"  id = "counter" style = "margin-top:20px; text-align:center; display:none;">Lottery has Win History Updated: <div id = "count"></div></h3>
 	<div class = "status"></div>
 	<div class="table-responsive">
 	<div class ="table-responsive-xl">
