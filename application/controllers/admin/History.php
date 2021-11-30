@@ -115,7 +115,26 @@ class History extends Admin_Controller {
 		$this->data['lottery']->last_drawn['trend'] = $this->history_m->trend_history($drawings, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_draws, $this->data['lottery']->extra_included);
 		$this->data['lottery']->last_drawn['repeats'] = $this->history_m->repeat_history($drawings, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_draws, $this->data['lottery']->extra_included);
 		$this->data['lottery']->last_drawn['consecutives'] = $this->history_m->consecutive_history($drawings, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_draws, $this->data['lottery']->extra_included);		
+		$this->data['lottery']->last_drawn['adjacents'] = $this->history_m->adjacents_history($drawings, $this->data['lottery']->balls_drawn);
+		$this->data['lottery']->last_drawn['sums_history'] = $this->history_m->sums_history($drawings);
+		$this->data['lottery']->last_drawn['digits_history'] = $this->history_m->digits_history($drawings);		
 		/***** End of Statistic Calculations ******/
+		$aag = array(
+			'range'				=> $new_range,
+			'trends'			=> $this->data['lottery']->last_drawn['trend'],
+			'repeats'			=> $this->data['lottery']->last_drawn['repeats'],
+			'consecutives'		=> $this->data['lottery']->last_drawn['consecutives'],
+			'adjacents'			=> $$this->data['lottery']->last_drawn['adjacents'],
+			'winning_sums'		=> $this->data['lottery']->last_drawn['winning_sums'],
+			'winning_digits'	=> $this->data['lottery']->last_drawn['winning_digits'],
+			'number_range'		=> $this->data['lottery']->last_drawn['number_range'],
+			'parity'			=> $this->data['lottery']->last_drawn['parity'],
+			'draw_id'			=> $this->data['lottery']->last_drawn['id'],
+			'lottery_id'		=> $id,
+			'extra_included'	=> $this->data['lottery']->extra_included,
+			'extra_draws'		=> $this->data['lottery']->extra_draws
+		); // $aag - At A Glance
+		$this->history_m->aag_data_save($aag, FALSE);
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/history'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();

@@ -155,7 +155,7 @@ class History_m extends MY_Model
         }
         $r_text = substr_replace($r_text, '|', -1);	    // Replace the ',' with the '|' (pipe)
         rsort($next);                                   // Sort by value descending
-        if($this->top_pick($next))
+        if($this->top_pick($next, 5))
         {
             $i = 4; // Only 4 Top Numbers;
             foreach ($next as $k => $v)
@@ -176,13 +176,14 @@ class History_m extends MY_Model
 	 * Returns if the Top Pick has been picked a minimum number of times
 	 * 
 	 * @param       array       $picks           Array of draws for a given range
+     * @param       integer     $limit             The minimum value that is used in the comparision to return true
 	 * @return      boolean		true/false       Returns true if the minimum value (5) is equal or exceeded
 	 */
-    public function top_pick($picks)
+    public function top_pick($picks, $limit=5)
     {
         foreach($picks as $pick => $value)
         {
-            if($value>=5) return true;
+            if($value>$limit) return true;
         }
     return false;
     }
@@ -260,102 +261,232 @@ class History_m extends MY_Model
     return $c_text;                         
     }
     /**
-	 * adjacent_history averrages the number of adjacents of each ball position for balls 1 and 2, 2 and 3, 3 and 4, 4 and 5, 5 and 6 for a pick 6 game. The maximum separation is included
+	 * adjacent_history averrages the number of adjacents of each ball position for balls 1 and 2, 2 and 3, 3 and 4, 4 and 5, 5 and 6 for a pick 6 game. 
+     * 6 and 7 for Pick 7. 7 and 8 for Pick 8, etc. The maximum separation is included between any balls is added.
 	 * 
 	 * @param       array       $draws          Array of draws for a given range
      * @param       integer     $pick           Pick Game. Pick 7, Pick 6, Pick 5 
-	 * @param 		boolean 	$ex 		    extra draws used
-     * @param 		boolean 	$b_ex           Bonus ball used		    
 	 * @return      string		$adj_text       Concatenated String. Format: . e.g. Pick 6 average difference, 1=5,2=5,3=2,4=7,5=5|14
 	 */
-    public function adjacents_history($draws, $pick, $ex = FALSE, $b_ex = FALSE)
+    public function adjacents_history($draws, $pick)
     {
         $total = count($draws);
-        if($b_ex) $pick++;
-        $adajcents = $this->zeroed(new SplFixedArray($pick+1), $pick+1);         // include the zero consecutives
+        $lg_diff = 0;           // Largest difference for any draw
+        $adjacents = $this->zeroed(new SplFixedArray($pick), $pick);    // include the zero adacents, this is now zero based with zero occurrences
         
         foreach($draws as $count => $draw)
         {
             if(($total-1)!=$count)
             {
-            $consecutives_draw = 0;    
-            if((!$ex&&$draw['extra']!=0)||($ex&&$draw['extra']==0))     // For this to be included, extra ball is not set and the extra must noy be zero, or
-                {                                                       // if the extra ball is set, the extra ball must be zero
-                    for($c=1; $c<$pick; $c++)                           // Interate the draw for changes from the previous draw and the next draw
-                    {
-                        if(intval($draw['ball'.($c+1)])-intval($draw['ball'.$c])==1)    // The next drawn number is consecutive
-                        {
-                            $consecutives_draw++;
-                            $lcd = $consecutives_draw.'='.$draw['draw_date'];           // Include the last draw date of the occurrence
-                        }
-                    }
-                    if($b_ex&&$draw['extra']!=0)            // Extra included in the Consecutives
-                    {
-                        for($c=1; $c<=$pick; $c++)          // Must interate in this case with the extra drawn number
-                        {
-                            if(abs(intval($draw['extra'])-intval($draw['ball'.$c]))==1) 
-                            {
-                                $consecutives_draw++;       // Include the last draw date of the occurrence
-                                $lcd = $consecutives_draw.'='.$draw['draw_date'];
-                            }
-                        }
-                    }
+                for($c=1; $c<$pick; $c++)                     // Interate the draw for changes from the previous draw and the next draw
+                {
+                    $diff = 0;
+                    $diff = intval($draw['ball'.($c+1)])-intval($draw['ball'.$c]);
+                    $adjacents[$c]  += $diff;
+                    if($lg_diff<$diff) $lg_diff = $diff;     // The current (diff)erence for any draw is now the largest (lgdiff)erence     
                 }
             }
-            if($consecutives_draw!=0) $consecutives[$consecutives_draw] +=1;    // Count the number of consecutives for this draw
-            else $consecutives[0] += 1;                                       // If no consecutives, do count the draws that did not have a consecutive
         }
+
         $adj_text = '';
-        foreach($consecutives as $n => $c)
+        for($c=1; $c<$pick; $c++)
         {
-            $adj_text .= $n.'='.$c.',';
+            $adjacents[$c] = ceil(($adjacents[$c] / $total));
+            $adj_text .= $c.'='.$adjacents[$c].',';
         }
-        $adj_text = substr_replace($c_text, '|', -1);	    // Replace the ',' with the '|' (pipe)
-        $adj_text .= $lcd;                             // include the last draw date of consecutive occurrence
+
+        $adj_text = substr_replace($adj_text, '|', -1);	    // Replace the ',' with the '|' (pipe)
+        $adj_text .= $lg_diff;                              // include the last draw date of consecutive occurrence
     return $adj_text;                        
     }
     /**
-	 * sums_history tabulates the winning sums over a given range of draws. Only the top 10 Winning sums will be retained. 
+	 * sums_history summarizes the winning sums over a given range of draws. Only the top 10 Winning sums if they have occurred more than once, will be retained. 
 	 * 
 	 * @param       array       $draws          Array of draws for a given range
-     * @param       integer     $pick           Pick Game. Pick 7, Pick 6, Pick 5 
-	 * @param 		boolean 	$ex 		    extra draws used
-     * @param 		boolean 	$b_ex           Bonus ball used		    
 	 * @return      string		$sum_text       Concatenated String. Format: 147=5,209=5,187=4,162=3,109=2|5=17,INCREASE
      * Percentage differences will be calculated for 0-5%, 6-10%, 11-15%, 16-20%, 21-25%, 26-30%, 31-35%, 36-40%, 41-45% and 46-50% 
+     * for example, 5=17 is intrepreted as 0 - 5 % of all draws (over 100 draws, as an example) has occurred 17 times in 100.
+     * The sum for the next draw has been found to increase from 0 - 5% in 17 draws of 100. 
      * the number of occurences and if the percentage is an INCREASE or DECREASE from the previous total sum. Only the highest occurrence will be retained. 
 	 */
-    public function sums_history($draws, $pick, $ex = FALSE, $b_ex = FALSE)
+    public function sums_history($draws)
     {
-
+        $total = count($draws);
+        $sums = array();                                      // empty set for the top sums
+        $percents = array(-50,-45,-40,-35,-30,-25,-20,-15,-10,-5,5,10,15,20,25,30,35,40,45,50); // ranges of percentages for both positive and negagtive
+        // 0-5%, 6-10%, 11-15%, 16-20%, 21-25%, 26-30%, 31-35%, 36-40%, 41-45% and 46-50% 
+        
+        $ranges = $this->zeroed(new SplFixedArray(20), 20);   // 20 Percentage Ranges
+        
+        foreach($draws as $count => $draw)
+        {
+            if(($total-1)!=$count)
+            {
+                $next[$draw['sum_draw']] = (!array_key_exists($draw['sum_draw'], $sums) ? 1 : $sums[$draw['sum_draw']]+1); // Add Key or Existing One?
+                if(!empty($count)) // if not 0
+                {
+                    //$diff = $draws[$count]['sum_draw']-$draws[$count-1]['sum_draw'];                                // Formula for percentage difference
+                    $percent_diff = (1-$draws[$count]['sum_draw']/$draws[$count-1]['sum_draw'])*100;   // Perecentage Difference = |ΔV|[ΣV2]×100
+                    $percent_diff = round($percent_diff,0);
+                    $flag = FALSE;
+                    foreach($percents as $r => $v)
+                    {
+                        if(($percent_diff<=$v)&&(!$flag)) 
+                        {
+                            $ranges[$r] += 1;
+                            $flag = TRUE;
+                        }
+                    }
+                }   
+            }
+        }
+        $s_text = "";
+        arsort($sums);    // Sort by value NOT Key DESCENTDING
+        if($this->top_pick($sums,2))
+        {
+            $i = 10; // Only 4 Top Numbers;
+            foreach ($next as $k => $v)
+            {
+                $s_text .= $k.'='.$v.',';
+                $i--;
+                if($i<0) 
+                {
+                    break;
+                }
+            }
+        }
+        else $s_text .= '0=0,';   // Nothing Here, rare event
+        $s_text = substr_replace($s_text, '|', -1);	    // Replace the ',' with the '|' (pipe)
+        $top = $ranges[0];                              // Start at the beginning
+        $offset = 0;
+        foreach($ranges as $r => $v)                    // Find the greatest Percentage difference 
+        {
+            if($top<$v) 
+            {
+                $top = $v;
+                $offset = $r;
+            }
+        }
+        if($percents[$offset]<0) $s_text .= abs($percents[$offset]).'='.$top.',DECREASE';
+        else  $s_text .= abs($percents[$offset]).'='.$top.',INCREASE';
+    return $s_text;
     }
     /**
 	 * digits_history tabulates the digit sums over a given range of draws. Only the top 5 digit sums will be retained.
 	 * 
-	 * @param       array       $draws          Array of draws for a given range
-     * @param       integer     $pick           Pick Game. Pick 7, Pick 6, Pick 5 
-	 * @param 		boolean 	$ex 		    extra draws used
-     * @param 		boolean 	$b_ex           Bonus ball used		    
-	 * @return      string		$digits_text    Concatenated String. Format: 42=7,33=5,41=4,33=4,54=4|10=19,INCREASE
-     * Percentage differences will be calculated for 0-5%, 6-10%, 11-15%, 16-20%, 21-25%, 26-30%, 31-35%, 36-40%, 41-45% and 46-50% 
+	 * @param       array       $draws          Array of draws for a given range	 
+     * @return      string		$d_text         Concatenated String. Format: 42=7,33=5,41=4,33=4,54=4|10=19,INCREASE
+     * Percentage differences will be calculated for 0-5%, 6-10%, 11-15%, 16-20%, 21-25%, 26-30%, 31-35%, 36-40%, 41-45% and 46-50%
+     * for example, 10=19 is interpreted as 6 - 10 % of all draws (over 100 draws, as an example) has occurred 19 times in 100.
+     * The sum for the next draw has been found to increase from 6 - 10% in 17 draws of 100.  
      * the number of occurences and if the percentage is an INCREASE or DECREASE from the previous digits sum. Only the highest occurrence will be retained. 
 	 */
-    public function digits_history($draws, $pick, $ex = FALSE, $b_ex = FALSE)
+    public function digits_history($draws)
+    {
+        $total = count($draws);
+        $digits = array();        // empty set for the top sums
+        $percents = array(-50,-45,-40,-35,-30,-25,-20,-15,-10,-5,5,10,15,20,25,30,35,40,45,50); // ranges of percentages for both positive and negagtive
+        // 0-5%, 6-10%, 11-15%, 16-20%, 21-25%, 26-30%, 31-35%, 36-40%, 41-45% and 46-50% 
+        
+        $ranges = $this->zeroed(new SplFixedArray(20), 20);   // 20 Percentage Ranges
+        
+        foreach($draws as $count => $draw)
+        {
+            if(($total-1)!=$count)
+            {
+                $digits[$draw['sum_digits']] = (!array_key_exists($draw['sum_digits'], $digits) ? 1 : $digits[$draw['sum_digits']]+1); // Add Key or Existing One?
+                if(!empty($count)) // if not 0
+                {
+                    //$diff = $draws[$count]['sum_draw']-$draws[$count-1]['sum_draw'];                                // Formula for percentage difference
+                    $percent_diff = (1-$draws[$count]['sum_digits']/$draws[$count-1]['sum_digits'])*100;   // Perecentage Difference = |ΔV|[ΣV2]×100
+                    $percent_diff = round($percent_diff,0); // No decimals
+                    $flag = FALSE;
+                    foreach($percents as $r => $v)
+                    {
+                        if(($percent_diff<=$v)&&(!$flag)) 
+                        {
+                            $ranges[$r] += 1;
+                            $flag = TRUE;
+                        }
+                    }
+                }   
+            }
+        }
+        $d_text = "";
+        arsort($digits);    // Sort by value NOT Key DESCENTDING
+        if($this->top_pick($digits,2))
+        {
+            $i = 10; // Only 4 Top Numbers;
+            foreach ($digits as $k => $v)
+            {
+                $d_text .= $k.'='.$v.',';
+                $i--;
+                if($i<0) 
+                {
+                    break;
+                }
+            }
+        }
+        else $d_text .= '0=0,';   // Nothing Here, rare event
+        $d_text = substr_replace($d_text, '|', -1);	    // Replace the ',' with the '|' (pipe)
+        $top = $ranges[0];                              // Start at the beginning
+        $offset = 0;
+        foreach($ranges as $r => $v)                    // Find the greatest Percentage difference 
+        {
+            if($top<$v) 
+            {
+                $top = $v;
+                $offset = $r;
+            }
+        }
+        if($percents[$offset]<0) $d_text .= abs($percents[$offset]).'='.$top.',DECREASE';
+        else  $d_text .= abs($percents[$offset]).'='.$top.',INCREASE';
+    return $d_text;
+    }
+    /**
+	 * range_history calculates the difference between the lowest drawn mnumber and the highest drawn number 
+	 * The top 5 ranges will be summarized over the given range of draws
+	 * @param       array       $draws          Array of draws for a given range
+     * @param       integer     $pick           Pick Game. Pick 7, Pick 6, Pick 5 
+ 	 * @return      string		$range_text     Concatenated String. Format: 4-3=55,6-0=5,0-6=4
+     * the number of occurences must exceed the average for that odd / even combination based from the range to be included
+     * Low occurrences over a given range will also be highlighted
+	 */
+    public function range_history($draws, $pick)
     {
 
     }
     /**
-	 * oddevens_history calculates the odd/even combination that has exceeded the average odd/even for that given range 
+	 * parity_history calculates the odd/even combination that has exceeded the average odd/even for that given range 
 	 * 
 	 * @param       array       $draws          Array of draws for a given range
-     * @param       integer     $pick           Pick Game. Pick 7, Pick 6, Pick 5 
-	 * @param 		boolean 	$ex 		    extra draws used
-     * @param 		boolean 	$b_ex           Bonus ball used		    
-	 * @return      string		$oddevens_text   Concatenated String. Format: 4-3=55,6-0=5,0-6=4
+ 	 * @return      string		$oddevens_text   Concatenated String. Format: 4-3=55,6-0=5,0-6=4
      * the number of occurences must exceed the average for that odd / even combination based from the range to be included
+     * Low occurrences over a given range will also be highlighted
 	 */
-    public function oddevens_history($draws, $pick, $ex = FALSE, $b_ex = FALSE)
+    public function parity_history($draws)
     {
 
     }
+    /** 
+	* Insert / Update the At a Glance Statistics to the database
+	* 
+	* @param 	array	$data		key / value pairs of Friend Profile to be inserted / updated
+	* @param	boolean $exist		add a new entry (FALSE), if no previous friends has been added otherwise update the existing friends row (TRUE), default is FALSE
+	* @return   none	
+	*/
+	public function aag_data_save($data, $exist = FALSE)
+	{
+		if (!$exist) 
+		{
+			$this->db->set($data);		// Set the query with the key / value pairs
+			$this->db->insert('lottery_h_w_c');
+		}
+		else
+		{
+			$this->db->set($data);		// Set the query with the key / value pairs
+			$this->db->where('lottery_id', $data['lottery_id']);
+			$this->db->update('lottery_h_w_c');
+		}
+	}
 }
