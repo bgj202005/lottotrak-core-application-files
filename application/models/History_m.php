@@ -36,7 +36,20 @@ class History_m extends MY_Model
 		$history = $query->result_array();
     return (!is_null($history) ? $history : FALSE); // Returns a false if the query did not return results    
     }
-    
+    /* glance_exist with query for a single row result from the lottery_id
+     * @param		integer     $lotto_id	Lottery id
+	 * @return      boolean		TRUE/FALSE  At A Glance Statistics Exist (TRUE) / Do not exist (FALSE)	
+	 */
+    public function glance_exists($lotto_id)
+    {
+        // todo: load the range of lottery draws, ascending order
+        $this->db->reset_query();	// Clear any previous queries in the cache
+        $query = $this->db->select('*')
+                          ->where('lottery_id', $lotto_id)
+                          ->get('lottery_highlights');
+		$row = $query->row();
+    return (!empty($row()) ? TRUE : FALSE); // Returns a TRUE (if returning a result) or FALSE if the query did not a single row result    
+    }
     /**
 	 * This method looks at the previous draw with the next draw and returns an up change (1) or a down change (-1) or defaulted to no change (0)
 	 * 
@@ -168,7 +181,7 @@ class History_m extends MY_Model
                 }
             }
         }
-        else $r_text .= '0=0';   // Nothing Here  
+        else $r_text .= '0=0,';   // Nothing Here  
     return substr($r_text, 0, -1);	// Return the repeats without an extra ',' Comma
     }
 
@@ -413,7 +426,7 @@ class History_m extends MY_Model
             }
         }
         $d_text = "";
-        arsort($digits);    // Sort by value NOT Key DESCENTDING
+        arsort($digits);    // Sort by value NOT Key only value DESCENDING
         if($this->top_pick($digits,2))
         {
             $i = 10; // Only 4 Top Numbers;
@@ -448,45 +461,165 @@ class History_m extends MY_Model
 	 * The top 5 ranges will be summarized over the given range of draws
 	 * @param       array       $draws          Array of draws for a given range
      * @param       integer     $pick           Pick Game. Pick 7, Pick 6, Pick 5 
- 	 * @return      string		$range_text     Concatenated String. Format: 4-3=55,6-0=5,0-6=4
+ 	 * @return      string		$r_text         Concatenated String. Format: 42=10,23=8,11=8,23=7,
      * the number of occurences must exceed the average for that odd / even combination based from the range to be included
      * Low occurrences over a given range will also be highlighted
 	 */
     public function range_history($draws, $pick)
     {
-
+        $total = count($draws);
+        $ranges = array();              // empty set for the top picks
+        
+        foreach($draws as $count => $draw)
+        {
+            if(($total-1)!=$count)
+            {
+                $diff = intval($draw['ball'.$pick])-intval($draw['ball1']);   // Subtract the top drawn number from the first number drraw
+                $ranges[$diff] = (array_key_exists($ranges[$diff],$ranges) ? 1 : $ranges[$diff]+1); // Add Key or Existing One?
+            }
+        }
+        arsort($ranges);                // Sort by value NOT Key DESCENDING
+        $r_text = "";
+        if($this->top_pick($ranges,5))  // Must have a minimum count of 5
+        {
+            $i = 10; // Only 4 Top Numbers;
+            foreach ($ranges as $k => $v)
+            {
+                $r_text .= $k.'='.$v.',';
+                $i--;
+                if($i<0) 
+                {
+                    break;
+                }
+            }
+        }
+        else $r_text .= '0=0,';     // Nothing Here, rare event
+    return substr($r_text, 0, -1);	// Return the repeats without an extra ',' Comma                         
     }
     /**
 	 * parity_history calculates the odd/even combination that has exceeded the average odd/even for that given range 
 	 * 
 	 * @param       array       $draws          Array of draws for a given range
- 	 * @return      string		$oddevens_text   Concatenated String. Format: 4-3=55,6-0=5,0-6=4
+     * @param       string      $lotto          Lottery Table name
+     * @param       integer     $pick           Pick Game. Pick 7, Pick 6, Pick 5
+ 	 * @return      string		$oe_text        Concatenated String. Format: 4-3=55,3-4=34,5-2=20,2-5=15,1-6=12,6-1=8,7-0=6,0-7=4|7-0=2020-11-0,0-7=2021-10-13
      * the number of occurences must exceed the average for that odd / even combination based from the range to be included
-     * Low occurrences over a given range will also be highlighted
+     * Low occurrences over a given range will also be included. For example, in a pick 7, if the odd/even was 7-0 and 5 occurrences in the last 100 draws. This will 
+     * be included with the last draw date of the occurence.
 	 */
-    public function parity_history($draws)
+    public function parity_history($draws, $pick, $lotto)
     {
-
+        // Step 1: Return all the odd-even combinations from the moss occurrences to the least
+        $total  = count($draws);
+        $parity = $this->parity_list($total, $lotto);           // Return the Odds and Evens over the given range
+        if(!$parity) return FALSE;                              // could not return the query and return FALSE
+        $top = array();
+        foreach($parity as $count => $oddevens)
+        {
+            $top[$oddevens['odd'].'-'.$oddevens['even']] = $oddevens['count(*)']; // Arrange the format as odd-even=count
+        }
+        arsort($top);   // Sort the odd - even combination in reverse order by the count value only
+        $oe_text = '';
+        foreach($top as $c => $oe)
+        {
+            $oe_text .= $c.'='.$oe.',';
+        }
+        $oe_text = substr_replace($oe_text, '|', -1);	    // Replace the ',' with the '|' (pipe)
+        unset($top);                                        // Destroy the $top array
+        // Step 2, is to find the low number odd - even combinations starting at the pick and pick - 1 (e.g. for Pick6 it would be pick 6)
+        // next, look for the largest count of a given odd - even. For example, pick 6 would be 6 odd - 0 even, 0 odd - 6 even, 5 odds - 1 even and 1 odd and 5 even
+        // Retrieve all the dates and the draw separation between draws.  Add these results to the string and return
+        // For example, 6-0,2021/01/18,5,2021/02/28,10,2021/05/15,5,2021/07/01.25
+        // The complete format will be displayed as: 4-2=34,3-3=32,2-4=25,4-2=20,5-1=15,1-5=14,6-0=4,00-6=2|6-0,2021/01/18,5,2021/02/28,10,2021/05/15,5,2021/07/01.25
+            $low = 0;
+            $draw_dates = array();  // Series of draw dates
+            foreach($parity as $count => $oddevens)
+            {
+                if(($oddevens['odd']==$pick)&&($oddevens['even']==0)||($oddevens['odd']==0)&&($oddevens['even']==$pick))
+                {
+                    if($low<$oddevens['count']) 
+                    {
+                        $odd = $oddevens['odd'];
+                        $even = $oddevens['even'];
+                        array_push($draw_dates, $oddevens['draw_date']);
+                    }
+                }
+            }
+        if(!empty($draw_dates))     // Is there dates?
+        {
+            $oe_text .= $odd.'-'.$even.',';
+            $result = $this->parity_dates($draw_dates, $lotto);    
+            if(!$result) return FALSE;
+        }
+        else 
+        {
+            $oe_text .= "0-0";  // The rare odd / even combination did not happen
+            $result = "";
+        }
+        unset($draw_dates);    
+        $oe_text .= $result;    
+    return $oe_text;   
     }
     /** 
-	* Insert / Update the At a Glance Statistics to the database
+	* glance_data_save. Insert / Update the At a Glance Statistics to the database
 	* 
 	* @param 	array	$data		key / value pairs of Friend Profile to be inserted / updated
 	* @param	boolean $exist		add a new entry (FALSE), if no previous friends has been added otherwise update the existing friends row (TRUE), default is FALSE
-	* @return   none	
+	* @return   boolean $success    TRUE on success, FALSE on failure (insert or update)	
 	*/
-	public function aag_data_save($data, $exist = FALSE)
+	public function glance_data_save($data, $exist = FALSE)
 	{
 		if (!$exist) 
 		{
 			$this->db->set($data);		// Set the query with the key / value pairs
-			$this->db->insert('lottery_h_w_c');
+			$success = $this->db->insert('lottery_highlights');
 		}
 		else
 		{
 			$this->db->set($data);		// Set the query with the key / value pairs
 			$this->db->where('lottery_id', $data['lottery_id']);
-			$this->db->update('lottery_h_w_c');
+			$success = $this->db->update('lottery_hightlights');
 		}
+    return $success;
 	}
+    /** 
+	* parity_list. Insert / Update the At a Glance Statistics to the database
+	* 
+	* @param 	integer	$rows		$rows returned from the lottery table
+	* @param	string  $tbl		Actual table name of the lottery
+	* @return   array   $result     Array of the odd / even and total counts for the range, FALSE on failure	
+	*/
+	private function parity_list($rows, $tbl)
+	{
+		$query = $this->db->query("select odd, even, draw_date, count(*) from (SELECT * FROM 
+        `".$tbl."` ORDER BY id DESC LIMIT ".$rows.") sub 
+        group by odd, even ORDER BY id ASC;");
+        $result = $query->result_array();    
+    return $result;
+	}
+    /** 
+	* parity_list. Insert / Update the At a Glance Statistics to the database
+	* @param    array   $parity_dates Series of draw dates for this odd / even combination
+	* @param	string  $tbl		Actual table name of the lottery (e.g. canada_649)
+	* @return   array   $result     Array of the odd / even and total counts for the range, FALSE on failure	
+	*/
+	private function parity_dates($parity_dates, $tbl)
+	{
+		$result = '';
+        foreach($parity_dates as $c)
+        {
+            if(!$c)
+            {
+                $query = $this->db->query("SELECT * FROM ".$tbl." WHERE draw_date = ".$parity_dates[$c-1]." AND draw_date =".$parity_dates[$c]);
+                if(!$query) return FALSE;
+                $result = $parity_dates[$c-1].','.$query->num_rows().',';
+            }
+        }
+        $last_date = end($parity_dates);  // Return the last date that this odd / even combination occurred to determine how many draws have elapsed since this occurred.
+        $query = $this->db->query("SELECT * FROM ".$tbl." WHERE draw_date => ".$last_date);
+        if(!query) return FALSE;
+        $result .= $last_date.",".$query->num_rows;
+    return $result;
+	}
+
 }

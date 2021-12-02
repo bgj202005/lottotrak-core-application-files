@@ -21,35 +21,35 @@ class Migration_Create_Lottery_Highlights extends CI_Migration {
                         ),
                         'trends' => array(
         	                'type' => 'VARCHAR',
-        	                'constraint' => '2000'
+        	                'constraint' => '255'
                         ),
                         'repeats' => array(
         	                'type' => 'VARCHAR',
-        	                'constraint' => '2000'
+        	                'constraint' => '255'
                         ),
                         'consecutives' => array(
         	                'type' => 'VARCHAR',
-        	                'constraint' => '2000'
+        	                'constraint' => '255'
                         ),
                         'adjacents' => array(
         	                'type' => 'VARCHAR',
-        	                'constraint' => '500'
+        	                'constraint' => '255'
                         ),
                         'winning_sums' => array(
         	                'type' => 'VARCHAR',
-        	                'constraint' => '2000'
+        	                'constraint' => '255'
                         ),
                         'winning_digits' => array(
         	                'type' => 'VARCHAR',
-        	                'constraint' => '2000'
+        	                'constraint' => '255'
                         ),
                         'number_range' => array(
         	                'type' => 'VARCHAR',
-        	                'constraint' => '2000'
+        	                'constraint' => '255'
                         ),
                         'parity' => array(
         	                'type' => 'VARCHAR',
-        	                'constraint' => '2000'
+        	                'constraint' => '255'
                         ),
                         'draw_id' => array(
                             'type' => 'INT',
