@@ -48,7 +48,7 @@ class History_m extends MY_Model
                           ->where('lottery_id', $lotto_id)
                           ->get('lottery_highlights');
 		$row = $query->row();
-    return (!empty($row()) ? TRUE : FALSE); // Returns a TRUE (if returning a result) or FALSE if the query did not a single row result    
+    return (!is_null($row) ? $row : FALSE); // Returns a TRUE (if returning a result) or FALSE if the query did not a single row result    
     }
     /**
 	 * This method looks at the previous draw with the next draw and returns an up change (1) or a down change (-1) or defaulted to no change (0)
@@ -84,7 +84,13 @@ class History_m extends MY_Model
         $up = 0;
         $down = 0;
         $total = count($draws);
-        if($b_ex) $pick++;
+        if($b_ex) // Bonus (Extra) can be set but not the extra draw
+        {
+            foreach($draws as $c => $draw)
+            {
+                if($draw['extra']==0) unset($draw[$c]); 
+            }
+        }
         foreach($draws as $count => $draw)
         {
             if(($total-1)!=$count)  // Most Recent Draw in db?
@@ -96,10 +102,6 @@ class History_m extends MY_Model
                     {
                         $change = $change+intval($this->trend($draw['ball'.$c], $draws[$count+1]['ball'.$c]));
                     }
-                    if($b_ex) // Extra included in the trends
-                    {
-                        $change = $change+intval($this->trend($draw['extra'], $draws[$count+1]['extra']));
-                    }
                     if($change==intval($pick)) // All Up
                     {
                         $up++;  // Yes
@@ -109,6 +111,20 @@ class History_m extends MY_Model
                     {
                         $down++;
                         $dd = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
+                    }
+                    if($b_ex&&$draw['extra']!=0)  // Now look at the extra or bonus ball
+                    {
+                        $change = $change+intval($this->trend($draw['extra'], $draws[$count+1]['extra']));
+                        if($change==intval($pick+1)) // All Up
+                        {
+                            $up++;  // Yes
+                            $ud = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
+                        } 
+                        else if($change==(intval(-($pick+1))))
+                        {
+                            $down++;
+                            $dd = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
+                        }
                     }
                 }
             }
@@ -131,7 +147,6 @@ class History_m extends MY_Model
     {
         $total = count($draws);
         $next = array();                                                    // empty set for the top picks
-        if($b_ex) $pick++;
         $repeaters = $this->zeroed(new SplFixedArray($pick+1), $pick+1);        // include the zero repeaters
         
         foreach($draws as $count => $draw)
@@ -335,7 +350,7 @@ class History_m extends MY_Model
         {
             if(($total-1)!=$count)
             {
-                $next[$draw['sum_draw']] = (!array_key_exists($draw['sum_draw'], $sums) ? 1 : $sums[$draw['sum_draw']]+1); // Add Key or Existing One?
+                $sums[$draw['sum_draw']] = (!array_key_exists($draw['sum_draw'], $sums) ? 1 : $sums[$draw['sum_draw']]+1); // Add Key or Existing One?
                 if(!empty($count)) // if not 0
                 {
                     //$diff = $draws[$count]['sum_draw']-$draws[$count-1]['sum_draw'];                                // Formula for percentage difference
@@ -358,7 +373,7 @@ class History_m extends MY_Model
         if($this->top_pick($sums,2))
         {
             $i = 10; // Only 4 Top Numbers;
-            foreach ($next as $k => $v)
+            foreach ($sums as $k => $v)
             {
                 $s_text .= $k.'='.$v.',';
                 $i--;
@@ -475,7 +490,7 @@ class History_m extends MY_Model
             if(($total-1)!=$count)
             {
                 $diff = intval($draw['ball'.$pick])-intval($draw['ball1']);   // Subtract the top drawn number from the first number drraw
-                $ranges[$diff] = (array_key_exists($ranges[$diff],$ranges) ? 1 : $ranges[$diff]+1); // Add Key or Existing One?
+                $ranges[$diff] = (array_key_exists($diff,$ranges) ? $ranges[$diff]+1 : 1); // Add Key or Existing One?
             }
         }
         arsort($ranges);                // Sort by value NOT Key DESCENDING
@@ -537,11 +552,12 @@ class History_m extends MY_Model
             {
                 if(($oddevens['odd']==$pick)&&($oddevens['even']==0)||($oddevens['odd']==0)&&($oddevens['even']==$pick))
                 {
-                    if($low<$oddevens['count']) 
+                    if($low<$oddevens['count(*)']) 
                     {
                         $odd = $oddevens['odd'];
                         $even = $oddevens['even'];
                         array_push($draw_dates, $oddevens['draw_date']);
+                        $low=$oddevens['count(*)'];
                     }
                 }
             }
@@ -578,7 +594,7 @@ class History_m extends MY_Model
 		{
 			$this->db->set($data);		// Set the query with the key / value pairs
 			$this->db->where('lottery_id', $data['lottery_id']);
-			$success = $this->db->update('lottery_hightlights');
+			$success = $this->db->update('lottery_highlights');
 		}
     return $success;
 	}
@@ -603,21 +619,22 @@ class History_m extends MY_Model
 	* @param	string  $tbl		Actual table name of the lottery (e.g. canada_649)
 	* @return   array   $result     Array of the odd / even and total counts for the range, FALSE on failure	
 	*/
-	private function parity_dates($parity_dates, $tbl)
+	private function parity_dates($parity_dates, $tbl) 
 	{
 		$result = '';
-        foreach($parity_dates as $c)
+        foreach($parity_dates as $c => $r)
         {
-            if(!$c)
+            if(!empty($c))
             {
-                $query = $this->db->query("SELECT * FROM ".$tbl." WHERE draw_date = ".$parity_dates[$c-1]." AND draw_date =".$parity_dates[$c]);
+                $sql = "SELECT * FROM ".$tbl." WHERE draw_date <= ".$parity_dates[$c-1]." AND draw_date => ".$parity_dates[$c];
+                $query = $this->db->query("SELECT * FROM ".$tbl." WHERE draw_date <= '".$parity_dates[$c-1]."' AND draw_date >= '".$parity_dates[$c]."'");
                 if(!$query) return FALSE;
                 $result = $parity_dates[$c-1].','.$query->num_rows().',';
             }
         }
         $last_date = end($parity_dates);  // Return the last date that this odd / even combination occurred to determine how many draws have elapsed since this occurred.
-        $query = $this->db->query("SELECT * FROM ".$tbl." WHERE draw_date => ".$last_date);
-        if(!query) return FALSE;
+        $query = $this->db->query("SELECT * FROM ".$tbl." WHERE draw_date >= '".$last_date."'");
+        if(!$query) return FALSE;
         $result .= $last_date.",".$query->num_rows;
     return $result;
 	}

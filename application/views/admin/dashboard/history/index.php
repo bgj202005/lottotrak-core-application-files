@@ -49,7 +49,7 @@
 				$extra = array('width' => $image_info[0]/2, 'height' => $image_info[1]/2);
 				echo img(base_url().'images/uploads/'.$lottery->lottery_image, FALSE, $extra); 
 			} ?></td>
-		<td style = "text-align:center; white-space: nowrap;"><?php echo anchor('admin/lottery/view_draws/'.$lottery->id, $lottery->lottery_name);?></td>
+		<td style = "text-align:center; white-space: nowrap;"><?php echo anchor('admin/statistics/view_draws/'.$lottery->id, $lottery->lottery_name);?></td>
 		<td style = "text-align:center; white-space: nowrap;"><?=$lottery->lottery_state_prov; ?></td>
 		<td style = "text-align:center; white-space: nowrap;"><?=$lottery->lottery_country_id; ?></td>
 		<td style = "text-align:center;"><?php echo $history->btn_glance('admin/history/glance/'.$lottery->id); ?></td>

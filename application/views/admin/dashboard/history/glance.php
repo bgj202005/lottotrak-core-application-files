@@ -124,40 +124,36 @@
 									<div class="row">
 									<div class="col-lg-6 mt-4">
 										<div class="card">
-										<div class="card-header border-0">
-											<div class="d-flex justify-content-between">
-											<h3 class="card-title">Current Lottery Trends</h3>
+											<div class="card-header border-0">
+												<div class="d-flex justify-content-between">
+												<h3 class="card-title">Current Lottery Trends</h3>
+												</div>
 											</div>
-										</div>
-										<div class="card-body">
-											<div class="d-flex">
-											<p class="d-flex flex-column">
-												<span class="text-bold text-lg">820</span>
-												<span>Visitors Over Time</span>
-											</p>
-											<p class="ml-auto d-flex flex-column text-right">
-												<span class="text-success">
-												<i class="fas fa-arrow-up"></i> 12.5%
-												</span>
-												<span class="text-muted">Since last week</span>
-											</p>
+											<div class="card-body">
+												<div class="d-flex">
+												<h5 class="d-flex flex-column ">
+													<span class="text-bold text-lg">Over the last <strong><?= $lottery->last_drawn['range']; ?> </strong> Draws.</span>
+													<br />
+													<span>This is the current number of UP / DOWN Trends:</span>
+												<?php $trends = $lottery->last_drawn['trends']; // Iterate into an array
+													$trend_arr = explode (",", $trends);
+													echo "<br />";
+													foreach($trend_arr as $c => $t):
+														echo "<br />";
+														if (substr($t, 0, 3)== 'up=') echo "<style='display: inline'>UP Trends: <strong>".(int) filter_var($t, FILTER_SANITIZE_NUMBER_INT)."</strong></style>";
+														if (substr($t, 0, 5)== 'down=') echo "<style='display: inline'> DOWN Trends: <strong>".(int) filter_var($t, FILTER_SANITIZE_NUMBER_INT)."</strong></style>";  
+														if (strtotime($t)) echo "<style='display: inline'> Last Occurrence Date: <strong>".date("l, F j, Y",strtotime(str_replace('/','-',$t)))."</strong>";
+													endforeach;
+													if($trend_arr[4]=='up') echo "<br /> The current Trend over this range is: <strong>UP</strong><br />The number of occurrences at: <strong>".$trend_arr[3]."</strong>";
+													if($trend_arr[4]=='down') echo "<br /> The current Trend over this range is: <strong>DOWN</strong><br /> The number of occurrences at: <strong>".$trend_arr[3]."</strong>";
+												?>
+												</h5>
+												</div>
+												<!-- /.d-flex -->
+												<div class="position-relative mb-2">
+												<canvas height="20"></canvas>
+												</div>
 											</div>
-											<!-- /.d-flex -->
-
-											<div class="position-relative mb-4">
-											<canvas id="visitors-chart" height="200"></canvas>
-											</div>
-
-											<div class="d-flex flex-row justify-content-end">
-											<span class="mr-2">
-												<i class="fas fa-square text-primary"></i> This Week
-											</span>
-
-											<span>
-												<i class="fas fa-square text-gray"></i> Last Week
-											</span>
-											</div>
-										</div>
 										</div>
 										<!-- /.card -->
 

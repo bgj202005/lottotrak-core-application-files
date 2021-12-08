@@ -95,11 +95,57 @@ class History extends Admin_Controller {
 		{
 			$interval = 0;
 		}
-		$new_range = $this->uri->segment(5,0); 					// Return segment range
+		$new_range = $this->uri->segment(5,0); 						// Return segment range
+		$glance = FALSE;											// Always FALSE as default
+		$bln_chg = FALSE;											// Boolean Change Flag, Only these three conditions result in a recalculation: 
+																	// Change in range, Change in Extra Draw, Change in Extra Ball									
 		$old_range = 100;
-		if(!$new_range) $new_range = $old_range;				// Database Range
-		$this->data['lottery']->extra_included = ($this->uri->segment(6)=='extra' ? TRUE : FALSE);
-		$this->data['lottery']->extra_draws = ($this->uri->segment(6)=='draws' ? TRUE : FALSE);
+
+		$glance = $this->history_m->glance_exists($id);
+		if(empty($glance)) 
+		{
+			$new_range = $old_range; 							// If no prior record
+			$this->data['lottery']->extra_included = 0; 		// Defaults at No Extra Ball and No Extra Draws
+			$this->data['lottery']->extra_draws = 0;
+		}
+		else																				
+		{
+			// #1 First Change Result
+			if($new_range) 
+			{
+				$bln_chg = TRUE; // Change in the range?
+				$this->data['lottery']->extra_included = $glance->extra_included;
+				$this->data['lottery']->extra_draws = $glance->extra_draws;
+			} // if($new_range) 
+			// #2 Second Change Result
+			elseif($this->uri->segment(6)=='extra') 
+				{
+					if($glance->extra_included) $glance->extra_included = 0;
+					else
+					{
+						$this->data['lottery']->extra_included = 1; // Only Extra Allowed
+						$this->data['lottery']->extra_draws = 0;
+					}
+					$bln_chg = TRUE;
+				}
+				// #3 Third Change Result
+			elseif($this->uri->segment(6)=='draws') 
+				{
+					if($glance->extra_draw) $this->data['lottery']->extra_draws = 0;	// Turn off extra draws
+					else
+					{
+						$this->data['lottery']->extra_draws = 1;	// Only Extra Draws allowed
+						$this->data['lottery']->extra_included = 0;
+					}
+					$bln_chg = TRUE;
+				}
+			else 
+			{
+				$new_range = $glance->range;
+				$this->data['lottery']->extra_included = $glance->extra_included;
+				$this->data['lottery']->extra_draws = $glance->extra_draws;
+			}
+		} // if(!empty($glance))	
 		$sel_range = ($new_range>100 ? $sel_range = intval($new_range / 100) : $sel_range = 1);
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
@@ -112,49 +158,54 @@ class History extends Admin_Controller {
 			redirect('admin/history'); 
 		}
 		/**** At A Glance Statistics Analysis Methods up to the latest draw *****/
-		$this->data['lottery']->last_drawn['trend'] = $this->history_m->trend_history($drawings, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_draws, $this->data['lottery']->extra_included);
-		$this->data['lottery']->last_drawn['repeats'] = $this->history_m->repeat_history($drawings, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_draws, $this->data['lottery']->extra_included);
-		$this->data['lottery']->last_drawn['consecutives'] = $this->history_m->consecutive_history($drawings, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_draws, $this->data['lottery']->extra_included);		
-		$this->data['lottery']->last_drawn['adjacents'] = $this->history_m->adjacents_history($drawings, $this->data['lottery']->balls_drawn);
-		$this->data['lottery']->last_drawn['sums_history'] = $this->history_m->sums_history($drawings);
-		$this->data['lottery']->last_drawn['digits_history'] = $this->history_m->digits_history($drawings);
-		$this->data['lottery']->last_drawn['range_history'] = $this->history_m->range_history($drawings, $this->data['lottery']->balls_drawn);
-		$this->data['lottery']->last_drawn['parity_history'] = $this->history_m->parity_history($drawings, $this->data['lottery']->balls_drawn, $tbl_name);	
+
+		$this->data['lottery']->last_drawn['trends'] = ((!empty($glance)&&!$bln_chg) ? $glance->trends : $this->history_m->trend_history($drawings, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_draws, $this->data['lottery']->extra_included));
+		$this->data['lottery']->last_drawn['repeats'] = ((!empty($glance)&&!$bln_chg) ? $glance->repeats : $this->history_m->repeat_history($drawings, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_draws, $this->data['lottery']->extra_included));
+		$this->data['lottery']->last_drawn['consecutives'] = ((!empty($glance)&&!$bln_chg) ? $glance->consecutives : $this->history_m->consecutive_history($drawings, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_draws, $this->data['lottery']->extra_included));		
+		$this->data['lottery']->last_drawn['adjacents'] = ((!empty($glance)&&!$bln_chg) ? $glance->adjacents : $this->history_m->adjacents_history($drawings, $this->data['lottery']->balls_drawn));
+		$this->data['lottery']->last_drawn['sums_history'] = ((!empty($glance)&&!$bln_chg) ? $glance->winning_sums : $this->history_m->sums_history($drawings));		
+		$this->data['lottery']->last_drawn['digits_history'] = ((!empty($glance)&&!$bln_chg) ? $glance->winning_digits : $this->history_m->digits_history($drawings));
+		$this->data['lottery']->last_drawn['range_history'] = ((!empty($glance)&&!$bln_chg) ? $glance->number_range : $this->history_m->range_history($drawings, $this->data['lottery']->balls_drawn));
+		$this->data['lottery']->last_drawn['parity_history'] = ((!empty($glance)&&!$bln_chg) ? $glance->parity : $this->history_m->parity_history($drawings, $this->data['lottery']->balls_drawn, $tbl_name));	
 		if(!$this->data['lottery']->last_drawn['parity_history'])
 		{
 			$this->session->set_flashdata('message', 'Problem retrieving the odd / even combinations for the last '.$new_range.' draws. Please check the '.$tbl_name.' database.');
 			redirect('admin/history'); 
-		}
+		} 
 		/***** End of Statistic Calculations ******/
 		$aag = array(
 			'range'				=> $new_range,
-			'trends'			=> $this->data['lottery']->last_drawn['trend'],
+			'trends'			=> $this->data['lottery']->last_drawn['trends'],
 			'repeats'			=> $this->data['lottery']->last_drawn['repeats'],
 			'consecutives'		=> $this->data['lottery']->last_drawn['consecutives'],
 			'adjacents'			=> $this->data['lottery']->last_drawn['adjacents'],
 			'winning_sums'		=> $this->data['lottery']->last_drawn['sums_history'],
 			'winning_digits'	=> $this->data['lottery']->last_drawn['digits_history'],
 			'number_range'		=> $this->data['lottery']->last_drawn['range_history'],
-			'parity'			=> $this->data['lottery']->last_drawn['parity'],
-			'draw_id'			=> $this->data['lottery']->last_drawn['id'],
+			'parity'			=> $this->data['lottery']->last_drawn['parity_history'],
+			'draw_id'			=> $draw_db->id,
 			'lottery_id'		=> $id,
 			'extra_included'	=> $this->data['lottery']->extra_included,
 			'extra_draws'		=> $this->data['lottery']->extra_draws
 		); // $aag - At A Glance Data
-		if(!$this->history_m->glance_data_save($aag, $this->history_m->glance_exist($id)));
+		if($bln_chg)	// Only if 1 of the 3 options have changed
 		{
-			$this->session->set_flashdata('message', 'There is a problem saving the at a Glance Statistics to the database.');
-			redirect('admin/history'); 
-		}
-
+			if(!$this->history_m->glance_data_save($aag, $glance))
+			{
+				$this->session->set_flashdata('message', 'There is a problem saving the at a Glance Statistics to the database.');
+				redirect('admin/history'); 
+			}
+		}	
+		unset($drawings);	// Free up Memory
+		unset($glance);
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/history'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
-		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
-		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+		$this->data['users'] = $this->maintenance_m->logged_online(0);		// Members
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);		// Admins
 		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	
 		$this->data['subview']  = 'admin/dashboard/history/glance';
-		$this->data['stat_method'] = $this;				// Access the methods in the view
+		$this->data['stat_method'] = $this;									// Access the methods in the view
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 
