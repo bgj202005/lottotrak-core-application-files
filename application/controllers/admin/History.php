@@ -62,6 +62,7 @@ class History extends Admin_Controller {
 	{
 		$this->data['message'] = '';	// Defaulted to No Error Messages
 		$this->data['lottery'] = $this->lotteries_m->get($id);
+		$old_range = 0;
 		
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
@@ -99,19 +100,19 @@ class History extends Admin_Controller {
 		$glance = FALSE;											// Always FALSE as default
 		$bln_chg = FALSE;											// Boolean Change Flag, Only these three conditions result in a recalculation: 
 																	// Change in range, Change in Extra Draw, Change in Extra Ball									
-		$old_range = 100;
+		$old_range = ($old_range < 100 ? $all : 100);
 
 		$glance = $this->history_m->glance_exists($id);
 		if(empty($glance)) 
 		{
-			$new_range = $old_range; 							// If no prior record
-			$this->data['lottery']->extra_included = 0; 		// Defaults at No Extra Ball and No Extra Draws
+			$new_range = $old_range; 								// If no prior record
+			$this->data['lottery']->extra_included = 0; 			// Defaults at No Extra Ball and No Extra Draws
 			$this->data['lottery']->extra_draws = 0;
 		}
 		else																				
 		{
 			// #1 First Change Result
-			if($new_range) 
+			if($new_range) // Has a change in the range occurred?
 			{
 				$bln_chg = TRUE; // Change in the range?
 				$this->data['lottery']->extra_included = $glance->extra_included;
@@ -120,23 +121,33 @@ class History extends Admin_Controller {
 			// #2 Second Change Result
 			elseif($this->uri->segment(6)=='extra') 
 				{
-					if($glance->extra_included) $glance->extra_included = 0;
+					if($glance->extra_included) 
+					{
+						$this->data['lottery']->extra_included = 0; // No Extra Included
+						$this->data['lottery']->extra_draws = 0; // No Extra Draws Included
+					}
 					else
 					{
 						$this->data['lottery']->extra_included = 1; // Only Extra Allowed
-						$this->data['lottery']->extra_draws = 0;
+						$this->data['lottery']->extra_draws = 0; 
 					}
+					$new_range = $glance->range;
 					$bln_chg = TRUE;
 				}
 				// #3 Third Change Result
 			elseif($this->uri->segment(6)=='draws') 
 				{
-					if($glance->extra_draw) $this->data['lottery']->extra_draws = 0;	// Turn off extra draws
+					if($glance->extra_draws) 
+					{
+						$this->data['lottery']->extra_included = 0; // No Extra Included
+						$this->data['lottery']->extra_draws = 0; // No Extra Draws Included
+					}
 					else
 					{
 						$this->data['lottery']->extra_draws = 1;	// Only Extra Draws allowed
 						$this->data['lottery']->extra_included = 0;
 					}
+					$new_range = $glance->range;
 					$bln_chg = TRUE;
 				}
 			else 
@@ -151,7 +162,7 @@ class History extends Admin_Controller {
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
 		$this->data['lottery']->last_drawn['range'] = $new_range;
 		$this->data['lottery']->last_drawn['all'] = $all;
-		$drawings = $this->history_m->load_history($tbl_name, $id, $new_range);
+		$drawings = $this->history_m->load_history($tbl_name, $id, $new_range, $this->data['lottery']->extra_draws);
 		if(!$drawings)
 		{
 			$this->session->set_flashdata('message', 'Problem loading draws for the last'.$new_range.' draws. Make sure there is a minimum of 100 draws and statistics available.');

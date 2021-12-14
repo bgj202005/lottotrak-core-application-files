@@ -18,18 +18,22 @@ class History_m extends MY_Model
 	 * @param		string		$tbl	    Name of current Lottery Table
      * @param		integer     $lotto_id	Lottery id
      * @param		integer     $coverage	Range of draws
+     * @param		boolean     $e      	Extra Draw Coverage, 0 = no (False) do not add extra draws with a zero extra ball, 
+     * 1 = yes (true) include the extra draws where the extra = 0 (or is all the balls drawn where the extra ball equals zero)
 	 * @return      array		$history    Array of lottery draws for a given range	
 	 */
-    public function load_history($tbl, $lotto_id, $coverage)
+    public function load_history($tbl, $lotto_id, $coverage, $e = 0)
     {
         // todo: load the range of lottery draws, ascending order
         $this->db->reset_query();	// Clear any previous queries that are cachedextra !=' => '0');
+        $ex_d = (empty($e) ? ' AND extra <> "0"' : '');
         $query = $this->db->query('SELECT d.*
                                     FROM (
                                     SELECT *
                                     FROM '.$tbl.'
-                                    WHERE lottery_id='.$lotto_id.'
-                                    ORDER BY id DESC
+                                    WHERE lottery_id='.$lotto_id
+                                    .$ex_d.    
+                                    ' ORDER BY id DESC
                                     LIMIT '.$coverage.'
                                     ) d
                                     ORDER BY d.id;'); // Utilized id instead of draw_date for ORDER BY
@@ -83,51 +87,42 @@ class History_m extends MY_Model
     {
         $up = 0;
         $down = 0;
+        
         $total = count($draws);
-        if($b_ex) // Bonus (Extra) can be set but not the extra draw
-        {
-            foreach($draws as $c => $draw)
-            {
-                if($draw['extra']==0) unset($draw[$c]); 
-            }
-        }
         foreach($draws as $count => $draw)
         {
             if(($total-1)!=$count)  // Most Recent Draw in db?
             {
                 $change = 0;
-                if((!$ex&&$draw['extra']!=0)||($ex&&$draw['extra']==0)) // For this to be included, extra ball is not set and the extra must noy be zero, or
-                {                                                       // if the extra ball is set, the extra ball must be zero
-                    for($c=1; $c<=$pick; $c++) // Interate the draw for changes from the previous draw and the next draw
-                    {
-                        $change = $change+intval($this->trend($draw['ball'.$c], $draws[$count+1]['ball'.$c]));
-                    }
-                    if($change==intval($pick)) // All Up
+                for($c=1; $c<=$pick; $c++) // Interate the draw for changes from the previous draw and the next draw
+                {
+                    $change = $change+intval($this->trend($draw['ball'.$c], $draws[$count+1]['ball'.$c]));
+                }
+                if($change==intval($pick)) // All Up
+                {
+                    $up++;  // Yes
+                    $ud = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
+                } 
+                else if($change==(intval(-$pick)))
+                {
+                    $down++;
+                    $dd = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
+                }
+                if($b_ex&&$draw['extra']!=0)  // Now look at the extra or bonus ball
+                {
+                    $change = $change+intval($this->trend($draw['extra'], $draws[$count+1]['extra']));
+                    if($change==intval($pick+1)) // All Up
                     {
                         $up++;  // Yes
                         $ud = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
                     } 
-                    else if($change==(intval(-$pick)))
+                    else if($change==(intval(-($pick+1))))
                     {
                         $down++;
                         $dd = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
                     }
-                    if($b_ex&&$draw['extra']!=0)  // Now look at the extra or bonus ball
-                    {
-                        $change = $change+intval($this->trend($draw['extra'], $draws[$count+1]['extra']));
-                        if($change==intval($pick+1)) // All Up
-                        {
-                            $up++;  // Yes
-                            $ud = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
-                        } 
-                        else if($change==(intval(-($pick+1))))
-                        {
-                            $down++;
-                            $dd = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
-                        }
-                    }
                 }
-            }
+             }
         }
         $trend = 'up='.$up.',down='.$down;              // Format is 'up=xx,down=xx,drawdate,top,up/down'
         $trend .= ($up>=$down ? ','.$ud.','.$up.',up' : ','.$dd.','.$down.',down');
@@ -141,35 +136,36 @@ class History_m extends MY_Model
 	 * @param 		boolean 	$ex 		extra draws used
      * @param 		boolean 	$b_ex       Bonus ball used		    
 	 * @return      string		$r_values  Concatenated String. Format: 0=75,1=10,2=5,3=5,4=3,5=0,6=0|3=7,22=2. e.g. Pick 6 then looks at 6 number repeat maximum and pipe
-     *                                      will separate the highest probable number(s) to be drawn for the next draw.	
+     *                                     will separate the highest probable number(s) to be drawn for the next draw.	
 	 */
     public function repeat_history($draws, $pick, $ex = FALSE, $b_ex = FALSE)
     {
         $total = count($draws);
         $next = array();                                                    // empty set for the top picks
-        $repeaters = $this->zeroed(new SplFixedArray($pick+1), $pick+1);        // include the zero repeaters
+        $repeaters = $this->zeroed(new SplFixedArray($pick+1), $pick+1);    // include the zero repeaters
         
         foreach($draws as $count => $draw)
         {
             if(($total-1)!=$count)
             {
             $repeats = 0;    
-            if((!$ex&&$draw['extra']!=0)||($ex&&$draw['extra']==0)) // For this to be included, extra ball is not set and the extra must noy be zero, or
-                {                                                   // if the extra ball is set, the extra ball must be zero
-                    for($c=1; $c<=$pick; $c++)                      // Interate the draw for changes from the previous draw and the next draw
-                    {
-                        if($draw['ball'.$c]==$draws[$count+1]['ball'.$c])
-                        {
-                            $repeats++;
-                            if(!empty($next))   // In case no keys to look at and to prevent the undefined offset message
-                            {
-                                $next[$draw['ball'.$c]] = (array_key_exists($draw['ball'.$c], $next) ? 1 : $next[$draw['ball'.$c]]+1); // Add Key or Existing One?
-                            }
-                        }
-                    }
-                    if($b_ex&&$draw['extra']!=0) // Extra included in the Repeaters
+                for($c=1; $c<=$pick; $c++)                      // Interate the draw for changes from the previous draw and the next draw
+                {
+                    if($draw['ball'.$c]==$draws[$count+1]['ball'.$c])
                     {
                         $repeats++;
+                        $next[$draw['ball'.$c]] = ((!array_key_exists($draw['ball'.$c], $next)) ? 1 : $next[$draw['ball'.$c]]+1); // Add Key or Existing One?
+                    }
+                }
+                if($b_ex&&$draw['extra']!=0) // Extra included in the Repeaters
+                {
+                    for($c=1; $c<=$pick; $c++)                      // Interate the draw for changes from the previous draw and the next draw
+                    {
+                        if($draw['extra']==$draws[$count+1]['ball'.$c])
+                        {
+                            $repeats++;
+                            $next[$draw['extra']] = (!array_key_exists($draw['extra'], $next) ? 1 : $next[$draw['extra']]+1); // Add Key or Existing One?
+                        }
                     }
                 }
             }
@@ -182,8 +178,8 @@ class History_m extends MY_Model
             $r_text .= $c.'='.$r.',';
         }
         $r_text = substr_replace($r_text, '|', -1);	    // Replace the ',' with the '|' (pipe)
-        rsort($next);                                   // Sort by value descending
-        if($this->top_pick($next, 5))
+        arsort($next);                                  // Sort by value descending
+        if($this->top_pick($next, 3))
         {
             $i = 4; // Only 4 Top Numbers;
             foreach ($next as $k => $v)
@@ -211,7 +207,7 @@ class History_m extends MY_Model
     {
         foreach($picks as $pick => $value)
         {
-            if($value>$limit) return true;
+            if($value>=$limit) return true;
         }
     return false;
     }
@@ -245,7 +241,6 @@ class History_m extends MY_Model
     public function consecutive_history($draws, $pick, $ex = FALSE, $b_ex = FALSE)
     {
         $total = count($draws);
-        if($b_ex) $pick++;
         $consecutives = $this->zeroed(new SplFixedArray($pick+1), $pick+1);         // include the zero consecutives
         
         foreach($draws as $count => $draw)
@@ -253,25 +248,22 @@ class History_m extends MY_Model
             if(($total-1)!=$count)
             {
             $consecutives_draw = 0;    
-            if((!$ex&&$draw['extra']!=0)||($ex&&$draw['extra']==0))     // For this to be included, extra ball is not set and the extra must noy be zero, or
-                {                                                       // if the extra ball is set, the extra ball must be zero
-                    for($c=1; $c<$pick; $c++)                           // Interate the draw for changes from the previous draw and the next draw
+                for($c=1; $c<$pick; $c++)                           // Interate the draw for changes from the previous draw and the next draw
+                {
+                    if(intval($draw['ball'.($c+1)])-intval($draw['ball'.$c])==1)    // The next drawn number is consecutive
                     {
-                        if(intval($draw['ball'.($c+1)])-intval($draw['ball'.$c])==1)    // The next drawn number is consecutive
-                        {
-                            $consecutives_draw++;
-                            $lcd = $consecutives_draw.'='.$draw['draw_date'];           // Include the last draw date of the occurrence
-                        }
+                        $consecutives_draw++;
+                        $lcd = $consecutives_draw.'='.$draw['draw_date'];           // Include the last draw date of the occurrence
                     }
-                    if($b_ex&&$draw['extra']!=0)            // Extra included in the Consecutives
+                }
+                if($b_ex&&$draw['extra']!=0)            // Extra included in the Consecutives
+                {
+                    for($c=1; $c<=$pick; $c++)          // Must interate in this case with the extra drawn number
                     {
-                        for($c=1; $c<=$pick; $c++)          // Must interate in this case with the extra drawn number
+                        if(abs(intval($draw['extra'])-intval($draw['ball'.$c]))==1) 
                         {
-                            if(abs(intval($draw['extra'])-intval($draw['ball'.$c]))==1) 
-                            {
-                                $consecutives_draw++;       // Include the last draw date of the occurrence
-                                $lcd = $consecutives_draw.'='.$draw['draw_date'];
-                            }
+                            $consecutives_draw++;       // Include the last draw date of the occurrence
+                            $lcd = $consecutives_draw.'='.$draw['draw_date'];
                         }
                     }
                 }
@@ -289,7 +281,7 @@ class History_m extends MY_Model
     return $c_text;                         
     }
     /**
-	 * adjacent_history averrages the number of adjacents of each ball position for balls 1 and 2, 2 and 3, 3 and 4, 4 and 5, 5 and 6 for a pick 6 game. 
+	 * adjacent_history averages the number of adjacents of each ball position for balls 1 and 2, 2 and 3, 3 and 4, 4 and 5, 5 and 6 for a pick 6 game. 
      * 6 and 7 for Pick 7. 7 and 8 for Pick 8, etc. The maximum separation is included between any balls is added.
 	 * 
 	 * @param       array       $draws          Array of draws for a given range
@@ -341,7 +333,7 @@ class History_m extends MY_Model
     {
         $total = count($draws);
         $sums = array();                                      // empty set for the top sums
-        $percents = array(-50,-45,-40,-35,-30,-25,-20,-15,-10,-5,5,10,15,20,25,30,35,40,45,50); // ranges of percentages for both positive and negagtive
+        $percents = array(-50,-45,-40,-35,-30,-25,-20,-15,-10,-5,5,10,15,20,25,30,35,40,45,50); // ranges of percentages for both positive and negative
         // 0-5%, 6-10%, 11-15%, 16-20%, 21-25%, 26-30%, 31-35%, 36-40%, 41-45% and 46-50% 
         
         $ranges = $this->zeroed(new SplFixedArray(20), 20);   // 20 Percentage Ranges
@@ -472,7 +464,7 @@ class History_m extends MY_Model
     return $d_text;
     }
     /**
-	 * range_history calculates the difference between the lowest drawn mnumber and the highest drawn number 
+	 * range_history subtracts the difference between the highest drawn mnumber and the lowest drawn number 
 	 * The top 5 ranges will be summarized over the given range of draws
 	 * @param       array       $draws          Array of draws for a given range
      * @param       integer     $pick           Pick Game. Pick 7, Pick 6, Pick 5 
