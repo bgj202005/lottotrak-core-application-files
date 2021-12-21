@@ -27,17 +27,17 @@ class History_m extends MY_Model
         // todo: load the range of lottery draws, ascending order
         $this->db->reset_query();	// Clear any previous queries that are cachedextra !=' => '0');
         $ex_d = (empty($e) ? ' AND extra <> "0"' : '');
+  
         $query = $this->db->query('SELECT d.*
                                     FROM (
                                     SELECT *
                                     FROM '.$tbl.'
-                                    WHERE lottery_id='.$lotto_id
-                                    .$ex_d.    
-                                    ' ORDER BY id DESC
-                                    LIMIT '.$coverage.'
-                                    ) d
-                                    ORDER BY d.id;'); // Utilized id instead of draw_date for ORDER BY
-		$history = $query->result_array();
+                                    WHERE lottery_id="'.$lotto_id.
+                                    '"'.$ex_d.    
+                                    ' ORDER BY id 
+                                    ) d ORDER BY d.id DESC
+                                    LIMIT '.$coverage.';'); // Utilized id instead of draw_date for ORDER BY
+        $history = $query->result_array();
     return (!is_null($history) ? $history : FALSE); // Returns a false if the query did not return results    
     }
     /* glance_exist with query for a single row result from the lottery_id
@@ -100,13 +100,15 @@ class History_m extends MY_Model
                 }
                 if($change==intval($pick)) // All Up
                 {
-                    $up++;  // Yes
+                    $up++;  
                     $ud = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
+                    $lt = 'up'; // last trend was up
                 } 
                 else if($change==(intval(-$pick)))
                 {
                     $down++;
                     $dd = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
+                    $lt = 'down'; // last trend was down
                 }
                 if($b_ex&&$draw['extra']!=0)  // Now look at the extra or bonus ball
                 {
@@ -115,17 +117,19 @@ class History_m extends MY_Model
                     {
                         $up++;  // Yes
                         $ud = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
+                        $lt = 'up'; // last trend was up
                     } 
                     else if($change==(intval(-($pick+1))))
                     {
                         $down++;
                         $dd = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
+                        $lt = 'down'; // last trend was down
                     }
                 }
              }
         }
         $trend = 'up='.$up.',down='.$down;              // Format is 'up=xx,down=xx,drawdate,top,up/down'
-        $trend .= ($up>=$down ? ','.$ud.','.$up.',up' : ','.$dd.','.$down.',down');
+        $trend .= ($up>=$down ? ','.$ud.','.$lt.','.$up.',up' : ','.$dd.','.$lt.','.$down.',down');
     return $trend;    
     }
     /**
@@ -281,12 +285,13 @@ class History_m extends MY_Model
     return $c_text;                         
     }
     /**
-	 * adjacent_history averages the number of adjacents of each ball position for balls 1 and 2, 2 and 3, 3 and 4, 4 and 5, 5 and 6 for a pick 6 game. 
-     * 6 and 7 for Pick 7. 7 and 8 for Pick 8, etc. The maximum separation is included between any balls is added.
+	 * adjacent_history averages the number of adjacents of each ball position for balls 1 and 2 = 1, 2 and 3 = 2, 3 and 4 = 3, 4 and 5 = 4, 5 and 6 = 5 for a pick 6 game. 
+     * 6 and 7 = 6 for Pick 7. 7 and 8 = 7 for Pick 8, etc. The maximum separation is included between any balls is included. 2 = 14. e.g for balls 2 and 3, the maximum
+     * difference is 14 for balls 2 and 3 over all other balls selected in the given range.
 	 * 
 	 * @param       array       $draws          Array of draws for a given range
      * @param       integer     $pick           Pick Game. Pick 7, Pick 6, Pick 5 
-	 * @return      string		$adj_text       Concatenated String. Format: . e.g. Pick 6 average difference, 1=5,2=5,3=2,4=7,5=5|14
+	 * @return      string		$adj_text       Concatenated String. Format: . e.g. Pick 6 average difference, 1=5,2=5,3=2,4=7,5=5|2=14
 	 */
     public function adjacents_history($draws, $pick)
     {
@@ -298,12 +303,16 @@ class History_m extends MY_Model
         {
             if(($total-1)!=$count)
             {
+                $adj = 1;
                 for($c=1; $c<$pick; $c++)                     // Interate the draw for changes from the previous draw and the next draw
                 {
-                    $diff = 0;
                     $diff = intval($draw['ball'.($c+1)])-intval($draw['ball'.$c]);
                     $adjacents[$c]  += $diff;
-                    if($lg_diff<$diff) $lg_diff = $diff;     // The current (diff)erence for any draw is now the largest (lgdiff)erence     
+                    if($lg_diff<$diff) 
+                    {
+                        $lg_diff = $diff;     // The current (diff)erence for any draw is now the largest (lgdiff)erence     
+                        $adj = $c;            // Where did this occur?  
+                    }
                 }
             }
         }
@@ -316,7 +325,7 @@ class History_m extends MY_Model
         }
 
         $adj_text = substr_replace($adj_text, '|', -1);	    // Replace the ',' with the '|' (pipe)
-        $adj_text .= $lg_diff;                              // include the last draw date of consecutive occurrence
+        $adj_text .= $adj.'='.$lg_diff;                     // include the last draw date of consecutive occurrence
     return $adj_text;                        
     }
     /**
@@ -468,7 +477,7 @@ class History_m extends MY_Model
 	 * The top 5 ranges will be summarized over the given range of draws
 	 * @param       array       $draws          Array of draws for a given range
      * @param       integer     $pick           Pick Game. Pick 7, Pick 6, Pick 5 
- 	 * @return      string		$r_text         Concatenated String. Format: 42=10,23=8,11=8,23=7,
+ 	 * @return      string		$r_text         Concatenated String. Format: 42=10,23=8,11=8,23=7
      * the number of occurences must exceed the average for that odd / even combination based from the range to be included
      * Low occurrences over a given range will also be highlighted
 	 */
@@ -489,10 +498,10 @@ class History_m extends MY_Model
         $r_text = "";
         if($this->top_pick($ranges,5))  // Must have a minimum count of 5
         {
-            $i = 10; // Only 4 Top Numbers;
+            $i = 4; // Only 4 Top Numbers;
             foreach ($ranges as $k => $v)
             {
-                $r_text .= $k.'='.$v.',';
+                if($v>=2) $r_text .= $k.'='.$v.','; // Must have a minium of 2 occurences in the given range
                 $i--;
                 if($i<0) 
                 {
@@ -533,10 +542,13 @@ class History_m extends MY_Model
         }
         $oe_text = substr_replace($oe_text, '|', -1);	    // Replace the ',' with the '|' (pipe)
         unset($top);                                        // Destroy the $top array
-        // Step 2, is to find the low number odd - even combinations starting at the pick and pick - 1 (e.g. for Pick6 it would be pick 6)
-        // next, look for the largest count of a given odd - even. For example, pick 6 would be 6 odd - 0 even, 0 odd - 6 even, 5 odds - 1 even and 1 odd and 5 even
+        // Step 2, is to find the low number odd - even combinations starting at the pick (e.g. for Pick 6 it would be 6-0 and 0 - 6)
+        // next, look for the largest count of a given odd - even (6-0 or 0-6),  
+        // In a 649, a 6 odd - 0 even would eliminate 24 balls, 0-6 would eliminate 25 balls
+        // For example, pick 6 would be 6 odd - 0 even, 0 odd - 6 even
+        // Pick 7 is 7 odd - 0 even, 0 odd and 7 even
         // Retrieve all the dates and the draw separation between draws.  Add these results to the string and return
-        // For example, 6-0,2021/01/18,5,2021/02/28,10,2021/05/15,5,2021/07/01.25
+        // For example, 6-0,2021/01/18,5,2021/02/28,10,2021/05/15,5,2021/07/01,25
         // The complete format will be displayed as: 4-2=34,3-3=32,2-4=25,4-2=20,5-1=15,1-5=14,6-0=4,00-6=2|6-0,2021/01/18,5,2021/02/28,10,2021/05/15,5,2021/07/01.25
             $low = 0;
             $draw_dates = array();  // Series of draw dates
@@ -630,5 +642,4 @@ class History_m extends MY_Model
         $result .= $last_date.",".$query->num_rows;
     return $result;
 	}
-
 }
