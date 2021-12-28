@@ -211,7 +211,7 @@ class History extends Admin_Controller {
 		unset($drawings);	// Free up Memory
 		unset($glance);
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
-		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/history'.($id ? '/'.$id : ''));
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/glance'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);		// Members
 		$this->data['admins'] = $this->maintenance_m->logged_online(1);		// Admins

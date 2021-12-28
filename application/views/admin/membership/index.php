@@ -1,3 +1,17 @@
+<!-- Membership Table Styles -->
+<style> 
+	table{
+    	width:100%;
+	}
+	tr{
+		font-size: 0.77em;
+	}
+	label {
+    	display: inline-flex;
+    	margin-bottom: .5rem;
+    	margin-top: .5rem;
+}
+</style>
 <!-- Bootstrap Form Helpers -->
 <link href="<?php echo site_url('css/bootstrap-formhelpers.min.css');?>" rel="stylesheet" media="screen">
 <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->

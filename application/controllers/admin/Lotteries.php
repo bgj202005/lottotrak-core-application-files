@@ -641,7 +641,7 @@ class Lotteries extends Admin_Controller {
 			$this->data['lottery']->num = strval(++$c);
 		}
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
-		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/view'.($id ? '/'.$id : ''));
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/view_draws'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['subview']  = 'admin/lotteries/view';
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
@@ -1111,5 +1111,4 @@ class Lotteries extends Admin_Controller {
 		$unixTimestamp = strtotime($last);  	// Convert the date string into a unix timestamp.
 		return strtolower(date("l", $unixTimestamp));	
 	}
-
 }
