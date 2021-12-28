@@ -12,11 +12,11 @@
 	}
 
 	.glance-top {
-		height: 75vh;
+		height: 80vh;
 	}
 
 	.glance-bottom {
-		height: 120vh;
+		height: 207vh;
 	}
 
 	.tab-card-header {
@@ -207,7 +207,7 @@ $b = 1;
 													$sums_string = explode("|", $sums_history);
 													$sums_counts = explode(",", $sums_string[0]); // These are number of sums with the occurrences. e.g. 152=3, .
 													$sums_range = explode(",", $sums_string[1]); // These are the top numbers that are known to repeat during a given range
-													$percents = array(5 => "0 to 5", 10 => '10 to 14', 15 => '15 to 19', 20 => '20 to 24', 25 => '25 to 29', 30 => '30 to 34', 35 => '35 to 39', 40 => '40 to 44', 45 => '45 to 49', 50 => '51 to 54');
+													$percents = array(5 => "1 to 5", 10 => '6 to 10', 15 => '11 to 15', 20 => '16 to 20', 25 => '21 to 25', 30 => '26 to 30', 35 => '31 to 35', 40 => '36 to 40', 45 => '41 to 45', 50 => '46 to 50');
 													$s = '';
 													foreach ($sums_counts as $c => $t) :
 														$sums = explode('=', $t);
@@ -218,7 +218,7 @@ $b = 1;
 													$s = '';
 													$top = explode('=', $sums_range[0]);
 													foreach ($percents as $k => $v) :
-														if (intval($top[0]) >= intval($k)) :
+														if (intval($top[0]) == intval($k)) :
 															$s = "The total sum had an <strong>" . $sums_range[1] . "</strong> of <strong>" . $v . "</strong>% from the previous draw and has occurred <strong>" . $top[1] . "</strong> times.<br />";
 															break;
 														endif;
@@ -238,7 +238,7 @@ $b = 1;
 													$digits_string = explode("|", $digits_history);
 													$digits_counts = explode(",", $digits_string[0]); // These are number of sums with the occurrences. e.g. 152=3, .
 													$digits_range = explode(",", $digits_string[1]); // These are the top numbers that are known to repeat during a given range
-													$percents = array(5 => "0 to 5", 10 => '10 to 14', 15 => '15 to 19', 20 => '20 to 24', 25 => '25 to 29', 30 => '30 to 34', 35 => '35 to 39', 40 => '40 to 44', 45 => '45 to 49', 50 => '51 to 54');
+													$percents = array(5 => "1 to 5", 10 => '6 to 10', 15 => '11 to 15', 20 => '16 to 20', 25 => '21 to 25', 30 => '26 to 30', 35 => '31 to 35', 40 => '36 to 40', 45 => '41 to 45', 50 => '46 to 50');
 													$s = '';
 													foreach ($digits_counts as $c => $t) :
 														$digits = explode('=', $t);
@@ -250,7 +250,7 @@ $b = 1;
 													$s = '';
 													$top = explode('=', $digits_range[0]);
 													foreach ($percents as $k => $v) :
-														if (intval($top[0]) >= intval($k)) :
+														if (intval($top[0]) == intval($k)):
 															$s = "<p>The digits sum had an <strong>" . $digits_range[1] . "</strong> of <strong>" . $v . "</strong>% from the previous draw and has occurred <strong>" . $top[1] . "</strong> times.</p>";
 															break;
 														endif;
@@ -369,14 +369,26 @@ $b = 1;
 													echo "<style='display: inline'>" . $s . "</style>";
 													$s = '';
 													if ($parity_string[1] == "0-0") : $s .= "There is currently <strong>NO</strong> low Odd - Even Combinations that 
-														has occurred over this range that will return data.<br />";
-													else :
-														$top = explode('=', $sums_range[0]);
-														foreach ($percents as $k => $v) :
-															if (intval($top[0]) >= intval($k)) :
-																$s = "The total sum had an <strong>" . $sums_range[1] . "</strong> of <strong>" . $v . "</strong>% from the previous draw and has occurred <strong>" . $top[1] . "</strong> times.<br />";
+														has occurred over this range.<br />";
+													else:
+														$parity_lows = explode(',', $parity_string[1]);
+														foreach ($parity_lows as $c => $l):
+															switch($c):
+															case 0:
+																$s .= "The Low odd/even <strong>".$l."</strong> combination ";
 																break;
+															case 1:
+																$s .= " last occurred on <br /><strong>".date("l, F j, Y", strtotime(str_replace('/', '-', $l)))."</strong>.<br />";
+															endswitch;
+														if($c>1)
+														{
+															if($c % 2 == 0):
+																$s .= "<strong>".$l."</strong> draws had been skipped until drawn on<br />"; 
+															else:
+																$s .= "<strong>".date("l, F j, Y", strtotime(str_replace('/', '-', $l))).
+																"</strong>.<br />"; 
 															endif;
+														}		
 														endforeach;
 													endif;
 													echo "<br />";
@@ -390,7 +402,8 @@ $b = 1;
 													</div>
 													<?php $number_range = $lottery->last_drawn['range_history'];
 													$range_counts = explode(",", $number_range); // These are number of repeats after a range. e.g. 0 = 75, 75 draws.
-													$s = "This the difference between the top and lowest drawn numbers.<br /><br />";
+													$s = 'This is the difference between (Highest Ball) <strong>Ball '.$lottery->balls_drawn.'</strong> and (Lowest Ball) 
+													<strong>Ball 1</strong>.<br /><br />';
 													foreach ($range_counts as $c => $nr) :
 														$tops = explode('=', $nr);
 														$s .= '<strong>' . $tops[0] . '</strong> has occurred <strong>' . $tops[1] . "</strong> times, ";
@@ -430,24 +443,31 @@ $b = 1;
 															case 2:
 																$ball_start = 2;
 																$ball_next = 3;
+																break;
 															case 3:
+																$ball_start = 3;
+																$ball_next = 4;
+																break;
+															case 4:
 																$ball_start = 4;
 																$ball_next = 5;
-															case 4:
+																break;
+															case 5:
 																$ball_start = 5;
 																$ball_next = 6;
-															case 5:
+																break;
+															case 6:
 																$ball_start = 6;
 																$ball_next = 7;
-															case 6:
+																break;
+															case 7:
 																$ball_start = 7;
 																$ball_next = 8;
-															case 7:
+																break;
+															case 8:
 																$ball_start = 8;
 																$ball_next = 9;
-															case 8:
-																$ball_start = 9;
-																$ball_next = 10;
+																break;
 															default:
 																$ball_start = 1;
 																$ball_next = 2;

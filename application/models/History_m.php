@@ -177,6 +177,7 @@ class History_m extends MY_Model
             else $repeaters[0] += 1;                     // If no repeats, do count the draws that did not have a repeat
         }
         $r_text = '';
+        unset($draws);
         foreach($repeaters as $c => $r)
         {
             $r_text .= $c.'='.$r.',';
@@ -276,6 +277,7 @@ class History_m extends MY_Model
             else $consecutives[0] += 1;                                       // If no consecutives, do count the draws that did not have a consecutive
         }
         $c_text = '';
+        unset($draws);
         foreach($consecutives as $n => $c)
         {
             $c_text .= $n.'='.$c.',';
@@ -299,11 +301,11 @@ class History_m extends MY_Model
         $lg_diff = 0;           // Largest difference for any draw
         $adjacents = $this->zeroed(new SplFixedArray($pick), $pick);    // include the zero adacents, this is now zero based with zero occurrences
         
+        $adj = 1;   // Set to the ball 1 to ball 2
         foreach($draws as $count => $draw)
         {
             if(($total-1)!=$count)
             {
-                $adj = 1;
                 for($c=1; $c<$pick; $c++)                     // Interate the draw for changes from the previous draw and the next draw
                 {
                     $diff = intval($draw['ball'.($c+1)])-intval($draw['ball'.$c]);
@@ -316,14 +318,13 @@ class History_m extends MY_Model
                 }
             }
         }
-
         $adj_text = '';
+        unset($draws);
         for($c=1; $c<$pick; $c++)
         {
-            $adjacents[$c] = ceil(($adjacents[$c] / $total));
+            $adjacents[$c] = round(($adjacents[$c] / $total)); // Nearest int <.5 or >.5
             $adj_text .= $c.'='.$adjacents[$c].',';
         }
-
         $adj_text = substr_replace($adj_text, '|', -1);	    // Replace the ',' with the '|' (pipe)
         $adj_text .= $adj.'='.$lg_diff;                     // include the last draw date of consecutive occurrence
     return $adj_text;                        
@@ -341,9 +342,9 @@ class History_m extends MY_Model
     public function sums_history($draws)
     {
         $total = count($draws);
-        $sums = array();                                      // empty set for the top sums
+        $sums = array(); // empty set for the top sums
         $percents = array(-50,-45,-40,-35,-30,-25,-20,-15,-10,-5,5,10,15,20,25,30,35,40,45,50); // ranges of percentages for both positive and negative
-        // 0-5%, 6-10%, 11-15%, 16-20%, 21-25%, 26-30%, 31-35%, 36-40%, 41-45% and 46-50% 
+                        //-50-46%,-45-41%,-40-36%,-35-31%,-30-26%,-25-21%,-20-16%,-15-11%,-10-6%,-5-0%,0-5%,6-10%,11-15%,16-20%,21-25%,26-30%,31-35%,36-40%,41-45%,46-50%
         
         $ranges = $this->zeroed(new SplFixedArray(20), 20);   // 20 Percentage Ranges
         
@@ -354,16 +355,20 @@ class History_m extends MY_Model
                 $sums[$draw['sum_draw']] = (!array_key_exists($draw['sum_draw'], $sums) ? 1 : $sums[$draw['sum_draw']]+1); // Add Key or Existing One?
                 if(!empty($count)) // if not 0
                 {
-                    //$diff = $draws[$count]['sum_draw']-$draws[$count-1]['sum_draw'];                                // Formula for percentage difference
-                    $percent_diff = (1-$draws[$count]['sum_draw']/$draws[$count-1]['sum_draw'])*100;   // Perecentage Difference = |ΔV|[ΣV2]×100
-                    $percent_diff = round($percent_diff,0);
-                    $flag = FALSE;
+                    //$diff = $draws[$count]['sum_draw']-$draws[$count-1]['sum_draw'];                 // Formula for percentage difference
+                    $percent_diff = (1-$draws[$count-1]['sum_draw']/$draws[$count]['sum_draw'])*100;   // Perecentage Difference = |ΔV|[ΣV2]×100
+                    $percent_diff = round($percent_diff);
                     foreach($percents as $r => $v)
                     {
-                        if(($percent_diff<=$v)&&(!$flag)) 
+                        if(($percent_diff<0)&&($percent_diff<=($v+4))&&($percent_diff>=$v)) // 0 < Negatives
                         {
                             $ranges[$r] += 1;
-                            $flag = TRUE;
+                            break;
+                        }
+                        elseif(($percent_diff>0)&&($percent_diff>=($v-4))&&($percent_diff<=$v)) // 0 > Positives
+                        {
+                            $ranges[$r] += 1;
+                            break;
                         }
                     }
                 }   
@@ -371,14 +376,15 @@ class History_m extends MY_Model
         }
         $s_text = "";
         arsort($sums);    // Sort by value NOT Key DESCENTDING
+        unset($draws);
         if($this->top_pick($sums,2))
         {
-            $i = 10; // Only 4 Top Numbers;
+            $i = 10; // Only 10 Top Numbers;
             foreach ($sums as $k => $v)
             {
                 $s_text .= $k.'='.$v.',';
                 $i--;
-                if($i<0) 
+                if(!$i) 
                 {
                     break;
                 }
@@ -415,7 +421,7 @@ class History_m extends MY_Model
         $total = count($draws);
         $digits = array();        // empty set for the top sums
         $percents = array(-50,-45,-40,-35,-30,-25,-20,-15,-10,-5,5,10,15,20,25,30,35,40,45,50); // ranges of percentages for both positive and negagtive
-        // 0-5%, 6-10%, 11-15%, 16-20%, 21-25%, 26-30%, 31-35%, 36-40%, 41-45% and 46-50% 
+                        //-50-46%,-45-41%,-40-36%,-35-31%,-30-26%,-25-21%,-20-16%,-15-11%,-10-6%,-5-0%,0-5%,6-10%,11-15%,16-20%,21-25%,26-30%,31-35%,36-40%,41-45%,46-50%
         
         $ranges = $this->zeroed(new SplFixedArray(20), 20);   // 20 Percentage Ranges
         
@@ -427,15 +433,19 @@ class History_m extends MY_Model
                 if(!empty($count)) // if not 0
                 {
                     //$diff = $draws[$count]['sum_draw']-$draws[$count-1]['sum_draw'];                                // Formula for percentage difference
-                    $percent_diff = (1-$draws[$count]['sum_digits']/$draws[$count-1]['sum_digits'])*100;   // Perecentage Difference = |ΔV|[ΣV2]×100
-                    $percent_diff = round($percent_diff,0); // No decimals
-                    $flag = FALSE;
+                    $percent_diff = (1-$draws[$count-1]['sum_digits']/$draws[$count]['sum_digits'])*100;   // Perecentage Difference = |ΔV|[ΣV2]×100
+                    $percent_diff = round($percent_diff); // No decimals
                     foreach($percents as $r => $v)
                     {
-                        if(($percent_diff<=$v)&&(!$flag)) 
+                        if(($percent_diff<0)&&($percent_diff<=($v+4))&&($percent_diff>=$v)) // 0 < Negatives
                         {
                             $ranges[$r] += 1;
-                            $flag = TRUE;
+                            break;
+                        }
+                        elseif(($percent_diff>0)&&($percent_diff>=($v-4))&&($percent_diff<=$v)) // 0 > Positives
+                        {
+                            $ranges[$r] += 1;
+                            break;
                         }
                     }
                 }   
@@ -443,14 +453,15 @@ class History_m extends MY_Model
         }
         $d_text = "";
         arsort($digits);    // Sort by value NOT Key only value DESCENDING
+        unset($draws);
         if($this->top_pick($digits,2))
         {
-            $i = 10; // Only 4 Top Numbers;
+            $i = 10; // Only 10 Top Numbers;
             foreach ($digits as $k => $v)
             {
                 $d_text .= $k.'='.$v.',';
                 $i--;
-                if($i<0) 
+                if(!$i) 
                 {
                     break;
                 }
@@ -495,6 +506,7 @@ class History_m extends MY_Model
             }
         }
         arsort($ranges);                // Sort by value NOT Key DESCENDING
+        unset($draws);
         $r_text = "";
         if($this->top_pick($ranges,5))  // Must have a minimum count of 5
         {
@@ -517,22 +529,47 @@ class History_m extends MY_Model
 	 * 
 	 * @param       array       $draws          Array of draws for a given range
      * @param       string      $lotto          Lottery Table name
+     * @param       boolean     $ex             Extra Draws, 0 = none, 1 = included
      * @param       integer     $pick           Pick Game. Pick 7, Pick 6, Pick 5
  	 * @return      string		$oe_text        Concatenated String. Format: 4-3=55,3-4=34,5-2=20,2-5=15,1-6=12,6-1=8,7-0=6,0-7=4|7-0=2020-11-0,0-7=2021-10-13
      * the number of occurences must exceed the average for that odd / even combination based from the range to be included
      * Low occurrences over a given range will also be included. For example, in a pick 7, if the odd/even was 7-0 and 5 occurrences in the last 100 draws. This will 
      * be included with the last draw date of the occurence.
 	 */
-    public function parity_history($draws, $pick, $lotto)
+    public function parity_history($draws, $pick, $ex = FALSE, $lotto)
     {
         // Step 1: Return all the odd-even combinations from the moss occurrences to the least
         $total  = count($draws);
-        $parity = $this->parity_list($total, $lotto);           // Return the Odds and Evens over the given range
+        $parity = $this->parity_list($total, $ex, $lotto);      // Return the Odds and Evens over the given range
         if(!$parity) return FALSE;                              // could not return the query and return FALSE
         $top = array();
+        $low = 0;
+        $low_evens = 0;
+        $low_odds = 0;
+        $low_date = '';
         foreach($parity as $count => $oddevens)
         {
-            $top[$oddevens['odd'].'-'.$oddevens['even']] = $oddevens['count(*)']; // Arrange the format as odd-even=count
+            $top[$oddevens['odd'].'-'.$oddevens['even']] = $oddevens['count(*)'];   // Arrange the format as odd-even=count
+            if(($oddevens['odd']==$pick)&&($oddevens['even']==0))
+            {
+                if($low<$oddevens['count(*)']) 
+                {
+                    $low = $oddevens['count(*)'];
+                    $low_odds = $oddevens['odd'];
+                    $low_evens = $oddevens['even'];
+                    $low_date = $oddevens['draw_date'];
+                }
+            }
+            elseif(($oddevens['even']==$pick)&&($oddevens['odd']==0))
+            {
+                if($low<$oddevens['count(*)']) 
+                {
+                    $low = $oddevens['count(*)'];
+                    $low_evens = $oddevens['even'];
+                    $low_odds = $oddevens['odd'];
+                    $low_date = $oddevens['draw_date'];
+                } 
+            }
         }
         arsort($top);   // Sort the odd - even combination in reverse order by the count value only
         $oe_text = '';
@@ -550,34 +587,19 @@ class History_m extends MY_Model
         // Retrieve all the dates and the draw separation between draws.  Add these results to the string and return
         // For example, 6-0,2021/01/18,5,2021/02/28,10,2021/05/15,5,2021/07/01,25
         // The complete format will be displayed as: 4-2=34,3-3=32,2-4=25,4-2=20,5-1=15,1-5=14,6-0=4,00-6=2|6-0,2021/01/18,5,2021/02/28,10,2021/05/15,5,2021/07/01.25
-            $low = 0;
-            $draw_dates = array();  // Series of draw dates
-            foreach($parity as $count => $oddevens)
-            {
-                if(($oddevens['odd']==$pick)&&($oddevens['even']==0)||($oddevens['odd']==0)&&($oddevens['even']==$pick))
-                {
-                    if($low<$oddevens['count(*)']) 
-                    {
-                        $odd = $oddevens['odd'];
-                        $even = $oddevens['even'];
-                        array_push($draw_dates, $oddevens['draw_date']);
-                        $low=$oddevens['count(*)'];
-                    }
-                }
-            }
-        if(!empty($draw_dates))     // Is there dates?
+        if(!empty($low_date)&&($low>1))     // Is there additional dates?
         {
-            $oe_text .= $odd.'-'.$even.',';
-            $result = $this->parity_dates($draw_dates, $lotto);    
-            if(!$result) return FALSE;
+            $oe_text .= $low_odds.'-'.$low_evens.',';
+            $oe_text .= $this->parity_dates($draws, $low_odds, $low_evens, $low);    
         }
+        elseif(!empty($low_date)&&($low==1)) $oe_text .= $low_odds.'-'.$low_evens.','.$low_date;
         else 
         {
             $oe_text .= "0-0";  // The rare odd / even combination did not happen
             $result = "";
+            $oe_text .= $result;    
         }
-        unset($draw_dates);    
-        $oe_text .= $result;    
+        unset($draws);    
     return $oe_text;   
     }
     /** 
@@ -607,39 +629,49 @@ class History_m extends MY_Model
 	* 
 	* @param 	integer	$rows		$rows returned from the lottery table
 	* @param	string  $tbl		Actual table name of the lottery
+    * @param    boolean $e          Extra Draws, 0 = none, 1 = included
 	* @return   array   $result     Array of the odd / even and total counts for the range, FALSE on failure	
 	*/
-	private function parity_list($rows, $tbl)
+	private function parity_list($rows, $e = 0, $tbl)
 	{
-		$query = $this->db->query("select odd, even, draw_date, count(*) from (SELECT * FROM 
-        `".$tbl."` ORDER BY id DESC LIMIT ".$rows.") sub 
+		$this->db->reset_query();	// Clear any previous queries in the cache
+        $ex_d = (empty($e) ? "WHERE extra <> '0' " : " ");
+        $query = $this->db->query("select odd, even, draw_date, count(*) from (SELECT * FROM 
+        `".$tbl."`".$ex_d."ORDER BY id DESC LIMIT ".$rows.") sub 
         group by odd, even ORDER BY id ASC;");
         $result = $query->result_array();    
     return $result;
 	}
     /** 
 	* parity_list. Insert / Update the At a Glance Statistics to the database
-	* @param    array   $parity_dates Series of draw dates for this odd / even combination
-	* @param	string  $tbl		Actual table name of the lottery (e.g. canada_649)
-	* @return   array   $result     Array of the odd / even and total counts for the range, FALSE on failure	
+	* @param    array   $draws      Draws within the given range
+	* @param	integer $o	    	Odd Number
+    * @param    integer $e          Even Number
+    * @param    integer $l          Low number occurence
+	* @return   string  $result     Draw occurences, draw date and number of skips between draws before the next one	
 	*/
-	private function parity_dates($parity_dates, $tbl) 
+	private function parity_dates($draws, $o, $e, $l) 
 	{
-		$result = '';
-        foreach($parity_dates as $c => $r)
+		$str = '';
+        $blnstart = FALSE;
+        $occur = 0;
+        foreach($draws as $c => $d)
         {
-            if(!empty($c))
-            {
-                $sql = "SELECT * FROM ".$tbl." WHERE draw_date <= ".$parity_dates[$c-1]." AND draw_date => ".$parity_dates[$c];
-                $query = $this->db->query("SELECT * FROM ".$tbl." WHERE draw_date <= '".$parity_dates[$c-1]."' AND draw_date >= '".$parity_dates[$c]."'");
-                if(!$query) return FALSE;
-                $result = $parity_dates[$c-1].','.$query->num_rows().',';
-            }
+          if(($d['odd']==$o)&&($d['even']==$e)&&($l))
+          {
+            $ld = $d['draw_date'];
+            if($blnstart) $str .= $occur.",";
+            $str .= $ld.",";
+            $occur = 0; // Reset the count
+            $blnstart = TRUE;
+            $l--;
+          }
+          elseif(($blnstart)&&($l)) // Keep counting and there is another draw
+          {
+              $occur++;
+          }
+          elseif(!$l) break; // Break out of the interation as complete.
         }
-        $last_date = end($parity_dates);  // Return the last date that this odd / even combination occurred to determine how many draws have elapsed since this occurred.
-        $query = $this->db->query("SELECT * FROM ".$tbl." WHERE draw_date >= '".$last_date."'");
-        if(!$query) return FALSE;
-        $result .= $last_date.",".$query->num_rows;
-    return $result;
+    return substr($str, 0, -1);	// Return the string without an extra ','
 	}
 }

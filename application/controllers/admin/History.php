@@ -108,6 +108,7 @@ class History extends Admin_Controller {
 			$new_range = $old_range; 								// If no prior record
 			$this->data['lottery']->extra_included = 0; 			// Defaults at No Extra Ball and No Extra Draws
 			$this->data['lottery']->extra_draws = 0;
+			$bln_chg = TRUE;										// No Data exists. A change must occur
 		}
 		else																				
 		{
@@ -177,7 +178,7 @@ class History extends Admin_Controller {
 		$this->data['lottery']->last_drawn['sums_history'] = ((!empty($glance)&&!$bln_chg) ? $glance->winning_sums : $this->history_m->sums_history($drawings));		
 		$this->data['lottery']->last_drawn['digits_history'] = ((!empty($glance)&&!$bln_chg) ? $glance->winning_digits : $this->history_m->digits_history($drawings));
 		$this->data['lottery']->last_drawn['range_history'] = ((!empty($glance)&&!$bln_chg) ? $glance->number_range : $this->history_m->range_history($drawings, $this->data['lottery']->balls_drawn));
-		$this->data['lottery']->last_drawn['parity_history'] = ((!empty($glance)&&!$bln_chg) ? $glance->parity : $this->history_m->parity_history($drawings, $this->data['lottery']->balls_drawn, $tbl_name));	
+		$this->data['lottery']->last_drawn['parity_history'] = ((!empty($glance)&&!$bln_chg) ? $glance->parity : $this->history_m->parity_history($drawings, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_draws, $tbl_name));	
 		if(!$this->data['lottery']->last_drawn['parity_history'])
 		{
 			$this->session->set_flashdata('message', 'Problem retrieving the odd / even combinations for the last '.$new_range.' draws. Please check the '.$tbl_name.' database.');
