@@ -312,7 +312,7 @@ class Lotteries_m extends MY_Model
 	 * @param	string	$lotto_tbl	Lottery Table Name
 	 * @param 	array 	$balls		Array of balls drawn for this draw
 	 * @param 	boolean $exta		Bonus ball / Extra ball drawn (1 = applies)
-	 * @param 	string 	$draw_date	Date of Draw to see if it exists
+	 * @param 	string 	$draw_date	Date of Draw for comparison, if it exists
 	 * @return  boolean	TRUE/FALSE	TRUE (if draw exists), FALSE (if draw does not exist, return FALSE)
 	 */
 	public function lotto_draw_exists($lotto_tbl, $balls, $extra, $draw_date)
@@ -467,6 +467,23 @@ class Lotteries_m extends MY_Model
 		}
 	return FALSE;
 	}
+
+	/**
+	 * Returns TRUE if the date is after the first draw date found in the lottery, otherwise return false
+	 * 
+	 * @param       string	$lottery_name		Corresponding table name of the lottery
+	 * @param     	string	$dd 				Corresponding draw date in the format of yyyy-mm-dd as a string
+	 * @return 		boolean	$found				TRUE if the csv draw is after the first draw in the db or FALSE if it is not
+	 */
+	public function skip_next_draw($l_table, $dd)
+	{
+
+			$sql = "SELECT * FROM `".$l_table."` WHERE `draw_date` > '".$dd."' LIMIT 1"; // Is it before the first draw in the database?
+			$result = $this->db->query($sql);
+			
+	return ($result->num_rows() != 1 ? FALSE : TRUE);
+	}
+
 
 	/**
 	 * Takes the CSV Row and Queries the database to input the field values

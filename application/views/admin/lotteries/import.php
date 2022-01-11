@@ -32,7 +32,7 @@
 									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md', 'style' => 'white-space: nowrap;');
 									echo form_label('Lottery Description:', 'lottery_descriptiuon_lb', $extra); ?>
 								<div class="col-8">
-									<?php echo form_label(wordwrap($lottery->lottery_description, 70, '<br /> ', FALSE), 'lottery_description_lb', $extra); ?>
+									<?php echo form_label(wordwrap($lottery->lottery_description, 60, '<br /> ', FALSE), 'lottery_description_lb', $extra); ?>
 								</div>
 							</div>
 							<!-- Current State or Province Field -->
@@ -123,9 +123,9 @@
 										echo form_label('Last Columns Eliminated from Import:', 'last_lottery_columns_lb', $extra); ?>
 										<div class="col-8">
 											<?php $removal = rtrim($import_data[0]->columns,",");
-											echo form_label($removal.' (Please Re-Enter)', 'last_lottery_columns_imported_lb', $extra); ?>
+											echo form_label($removal.' ', 'last_lottery_columns_imported_lb', $extra); ?>
 										</div> 
-								<?php } 
+								<?php }
 								$extra = array('class' => 'col-4 col-form-label col-form-label-md');
 								echo form_label('CSV Column # (0-Based, No Spaces)', 'cvs_field_lb', $extra); ?>
 								<div class="col-8">
@@ -162,8 +162,8 @@
 								echo form_label('Lottery Import CSV File:', 'lottery_import_csv_file_lb', $extra); ?>
 								<div class="col-8">
 										<?php $extra = array('class' => 'form-control', 'id' => 'lottery_upload_csv',
-										'accept' => '.csv', 'style'=> 'width:80%');  
-										echo form_upload('lottery_upload_csv',set_value('lottery_upload_csv', ''), $extra); 
+										'accept' => '.csv', 'style'=> 'width:80%'); 
+										echo form_upload('lottery_upload_csv', set_value((isset($import_data[0]->csv_file) ? $import_data[0]->csv_file : '')), $extra); 
 										echo form_error('lottery_upload_csv', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 									</div>
 								</div>
@@ -188,9 +188,10 @@
 								<div class="form-group" id = "process" style = "display:none;"> 
 									<div class="col-8">
 										<div class = "progress">
-											<div class = "progress-bar progress-bar-striped active" role = "progressbar" 
+											<div class = "progress-bar progress-bar-striped progress-bar-animated active" 
+											style = "display: inline-block; text-align:center; margin-top:10px 10px;" role = "progressbar" 
 											aria-valuemin="0" aria-valuemax = "100">
-												<span id ="process_data">1</span> - <span id = "total_data"></span>
+												<span id ="process_data">0</span> - <span id = "total_data">0</span>
 											</div>
 										</div>
 									</div>
@@ -247,7 +248,7 @@ $(document).ready(function() {
 	var csv=document.getElementsByName('csv_field[]');
 	var url_import = '<?php echo base_url();?>admin/lotteries/import/<?=$lottery->id;?>';
 	var url_start = '<?php echo base_url();?>admin/lotteries/import_process/<?=$lottery->id;?>';
-	var url_get_import = '<?php echo base_url();?>admin/lotteries/process/<?=$this->lotteries_m->lotto_table_convert($lottery->lottery_name);?>';
+	var url_get_import = '<?php echo base_url();?>admin/lotteries/process/<?=$lottery->table_name;?>';
 
 	$('#add').click(function(){  
            i++;  
@@ -294,7 +295,6 @@ $(document).ready(function() {
 						$('#total_data').text(data.total_data);
 						$('.card-title').html("<div class='alert alert-warning' role='alert'>DRAWS CURRENTLY BEING IMPORTED</div>");
 						$('.card-text').html("<div class='alert alert-info' role='alert'>Adding draws ... please Wait ... </div>");
-						clear_timer = setInterval(get_import_data, 2000);
 						start_import();
 					}					
 					if(data.error)
@@ -315,12 +315,13 @@ $(document).ready(function() {
 		$('#process').css('display', 'block');
 		$.ajax({
 			url:url_start,
+			dataType:"json",
 			success:function(data)
 			{
 				var error = 0;
 				if(data.success)
 				{
-					alert("successful");
+					//clear_timer = setInterval(get_import_data, 1000);
 					//alert(data.success);
 				}
 				else if(data.error)
@@ -372,15 +373,17 @@ $(document).ready(function() {
 					$('.card-text').html("This was the last draw date attempted on import: "+data.draw_date+". <br /> Please check the numbers in this draw, correct and import CSV file again.");
 					error = 1;
 				}
-
 				if (error)
 				{
-					clearInterval(clear_timer);
 					$('#process').css('display', 'none');
+					clearInterval(clear_timer);
 					$('#import_message').html('<div class="alert alert-danger">Data Has Been Stopped.</div>');
 					$('#import').attr('disabled',false);
 					$('#import').val('Begin Import / Upload');
 				}
+			},
+			complete:function(data) {
+				clear_timer = setInterval(get_import_data, 1000);
 			},
 			error: function(jqXhr, textStatus, errorMessage){
       			//alert("Error: "+errorMessage+" text:"+textStatus);
@@ -396,8 +399,9 @@ $(document).ready(function() {
 				var total_data = $('#total_data').text();
 				var width = Math.round((data/total_data)*100);
 				var error = 0;
-				$('#process_data').html(data);
-				$('.progress-bar').css('width', width + '%');
+				
+				$('#process_data').text(data);
+				$('.progress-bar').css('width', width+'%').attr('aria-valuenow', width); 
 				$('#draw_number').html(data);
 				if(width >= 100)
 				{
@@ -410,7 +414,6 @@ $(document).ready(function() {
 					$('#import').attr('disabled',false);
 					$('#import').val('Begin Import / Upload');
 				}
-
 				if (data.error)
 				{
 					clearInterval(clear_timer);
@@ -423,5 +426,17 @@ $(document).ready(function() {
 			}
 		})
 	} 
-})
+})										
+var columns = <?php echo json_encode($columns); ?>											
+csv_field = document.getElementsByName('csv_field[]');
+// Loop through the array and target the next available textbox
+var count=0;
+for(var i = 0; i < columns.length; i++){
+// If there are any names to use, use one
+	// Pop the next name off of your array and set the value
+	// of your textbox
+	csv_field[i].value = columns[i];
+	count++;
+	if(i < columns.length-1) $('#dynamic_field').append('<tr id="row'+i+'"><td><input type="text" name="csv_field[]" value = "'+csv_field[i].value+'" style="width:90%" class="form-control field_list" /></td><td align="center"><button type="button" name="remove" id="'+i+'" class="btn btn-danger btn_remove text-center">X</button></td></tr>');
+} 
 </script>

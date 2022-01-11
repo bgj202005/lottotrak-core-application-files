@@ -74,6 +74,13 @@ class History extends Admin_Controller {
 			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
 			redirect('admin/history');
 		}
+		elseif(is_null($draw_db->sum_draw)&&is_null($draw_db->sum_digits)&&is_null($draw_db->even)&&is_null($draw_db->odd)&&is_null($draw_db->range_draw)
+		&&is_null($draw_db->repeat_decade)&&is_null($draw_db->repeat_last))
+		{
+			$this->session->set_flashdata('message', $this->data['lottery']->lottery_name.' has been updated and the STATISTICS must be CALCULATED. 
+			Please go to Statistics and View Lottery Stats on the menu.');
+			redirect('admin/history');
+		}
 		elseif(!$draw_db=='no draws') 
 		{
 			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does exist. However, there arte no draws with this lottery');
