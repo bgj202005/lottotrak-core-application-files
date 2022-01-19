@@ -41,6 +41,7 @@ class Statistics extends Admin_Controller {
 		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
 		else $this->data['message'] = '';
 		// Load the view
+		if($this->session->has_userdata('range')) $this->session->unset_userdata('range');
 		$this->data['current'] = $this->uri->segment(2); // Sets the Statistics menu
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
@@ -120,7 +121,29 @@ class Statistics extends Admin_Controller {
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$this->data['trend'] = 0;
-		if(!empty($this->uri->segment(5))) $this->data['trend'] = 1;
+		$new_range = 0;
+		if (!empty($this->uri->segment(5)&&$this->uri->segment(5)=='1'))
+		{
+			$this->data['trend'] = 1;
+		}
+		if(!empty($this->uri->segment(6))) 
+		{
+			$new_range = $this->uri->segment(6,0); // Return segment range
+		}
+		$all = $this->lotteries_m->db_row_count($tbl_name); // Return the total number of draws for this lottery
+		if($all>100)
+		{
+			$interval = intval($all / 100); // Create the drop down in multiples of 100 and typecast to an integer value (truncates the floating point portion)
+			if(!$interval) $interval = 1;	// 1 = 100, 2 = 200, 3 = 300, 4 = 400, 0 < 100 
+		}
+		else
+		{
+			$interval = 0;
+		}
+		$old_range = (!is_null($this->session->userdata('range')) ? $this->session->userdata('range') : 100); // Default will be 100 previous draws
+		if(!$new_range) $new_range = $old_range;	// Database Range
+		$sel_range = 1;								// All Defaults
+		if($new_range>100) $sel_range = intval($new_range / 100);
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 		{
@@ -134,15 +157,20 @@ class Statistics extends Admin_Controller {
 			redirect('admin/statistics'); 
 		}
 
-		$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $id);
+		$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $id, $new_range, $this->data['trend']);
 		if (!$this->data['draws'])
 		{
 			$this->session->set_flashdata('message', 'There are no draws associated with this lottery. Please import draws.');
 			redirect('admin/statistics'); 
 		}
+		$this->data['interval'] = $interval;		// Record the interval here (for the dropdown)
+		$this->data['sel_range'] = $sel_range;		// What was selected for the range in the previous page
+		$this->data['range'] = $new_range;
+		$this->data['all'] = $all;
 		$this->data['statistics'] = $this->statistics_m->get_by('lottery_id='.$id, TRUE);
 		$this->data['evensodds'] = $this->statistics_m->evensodds_sum($tbl_name, $id);
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
+		$this->session->set_userdata('range', $new_range);
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/view_draws'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
@@ -886,5 +914,25 @@ class Statistics extends Admin_Controller {
 		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	 
 		$this->data['subview']  = 'admin/dashboard/statistics/h_w_c';
 		$this->load->view('admin/_layout_main', $this->data);
+	}
+	
+	/**
+	 * Return the complete draws of the lottery and return the data in the form of JSON
+	 * 
+	 * @param 		$id		Lottery id
+	 * @return  	none
+	 */
+	public function return_draws($id)
+	{
+		$table = $this->uri->segment(4);
+		$trnd = $this->uri->segment(5);
+		$this->db->query('SET @draw_number = 0; '); // Add a Draw Number to the Draw List
+		$where = (!$trnd ? '' : ' AND extra <> 0');
+		$query = $this->db->query('SELECT *, 
+				(@draw_number:=@draw_number + 1) AS draw 
+				FROM '.$table.' WHERE lottery_id='.$id.$where. 
+				' ORDER BY draw_date ASC;');					
+		$result_db = $query->result_array();
+		echo json_encode($result_db);
 	}
 }

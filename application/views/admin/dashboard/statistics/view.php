@@ -10,13 +10,14 @@
     	width:100%;
 	}
 	tr{
-		font-size: 0.80em;
+		font-size: 0.90em;
 	}
 	th {
 		text-align:center;
+		font-size: 0.90em;
 	}
 	table.stats tr{
-		font-size: 0.70em;
+		font-size: 0.65em;
 	}
 	td.fontincrease { 
 		font-size: 	1.21em;
@@ -87,12 +88,37 @@
 	</section>
 	<section>
 		S = Sum			Ev = Evens			Od = Odds		M = Maximum<br />		
-		<?php $extra = array('class' => 'checkbox', 'id' => 'trends');
-			  echo form_checkbox($trend, 1, ($trend ? TRUE : FALSE), $extra); 
-			  $extra = array('class' => 'col-2 col-form-label col-form-label-md', 'style' => 'font-weight:bold;');
-			  echo form_label('Trends of Draws', 'trends_lb', $extra); ?>
 	</section>
 	<section>
+		<table>
+		<tr>
+			<td>		
+		<?php $extra = array('class' => 'checkbox', 'id' => 'trends');
+			echo form_checkbox($trend, 1, ($trend ? TRUE : FALSE), $extra); 
+			$extra = array('class' => 'col-2 col-form-label col-form-label-md', 'style' => 'font-weight:bold; white-space: nowrap; text-left');
+			echo form_label('Trends of Draws', 'trends_lb', $extra); ?></td>	
+		<td><div class="dropdown text-right" style = "margin-left: 50px; margin-bottom: 10px; align: right">
+			<button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+				Draw Range
+			</button>
+			<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+			<?php if(!$interval) : ?>
+				<a class="dropdown-item active" href="<?=base_url('admin/statistics/view_draws/'.$lottery->id.'/'.$trend.'/'.$all)?>">All Draws (<?=$range;?>) </a>
+			<?php else:
+				for($i = 1; $i <= $interval; $i++):
+					$step = $i * 100;	// in multiples of 100
+					if($i!=$interval): ?>
+						<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?>" href="<?=base_url('admin/statistics/view_draws/'.$lottery->id.'/'.$trend.'/'.$step);?>">Last <?=$step;?></a>
+					<?php else : ?>
+						<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?>" href="<?=base_url('admin/statistics/view_draws/'.$lottery->id.'/'.$trend.'/'.$all);?>">All Draws (<?=$all;?>)</a>
+					<?php endif;
+				endfor; ?> 
+				<?php endif;?>
+			</div>
+		</div>
+			</td>
+		</tr>
+		</table>
 		<div class = 'table-responsive'>
 		<table id="evenodds"
 		class="table table-striped table-sm"
@@ -255,24 +281,24 @@
 			</tbody>	
 		</table>
 		</div>
-	<script>
-	$(function() {
+	</section>
+ 	<script>
+	 $(function() {
 		$('#draws').bootstrapTable()
-	})
+	}) 
 	$(function() {
 		$('#history').bootstrapTable()
 	})
 	var trends = document.getElementById("trends");
 	document.getElementById("trends").onclick = function(){
 		if(trends.checked==true) {
-			location.href = "<?php echo base_url().'admin/statistics/view_draws/'.$lottery->id.'/trends/';?>";
+			location.href = "<?php echo base_url().'admin/statistics/view_draws/'.$lottery->id.'/1/';?>";
 		}
 		else {
-			location.href = "<?php echo base_url().'admin/statistics/view_draws/'.$lottery->id;?>";
+			location.href = "<?php echo base_url().'admin/statistics/view_draws/'.$lottery->id.'/0/';?>";
 		}
 	}
 	$(function() {
 		$('#evenodds').bootstrapTable()
-	})	
-	</script>
-	</section>
+	})
+ 	</script>
