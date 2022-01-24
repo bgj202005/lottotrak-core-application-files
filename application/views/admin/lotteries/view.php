@@ -20,6 +20,31 @@
 	<section>
 		<h2><?php echo 'View Lottery Draws for: '.$lottery->lottery_name; ?></h2>
 		<h3 style = "text-align:center;" id="view_message" class = "text-danger"><?= $message; ?></h3>
+			<table>
+				<tr>
+					<td>		
+					<div class="dropdown text-right" style = "margin-left: 50px; margin-bottom: 10px; align: right">
+					<button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+						Draw Range
+					</button>
+					<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+					<?php if(!$interval) : ?>
+						<a class="dropdown-item active" href="<?=base_url('admin/lotteries/view_draws/'.$lottery->id.'/'.$all);?>">All Draws (<?=$range;?>)</a>
+					<?php else:
+						for($i = 1; $i <= $interval; $i++):
+							$step = $i * 100;	// in multiples of 100
+							if($i!=$interval): ?>
+								<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?>" href="<?=base_url('admin/lotteries/view_draws/'.$lottery->id.'/'.$step);?>">Last <?=$step;?></a>
+							<?php else : ?>
+								<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?>" href="<?=base_url('admin/lotteries/view_draws/'.$lottery->id.'/'.$all);?>">All Draws (<?=$all;?>)</a>
+							<?php endif;
+						endfor; ?> 
+						<?php endif;?>
+					</div>
+				</div>
+					</td>
+				</tr>
+			</table>
 			<div class="table-responsive">
 			<?php echo form_open(''); 
 			if (isset($lottery->next_draw_date)) echo form_hidden('next_date', $lottery->next_draw_date); 
@@ -44,8 +69,8 @@
 					</tr>
 				</thead>
 				<tbody>
-				<?php foreach ($draws as $draw): ?>
-				<tr>
+						<?php foreach ($draws as $draw): ?>
+						<tr>
 						<td><input type="checkbox" name = "draw[]" value = "<?=$draw->id; ?>" <?php if(isset($add)) echo "disabled"; 
 						elseif (isset($edit)&&$selected) 
 						{
@@ -62,8 +87,7 @@
 						<td><?= $draw->draw ?></td>
 						<td><?php 
 							echo date("D, M d, Y", strtotime(str_replace('/','-',$draw->draw_date))); ?></td>
-						<?php if (isset($edit)&&isset($flagged)&&$flagged)	// Draw is to be edited
-						{ 
+						<?php if (isset($edit)&&isset($flagged)&&$flagged):	// Draw is to be edited
 							$extra = array('id' => 'formGroupInputLarge', 'maxlength' => '2', 'size' => '4');
 							$extra['class'] = (form_error('ball_1[]') ? 'form-control is-invalid' : 'form-control is-valid');
 							if (empty(set_value('ball_1[]'))) $extra['class'] = 'form-control';
@@ -102,24 +126,21 @@
 								$extra['class'] = (form_error('extra_ball[]') ? 'form-control is-invalid' : 'form-control is-valid');
 								if (empty(set_value('extra_ball[]'))) $extra['class'] = 'form-control';
 								echo '<td>'.form_input('extra_ball[]', set_value('extra_ball[]', $draw->extra), $extra).'</td>'; endif;
-						} 
-						else // Only Display
-						{ ?>
-							<td><?= $draw->ball1; ?></td>
-							<td><?= $draw->ball2; ?></td>
-							<td><?= $draw->ball3; ?></td>
-							<?php if (intval($lottery->balls_drawn)>=4): ?><td><?= $draw->ball4; ?></td><?php endif; ?>
-							<?php if (intval($lottery->balls_drawn)>=5): ?><td><?= $draw->ball5; ?></td><?php endif; ?>
-							<?php if (intval($lottery->balls_drawn)>=6): ?><td><?= $draw->ball6; ?></td><?php endif; ?>
-							<?php if (intval($lottery->balls_drawn)>=7): ?><td><?= $draw->ball7; ?></td><?php endif; ?>
-							<?php if (intval($lottery->balls_drawn)>=8): ?><td><?= $draw->ball8; ?></td><?php endif; ?>
-							<?php if (intval($lottery->balls_drawn)==9): ?><td><?= $draw->ball9; ?></td><?php endif; ?>			
-							<?php if (intval($lottery->extra_ball)==1): ?><td><?= $draw->extra; ?><?php endif; ?></td>
-					<?php } ?>
-				</tr>
-					<?php  endforeach; ?>		
-					<?php if(isset($add))
-					{
+							else: // Only Display ?> 
+								<td><?= $draw->ball1; ?></td>
+								<td><?= $draw->ball2; ?></td>
+								<td><?= $draw->ball3; ?></td>
+								<?php if (intval($lottery->balls_drawn)>=4): ?><td><?= $draw->ball4; ?></td><?php endif; ?>
+								<?php if (intval($lottery->balls_drawn)>=5): ?><td><?= $draw->ball5; ?></td><?php endif; ?>
+								<?php if (intval($lottery->balls_drawn)>=6): ?><td><?= $draw->ball6; ?></td><?php endif; ?>
+								<?php if (intval($lottery->balls_drawn)>=7): ?><td><?= $draw->ball7; ?></td><?php endif; ?>
+								<?php if (intval($lottery->balls_drawn)>=8): ?><td><?= $draw->ball8; ?></td><?php endif; ?>
+								<?php if (intval($lottery->balls_drawn)==9): ?><td><?= $draw->ball9; ?></td><?php endif; ?>			
+								<?php if (intval($lottery->extra_ball)==1): ?><td><?= $draw->extra; ?><?php endif; ?></td>
+					<?php endif; ?>
+					</tr>
+						<?php  endforeach; ?>
+						<?php if(isset($add)):
 						echo '<tr>';
 						echo '<td></td>';
 						echo '<td>'.$lottery->num.'</td>';
@@ -162,10 +183,10 @@
 							$extra['class'] = (form_error('extra_ball') ? 'form-control is-invalid' : 'form-control is-valid');
 							if (empty(set_value('extra_ball'))) $extra['class'] = 'form-control';
 							echo '<td>'.form_input('extra_ball', set_value('extra_ball'), $extra).'</td>'; endif;
-						echo '</tr>';
-					} ?>		
-				</tbody>
-				<tfoot>
+							echo '</tr>';
+						endif; ?>			
+					</tbody>
+					<tfoot>
 					<tr>
 						<th><input type="checkbox" onclick="checkAll(this)" <?php if(isset($add)) echo "disabled"; ?>></th>
 						<th>Draw #</th>
@@ -185,7 +206,7 @@
 			</table>
 		</div>
 	<div style = "text-align: center;">
-	<?php $js = "javascript: form.action='".base_url()."admin/lotteries/draw_add/".$lottery->id."'";
+	<?php $js = "javascript: form.action='".base_url()."admin/lotteries/draw_add/".$lottery->id."/".($sel_range*100)."'";
 		$class = "btn btn-primary btn-lg btn-danger";
 		$attributes = array(
 			'class' 	=> "$class",
@@ -203,7 +224,7 @@
 			$attributes['disabled'] = 'disabled';
 		}
 		echo form_submit('draw_add', $label, $attributes);
-		$js = "javascript: form.action='".base_url()."admin/lotteries/draw_edit/".$lottery->id."'";
+		$js = "javascript: form.action='".base_url()."admin/lotteries/draw_edit/".$lottery->id."/".($sel_range*100)."'";
 		$class = "btn btn-primary btn-lg btn-info";
 		$attributes = array(
 			'class' 	=> "$class",
@@ -234,7 +255,7 @@
 		$attributes = array(
 			'class' 	=> "$class",
 			'onClick' 	=> "$js", 
-			'style' 	=> "margin-left:20px; padding:5px;"
+			'style' 	=> "margin-left:20px; margin-top: 10px; padding:5px;"
 		);
 		echo form_button('lotteries_list', 'Back to Lotteries List', $attributes); 
 		echo form_close(); ?>
@@ -248,7 +269,7 @@ $(document).ready(function() {
         "iDisplayLength": 10,
 		"columnDefs": [ {
           "targets": 'no-sort',
-          "orderable": false,
+          "orderable": true,
     } ]
        } 
         );

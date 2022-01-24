@@ -635,8 +635,28 @@ class Lotteries extends Admin_Controller {
 		// Check for existing lottery draws
 		$this->data['message'] = '';  // Create a Message object
 		$this->data['request'] = '';  // only view draws		
-		
-		$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $id);
+		$new_range = 0;				  // First Pass through, default is 100 draws
+
+		if(!empty($this->uri->segment(5))) 
+		{
+			$new_range = $this->uri->segment(5,0); // Return segment range
+		}
+		$all = $this->lotteries_m->db_row_count($tbl_name); // Return the total number of draws for this lottery
+		if($all>100)
+		{
+			$interval = intval($all / 100); // Create the drop down in multiples of 100 and typecast to an integer value (truncates the floating point portion)
+			if(!$interval) $interval = 1;	// 1 = 100, 2 = 200, 3 = 300, 4 = 400, 0 < 100 
+		}
+		else
+		{
+			$interval = 0;
+		}
+		$old_range = (!is_null($this->session->userdata('range')) ? $this->session->userdata('range') : 100); // Default will be 100 previous draws
+		if(!$new_range) $new_range = $old_range;	// Database Range
+		$sel_range = 1;								// All Defaults
+		if($new_range>100) $sel_range = intval($new_range / 100);
+
+		$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $id, $new_range, 0); // Trend is N/A
 		
 		if (!$this->data['draws'])
 		{
@@ -644,12 +664,16 @@ class Lotteries extends Admin_Controller {
 		}
 		else	// Yes, Draws are available. next we need to find the next draw date
 		{
-			$c = count($this->data['draws']);						// Determine total count of array of objects
-			$ld = $this->data['draws'][$c-1]->draw_date;			// Return last draw date
+			$c = count($this->data['draws']);					// Determine total count of array of objects
+			$ld = $this->data['draws'][0]->draw_date;			// Return last draw date
 			$day = $this->return_day($ld);							// Returns the day of draw, Saturday, Sunday, etc.
 			$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
 			$this->data['lottery']->num = strval(++$c);
 		}
+		$this->data['interval'] = $interval;		// Record the interval here (for the dropdown)
+		$this->data['sel_range'] = $sel_range;		// What was selected for the range in the previous page
+		$this->data['range'] = $new_range;
+		$this->data['all'] = $all;
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/view_draws'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
@@ -928,14 +952,36 @@ class Lotteries extends Admin_Controller {
 		{
 			$this->data['add']	= 'add';
 		}
+		if(!empty($this->uri->segment(5))) 
+		{
+			$new_range = $this->uri->segment(5,0); // Return segment range
+		}
+		$all = $this->lotteries_m->db_row_count($tbl_name); // Return the total number of draws for this lottery
+			if($all>100)
+			{
+				$interval = intval($all / 100); // Create the drop down in multiples of 100 and typecast to an integer value (truncates the floating point portion)
+				if(!$interval) $interval = 1;	// 1 = 100, 2 = 200, 3 = 300, 4 = 400, 0 < 100 
+			}
+			else
+			{
+				$interval = 0;
+			}
+			$old_range = $this->session->userdata('range'); // Default will be 100 previous draws
+			if(!$new_range) $new_range = $old_range;	// Database Range
+			$sel_range = 1;								// All Defaults
+			if($new_range>100) $sel_range = intval($new_range / 100);
 			$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $id);
 			$c = count($this->data['draws']);					// Determine total count of array of objects
-			$ld = $this->data['draws'][$c-1]->draw_date;		// Return last draw date
+			$ld = $this->data['draws'][0]->draw_date;		// Return last draw date
 			$day = $this->return_day($ld);						// Returns the day of draw, Saturdday, Sunday, etc.
 
 			$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
 			$this->data['lottery']->num = strval(++$c);
 
+		$this->data['interval'] = $interval;		// Record the interval here (for the dropdown)
+		$this->data['sel_range'] = $sel_range;		// What was selected for the range in the previous page
+		$this->data['range'] = $new_range;
+		$this->data['all'] = $all;
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/view'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
@@ -1014,7 +1060,7 @@ class Lotteries extends Admin_Controller {
 			}
 			if (intval($this->data['lottery']->balls_drawn)>=7) 
 			{
-				$draw['ball_7[]'] = $this->input->post('ball7[]');
+				$draw['ball_7[]'] = $this->input->post('ball_7[]');
 				$edit_rules['ball_7[]'] = array(
 					'field' => 'ball_7[]', 
 					'label' => 'Ball 7', 
@@ -1079,15 +1125,36 @@ class Lotteries extends Admin_Controller {
 			if (empty($this->input->post('draw'))) $this->data['message'] = "Please Select the Draw Number(s) and click Manually Edit Draw(s) below.";  // Error message
 			else $this->data['edit']	= 'edit';
 		}
-		
+		if(!empty($this->uri->segment(5))) 
+		{
+			$new_range = $this->uri->segment(5,0); // Return segment range
+		}
+		$all = $this->lotteries_m->db_row_count($tbl_name); // Return the total number of draws for this lottery
+			if($all>100)
+			{
+				$interval = intval($all / 100); // Create the drop down in multiples of 100 and typecast to an integer value (truncates the floating point portion)
+				if(!$interval) $interval = 1;	// 1 = 100, 2 = 200, 3 = 300, 4 = 400, 0 < 100 
+			}
+			else
+			{
+				$interval = 0;
+			}
+			$old_range = $this->session->userdata('range'); // Default will be 100 previous draws
+			if(!$new_range) $new_range = $old_range;	// Database Range
+			$sel_range = 1;								// All Defaults
+			if($new_range>100) $sel_range = intval($new_range / 100);
 		$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $id);
 		$this->data['selected'] = $this->input->post('draw');	// Return the posted array
 		$c = count($this->data['draws']);						// Determine total count of array of objects
-		$ld = $this->data['draws'][$c-1]->draw_date;			// Return last draw date
+		$ld = $this->data['draws'][0]->draw_date;			// Return last draw date
 		$day = $this->return_day($ld);							// Returns the day of draw, Saturdday, Sunday, etc.
 		$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
 		$this->data['lottery']->num = strval(++$c);
 
+		$this->data['interval'] = $interval;		// Record the interval here (for the dropdown)
+		$this->data['sel_range'] = $sel_range;		// What was selected for the range in the previous page
+		$this->data['range'] = $new_range;
+		$this->data['all'] = $all;
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/view'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
@@ -1097,7 +1164,6 @@ class Lotteries extends Admin_Controller {
 		$this->data['subview']  = 'admin/lotteries/view';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
-	
 	/**
 	 * Returns the extra ball is set (TRUE) or not set (FALSE)
 	 *

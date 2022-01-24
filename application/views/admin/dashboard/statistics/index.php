@@ -3,7 +3,7 @@
     	width:100%;
 	}
 	tr{
-		font-size: 0.77em;
+		font-size: 0.62em; /* Minimum size before horizontal toolbar appears under list */
 	}
 	label {
     	display: inline-flex;
@@ -30,7 +30,7 @@
 				<td style = "text-align:center; white-space: nowrap;">Drawn Numbers</td>
 				<td style = "text-align:center; white-space: nowrap;">Sum(100)</td>
 				<td style = "text-align:center; white-space: nowrap;">Sum(LD)</td>
-				<td style = "text-align:center; white-space: nowrap;">Repeats</td>
+				<td style = "text-align:center; white-space: nowrap;">Repeaters</td>
 				<th>Stats</th>
 				<th style = "text-align:center; white-space: nowrap;">H-W-C</th>
 				<th>Followers</th>

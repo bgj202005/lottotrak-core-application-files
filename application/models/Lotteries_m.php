@@ -666,10 +666,11 @@ class Lotteries_m extends MY_Model
 	*/
 	public function load_draws($table, $lottery_id, $limit = 100, $trnd = 0)
 	{
-		$this->db->query('SET @draw_number = 0; '); // Add a Draw Number to the Draw List
+		$range = $limit+1;
+		$this->db->query('SET @draw_number = '.$range.'; '); // Add a Draw Number to the Draw List
 		$where = (!$trnd ? '' : ' AND extra <> 0');
 		$query = $this->db->query('SELECT *, 
-				(@draw_number:=@draw_number + 1) AS draw 
+				(@draw_number:=@draw_number - 1) AS draw 
 				FROM '.$table.' WHERE lottery_id='.$lottery_id.$where. 
 				' ORDER BY draw_date DESC lIMIT '.$limit.';');				
 	return $query->result(); 	// Return the Draw History
