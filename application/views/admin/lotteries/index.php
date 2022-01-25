@@ -1,3 +1,16 @@
+<style>
+	table{
+    	width:100%;
+	}
+	tr{
+		font-size: 0.95em; /* Minimum size before horizontal toolbar appears under list */
+	}
+	label {
+    	display: inline-flex;
+    	margin-bottom: .5rem;
+    	margin-top: .5rem;
+}
+</style>	
 <section>
 	<h2>Lottery Profiles</h2>
 	<?php echo anchor('admin/lotteries/edit', '<i class = "icon-plus"></i> Add a Lottery'); ?>
