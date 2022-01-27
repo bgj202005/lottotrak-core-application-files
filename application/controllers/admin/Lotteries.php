@@ -656,7 +656,7 @@ class Lotteries extends Admin_Controller {
 		$sel_range = 1;								// All Defaults
 		if($new_range>100) $sel_range = intval($new_range / 100);
 
-		$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $id, $new_range, 0); // Trend is N/A
+		$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $new_range, 0); // Trend is N/A
 		
 		if (!$this->data['draws'])
 		{
@@ -970,7 +970,7 @@ class Lotteries extends Admin_Controller {
 			if(!$new_range) $new_range = $old_range;	// Database Range
 			$sel_range = 1;								// All Defaults
 			if($new_range>100) $sel_range = intval($new_range / 100);
-			$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $id);
+			$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name);
 			$c = count($this->data['draws']);					// Determine total count of array of objects
 			$ld = $this->data['draws'][0]->draw_date;		// Return last draw date
 			$day = $this->return_day($ld);						// Returns the day of draw, Saturdday, Sunday, etc.
@@ -1143,7 +1143,7 @@ class Lotteries extends Admin_Controller {
 			if(!$new_range) $new_range = $old_range;	// Database Range
 			$sel_range = 1;								// All Defaults
 			if($new_range>100) $sel_range = intval($new_range / 100);
-		$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $id);
+		$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name);
 		$this->data['selected'] = $this->input->post('draw');	// Return the posted array
 		$c = count($this->data['draws']);						// Determine total count of array of objects
 		$ld = $this->data['draws'][0]->draw_date;			// Return last draw date

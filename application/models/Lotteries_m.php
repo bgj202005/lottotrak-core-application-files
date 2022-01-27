@@ -659,20 +659,19 @@ class Lotteries_m extends MY_Model
 	/** 
 	* Load Draws with Draw Number
 	* 
-	* @param	integer	$lottery_id
 	* @param 	string	$table
 	* @param 	boolean $trnd
 	* @return   object	Database Object of draws
 	*/
-	public function load_draws($table, $lottery_id, $limit = 100, $trnd = 0)
+	public function load_draws($table, $limit = 100, $trnd = 0)
 	{
 		$range = $limit+1;
 		$this->db->query('SET @draw_number = '.$range.'; '); // Add a Draw Number to the Draw List
-		$where = (!$trnd ? '' : ' AND extra <> 0');
+		$where = (!$trnd ? '' : ' WHERE extra <> "0"');
 		$query = $this->db->query('SELECT *, 
 				(@draw_number:=@draw_number - 1) AS draw 
-				FROM '.$table.' WHERE lottery_id='.$lottery_id.$where. 
-				' ORDER BY draw_date DESC lIMIT '.$limit.';');				
+				FROM '.$table.$where. 
+				' ORDER BY draw_date DESC LIMIT '.$limit);				
 	return $query->result(); 	// Return the Draw History
 	}
 

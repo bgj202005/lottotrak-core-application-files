@@ -1464,13 +1464,13 @@ class Statistics_m extends MY_Model
 	/**
 	 * Returns the list of evens, odds, number of occureeces and the percentage of the occurences for the given range
 	 * 
-	 * @param	string			$tbl		Table of Lottery
-	 * @param	integer			$lotto_id	Current Lottery Data Table Name
+	 * @param	string			$tbl		Lottery table with underscores e.g lottery_649
+	 * @param 	boolean 		$tod		Trends of Draws, will remove extra draws '0' from the query or keep them '1'
 	 * @return	object 			$all		evens, odds, total for each even/odd combination and the percentage (%) of occurences for each even/odd combination		
 	 */
-	public function evensodds_sum($tbl, $lotto_id)
+	public function evensodds_sum($tbl, $tod)
 	{	
-		$query = $this->db->query('SELECT even, odd, count(*) as count from '.$tbl.' where lottery_id='.$lotto_id.' group by 1, 2');
+		$query = $this->db->query('SELECT odd, even, count(*) as count from '.$tbl.' group by odd, even');
 		$all = $query->result(); // Retrieve the total result from the query
 		$total = 0;
 		foreach($all as $parity)
@@ -1479,7 +1479,7 @@ class Statistics_m extends MY_Model
 		}
 		
 		$interval = intval($total/100);
-		if($interval>=2) $interval = 2;	// Maximum 500 draws to compare
+		if($interval>=2) $interval = 2;	// Maximum 200 draws to compare
 		foreach($all as $key => $compare)
 		{
 			if(!isset($all[$key]->total)) $all[$key]->total=$total;
@@ -1492,24 +1492,29 @@ class Statistics_m extends MY_Model
 		do
 		{
 			$this->db->reset_query();
-			$query = $this->db->query('SELECT even, odd from '.$tbl.' where lottery_id='.$lotto_id.' ORDER BY id DESC LIMIT '.$range);
-			$subject = $query->result();
-			for($index = 0; $index<$range; $index++)
+			$ex_d = (!empty($tod) ? "WHERE extra <> '0' " : " ");
+			$query = $this->db->query("select odd, even, count(*) from (SELECT * FROM 
+			`".$tbl."`".$ex_d."ORDER BY draw_date DESC LIMIT ".$range.") sub 
+			group by odd, even ORDER BY draw_date ASC;");
+
+			$subject = $query->result_array();
+			$arr_count = count($all);
+			foreach($subject as $key => $compare)
 			{
-				foreach($all as $key => $compare)
+				for($itr = 0; $itr < $arr_count; $itr++)
 				{
-					if(($compare->even==$subject[$index]->even)&&($compare->odd==$subject[$index]->odd)) 
+					if(($compare['even']==$all[$itr]->even)&&($compare['odd']==$all[$itr]->odd)) 
 					{
 						switch($range)
 						{
 							case 10:
-								$all[$key]->count_10++;
+								$all[$itr]->count_10 = $compare['count(*)'];
 								break;
 							case 100:
-								$all[$key]->count_100++;
+								$all[$itr]->count_100 = $compare['count(*)'];
 								break;
 							case 200:
-								$all[$key]->count_200++;
+								$all[$itr]->count_200 = $compare['count(*)'] ;
 						}
 					}
 				}

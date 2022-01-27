@@ -17,16 +17,16 @@ class History_m extends MY_Model
      *              )
 	 * @param		string		$tbl	    Name of current Lottery Table
      * @param		integer     $lotto_id	Lottery id
-     * @param		integer     $coverage	Range of draws
+     * @param		integer     $coverage	Range of draws, default to 100 if no parameter
      * @param		boolean     $e      	Extra Draw Coverage, 0 = no (False) do not add extra draws with a zero extra ball, 
      * 1 = yes (true) include the extra draws where the extra = 0 (or is all the balls drawn where the extra ball equals zero)
 	 * @return      array		$history    Array of lottery draws for a given range	
 	 */
-    public function load_history($tbl, $lotto_id, $coverage, $e = 0)
+    public function load_history($tbl, $lotto_id, $coverage = 100, $e = 0)
     {
         // todo: load the range of lottery draws, ascending order
         $this->db->reset_query();	// Clear any previous queries that are cachedextra !=' => '0');
-        $ex_d = (empty($e) ? ' AND extra <> "0"' : '');
+        $ex_d = (!$e ?  ' AND extra <> "0"' : '');
   
         $query = $this->db->query('SELECT d.*
                                     FROM (
@@ -34,10 +34,9 @@ class History_m extends MY_Model
                                     FROM '.$tbl.'
                                     WHERE lottery_id="'.$lotto_id.
                                     '"'.$ex_d.    
-                                    ' ORDER BY id 
-                                    ) d ORDER BY d.id DESC
-                                    LIMIT '.$coverage.';'); // Utilized id instead of draw_date for ORDER BY
-        $history = $query->result_array();
+                                    ' ORDER BY '.$tbl.'.draw_date DESC LIMIT '.$coverage.' 
+                                    ) d ORDER BY d.draw_date;'); // Utilized draw_date instead of id in case of deletion
+            $history = $query->result_array();
     return (!is_null($history) ? $history : FALSE); // Returns a false if the query did not return results    
     }
     /* glance_exist with query for a single row result from the lottery_id
@@ -79,16 +78,16 @@ class History_m extends MY_Model
 	 * 
 	 * @param       array       $draws      Array of draws for a given range
      * @param       integer     $pick       Pick Game. Pick 7, Pick 6, Pick 5 
-     * @param 		boolean 	$ex 		extra draws used
      * @param 		boolean 	$b_ex       Bonus ball used		    
 	 * @return      string		$trend      Concatenated String. Format: up=14,down=5,2021-05-10,15,down	
 	 */
-    public function trend_history($draws, $pick, $ex = FALSE, $b_ex = FALSE)
+    public function trend_history($draws, $pick, $b_ex = FALSE)
     {
         $up = 0;
         $down = 0;
         
         $total = count($draws);
+        if($b_ex) $pick++; // include the extra ball
         foreach($draws as $count => $draw)
         {
             if(($total-1)!=$count)  // Most Recent Draw in db?
@@ -104,13 +103,13 @@ class History_m extends MY_Model
                     $ud = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
                     $lt = 'up'; // last trend was up
                 } 
-                else if($change==(intval(-$pick)))
+                if($change==(intval(-$pick)))
                 {
                     $down++;
                     $dd = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
                     $lt = 'down'; // last trend was down
                 }
-                if($b_ex&&$draw['extra']!=0)  // Now look at the extra or bonus ball
+                elseif($b_ex&&$draw['extra']!=0)  // Now look at the extra or bonus ball
                 {
                     $change = $change+intval($this->trend($draw['extra'], $draws[$count+1]['extra']));
                     if($change==intval($pick+1)) // All Up
@@ -635,10 +634,10 @@ class History_m extends MY_Model
 	private function parity_list($rows, $e = 0, $tbl)
 	{
 		$this->db->reset_query();	// Clear any previous queries in the cache
-        $ex_d = (empty($e) ? "WHERE extra <> '0' " : " ");
+        $ex_d = (!empty($e) ? " WHERE extra <> '0' " : " ");
         $query = $this->db->query("select odd, even, draw_date, count(*) from (SELECT * FROM 
-        `".$tbl."`".$ex_d."ORDER BY id DESC LIMIT ".$rows.") sub 
-        group by odd, even ORDER BY id ASC;");
+        `".$tbl."`".$ex_d."ORDER BY draw_date DESC LIMIT ".$rows.") sub 
+        group by odd, even ORDER BY draw_date ASC;");
         $result = $query->result_array();    
     return $result;
 	}

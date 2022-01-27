@@ -27,10 +27,10 @@
 	}
 	th.datafont{
 		text-align:center;
-		font-size: 1.21em;
+		font-size: 0.95em;
 	}
 	td.datafont { 
-		font-size: 	1.21em;
+		font-size: 	0.95em;
 		text-align: center; 
 		white-space: nowrap;
 	}
@@ -61,10 +61,10 @@
 					<th data-field="sum_500">S (last 500)</th>
 					<th data-field="digits_10">S Digits (10)</th>
 					<th data-field="digits_100">S Digits(100)</th>
-					<th data-field="even_10">Ev (10)</th>
 					<th data-field="odd_10">Od (10)</th>
-					<th data-field="even_100">Ev (100)</th>
+					<th data-field="even_10">Ev (10)</th>
 					<th data-field="odd_100">Od (100)</th>
+					<th data-field="even_100">Ev (100)</th>
 					<th data-field="range_10">Range (10)</th>
 					<th data-field="range_100">Range (100)</th>
 					<th data-field="repeat_decade_10">M Decade (10)</th>
@@ -83,10 +83,10 @@
 					<td class="fontincrease" ><?=$statistics->sum_500; ?></td>
 					<td class="fontincrease"><?=$statistics->digits_10; ?></td>
 					<td class="fontincrease"><?=$statistics->digits_100; ?></td>
-					<td class="fontincrease"><?=$statistics->even_10; ?></td>
 					<td class="fontincrease"><?=$statistics->odd_10; ?></td>
-					<td class="fontincrease"><?=$statistics->even_100; ?></td>
+					<td class="fontincrease"><?=$statistics->even_10; ?></td>
 					<td class="fontincrease"><?=$statistics->odd_100; ?></td>
+					<td class="fontincrease"><?=$statistics->even_100; ?></td>
 					<td class="fontincrease"><?=$statistics->range_10; ?></td>
 					<td class="fontincrease"><?=$statistics->range_100; ?></td>
 					<td class="fontincrease"><?=$statistics->repeat_decade_10; ?></td>
@@ -137,10 +137,10 @@
 		data-search="false"
 		data-order='[[ 1, "asc" ]]'>
 			<thead>
-				<tr><th colspan = "10">EVEN / ODD HISTORY</th></tr>
+				<tr><th colspan = "10">ODD / EVEN HISTORY</th></tr>
 				<tr>
-					<th data-field="evens" data-halign="center" data-align="center">EVEN</th>
 					<th data-field="odds" data-halign="center" data-align="center">ODD</th>
+					<th data-field="evens" data-halign="center" data-align="center">EVEN</th>
 					<th data-field="All" data-halign="center" data-align="center" data-sortable="true">ALL <?=$evensodds[0]->total;?> DRAWS</th>
 					<th data-field="All%" data-halign="center" data-align="center">ALL %</th>
 					<th data-field="Last_10" data-halign="center" data-align="center" data-sortable="true">LAST 10</th>
@@ -155,8 +155,8 @@
 			<tbody>
 				<?php foreach($evensodds as $parity): ?>
 				<tr>
-					<td class="fontincrease"><?=$parity->even; ?></td>
 					<td class="fontincrease"><?=$parity->odd;?></td>
+					<td class="fontincrease"><?=$parity->even; ?></td>
 					<td class="fontincrease"><?=$parity->count;?></td>
 					<td class="fontincrease"><?=intval(($parity->count/$parity->total)*100).'%';?></td>
 					<td class="fontincrease"><?=$parity->count_10;?></td>
@@ -198,8 +198,8 @@
 				<?php if (intval($lottery->extra_ball)==1): ?><th class="no-sort datafont">Extra Ball</th><?php endif; ?>
 				<th class = "datafont" data-field="sum_draw" data-sortable="true" data-filter-control="select">Sum</th>
 				<th class = "datafont" data-field="sum_digits" data-sortable="true" data-filter-control="select">Digits Sum</th>
-				<th class = "datafont" data-field="even" data-sortable="true" data-filter-control="select">Even</th>
 				<th class = "datafont" data-field="odd" data-sortable="true" data-filter-control="select">Odd</th>
+				<th class = "datafont" data-field="even" data-sortable="true" data-filter-control="select">Even</th>
 				<th class = "datafont" data-field="range_draw" data-sortable="true" data-filter-control="select">Range</th>
 				<th class = "datafont" data-field="repeat_decade" data-sortable="true" data-filter-control="select">Max Decade</th>
 				<th class = "datafont" data-field="repeat_last" data-sortable="true" data-filter-control="select">Max Last</th>
@@ -280,8 +280,8 @@
 					endif; ?></td>
 					<td class="datafont"><?=$draw->sum_draw; ?></td>
 					<td class="datafont"><?=$draw->sum_digits; ?></td>
-					<td class="datafont"><?=$draw->even; ?></td>
 					<td class="datafont"><?=$draw->odd; ?></td>
+					<td class="datafont"><?=$draw->even; ?></td>
 					<td class="datafont"><?=$draw->range_draw; ?></td>
 					<td class="datafont"><?=$draw->repeat_decade; ?></td>
 					<td class="datafont"><?=$draw->repeat_last; ?></td>

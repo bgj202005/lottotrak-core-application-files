@@ -157,7 +157,7 @@ class Statistics extends Admin_Controller {
 			redirect('admin/statistics'); 
 		}
 
-		$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $id, $new_range, $this->data['trend']);
+		$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $new_range, $this->data['trend']);
 		if (!$this->data['draws'])
 		{
 			$this->session->set_flashdata('message', 'There are no draws associated with this lottery. Please import draws.');
@@ -168,7 +168,7 @@ class Statistics extends Admin_Controller {
 		$this->data['range'] = $new_range;
 		$this->data['all'] = $all;
 		$this->data['statistics'] = $this->statistics_m->get_by('lottery_id='.$id, TRUE);
-		$this->data['evensodds'] = $this->statistics_m->evensodds_sum($tbl_name, $id);
+		$this->data['evensodds'] = $this->statistics_m->evensodds_sum($tbl_name, $this->data['trend']);
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->session->set_userdata('range', $new_range);
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/view_draws'.($id ? '/'.$id : ''));
