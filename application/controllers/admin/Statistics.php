@@ -487,27 +487,28 @@ class Statistics extends Admin_Controller {
 		$sel_range = 1;
 		$this->data['lottery']->extra_included = 0; // No Extra Ball as part of the calculation
 		$this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
+		$blnEX = false;								// Extra Bonus Ball / Draws flag are no change or update
 		if(!is_null($followers))
 		{
 			if($this->uri->segment(6)=='extra') // include both the friends and nonfriends for including the extra (bonus) ball
 			{
 				$this->data['lottery']->extra_included = $this->statistics_m->extra_included($id, TRUE, 'lottery_followers');
 				$this->data['lottery']->extra_included = $this->statistics_m->extra_included($id, TRUE, 'lottery_nonfollowers');
+				$blnEX = true; // There has been a change to the Extra Bonus Ball / Draws flag
 			}
 			else // or both the friends and nonfriends for not including the extra ball
 			{
 				$this->data['lottery']->extra_included = $this->statistics_m->extra_included($id, FALSE, 'lottery_followers');
-				$this->data['lottery']->extra_included =$this->statistics_m->extra_included($id, FALSE, 'lottery_nonfollowers');
 			}
 			if($this->uri->segment(6)=='draws') // include both the friends and nonfriends for including the extra (bonus) draws
 			{
 				$this->data['lottery']->extra_draws = $this->statistics_m->extra_draws($id, TRUE, 'lottery_followers');
 				$this->data['lottery']->extra_draws = $this->statistics_m->extra_draws($id, TRUE, 'lottery_nonfollowers');
+				$blnEX = true; // There has been a change to the Extra Bonus Ball / Draws flag
 			}
 			else // or both the friends and nonfriends for not including the extra draws
 			{
 				$this->data['lottery']->extra_draws = $this->statistics_m->extra_draws($id, FALSE, 'lottery_followers');
-				$this->data['lottery']->extra_draws = $this->statistics_m->extra_draws($id, FALSE, 'lottery_nonfollowers');
 			} 
 			//$this->data['lottery']->extra_included = $this->uri->segment(6)=='extra' ? $this->statistics_m->extra_included($id, TRUE, 'lottery_followers') : $this->statistics_m->extra_included($id, FALSE, 'lottery_followers');
 			//$this->data['lottery']->extra_draws = ($this->uri->segment(6)=='draws' ? $this->statistics_m->extra_draws($id, TRUE, 'lottery_followers') : $this->statistics_m->extra_draws($id, FALSE, 'lottery_followers'));
@@ -517,9 +518,8 @@ class Statistics extends Admin_Controller {
 			if($range>100) $sel_range = intval($range / 100);
 			if($range!=0)	
 			{
-				if(intval($followers['range'])!=(intval($range))) // Any Change in Selection of the Draws?
+				if(intval($followers['range'])!=(intval($range))||$blnEX) // Any Change in Selection/Settings of the Draws?
 				{
-					
 					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range);
 					/** NEW included nonfollower calculations **/
 					$max = $this->data['lottery']->maximum_ball;
@@ -580,6 +580,10 @@ class Statistics extends Admin_Controller {
 			{
 				if($this->data['lottery']->last_drawn['ball'.$b]==$n) $this->data['lottery']->last_drawn[$n] = $f;
 			}
+			if(($this->data['lottery']->extra_included)&&($this->data['lottery']->last_drawn['extra']==$n))
+			{
+				$this->data['lottery']->last_drawn[$n] = $f;
+			}
 		}
 		// 5. Do the same for non-following string into the array counter parts also
 		$nf_next = (!is_null($nonfollowers) ? explode(",", $nonfollowers['lottery_nonfollowers']) : explode(",", $str_nonfollowers));
@@ -590,6 +594,10 @@ class Statistics extends Admin_Controller {
 			for($b = 1; $b<=$drawn; $b++)
 			{
 				if($this->data['lottery']->last_drawn['ball'.$b]==$n) $this->data['lottery']->last_drawn[$n.'nf'] = $nf;
+			}
+			if(($this->data['lottery']->extra_included)&&($this->data['lottery']->last_drawn['extra']==$n))
+			{
+				$this->data['lottery']->last_drawn[$n.'nf'] = $nf;
 			}
 		}
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)

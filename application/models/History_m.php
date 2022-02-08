@@ -26,17 +26,15 @@ class History_m extends MY_Model
     {
         // todo: load the range of lottery draws, ascending order
         $this->db->reset_query();	// Clear any previous queries that are cachedextra !=' => '0');
-        $ex_d = (!$e ?  ' AND extra <> "0"' : '');
+        $ex_d = (!$e ?  ' WHERE extra <> "0"' : '');
   
         $query = $this->db->query('SELECT d.*
                                     FROM (
                                     SELECT *
-                                    FROM '.$tbl.'
-                                    WHERE lottery_id="'.$lotto_id.
-                                    '"'.$ex_d.    
-                                    ' ORDER BY '.$tbl.'.draw_date DESC LIMIT '.$coverage.' 
-                                    ) d ORDER BY d.draw_date;'); // Utilized draw_date instead of id in case of deletion
-            $history = $query->result_array();
+                                    FROM '.$tbl.$ex_d.    
+                                    ' ORDER BY draw_date DESC LIMIT '.$coverage.' 
+                                    ) as d ORDER BY d.draw_date ASC;'); // Utilized draw_date instead of id in case of deletion
+        $history = $query->result_array();
     return (!is_null($history) ? $history : FALSE); // Returns a false if the query did not return results    
     }
     /* glance_exist with query for a single row result from the lottery_id
@@ -85,9 +83,7 @@ class History_m extends MY_Model
     {
         $up = 0;
         $down = 0;
-        
         $total = count($draws);
-        if($b_ex) $pick++; // include the extra ball
         foreach($draws as $count => $draw)
         {
             if(($total-1)!=$count)  // Most Recent Draw in db?
@@ -97,19 +93,19 @@ class History_m extends MY_Model
                 {
                     $change = $change+intval($this->trend($draw['ball'.$c], $draws[$count+1]['ball'.$c]));
                 }
-                if($change==intval($pick)) // All Up
+                if($change==intval($pick)&&(!$b_ex)) // All Up
                 {
                     $up++;  
                     $ud = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
                     $lt = 'up'; // last trend was up
                 } 
-                if($change==(intval(-$pick)))
+                elseif(($change==-$pick)&&(!$b_ex))
                 {
                     $down++;
                     $dd = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
                     $lt = 'down'; // last trend was down
                 }
-                elseif($b_ex&&$draw['extra']!=0)  // Now look at the extra or bonus ball
+                if($b_ex&&$draw['extra']!=0)  // Now look at the extra or bonus ball
                 {
                     $change = $change+intval($this->trend($draw['extra'], $draws[$count+1]['extra']));
                     if($change==intval($pick+1)) // All Up

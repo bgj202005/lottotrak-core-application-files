@@ -1,4 +1,4 @@
-<style>
+ <style>
 	.card {
     background-color: #ffffff;
     border: 1px solid rgba(0, 34, 51, 0.1);
@@ -68,7 +68,7 @@
 								<li>
 									<?php if($lottery->extra_ball): ?>
 										<li class="nav-item">
-										<a class="nav-link" id="tab-<?=$b;?>" data-toggle="tab" href="#extra" role="tab" aria-controls="<?=$b;?>" aria-selected="true">  +  <?=$lottery->last_drawn['extra']?></a>
+										<a class="nav-link" id="tab-<?=$b;?>" data-toggle="tab" href="#ball<?=$b; ?>" role="tab" aria-controls="<?=$b;?>" aria-selected="true">  +  <?=$lottery->last_drawn['extra']?></a>
 									</li>
 									<?php endif;?>
 								</li>
@@ -122,13 +122,15 @@
 							</ul>
 						</div>
 						<div class="tab-content" id="myTabContent">
-							<?php $b = 1;
+							<?php $b = 1;			   
+							$cd = intval($max);						  // This is the maximum ball drawn without an extra ball
+							if($lottery->extra_included):  $max++; endif; // Include the extra ball
 							do
 							{ ?> 
 							<div class="tab-pane fade p-3 <?php if($b==1) echo 'show active'; ?>" id="ball<?=$b?>" role="tabpanel" aria-labelledby="tab-<?=$b;?>">
-								<?php if(array_key_exists($lottery->last_drawn['ball'.$b], $lottery->last_drawn)):
-										$trailer = explode('|', $lottery->last_drawn[$lottery->last_drawn['ball'.$b]]); ?>
-										<h5 class="card-title">After Ball <?=$lottery->last_drawn['ball'.$b]?> has been drawn in <?=$lottery->last_drawn['range']?> draws.</h5>
+								<?php if(array_key_exists(($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]), $lottery->last_drawn)):
+										$trailer = explode('|', ($b>$cd ? $lottery->last_drawn[$lottery->last_drawn['extra']] : $lottery->last_drawn[$lottery->last_drawn['ball'.$b]])); ?>
+										<h5 class="card-title">After Ball <?=($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);?> has been drawn in <?=$lottery->last_drawn['range']?> draws.</h5>
 										<?php $t_picks = array(); 
 											foreach($trailer as $t):  
 												$picks = explode('=', $t);
@@ -162,10 +164,10 @@
 										<?php
 										/* Display the non - following numbers for the given range */
 										/* Determine the number from the ball position and then access the ball+nf for not followed */
-										$nonfollowers = explode('|', $lottery->last_drawn[$lottery->last_drawn['ball'.$b].'nf']); 
+										$nonfollowers = explode('|', ($b>$cd ? $lottery->last_drawn[$lottery->last_drawn['extra'].'nf'] : $lottery->last_drawn[$lottery->last_drawn['ball'.$b].'nf'])); 
 										$non_picks = "";
 										if($nonfollowers[0]): /* Check for all non followers have followed */
-											$non_picks .= "These Numbers have <strong>NEVER</strong> followed this Ball <strong>".$lottery->last_drawn['ball'.$b]."</strong> for ".$lottery->last_drawn['range']." Draws:<br />";
+											$non_picks .= "These Numbers have <strong>NEVER</strong> followed this Ball <strong>".($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b])."</strong> for ".$lottery->last_drawn['range']." Draws:<br />";
 											foreach($nonfollowers as $nf):  
 												$non_picks .= 'Number: <strong>'.$nf.'</strong><br />';	
 											endforeach;

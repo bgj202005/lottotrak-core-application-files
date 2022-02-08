@@ -460,7 +460,7 @@ class Statistics_m extends MY_Model
 	 * Returns the sum of last draw or the most recent drawn numbers
 	 * 
 	 * @param	string	$tbl						Current Lottery Data Table Name
-	 * @return	integer /'NA'  $sum / string value	Returns the sum from the last draw or NA if the draw database does not exist		
+	 * @return	integer $sum or 'NA' (string)		Returns the sum from the last draw or NA if the draw database does not exist		
 	 */
 	public function sum_last($tbl, $drawn)
 	{	
@@ -482,7 +482,7 @@ class Statistics_m extends MY_Model
 	/**
 	 * Returns the number of repeating last digits for the current drawn numbers array
 	 * 
-	 * @param	string			$tbl				Current Lottery Data Table Name
+	 * @param	string			 $tbl				Current Lottery Data Table Name
 	 * @return	integer/boolean  $sum or FALSE		Returns the number of repeating numbers from the last draw with the draw before the latest draw.		
 	 */
 	public function repeaters($tbl, $drawn)
@@ -842,21 +842,23 @@ class Statistics_m extends MY_Model
 	 */
 	public function extra_included($id, $update = FALSE, $table)
 	{
+		$this->db->reset_query();	// Clear any previous queries that are cached
 		$query = $this->db->select('extra_included')
 					->where('lottery_id', $id)
-                	->limit(1, 0)
+                	->limit(1,0)
                 	->get($table);
-		$included = $query->row()->extra_included;
+		$row = $query->row();			
+		$included = $row->extra_included;
 
 		if($update)
 		{
-			$included = (!$included ? 1 : 0); // Toggle the Extra (Bonus) Ball to included
+			$included = (!$included ? '1' : '0'); // Toggle the Extra (Bonus) Ball to included
 
 			$this->db->set('extra_included', $included);
 			$this->db->where('lottery_id', $id);
 			$this->db->update($table);
 		}
-	return (!$included ? 0 : 1); // included has been updated, FALSE to don't use and TRUE to include the extra ball
+	return $included; 
 	}
 
 	/**
@@ -868,6 +870,7 @@ class Statistics_m extends MY_Model
 	 */
 	public function extra_draws($id, $update = FALSE, $table)
 	{
+		$this->db->reset_query();	// Clear any previous queries that are cached
 		$query = $this->db->select('extra_draws')
 				->where('lottery_id', $id)
                 ->limit(1, 0)
@@ -884,7 +887,7 @@ class Statistics_m extends MY_Model
 			$this->db->where('lottery_id', $id);
 			$this->db->update($table, $data);
 		}
-	return (!$included ? 0 : 1); // included has been updated, FALSE to don't use and TRUE to include the extra (Bonus) draws
+	return $included; // included has been updated, FALSE to don't use and TRUE to include the extra (Bonus) draws
 	}
 
 	/**
@@ -902,6 +905,7 @@ class Statistics_m extends MY_Model
 	public function followers_calculate($name, $last, $max, $bonus, $draws, $range = 100)
 	{
 		// Build Query
+		$range--;	// Not including the last draw within the range of draws
 		$s = 'ball'; 
 		$i = 1; 	// Default Ball 1
 		do
@@ -912,11 +916,11 @@ class Statistics_m extends MY_Model
 		} 
 		while($i<=$max);
 
-		$s .= ', extra';
+		$s .= ', extra, draw_date';
 		$b_max = $max;	// The maximum of the ONLY the balls drawn
 		if($bonus) $max++;
 
-		$w = (!$draws ? ' WHERE extra <> 0 ' : ' '); 
+		$w = (!$draws ? ' AND extra <> "0" ' : ''); 
 		
 		// Calculate
 		$b = 1; // ball 1
@@ -924,8 +928,8 @@ class Statistics_m extends MY_Model
 		$followers = '';	// set as a blank string
 		do
 		{
-			$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." WHERE id <>".$last['id']." ORDER BY id DESC LIMIT ".$range.") as t".$w."ORDER BY t.id ASC"; 
-			//$sql = "SELECT ".$s." FROM ".$name." WHERE id <>".$last['id']." ORDER BY id DESC LIMIT ".$range; 
+			//$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." WHERE id <>".$last['id']." ORDER BY draw_date DESC LIMIT ".$range.") as t".$w."ORDER BY t.draw_date ASC"; 
+			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$last['id']."' ".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
 			// Execute Query
 			$query = $this->db->query($sql);
 			$row = $query->first_row('array');
@@ -937,6 +941,7 @@ class Statistics_m extends MY_Model
 					$row = $query->next_row('array');
 					if(!is_null($row))
 					{
+						unset($row['draw_date']);
 						if(!empty($followlist))
 						{
 							$followlist = $this->update_followers($followlist, $row);
@@ -1054,7 +1059,7 @@ class Statistics_m extends MY_Model
 		{
 			foreach($list as $key => $follows)
 			{
-				if($follows>=4) $str .= $key.'='.$follows.'|'; // Format 3=4 Occurences with pipe and continue until the last follower has been added.
+				if($follows>=3) $str .= $key.'='.$follows.'|'; // Format 3=4 Occurences with pipe and continue until the last follower has been added.
 			}
 			$str = (!empty($str) ? $ball.'>'.$str :  ''); // Format '10>'  Drawn Ball Number 10
 		}
@@ -1107,11 +1112,11 @@ class Statistics_m extends MY_Model
 		} 
 		while($i<=$max);
 
-		$s .= ', extra';
+		$s .= ', extra, draw_date';
 		$b_max = $max;	// The maximum of the ONLY the balls drawn
 		if($bonus) $max++;
 
-		$w = (!$draws ? ' WHERE extra <> 0 ' : ' '); 
+		$w = (!$draws ? ' AND extra <> "0" ' : ''); 
 		
 		// Calculate
 		$b = 1; // ball 1
@@ -1119,8 +1124,8 @@ class Statistics_m extends MY_Model
 		$nonfollowers = '';	// set as a blank string
 		do
 		{
-			$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." WHERE id <>".$last['id']." ORDER BY id DESC LIMIT ".$range.") as t".$w."ORDER BY t.id ASC"; 
-			//$sql = "SELECT ".$s." FROM ".$name." WHERE id <>".$last['id']." ORDER BY id DESC LIMIT ".$range; 
+			//$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." WHERE id <>".$last['id']." ORDER BY id DESC LIMIT ".$range.") as t".$w."ORDER BY t.id ASC"; 
+			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$last['id']."' ".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
 			// Execute Query
 			$query = $this->db->query($sql);
 			$row = $query->first_row('array');
@@ -1257,7 +1262,7 @@ class Statistics_m extends MY_Model
 
 		$s .= ', extra, draw_date'; // Include the draw date is this query
 
-		$w = (!$draws ? ' WHERE extra <> 0 ' : ' ');
+		$w = (!$draws ? ' WHERE extra <> "0" ' : ' ');
 		
 		// Initialize and create blank associate array
 		$friends = '';	// set as a blank string
@@ -1265,7 +1270,8 @@ class Statistics_m extends MY_Model
 		do
 		{
 			// Calculate
-			$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." ORDER BY id DESC LIMIT ".$range.") as t".$w."ORDER BY t.id ASC"; 
+			//$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." ORDER BY id DESC LIMIT ".$range.") as t".$w."ORDER BY t.id ASC"; 
+			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
 			// Execute Query
 			$query = $this->db->query($sql);
 			$row = $query->first_row('array'); // Doing the reverse to the first row because of the descending order.
@@ -1559,18 +1565,17 @@ class Statistics_m extends MY_Model
 		$sql .= ') as hwc
 				GROUP BY ball_drawn
 				ORDER BY heat DESC;';
-		/* From phpmyadmin 
-		select ball_drawn, count(*) as heat
-		from ((select ball1 as ball_drawn from daily_grand where draw_date >= '2016-10-16' AND draw_date <= '2016-12-29' order by draw_date desc limit 5) union all
-		(select ball2 as ball_drawn from daily_grand where draw_date >= '2016-10-16' AND draw_date <= '2016-12-29' order by draw_date desc limit 5) union all
-		(select ball3 as ball_drawn from daily_grand where draw_date >= '2016-10-16' AND draw_date <= '2016-12-29' order by draw_date desc limit 5) union all
-		(select ball4 as ball_drawn from daily_grand where draw_date >= '2016-10-16' AND draw_date <= '2016-12-29' order by draw_date desc limit 5) union all
-		(select ball5 as ball_drawn from daily_grand where draw_date >= '2016-10-16' AND draw_date <= '2016-12-29' order by draw_date desc limit 5)
-			) g
-		group by ball_drawn
-		order by heat DESC; /*		
-		/*where draw_date >= '2016-10-16' AND draw_date <= '2016-12-29' */
- 		$query = $this->db->query($sql);
+		/* EXAMPLE: SELECT ball_drawn, count(*) as heat FROM ((SELECT ball1 as ball_drawn FROM lotto_max 
+		WHERE draw_date <= '2022-01-25' ORDER BY draw_date DESC LIMIT 10) UNION ALL (SELECT ball2 
+		as ball_drawn FROM lotto_max WHERE draw_date <= '2022-01-25' ORDER BY draw_date DESC LIMIT 10) 
+		UNION ALL (SELECT ball3 as ball_drawn FROM lotto_max WHERE draw_date <= '2022-01-25' ORDER BY 
+		draw_date DESC LIMIT 10) UNION ALL (SELECT ball4 as ball_drawn FROM lotto_max WHERE draw_date <= 
+		'2022-01-25' ORDER BY draw_date DESC LIMIT 10) UNION ALL (SELECT ball5 as ball_drawn FROM lotto_max WHERE draw_date 
+		<= '2022-01-25' ORDER BY draw_date DESC LIMIT 10) UNION ALL (SELECT ball6 as ball_drawn FROM lotto_max WHERE draw_date 
+		<= '2022-01-25' ORDER BY draw_date DESC LIMIT 10) UNION ALL (SELECT ball7 as ball_drawn FROM lotto_max WHERE draw_date 
+		<= '2022-01-25' ORDER BY draw_date DESC LIMIT 10)) as hwc GROUP BY ball_drawn ORDER BY heat DESC;
+		*/
+		$query = $this->db->query($sql);
 		$hwc_string = ""; // List string in the format of number=hits,
 		$i = 1; // non-zero integer
 		foreach ($query->result() as $hwc)
@@ -1579,7 +1584,6 @@ class Statistics_m extends MY_Model
 			if(($i==($w-1))||($i==(($c)-1))) $hwc_string = substr($hwc_string, 0, -1);
 			$i++;
 		}
-
 	return substr($hwc_string, 0, -1);		// Return the hwc string without the last comma in the string
 	}
 	/**
