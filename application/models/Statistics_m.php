@@ -483,6 +483,7 @@ class Statistics_m extends MY_Model
 	 * Returns the number of repeating last digits for the current drawn numbers array
 	 * 
 	 * @param	string			 $tbl				Current Lottery Data Table Name
+	 * @param 	integer			 $drawn				Maximum balls drawn excluding the extra ball (if applies)
 	 * @return	integer/boolean  $sum or FALSE		Returns the number of repeating numbers from the last draw with the draw before the latest draw.		
 	 */
 	public function repeaters($tbl, $drawn)
@@ -499,15 +500,16 @@ class Statistics_m extends MY_Model
 			$previous['ball'.$b] = $row_previous['ball'.$b];
 			$b++;
 		} while($b<=$drawn);
-		$duplicates = array_intersect_assoc($current, $previous); // Compare for the simularites
+		$duplicates = array_intersect($current, $previous); // Compare for the simularites
 
 		if(!empty($duplicates)) 
 		{
 			$s = "";
 			foreach($duplicates as $duplicate)
 			{
-				$s .= $duplicate." ";
+				$s .= $duplicate.", ";
 			}
+			$s = substr($s, 0, -2);	// Remove the comma & extra space
 		}
 		else
 		{
@@ -582,44 +584,18 @@ class Statistics_m extends MY_Model
 	 * Returns the Average Sum of draws based on a given Range of Draws
 	 * 
 	 * @param	array	$tbl 		Current Draws for Calculation
-	 * @param 	integer $max		maximum number of balls drawn
 	 * @param 	integer	$range		Number of the number of draws to calculate from the latest draw
 	 * @return	integer $ave_sum		Returns the Average sum of the drawn numbers		
 	 */
-	public function lottery_average_sum($tbl, $max = 3, $range = 10)
+	public function lottery_average_sum($tbl, $range = 10)
 	{
 		$this->db->reset_query();	// Clear any previous queries that are cached
 		
-		$sql = "";
 		$ave_sum = 0;
-		switch ($max)
-		{
-			case 3:
-				$sql = "SELECT (ball1+ball2+ball3)";
-				break;
-			case 4:
-				$sql .= "SELECT (ball1+ball2+ball3+ball4)";
-				break;
-			case 5:
-				$sql .= "SELECT (ball1+ball2+ball3+ball4+ball5)";
-				break;
-			case 6:	
-				$sql .= "SELECT (ball1+ball2+ball3+ball4+ball5+ball6)";
-				break;
-			case 7:	
-				$sql .= "SELECT (ball1+ball2+ball3+ball4+ball5+ball6+ball7)";
-				break;
-			case 8:
-				$sql .= "SELECT (ball1+ball2+ball3+ball4+ball5+ball6+ball7+ball8)";
-				break;
-			case 9:
-				$sql .= "SELECT (ball1+ball2+ball3+ball4+ball5+ball6+ball7+ball8+ball9)";
-		} 
 
-		$sql .= " as sum FROM ".$tbl;
-		$sql .= " ORDER BY id DESC ";
+		$sql = "SELECT `sum_draw` as sum FROM `".$tbl;
+		$sql .= "` ORDER BY draw_date DESC ";
 		$sql .= "LIMIT ".$range;
-
 		$query = $this->db->query($sql);
 		if(!$query) return FALSE;
 		$added = $query->result_object(); // Return the range of object sums

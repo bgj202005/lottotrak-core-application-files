@@ -33,7 +33,7 @@ class Statistics extends Admin_Controller {
 			$lottery->last_draw = $this->statistics_m->last_draw($tbl_name, $lottery->balls_drawn, $lottery->extra_ball);
 			$c = $this->statistics_m->lottery_rows($tbl_name);
 			if($c>100) $c = 100;
-			$lottery->average_sum = $this->statistics_m->lottery_average_sum($tbl_name, $lottery->balls_drawn, $c);
+			$lottery->average_sum = $this->statistics_m->lottery_average_sum($tbl_name, $c);
 			$lottery->sum_last = $this->statistics_m->sum_last($tbl_name, $lottery->balls_drawn);
 			$lottery->repeaters = $this->statistics_m->repeaters($tbl_name, $lottery->balls_drawn);
 		}
