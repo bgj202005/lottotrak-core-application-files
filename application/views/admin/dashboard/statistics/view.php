@@ -107,8 +107,8 @@
 		<?php $extra = array('class' => 'checkbox', 'id' => 'trends');
 			echo form_checkbox($trend, 1, ($trend ? TRUE : FALSE), $extra); 
 			$extra = array('class' => 'col-2 col-form-label col-form-label-md', 'style' => 'font-weight:bold; white-space: nowrap; text-left');
-			echo form_label('Trends of Draws', 'trends_lb', $extra); ?></td>	
-		<td><div class="dropdown text-right" style = "margin-left: 50px; margin-bottom: 10px; align: right">
+			echo form_label('Trends of Draws (Extra Draws Removed)', 'trends_lb', $extra); ?></td>	
+		<td><div class="dropdown text-right" style = "margin-left: 50px; margin-bottom: 10px;">
 			<button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 				Draw Range
 			</button>
