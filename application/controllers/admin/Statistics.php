@@ -281,17 +281,17 @@ class Statistics extends Admin_Controller {
 		}
 			$stats = array();
 			// Average Sum of Last 10 Draws (Integer)
-			$stats['sum_10'] = $this->statistics_m->lottery_average_sum($tbl_name, $drawn, 10);
+			$stats['sum_10'] = $this->statistics_m->lottery_average_sum($tbl_name, 10);
 			// Average Sum of Last 100 Draws (Integer) 
-			$stats['sum_100'] = $this->statistics_m->lottery_average_sum($tbl_name, $drawn, ($draws < 100 ? $draws : 100));
+			$stats['sum_100'] = $this->statistics_m->lottery_average_sum($tbl_name, ($draws < 100 ? $draws : 100));
 			// Average Sum of Last 200 Draws (Integer)
-			$stats['sum_200'] = $this->statistics_m->lottery_average_sum($tbl_name, $drawn, ($draws < 200 ? $draws : 200));
+			$stats['sum_200'] = $this->statistics_m->lottery_average_sum($tbl_name, ($draws < 200 ? $draws : 200));
 			// Average Sum of Last 300 Draws (Integer)
-			$stats['sum_300'] = $this->statistics_m->lottery_average_sum($tbl_name, $drawn, ($draws < 300 ? $draws : 300));
+			$stats['sum_300'] = $this->statistics_m->lottery_average_sum($tbl_name, ($draws < 300 ? $draws : 300));
 			// Average Sum of Last 400 Draws (Integer)
-			$stats['sum_400'] = $this->statistics_m->lottery_average_sum($tbl_name, $drawn, ($draws < 400 ? $draws : 400));
+			$stats['sum_400'] = $this->statistics_m->lottery_average_sum($tbl_name, ($draws < 400 ? $draws : 400));
 			// Average Sum of Last 500 Draws (Integer)
-			$stats['sum_500'] = $this->statistics_m->lottery_average_sum($tbl_name, $drawn, ($draws < 500 ? $draws : 500));
+			$stats['sum_500'] = $this->statistics_m->lottery_average_sum($tbl_name, ($draws < 500 ? $draws : 500));
 			// Average Sum of Digits in Last 10 Draws (Integer)
 			$stats['digits_10'] = $this->statistics_m->lottery_average_sumdigits($tbl_name, 10);
 			// Average Sum of Digits in Last 100 Draws (Integer)

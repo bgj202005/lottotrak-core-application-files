@@ -132,12 +132,11 @@ class History_m extends MY_Model
 	 * 
 	 * @param       array       $draws      Array of draws for a given range
      * @param       integer     $pick       Pick Game. Pick 7, Pick 6, Pick 5 
-	 * @param 		boolean 	$ex 		extra draws used
      * @param 		boolean 	$b_ex       Bonus ball used		    
 	 * @return      string		$r_values  Concatenated String. Format: 0=75,1=10,2=5,3=5,4=3,5=0,6=0|3=7,22=2. e.g. Pick 6 then looks at 6 number repeat maximum and pipe
      *                                     will separate the highest probable number(s) to be drawn for the next draw.	
 	 */
-    public function repeat_history($draws, $pick, $ex = FALSE, $b_ex = FALSE)
+    public function repeat_history($draws, $pick, $b_ex = FALSE)
     {
         $total = count($draws);
         $next = array();                                                    // empty set for the top picks
@@ -150,13 +149,23 @@ class History_m extends MY_Model
             $repeats = 0;    
                 for($c=1; $c<=$pick; $c++)                      // Interate the draw for changes from the previous draw and the next draw
                 {
-                    if($draw['ball'.$c]==$draws[$count+1]['ball'.$c])
+                    $n = 1;                                     // Compare with the next drawn numbers
+                    $found = FALSE;
+                    do
                     {
-                        $repeats++;
-                        $next[$draw['ball'.$c]] = ((!array_key_exists($draw['ball'.$c], $next)) ? 1 : $next[$draw['ball'.$c]]+1); // Add Key or Existing One?
+                        if($draw['ball'.$c]==$draws[$count+1]['ball'.$n])
+                        {
+                            $repeats++;
+                            $next[$draw['ball'.$c]] = ((!array_key_exists($draw['ball'.$c], $next)) ? 1 : $next[$draw['ball'.$c]]+1); // Add Key or Existing One?
+                            break;  // not required to continue with this loop
+                            $found = TRUE;
+                        }
+                    $n++;
                     }
+                    while($n<=$pick); 
+                    if($found) break; // No further interation for the current and next draw is required
                 }
-                if($b_ex&&$draw['extra']!=0) // Extra included in the Repeaters
+                if($b_ex&&$draw['extra']!=0&&!$found) // Extra included in the Repeaters
                 {
                     for($c=1; $c<=$pick; $c++)                      // Interate the draw for changes from the previous draw and the next draw
                     {
@@ -165,6 +174,10 @@ class History_m extends MY_Model
                             $repeats++;
                             $next[$draw['extra']] = (!array_key_exists($draw['extra'], $next) ? 1 : $next[$draw['extra']]+1); // Add Key or Existing One?
                         }
+                    }
+                    if($draw['extra']==$draws[$count+1]['extra'])
+                    {
+                        $next[$draw['extra']] = (!array_key_exists($draw['extra'], $next) ? 1 : $next[$draw['extra']]+1); // Add Key or Existing One?   
                     }
                 }
             }
@@ -200,7 +213,7 @@ class History_m extends MY_Model
 	 * Returns if the Top Pick has been picked a minimum number of times
 	 * 
 	 * @param       array       $picks           Array of draws for a given range
-     * @param       integer     $limit             The minimum value that is used in the comparision to return true
+     * @param       integer     $limit           The minimum value that is used in the comparision to return true
 	 * @return      boolean		true/false       Returns true if the minimum value (5) is equal or exceeded
 	 */
     public function top_pick($picks, $limit=5)

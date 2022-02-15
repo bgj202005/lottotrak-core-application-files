@@ -568,7 +568,7 @@ class Statistics_m extends MY_Model
 	 */
 	public function db_row($tbl, $row = 0)
 	{	
-		$query = $this->db->query('SELECT * FROM '.$tbl. ' ORDER BY `id` DESC LIMIT 100');
+		$query = $this->db->query('SELECT * FROM '.$tbl. ' ORDER BY `draw_date` DESC LIMIT 100');
 		
 		switch($row)
 		{
@@ -620,7 +620,7 @@ class Statistics_m extends MY_Model
 		
 		$this->db->reset_query();	// Clear any previous queries that are cached
 		$query = $this->db->select('*')
-				->order_by('id DESC')
+				->order_by('draw_date DESC')
 				->limit($range)
 				->get($tbl);	// Retrieve the id and only return 1 row
 		
@@ -648,8 +648,8 @@ class Statistics_m extends MY_Model
 		$sql = "SELECT AVG(`even`) as `average_evens`";
 		$sql .=	" FROM (";
   		$sql .=	"select `even`";
-  		$sql .= " FROM ".$tbl;
-  		$sql .=  " ORDER BY id DESC LIMIT ".$range;
+  		$sql .= " FROM `".$tbl;
+  		$sql .=  "` ORDER BY draw_date DESC LIMIT ".$range;
 		$sql .= ") evens";
 
 		$query = $this->db->query($sql);
@@ -671,8 +671,8 @@ class Statistics_m extends MY_Model
 		$sql = "SELECT AVG(`odd`) as `average_odds`";
 		$sql .=	" FROM (";
   		$sql .=	"select `odd`";
-  		$sql .= " FROM ".$tbl;
-  		$sql .=  " ORDER BY id DESC LIMIT ".$range;
+  		$sql .= " FROM `".$tbl;
+  		$sql .=  "` ORDER BY draw_date DESC LIMIT ".$range;
 		$sql .= ") odds";
 
 		$query = $this->db->query($sql);
@@ -696,8 +696,8 @@ class Statistics_m extends MY_Model
 		$sql = "SELECT AVG(`range_draw`) as `average_range`";
 		$sql .=	" FROM (";
   		$sql .=	"select `range_draw`";
-  		$sql .= " FROM ".$tbl;
-  		$sql .=  " ORDER BY id DESC LIMIT ".$range;
+  		$sql .= " FROM `".$tbl;
+  		$sql .=  "` ORDER BY draw_date DESC LIMIT ".$range;
 		$sql .= ") average_range";
 
 		$query = $this->db->query($sql);
@@ -721,8 +721,8 @@ class Statistics_m extends MY_Model
 		$sql = "SELECT AVG(`repeat_decade`) as `average_decade`";
 		$sql .=	" FROM (";
   		$sql .=	"select `repeat_decade`";
-  		$sql .= " FROM ".$tbl;
-  		$sql .=  " ORDER BY id DESC LIMIT ".$range;
+  		$sql .= " FROM `".$tbl;
+  		$sql .=  "` ORDER BY draw_date DESC LIMIT ".$range;
 		$sql .= ") average_decade";
 
 		$query = $this->db->query($sql);
@@ -745,8 +745,8 @@ class Statistics_m extends MY_Model
 		$sql = "SELECT AVG(`repeat_last`) as `average_last`";
 		$sql .=	" FROM (";
   		$sql .=	"select `repeat_last`";
-  		$sql .= " FROM ".$tbl;
-  		$sql .=  " ORDER BY id DESC LIMIT ".$range;
+  		$sql .= " FROM `".$tbl;
+  		$sql .=  "` ORDER BY draw_date DESC LIMIT ".$range;
 		$sql .= ") average_last";
 
 		$query = $this->db->query($sql);
