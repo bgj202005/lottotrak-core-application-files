@@ -11,6 +11,7 @@ class Lotteries extends Admin_Controller {
 		 $this->load->model('lotteries_m');
 		 $this->load->helper('file');
 		 $this->load->library('image_lib');
+		 $this->load->library('pagination');
 		 $this->load->model('maintenance_m');
 		 //$this->load->library('CSV_Import');
 		 //$this->output->enable_profiler(TRUE);
@@ -24,10 +25,62 @@ class Lotteries extends Admin_Controller {
 	 */
 	public function index() { 
 		// Fetch all lotteries from the database
+		// Include Pageination
+		$count = $this->db->count_all_results('lottery_profiles');
+		$perpage = 10;
+		if ($count > $perpage) 
+		{
+			$config['base_url'] = site_url($this->uri->segment(1).'/lotteries/page');
+			$config['total_rows'] = $count;
+			$config['per_page'] = $perpage;
+			$config['url_segment'] = 4;
+			$this->pagination->initialize($config);
+			$this->data['pagination'] = $this->pagination->create_links();
+			$offset = $this->uri->segment(3);
+		}
+		else {
+			$this->data['pagination'] = '';
+			$offset = 0;
+		} // End of Pagination
+		$this->db->limit($perpage, $offset);
 		$this->data['lotteries'] = $this->lotteries_m->get();
+
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the lotteries menu
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	
+		$this->data['subview'] = 'admin/lotteries/index';
+		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
+		else $this->data['message'] = '';
+		$this->load->view('admin/_layout_main', $this->data);
+	}
+
+	public function page()
+	{
+		$count = $this->db->count_all_results('lottery_profiles');
+		$perpage = 10;	// 10 Lotteries per page
+		if ($count > $perpage) 
+		{
+			$config['base_url'] = site_url($this->uri->segment(1).'/lotteries/page');
+			$config['total_rows'] = $count;
+			$config['per_page'] = $perpage;
+			$config['url_segment'] = 4;
+			$this->pagination->initialize($config);
+			$this->data['pagination'] = $this->pagination->create_links();
+			$offset = $this->uri->segment(4);
+		}
+		else {
+			$this->data['pagination'] = '';
+			$offset = 0;
+		} // End of Pagination
+		$this->db->limit($perpage, $offset);
+		$this->data['lotteries'] = $this->lotteries_m->get();
+
+		// Load the view
+		$this->data['current'] = $this->uri->segment(2); // Sets the lotteries menu
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
 		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins

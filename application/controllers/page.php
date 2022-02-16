@@ -106,23 +106,12 @@ class Page extends Frontend_Controller {
 			$offset = 0;
 		}
 		
-		//dump($this->pagination);
-		// Fetch the articles
-		//$this->db->where('pubdate <=', date('Y-m-d'));
-		
 		$this->article_m->set_published();
 		
 		//$this->db->order_by("'pubdate' desc");
 		$this->db->limit($perpage, $offset);
 		
 		$this->data ['articles'] = $this->article_m->get();
-		
-		// dump($this->data['articles']);
-		
-		// dump(count($this->data['articles']));
-		
-		//echo '<pre>'. $this->db->last_query().'</pre>';
-		
 	}
 	
 	function register() {
