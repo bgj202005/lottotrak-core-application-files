@@ -507,7 +507,7 @@ class History_m extends MY_Model
         
         foreach($draws as $count => $draw)
         {
-            if(($total-1)!=$count)
+            if(($total)!=$count)
             {
                 $diff = intval($draw['ball'.$pick])-intval($draw['ball1']);   // Subtract the top drawn number from the first number drraw
                 $ranges[$diff] = (array_key_exists($diff,$ranges) ? $ranges[$diff]+1 : 1); // Add Key or Existing One?
