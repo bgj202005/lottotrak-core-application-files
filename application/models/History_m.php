@@ -258,7 +258,7 @@ class History_m extends MY_Model
         
         foreach($draws as $count => $draw)
         {
-            if(($total-1)!=$count)
+            if(($total)!=$count)
             {
             $consecutives_draw = 0;    
                 for($c=1; $c<$pick; $c++)                           // Interate the draw for changes from the previous draw and the next draw
@@ -358,7 +358,7 @@ class History_m extends MY_Model
         
         foreach($draws as $count => $draw)
         {
-            if(($total-1)!=$count)
+            if(($total)!=$count)
             {
                 $sums[$draw['sum_draw']] = (!array_key_exists($draw['sum_draw'], $sums) ? 1 : $sums[$draw['sum_draw']]+1); // Add Key or Existing One?
                 if(!empty($count)) // if not 0
@@ -435,7 +435,7 @@ class History_m extends MY_Model
         
         foreach($draws as $count => $draw)
         {
-            if(($total-1)!=$count)
+            if(($total)!=$count)
             {
                 $digits[$draw['sum_digits']] = (!array_key_exists($draw['sum_digits'], $digits) ? 1 : $digits[$draw['sum_digits']]+1); // Add Key or Existing One?
                 if(!empty($count)) // if not 0
