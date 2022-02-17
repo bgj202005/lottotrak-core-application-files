@@ -189,7 +189,7 @@
 									<div class="col-8">
 										<div class = "progress">
 											<div class = "progress-bar progress-bar-striped progress-bar-animated active" 
-											style = "display: inline-block; text-align:center; margin-top:10px 10px;" role = "progressbar" 
+											style = "width: 100%; display: inline-block; text-align:center; margin:5px;" role = "progressbar" 
 											aria-valuemin="0" aria-valuemax = "100">
 												<span id ="process_data">0</span> - <span id = "total_data">0</span>
 											</div>
@@ -415,6 +415,7 @@ $(document).ready(function() {
 				$('#draw_number').html(data);
 				if(width >= 100)
 				{
+					document.getElementById("import_click").value = '0'; // Import Completed, no warming message is required
 					clearInterval(clear_timer);
 					$('#process').css('display', 'none');
 					$('#lottery_upload_csv').val('');
