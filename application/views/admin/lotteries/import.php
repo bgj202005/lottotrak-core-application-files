@@ -203,6 +203,8 @@
 										'id'		=> "lottery_list",
 										'style' 	=> "margin-left:20px;"
 									);
+									$data = array('type'  => 'hidden', 'name'  => 'import_click', 'id' => 'import_click', 'value' => '0');
+									echo form_input($data); 
 									echo form_button('lottery_list', 'Back to Lotteries List', $attributes);
 									echo form_close(); ?> <!-- </form> -->
 								</div>
@@ -262,15 +264,23 @@ $(document).ready(function() {
       });
 	  $("#lottery_list").click(function(){
 		  var url_exit = "<?php echo base_url();?>admin/lotteries";
-		  if (window.confirm("Do you want to exit before the import is complete?"))
-	  		{	
+		  var clicked = document.getElementById('import_click').value;
+		  if(clicked!=='0')
+		  {
+			if (window.confirm("Do you want to exit before the import is complete?"))
+				{	
+					clearInterval(clear_timer);
+					window.location.href = url_exit;
+				}
+				else return false;
+		  } else {
 			clearInterval(clear_timer);
 			window.location.href = url_exit;
-			}
-			else return false;
+		  }
 	  });
 	    
 	$('#import_form').on('submit', function(event) {
+		document.getElementById("import_click").value = '1'; // The submit has been clicked
 		$('#import_message').html('');
 			event.preventDefault();
 			$.ajax({
