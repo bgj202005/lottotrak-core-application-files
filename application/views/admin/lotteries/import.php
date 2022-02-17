@@ -189,9 +189,9 @@
 									<div class="col-8">
 										<div class = "progress">
 											<div class = "progress-bar progress-bar-striped progress-bar-animated active" 
-											style = "width: 100%; display: inline-block; text-align:center; margin:5px;" role = "progressbar" 
+											style = "width: 400%; display: inline-block; text-align:center; margin:5px;" role = "progressbar" 
 											aria-valuemin="0" aria-valuemax = "100">
-												<span id ="process_data">0</span> - <span id = "total_data">0</span>
+												<span id ="process_data">1</span> - <span id = "total_data"></span>
 											</div>
 										</div>
 									</div>
