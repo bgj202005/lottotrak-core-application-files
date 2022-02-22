@@ -905,7 +905,7 @@ class Statistics_m extends MY_Model
 		do
 		{
 			//$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." WHERE id <>".$last['id']." ORDER BY draw_date DESC LIMIT ".$range.") as t".$w."ORDER BY t.draw_date ASC"; 
-			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$last['id']."' ".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
+			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$last['id']."' ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
 			// Execute Query
 			$query = $this->db->query($sql);
 			$row = $query->first_row('array');
@@ -1066,7 +1066,7 @@ class Statistics_m extends MY_Model
 	 * Calculate the number of never trailing (follower) numbers based on the last draw and the draw rang
 	 * 
 	 * @param 	string 	$name			specific lottery table name
-	 * @param	array	$last			$last drawn numbers (index, date, ball1 ... ball N, Extra (Bonus ball), lottery id)
+	 * @param	array	$last			last drawn numbers (index, date, ball1 ... ball N, Extra (Bonus ball), lottery id)
 	 * @param 	integer $max			maximum number of balls drawn
 	 * @param	boolean	$bonus			If an extra / bonus ball is included (1 = TRUE, 0 = False)
 	 * @param	boolean $draws			If extra (bonus) draws are included in the calculation (1 = TRUE, 0 = FALSE)
@@ -1075,7 +1075,7 @@ class Statistics_m extends MY_Model
 	 * @return  string	$nonfollowers	non-Followers string in this format that follow with the number of occurrences (minumum 3 Occurrences)
 	 * 									e.g. 10=>3=4|22=3,17=>10=5|37=4|48=4
 	 */
-	public function nonfollowers_calculate($name, $last, $max, $bonus, $draws, $range = 100, $top)
+	public function nonfollowers_calculate($name, $last, $max, $bonus, $draws = 0, $range = 100, $top)
 	{
 		// Build Query
 		$s = 'ball'; 
@@ -1092,8 +1092,8 @@ class Statistics_m extends MY_Model
 		$b_max = $max;	// The maximum of the ONLY the balls drawn
 		if($bonus) $max++;
 
-		$w = (!$draws ? ' AND extra <> "0" ' : ''); 
-		
+		$w = (!$draws ? ' AND extra <> "0" ' : '');
+				
 		// Calculate
 		$b = 1; // ball 1
 		// Initialize and create blank associate array
@@ -1216,6 +1216,7 @@ class Statistics_m extends MY_Model
 	 * Calculate the Friends of the Lottery from Ball 1 to Ball N range, include the extra ball if TRUE. Based on the range of draws covered
 	 * 
 	 * @param 	string 	$name		specific lottery table name
+	 * @param 	string 	$last		last drawn numbers (index, date, ball1 ... ball N, Extra (Bonus ball), lottery id)
 	 * @param 	integer $max		maximum number of balls drawn
 	 * @param	integer	$top		Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649
 	 * @param	boolean	$bonus		If an extra / bonus ball is included (1 = TRUE, 0 = False)
@@ -1239,6 +1240,7 @@ class Statistics_m extends MY_Model
 		$s .= ', extra, draw_date'; // Include the draw date is this query
 
 		$w = (!$draws ? ' WHERE extra <> "0" ' : ' ');
+		//$l = (!is_null($last) ? " WHERE draw_date <='".$last['draw_date']."'" : "");
 		
 		// Initialize and create blank associate array
 		$friends = '';	// set as a blank string
@@ -1247,7 +1249,7 @@ class Statistics_m extends MY_Model
 		{
 			// Calculate
 			//$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." ORDER BY id DESC LIMIT ".$range.") as t".$w."ORDER BY t.id ASC"; 
-			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
+			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
 			// Execute Query
 			$query = $this->db->query($sql);
 			$row = $query->first_row('array'); // Doing the reverse to the first row because of the descending order.
@@ -1525,8 +1527,20 @@ class Statistics_m extends MY_Model
 	{
 		// Build query
 		$sql_range = ($range ? ' ORDER BY draw_date DESC LIMIT '.$range : ' ORDER BY draw_date DESC');
-		$sql_date = (!empty($last) ? ' WHERE draw_date <= '.$last : '');
-		$sql_draws = (!$draws ? '': ' WHERE extra <> 0');
+		$sql_date = (!empty($last)&&($draws) ? ' WHERE draw_date <= "'.$last.'"' : '');
+		if($draws&&empty($last))
+		{
+			$sql_draws = ' WHERE extra <> "0"';
+		} 
+		elseif($draws&&!empty($last))
+		{
+			$sql_draws = ' AND extra <> "0"';
+		}
+		else
+		{
+			$sql_draws = '';	// Do not include
+		}
+
 		$sql = 'SELECT ball_drawn, count(*) as heat 
 				FROM ((SELECT ball1 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.') UNION ALL
       			(SELECT ball2 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.') UNION ALL
@@ -1537,7 +1551,8 @@ class Statistics_m extends MY_Model
 		if($picks>=7) $sql .= ' UNION ALL (SELECT ball7 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
 		if($picks>=8) $sql .= ' UNION ALL (SELECT ball8 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
 		if($picks==9) $sql .= ' UNION ALL (SELECT ball9 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($bonus) $sql .= 'UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.$sql_date.' WHERE extra <> 0 '.$sql_range.')';
+		if($bonus) $sql .= (!empty($last) ? ' UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.$sql_date.' AND extra <> "0"'.$sql_range.')'
+		: ' UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.' WHERE extra <> "0"'.$sql_range.')');
 		$sql .= ') as hwc
 				GROUP BY ball_drawn
 				ORDER BY heat DESC;';
