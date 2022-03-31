@@ -657,12 +657,18 @@ class Statistics extends Admin_Controller {
 
 		if(!is_null($friends))
 		{
+			$change = FALSE;  // Default is no change
 			$this->data['lottery']->extra_included = $this->uri->segment(6)=='extra' ? $this->statistics_m->extra_included($id, TRUE, 'lottery_friends') : $this->statistics_m->extra_included($id, FALSE, 'lottery_friends');
 			$this->data['lottery']->extra_draws = ($this->uri->segment(6)=='draws' ? $this->statistics_m->extra_draws($id, TRUE, 'lottery_friends') : $this->statistics_m->extra_draws($id, FALSE, 'lottery_friends'));
+			$change = ($this->data['lottery']->extra_included!=$friends['extra_included'] ? TRUE : FALSE); // Only for a change in the extra (bonus) ball
+			if(!$change)
+			{
+				$change = ($this->data['lottery']->extra_draws!=$friends['extra_draws'] ? TRUE : FALSE); // Only for a change in the extra draws and there was no change in the extra ball
+			}
 			if($new_range>100) $sel_range = intval($new_range / 100);
 			if($new_range!=0)	
 			{
-				if(intval($old_range)!=(intval($new_range))) // Any Change in Selection of the Draws? then update ... e.i. 200 draws in db and 300 in query url
+				if(intval($old_range)!=(intval($new_range))||($change)) // Any Change in Selection of the Draws? then update ... e.i. 200 draws in db and 300 in query url
 				{
 					$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range);
 					$friends = array(
@@ -942,5 +948,275 @@ class Statistics extends Admin_Controller {
 				' ORDER BY draw_date ASC;');					
 		$result_db = $query->result_array();
 		echo json_encode($result_db);
+	}
+
+	/**
+	 * ReCALCULATES all the H-W-C, Followers and Friends all in one action ONLY after the draw statistics are completed.  
+	 * 
+	 * @param 		$id		Lottery id
+	 * @return  	none
+	 */
+	public function recalc($id)
+	{
+		// 1. Determine if the draws have the columns with the Statistics data
+		$this->data['message'] = '';	// Defaulted to No Error Messages
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		// Retrieve the lottery table name for the database
+		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+	
+		$recalc = FALSE;
+		if($this->statistics_m->last_stats_exist($tbl_name))
+		{
+			$recalc = TRUE;
+			// Verified the Draw Statistics have been completed
+			// 1. The H (Hots) - W (Warms) - C (Colds) will be RE-CALC'd
+			$this->recalc_hwc($id, $this->data['lottery']);
+			
+			// 2. The Followers will be RE-CALC'd
+			$this->recalc_followers($id, $this->data['lottery']);
+
+			// 3. The Friends of numbers will be RE-CALC'd	
+			$this->recalc_friends($id, $this->data['lottery']);
+		}
+		else
+		{	// Verfied that the Draw Statistics have not been completed, exit action with an error message
+			$this->session->set_flashdata('message', 'The latest Draw Statistics have not been completed. Please click the Calculator to complete the draw statistics.');
+			redirect('admin/statistics');
+		}
+		if($recalc)
+		{
+			$this->session->set_flashdata('message', 'The Hot - Warm - Cold, Followers and Friends Statistics have ALL been updated to the latest draw.');
+			redirect('admin/statistics');
+		}
+	}
+	/**
+	 * ReCALCULATES the Lottery H-W-C, it will retrieve the last H-W-C. If it exists, recalc the H-W-C up to the current draw; default is in DB. 
+	 * If it does not exist, Calculate H-W-C with a default of 100 draws.
+	 * @param 	integer	$id			Lottery ID
+	 * @param 	array	$lotto		Lottery Array of objects
+	 * @return 	none
+	 */
+	public function recalc_hwc($id, $lotto)
+	{
+	 // Retrieve the lottery table name for the database
+	 $tbl = $this->lotteries_m->lotto_table_convert($lotto->lottery_name);
+	 $drawn = $lotto->balls_drawn;						// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
+	 $max_ball = $lotto->maximum_ball;					// Get the highest ball drawn for this lottery, e.g. 49 in Lottery 649, 50 in Lottomax
+	 // Check to see if the actual table exists in the db?
+	 if (!$this->lotteries_m->lotto_table_exists($tbl))
+	 {
+		 $this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl.' Does not exist. Create the Lottery Database now.');
+		 redirect('admin/statistics');
+	 }
+
+	 $all = $this->lotteries_m->db_row_count($tbl); 										// Return the total number of draws for this lottery
+	 $lotto->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl);					// Retrieve the last drawn numbers and draw date
+
+	 $h_w_c = $this->statistics_m->h_w_c_exists($id);
+
+	 if(!is_null($h_w_c))	// Existing HWC?
+	 {
+		 $old_range = $h_w_c['range'];
+		 $hots = $h_w_c['h_count'];
+		 $warms = $h_w_c['w_count'];
+		 $colds = $h_w_c['c_count'];
+
+		$w_start = intval($hots+1);					// Warms
+		$lotto->H = $hots;  						// Number of Hots Distributed e.g. 16 Hots
+		$c_start = ($max_ball-intval($colds))+1; 	// Return the Cold value
+		$lotto->W = $warms;  						// Number of Warms Distributed e.g 18 Colds
+		$lotto->C = $colds; 						// Number of Colds Distributed e.g 16 Colds
+		 
+		$str_hwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $old_range, $w_start, $c_start, '');
+		
+		$strhots = $this->statistics_m->hots($str_hwc);
+		$strwarms = $this->statistics_m->warms($str_hwc);
+		$strcolds = $this->statistics_m->colds($str_hwc);
+		$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl, $drawn,  $h_w_c['extra_included'], $h_w_c['extra_draws'], $old_range, '');
+		$hwc = array(
+			'range'				=> $old_range,
+			'hots'				=> $strhots,
+			'warms'				=> $strwarms,
+			'colds'				=> $strcolds,
+			'overdue'			=> $stroverdue,
+			'draw_id'			=> $lotto->last_drawn['id'],
+			'lottery_id'		=> $id,
+			'extra_included'	=> $h_w_c['extra_included'],
+			'extra_draws'		=> $h_w_c['extra_draws'],
+			'w'					=> $w_start,
+			'c'					=> $c_start,
+			'h_count'			=> $lotto->H,
+			'w_count'			=> $lotto->W,
+			'c_count'			=> $lotto->C
+		);
+		$this->statistics_m->hwc_data_save($hwc, TRUE);
+	 }
+	 else 
+	 {
+		 $lotto->extra_included = 0; // No Extra Ball as part of the calculation
+		 $lotto->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
+		 $new_range = ($all<100 ? $all : 100);
+		 $heat = explode('-', $this->statistics_m->hwc_defaults[$max_ball]); 	// Break out the H-W-C into a new array
+		 $w_start = intval($heat[0]+1);					// Warms
+		 $lotto->H = $heat[0];  						// Number of Hots Distributed e.g. 16 Hots
+		 $c_start = ($max_ball-intval($heat[2]))+1; 	// Return the Cold value
+		 $lotto->W = $heat[1];  						// Number of Warms Distributed e.g 18 Colds
+		 $lotto->C = $heat[2]; 							// Num
+		 
+		 $str_hwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $lotto->extra_included, $lotto->extra_draws, $new_range, $w_start, $c_start, '');
+		 $strhots = $this->statistics_m->hots($str_hwc);
+		 $strwarms = $this->statistics_m->warms($str_hwc);
+		 $strcolds = $this->statistics_m->colds($str_hwc);
+		 $stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl, $drawn, $new_range);
+		 $hwc = array(
+					 'range'			=> $new_range,
+					 'hots'				=> $strhots,
+					 'warms'			=> $strwarms,
+					 'colds'			=> $strcolds,
+					 'overdue'			=> $stroverdue,
+					 'draw_id'			=> $lotto->last_drawn['id'],
+					 'lottery_id'		=> $id,
+					 'extra_included'	=> $lotto['extra_included'],
+					 'extra_draws'		=> $lotto['extra_draws'],
+					 'w'				=> $w_start,
+					 'c'				=> $c_start,
+					 'h_count'			=> $lotto->H,
+					 'w_count'			=> $lotto->W,
+					 'c_count'			=> $lotto->C	
+				 );
+		 $this->statistics_m->hwc_data_save($hwc, FALSE);
+	 }
+	}
+
+	/**
+	* ReCALCULATES the Lottery Followers for the next draw,
+	* If they does not exist, Calculate the Followers for the first time with a default of 100 draws.
+	* 
+	* @param 	integer	$id			Lottery ID
+	* @param 	array	$lotto		Lottery Array of objects
+	* @return 	none
+	*/
+	public function recalc_followers($id, $lotto)
+	{
+		// Retrieve the lottery table name for the database
+		$tbl = $this->lotteries_m->lotto_table_convert($lotto->lottery_name);
+		$drawn = $lotto->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
+		// Check to see if the actual table exists in the db?
+		if (!$this->lotteries_m->lotto_table_exists($tbl))
+		{
+			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl.' Does not exist. Create the Lottery Database now.');
+			redirect('admin/statistics');
+		}
+		$all = $this->lotteries_m->db_row_count($tbl); // Return the total number of draws for this lottery
+
+		$lotto->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl);	// Retrieve the last drawn numbers and draw date
+		// 1. Check for a record for the current lottery in the friends table
+		$followers = $this->statistics_m->followers_exists($id);		// Existing follower row 
+		$nonfollowers = $this->statistics_m->nonfollowers_exists($id);	// Non Follower existing row
+	
+		if(!is_null($followers))
+		{
+			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
+
+			$range = $followers['range'];
+			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range);
+			/** NEW included nonfollower calculations **/
+			$max = $this->data['lottery']->maximum_ball;
+			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $max);
+			$followers = array(
+				'range'				=> $range,
+				'lottery_followers'	=> $str_followers,
+				'draw_id'			=> $lotto->last_drawn['id'],
+				'lottery_id'		=> $id
+			);
+			$this->statistics_m->follower_data_save($followers, TRUE);
+			/** NEW included nonfollower Data Save **/
+			$nonfollowers = array(
+				'range'					=> $range,
+				'lottery_nonfollowers'	=> $str_nonfollowers,
+				'draw_id'				=> $lotto->last_drawn['id'],
+				'lottery_id'			=> $id
+			);
+			$this->statistics_m->nonfollower_data_save($nonfollowers, TRUE);
+		}
+		else // 3. If does not exist, calculate for the given draw range, return results and save to follower table
+		{
+			$lotto->extra_included = 0; // No Extra Ball as part of the calculation
+			$lotto->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
+			// range is set with either less than 100 rows (based on the exact number of draws) or calculate the number of followers using only 100 rows
+			$range = ($all<100 ? $all : 100);
+			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $lotto->extra_included, $lotto->extra_draws, $range);
+			
+			$followers = array(
+				'range'				=> $range,
+				'lottery_followers'	=> $str_followers,
+				'draw_id'			=> $lotto->last_drawn['id'],
+				'lottery_id'		=> $id
+			);
+			$this->statistics_m->follower_data_save($followers, FALSE);
+			$max = $this->data['lottery']->maximum_ball;
+			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl, $lotto->last_drawn, $drawn, $lotto->extra_included, $lotto->extra_draws, $range, $max);
+			$nonfollowers = array(
+			'range'					=> $range,
+			'lottery_nonfollowers'	=> $str_nonfollowers,
+			'draw_id'				=> $lotto->last_drawn['id'],
+			'lottery_id'			=> $id
+			);
+			$this->statistics_m->nonfollower_data_save($nonfollowers, FALSE);
+		}
+	}
+
+	/**
+	* ReCALCULATES the Lottery Friends for the next draw,
+	* If it does not exist, Calculate Friends with a default of 100 draws.
+	* 
+	* @param 	integer	$id			Lottery ID
+	* @param 	array	$lotto		Lottery Array of objects
+	* @return 	none
+	*/
+	public function recalc_friends($id, $lotto)
+	{
+		// Retrieve the lottery table name for the database
+		$tbl_name = $this->lotteries_m->lotto_table_convert($lotto->lottery_name);
+		$drawn = $lotto->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
+		$max_ball = $lotto->maximum_ball;	// Get the highest ball drawn for this lottery, e.g. 49 in Lottery 649, 50 in Lottomax
+		// Check to see if the actual table exists in the db?
+		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
+		{
+			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
+			redirect('admin/statistics');
+		}
+		$all = $this->lotteries_m->db_row_count($tbl_name); // Return the total number of draws for this lottery
+	
+		$lotto->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
+
+		$friends = $this->statistics_m->friends_exists($id);
+
+		if(!is_null($friends))
+		{
+			$range = $friends['range'];
+			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $lotto->extra_included, $lotto->extra_draws, $range);
+			$friends = array(
+				'range'				=> $range,
+				'lottery_friends'	=> $str_friends,
+				'draw_id'			=> $lotto->last_drawn['id'],
+				'lottery_id'		=> $id
+			);
+			$this->statistics_m->friends_data_save($friends, TRUE);
+		}
+		else 
+		{
+			$new_range = ($all<100 ? $all : 100);
+			$lotto->extra_included = 0; // No Extra Ball as part of the calculation
+			$lotto->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
+			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $lotto->extra_included, $lotto->extra_draws, $new_range);
+			$friends = array(
+				'range'				=> $new_range,
+				'lottery_friends'	=> $str_friends,
+				'draw_id'			=> $lotto->last_drawn['id'],
+				'lottery_id'		=> $id
+			);
+			$this->statistics_m->friends_data_save($friends, FALSE);
+		}
 	}
 }

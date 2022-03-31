@@ -145,15 +145,14 @@
     }
 }
 @keyframes loading-2 {
-		0% {
-			-webkit-transform: rotate(0deg);
-			transform: rotate(0deg);
-		}
+	0% {
+		-webkit-transform: rotate(0deg);
+		transform: rotate(0deg);
+	}
 
-		100% {
-			-webkit-transform: rotate(144deg);
-			transform: rotate(180deg);
-		}
+	100% {
+		-webkit-transform: rotate(144deg);
+		transform: rotate(180deg);
 	}
 }
 </style>

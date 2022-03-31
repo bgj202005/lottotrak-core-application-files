@@ -3,7 +3,7 @@
     	width:100%;
 	}
 	tr{
-		font-size: 0.62em; /* Minimum size before horizontal toolbar appears under list */
+		font-size: 0.61em; /* Minimum size before horizontal toolbar appears under list */
 	}
 	label {
     	display: inline-flex;
@@ -71,7 +71,7 @@
 		<td style = "text-align:center;"><?php echo $statistics->btn_followers('admin/statistics/followers/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_friends('admin/statistics/friends/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_calculate('admin/statistics/calculate/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><input type="checkbox" name="recalc" value="recalc" id="recalc" <?=($lottery->last_draw!='NA' ? '' : 'disabled');?> onClick="redirect('<?=base_url();?>admin/statistics/calculate/<?=$lottery->id;?>/recalc')">
+		<td style = "text-align:center;"><input type="checkbox" name="recalc" value="recalc" class="recalc" id="recalc" <?=($lottery->last_draw!='NA' ? '' : 'disabled');?> >
 	</tr>
 	<?php endforeach; ?> 
 	
@@ -87,22 +87,28 @@
 </section>
 <script>
 $(document).ready(function(){
+ var url;
   $('.calculate').click(function(){
 	$('#status').css('display', 'block');
 	$('#message').css('display', 'none'); 
 	document.getElementById("status").innerHTML = "Updating Lottery. Please Wait.";
 	setTimeout(fade_out, 1500);
 	});
+	$('.recalc').click(function(){
+	url = "<?=base_url();?>admin/statistics/recalc/<?=$lottery->id;?>";
+	$('#status').css('display', 'block');
+	document.getElementById("status").innerHTML = "Updating the latest H-W-C, Followers and Friends Statistics up to the latest draw date.";
+	redirect(url);
+	});
 	$('.followers').click(function(){
 	$('#status').css('display', 'block');
 	$('#message').css('display', 'none'); 
-	document.getElementById("status").innerHTML = "Updating the Associated Followers from the last draw. Please Wait.";
-	setTimeout(fade_out, 1500);
+	document.getElementById("status").innerHTML = "Updating the H-W-C, Followers and Friends Statistics up to the latest draw date.";
 	});
 	function fade_out() {
       $("#status").fadeOut();
     }
 });
 function redirect(url) {
-   window.location.href = url; }
+   window.location.href = url; }   
 </script>

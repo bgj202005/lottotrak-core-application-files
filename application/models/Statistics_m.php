@@ -54,7 +54,7 @@ class Statistics_m extends MY_Model
 				'54'	=>		'18-19-18'
 	);
 	/**
-	 * Validates that statistics are available from the Retrieves all the Statistics per draw
+	 * Validates that statistics fields are available for each draw, otherwise return no statistic fields available
 	 * 
 	 * @param	string		$lottery		Current Lottery table name
 	 * @param 	boolean		$stats			Recalc? TRUE - No Fields Exist are required
@@ -564,11 +564,12 @@ class Statistics_m extends MY_Model
 	 * 
 	 * @param	string			$tbl	Current Lottery Data Table Name
 	 * @param 	integer			$row	Return the last, previous or next database object. Default to the last row of the database draws
+	 * @param	integer			$e		Include Extra Draws such as bonus draws. 		
 	 * @return	object 			last row, previous row or next row depending on the row value of lottery records		
 	 */
 	public function db_row($tbl, $row = 0)
 	{	
-		$query = $this->db->query('SELECT * FROM '.$tbl. ' ORDER BY `draw_date` DESC LIMIT 100');
+		$query = $this->db->query('SELECT * FROM '.$tbl. ' WHERE `extra` <> "0" ORDER BY `draw_date` DESC LIMIT 100');
 		
 		switch($row)
 		{
@@ -580,6 +581,25 @@ class Statistics_m extends MY_Model
 				return $query->result_array(); // Return the Lottery Draw Results for the last 100 draws.
 		}
 	}
+	
+	/**
+	 * Returns the last row, previous row or next row from the lottery database query
+	 * 
+	 * @param	string		$tbl			Current Lottery Data Table Name, in the proper format
+	 * @return	boolean		TRUE/FALSE 		If the statistics fields have an actual value (calculated) (TRUE) or (not calculated) NULL (False)	
+	 */
+	public function last_stats_exist($tbl)
+	{	
+		$this->db->reset_query();
+		$query = $this->db->query('SELECT * FROM '.$tbl. ' ORDER BY `draw_date` DESC LIMIT 100');
+		
+		$stats = $query->row(0);
+		if((is_null($stats->sum_draw))&&(is_null($stats->sum_digits))&&(is_null($stats->even))&&(is_null($stats->odd))&&
+		(is_null($stats->range_draw))&&(is_null($stats->repeat_decade))&&(is_null($stats->repeat_last))) return FALSE;
+
+	return TRUE;
+	}
+
 	/**
 	 * Returns the Average Sum of draws based on a given Range of Draws
 	 * 
@@ -896,7 +916,7 @@ class Statistics_m extends MY_Model
 		$b_max = $max;	// The maximum of the ONLY the balls drawn
 		if($bonus) $max++;
 
-		$w = (!$draws ? ' AND extra <> "0" ' : ''); 
+		$w = (!$draws ? " AND extra <> '0'" : ""); 
 		
 		// Calculate
 		$b = 1; // ball 1
@@ -905,7 +925,7 @@ class Statistics_m extends MY_Model
 		do
 		{
 			//$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." WHERE id <>".$last['id']." ORDER BY draw_date DESC LIMIT ".$range.") as t".$w."ORDER BY t.draw_date ASC"; 
-			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$last['id']."' ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
+			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$last['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
 			// Execute Query
 			$query = $this->db->query($sql);
 			$row = $query->first_row('array');
@@ -1092,7 +1112,7 @@ class Statistics_m extends MY_Model
 		$b_max = $max;	// The maximum of the ONLY the balls drawn
 		if($bonus) $max++;
 
-		$w = (!$draws ? ' AND extra <> "0" ' : '');
+		$w = (!$draws ? ' AND extra <> "0"' : '');
 				
 		// Calculate
 		$b = 1; // ball 1
@@ -1101,7 +1121,7 @@ class Statistics_m extends MY_Model
 		do
 		{
 			//$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." WHERE id <>".$last['id']." ORDER BY id DESC LIMIT ".$range.") as t".$w."ORDER BY t.id ASC"; 
-			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$last['id']."' ".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
+			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$last['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
 			// Execute Query
 			$query = $this->db->query($sql);
 			$row = $query->first_row('array');
