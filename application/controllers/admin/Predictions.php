@@ -95,7 +95,7 @@ class Predictions extends Admin_Controller {
 		
 		$path = $this->predictions_m->full_path($file_name);
 
-		if(file_exists($path)) 
+		if((file_exists($path))&&($this->predictions_m->lottery_combination_record($file_name))) 
 		{
 			$this->data['message'] = $file_name.'.txt currently exists in the '.predictions_m::DIR.' directory.<br />Please delete this File first.';
 		}
