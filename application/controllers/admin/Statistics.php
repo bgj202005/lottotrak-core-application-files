@@ -195,20 +195,18 @@ class Statistics extends Admin_Controller {
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
-		$extra_ball = $this->data['lottery']->extra_ball;	// Make sure the extra ball is even used.
-		// Check if recalc is needed
-		$recalc = $this->uri->segment(5,NULL); // Return segment recalc or NULL
+
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 		{
 			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
 			redirect('admin/statistics');
 		}
-		if(!$this->statistics_m->lottery_stats_exist($tbl_name, is_null($recalc))) // Stats Exists?
+		if(!$this->statistics_m->lottery_stats_exist($tbl_name)) // Stats Exists?
 		{
 			// If FALSE, No Statistics have been previously calculated:
 			// Expand the draw database with the 8 field columns. 
-			if($this->statistics_m->lottery_expand_columns($tbl_name, is_null($recalc)))  // Columns need to be expanded and recalc is not selected
+			if($this->statistics_m->lottery_expand_columns($tbl_name))  // Columns need to be expanded and recalc is not selected
 			{
 				$lt_rows = $this->statistics_m->lottery_rows($tbl_name);	// Return the Rows in the table to update
 				$draws = $lt_rows; // Capture the number of draws in this lottery
@@ -248,7 +246,6 @@ class Statistics extends Admin_Controller {
 		else // Update New Draws Here
 		{
 			$lt_rows = $this->statistics_m->lottery_next_rows($tbl_name);	// Return the Rows in the table to update
-			$draws = $lt_rows; // Capture the number of draws in this lottery
 			$lt_id =  $this->statistics_m->lottery_next_id($tbl_name);
 			if ($lt_id)	// The next id was returned, continue with the statistics calculations
 			{
@@ -280,6 +277,7 @@ class Statistics extends Admin_Controller {
 			}
 		}
 			$stats = array();
+			$draws = $this->statistics_m->lottery_rows($tbl_name); // Return the number of draws in this lottery
 			// Average Sum of Last 10 Draws (Integer)
 			$stats['sum_10'] = $this->statistics_m->lottery_average_sum($tbl_name, 10);
 			// Average Sum of Last 100 Draws (Integer) 

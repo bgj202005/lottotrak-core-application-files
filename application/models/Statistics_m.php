@@ -57,12 +57,10 @@ class Statistics_m extends MY_Model
 	 * Validates that statistics fields are available for each draw, otherwise return no statistic fields available
 	 * 
 	 * @param	string		$lottery		Current Lottery table name
-	 * @param 	boolean		$stats			Recalc? TRUE - No Fields Exist are required
 	 * @return	boolean		TRUE / FALSE	Stats have been calculated (true), Stats do not exist (False)		
 	 */
-	public function lottery_stats_exist($lottery, $stats=TRUE)
+	public function lottery_stats_exist($lottery)
 	{
-		if(!$stats) return FALSE; // is recalc?
 		// Fields in the database to be compared, must be exactly 8
 		$stats = array('sum_draw','sum_digits','even','odd', 'range_draw', 'repeat_decade', 'repeat_last');
 		
@@ -83,12 +81,10 @@ class Statistics_m extends MY_Model
 	 * Expand the columns on the lottery draws table in the database
 	 * 
 	 * @param	string	$table			Actual Name of the Table
-	 * @param 	boolean $expand			Complete an expand or exit (Recalc? TRUE)
 	 * @return	boolean	TRUE / FALSE	TRUE on added columns successfully to lottery database, FALSE on did not successfully add columns to database		
 	 */
-	public function lottery_expand_columns($table, $expand = FALSE)
+	public function lottery_expand_columns($table)
 	{
-		if(!$expand) return TRUE; // is recalc?
 		$fields = array (
 			'sum_draw'	=> array(
 						'type' => 'INT',
@@ -605,7 +601,7 @@ class Statistics_m extends MY_Model
 	 * 
 	 * @param	array	$tbl 		Current Draws for Calculation
 	 * @param 	integer	$range		Number of the number of draws to calculate from the latest draw
-	 * @return	integer $ave_sum		Returns the Average sum of the drawn numbers		
+	 * @return	integer $ave_sum	Returns the Average sum of the drawn numbers		
 	 */
 	public function lottery_average_sum($tbl, $range = 10)
 	{
