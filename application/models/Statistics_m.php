@@ -134,6 +134,21 @@ class Statistics_m extends MY_Model
 	{
 		return $this->db->count_all($table);	
 	}
+
+	/**
+	 * Returns the number of rows without extra draws. If a bonus is included, extra draws usually have 0 for the bonus / extra draw
+	 * 
+	 * @param	string	$table			Actual Name of the Table
+	 * @param	boolean	$bonus			True / False, if bonus is used for this lottery. Default is Lottery DOES NOT have a bonus ball drawn
+	 * @return	integer					Returns the number of rows in the table without the extra draws played		
+	 */
+	public function lottery_rows_noextra($table, $bonus = FALSE)
+	{
+		if(!$bonus) return FALSE;
+		$query = $this->db->query('SELECT * FROM '.$table.' WHERE extra<>"0";');
+		return $query->num_rows();	
+	}
+
 	/**
 	 * Returns the first id number in the table
 	 * 

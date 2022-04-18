@@ -270,14 +270,15 @@ class Statistics extends Admin_Controller {
 					redirect('admin/statistics');
 				}
 			}
-			else // The query resulted in NULL indicating the statistics are up-to-date
+			/* else // The query resulted in NULL indicating the statistics are up-to-date
 			{
 				$this->session->set_flashdata('message', 'The Statistics are up-to-date. Please Calculate after the next draw.');
 				redirect('admin/statistics');
-			}
+			} */
 		}
 			$stats = array();
-			$draws = $this->statistics_m->lottery_rows($tbl_name); // Return the number of draws in this lottery
+			//$draws = $this->statistics_m->lottery_rows($tbl_name); // Return the number of draws in this lottery
+			$draws = $this->statistics_m->lottery_rows_noextra($tbl_name, $this->data['lottery']->extra_ball); // Return the number of draws without the extra draws
 			// Average Sum of Last 10 Draws (Integer)
 			$stats['sum_10'] = $this->statistics_m->lottery_average_sum($tbl_name, 10);
 			// Average Sum of Last 100 Draws (Integer) 
@@ -341,7 +342,7 @@ class Statistics extends Admin_Controller {
 					redirect('admin/statistics');
 				}
 			}						
-			$this->session->set_flashdata('message', 'The Draw Statistics Have been Updated.'); // Yahoo! Statistics Updated!
+			$this->session->set_flashdata('message', 'Draw Statistics Complete and Up To-Date.'); // Yahoo! Statistics Updated!
 			redirect('admin/statistics');
 	}
 	/**
