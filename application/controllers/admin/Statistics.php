@@ -1213,11 +1213,15 @@ class Statistics extends Admin_Controller {
 		$lotto->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 
 		$friends = $this->statistics_m->friends_exists($id);
+		$nonfriends = $this->statistics_m->nonfriends_exists($id);
 
-		if(!is_null($friends))
+		if(!is_null($friends)&&(!is_null($nonfriends)))
 		{
 			$range = $friends['range'];
 			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $lotto->extra_included, $lotto->extra_draws, $range);
+			$associate = explode('+', $str_friends); // The '+' is the separator
+			$str_friends = $associate[0];			 // separated the friends
+			$str_nonfriends = $associate[1]; 		 // from the non friends
 			$friends = array(
 				'range'				=> $range,
 				'lottery_friends'	=> $str_friends,
@@ -1225,6 +1229,13 @@ class Statistics extends Admin_Controller {
 				'lottery_id'		=> $id
 			);
 			$this->statistics_m->friends_data_save($friends, TRUE);
+			$nonfriends = array(
+				'range'					=> $range,
+				'lottery_nonfriends'	=> $str_nonfriends,
+				'draw_id'				=> $this->data['lottery']->last_drawn['id'],
+				'lottery_id'			=> $id
+			);
+			$this->statistics_m->nonfriends_data_save($nonfriends, TRUE);
 		}
 		else 
 		{
@@ -1232,6 +1243,9 @@ class Statistics extends Admin_Controller {
 			$lotto->extra_included = 0; // No Extra Ball as part of the calculation
 			$lotto->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
 			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $lotto->extra_included, $lotto->extra_draws, $new_range);
+			$associate = explode('+', $str_friends); // The '+' is the separator
+			$str_friends = $associate[0];			 // separated the friends
+			$str_nonfriends = $associate[1]; 		 // from the non friends
 			$friends = array(
 				'range'				=> $new_range,
 				'lottery_friends'	=> $str_friends,
@@ -1239,6 +1253,13 @@ class Statistics extends Admin_Controller {
 				'lottery_id'		=> $id
 			);
 			$this->statistics_m->friends_data_save($friends, FALSE);
+			$nonfriends = array(
+				'range'					=> $new_range,
+				'lottery_nonfriends'	=> $str_nonfriends,
+				'draw_id'				=> $this->data['lottery']->last_drawn['id'],
+				'lottery_id'			=> $id
+			);
+			$this->statistics_m->nonfriends_data_save($nonfriends, TRUE);
 		}
 	}
 }
