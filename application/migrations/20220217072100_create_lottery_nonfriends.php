@@ -21,7 +21,7 @@ class Migration_Create_Lottery_NonFriends extends CI_Migration {
                         ),
                         'lottery_nonfriends' => array(
         	                'type' => 'VARCHAR',
-        	                'constraint' => '1500'
+        	                'constraint' => '3000'
                         ),
                         'draw_id' => array(
                             'type' => 'INT',

@@ -67,7 +67,7 @@ class Statistics_m extends MY_Model
 								4-0-5,3-6-0,3-5-1,3-4-2,3-3-3,3-2-4,3-1-5,3-0-6,2-7-0,2-6-1,2-5-2,2-4-3,2-3-4,2-2-5,2-1-6,2-0-7,1-8-0,1-7-1,1-6-2,1-5-3,
 								1-4-4,1-3-5,1-2-6,1-1-7,1-0-8,0-8-1,0-7-2,0-6-3,0-5-4,0-4-5,0-3-6,0-2-7,0-1-8,0-0-9'
 	);
-	
+
 	/**
 	 * Validates that statistics fields are available for each draw, otherwise return no statistic fields available
 	 * 
@@ -148,6 +148,23 @@ class Statistics_m extends MY_Model
 	public function lottery_rows($table)
 	{
 		return $this->db->count_all($table);	
+	}
+
+	/**
+	 * Returns the draw date of the range of draws back. e.i. $draw_back = 100 and returns the draw date from 100 draws ago
+	 * If the draw back does not return a draw date, then FALSE is returned
+	 * 
+	 * @param	string			$tbl									Current Lottery Data Table Name
+	 * @param	integer			$draw_back								The number of draws back to return the draw date
+	 * @param	boolean			$ex										Extra Draws included in query, 0 = No, 1 = Yes
+	 * @return	string			$draw_date (YYYY-MM-DD format)			Returns the last date of the most recent draw, FALSE if no draw date is returned		
+	 */
+	public function lottery_return_date($tbl, $draw_back, $ex)
+	{	
+		$where = ($ex ? ' `extra` <> "0" ' : '');
+		if (!$this->lotteries_m->query('SELECT `draw_date` FROM '.$tbl.$where.' ORDER BY `draw_date` DESC LIMIT '.$draw_back.';')) return FALSE;	// Draw Database Does not Exist
+		$draw_date = $this->db->row($tbl, $draw_back);
+		return $draw_date;	// Return the draw date (YYYY-MM-DD format)			
 	}
 
 	/**
@@ -842,6 +859,20 @@ class Statistics_m extends MY_Model
 		return $query->row_array();
 	}
 	/**
+	 * If existing Record for the NonFriends table exist
+	 * 
+	 * @param	integer	$id		Lottery ID of current Lottery
+	 * @return  array	$query 	result set query or FALSE	
+	 */
+	public function nonfriends_exists($id)
+	{
+		$query = $this->db->where('lottery_id', $id)
+                ->limit(1, 0)
+                ->get('lottery_nonfriends');
+		return $query->row_array();
+	}
+
+	/**
 	 * If existing Record for the h_w_c table exist
 	 * 
 	 * @param	integer	$id		Lottery ID of current Lottery
@@ -1290,6 +1321,7 @@ class Statistics_m extends MY_Model
 		
 		// Initialize and create blank associate array
 		$friends = '';	// set as a blank string
+		$nonfriends = '';	// set as a blank string
 		$b = 1; // Number 1 to Number N from the size of the Lottery
 		do
 		{
@@ -1322,6 +1354,9 @@ class Statistics_m extends MY_Model
 				}
 			} while(!is_null($row)); // Do until all draws complete
 		
+		// Separate the non-friends out of the friends.  All the numbers in that range that have NEVER followed a given ball will be added.
+		// eg. 20,11,27,30,40,49,22|2,10,15,20,30,38,40| ... have never occurred with this number in that range.
+		$nonfriends .= $this->nonfriends_string($friendlist, $b, $top);
 		// Check duplicate occurrences in the array. If duplicate, go with most recent draw date following the latest trend for that number. return only 1 friend array
 		$friendlist = (!empty($friendlist) ? $this->duplicate_friends($friendlist) : NULL);
 		// Build Friend string
@@ -1335,7 +1370,7 @@ class Statistics_m extends MY_Model
 			unset($friendlist);	// Destroy the old friendlist
 			$query->free_result();	// Removes the Memory associated with the result resource ID
 		} while ($b<=$top);
-		return $friends;
+		return $friends.'+'.$nonfriends; // return friends+nonfriends (without the '|' at the end of non friends)
 	}
 	/**
 	 * Return the added only list of friends of the ball drawn for this ball number
@@ -1418,7 +1453,6 @@ class Statistics_m extends MY_Model
 			$counts[$key] = $value; // Actually the count
 		}
 	}
-	
 	return $this->one_friend($counts, $dates);		// Return the followers of the current draw
 	}
 
@@ -1457,10 +1491,10 @@ class Statistics_m extends MY_Model
 			'draw_date'	=> $d_dates[(intval($k)<10 ? '0'.$k : $k).'_draw_date']
 		];
 		
-	return $friend;	// Return the followers of the current draw
+	return $friend;	// Return the single most important friend after the current draw
 	}
 	/**
-	 * Return the added only list of followers after the current draw
+	 * Return the added only list of friends after the current draw
 	 * @param	array	$list		Associative Array of followers and the counts		
 	 * @return	string	$str		Return formatted string of the follower numbers with the counts in this format, 24>7|2020-12-25, e.g. YYYY-MM-DD
 	 */
@@ -1469,6 +1503,27 @@ class Statistics_m extends MY_Model
 		$str = (!is_null($list) ? $list['number'].'>'.$list['count'].'|'.$list['draw_date'] : '0>0|yyyy-mm-dd'); // Format 3=4 Occurences with pipe and continue until the last follower has been added.
 
 	return $str;	// Return the followers of the current draw without the extra Pipe character on the end of string
+	}
+
+	/**
+	 * Return the non existent friends after the current draw
+	 * @param	array	$list		Associative Array of followers and the counts
+	 * @param	integer	$exclude	Current Ball is excluded from the nonfriends. It can't be a friend to itself
+	 * @param	integer	$limit		Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649	
+	 * @return	string	$str		Return formatted string of all the non friends in that range that have NEVER followed a given ball.
+	 */
+	private function nonfriends_string($list, $exclude, $limit)
+	{
+		$str = '';
+		for ($count = 1; $count <= $limit; $count++)
+		{
+			if (!array_key_exists($count, $list)&&($count!=$exclude)) // Include ONLY if that number has NEVER occurred
+			{
+				$str .= $count.', '; 								 // Used as display only with a comma and space
+			}
+		}
+
+	return substr($str,0,-2).'|';	// Return the friends with a '|' separator
 	}
 	/** 
 	* Insert / Update Friends Profile of current lottery
@@ -1489,6 +1544,27 @@ class Statistics_m extends MY_Model
 			$this->db->set($data);		// Set the query with the key / value pairs
 			$this->db->where('lottery_id', $data['lottery_id']);
 			$this->db->update('lottery_friends');
+		}
+	}
+	/** 
+	* Insert / Update NonFriends Profile of current lottery
+	* 
+	* @param 	array	$data		key / value pairs of Friend Profile to be inserted / updated
+	* @param	boolean $exist		add a new entry (FALSE), if no previous friends has been added otherwise update the existing friends row (TRUE), default is FALSE
+	* @return   none	
+	*/
+	public function nonfriends_data_save($data, $exist = FALSE)
+	{
+		if (!$exist) 
+		{
+			$this->db->set($data);		// Set the query with the key / value pairs
+			$this->db->insert('lottery_nonfriends');
+		}
+		else
+		{
+			$this->db->set($data);		// Set the query with the key / value pairs
+			$this->db->where('lottery_id', $data['lottery_id']);
+			$this->db->update('lottery_nonfriends');
 		}
 	}
 	/**

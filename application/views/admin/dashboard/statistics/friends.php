@@ -74,8 +74,20 @@
 
 								<?php if($lottery->friend['ball'.$b]): ?> 
 									<div style = "color: #000000;" id="ball-<?=$b;?>">
-											This is Ball <strong><?=$b;?></strong>. It's closest friend is Ball <strong><?php echo $lottery->friend['ball'.$b].'</strong>, being drawn <strong>'.$lottery->friend['count'.$b].
-											'</strong> times. <br />The last time both <strong>'.$b.'</strong> and <strong>'.$lottery->friend['ball'.$b].'</strong> were drawn together was on <strong>'.date("l, F j, Y",strtotime(str_replace('/',' - ',$lottery->friend['date'.$b]))).'</strong>.';?>
+											This is Ball <strong><?=$b;?></strong>. It's closest friend is Ball <strong><?php echo $lottery->friend['ball'.$b].
+											'</strong>, being drawn <strong>'.$lottery->friend['count'.$b].
+											'</strong> times. <br />The last time both <strong>'.$b.'</strong> and <strong>'.$lottery->friend['ball'.$b].
+											'</strong> were drawn together was on <strong>'.date("l, F j, Y",strtotime(str_replace('/',' - ',$lottery->friend['date'.$b]))).'</strong>.';?>
+										<div style = "margin-top:10px;" class="block p-2 bg-dark text-white">
+										Ball <strong><?=$b;?> <u>NEVER</u></strong> had these balls show up over <strong><?php echo $lottery->last_drawn['range'];?></strong> 
+										Draws:<br /><strong>
+										<?php if(is_numeric($lottery->nonfriends['ball'.$b])):
+												echo $lottery->nonfriends['ball'.$b];
+										else:
+												echo (!empty($lottery->nonfriends['ball'.$b]) ? substr_replace($lottery->nonfriends['ball'.$b], ' and ', 
+												strrpos($lottery->nonfriends['ball'.$b], ','), 1).'.' : 'NONE');
+										endif;?></strong>
+										</div>
 									</div>
 								<?php else : ?>
 									<div style = "color: #000000;" id="ball-<?=$b;?>">
@@ -86,7 +98,7 @@
 							<?php $b++;
 							}
 							while ($b<=$max); ?>
-							<p class="card-text">These are the numbers that have the highest probability of being drawn for the next draw.</p>  	
+							<p style = "margin:10px;" class="card-text">These are the numbers that have the highest probability of being drawn for the next draw.</p>  	
 						</div>
 					</div>
 				</div>
