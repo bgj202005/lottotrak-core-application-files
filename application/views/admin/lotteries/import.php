@@ -404,12 +404,12 @@ $(document).ready(function() {
 	{
 	$.ajax({
 		url:url_get_import,
+		dataType:"json",
 		success:function(data)
 			{
 				var total_data = $('#total_data').text();
 				var width = Math.round((data/total_data)*100);
 				var error = 0;
-				
 				$('#process_data').text(data);
 				$('.progress-bar').css('width', width+'%').attr('aria-valuenow', width); 
 				$('#draw_number').html(data);

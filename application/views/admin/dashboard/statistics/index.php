@@ -100,6 +100,12 @@ $(document).ready(function(){
 	document.getElementById("status").innerHTML = "Updating the latest H-W-C, Followers and Friends Statistics up to the latest draw date.";
 	redirect(url);
 	});
+	$('.h-w-c').click(function(){
+	$('#status').css('display', 'block');
+	$('#message').css('display', 'none'); 
+	document.getElementById("status").innerHTML = "Updating the Hot - Warm - Cold (H-W-C) Numbers and History. Please Wait.";
+	setTimeout(fade_out, 5500);
+	});
 	$('.followers').click(function(){
 	$('#status').css('display', 'block');
 	$('#message').css('display', 'none'); 

@@ -21,19 +21,15 @@ class Migration_Create_Lottery_h_w_c_stats extends CI_Migration {
                         ),
                         'h_w_c_range' => array(
         	                'type' => 'VARCHAR',
-        	                'constraint' => '500'
+        	                'constraint' => '800'
                         ),
                         'h_w_c_last_1' => array(
         	                'type' => 'VARCHAR',
         	                'constraint' => '5'
                         ),
-                        'h_w_c_last_100' => array(
+                        'h_w_c_last_10' => array(
         	                'type' => 'VARCHAR',
-        	                'constraint' => '500'
-                        ),
-                        'h_w_c_last_200' => array(
-        	                'type' => 'VARCHAR',
-        	                'constraint' => '500'
+        	                'constraint' => '800'
                         ),
                         'draw_id' => array(
                             'type' => 'INT',

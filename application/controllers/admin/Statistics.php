@@ -72,7 +72,7 @@ class Statistics extends Admin_Controller {
 	 */
 	public function btn_hwc($uri) 
 	{
-		return anchor($uri, '<i class="fa fa-thermometer-full fa-2x" aria-hidden="true">', array('title' => 'Calculate and View the Hot - Warm - Cold of the Numbers'));
+		return anchor($uri, '<i class="fa fa-thermometer-full fa-2x" aria-hidden="true">', array('title' => 'Calculate and View the Hot - Warm - Cold of the Numbers','class' => 'h-w-c'));
 	}
 
 	/**
@@ -817,7 +817,6 @@ class Statistics extends Admin_Controller {
 				}
 				
 			}
-
 			$this->data['lottery']->extra_included = $this->uri->segment(6)=='extra' ? $this->statistics_m->extra_included($id, TRUE, 'lottery_h_w_c') : $this->statistics_m->extra_included($id, FALSE, 'lottery_h_w_c');
 			if($h_w_c['extra_included']!=$this->data['lottery']->extra_included) $blnheat = TRUE; // A change in extra included has occurred
 			$this->data['lottery']->extra_draws = ($this->uri->segment(6)=='draws' ? $this->statistics_m->extra_draws($id, TRUE, 'lottery_h_w_c') : $this->statistics_m->extra_draws($id, FALSE, 'lottery_h_w_c'));
@@ -835,17 +834,17 @@ class Statistics extends Admin_Controller {
 					$strcolds = $this->statistics_m->colds($str_hwc);
 					$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '');
 					$hwc = array(
-						'range'				=> $new_range,
-						'hots'				=> $strhots,
-						'warms'				=> $strwarms,
-						'colds'				=> $strcolds,
-						'overdue'			=> $stroverdue,
-						'draw_id'			=> $this->data['lottery']->last_drawn['id'],
-						'lottery_id'		=> $id,
-						'extra_included'	=> $this->data['lottery']->extra_included,
-						'extra_draws'		=> $this->data['lottery']->extra_draws,
-						'w'					=> $w_start,
-						'c'					=> $c_start,
+						'range'				=> 	$new_range,
+						'hots'				=> 	$strhots,
+						'warms'				=> 	$strwarms,
+						'colds'				=> 	$strcolds,
+						'overdue'			=> 	$stroverdue,
+						'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
+						'lottery_id'		=> 	$id,
+						'extra_included'	=> 	$this->data['lottery']->extra_included,
+						'extra_draws'		=> 	$this->data['lottery']->extra_draws,
+						'w'					=> 	$w_start,
+						'c'					=> 	$c_start,
 						'h_count'			=> 	$this->data['lottery']->H,
 						'w_count'			=> 	$this->data['lottery']->W,
 						'c_count'			=> 	$this->data['lottery']->C
@@ -859,8 +858,8 @@ class Statistics extends Admin_Controller {
 					if(!$sel_range) $sel_range = 1; // Less than 100 draws
 					$strhots = $h_w_c['hots']; 		// Pull from DB
 					$strwarms = $h_w_c['warms'];
-					$strcolds = $h_w_c['colds'];;
-					$stroverdue = $h_w_c['overdue'];
+					$strcolds = $h_w_c['colds'];
+					$stroverdue = $h_w_c['overdue']; 
 				}
 			}
 		}
@@ -883,17 +882,17 @@ class Statistics extends Admin_Controller {
 			$strcolds = $this->statistics_m->colds($str_hwc);
 			$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl_name, $drawn, $new_range);
 			$hwc = array(
-						'range'				=> $new_range,
-						'hots'				=> $strhots,
-						'warms'				=> $strwarms,
-						'colds'				=> $strcolds,
-						'overdue'			=> $stroverdue,
-						'draw_id'			=> $this->data['lottery']->last_drawn['id'],
-						'lottery_id'		=> $id,
-						'extra_included'	=> $this->data['lottery']->extra_included,
-						'extra_draws'		=> $this->data['lottery']->extra_draws,
-						'w'					=> $w_start,
-						'c'					=> $c_start,
+						'range'				=> 	$new_range,
+						'hots'				=> 	$strhots,
+						'warms'				=> 	$strwarms,
+						'colds'				=> 	$strcolds,
+						'overdue'			=> 	$stroverdue,
+						'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
+						'lottery_id'		=> 	$id,
+						'extra_included'	=> 	$this->data['lottery']->extra_included,
+						'extra_draws'		=> 	$this->data['lottery']->extra_draws,
+						'w'					=> 	$w_start,
+						'c'					=> 	$c_start,
 						'h_count'			=> 	$this->data['lottery']->H,
 						'w_count'			=> 	$this->data['lottery']->W,
 						'c_count'			=> 	$this->data['lottery']->C	
@@ -938,6 +937,61 @@ class Statistics extends Admin_Controller {
 			$this->data['lottery']->overdue[$n] = $c; 
 		}
 
+		$hwc_history = $this->statistics_m->hwc_history_exists($id,$new_range);
+		if(is_null($hwc_history)) // Correct Lottery & Range?
+		{
+			$hwc_history = $this->h_w_c_history($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start);
+			if (!$hwc_history) // Problem with calculating H-W-C's over range
+			{
+				$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$$new_range.' Draws.');
+				redirect('admin/statistics');
+			}
+			$hwc_history['hwc'] = substr($hwc_history['hwc'], 0, -1);  				// Remove the last comma
+			$this->data['lottery']->last_hwc = $hwc_history['last'];
+			// Iterate Top H - W - C's
+			$hwc_totals = explode(',',$hwc_history['hwc']);							
+			foreach($hwc_totals as $heat)
+			{
+				$n = strstr($heat, '=', TRUE);										// Strip off the h-w-c to the left of the equal sign
+				$c = substr(strrchr($heat, "="), 1); 								// Strip off the count to the right of the equal sign
+				$this->data['lottery']->hwc[$n] = $c; 
+			}
+			$hwc_h_data = array(
+								'range'				=>	$new_range,
+								'h_w_c_range'		=> 	$hwc_history['hwc'],
+								'h_w_c_last_1'		=> 	$this->data['lottery']->last_hwc,
+								'h_w_c_last_10'		=> 	'0',
+								'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
+								'lottery_id'		=> 	$id,
+								'extra_included'	=> 	$this->data['lottery']->extra_included,
+								'extra_draws'		=> 	$this->data['lottery']->extra_draws,
+								);
+			$this->statistics_m->hwc_history_save($hwc_h_data, FALSE);
+		}
+		else
+		{
+			$this->data['lottery']->last_hwc = $hwc_history['last'];
+			$hwc_totals = explode(',',$hwc_history['hwc']); 		// Strip off the h-w-c to the right of the ','
+			foreach($hwc_totals as $heat)
+			{
+				$n = strstr($heat, '=', TRUE); 						// Strip off the h-w-c to the left of the equal sign
+				$c = substr(strrchr($heat, "="), 1);				// Strip off the count to the right of the equal sign
+				$this->data['lottery']->hwc[$heat] = $c; 
+			}
+			$hwc_h_data = array(
+								'range'				=>	$new_range,
+								'h_w_c_range'		=> 	$hwc_history['hwc'],
+								'h_w_c_last_1'		=> 	$this->data['lottery']->last_hwc,
+								'h_w_c_last_10'		=> 	'0',
+								'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
+								'lottery_id'		=> 	$id,
+								'extra_included'	=> 	$this->data['lottery']->extra_included,
+								'extra_draws'		=> 	$this->data['lottery']->extra_draws,
+								);
+			$this->statistics_m->hwc_history_save($hwc_h_data, TRUE);
+		}
+		unset($hwc_history); // Remove this temporary holding place for historic h-w-c's
+		
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
 		$this->data['lottery']->last_drawn['range'] = $new_range;
@@ -951,7 +1005,100 @@ class Statistics extends Admin_Controller {
 		$this->data['subview']  = 'admin/dashboard/statistics/h_w_c';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
-	
+	/**
+	 * h_w_c_history. Calculates the Lottery the Historic H-W-C.  It will determine the last H - W - C from the range of draws and the H-W-C from the last draw.
+	 * For example, if a 100 draw range is selected, there must be a minimum of 100 draws prior to calcuatling the 100 draw range.  
+	 * This will remain constant for all ranges. e.g. 100 draws will be calculated prior to a 200, 300, 400, 500 or all draw ranges.
+	 * @param 	string	$table			Exact name of the lottery
+	 * @param 	integer	$picks			Pick 6, Pick 7, etc.
+	 * @param 	boolean	$xtra			Extra Draws (extra = 0?) are included in the calculation, 0 = no 1 = yes
+	 * @param 	boolean	$bn				Extra Ball included, 0 = no, 1 = yes
+ 	 * @param 	integer	$range			Range of Draws
+	 * @param 	integer	$w_bound		Passed value. Start of the warm numbers begin. e.g 1-16 Hots, 17-33 Warms, 34-49 Colds in 49 system
+	 * @param 	integer $c_bound		Passed value. Cold count of the numbers .e.g 16 hot, 17 warm adn 16 cold for a pick 6 - 49 system
+	 * @return 	string	$totals			String return of the range of draws H-W-Cs and the last draw H-W-C.
+	 */
+	public function h_w_c_history($table, $picks, $xtra, $bn, $range, $w_bound, $c_bound)
+	{
+		$examine_date = $this->statistics_m->lottery_return_date($table, $range, $xtra);
+
+		if(!$examine_date) return false;
+
+		$heats = explode(",",$this->statistics_m->hwc_heats[$picks]); // break the heat h-w-c in an array
+		$heats = array_flip($heats);								  // reverse the values as associative keys
+
+		foreach($heats as $level => $value)
+		{
+			$heats[$level] = 0;		// Will be used as counters and zero out the values
+		}
+
+		$row  = 1;	// Starting point at $row 1
+		do
+		{
+			$str_h_w_c = $this->statistics_m->h_w_c_calculate($table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $examine_date);
+			$str_hots = $this->statistics_m->hots($str_h_w_c);
+			$str_warms = $this->statistics_m->warms($str_h_w_c);
+			$str_colds = $this->statistics_m->colds($str_h_w_c);
+
+			$hots = explode(",", $str_hots);
+			$warms = explode(",", $str_warms);
+			$colds = explode(",", $str_colds);
+
+			$highs = array();
+			$averages = array();
+			$lows = array();
+
+			foreach($hots as $key => $value) 			
+			{
+				$h = explode('=', $hots[$key]);
+				array_push($highs, $h[0]);
+			}
+			foreach($warms as $key => $value) 
+			{
+				$w = explode('=', $warms[$key]);
+				array_push($averages, $w[0]);
+			}
+			foreach($colds as $key => $value) // Remove the odd elements
+			{
+				$c = explode('=', $colds[$key]);
+				array_push($lows, $c[0]);
+			}
+
+			$fd = $this->statistics_m->hwc_next_draw($table, $examine_date); // return the full with draw date, ball 1 ... ball n + extra
+			if($fd)	// next draw returned?
+			{
+				$examine_date = $fd['draw_date'];	// Next date for H_W_C Calculation
+				$next_drawn = $this->statistics_m->only_picks($picks, $fd);
+			}
+			else
+			{
+				break;
+			}
+			
+			$h = 0; $w = 0; $c = 0;
+
+			foreach($next_drawn as $temp)
+			{
+				if(array_search($temp, $highs)) $h++;
+				if(array_search($temp, $averages)) $w++;
+				if(array_search($temp, $lows)) $c++;
+			}
+			$lvl = (string)$h.'-'.$w.'-'.$c;
+			if(array_key_exists($lvl, $heats)) $heats[$lvl]++; 
+			$row++;
+		} 
+		while($row<$range);
+		$totals = array();
+		$totals['last'] = $lvl;	// include the last h-w-c
+		$totals['hwc'] = '';
+		foreach($heats as $hwc => $tot)
+		{
+			$totals['hwc'] .= $hwc.'='.$tot.',';
+		}
+		unset($heats);
+
+	return $totals;
+	}
 	/**
 	 * Return the complete draws of the lottery and return the data in the form of JSON
 	 * 
@@ -971,7 +1118,6 @@ class Statistics extends Admin_Controller {
 		$result_db = $query->result_array();
 		echo json_encode($result_db);
 	}
-
 	/**
 	 * ReCALCULATES all the H-W-C, Followers and Friends all in one action ONLY after the draw statistics are completed.  
 	 * 

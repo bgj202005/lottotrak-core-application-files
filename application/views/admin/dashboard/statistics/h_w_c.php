@@ -1,3 +1,5 @@
+<link href="https://unpkg.com/bootstrap-table@1.18.0/dist/bootstrap-table.min.css" rel="stylesheet">
+<link href="https://unpkg.com/bootstrap-table@1.18.0/dist/extensions/reorder-rows/bootstrap-table-reorder-rows.css" rel="stylesheet">
 <style>
 	.card {
     background-color: #ffffff;
@@ -48,7 +50,34 @@
   		display:inline-block;
   		max-width: 178px;
   		margin:20px;
-}
+	}
+	/* hwc */
+	table hwc{
+    	width:100%;
+	}
+	tr hwc{
+		font-size: 0.90em;
+	}
+	th hwc{
+		text-align:center;
+		font-size: 0.90em;
+	}
+	table.hwc tr{
+		font-size: 0.65em;
+	}
+	
+	th.datafont{
+		text-align:center;
+		font-size: 0.95em;
+	}
+	td.datafont { 
+		font-size: 	0.95em;
+		text-align: center; 
+		white-space: nowrap;
+	}
+	#hwc_paginate{
+    float:right;
+	}	  
 </style>
 	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
 	<script src="//code.jquery.com/jquery-1.12.4.js"></script>
@@ -259,6 +288,34 @@
 											endforeach; ?>
 									</tbody>
 								</table>
+								<table style = "max-width: 112px; max-height:70px;" class="table table-sm">
+								<thead>
+									<tr>
+										<th class = "datafont">Last H - W - C</th>
+									</tr>
+								</thead>
+								<tbody>
+									<tr>
+										<td class="text-center datafont"><?=str_replace('-',' - ',$lottery->last_hwc);?></td>
+									</tr>
+								</tbody>	
+								</table>
+									<table style = "max-width: 130px;" class="table table-striped table-sm">
+									<thead>
+										<tr>
+										<th class = "datafont" data-field="hwc" data-sortable="true">H - W - C</th>
+										<th class = "datafont" data-field="total">Count</th>
+										</tr>
+									</thead>
+									<tbody>
+										<?php foreach ($lottery->hwc as $h_w_c => $total): ?>
+										<tr>
+											<td class="text-center datafont"><?=str_replace('-',' - ',$h_w_c);?></td>
+											<td class="text-center datafont"><?=$total;?></td>
+										</tr>
+										<?php endforeach; ?>
+									</tbody>	
+								</table>
 							</div>
 						</div>
 					</div>
@@ -287,5 +344,4 @@
     $("#hots").spinner();
 	$("#warms").spinner();
 	$("#colds").spinner();
-	
 </script>
