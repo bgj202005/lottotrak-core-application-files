@@ -947,8 +947,9 @@ class Statistics extends Admin_Controller {
 				redirect('admin/statistics');
 			}
 			$hwc_history['hwc'] = substr($hwc_history['hwc'], 0, -1);  				// Remove the last comma
+			$hwc_history['last10'] = substr($hwc_history['last10'], 0, -1);
 			$this->data['lottery']->last_hwc = $hwc_history['last'];
-			// Iterate Top H - W - C's
+			// Iterate Top H - W - C's from Range
 			$hwc_totals = explode(',',$hwc_history['hwc']);							
 			foreach($hwc_totals as $heat)
 			{
@@ -956,11 +957,19 @@ class Statistics extends Admin_Controller {
 				$c = substr(strrchr($heat, "="), 1); 								// Strip off the count to the right of the equal sign
 				$this->data['lottery']->hwc[$n] = $c; 
 			}
+			// Iterate H - W - C's from last 10 draws
+			$hwc_last10 = explode(',',$hwc_history['last10']);							
+			foreach($hwc_last10 as $heat)
+			{
+				$n = strstr($heat, '=', TRUE);										// Strip off the h-w-c to the left of the equal sign
+				$c = substr(strrchr($heat, "="), 1); 								// Strip off the count to the right of the equal sign
+				$this->data['lottery']->last10[$n] = $c; 
+			}
 			$hwc_h_data = array(
 								'range'				=>	$new_range,
 								'h_w_c_range'		=> 	$hwc_history['hwc'],
 								'h_w_c_last_1'		=> 	$this->data['lottery']->last_hwc,
-								'h_w_c_last_10'		=> 	'0',
+								'h_w_c_last_10'		=> 	$hwc_history['last10'],
 								'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
 								'lottery_id'		=> 	$id,
 								'extra_included'	=> 	$this->data['lottery']->extra_included,
@@ -978,11 +987,18 @@ class Statistics extends Admin_Controller {
 				$c = substr(strrchr($heat, "="), 1);				// Strip off the count to the right of the equal sign
 				$this->data['lottery']->hwc[$heat] = $c; 
 			}
+			$hwc_last10 = explode(',',$hwc_history['last10']); 		// Strip off the h-w-c to the right of the ','
+			foreach($hwc_last10 as $heat)
+			{
+				$n = strstr($heat, '=', TRUE); 						// Strip off the h-w-c to the left of the equal sign
+				$c = substr(strrchr($heat, "="), 1);				// Strip off the count to the right of the equal sign
+				$this->data['lottery']->last10[$heat] = $c; 
+			}
 			$hwc_h_data = array(
 								'range'				=>	$new_range,
 								'h_w_c_range'		=> 	$hwc_history['hwc'],
 								'h_w_c_last_1'		=> 	$this->data['lottery']->last_hwc,
-								'h_w_c_last_10'		=> 	'0',
+								'h_w_c_last_10'		=> 	$hwc_history['last10'],
 								'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
 								'lottery_id'		=> 	$id,
 								'extra_included'	=> 	$this->data['lottery']->extra_included,
@@ -1095,8 +1111,74 @@ class Statistics extends Admin_Controller {
 		{
 			$totals['hwc'] .= $hwc.'='.$tot.',';
 		}
-		unset($heats);
+		// next, do the last 10 draws
+		$examine_date = $this->statistics_m->lottery_return_date($table, 10, $xtra);
+		if(!$examine_date) return false;
+		foreach($heats as $level => $value)
+		{
+			$heats[$level] = 0;		// Will be used as counters and zero out the values
+		}
+		$row  = 1;	// Starting point at $row 1
+		do
+		{
+			$str_h_w_c = $this->statistics_m->h_w_c_calculate($table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $examine_date);
+			$str_hots = $this->statistics_m->hots($str_h_w_c);
+			$str_warms = $this->statistics_m->warms($str_h_w_c);
+			$str_colds = $this->statistics_m->colds($str_h_w_c);
 
+			$hots = explode(",", $str_hots);
+			$warms = explode(",", $str_warms);
+			$colds = explode(",", $str_colds);
+
+			$highs = array();
+			$averages = array();
+			$lows = array();
+
+			foreach($hots as $key => $value) 			
+			{
+				$h = explode('=', $hots[$key]);
+				array_push($highs, $h[0]);
+			}
+			foreach($warms as $key => $value) 
+			{
+				$w = explode('=', $warms[$key]);
+				array_push($averages, $w[0]);
+			}
+			foreach($colds as $key => $value) // Remove the odd elements
+			{
+				$c = explode('=', $colds[$key]);
+				array_push($lows, $c[0]);
+			}
+
+			$fd = $this->statistics_m->hwc_next_draw($table, $examine_date); // return the full with draw date, ball 1 ... ball n + extra
+			if($fd)	// next draw returned?
+			{
+				$examine_date = $fd['draw_date'];	// Next date for H_W_C Calculation
+				$next_drawn = $this->statistics_m->only_picks($picks, $fd);
+			}
+			else
+			{
+				break;
+			}
+			
+			$h = 0; $w = 0; $c = 0;
+
+			foreach($next_drawn as $temp)
+			{
+				if(array_search($temp, $highs)) $h++;
+				if(array_search($temp, $averages)) $w++;
+				if(array_search($temp, $lows)) $c++;
+			}
+			$lvl = (string)$h.'-'.$w.'-'.$c;
+			if(array_key_exists($lvl, $heats)) $heats[$lvl]++; 
+			$row++;
+		} 
+		while($row<10);
+		$totals['last10'] = '';
+		foreach($heats as $hwc => $tot)
+		{
+			$totals['last10'] .= $hwc.'='.$tot.',';
+		}
 	return $totals;
 	}
 	/**

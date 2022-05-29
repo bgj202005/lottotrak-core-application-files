@@ -288,10 +288,13 @@
 											endforeach; ?>
 									</tbody>
 								</table>
-								<table style = "max-width: 112px; max-height:70px;" class="table table-sm">
+								<table style = "max-width: 85px; max-height: 100px;" class="table table-sm">
 								<thead>
 									<tr>
-										<th class = "datafont">Last H - W - C</th>
+										<th colspan = "2" class = "datafont">Last Draw</th>
+									</tr>
+									<tr>
+										<th class = "datafont">H - W - C</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -300,11 +303,33 @@
 									</tr>
 								</tbody>	
 								</table>
-									<table style = "max-width: 130px;" class="table table-striped table-sm">
+								<table style = "max-width: 130px;" class="table table-striped table-sm">
 									<thead>
 										<tr>
-										<th class = "datafont" data-field="hwc" data-sortable="true">H - W - C</th>
-										<th class = "datafont" data-field="total">Count</th>
+											<th colspan = "2" class = "datafont">Last 10 Draws</th>
+										</tr>
+										<tr>
+											<th class = "datafont">H - W - C</th>
+											<th class = "datafont">Count</th>
+										</tr>
+									</thead>
+									<tbody>
+										<?php foreach ($lottery->last10 as $last10 => $total): ?>
+										<tr>
+											<td class="text-center datafont"><?=str_replace('-',' - ',$last10);?></td>
+											<td class="text-center datafont"><?=$total;?></td>
+										</tr>
+										<?php endforeach; ?>
+									</tbody>	
+								</table>
+								<table style = "max-width: 130px;" class="table table-striped table-sm">
+									<thead>
+									<tr>
+											<th colspan = "2" class = "datafont">Last <?=$sel_range*100; ?> Draws</th>
+									</tr>	
+									<tr>
+											<th class = "datafont">H - W - C</th>
+											<th class = "datafont">Count</th>
 										</tr>
 									</thead>
 									<tbody>
