@@ -3,7 +3,7 @@
     	width:100%;
 	}
 	tr{
-		font-size: 0.58em; /* Minimum size before horizontal toolbar appears under list */
+		font-size: 0.60em; /* Minimum size before horizontal toolbar appears under list */
 	}
 	label {
     	display: inline-flex;
