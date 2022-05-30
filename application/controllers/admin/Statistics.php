@@ -1036,10 +1036,8 @@ class Statistics extends Admin_Controller {
 	 */
 	public function h_w_c_history($table, $picks, $xtra, $bn, $range, $w_bound, $c_bound)
 	{
-		$examine_date = $this->statistics_m->lottery_return_date($table, $range, $xtra);
-
-		if(!$examine_date) return false;
-
+		$examine_date = $this->statistics_m->lottery_return_date($table, $range+1, $xtra); 	// Please note: This an off by 1 error. It has to go +1 draw back 
+		if(!$examine_date) return false;													// to iterate for the given range
 		$heats = explode(",",$this->statistics_m->hwc_heats[$picks]); // break the heat h-w-c in an array
 		$heats = array_flip($heats);								  // reverse the values as associative keys
 
@@ -1095,15 +1093,15 @@ class Statistics extends Admin_Controller {
 
 			foreach($next_drawn as $temp)
 			{
-				if(array_search($temp, $highs)) $h++;
-				if(array_search($temp, $averages)) $w++;
-				if(array_search($temp, $lows)) $c++;
+				if(in_array($temp, $highs)) $h++;
+				if(in_array($temp, $averages)) $w++;
+				if(in_array($temp, $lows)) $c++;
 			}
 			$lvl = (string)$h.'-'.$w.'-'.$c;
 			if(array_key_exists($lvl, $heats)) $heats[$lvl]++; 
 			$row++;
 		} 
-		while($row<$range);
+		while($row<=$range);
 		$totals = array();
 		$totals['last'] = $lvl;	// include the last h-w-c
 		$totals['hwc'] = '';
@@ -1112,8 +1110,8 @@ class Statistics extends Admin_Controller {
 			$totals['hwc'] .= $hwc.'='.$tot.',';
 		}
 		// next, do the last 10 draws
-		$examine_date = $this->statistics_m->lottery_return_date($table, 10, $xtra);
-		if(!$examine_date) return false;
+		$examine_date = $this->statistics_m->lottery_return_date($table, 11, $xtra);	// Please note: This an off by 1 error. It has to go 11 draws 
+		if(!$examine_date) return false;												// back to interate for 10 draws.
 		foreach($heats as $level => $value)
 		{
 			$heats[$level] = 0;		// Will be used as counters and zero out the values
@@ -1165,15 +1163,15 @@ class Statistics extends Admin_Controller {
 
 			foreach($next_drawn as $temp)
 			{
-				if(array_search($temp, $highs)) $h++;
-				if(array_search($temp, $averages)) $w++;
-				if(array_search($temp, $lows)) $c++;
+				if(in_array($temp, $highs)) $h++;
+				if(in_array($temp, $averages)) $w++;
+				if(in_array($temp, $lows)) $c++;
 			}
 			$lvl = (string)$h.'-'.$w.'-'.$c;
 			if(array_key_exists($lvl, $heats)) $heats[$lvl]++; 
 			$row++;
 		} 
-		while($row<10);
+		while($row<=10);
 		$totals['last10'] = '';
 		foreach($heats as $hwc => $tot)
 		{
