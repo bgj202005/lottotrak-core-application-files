@@ -104,7 +104,7 @@ $(document).ready(function(){
 	$('#status').css('display', 'block');
 	$('#message').css('display', 'none'); 
 	document.getElementById("status").innerHTML = "Updating the Hot - Warm - Cold (H-W-C) Numbers and History. Please Wait.";
-	setTimeout(fade_out, 5500);
+	setTimeout(fade_out, 8500);
 	});
 	$('.followers').click(function(){
 	$('#status').css('display', 'block');

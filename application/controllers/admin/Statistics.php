@@ -12,7 +12,7 @@ class Statistics extends Admin_Controller {
 		 $this->load->model('maintenance_m');
 		 $this->load->helper('file');
 		 $this->load->helper('html');
-		 //$this->output->enable_profiler(TRUE);
+		// $this->output->enable_profiler(TRUE);
 	}
 
 	/**
@@ -937,7 +937,7 @@ class Statistics extends Admin_Controller {
 			$this->data['lottery']->overdue[$n] = $c; 
 		}
 
-		$hwc_history = $this->statistics_m->hwc_history_exists($id,$new_range);
+		$hwc_history = $this->statistics_m->hwc_history_exists($id);
 		if(is_null($hwc_history)) // Correct Lottery & Range?
 		{
 			$hwc_history = $this->h_w_c_history($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start);
@@ -946,11 +946,11 @@ class Statistics extends Admin_Controller {
 				$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$$new_range.' Draws.');
 				redirect('admin/statistics');
 			}
-			$hwc_history['hwc'] = substr($hwc_history['hwc'], 0, -1);  				// Remove the last comma
-			$hwc_history['last10'] = substr($hwc_history['last10'], 0, -1);
-			$this->data['lottery']->last_hwc = $hwc_history['last'];
+			$hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  				// Remove the last comma
+			$hwc_history['h_w_c_last_10'] = substr($hwc_history['h_w_c_last_10'], 0, -1);
+			$this->data['lottery']->last_hwc = $hwc_history['h_w_c_last_1'];
 			// Iterate Top H - W - C's from Range
-			$hwc_totals = explode(',',$hwc_history['hwc']);							
+			$hwc_totals = explode(',',$hwc_history['h_w_c_range']);							
 			foreach($hwc_totals as $heat)
 			{
 				$n = strstr($heat, '=', TRUE);										// Strip off the h-w-c to the left of the equal sign
@@ -958,7 +958,7 @@ class Statistics extends Admin_Controller {
 				$this->data['lottery']->hwc[$n] = $c; 
 			}
 			// Iterate H - W - C's from last 10 draws
-			$hwc_last10 = explode(',',$hwc_history['last10']);							
+			$hwc_last10 = explode(',',$hwc_history['h_w_c_last_10']);							
 			foreach($hwc_last10 as $heat)
 			{
 				$n = strstr($heat, '=', TRUE);										// Strip off the h-w-c to the left of the equal sign
@@ -967,44 +967,56 @@ class Statistics extends Admin_Controller {
 			}
 			$hwc_h_data = array(
 								'range'				=>	$new_range,
-								'h_w_c_range'		=> 	$hwc_history['hwc'],
+								'h_w_c_range'		=> 	$hwc_history['h_w_c_range'],
 								'h_w_c_last_1'		=> 	$this->data['lottery']->last_hwc,
-								'h_w_c_last_10'		=> 	$hwc_history['last10'],
+								'h_w_c_last_10'		=> 	$hwc_history['h_w_c_last_10'],
 								'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
 								'lottery_id'		=> 	$id,
 								'extra_included'	=> 	$this->data['lottery']->extra_included,
 								'extra_draws'		=> 	$this->data['lottery']->extra_draws,
 								);
-			$this->statistics_m->hwc_history_save($hwc_h_data, FALSE);
+			$this->statistics_m->hwc_history_save($hwc_h_data, FALSE); // New Record
 		}
 		else
 		{
-			$this->data['lottery']->last_hwc = $hwc_history['last'];
-			$hwc_totals = explode(',',$hwc_history['hwc']); 		// Strip off the h-w-c to the right of the ','
+			if($old_range!=$new_range)	 // Range has changed
+			{
+				// Recalculation is nesessary
+				$hwc_history = $this->h_w_c_history($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start);
+				if (!$hwc_history) // Problem with calculating H-W-C's over range
+				{
+					$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$$new_range.' Draws.');
+				redirect('admin/statistics');
+				}
+				$hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  				// Remove the last comma
+				$hwc_history['h_w_c_last_10'] = substr($hwc_history['h_w_c_last_10'], 0, -1);
+			}
+			$this->data['lottery']->last_hwc = $hwc_history['h_w_c_last_1'];
+			$hwc_totals = explode(',',$hwc_history['h_w_c_range']); 		// Strip off the h-w-c to the right of the ','
 			foreach($hwc_totals as $heat)
 			{
 				$n = strstr($heat, '=', TRUE); 						// Strip off the h-w-c to the left of the equal sign
-				$c = substr(strrchr($heat, "="), 1);				// Strip off the count to the right of the equal sign
-				$this->data['lottery']->hwc[$heat] = $c; 
+				$c = substr(strchr($heat, "="), 1);				// Strip off the count to the right of the equal sign
+				$this->data['lottery']->hwc[$n] = $c; 
 			}
-			$hwc_last10 = explode(',',$hwc_history['last10']); 		// Strip off the h-w-c to the right of the ','
+			$hwc_last10 = explode(',',$hwc_history['h_w_c_last_10']); 		// Strip off the h-w-c to the right of the ','
 			foreach($hwc_last10 as $heat)
 			{
 				$n = strstr($heat, '=', TRUE); 						// Strip off the h-w-c to the left of the equal sign
 				$c = substr(strrchr($heat, "="), 1);				// Strip off the count to the right of the equal sign
-				$this->data['lottery']->last10[$heat] = $c; 
+				$this->data['lottery']->last10[$n] = $c; 
 			}
 			$hwc_h_data = array(
 								'range'				=>	$new_range,
-								'h_w_c_range'		=> 	$hwc_history['hwc'],
+								'h_w_c_range'		=> 	$hwc_history['h_w_c_range'],
 								'h_w_c_last_1'		=> 	$this->data['lottery']->last_hwc,
-								'h_w_c_last_10'		=> 	$hwc_history['last10'],
+								'h_w_c_last_10'		=> 	$hwc_history['h_w_c_last_10'],
 								'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
 								'lottery_id'		=> 	$id,
 								'extra_included'	=> 	$this->data['lottery']->extra_included,
 								'extra_draws'		=> 	$this->data['lottery']->extra_draws,
 								);
-			$this->statistics_m->hwc_history_save($hwc_h_data, TRUE);
+			$this->statistics_m->hwc_history_save($hwc_h_data, TRUE); // Update existing lottery H W C Record
 		}
 		unset($hwc_history); // Remove this temporary holding place for historic h-w-c's
 		
@@ -1027,14 +1039,14 @@ class Statistics extends Admin_Controller {
 	 * This will remain constant for all ranges. e.g. 100 draws will be calculated prior to a 200, 300, 400, 500 or all draw ranges.
 	 * @param 	string	$table			Exact name of the lottery
 	 * @param 	integer	$picks			Pick 6, Pick 7, etc.
-	 * @param 	boolean	$xtra			Extra Draws (extra = 0?) are included in the calculation, 0 = no 1 = yes
 	 * @param 	boolean	$bn				Extra Ball included, 0 = no, 1 = yes
+	 * @param 	boolean	$xtra			Extra Draws (extra = 0?) are included in the calculation, 0 = no 1 = yes
  	 * @param 	integer	$range			Range of Draws
 	 * @param 	integer	$w_bound		Passed value. Start of the warm numbers begin. e.g 1-16 Hots, 17-33 Warms, 34-49 Colds in 49 system
 	 * @param 	integer $c_bound		Passed value. Cold count of the numbers .e.g 16 hot, 17 warm adn 16 cold for a pick 6 - 49 system
 	 * @return 	string	$totals			String return of the range of draws H-W-Cs and the last draw H-W-C.
 	 */
-	public function h_w_c_history($table, $picks, $xtra, $bn, $range, $w_bound, $c_bound)
+	public function h_w_c_history($table, $picks, $bn, $xtra, $range, $w_bound, $c_bound)
 	{
 		$examine_date = $this->statistics_m->lottery_return_date($table, $range+1, $xtra); 	// Please note: This an off by 1 error. It has to go +1 draw back 
 		if(!$examine_date) return false;													// to iterate for the given range
@@ -1103,11 +1115,11 @@ class Statistics extends Admin_Controller {
 		} 
 		while($row<=$range);
 		$totals = array();
-		$totals['last'] = $lvl;	// include the last h-w-c
-		$totals['hwc'] = '';
+		$totals['h_w_c_last_1'] = $lvl;	// include the last h-w-c
+		$totals['h_w_c_range'] = '';
 		foreach($heats as $hwc => $tot)
 		{
-			$totals['hwc'] .= $hwc.'='.$tot.',';
+			$totals['h_w_c_range'] .= $hwc.'='.$tot.',';
 		}
 		// next, do the last 10 draws
 		$examine_date = $this->statistics_m->lottery_return_date($table, 11, $xtra);	// Please note: This an off by 1 error. It has to go 11 draws 
@@ -1172,10 +1184,10 @@ class Statistics extends Admin_Controller {
 			$row++;
 		} 
 		while($row<=10);
-		$totals['last10'] = '';
+		$totals['h_w_c_last_10'] = '';
 		foreach($heats as $hwc => $tot)
 		{
-			$totals['last10'] .= $hwc.'='.$tot.',';
+			$totals['h_w_c_last_10'] .= $hwc.'='.$tot.',';
 		}
 	return $totals;
 	}

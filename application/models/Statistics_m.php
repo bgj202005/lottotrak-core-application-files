@@ -56,9 +56,9 @@ class Statistics_m extends MY_Model
 	public $hwc_heats = array(
 				'3'		=>		'3-0-0,2-1-0,2-0-1,1-2-0,1-1-1,1-0-2,0-3-0,0-0-3',
 				'4'		=>		'4-0-0,3-1-0,3-0-1,2-2-0,2-1-1,2-0-2,1-3-0,1-2-1,1-1-2,1-0-3,0-3-1,0-2-2,0-1-3,0-4-0,0-0-4',
-				'5'		=>		'5-0-0,4-1-0,4-0-1,3-2-0,3-1-1,3-0-2,2-3-0,2-2-1,2-0-3,1-4-0,1-3-1,1-2-2,1-1-3,1-0-4,0-5-0,0-4-1,0-3-2,0-2-3,0-1-4,0-5-0,0-0-5',
+				'5'		=>		'5-0-0,4-1-0,4-0-1,3-2-0,3-1-1,3-0-2,2-3-0,2-2-1,2-1-2,2-0-3,1-4-0,1-3-1,1-2-2,1-1-3,1-0-4,0-5-0,0-4-1,0-3-2,0-2-3,0-1-4,0-5-0,0-0-5',
 				'6'		=>		'6-0-0,5-1-0,5-0-1,4-2-0,4-1-1,4-0-2,3-3-0,3-2-1,3-1-2,3-0-3,2-4-0,2-3-1,2-2-2,2-1-3,2-0-4,1-5-0,1-4-1,1-3-2,1-2-3,1-1-4,1-0-5,0-6-0,0-5-1,0-4-2,0-3-3,0-2-4,0-1-5,0-6-0,0-0-6',
-				'7'		=>		'7-0-0,6-1-0,6-0-1,5-2-0,5-1-1,5-0-2,4-3-0,4-2-2,4-1-2,4-0-3,3-4-0,3-3-1,3-2-2,3-1-3,3-0-4,2-5-0,2-4-1,2-3-2,2-2-3,2-1-4,2-0-5,1-6-0,1-5-1,1-4-2,1-3-3,1-2-4,1-1-5,1-0-6,0-6-1,0-5-2,0-4-3,0-3-4,0-2-5,0-1-6,0-7-0,0-0-7',
+				'7'		=>		'7-0-0,6-1-0,6-0-1,5-2-0,5-1-1,5-0-2,4-3-0,4-2-2,4-2-1,4-1-2,4-0-3,3-4-0,3-3-1,3-2-2,3-1-3,3-0-4,2-5-0,2-4-1,2-3-2,2-2-3,2-1-4,2-0-5,1-6-0,1-5-1,1-4-2,1-3-3,1-2-4,1-1-5,1-0-6,0-6-1,0-5-2,0-4-3,0-3-4,0-2-5,0-1-6,0-7-0,0-0-7',
 				'8'		=>		'8-0-0,7-1-0,7-0-1,6-2-0,6-1-1,6-0-2,5-3-0,5-2-1,5-1-2,5-0-3,4-4-0,4-3-1,4-2-2,4-1-3,4-0-4,3-5-0,3-4-1,3-3-2,3-2-3,3-1-4,3-0-5,2-6-0,2-5-1,2-4-2,2-3-3,2-2-4,2-1-5,2-0-6,1-7-0,1-6-1,1-5-2,1-4-3,1-3-4,1-2-5,1-1-6,1-0-7,0-8-0,0-0-8',
 				'9'		=>		'9-0-0,8-1-0,8-0-1,7-2-0,7-1-1,7-0-2,6-3-0,6-2-1,6-1-2,6-0-3,5-4-0,5-3-1,5-2-2,5-1-3,5-0-4,4-5-0,4-4-1,4-3-2,4-2-3,4-1-4,4-0-5,3-6-0,3-5-1,3-4-2,3-3-3,3-2-4,3-1-5,3-0-6,2-7-0,2-6-1,2-5-2,2-4-3,2-3-4,2-2-5,2-1-6,2-0-7,1-8-0,1-7-1,1-6-2,1-5-3,1-4-4,1-3-5,1-2-6,1-1-7,1-0-8,0-8-1,0-7-2,0-6-3,0-5-4,0-4-5,0-3-6,0-2-7,0-1-8,0-9-0,0-0-9'
 	);
@@ -156,7 +156,7 @@ class Statistics_m extends MY_Model
 	 */
 	public function lottery_return_date($tbl, $draw_back, $ex)
 	{	
-		$where = ($ex ? ' WHERE `extra` <> "0" ' : '');
+		$where = (!$ex ? ' WHERE `extra` <> "0" ' : '');
 		//$sql = 'SELECT `draw_date` FROM '.$tbl.$where.' ORDER BY `draw_date` DESC LIMIT '.$draw_back.';';
 		$query = $this->db->query('SELECT `draw_date` FROM '.$tbl.$where.' ORDER BY `draw_date` DESC LIMIT '.$draw_back.';');
 		if (!$query) return FALSE;	// Draw Database Does not Exist
@@ -887,16 +887,16 @@ class Statistics_m extends MY_Model
 	 * If existing Record for the h_w_c table exist
 	 * 
 	 * @param	integer	$id		Lottery ID of current Lottery
-	 * @param	integer	$r		Range of Draws
 	 * @return  array	$query 	result set query or FALSE	
 	 */
-	public function hwc_history_exists($id,$r)
+	public function hwc_history_exists($id)
 	{
+		$this->db->reset_query();
+		//$query = $this->db->query("SELECT * FROM lottery_h_w_c_stats WHERE id = '".$id."' AND h_w_c_range = '".$r."' LIMIT 1,0");
 		$query = $this->db->where('lottery_id', $id)
-				->where('h_w_c_range', $r)
                 ->limit(1, 0)
-                ->get('lottery_h_w_c_stats');
-		return $query->row_array();
+                ->get('lottery_h_w_c_stats'); 
+	return $query->row_array();
 	}
 
 	/**
@@ -1662,19 +1662,22 @@ class Statistics_m extends MY_Model
 	{
 		// Build query
 		$sql_range = ($range ? ' ORDER BY draw_date DESC LIMIT '.$range : ' ORDER BY draw_date DESC');
-		$sql_date = (!empty($last)&&($draws) ? ' WHERE draw_date <= "'.$last.'"' : '');
-		if($draws&&empty($last))
+		$sql_date = '';
+		$sql_draws = '';
+		if (!empty($last)&&(!$draws))
+		{
+			$sql_date = ' WHERE draw_date <= "'.$last.'"';
+		}
+		elseif(!empty($last)&&($draws))
+		{
+			$sql_date = ' WHERE draw_date <= "'.$last.'"';
+			$sql_draws = ' And extra <> "0"';
+		}
+		//$sql_date = (!empty($last) ? ' WHERE draw_date <= "'.$last.'"' : '');
+		elseif(empty($last)&&(!$draws))
 		{
 			$sql_draws = ' WHERE extra <> "0"';
 		} 
-		elseif($draws&&!empty($last))
-		{
-			$sql_draws = ' AND extra <> "0"';
-		}
-		else
-		{
-			$sql_draws = '';	// Do not include
-		}
 
 		$sql = 'SELECT ball_drawn, count(*) as heat 
 				FROM ((SELECT ball1 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.') UNION ALL
@@ -1979,6 +1982,7 @@ class Statistics_m extends MY_Model
 	*/
 	public function hwc_data_save($data, $exist = FALSE)
 	{
+		$this->db->reset_query();
 		if (!$exist) 
 		{
 			$this->db->set($data);		// Set the query with the key / value pairs
@@ -1986,9 +1990,9 @@ class Statistics_m extends MY_Model
 		}
 		else
 		{
-			$this->db->set($data);		// Set the query with the key / value pairs
+			//$this->db->set($data);		// Set the query with the key / value pairs
 			$this->db->where('lottery_id', $data['lottery_id']);
-			$this->db->update('lottery_h_w_c');
+			$this->db->update('lottery_h_w_c', $data);
 		}
 	}
 
@@ -2001,6 +2005,7 @@ class Statistics_m extends MY_Model
 	*/
 	public function hwc_history_save($data, $exist = FALSE)
 	{
+		$this->db->reset_query();
 		if (!$exist) 
 		{
 			$this->db->set($data);		// Set the query with the key / value pairs
@@ -2008,9 +2013,9 @@ class Statistics_m extends MY_Model
 		}
 		else
 		{
-			$this->db->set($data);		// Set the query with the key / value pairs
+			//$this->db->set($data);		// Set the query with the key / value pairs
 			$this->db->where('lottery_id', $data['lottery_id']);
-			$this->db->update('lottery_h_w_c_stats');
+			$this->db->update('lottery_h_w_c_stats', $data);
 		}
 	}
 	/** 
@@ -2026,7 +2031,6 @@ class Statistics_m extends MY_Model
 		$query = $this->db->query('SELECT * FROM '.$tble.' WHERE extra <> "0" AND draw_date >= "'.$dd.'" LIMIT 2');
 		
 		$next =  $query->next_row('array');
-
 	return (!$next ? FALSE : $next);
 	}
 
