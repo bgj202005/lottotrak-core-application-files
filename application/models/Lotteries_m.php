@@ -402,6 +402,13 @@ class Lotteries_m extends MY_Model
 		unset($fields['id']);			// Don't Require
 		unset($fields['draw_date']);	// Don't Require
 		unset($fields['lottery_id']);	// Don't Require
+		unset($fields['sum_draw']);		// Don't Require
+		unset($fields['sum_digits']);	// Don't Require
+		unset($fields['even']);			// Don't Require
+		unset($fields['odd']);			// Don't Require
+		unset($fields['range_draw']);	// Don't Require
+		unset($fields['repeat_decade']);// Don't Require
+		unset($fields['repeat_last']);	// Don't Require
 
 		if($extra&&isset($fields['extra'])) unset($fields['extra']);
 		elseif(!$extra&&(isset($fields['extra']))) $this->dbforge->drop_column($lotto_tbl, 'extra');
