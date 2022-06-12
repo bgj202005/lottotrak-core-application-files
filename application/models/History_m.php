@@ -84,7 +84,7 @@ class History_m extends MY_Model
         $up = 0;
         $down = 0;
         $total = count($draws);
-        foreach($draws as $count => $draw)
+         foreach($draws as $count => $draw)
         {
             if(($total-1)!=$count)  // Most Recent Draw in db?
             {
@@ -96,7 +96,7 @@ class History_m extends MY_Model
                 if($change==intval($pick)&&(!$b_ex)) // All Up
                 {
                     $up++;  
-                    $ud = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
+                    $dd = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
                     $lt = 'up'; // last trend was up
                 } 
                 elseif(($change==-$pick)&&(!$b_ex))
@@ -111,7 +111,7 @@ class History_m extends MY_Model
                     if($change==intval($pick+1)) // All Up
                     {
                         $up++;  // Yes
-                        $ud = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
+                        $dd = $draws[$count+1]['draw_date']; // Record the most recent date for an up occurrence
                         $lt = 'up'; // last trend was up
                     } 
                     else if($change==(intval(-($pick+1))))
@@ -124,7 +124,7 @@ class History_m extends MY_Model
              }
         }
         $trend = 'up='.$up.',down='.$down;              // Format is 'up=xx,down=xx,drawdate,top,up/down'
-        $trend .= ($up>=$down ? ','.$ud.','.$lt.','.$up.',up' : ','.$dd.','.$lt.','.$down.',down');
+        $trend .= ($up>=$down ? ','.$dd.','.$lt.','.$up.',up' : ','.$dd.','.$lt.','.$down.',down');
     return $trend;    
     }
     /**

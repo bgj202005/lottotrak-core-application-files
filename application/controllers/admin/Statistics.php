@@ -764,7 +764,6 @@ class Statistics extends Admin_Controller {
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$max_ball = $this->data['lottery']->maximum_ball;	// Get the highest ball drawn for this lottery, e.g. 49 in Lottery 649, 50 in Lottomax
-		$extra_ball = $this->data['lottery']->extra_ball;	// Make sure the extra ball is even used.
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 		{
@@ -979,7 +978,7 @@ class Statistics extends Admin_Controller {
 		}
 		else
 		{
-			if($old_range!=$new_range)	 // Range has changed
+			if(($old_range!=$new_range)||($blnheat))	 // Range has changed OR change in extra draws / extra ball included
 			{
 				// Recalculation is nesessary
 				$hwc_history = $this->h_w_c_history($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start);

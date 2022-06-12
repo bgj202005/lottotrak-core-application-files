@@ -1664,14 +1664,14 @@ class Statistics_m extends MY_Model
 		$sql_range = ($range ? ' ORDER BY draw_date DESC LIMIT '.$range : ' ORDER BY draw_date DESC');
 		$sql_date = '';
 		$sql_draws = '';
-		if (!empty($last)&&(!$draws))
+		if (!empty($last)&&($draws))
 		{
 			$sql_date = ' WHERE draw_date <= "'.$last.'"';
 		}
-		elseif(!empty($last)&&($draws))
+		if(!empty($last)&&(!$draws))
 		{
-			$sql_date = ' WHERE draw_date <= "'.$last.'"';
-			$sql_draws = ' And extra <> "0"';
+			$sql_draws = ' WHERE extra <> "0"';
+			$sql_date = ' AND draw_date <= "'.$last.'"';
 		}
 		//$sql_date = (!empty($last) ? ' WHERE draw_date <= "'.$last.'"' : '');
 		elseif(empty($last)&&(!$draws))
@@ -1680,16 +1680,16 @@ class Statistics_m extends MY_Model
 		} 
 
 		$sql = 'SELECT ball_drawn, count(*) as heat 
-				FROM ((SELECT ball1 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.') UNION ALL
-      			(SELECT ball2 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.') UNION ALL
-     			(SELECT ball3 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=4) $sql .= ' UNION ALL (SELECT ball4 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=5) $sql .= ' UNION ALL (SELECT ball5 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=6) $sql .= ' UNION ALL (SELECT ball6 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=7) $sql .= ' UNION ALL (SELECT ball7 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=8) $sql .= ' UNION ALL (SELECT ball8 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks==9) $sql .= ' UNION ALL (SELECT ball9 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($bonus) $sql .= (!empty($last) ? ' UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.$sql_date.' AND extra <> "0"'.$sql_range.')'
+				FROM ((SELECT ball1 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.') UNION ALL
+      			(SELECT ball2 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.') UNION ALL
+     			(SELECT ball3 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
+		if($picks>=4) $sql .= ' UNION ALL (SELECT ball4 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
+		if($picks>=5) $sql .= ' UNION ALL (SELECT ball5 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
+		if($picks>=6) $sql .= ' UNION ALL (SELECT ball6 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
+		if($picks>=7) $sql .= ' UNION ALL (SELECT ball7 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
+		if($picks>=8) $sql .= ' UNION ALL (SELECT ball8 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
+		if($picks==9) $sql .= ' UNION ALL (SELECT ball9 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
+		if($bonus) $sql .= (!empty($last) ? ' UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.' WHERE extra <> "0"'.$sql_date.$sql_range.')'
 		: ' UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.' WHERE extra <> "0"'.$sql_range.')');
 		$sql .= ') as hwc
 				GROUP BY ball_drawn
