@@ -960,15 +960,16 @@ class Statistics_m extends MY_Model
 	 * Calculate the number of trailing (follower) numbers based on the last draw
 	 * 
 	 * @param 	string 	$name		specific lottery table name
-	 * @param	array	$last		$last drawn numbers (index, date, ball1 ... ball N, Extra (Bonus ball), lottery id)
+	 * @param	array	$ldn		last drawn numbers (index, date, ball1 ... ball N, Extra (Bonus ball), lottery id)
 	 * @param 	integer $max		maximum number of balls drawn
 	 * @param	boolean	$bonus		If an extra / bonus ball is included (1 = TRUE, 0 = False)
 	 * @param	boolean $draws		If extra (bonus) draws are included in the calculation (1 = TRUE, 0 = FALSE)
 	 * @param  	integer	$range		Range of number of draws (default is 100). If less than 100, the number must be set in $range
+	 * @param	string	$last		last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
 	 * @return  string	$followers	Followers string in this format that follow with the number of occurrences (minumum 3 Occurrences)
 	 * 								e.g. 10=>3=4|22=3,17=>10=5|37=4|48=4
 	 */
-	public function followers_calculate($name, $last, $max, $bonus, $draws, $range = 100)
+	public function followers_calculate($name, $ldn, $max, $bonus, $draws, $range = 100, $last = '')
 	{
 		// Build Query
 		$range--;	// Not including the last draw within the range of draws
@@ -986,7 +987,8 @@ class Statistics_m extends MY_Model
 		$b_max = $max;	// The maximum of the ONLY the balls drawn
 		if($bonus) $max++;
 
-		$w = (!$draws ? " AND extra <> '0'" : ""); 
+		$w = (!$draws ? " AND extra <> '0'" : "");
+		$w .= (!empty($last) ? " AND draw_date <= '".$last."'" : "");  
 		
 		// Calculate
 		$b = 1; // ball 1
@@ -995,11 +997,11 @@ class Statistics_m extends MY_Model
 		do
 		{
 			//$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." WHERE id <>".$last['id']." ORDER BY draw_date DESC LIMIT ".$range.") as t".$w."ORDER BY t.draw_date ASC"; 
-			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$last['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
+			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
 			// Execute Query
 			$query = $this->db->query($sql);
 			$row = $query->first_row('array');
-			$c_b = ($bonus&&($b>$b_max) ? $last['extra'] : $last['ball'.$b]); // If there is an Extra / Bonus Ball and this bonus ball has exceeded the regularly drawn numbers, retrieve the extra ball
+			$c_b = ($bonus&&($b>$b_max) ? $ldn['extra'] : $ldn['ball'.$b]); // If there is an Extra / Bonus Ball and this bonus ball has exceeded the regularly drawn numbers, retrieve the extra ball
 			$followlist = array();
 			do {
 				if($this->is_drawn($c_b, $row, $b_max, $bonus))
@@ -1156,16 +1158,17 @@ class Statistics_m extends MY_Model
 	 * Calculate the number of never trailing (follower) numbers based on the last draw and the draw rang
 	 * 
 	 * @param 	string 	$name			specific lottery table name
-	 * @param	array	$last			last drawn numbers (index, date, ball1 ... ball N, Extra (Bonus ball), lottery id)
+	 * @param	array	$ldn			last drawn numbers (index, date, ball1 ... ball N, Extra (Bonus ball), lottery id)
 	 * @param 	integer $max			maximum number of balls drawn
 	 * @param	boolean	$bonus			If an extra / bonus ball is included (1 = TRUE, 0 = False)
 	 * @param	boolean $draws			If extra (bonus) draws are included in the calculation (1 = TRUE, 0 = FALSE)
 	 * @param  	integer	$range			Range of number of draws (default is 100). If less than 100, the number must be set in $range
 	 * @param	integer	$top			Last Ball in Lottery that is drawn, e.g. 649 - 49 balls maximum
+	 * @param	string	$last			last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
 	 * @return  string	$nonfollowers	non-Followers string in this format that follow with the number of occurrences (minumum 3 Occurrences)
 	 * 									e.g. 10=>3=4|22=3,17=>10=5|37=4|48=4
 	 */
-	public function nonfollowers_calculate($name, $last, $max, $bonus, $draws = 0, $range = 100, $top)
+	public function nonfollowers_calculate($name, $ldn, $max, $bonus, $draws = 0, $range = 100, $top, $last = '')
 	{
 		// Build Query
 		$s = 'ball'; 
@@ -1183,7 +1186,7 @@ class Statistics_m extends MY_Model
 		if($bonus) $max++;
 
 		$w = (!$draws ? ' AND extra <> "0"' : '');
-				
+		$w .= (!empty($last) ? " AND draw_date <= '".$last."'" : "");  		
 		// Calculate
 		$b = 1; // ball 1
 		// Initialize and create blank associate array
@@ -1191,11 +1194,11 @@ class Statistics_m extends MY_Model
 		do
 		{
 			//$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." WHERE id <>".$last['id']." ORDER BY id DESC LIMIT ".$range.") as t".$w."ORDER BY t.id ASC"; 
-			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$last['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
+			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
 			// Execute Query
 			$query = $this->db->query($sql);
 			$row = $query->first_row('array');
-			$c_b = ($bonus&&($b>$b_max) ? $last['extra'] : $last['ball'.$b]); // If there is an Extra / Bonus Ball and this bonus ball has exceeded the regularly drawn numbers, retrieve the extra ball
+			$c_b = ($bonus&&($b>$b_max) ? $ldn['extra'] : $ldn['ball'.$b]); // If there is an Extra / Bonus Ball and this bonus ball has exceeded the regularly drawn numbers, retrieve the extra ball
 			$followlist = array();
 			$nonfollowlist = array();
 			do {
@@ -1306,15 +1309,15 @@ class Statistics_m extends MY_Model
 	 * Calculate the Friends of the Lottery from Ball 1 to Ball N range, include the extra ball if TRUE. Based on the range of draws covered
 	 * 
 	 * @param 	string 	$name		specific lottery table name
-	 * @param 	string 	$last		last drawn numbers (index, date, ball1 ... ball N, Extra (Bonus ball), lottery id)
 	 * @param 	integer $max		maximum number of balls drawn
 	 * @param	integer	$top		Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649
 	 * @param	boolean	$bonus		If an extra / bonus ball is included (1 = TRUE, 0 = False)
 	 * @param	boolean $draws		If extra (bonus) draws are included in the calculation (1 = TRUE, 0 = FALSE)
 	 * @param  	integer	$range		Range of number of draws (default is 100). If less than 100, the number must be set in $range
+	 * @param 	string 	$last		last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
 	 * @return  string	$friends	Friends string in this format: 1>9=4:01/24/2020,2>11=8:09/18/2020,3>44=10:06/22/2019  ,etc. 
 	 */
-	public function friends_calculate($name, $max, $top, $bonus = 0, $draws = 0, $range = 100)
+	public function friends_calculate($name, $max, $top, $bonus = 0, $draws = 0, $range = 100, $last = '')
 	{
 		// Build Query
 		$s = 'ball'; 
@@ -1330,6 +1333,8 @@ class Statistics_m extends MY_Model
 		$s .= ', extra, draw_date'; // Include the draw date is this query
 
 		$w = (!$draws ? ' WHERE extra <> "0" ' : ' ');
+		$w .= (!empty($last)&&(!$draws) ? " AND draw_date <= '".$last."'" : "");
+		$w .= (!empty($last)&&($draws) ? " WHERE draw_date <= '".$last."'" : "");  
 		//$l = (!is_null($last) ? " WHERE draw_date <='".$last['draw_date']."'" : "");
 		
 		// Initialize and create blank associate array
@@ -1664,7 +1669,7 @@ class Statistics_m extends MY_Model
 		$sql_range = ($range ? ' ORDER BY draw_date DESC LIMIT '.$range : ' ORDER BY draw_date DESC');
 		$sql_date = '';
 		$sql_draws = '';
-		if (!empty($last)&&($draws))
+		if (!empty($last)&&($draws)&&(!$bonus))
 		{
 			$sql_date = ' WHERE draw_date <= "'.$last.'"';
 		}
