@@ -27,7 +27,7 @@
 	}
 	th.datafont{
 		text-align:center;
-		font-size: 0.95em;
+		font-size: 0.72em;
 	}
 	td.datafont { 
 		font-size: 	0.95em;
@@ -172,8 +172,8 @@
 		</div>
 	</section>
 	<section>
-		<div class="table-responsive">
-		<table class="table table-striped table-sm"
+		<div class="table-responsive ">
+		<table class="table table-striped table-sm w-auto"
 			id="draws"
 			data-pagination="true"
 			data-search="true"
