@@ -27,7 +27,7 @@
 	}
 	th.datafont{
 		text-align:center;
-		font-size: 0.72em;
+		font-size: 0.71em;
 	}
 	td.datafont { 
 		font-size: 	0.95em;
