@@ -1816,51 +1816,52 @@ class Statistics_m extends MY_Model
 		$arr_warms = explode(',', $warms);  // Convert to a warm array 
 		$arr_colds = explode(',', $colds);	// Convert to a cold array
 
-		$select = "SELECT `draw_date` FROM ".$ld;
+		$select = "SELECT `draw_date` FROM `".$ld."`";
 
 		foreach($arr_hots as $ahot)
 		{
-			$heat = explode('=', $ahot);
+ 			$heat = explode('=', $ahot);
 			$due = intval(round(($range / $heat[1]))); // Round to nearest whole number
 			if($max>=3)
 			{
-				$where = " WHERE ball1=".$heat[0]." OR ball2=".$heat[0]." OR ball3=".$heat[0];
+				$where = " WHERE (ball1='".$heat[0]."' OR ball2='".$heat[0]."' OR ball3='".$heat[0]."'";
 			}
 			if($max>=4)
 			{
-				$where .= " OR ball4=".$heat[0];
+				$where .= " OR ball4='".$heat[0]."'";
 			}
 			if($max>=5)
 			{
-				$where .= " OR ball5=".$heat[0];
+				$where .= " OR ball5='".$heat[0]."'";
 			}
 			if($max>=6)
 			{
-				$where .= " OR ball6=".$heat[0];
+				$where .= " OR ball6='".$heat[0]."'";
 			}
 			if($max>=7)
 			{
-				$where .= " OR ball7=".$heat[0];
+				$where .= " OR ball7='".$heat[0]."'";
 			}
 			if($max>=8)
 			{
-				$where .= " OR ball8=".$heat[0];
+				$where .= " OR ball8='".$heat[0]."'";
 			}
 			if($max==9)
 			{
-				$where .= " OR ball9=".$heat[0];
+				$where .= " OR ball9='".$heat[0]."'";
 			}
 			if($bonus) // Only include bonus if set
 			{
-				$where .= " OR extra=".$heat[0];
+				$where .= " OR extra='".$heat[0]."'";
 			}
+			$where .=")";	// Close off the bracket
 			$limit = " ORDER BY `draw_date` DESC LIMIT 1";
 			// Query Build
-			$sql = $select.$where.$limit;
+			$sql_draws = (!$draws ? " AND extra <> '0'": "" ); 	// If no extra draws are included, the extra ball is usually zero.
+			$sql = $select.$where.$sql_draws.$limit;
 			$query = $this->db->query($sql);
 			$found_date = $query->row()->draw_date;
 			$query->free_result(); 								// The $query result object will no longer be available
-			$sql_draws = (!$draws ? ' AND extra <> 0': '' ); 	// If no extra draws are included, the extra ball is usually zero.
 			$sql = "SELECT * FROM ".$ld." WHERE `draw_date` > '".$found_date."' AND `draw_date` <= '".$last_date."'".$sql_draws;
 
 			$query = $this->db->query($sql);
@@ -1877,43 +1878,45 @@ class Statistics_m extends MY_Model
 			$due = intval(round(($range / $heat[1]))); // Round to nearest whole number
 			if($max>=3)
 			{
-				$where = " WHERE ball1=".$heat[0]." OR ball2=".$heat[0]." OR ball3=".$heat[0];
+				$where = " WHERE (ball1='".$heat[0]."' OR ball2='".$heat[0]."' OR ball3='".$heat[0]."'";
 			}
 			if($max>=4)
 			{
-				$where .= " OR ball4=".$heat[0];
+				$where .= " OR ball4='".$heat[0]."'";
 			}
 			if($max>=5)
 			{
-				$where .= " OR ball5=".$heat[0];
+				$where .= " OR ball5='".$heat[0]."'";
 			}
 			if($max>=6)
 			{
-				$where .= " OR ball6=".$heat[0];
+				$where .= " OR ball6='".$heat[0]."'";
 			}
 			if($max>=7)
 			{
-				$where .= " OR ball7=".$heat[0];
+				$where .= " OR ball7='".$heat[0]."'";
 			}
 			if($max>=8)
 			{
-				$where .= " OR ball8=".$heat[0];
+				$where .= " OR ball8='".$heat[0]."'";
 			}
 			if($max==9)
 			{
-				$where .= " OR ball9=".$heat[0];
+				$where .= " OR ball9='".$heat[0]."'";
 			}
 			if($bonus) // Only include bonus if set
 			{
-				$where .= " OR extra=".$heat[0];
+				$where .= " OR extra='".$heat[0]."'";
 			}
+			$where .=")";	// Close off the bracket
 			$limit = " ORDER BY `draw_date` DESC LIMIT 1";
 			// Query Build
-			$sql = $select.$where.$limit;
+			$sql_draws = (!$draws ? " AND extra <> '0'": "" ); 	// If no extra draws are included, the extra ball is usually zero.
+			$sql = $select.$where.$sql_draws.$limit;
 			$query = $this->db->query($sql);
 			$found_date = $query->row()->draw_date;
 			$query->free_result(); // The $query result object will no longer be available
-			$sql_draws = (!$draws ? ' AND extra <> 0': '' ); 	// If no extra draws are included, the extra ball is usually zero.
+			
 			$sql = "SELECT * FROM ".$ld." WHERE `draw_date` > '".$found_date."' AND `draw_date` <= '".$last_date."'".$sql_draws;
 			$query = $this->db->query($sql);
 			$count = $query->num_rows();
@@ -1929,43 +1932,44 @@ class Statistics_m extends MY_Model
 			$due = intval(round(($range / $heat[1]))); // Round to nearest whole number
 			if($max>=3)
 			{
-				$where = " WHERE ball1=".$heat[0]." OR ball2=".$heat[0]." OR ball3=".$heat[0];
+				$where = " WHERE (ball1='".$heat[0]."' OR ball2='".$heat[0]."' OR ball3='".$heat[0]."'";
 			}
 			if($max>=4)
 			{
-				$where .= " OR ball4=".$heat[0];
+				$where .= " OR ball4='".$heat[0]."'";
 			}
 			if($max>=5)
 			{
-				$where .= " OR ball5=".$heat[0];
+				$where .= " OR ball5='".$heat[0]."'";
 			}
 			if($max>=6)
 			{
-				$where .= " OR ball6=".$heat[0];
+				$where .= " OR ball6='".$heat[0]."'";
 			}
 			if($max>=7)
 			{
-				$where .= " OR ball7=".$heat[0];
+				$where .= " OR ball7='".$heat[0]."'";
 			}
 			if($max>=8)
 			{
-				$where .= " OR ball8=".$heat[0];
+				$where .= " OR ball8='".$heat[0]."'";
 			}
 			if($max==9)
 			{
-				$where .= " OR ball9=".$heat[0];
+				$where .= " OR ball9='".$heat[0]."'";
 			}
 			if($bonus) // Only include bonus if set
 			{
-				$where .= " OR extra=".$heat[0];
+				$where .= " OR extra='".$heat[0]."'";
 			}
+			$where .=")";	// Close off the bracket
 			$limit = " ORDER BY `draw_date` DESC LIMIT 1";
 			// Query Build
-			$sql = $select.$where.$limit;
+			$sql_draws = (!$draws ? " AND extra <> '0'": "" ); 	// If no extra draws are included, the extra ball is usually zero.
+			$sql = $select.$where.$sql_draws.$limit;
 			$query = $this->db->query($sql);
 			$found_date = $query->row()->draw_date;
 			$query->free_result(); // The $query result object will no longer be available
-			$sql_draws = (!$draws ? ' AND extra <> 0': '' ); 	// If no extra draws are included, the extra ball is usually zero.
 			$sql = "SELECT * FROM ".$ld." WHERE `draw_date` > '".$found_date."' AND `draw_date` <= '".$last_date."'".$sql_draws;
 			$query = $this->db->query($sql);
 			$count = $query->num_rows();
