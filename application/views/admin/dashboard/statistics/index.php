@@ -97,8 +97,9 @@ $(document).ready(function(){
 	<?php if (count($lotteries)): foreach($lotteries as $lottery): ?>
 	$('.recalc<?=$lottery->id;?>').click(function(){
 	url = "<?=base_url();?>admin/statistics/recalc/<?=$lottery->id;?>";
+	$('#message').css('display', 'none'); 
 	$('#status').css('display', 'block');
-	document.getElementById("status").innerHTML = "Updating the <?=$lottery->lottery_name;?> H-W-C, Followers and Friends Statistics up to the latest draw date.";
+	document.getElementById("status").innerHTML = "Updating the <?=$lottery->lottery_name;?> H-W-C, Followers and Friends Statistics to <?=date("l, M d, Y",strtotime(str_replace('/','-',$lottery->last_date)))?>.";
 	redirect(url);
 	});
 	<?php endforeach; ?>
@@ -107,7 +108,7 @@ $(document).ready(function(){
 	$('#status').css('display', 'block');
 	$('#message').css('display', 'none'); 
 	document.getElementById("status").innerHTML = "Updating the Hot - Warm - Cold (H-W-C) Numbers and History. Please Wait.";
-	setTimeout(fade_out, 8500);
+	setTimeout(fade_out, 10500);
 	});
 	$('.followers').click(function(){
 	$('#status').css('display', 'block');
