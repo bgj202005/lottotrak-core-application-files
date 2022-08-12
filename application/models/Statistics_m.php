@@ -2060,4 +2060,40 @@ class Statistics_m extends MY_Model
 		}	
 	return $only;
 	}
+
+	/* Returns only the last draw id from the selected lottery database
+	 * 
+	 * @param	string			$tbl				Current Lottery Data Table Name
+	 * @return	integer			$id					Returns only the last draw id or FALSE that it does not exist in the lottery draws database
+	 */
+	public function last_id($tbl)
+	{	
+		if (!$this->lotteries_m->lotto_table_exists($tbl)) return FALSE;	// Draw Database Does not Exist
+		$draw = $this->db_row($tbl, 0);		
+		
+		if (isset($draw))
+		{
+			$id = $draw->id;
+		}
+		else return FALSE;
+	return $id;	// Return only the draw id of the most recent draw
+	}
+	/**
+	 * Validates that the H-W-C, Followers and Friends have not been updated to the latest draw (TRUE) or have been updated (FALSE)
+	 * Will check all statistics methods, H-W-C, Followers and Friends. All the draw ids must match but the latest draw id of the lottery
+	 * draws don't have to match. This will trigger the recalc for H-W-C, followers and friends.
+	 * 
+	 * @param	integer		$lt_id			Lottery id to reference
+	 * @param 	integer		$ref			$id of last draw that had the statistics of the draw calculated
+	 * @return	boolean		TRUE / FALSE	All 3 tables have the same reference, return TRUE for nothing to do, FALSE requires a recalc of all 3 tables		
+	 */
+	public function recalc_update($lt_id, $ref)
+	{
+		if(!$ref) return FALSE;
+		$this->db->reset_query();
+		$query = $this->db->query("SELECT t1.draw_id FROM lottery_h_w_c t1 
+		JOIN lottery_followers t2 JOIN lottery_friends t3 
+		ON (t1.draw_id=t2.draw_id)&&(t1.draw_id=t3.draw_id) WHERE t1.draw_id='".$ref."' && t1.lottery_id='".$lt_id."';");
+	return (isset($query->row) ? FALSE : TRUE);
+	}
 }

@@ -71,7 +71,7 @@
 		<td style = "text-align:center;"><?php echo $statistics->btn_followers('admin/statistics/followers/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_friends('admin/statistics/friends/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_calculate('admin/statistics/calculate/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><input type="checkbox" name="recalc" value="recalc" class="recalc" id="recalc" <?=($lottery->last_draw!='NA' ? '' : 'disabled');?> >
+		<td style = "text-align:center;"><input type="checkbox" name="recalc" value="<?=$lottery->id;?>" class="recalc<?=$lottery->id;?>" id="recalc" <?=($lottery->last_draw!='NA' ? '' : 'disabled');?> >
 	</tr>
 	<?php endforeach; ?> 
 	
@@ -94,12 +94,15 @@ $(document).ready(function(){
 	document.getElementById("status").innerHTML = "Updating Lottery. Please Wait.";
 	setTimeout(fade_out, 1500);
 	});
-	$('.recalc').click(function(){
+	<?php if (count($lotteries)): foreach($lotteries as $lottery): ?>
+	$('.recalc<?=$lottery->id;?>').click(function(){
 	url = "<?=base_url();?>admin/statistics/recalc/<?=$lottery->id;?>";
 	$('#status').css('display', 'block');
-	document.getElementById("status").innerHTML = "Updating the latest H-W-C, Followers and Friends Statistics up to the latest draw date.";
+	document.getElementById("status").innerHTML = "Updating the <?=$lottery->lottery_name;?> H-W-C, Followers and Friends Statistics up to the latest draw date.";
 	redirect(url);
 	});
+	<?php endforeach; ?>
+	<?php endif; ?>
 	$('.h-w-c').click(function(){
 	$('#status').css('display', 'block');
 	$('#message').css('display', 'none'); 

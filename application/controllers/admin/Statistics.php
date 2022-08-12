@@ -660,7 +660,7 @@ class Statistics extends Admin_Controller {
 			$change = FALSE;  // Default is no change
 			$this->data['lottery']->extra_included = $this->uri->segment(6)=='extra' ? $this->statistics_m->extra_included($id, TRUE, 'lottery_friends') : $this->statistics_m->extra_included($id, FALSE, 'lottery_friends');
 			$this->data['lottery']->extra_draws = ($this->uri->segment(6)=='draws' ? $this->statistics_m->extra_draws($id, TRUE, 'lottery_friends') : $this->statistics_m->extra_draws($id, FALSE, 'lottery_friends'));
-			$change = ($this->data['lottery']->extra_included!=$friends['extra_included'] ? TRUE : FALSE); // Only for a change in the extra (bonus) ball
+ 			$change = ($this->data['lottery']->extra_included!=$friends['extra_included'] ? TRUE : FALSE); // Only for a change in the extra (bonus) ball
 			if(!$change)
 			{
 				$change = ($this->data['lottery']->extra_draws!=$friends['extra_draws'] ? TRUE : FALSE); // Only for a change in the extra draws and there was no change in the extra ball
@@ -1224,22 +1224,26 @@ class Statistics extends Admin_Controller {
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 	
 		$recalc = FALSE;
-		if($this->statistics_m->last_stats_exist($tbl_name))
+		if($this->statistics_m->last_stats_exist($tbl_name)) /** First Check to see that the lottery db exists and statistics exist */
 		{
-			$recalc = TRUE;
-			// Verified the Draw Statistics have been completed
-			// 1. The H (Hots) - W (Warms) - C (Colds) will be RE-CALC'd
-			$this->recalc_hwc($id, $this->data['lottery']);
-			
-			// 2. The Followers will be RE-CALC'd
-			$this->recalc_followers($id, $this->data['lottery']);
+			$draw_id = $this->statistics_m->last_id($tbl_name);
+			if($this->statistics_m->recalc_update($id, $draw_id)) // Second, if a new draw has been entered or manually entered, return true to recalc //
+			{
+				$recalc = TRUE;
+				// Verified the Draw Statistics have been completed
+				// 1. The H (Hots) - W (Warms) - C (Colds) will be RE-CALC'd
+				$this->recalc_hwc($id,$this->data['lottery']);
+				
+				// 2. The Followers will be RE-CALC'd
+				$this->recalc_followers($id,$this->data['lottery']);
 
-			// 3. The Friends of numbers will be RE-CALC'd	
-			$this->recalc_friends($id, $this->data['lottery']);
+				// 3. The Friends of numbers will be RE-CALC'd	
+				$this->recalc_friends($id, $this->data['lottery']);
+			}
 		}
 		else
 		{	// Verfied that the Draw Statistics have not been completed, exit action with an error message
-			$this->session->set_flashdata('message', 'The latest Draw Statistics have not been completed. Please click the Calculator to complete the draw statistics.');
+			$this->session->set_flashdata('message', 'The latest Draw has not been completed. Please enter the next draw and click the Calculator to complete the draw statistics.');
 			redirect('admin/statistics');
 		}
 		if($recalc)
@@ -1249,10 +1253,12 @@ class Statistics extends Admin_Controller {
 		}
 	}
 	/**
-	 * ReCALCULATES the Lottery H-W-C, it will retrieve the last H-W-C. If it exists, recalc the H-W-C up to the current draw; default is in DB. 
-	 * If it does not exist, Calculate H-W-C with a default of 100 draws.
+	 * ReCALCULATES the Lottery H-W-C, it will retrieve the last H-W-C. If it exists, the first draw (for the given range) will be retrieved.
+	 * Each number that was drawn in the first draw will be subtracted from the counts in the H-W-C. The last draw will be retrieved and will be
+	 * added to the 
+	 * H-W-C. The overdue will be reset, if the last drawn number was an overdue number 
 	 * @param 	integer	$id			Lottery ID
-	 * @param 	array	$lotto		Lottery Array of objects
+	 * @param 	array	$lotto		Lottery Profile Objects
 	 * @return 	none
 	 */
 	public function recalc_hwc($id, $lotto)
@@ -1275,7 +1281,7 @@ class Statistics extends Admin_Controller {
 
 	 if(!is_null($h_w_c))	// Existing HWC?
 	 {
-		 $old_range = $h_w_c['range'];
+		 $new_range = $h_w_c['range'];
 		 $hots = $h_w_c['h_count'];
 		 $warms = $h_w_c['w_count'];
 		 $colds = $h_w_c['c_count'];
@@ -1286,14 +1292,14 @@ class Statistics extends Admin_Controller {
 		$lotto->W = $warms;  						// Number of Warms Distributed e.g 18 Colds
 		$lotto->C = $colds; 						// Number of Colds Distributed e.g 16 Colds
 		 
-		$str_hwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $old_range, $w_start, $c_start, '');
+		$str_hwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, '');
 		
 		$strhots = $this->statistics_m->hots($str_hwc);
 		$strwarms = $this->statistics_m->warms($str_hwc);
 		$strcolds = $this->statistics_m->colds($str_hwc);
-		$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl, $drawn,  $h_w_c['extra_included'], $h_w_c['extra_draws'], $old_range, '');
+		$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl, $drawn,  $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, '');
 		$hwc = array(
-			'range'				=> $old_range,
+			'range'				=> $new_range,
 			'hots'				=> $strhots,
 			'warms'				=> $strwarms,
 			'colds'				=> $strcolds,
@@ -1309,6 +1315,8 @@ class Statistics extends Admin_Controller {
 			'c_count'			=> $lotto->C
 		);
 		$this->statistics_m->hwc_data_save($hwc, TRUE);
+		// Recalculation is nesessary
+		$hwc_history = $this->h_w_c_history($tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start);
 	 }
 	 else 
 	 {
@@ -1344,7 +1352,44 @@ class Statistics extends Admin_Controller {
 					 'c_count'			=> $lotto->C	
 				 );
 		 $this->statistics_m->hwc_data_save($hwc, FALSE);
+		 // Recalculation is nesessary
+		$hwc_history = $this->h_w_c_history($tbl, $drawn, $lotto['extra_included'], $lotto['extra_draws'], $new_range, $w_start, $c_start);
 	 }
+	 
+	 if (!$hwc_history) // Problem with calculating H-W-C's over range
+	 {
+		 $this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$new_range.' Draws.');
+	 redirect('admin/statistics');
+	 }
+	 $hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  				// Remove the last comma
+	 $hwc_history['h_w_c_last_10'] = substr($hwc_history['h_w_c_last_10'], 0, -1);
+	 $this->data['lottery']->last_hwc = $hwc_history['h_w_c_last_1'];
+	$hwc_totals = explode(',',$hwc_history['h_w_c_range']); 		// Strip off the h-w-c to the right of the ','
+	foreach($hwc_totals as $heat)
+	{
+		$n = strstr($heat, '=', TRUE); 						// Strip off the h-w-c to the left of the equal sign
+		$c = substr(strchr($heat, "="), 1);				// Strip off the count to the right of the equal sign
+		$this->data['lottery']->hwc[$n] = $c; 
+	}
+	$hwc_last10 = explode(',',$hwc_history['h_w_c_last_10']); 		// Strip off the h-w-c to the right of the ','
+	foreach($hwc_last10 as $heat)
+	{
+		$n = strstr($heat, '=', TRUE); 						// Strip off the h-w-c to the left of the equal sign
+		$c = substr(strrchr($heat, "="), 1);				// Strip off the count to the right of the equal sign
+		$this->data['lottery']->last10[$n] = $c; 
+	}
+	$hwc_h_data = array(
+						'range'				=>	$new_range,
+						'h_w_c_range'		=> 	$hwc_history['h_w_c_range'],
+						'h_w_c_last_1'		=> 	$lotto->last_hwc,
+						'h_w_c_last_10'		=> 	$hwc_history['h_w_c_last_10'],
+						'draw_id'			=> 	$lotto->last_drawn['id'],
+						'lottery_id'		=> 	$id,
+						'extra_included'	=> 	(!is_null($h_w_c) ? $h_w_c['extra_included'] : $lotto->extra_included),
+						'extra_draws'		=> 	(!is_null($h_w_c) ? $h_w_c['extra_draws'] : $lotto->extra_draws),
+						);
+		$this->statistics_m->hwc_history_save($hwc_h_data, TRUE); // Update existing lottery H W C Record
+		unset($hwc_history); // Remove this temporary holding place for historic h-w-c's
 	}
 
 	/**
@@ -1352,7 +1397,7 @@ class Statistics extends Admin_Controller {
 	* If they does not exist, Calculate the Followers for the first time with a default of 100 draws.
 	* 
 	* @param 	integer	$id			Lottery ID
-	* @param 	array	$lotto		Lottery Array of objects
+	* @param 	array	$lotto		Lottery Profile Object
 	* @return 	none
 	*/
 	public function recalc_followers($id, $lotto)
@@ -1430,7 +1475,7 @@ class Statistics extends Admin_Controller {
 	* If it does not exist, Calculate Friends with a default of 100 draws.
 	* 
 	* @param 	integer	$id			Lottery ID
-	* @param 	array	$lotto		Lottery Array of objects
+	* @param 	array	$lotto		Lottery Profile Object
 	* @return 	none
 	*/
 	public function recalc_friends($id, $lotto)
