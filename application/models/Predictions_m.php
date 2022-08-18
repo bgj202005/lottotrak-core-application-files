@@ -215,16 +215,17 @@ class Predictions_m extends MY_Model
 	 * 
 	 * @param       string	$name			The name of the file_name of the combination file without the .txt extention
 	 * @param 		integer	$pick			Number of balls picked
+	 * @param 		integer $i				interval in multiples of 200
 	 * @return     	object	$draws			Drawn numbers placed from the text file into the array and typecast to an object
 	 */
-	public function load_draws($name, $pick)
+	public function load_draws($name, $pick, $i)
 	{
 		$fp = fopen($this->predictions_m->full_path($name), "r");
 		$combotext = "";
 		$draws = [];
 		if($fp)
 		{
-			while(!feof($fp))
+			while(!feof($fp)&&($i))
 			{
 				$combotext = fgets($fp);
 				if(!empty($combotext))	// Check for blank lines near the end of the file //
@@ -303,6 +304,7 @@ class Predictions_m extends MY_Model
 							]);
 					}
 				}
+			$i--;	// Load only what is required to be viewed
 			}
 		}
 		else return FALSE;

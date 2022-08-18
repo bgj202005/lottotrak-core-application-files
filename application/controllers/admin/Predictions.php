@@ -30,8 +30,9 @@ class Predictions extends Admin_Controller {
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
-		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+		$this->data['admins'] = $this ->maintenance_m->logged_online(1);	// Admins
 		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	
+		$this->session->unset_userdata('range'); // Range is non-existent prior to combinations
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 
@@ -416,13 +417,36 @@ class Predictions extends Admin_Controller {
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		$filename = (!empty($this->input->post('file')) ? $this->input->post('file') : $this->uri->segment(5));
 		$this->data['file'] = $this->predictions_m->lottery_combination_record($filename);
-
-		$this->data['draws'] = $this->predictions_m->load_draws($filename, (int) $this->data['file'][0]->R);
+		if(!empty($this->uri->segment(6))) 
+		{
+			$new_range = $this->uri->segment(6,0); // Return segment range
+		}
+		$old_range = (!is_null($this->session->userdata('range')) ? $this->session->userdata('range') : 400); // Default will be all the combinatons 
+		if(!isset($new_range)) $new_range = $old_range;	// Database Range
+		$CCCC = (int) $this->data['file'][0]->CCCC; // Return the Number of combinations of this file
+		if($CCCC>=400)
+		{
+			$interval = intval($CCCC / 400); // Create the drop down in multiples of 100 and typecast to an integer value (truncates the floating point portion)
+			if(!$interval) $interval = 1;	// 0 = 0 - 399, 1 = 800, 2 = 1200, 3 = 1600, 4 = 2200, 5 = 2600  
+		}
+		else
+		{
+			$interval = 0;
+			$old_range = $CCCC;
+			$new_range = $old_range;
+		}
+		$this->data['draws'] = $this->predictions_m->load_draws($filename, (int) $this->data['file'][0]->R, $new_range);
 		if(!$this->data['draws'])
 		{
 			$this->data['message'] = 'The Combination File of Picks could not be loaded.';
 		}
 		
+		$sel_range = 1;								// All Defaults
+		if($new_range>=400) $sel_range = intval($new_range / 400);
+		$this->data['interval'] = $interval;		// Record the interval here (for the dropdown)
+		$this->data['sel_range'] = $sel_range;		// What was selected for the range in the previous page
+		$this->data['range'] = $new_range;
+		$this->data['all'] = $CCCC;
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'combo_view'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
