@@ -987,7 +987,7 @@ class Statistics_m extends MY_Model
 		$b_max = $max;	// The maximum of the ONLY the balls drawn
 		if($bonus) $max++;
 
-		$w = (!$draws ? " AND extra <> '0'" : "");
+		$w = (!$draws ? " AND extra <> '0'" : ""); 
 		$w .= (!empty($last) ? " AND draw_date <= '".$last."'" : "");  
 		
 		// Calculate
