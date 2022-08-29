@@ -138,7 +138,7 @@
 								<!-- Allow Duplicate Extra / Bonus Ball Checkbox Yes / No?  -->
 								<div class="form-group form-group-lg row"> 
 									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
-									echo form_label('Allow Duplicate Extra / Bonus Ball?', 'duplicate_extra_lb', $extra); ?>
+									echo form_label('Separate Pool of Extra / Bonus Balls?', 'duplicate_extra_lb', $extra); ?>
 									<div class="col-8" style="margin-top:10px;">
 										<input type = "checkbox" name = "duplicate_extra_ball" value = "1" <?php echo (!empty($lottery->duplicate_extra_ball) ? 'checked' : ''); ?> /> 
 										<?php //echo form_checkbox('duplicate_extra_ball', '1', set_checkbox('duplicate_extra_ball', '1', (!empty($lottery->duplicate_extra_ball)))); ?>
