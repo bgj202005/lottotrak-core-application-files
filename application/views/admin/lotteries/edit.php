@@ -274,17 +274,42 @@
 					</div>		
 					<div class="card-body">
 						<h5 class="card-title">Most Recent Draw:</h5>
-						<?php if (!empty($lastdraw)&&!$lastdraw) 
+						<?php if (empty($lastdraw)) 
 						{ 
-							echo "<p>This Lottery Database is missing. Please Delete this profile and recreate a new Lottery Profile.</p>";
+							echo "<p>No Lottery Database exists. Please create profile first.</p>";
 						} 
-						elseif (!empty($lastdraw)&&$lastdraw==='nodraws')
+						elseif ($lastdraw==='nodraws')
 						{ 
 							echo "<p>Although, their is a Lottery Database.  There are no draws in the database.</p>";
 						}
 						else  
 						{ 
-							echo "<p><small>The latest draws will go here.</small></p>";
+							echo "<h5 class='card-subtitle mb-2 text-dark'>".date('l, M d, Y',strtotime(str_replace('/','-',$lastdraw->draw_date)))."</h5>";
+							$c = intval($lottery->balls_drawn);
+							$s = $lastdraw->ball1." ".$lastdraw->ball2." ".$lastdraw->ball3;
+							switch($c)
+							{
+								case 4:
+									$s .= " ".$lastdraw->ball4;
+									break;
+								case 5:
+									$s .= " ".$lastdraw->ball4." ".$lastdraw->ball5;
+									break;
+								case 6:
+									$s .= " ".$lastdraw->ball4." ".$lastdraw->ball5." ".$lastdraw->ball6;
+									break;
+								case 7:
+									$s .= " ".$lastdraw->ball4." ".$lastdraw->ball5." ".$lastdraw->ball6." ".$lastdraw->ball7;
+									break;
+								case 8:
+									$s .= " ".$lastdraw->ball4." ".$lastdraw->ball5." ".$lastdraw->ball6." ".$lastdraw->ball7." ".$lastdraw->ball8;
+									break;
+								case 9:
+									$s .= " ".$lastdraw->ball4." ".$lastdraw->ball5." ".$lastdraw->ball6." ".$lastdraw->ball7." ".$lastdraw->ball8." ".$lastdraw->ball9;
+									break;
+							}				
+							if (isset($lastdraw->extra)) $s .= " + ".$lastdraw->extra;
+							echo "<h3 class ='card-subtitle mb-1 text-danger'>$s</h3>";
 						} ?>
 					</div>
 				</div>
