@@ -172,8 +172,8 @@
 		</div>
 	</section>
 	<section>
-		<div class="table-responsive ">
-		<table class="table table-striped table-sm w-auto"
+		<div class="table-responsive">
+		<table class="table table-striped table-sm"
 			id="draws"
 			data-pagination="true"
 			data-search="true"

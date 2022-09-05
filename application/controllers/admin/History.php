@@ -11,6 +11,7 @@ class History extends Admin_Controller {
 		 $this->load->model('lotteries_m');
 		 $this->load->model('statistics_m');
 		 $this->load->model('history_m');
+		 $this->load->model('predictions_m');
 		 $this->load->model('maintenance_m');
 		 $this->load->helper('file');
 		 $this->load->helper('html');
@@ -295,5 +296,26 @@ class History extends Admin_Controller {
 	public function btn_calculate($uri)
 	{
 		return anchor($uri, '<i class="fa fa-calculator fa-2x" aria-hidden="true">', array('title' => 'Calculate the Current History or Update to the latest Draw', 'class' => 'calculate'));
+	}
+	/**
+	 * go to a form that lists the number of combination files 
+	 * Files generate combinations calls to html and php.
+	 * @param       integer	$id		Lottery Identifier
+	 * @return      none
+	 */
+	public function calculate_combo($id)
+	{
+		$this->data['message'] = ''; // Defaulted to No Messagesa
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_files($id); //$this->predictions_m->all_combination_files();
+		// Load the view
+		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	
+		$this->data['predictions'] = $this;		// Access the methods in the view
+		$this->data['subview'] = 'admin/dashboard/history/calculate_combo';
+		$this->load->view('admin/_layout_main', $this->data);
 	}
 }

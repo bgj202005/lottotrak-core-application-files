@@ -53,7 +53,7 @@
 		<td style = "text-align:center; white-space: nowrap;"><?=$lottery->lottery_state_prov; ?></td>
 		<td style = "text-align:center; white-space: nowrap;"><?=$lottery->lottery_country_id; ?></td>
 		<td style = "text-align:center;"><?php echo $history->btn_glance('admin/history/glance/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><?php echo $history->btn_calculate('admin/history/calculate/'.$lottery->id); ?></td>
+		<td style = "text-align:center;"><?php echo $history->btn_calculate('admin/history/calculate_combo/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $history->btn_history('admin/history/wins/'.$lottery->id); ?></td>
 	</tr>
 	<?php endforeach; ?> 
