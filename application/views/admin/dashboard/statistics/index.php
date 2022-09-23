@@ -104,16 +104,27 @@ $(document).ready(function(){
 	});
 	<?php endforeach; ?>
 	<?php endif; ?>
+	$('.stats').click(function(){
+	$('#status').css('display', 'block');
+	$('#message').css('display', 'none'); 
+	document.getElementById("status").innerHTML = "Retrieving the Culumlative Statistics and History. Please Wait.";
+	setTimeout(fade_out, 10500);
+	});
 	$('.h-w-c').click(function(){
 	$('#status').css('display', 'block');
 	$('#message').css('display', 'none'); 
-	document.getElementById("status").innerHTML = "Updating the Hot - Warm - Cold (H-W-C) Numbers and History. Please Wait.";
+	document.getElementById("status").innerHTML = "Retrieving the Hot - Warm - Cold (H-W-C) Numbers and History. Please Wait.";
 	setTimeout(fade_out, 10500);
 	});
 	$('.followers').click(function(){
 	$('#status').css('display', 'block');
 	$('#message').css('display', 'none'); 
-	document.getElementById("status").innerHTML = "Updating the H-W-C, Followers and Friends Statistics up to the latest draw date.";
+	document.getElementById("status").innerHTML = "Retrieving the Followers and History for the next draw. Please Wait.";
+	});
+	$('.friends').click(function(){
+	$('#status').css('display', 'block');
+	$('#message').css('display', 'none'); 
+	document.getElementById("status").innerHTML = "Retrieving the Friends of numbers and History for the next draw. Please Wait.";
 	});
 	function fade_out() {
       $("#status").fadeOut();

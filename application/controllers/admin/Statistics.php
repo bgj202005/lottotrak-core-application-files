@@ -61,7 +61,7 @@ class Statistics extends Admin_Controller {
 	 */
 	public function btn_stat($uri) 
 	{
-		return anchor($uri, '<i class="fa fa-line-chart fa-2x" aria-hidden="true">', array('title' => 'View Commulative Statistics'));
+		return anchor($uri, '<i class="fa fa-line-chart fa-2x" aria-hidden="true">', array('title' => 'View Commulative Statistics', 'class' => 'stats'));
 	}
 
 	/**
@@ -94,7 +94,7 @@ class Statistics extends Admin_Controller {
 	 */
 	public function btn_friends($uri)
 	{
-		return anchor($uri, '<i class="fa fa-history fa-2x" aria-hidden="true">', array('title' => 'View Historic Friend History Statistics of the lottery'));
+		return anchor($uri, '<i class="fa fa-history fa-2x" aria-hidden="true">', array('title' => 'View Historic Friend History Statistics of the lottery', 'class' => 'friends'));
 	}
 
 	/**
