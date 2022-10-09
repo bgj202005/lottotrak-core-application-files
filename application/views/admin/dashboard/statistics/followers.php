@@ -150,14 +150,14 @@
 												if($counts!=$current):
 													$s_picks .= ' has been drawn <strong>'.$counts.'</strong> Times.</p>';
 													echo "<p class='card-text'> ".$s_picks."</p>";
-													$s_picks = ""; 
+													$counts = $current;
+													$s_picks = "";
 												else:
 													$s_picks .= ' AND ';
-													$counts = $current;	
 												endif;
-											else:
-												$counts = next($t_picks);
-											endif;
+											 else:
+ 												 $counts = next($t_picks); 
+											endif; 
 										} while(!is_null(key($t_picks)));
 										unset($trailer);?>
 										<p class="card-text">These are the numbers listed above that have the highest probability of being drawn.</p>

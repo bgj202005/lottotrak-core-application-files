@@ -1064,7 +1064,7 @@ class Statistics_m extends MY_Model
 			}
 			$i++;
 		} while($i<=$pick);
-		if($ex&&($num==$curr['extra'])) // If the bonus / extra ball is included in the drawn number analysis
+		if($ex&&!$found&&($num==$curr['extra'])) // If the bonus / extra ball is included in the drawn number analysis
 		{
 			$found = TRUE;
 		}	
