@@ -141,12 +141,14 @@
 											endforeach;
 										arsort($t_picks); // Sort from the most picks to the least picks
 										$s_picks = "";
+										$sum = 0;
 										$counts = current($t_picks);
 										do
 										{
 											if($counts==current($t_picks)):
 												$s_picks .= 'Number <strong>'.key($t_picks).'</strong>';
 												$current = next($t_picks);
+												$sum++;
 												if($counts!=$current):
 													$s_picks .= ' has been drawn <strong>'.$counts.'</strong> Times.</p>';
 													echo "<p class='card-text'> ".$s_picks."</p>";
@@ -160,6 +162,7 @@
 											endif; 
 										} while(!is_null(key($t_picks)));
 										unset($trailer);?>
+										<p class="card-text">The total number of predictor balls for this ball is <strong><?=$sum;?></strong>.</p>
 										<p class="card-text">These are the numbers listed above that have the highest probability of being drawn.</p>
 										<?php
 										/* Display the non - following numbers for the given range */
