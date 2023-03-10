@@ -276,7 +276,7 @@
 									</thead>
 									<tbody>
 										<?php foreach($lottery->dupextra as $ball => $count):	
-												echo "<tr class='table-secondary'>";
+												echo "<tr class='table-success'>";
 												echo "<td class='text-center'>".$ball."</td>";
 												echo "<td class='text-center'>".$count."</td>";
 												echo "</tr>";
