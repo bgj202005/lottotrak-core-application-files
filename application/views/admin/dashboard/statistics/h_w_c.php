@@ -262,6 +262,29 @@
 										endforeach; ?>
 									</tbody>
 								</table>
+								<!-- Extra Ball if it outside of the balls being drawn and can have a duplicate drawn ball -->
+								<?php if(isset($lottery->dupextra)) : ?>
+								<table class="table">
+									<thead>
+										<tr>
+											<th class="text-center" colspan="2">Extra Ball</th>
+										</tr>
+										<tr>
+											<th class="text-center">Ball</th>
+											<th class="text-center">Occurrences</th>
+										</tr>
+									</thead>
+									<tbody>
+										<?php foreach($lottery->dupextra as $ball => $count):	
+												echo "<tr class='table-secondary'>";
+												echo "<td class='text-center'>".$ball."</td>";
+												echo "<td class='text-center'>".$count."</td>";
+												echo "</tr>";
+										endforeach; ?>
+									</tbody>
+								</table>
+									<?php endif; ?>
+
 								<table class="table" style = "max-width: 229px;">
 									<thead>
 										<tr>

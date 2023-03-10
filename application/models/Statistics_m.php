@@ -1499,7 +1499,7 @@ class Statistics_m extends MY_Model
 			if(($value==$max)&&($d>$max_date)) // Date must be greater than the max date to make it more recent
 			{
 				$max_date = $d; // This iteration has found a more recent date
-				$k = $key;		// Make this key, the new key as the friend
+				$k = $key;		// Make this key, the new key as the friend 
 			}
 		}
 
@@ -1659,11 +1659,12 @@ class Statistics_m extends MY_Model
 	 * @param	integer			$range		Range of draws to calculate, 10 draws, 100 draws, 200 draws, etc.
 	 * @param 	integer 		$w			Start of the warm numbers begin. e.g 1-16 Hots, 17-33 Warms, 34-49 Colds in 49 system
 	 * @param 	integer 		$c			Cold count of the numbers .e.g 16 hot, 17 warm adn 16 cold for a pick 6 - 49 system
+	 * @param 	boolean			$duple		Duplicate extra ball. FALSE by default.  The extra can have the same number drawn based on the minimum and maximum number drawn
 	 * @param	string			$last		last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
 	 * @return	string 			$hwc_string	returns as key value pairs with the number and the heat number.  Numbers are returned based on their heat value
 	 * 										e.g. 4 as a key and 58 as the value for heat in the given range and date	
 	 */
-	public function h_w_c_calculate($lotto_tbl, $picks, $bonus = 0, $draws = 0, $range = 0, $w, $c, $last = '')
+	public function h_w_c_calculate($lotto_tbl, $picks, $bonus = 0, $draws = 0, $range = 0, $w, $c, $last = '', $duple = FALSE)
 	{
 		// Build query
 		$sql_range = ($range ? ' ORDER BY draw_date DESC LIMIT '.$range : ' ORDER BY draw_date DESC');
@@ -1694,7 +1695,7 @@ class Statistics_m extends MY_Model
 		if($picks>=7) $sql .= ' UNION ALL (SELECT ball7 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
 		if($picks>=8) $sql .= ' UNION ALL (SELECT ball8 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
 		if($picks==9) $sql .= ' UNION ALL (SELECT ball9 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
-		if($bonus) $sql .= (!empty($last) ? ' UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.' WHERE extra <> "0"'.$sql_date.$sql_range.')'
+		if($bonus&&!$duple) $sql .= (!empty($last) ? ' UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.' WHERE extra <> "0"'.$sql_date.$sql_range.')'
 		: ' UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.' WHERE extra <> "0"'.$sql_range.')');
 		$sql .= ') as hwc
 				GROUP BY ball_drawn
@@ -1704,11 +1705,12 @@ class Statistics_m extends MY_Model
 		as ball_drawn FROM lotto_max WHERE draw_date <= '2022-01-25' ORDER BY draw_date DESC LIMIT 10) 
 		UNION ALL (SELECT ball3 as ball_drawn FROM lotto_max WHERE draw_date <= '2022-01-25' ORDER BY 
 		draw_date DESC LIMIT 10) UNION ALL (SELECT ball4 as ball_drawn FROM lotto_max WHERE draw_date <= 
-		'2022-01-25' ORDER BY draw_date DESC LIMIT 10) UNION ALL (SELECT ball5 as ball_drawn FROM lotto_max WHERE draw_date 
+		'2022-01-25' ORDER BY draw_date DESC LIMIT 10) UNION ALL (SELECT ball5 as ball_drawn FROM lotto_max WHER E draw_date 
 		<= '2022-01-25' ORDER BY draw_date DESC LIMIT 10) UNION ALL (SELECT ball6 as ball_drawn FROM lotto_max WHERE draw_date 
 		<= '2022-01-25' ORDER BY draw_date DESC LIMIT 10) UNION ALL (SELECT ball7 as ball_drawn FROM lotto_max WHERE draw_date 
 		<= '2022-01-25' ORDER BY draw_date DESC LIMIT 10)) as hwc GROUP BY ball_drawn ORDER BY heat DESC;
 		*/
+		//var_dump($sql); exit(1); 
 		$query = $this->db->query($sql);
 		$hwc_string = ""; // List string in the format of number=hits,
 		$i = 1; // non-zero integer
@@ -1718,7 +1720,52 @@ class Statistics_m extends MY_Model
 			if(($i==($w-1))||($i==(($c)-1))) $hwc_string = substr($hwc_string, 0, -1);
 			$i++;
 		}
-	return substr($hwc_string, 0, -1);		// Return the hwc string without the last comma in the string
+ 	return substr($hwc_string, 0, -1);		// Return the hwc string without the last comma in the string
+	}
+	/**
+	 * Returns the list of hots, warms and colds for a given range and date
+	 * 
+	 * @param	string			$lotto_tbl	Table of Lottery
+	 * @param	boolean			$bonus		Bonus / Extra ball included in query. 0 = no, 1 = yes
+	 * @param	boolean			$draws		Extra Draws (without the the extra ball included) in the query. 
+	 * @param	integer			$range		Range of draws to calculate, 10 draws, 100 draws, 200 draws, etc.
+	 * @param	string			$last		last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
+	 * @return	string 			$xtra_string returns as key value pairs with the number and the heat number.  Numbers are returned based on their heat value
+	 */
+	public function duple_extra($lotto_tbl, $bonus = 0, $draws = 0, $range = 0, $last = '')
+	{
+		// Build query
+		$sql_range = ($range ? ' ORDER BY draw_date DESC LIMIT '.$range : ' ORDER BY draw_date DESC');
+		$sql_date = '';
+		$sql_draws = '';
+		if (!empty($last)&&($draws)&&(!$bonus))
+		{
+			$sql_date = ' WHERE draw_date <= "'.$last.'"';
+		}
+		if(!empty($last)&&(!$draws))
+		{
+			$sql_draws = ' WHERE extra <> "0"';
+			$sql_date = ' AND draw_date <= "'.$last.'"';
+		}
+		//$sql_date = (!empty($last) ? ' WHERE draw_date <= "'.$last.'"' : '');
+		elseif(empty($last)&&(!$draws))
+		{
+			$sql_draws = ' WHERE extra <> "0"';
+		}
+
+			$sql = 'SELECT ball_drawn, count(*) as heat 
+				FROM ((SELECT extra as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
+				$sql .= ') as hwc
+				GROUP BY ball_drawn
+				ORDER BY heat DESC;';
+			$query = $this->db->query($sql);
+			
+			$xtra_string = "";
+			foreach ($query->result() as $xtra)
+			{
+				$xtra_string .= $xtra->ball_drawn.'='.$xtra->heat.",";
+			}
+	return substr($xtra_string, 0, -1);	// Return the extra string without the last comma in the string	
 	}
 	/**
 	 * Return the added only list of followers after the current draw

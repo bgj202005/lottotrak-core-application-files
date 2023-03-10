@@ -762,6 +762,7 @@ class Statistics extends Admin_Controller {
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		$blnduplicate = ($this->data['lottery']->duplicate_extra_ball ? TRUE : FALSE);
 		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$max_ball = $this->data['lottery']->maximum_ball;	// Get the highest ball drawn for this lottery, e.g. 49 in Lottery 649, 50 in Lottomax
 		// Check to see if the actual table exists in the db?
@@ -798,7 +799,7 @@ class Statistics extends Admin_Controller {
 				$this->data['lottery']->H = $hots;  				// Number of Hots Distributed e.g. 16 Hots
 				$c_start = ($max_ball-intval($colds))+1; 			// Return the Cold value
 				$this->data['lottery']->W = $warms;  				// Number of Warms Distributed e.g 18 Colds
-				$this->data['lottery']->C = $colds; 				// Number of Colds Distributed e.g 16 Colds
+				$this->data['lottery' 	]->C = $colds; 				// Number of Colds Distributed e.g 16 Colds
 			}
 			else
 			{
@@ -821,13 +822,14 @@ class Statistics extends Admin_Controller {
 			$this->data['lottery']->extra_draws = ($this->uri->segment(6)=='draws' ? $this->statistics_m->extra_draws($id, TRUE, 'lottery_h_w_c') : $this->statistics_m->extra_draws($id, FALSE, 'lottery_h_w_c'));
 			if($h_w_c['extra_draws']!=$this->data['lottery']->extra_draws) $blnheat = TRUE; // A change in extra draws has occurred
 			$sel_range = ($new_range>100 ? $sel_range = intval($new_range / 100) : $sel_range = 1);
-			
+			$strdupextra = "";	// Always empty for all lotteries. exception is a lottery with an extra ball that can have a duplicate number
+
 			if($new_range!=0)	
 			{
 				if(intval($old_range)!=(intval($new_range))||($blnheat)) // Any Change in Selection of the Draws? then update ... e.i. 200 draws in db and 300 in query url
 				{
-					$str_hwc = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '');
-					
+					$str_hwc = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '', $blnduplicate);
+					if($blnduplicate&&$this->data['lottery']->extra_included) $strdupextra = $this->statistics_m->duple_extra($tbl_name, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '');
 					$strhots = $this->statistics_m->hots($str_hwc);
 					$strwarms = $this->statistics_m->warms($str_hwc);
 					$strcolds = $this->statistics_m->colds($str_hwc);
@@ -837,6 +839,7 @@ class Statistics extends Admin_Controller {
 						'hots'				=> 	$strhots,
 						'warms'				=> 	$strwarms,
 						'colds'				=> 	$strcolds,
+						'dupextra'			=>	$strdupextra,
 						'overdue'			=> 	$stroverdue,
 						'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
 						'lottery_id'		=> 	$id,
@@ -858,6 +861,7 @@ class Statistics extends Admin_Controller {
 					$strhots = $h_w_c['hots']; 		// Pull from DB
 					$strwarms = $h_w_c['warms'];
 					$strcolds = $h_w_c['colds'];
+					$strdupextra = $h_w_c['dupextra'];
 					$stroverdue = $h_w_c['overdue']; 
 				}
 			}
@@ -867,6 +871,7 @@ class Statistics extends Admin_Controller {
 			$sel_range = 1;								// All Defaults
 			$this->data['lottery']->extra_included = 0; // No Extra Ball as part of the calculation
 			$this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
+			$blnduplicate = ($this->data['lottery']->duplicate_extra_ball ? TRUE : FALSE); // Lotteries that ONLY have the extra ball up to a given number
 			$new_range = ($all<100 ? $all : 100);
 			$heat = explode('-', $this->statistics_m->hwc_defaults[$max_ball]); 	// Break out the H-W-C into a new array
 			$w_start = intval($heat[0]+1);							// Warms
@@ -875,7 +880,8 @@ class Statistics extends Admin_Controller {
 			$this->data['lottery']->W = $heat[1];  					// Number of Warms Distributed e.g 18 Colds
 			$this->data['lottery']->C = $heat[2]; 					// Num
 			
-			$str_hwc = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '');
+			$str_hwc = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '', $blnduplicate);
+			if($blnduplicate&&$this->data['lottery']->extra_included) $strdupextra = $this->statistics_m->duple_extra($tbl_name, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '');
 			$strhots = $this->statistics_m->hots($str_hwc);
 			$strwarms = $this->statistics_m->warms($str_hwc);
 			$strcolds = $this->statistics_m->colds($str_hwc);
@@ -885,6 +891,7 @@ class Statistics extends Admin_Controller {
 						'hots'				=> 	$strhots,
 						'warms'				=> 	$strwarms,
 						'colds'				=> 	$strcolds,
+						'dupextra'			=>	$strdupextra,
 						'overdue'			=> 	$stroverdue,
 						'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
 						'lottery_id'		=> 	$id,
@@ -902,6 +909,7 @@ class Statistics extends Admin_Controller {
 		$hots = explode(",", $strhots); // Convert to Arrays
 		$warms = explode(",", $strwarms); 
 		$colds = explode(",", $strcolds); 
+		if(!empty($strdupextra)) $dupextra = explode(",", $strdupextra);
 		$overdue = explode(",", $stroverdue); 
 
 		// Iterate Hots
@@ -928,6 +936,17 @@ class Statistics extends Admin_Controller {
 			$this->data['lottery']->colds[$n] = $c; 
 		}
 
+		if (!empty($strdupextra)) // Only if there is the duplicate extra in this lottery?
+		{
+			// Iterate Extra Numbers that can have duplicates of the main balls
+			foreach($dupextra as $all_dupextra)
+			{
+				$n = strstr($all_dupextra, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+				$c = substr(strstr($all_dupextra, '='), 1); // Strip off to the left of the equal sign count
+				$this->data['lottery']->dupextra[$n] = $c; 
+			}
+		}
+
 		// Iterate Overdues
 		foreach($overdue as $all_overdue)
 		{
@@ -937,9 +956,9 @@ class Statistics extends Admin_Controller {
 		}
 
 		$hwc_history = $this->statistics_m->hwc_history_exists($id);
-		if(is_null($hwc_history)) // Correct Lottery & Range?
+ 		if(is_null($hwc_history)) // Correct Lottery & Range?
 		{
-			$hwc_history = $this->h_w_c_history($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start);
+			$hwc_history = $this->h_w_c_history($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, $blnduplicate);
 			if (!$hwc_history) // Problem with calculating H-W-C's over range
 			{
 				$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$$new_range.' Draws.');
@@ -981,7 +1000,7 @@ class Statistics extends Admin_Controller {
 			if(($old_range!=$new_range)||($blnheat))	 // Range has changed OR change in extra draws / extra ball included
 			{
 				// Recalculation is nesessary
-				$hwc_history = $this->h_w_c_history($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start);
+				$hwc_history = $this->h_w_c_history($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, $blnduplicate);
 				if (!$hwc_history) // Problem with calculating H-W-C's over range
 				{
 					$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$$new_range.' Draws.');
@@ -1043,9 +1062,10 @@ class Statistics extends Admin_Controller {
  	 * @param 	integer	$range			Range of Draws
 	 * @param 	integer	$w_bound		Passed value. Start of the warm numbers begin. e.g 1-16 Hots, 17-33 Warms, 34-49 Colds in 49 system
 	 * @param 	integer $c_bound		Passed value. Cold count of the numbers .e.g 16 hot, 17 warm adn 16 cold for a pick 6 - 49 system
+	 * @param	boolean $dup			Boolean True or False. If the extra ball is separate from the other balls that were drawn. True = Yes, False = No
 	 * @return 	string	$totals			String return of the range of draws H-W-Cs and the last draw H-W-C.
 	 */
-	public function h_w_c_history($table, $picks, $bn, $xtra, $range, $w_bound, $c_bound)
+	public function h_w_c_history($table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $dup)
 	{
 		$examine_date = $this->statistics_m->lottery_return_date($table, $range+1, $xtra); 	// Please note: This an off by 1 error. It has to go +1 draw back 
 		if(!$examine_date) return false;													// to iterate for the given range
@@ -1060,7 +1080,7 @@ class Statistics extends Admin_Controller {
 		$row  = 1;	// Starting point at $row 1
 		do
 		{
-			$str_h_w_c = $this->statistics_m->h_w_c_calculate($table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $examine_date);
+			$str_h_w_c = $this->statistics_m->h_w_c_calculate($table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $examine_date, $dup);
 			$str_hots = $this->statistics_m->hots($str_h_w_c);
 			$str_warms = $this->statistics_m->warms($str_h_w_c);
 			$str_colds = $this->statistics_m->colds($str_h_w_c);
@@ -1265,6 +1285,7 @@ class Statistics extends Admin_Controller {
 	{
 	 // Retrieve the lottery table name for the database
 	 $tbl = $this->lotteries_m->lotto_table_convert($lotto->lottery_name);
+	 $blnduplicate = ($lotto->duplicate_extra_ball ? TRUE : FALSE);
 	 $drawn = $lotto->balls_drawn;						// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 	 $max_ball = $lotto->maximum_ball;					// Get the highest ball drawn for this lottery, e.g. 49 in Lottery 649, 50 in Lottomax
 	 // Check to see if the actual table exists in the db?
@@ -1276,7 +1297,8 @@ class Statistics extends Admin_Controller {
 
 	 $all = $this->lotteries_m->db_row_count($tbl); 										// Return the total number of draws for this lottery
 	 $lotto->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl);					// Retrieve the last drawn numbers and draw date
-
+	 $str_dupextra = "";																	// Always empty for all lotteries. 
+	 																						// exception is a lottery with an extra ball that can have a duplicate number
 	 $h_w_c = $this->statistics_m->h_w_c_exists($id);
 
 	 if(!is_null($h_w_c))	// Existing HWC?
@@ -1292,8 +1314,8 @@ class Statistics extends Admin_Controller {
 		$lotto->W = $warms;  						// Number of Warms Distributed e.g 18 Colds
 		$lotto->C = $colds; 						// Number of Colds Distributed e.g 16 Colds
 		 
-		$str_hwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, '');
-		
+		$str_hwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, '', $blnduplicate);
+		if($blnduplicate&&$h_w_c['extra_included']) $str_dupextra = $this->statistics_m->duple_extra($tbl, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, '');		
 		$strhots = $this->statistics_m->hots($str_hwc);
 		$strwarms = $this->statistics_m->warms($str_hwc);
 		$strcolds = $this->statistics_m->colds($str_hwc);
@@ -1303,6 +1325,7 @@ class Statistics extends Admin_Controller {
 			'hots'				=> $strhots,
 			'warms'				=> $strwarms,
 			'colds'				=> $strcolds,
+			'dupextra'			=> $str_dupextra,
 			'overdue'			=> $stroverdue,
 			'draw_id'			=> $lotto->last_drawn['id'],
 			'lottery_id'		=> $id,
@@ -1316,7 +1339,7 @@ class Statistics extends Admin_Controller {
 		);
 		$this->statistics_m->hwc_data_save($hwc, TRUE);
 		// Recalculation is nesessary
-		$hwc_history = $this->h_w_c_history($tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start);
+		$hwc_history = $this->h_w_c_history($tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
 	 }
 	 else 
 	 {
@@ -1331,6 +1354,7 @@ class Statistics extends Admin_Controller {
 		 $lotto->C = $heat[2]; 							// Num
 		 
 		 $str_hwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $lotto->extra_included, $lotto->extra_draws, $new_range, $w_start, $c_start, '');
+		 if($blnduplicate&&$h_w_c['extra_included']) $str_dupextra = $this->statistics_m->duple_extra($tbl, $h_w_c['extra_included'], $$h_w_c['extra_draws'], $new_range, '');	
 		 $strhots = $this->statistics_m->hots($str_hwc);
 		 $strwarms = $this->statistics_m->warms($str_hwc);
 		 $strcolds = $this->statistics_m->colds($str_hwc);
@@ -1340,6 +1364,7 @@ class Statistics extends Admin_Controller {
 					 'hots'				=> $strhots,
 					 'warms'			=> $strwarms,
 					 'colds'			=> $strcolds,
+					 'dupextra'			=> $str_dupextra,
 					 'overdue'			=> $stroverdue,
 					 'draw_id'			=> $lotto->last_drawn['id'],
 					 'lottery_id'		=> $id,
@@ -1353,7 +1378,7 @@ class Statistics extends Admin_Controller {
 				 );
 		 $this->statistics_m->hwc_data_save($hwc, FALSE);
 		 // Recalculation is nesessary
-		$hwc_history = $this->h_w_c_history($tbl, $drawn, $lotto['extra_included'], $lotto['extra_draws'], $new_range, $w_start, $c_start);
+		$hwc_history = $this->h_w_c_history($tbl, $drawn, $lotto['extra_included'], $lotto['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
 	 }
 	 
 	 if (!$hwc_history) // Problem with calculating H-W-C's over range
