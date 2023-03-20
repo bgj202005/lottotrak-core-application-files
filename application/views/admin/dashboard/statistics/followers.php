@@ -167,19 +167,21 @@
 										<?php
 										/* Display the non - following numbers for the given range */
 										/* Determine the number from the ball position and then access the ball+nf for not followed */
-										$nonfollowers = explode('|', ($b>$cd ? $lottery->last_drawn[$lottery->last_drawn['extra'].'nf'] : $lottery->last_drawn[$lottery->last_drawn['ball'.$b].'nf'])); 
-										$non_picks = "";
-										if($nonfollowers[0]): /* Check for all non followers have followed */
-											$non_picks .= "These Numbers have <strong>NEVER</strong> followed this Ball <strong>".($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b])."</strong> for ".$lottery->last_drawn['range']." Draws:<br />";
-											foreach($nonfollowers as $nf):  
-												$non_picks .= 'Number: <strong>'.$nf.'</strong><br />';	
-											endforeach;
-											echo "<p class='card-text'> ".$non_picks."</p>";
-										endif;
-										unset($nonfollowers);  
-								else: 
-									echo "<p class='card-text'> No Criteria High enough to Use for this Ball. </p>";
-								endif; ?>
+										if(!$lottery->duplicate_extra_ball) : // If NOT the Extra Ball that is Independent and can have Duplicate balls from the main draw
+											$nonfollowers = explode('|', ($b>$cd ? $lottery->last_drawn[$lottery->last_drawn['extra'].'nf'] : $lottery->last_drawn[$lottery->last_drawn['ball'.$b].'nf'])); 
+											$non_picks = "";
+											if($nonfollowers[0]): /* Check for all non followers have followed */
+												$non_picks .= "These Numbers have <strong>NEVER</strong> followed this Ball <strong>".($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b])."</strong> for ".$lottery->last_drawn['range']." Draws:<br />";
+												foreach($nonfollowers as $nf):  
+													$non_picks .= 'Number: <strong>'.$nf.'</strong><br />';	
+												endforeach;
+												echo "<p class='card-text'> ".$non_picks."</p>";
+											endif;
+											unset($nonfollowers);
+										endif;  
+									else: 
+										echo "<p class='card-text'> No Criteria High enough to Use for this Ball. </p>";
+									endif; ?>
 							</div>
 							<?php $b++;
 							}

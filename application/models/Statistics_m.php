@@ -966,10 +966,11 @@ class Statistics_m extends MY_Model
 	 * @param	boolean $draws		If extra (bonus) draws are included in the calculation (1 = TRUE, 0 = FALSE)
 	 * @param  	integer	$range		Range of number of draws (default is 100). If less than 100, the number must be set in $range
 	 * @param	string	$last		last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
+	 * @param 	boolean	$duple		Duplicate extra ball. FALSE by default.  The extra can have the same number drawn based on the minimum and maximum number drawn
 	 * @return  string	$followers	Followers string in this format that follow with the number of occurrences (minumum 3 Occurrences)
 	 * 								e.g. 10=>3=4|22=3,17=>10=5|37=4|48=4
 	 */
-	public function followers_calculate($name, $ldn, $max, $bonus, $draws, $range = 100, $last = '')
+	public function followers_calculate($name, $ldn, $max, $bonus, $draws, $range = 100, $last = '', $duple = FALSE)
 	{
 		// Build Query
 		$range--;	// Not including the last draw within the range of draws
@@ -983,7 +984,7 @@ class Statistics_m extends MY_Model
 		} 
 		while($i<=$max);
 
-		$s .= ', extra, draw_date';
+		$s .= ', extra, draw_date'; // Include the draw date is this query
 		$b_max = $max;	// The maximum of the ONLY the balls drawn
 		if($bonus) $max++;
 
@@ -996,15 +997,19 @@ class Statistics_m extends MY_Model
 		$followers = '';	// set as a blank string
 		do
 		{
+			$blnExDup = ($bonus&&$duple&&($b>$b_max) ? TRUE : FALSE); // Has reached the extra number that is an independent and duplicate Extra ball (TRUE) or everything else is FALSE
+			$c_b = ($bonus&&($b>$b_max) ? $ldn['extra'] : $ldn['ball'.$b]); // If there is an Extra / Bonus Ball and this bonus ball has exceeded the regularly drawn numbers, retrieve the extra ball
 			//$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." WHERE id <>".$last['id']." ORDER BY draw_date DESC LIMIT ".$range.") as t".$w."ORDER BY t.draw_date ASC"; 
-			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
+			$sql = ($blnExDup ? "SELECT t.* FROM (SELECT extra, draw_date FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;" 
+			: "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;");
 			// Execute Query
 			$query = $this->db->query($sql);
 			$row = $query->first_row('array');
-			$c_b = ($bonus&&($b>$b_max) ? $ldn['extra'] : $ldn['ball'.$b]); // If there is an Extra / Bonus Ball and this bonus ball has exceeded the regularly drawn numbers, retrieve the extra ball
 			$followlist = array();
+			if(!$blnExDup) // Condition has not been met, not Duplicate Extra
+			{
 			do {
-				if($this->is_drawn($c_b, $row, $b_max, $bonus))
+				 if($this->is_drawn($c_b, $row, $b_max, $bonus, $duple))
 				{
 					$row = $query->next_row('array');
 					if(!is_null($row))
@@ -1025,6 +1030,32 @@ class Statistics_m extends MY_Model
 					$row = $query->next_row('array');
 				}
 			} while(!is_null($row));
+			}
+			else		// Condition has been met
+			{
+				 do {
+					if($ldn['extra']==$row['extra'])
+					{
+						$row = $query->next_row('array');
+						if(!is_null($row))
+						{
+							unset($row['draw_date']);
+							if(!empty($followlist))
+							{
+								$followlist = $this->update_dupalextra($followlist, $row['extra']);
+							}
+							else
+							{
+								$followlist = $this->add_dupalextra($row['extra']);
+							}
+						}
+					}
+					else
+					{
+						$row = $query->next_row('array');
+					}
+				} while(!is_null($row));
+			}
 		
 		// Build Follower string
 		if(empty($followlist)) $followlist = NULL; 
@@ -1039,37 +1070,41 @@ class Statistics_m extends MY_Model
 		} while ($b<=$max);
 		return $followers;
 	}
+
 	/**
 	 * Return if the drawn number was drawn from the current row
 	 * 
 	 * @param	integer	$num		Drawn number from the most recent draw
 	 * @param 	array 	$curr		Current set of drawn numbers
 	 * @param	integer	$pick		How many numbers are drawn without the extra / bonus ball	
-	 * @param 	boolean $ex			Extra / Bonus ball include flag. TRUE / FALSE	
+	 * @param 	boolean $ex			Extra / Bonus ball include flag. TRUE / FALSE
+	 * @param 	boolean $dp			Duplicate on the Extra / Bonus ball. TRUE / FALSE
 	 * @return	boolean $found		Found the ball drawn during this draw
 	 */
-	private function is_drawn($num, $curr, $pick, $ex)
+	private function is_drawn($num, $curr, $pick, $ex, $dp)
 	{
 		$found = FALSE;
 		$i=1;
 		// 		if query ball equals current ball then
 		//   	for each query ball that does not exist, +1 for each ball add to associative array
 		//		if query ball exists in associative array then +1 for existing associative query ball
-		do
+		If($ex&&!$dp&&($num==$curr['extra'])) $found = TRUE;
+		if($ex&&$dp&&($num==$curr['extra'])) $found = FALSE;	// Duplicate Extra number be checked for being drawn
+		if(!$found)
 		{
-			if ($num==$curr['ball'.$i]) 
+			do
 			{
-				$found = TRUE;
-				break;		// exit loop
-			}
-			$i++;
-		} while($i<=$pick);
-		if($ex&&!$found&&($num==$curr['extra'])) // If the bonus / extra ball is included in the drawn number analysis
-		{
-			$found = TRUE;
-		}	
+				if ($num==$curr['ball'.$i])   
+				{
+					$found = TRUE;
+					break;		// exit loop
+				}
+				$i++;
+			} while($i<=$pick);
+		}
 	return $found;		// Return the range of balls drawn from the first ball to ball N
 	}
+
 	/**
 	 * Return the added only list of followers after the current draw
 	 * 
@@ -1112,6 +1147,44 @@ class Statistics_m extends MY_Model
 			}
 		}
 	return $list;		// Return the range of balls drawn from the first ball to ball N
+	}
+
+	/**
+	 * Return the added only list of Duplicate Extras (Specific Lottery) after the current draw
+	 * 
+	 * @param	integer	$extra		Current Draw to compare and add to the followers list		
+	 * @return	array	$list		List of updated Duplicate Extras
+	 */
+	private function add_dupalextra($extra)
+	{
+	
+		$list = array();	// Empty set array
+			if($extra!=0) 
+			{
+				$list += [
+					$extra => 1]; 
+			}
+	return $list;		// Return the followers of the current draw
+	}
+	/**
+	 * Return the updated list of Duplicate Extras (Specific Lottery) that were was drawn from the current draw
+	 * 
+	 * @param	array	$list		List of Duplicate Extras and the totals
+	 * @param	integer	$extra		Current Duplicate Extra Number Draw to compare and update		
+	 * @return	array	$list		Return List of updated Duplicate Extras
+	 */
+	private function update_dupalextra($list, $extra)
+	{
+			if(($extra!=0)&&(array_key_exists($extra, $list)))
+			{
+				$list[$extra]++;	// Auto increment the array from the $key
+			}
+			elseif($extra!=0)
+			{
+				$list += [			// If it does not exist, add the key and set the value to one.
+					$extra => 1];
+			}
+	return $list;	// Return the range of balls drawn from the first ball to ball N
 	}
 	/**
 	 * Return the added only list of followers after the current draw
@@ -1165,10 +1238,11 @@ class Statistics_m extends MY_Model
 	 * @param  	integer	$range			Range of number of draws (default is 100). If less than 100, the number must be set in $range
 	 * @param	integer	$top			Last Ball in Lottery that is drawn, e.g. 649 - 49 balls maximum
 	 * @param	string	$last			last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
+	 * @param 	boolean	$duple			Duplicate extra ball. FALSE by default.  The extra can have the same number drawn based on the minimum and maximum number drawn
 	 * @return  string	$nonfollowers	non-Followers string in this format that follow with the number of occurrences (minumum 3 Occurrences)
 	 * 									e.g. 10=>3=4|22=3,17=>10=5|37=4|48=4
 	 */
-	public function nonfollowers_calculate($name, $ldn, $max, $bonus, $draws = 0, $range = 100, $top, $last = '')
+	public function nonfollowers_calculate($name, $ldn, $max, $bonus, $draws = 0, $range = 100, $top, $last = '', $duple = FALSE)
 	{
 		// Build Query
 		$s = 'ball'; 
@@ -1181,7 +1255,7 @@ class Statistics_m extends MY_Model
 		} 
 		while($i<=$max);
 
-		$s .= ', extra, draw_date';
+		$s .= ', extra, draw_date'; // Include the draw date is this query
 		$b_max = $max;	// The maximum of the ONLY the balls drawn
 		if($bonus) $max++;
 
@@ -1202,7 +1276,7 @@ class Statistics_m extends MY_Model
 			$followlist = array();
 			$nonfollowlist = array();
 			do {
-				if($this->is_drawn($c_b, $row, $b_max, $bonus))
+				if($this->is_drawn($c_b, $row, $b_max, $bonus, $duple))
 				{
 					$row = $query->next_row('array');
 					if(!is_null($row))
@@ -1315,9 +1389,10 @@ class Statistics_m extends MY_Model
 	 * @param	boolean $draws		If extra (bonus) draws are included in the calculation (1 = TRUE, 0 = FALSE)
 	 * @param  	integer	$range		Range of number of draws (default is 100). If less than 100, the number must be set in $range
 	 * @param 	string 	$last		last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
+	 * @param 	boolean	$duple		Duplicate extra ball. FALSE by default.  The extra can have the same number drawn based on the minimum and maximum number drawn
 	 * @return  string	$friends	Friends string in this format: 1>9=4:01/24/2020,2>11=8:09/18/2020,3>44=10:06/22/2019  ,etc. 
 	 */
-	public function friends_calculate($name, $max, $top, $bonus = 0, $draws = 0, $range = 100, $last = '')
+	public function friends_calculate($name, $max, $top, $bonus = 0, $draws = 0, $range = 100, $last = '', $duple = FALSE)
 	{
 		// Build Query
 		$s = 'ball'; 
@@ -1351,7 +1426,7 @@ class Statistics_m extends MY_Model
 			$row = $query->first_row('array'); // Doing the reverse to the first row because of the descending order.
 			$friendlist = array();
 			do {
-				if($this->is_drawn($b, $row, $max, $bonus))
+				if($this->is_drawn($b, $row, $max, $bonus, $duple))
 				{
 					if(!is_null($row))
 					{
@@ -1723,7 +1798,7 @@ class Statistics_m extends MY_Model
  	return substr($hwc_string, 0, -1);		// Return the hwc string without the last comma in the string
 	}
 	/**
-	 * Returns the list of hots, warms and colds for a given range and date
+	 * Returns the list of extras only (as a separate set of numbers) for a given range and date
 	 * 
 	 * @param	string			$lotto_tbl	Table of Lottery
 	 * @param	boolean			$bonus		Bonus / Extra ball included in query. 0 = no, 1 = yes
@@ -1732,7 +1807,7 @@ class Statistics_m extends MY_Model
 	 * @param	string			$last		last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
 	 * @return	string 			$xtra_string returns as key value pairs with the number and the heat number.  Numbers are returned based on their heat value
 	 */
-	public function duple_extra($lotto_tbl, $bonus = 0, $draws = 0, $range = 0, $last = '')
+	public function hwc_duple_extra($lotto_tbl, $bonus = 0, $draws = 0, $range = 0, $last = '')
 	{
 		// Build query
 		$sql_range = ($range ? ' ORDER BY draw_date DESC LIMIT '.$range : ' ORDER BY draw_date DESC');

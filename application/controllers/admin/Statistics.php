@@ -462,6 +462,7 @@ class Statistics extends Admin_Controller {
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		$blnduplicate = ($this->data['lottery']->duplicate_extra_ball ? TRUE : FALSE);
 		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
@@ -519,7 +520,7 @@ class Statistics extends Admin_Controller {
 			{
 				if(intval($followers['range'])!=(intval($range))||$blnEX) // Any Change in Selection/Settings of the Draws?
 				{
-					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range);
+					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_draws, $range, $blnduplicate);
 					/** NEW included nonfollower calculations **/
 					$max = $this->data['lottery']->maximum_ball;
 					$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max);
@@ -549,8 +550,7 @@ class Statistics extends Admin_Controller {
 		{
 			// range is set with either less than 100 rows (based on the exact number of draws) or calculate the number of followers using only 100 rows
 			$range = ($all<100 ? $all : 100);
-			$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range);
-			
+			$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $blnduplicate);
 			$followers = array(
 				'range'				=> $range,
 				'lottery_followers'	=> $str_followers,
@@ -594,11 +594,12 @@ class Statistics extends Admin_Controller {
 			{
 				if($this->data['lottery']->last_drawn['ball'.$b]==$n) $this->data['lottery']->last_drawn[$n.'nf'] = $nf;
 			}
-			if(($this->data['lottery']->extra_included)&&($this->data['lottery']->last_drawn['extra']==$n))
+			if(($this->data['lottery']->extra_included&&(!$this->data['lottery']->duplicate_extra_ball))&&($this->data['lottery']->last_drawn['extra']==$n))
 			{
 				$this->data['lottery']->last_drawn[$n.'nf'] = $nf;
 			}
 		}
+		
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
 		$this->data['lottery']->last_drawn['range'] = $range;
@@ -670,7 +671,7 @@ class Statistics extends Admin_Controller {
 			{
 				if(intval($old_range)!=(intval($new_range))||($change)) // Any Change in Selection of the Draws? then update ... e.i. 200 draws in db and 300 in query url
 				{
-					$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range);
+					$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', FALSE);
 					$associate = explode('+', $str_friends); // The '+' is the separator
 					$str_friends = $associate[0];			 // separated the friends
 					$str_nonfriends = $associate[1]; 		 // from the non friends
@@ -698,7 +699,7 @@ class Statistics extends Admin_Controller {
 		else 
 		{
 			$new_range = ($all<100 ? $all : 100);
-			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range);
+			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', FALSE);
 			$associate = explode('+', $str_friends); // The '+' is the separator
 			$str_friends = $associate[0];			 // separated the friends
 			$str_nonfriends = $associate[1];		 // from the non friends
@@ -829,7 +830,7 @@ class Statistics extends Admin_Controller {
 				if(intval($old_range)!=(intval($new_range))||($blnheat)) // Any Change in Selection of the Draws? then update ... e.i. 200 draws in db and 300 in query url
 				{
 					$str_hwc = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '', $blnduplicate);
-					if($blnduplicate&&$this->data['lottery']->extra_included) $strdupextra = $this->statistics_m->duple_extra($tbl_name, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '');
+					if($blnduplicate&&$this->data['lottery']->extra_included) $strdupextra = $this->statistics_m->hwc_duple_extra($tbl_name, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '');
 					$strhots = $this->statistics_m->hots($str_hwc);
 					$strwarms = $this->statistics_m->warms($str_hwc);
 					$strcolds = $this->statistics_m->colds($str_hwc);
@@ -881,7 +882,7 @@ class Statistics extends Admin_Controller {
 			$this->data['lottery']->C = $heat[2]; 					// Num
 			
 			$str_hwc = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '', $blnduplicate);
-			if($blnduplicate&&$this->data['lottery']->extra_included) $strdupextra = $this->statistics_m->duple_extra($tbl_name, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '');
+			if($blnduplicate&&$this->data['lottery']->extra_included) $strdupextra = $this->statistics_m->hwc_duple_extra($tbl_name, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '');
 			$strhots = $this->statistics_m->hots($str_hwc);
 			$strwarms = $this->statistics_m->warms($str_hwc);
 			$strcolds = $this->statistics_m->colds($str_hwc);
@@ -1315,7 +1316,7 @@ class Statistics extends Admin_Controller {
 		$lotto->C = $colds; 						// Number of Colds Distributed e.g 16 Colds
 		 
 		$str_hwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, '', $blnduplicate);
-		if($blnduplicate&&$h_w_c['extra_included']) $str_dupextra = $this->statistics_m->duple_extra($tbl, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, '');		
+		if($blnduplicate&&$h_w_c['extra_included']) $str_dupextra = $this->statistics_m->hwc_duple_extra($tbl, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, '');		
 		$strhots = $this->statistics_m->hots($str_hwc);
 		$strwarms = $this->statistics_m->warms($str_hwc);
 		$strcolds = $this->statistics_m->colds($str_hwc);
@@ -1354,7 +1355,7 @@ class Statistics extends Admin_Controller {
 		 $lotto->C = $heat[2]; 							// Num
 		 
 		 $str_hwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $lotto->extra_included, $lotto->extra_draws, $new_range, $w_start, $c_start, '');
-		 if($blnduplicate&&$h_w_c['extra_included']) $str_dupextra = $this->statistics_m->duple_extra($tbl, $h_w_c['extra_included'], $$h_w_c['extra_draws'], $new_range, '');	
+		 if($blnduplicate&&$h_w_c['extra_included']) $str_dupextra = $this->statistics_m->hwc_duple_extra($tbl, $h_w_c['extra_included'], $$h_w_c['extra_draws'], $new_range, '');	
 		 $strhots = $this->statistics_m->hots($str_hwc);
 		 $strwarms = $this->statistics_m->warms($str_hwc);
 		 $strcolds = $this->statistics_m->colds($str_hwc);
@@ -1429,6 +1430,7 @@ class Statistics extends Admin_Controller {
 	{
 		// Retrieve the lottery table name for the database
 		$tbl = $this->lotteries_m->lotto_table_convert($lotto->lottery_name);
+		$blnduplicate = ($lotto->duplicate_extra_ball ? TRUE : FALSE);
 		$drawn = $lotto->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl))
@@ -1448,7 +1450,7 @@ class Statistics extends Admin_Controller {
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
 
 			$range = $followers['range'];
-			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range);
+			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range,'',$blnduplicate);
 			/** NEW included nonfollower calculations **/
 			$max = $this->data['lottery']->maximum_ball;
 			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $max);
@@ -1474,8 +1476,7 @@ class Statistics extends Admin_Controller {
 			$lotto->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
 			// range is set with either less than 100 rows (based on the exact number of draws) or calculate the number of followers using only 100 rows
 			$range = ($all<100 ? $all : 100);
-			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $lotto->extra_included, $lotto->extra_draws, $range);
-			
+			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $lotto->extra_included, $lotto->extra_draws, $range,'',$blnduplicate);
 			$followers = array(
 				'range'				=> $range,
 				'lottery_followers'	=> $str_followers,
@@ -1525,7 +1526,7 @@ class Statistics extends Admin_Controller {
 		if(!is_null($friends)&&(!is_null($nonfriends)))
 		{
 			$range = $friends['range'];
-			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $lotto->extra_included, $lotto->extra_draws, $range);
+			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $lotto->extra_included, $lotto->extra_draws, $range, '', FALSE);
 			$associate = explode('+', $str_friends); // The '+' is the separator
 			$str_friends = $associate[0];			 // separated the friends
 			$str_nonfriends = $associate[1]; 		 // from the non friends
@@ -1549,7 +1550,7 @@ class Statistics extends Admin_Controller {
 			$new_range = ($all<100 ? $all : 100);
 			$lotto->extra_included = 0; // No Extra Ball as part of the calculation
 			$lotto->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
-			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $lotto->extra_included, $lotto->extra_draws, $new_range);
+			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $lotto->extra_included, $lotto->extra_draws, $new_range, '', FALSE);
 			$associate = explode('+', $str_friends); // The '+' is the separator
 			$str_friends = $associate[0];			 // separated the friends
 			$str_nonfriends = $associate[1]; 		 // from the non friends
