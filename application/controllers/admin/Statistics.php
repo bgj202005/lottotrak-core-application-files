@@ -520,10 +520,11 @@ class Statistics extends Admin_Controller {
 			{
 				if(intval($followers['range'])!=(intval($range))||$blnEX) // Any Change in Selection/Settings of the Draws?
 				{
-					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_draws, $range, $blnduplicate);
+					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, '', $blnduplicate);
 					/** NEW included nonfollower calculations **/
 					$max = $this->data['lottery']->maximum_ball;
-					$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max);
+					$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
+					$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
 					$followers = array(
 						'range'				=> $range,
 						'lottery_followers'	=> $str_followers,
@@ -550,7 +551,7 @@ class Statistics extends Admin_Controller {
 		{
 			// range is set with either less than 100 rows (based on the exact number of draws) or calculate the number of followers using only 100 rows
 			$range = ($all<100 ? $all : 100);
-			$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $blnduplicate);
+			$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, ''. $blnduplicate);
 			$followers = array(
 				'range'				=> $range,
 				'lottery_followers'	=> $str_followers,
@@ -559,7 +560,8 @@ class Statistics extends Admin_Controller {
 			);
 			$this->statistics_m->follower_data_save($followers, FALSE);
 			$max = $this->data['lottery']->maximum_ball;
-			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max);
+			$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
+			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
 			$nonfollowers = array(
 						'range'					=> $range,
 						'lottery_nonfollowers'	=> $str_nonfollowers,
@@ -594,7 +596,7 @@ class Statistics extends Admin_Controller {
 			{
 				if($this->data['lottery']->last_drawn['ball'.$b]==$n) $this->data['lottery']->last_drawn[$n.'nf'] = $nf;
 			}
-			if(($this->data['lottery']->extra_included&&(!$this->data['lottery']->duplicate_extra_ball))&&($this->data['lottery']->last_drawn['extra']==$n))
+			if(($this->data['lottery']->extra_included&&$this->data['lottery']->last_drawn['extra']==$n))
 			{
 				$this->data['lottery']->last_drawn[$n.'nf'] = $nf;
 			}
@@ -1453,7 +1455,8 @@ class Statistics extends Admin_Controller {
 			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range,'',$blnduplicate);
 			/** NEW included nonfollower calculations **/
 			$max = $this->data['lottery']->maximum_ball;
-			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $max);
+			$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
+			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $max, '', $blnduplicate, $mx_extra);
 			$followers = array(
 				'range'				=> $range,
 				'lottery_followers'	=> $str_followers,
@@ -1485,7 +1488,8 @@ class Statistics extends Admin_Controller {
 			);
 			$this->statistics_m->follower_data_save($followers, FALSE);
 			$max = $this->data['lottery']->maximum_ball;
-			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl, $lotto->last_drawn, $drawn, $lotto->extra_included, $lotto->extra_draws, $range, $max);
+			$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
+			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl, $lotto->last_drawn, $drawn, $lotto->extra_included, $lotto->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
 			$nonfollowers = array(
 			'range'					=> $range,
 			'lottery_nonfollowers'	=> $str_nonfollowers,

@@ -167,7 +167,6 @@
 										<?php
 										/* Display the non - following numbers for the given range */
 										/* Determine the number from the ball position and then access the ball+nf for not followed */
-										if(!$lottery->duplicate_extra_ball) : // If NOT the Extra Ball that is Independent and can have Duplicate balls from the main draw
 											$nonfollowers = explode('|', ($b>$cd ? $lottery->last_drawn[$lottery->last_drawn['extra'].'nf'] : $lottery->last_drawn[$lottery->last_drawn['ball'.$b].'nf'])); 
 											$non_picks = "";
 											if($nonfollowers[0]): /* Check for all non followers have followed */
@@ -176,7 +175,6 @@
 													$non_picks .= 'Number: <strong>'.$nf.'</strong><br />';	
 												endforeach;
 												echo "<p class='card-text'> ".$non_picks."</p>";
-											endif;
 											unset($nonfollowers);
 										endif;  
 									else: 

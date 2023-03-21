@@ -999,41 +999,42 @@ class Statistics_m extends MY_Model
 		{
 			$blnExDup = ($bonus&&$duple&&($b>$b_max) ? TRUE : FALSE); // Has reached the extra number that is an independent and duplicate Extra ball (TRUE) or everything else is FALSE
 			$c_b = ($bonus&&($b>$b_max) ? $ldn['extra'] : $ldn['ball'.$b]); // If there is an Extra / Bonus Ball and this bonus ball has exceeded the regularly drawn numbers, retrieve the extra ball
-			//$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." WHERE id <>".$last['id']." ORDER BY draw_date DESC LIMIT ".$range.") as t".$w."ORDER BY t.draw_date ASC"; 
 			$sql = ($blnExDup ? "SELECT t.* FROM (SELECT extra, draw_date FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;" 
 			: "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;");
 			// Execute Query
 			$query = $this->db->query($sql);
-			$row = $query->first_row('array');
+ 			$row = $query->first_row('array');
 			$followlist = array();
 			if(!$blnExDup) // Condition has not been met, not Duplicate Extra
 			{
-			do {
-				 if($this->is_drawn($c_b, $row, $b_max, $bonus, $duple))
+				do 
 				{
-					$row = $query->next_row('array');
-					if(!is_null($row))
+					if($this->is_drawn($c_b, $row, $b_max, $bonus))
 					{
-						unset($row['draw_date']);
-						if(!empty($followlist))
+						$row = $query->next_row('array');
+						if(!is_null($row))
 						{
-							$followlist = $this->update_followers($followlist, $row);
-						}
-						else
-						{
-							$followlist = $this->add_followers($row);
+							unset($row['draw_date']);
+							if(!empty($followlist))
+							{
+								$followlist = $this->update_followers($followlist, $row);
+							}
+							else
+							{
+								$followlist = $this->add_followers($row);
+							}
 						}
 					}
-				}
-				else
-				{
-					$row = $query->next_row('array');
-				}
-			} while(!is_null($row));
+					else
+					{
+						$row = $query->next_row('array');
+					}
+				} while(!is_null($row));
 			}
 			else		// Condition has been met
 			{
-				 do {
+				 do 
+				 {
 					if($ldn['extra']==$row['extra'])
 					{
 						$row = $query->next_row('array');
@@ -1064,7 +1065,7 @@ class Statistics_m extends MY_Model
 		// update ball counter
 		// while ball count < $max
 			$b++;
-			if(($b<=$max)&&(!empty($followlist))) $followers .= ',';
+			if(($b<=$max)&&(!empty($followlist))) $followers .= ','; 
 			unset($followlist);		// Destroy the old followerlist
 			$query->free_result();	// Removes the Memory associated with the result resource ID
 		} while ($b<=$max);
@@ -1078,18 +1079,16 @@ class Statistics_m extends MY_Model
 	 * @param 	array 	$curr		Current set of drawn numbers
 	 * @param	integer	$pick		How many numbers are drawn without the extra / bonus ball	
 	 * @param 	boolean $ex			Extra / Bonus ball include flag. TRUE / FALSE
-	 * @param 	boolean $dp			Duplicate on the Extra / Bonus ball. TRUE / FALSE
 	 * @return	boolean $found		Found the ball drawn during this draw
 	 */
-	private function is_drawn($num, $curr, $pick, $ex, $dp)
+	private function is_drawn($num, $curr, $pick, $ex)
 	{
 		$found = FALSE;
 		$i=1;
 		// 		if query ball equals current ball then
 		//   	for each query ball that does not exist, +1 for each ball add to associative array
 		//		if query ball exists in associative array then +1 for existing associative query ball
-		If($ex&&!$dp&&($num==$curr['extra'])) $found = TRUE;
-		if($ex&&$dp&&($num==$curr['extra'])) $found = FALSE;	// Duplicate Extra number be checked for being drawn
+		If($ex&&($num==$curr['extra'])) $found = TRUE;
 		if(!$found)
 		{
 			do
@@ -1239,10 +1238,11 @@ class Statistics_m extends MY_Model
 	 * @param	integer	$top			Last Ball in Lottery that is drawn, e.g. 649 - 49 balls maximum
 	 * @param	string	$last			last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
 	 * @param 	boolean	$duple			Duplicate extra ball. FALSE by default.  The extra can have the same number drawn based on the minimum and maximum number drawn
+	 * @param 	integer	$mx_ex			Maximum Extra Ball drawn for the independent and duplicate extra lotteries
 	 * @return  string	$nonfollowers	non-Followers string in this format that follow with the number of occurrences (minumum 3 Occurrences)
 	 * 									e.g. 10=>3=4|22=3,17=>10=5|37=4|48=4
 	 */
-	public function nonfollowers_calculate($name, $ldn, $max, $bonus, $draws = 0, $range = 100, $top, $last = '', $duple = FALSE)
+	public function nonfollowers_calculate($name, $ldn, $max, $bonus, $draws = 0, $range = 100, $top, $last = '', $duple = FALSE, $mx_ex)
 	{
 		// Build Query
 		$s = 'ball'; 
@@ -1267,35 +1267,69 @@ class Statistics_m extends MY_Model
 		$nonfollowers = '';	// set as a blank string
 		do
 		{
-			//$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." WHERE id <>".$last['id']." ORDER BY id DESC LIMIT ".$range.") as t".$w."ORDER BY t.id ASC"; 
-			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
+			$blnExDup = ($bonus&&$duple&&($b>$b_max) ? TRUE : FALSE); // Has reached the extra number that is an independent and duplicate Extra ball (TRUE) or everything else is FALSE
+			if($blnExDup) $top = $mx_ex;	// Swap over the Top Extra ball as the top number instead of the regular balls
+			$c_b = ($bonus&&($b>$b_max) ? $ldn['extra'] : $ldn['ball'.$b]); // If there is an Extra / Bonus Ball and this bonus ball has exceeded the regularly drawn numbers, retrieve the extra ball
+			$sql = ($blnExDup ? "SELECT t.* FROM (SELECT extra, draw_date FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;" 
+			: "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;");
 			// Execute Query
 			$query = $this->db->query($sql);
 			$row = $query->first_row('array');
-			$c_b = ($bonus&&($b>$b_max) ? $ldn['extra'] : $ldn['ball'.$b]); // If there is an Extra / Bonus Ball and this bonus ball has exceeded the regularly drawn numbers, retrieve the extra ball
+			
 			$followlist = array();
 			$nonfollowlist = array();
-			do {
-				if($this->is_drawn($c_b, $row, $b_max, $bonus, $duple))
+			if(!$blnExDup) // Condition has not been met, not Duplicate Extra
+			{
+				do 
 				{
-					$row = $query->next_row('array');
-					if(!is_null($row))
+					if($this->is_drawn($c_b, $row, $b_max, $bonus))
 					{
-						if(!empty($followlist))
+						$row = $query->next_row('array');
+						if(!is_null($row))
 						{
-							$followlist = $this->update_followers($followlist, $row);
-						}
-						else
-						{
-							$followlist = $this->add_followers($row);
+							unset($row['draw_date']);
+							if(!empty($followlist))
+							{
+								$followlist = $this->update_followers($followlist, $row);
+							}
+							else
+							{
+								$followlist = $this->add_followers($row);
+							}
 						}
 					}
-				}
-				else
-				{
-					$row = $query->next_row('array');
-				}
-			} while(!is_null($row));
+					else
+					{
+						$row = $query->next_row('array');
+					}
+				} while(!is_null($row));
+			}
+			else		// Condition has been met
+			{
+				 do 
+				 {
+					if($ldn['extra']==$row['extra'])
+					{
+						$row = $query->next_row('array');
+						if(!is_null($row))
+						{
+							unset($row['draw_date']);
+							if(!empty($followlist))
+							{
+								$followlist = $this->update_dupalextra($followlist, $row['extra']);
+							}
+							else
+							{
+								$followlist = $this->add_dupalextra($row['extra']);
+							}
+						}
+					}
+					else
+					{
+						$row = $query->next_row('array');
+					}
+				} while(!is_null($row));
+			}
 		
 		// Build Follower string
 		if(empty($followlist)) $followlist = NULL; 
