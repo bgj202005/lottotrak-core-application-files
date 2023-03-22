@@ -1426,7 +1426,7 @@ class Statistics_m extends MY_Model
 	 * @param 	boolean	$duple		Duplicate extra ball. FALSE by default.  The extra can have the same number drawn based on the minimum and maximum number drawn
 	 * @return  string	$friends	Friends string in this format: 1>9=4:01/24/2020,2>11=8:09/18/2020,3>44=10:06/22/2019  ,etc. 
 	 */
-	public function friends_calculate($name, $max, $top, $bonus = 0, $draws = 0, $range = 100, $last = '', $duple = FALSE)
+	 public function friends_calculate($name, $max, $top, $bonus = 0, $draws = 0, $range = 100, $last = '', $duple = FALSE)
 	{
 		// Build Query
 		$s = 'ball'; 
@@ -1453,14 +1453,17 @@ class Statistics_m extends MY_Model
 		do
 		{
 			// Calculate
-			//$sql = "SELECT ".$s." FROM (SELECT * FROM ".$name." ORDER BY id DESC LIMIT ".$range.") as t".$w."ORDER BY t.id ASC"; 
+			
 			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
 			// Execute Query
 			$query = $this->db->query($sql);
 			$row = $query->first_row('array'); // Doing the reverse to the first row because of the descending order.
 			$friendlist = array();
+			
 			do {
-				if($this->is_drawn($b, $row, $max, $bonus, $duple))
+				$blnExDup = ($bonus&&$duple&&($b==$row['extra']) ? TRUE : FALSE); // Has reached the extra number that is an independent and 
+																				  // duplicate Extra ball (TRUE) or everything else is FALSE
+				if($this->is_drawn($b, $row, $max, $bonus)&&(!$blnExDup))		  // Must always be FALSE to place on the friends list
 				{
 					if(!is_null($row))
 					{
