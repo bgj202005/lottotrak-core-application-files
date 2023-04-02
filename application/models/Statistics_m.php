@@ -1513,7 +1513,8 @@ class Statistics_m extends MY_Model
 	private function add_friends($ball, $row, $ex)
 	{
 		$list = array();	// Empty set array
-		if(!$ex&&($ball==$row['extra'])) return $list;
+		if(!$ex&&($ball==$row['extra'])) return $list; // Returns the array if the bonus is not included and the ball compared is the extra ball drawn
+		if(!$ex) unset($row['extra']);				   // This totally eliminates the extra from the friend tabulation, as in, the independent and duplicate extra
 		foreach($row as $key => $balls_drawn)
 		{
 			// Every Ball is counted as a friend except the ball that is currently examined
@@ -1536,7 +1537,8 @@ class Statistics_m extends MY_Model
 	private function update_friends($ball, $list, $row, $ex)
 	{
 		
-		if(!$ex&&($ball==$row['extra'])) return $list;
+		if(!$ex&&($ball==$row['extra'])) return $list;  // Returns the array if the bonus is not included and the ball compared is the extra ball drawn
+		if(!$ex) unset($row['extra']);					// This totally eliminates the extra from the friend tabulation, as in, the independent and duplicate extra
 		foreach($row as $key => $balls_drawn)
 		{
 			if(($ball!=$balls_drawn)&&($balls_drawn!=0)&&($key!='draw_date')&&(array_key_exists($balls_drawn, $list)))
