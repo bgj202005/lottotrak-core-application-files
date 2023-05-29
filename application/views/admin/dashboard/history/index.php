@@ -26,7 +26,7 @@
 				<th style = "text-align:center; white-space: nowrap;">State/Prov</th>
 				<th style = "text-align:center; white-space: nowrap;">Country</th>
 				<th style = "text-align:center; white-space: nowrap;">At a Glance</th>
-				<th style = "text-align:center; white-space: nowrap;">Calculate</th>
+				<th style = "text-align:center; white-space: nowrap;">ReCalc?</th>
 				<th style = "text-align:center; white-space: nowrap;">Results</th>
 			</tr>
 		</thead>

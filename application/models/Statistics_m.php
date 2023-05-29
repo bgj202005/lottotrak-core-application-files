@@ -390,7 +390,7 @@ class Statistics_m extends MY_Model
 	 * @param 	integer $max		maximum number of balls drawn
 	 * @return	integer $range		Returns the range of drawn numbers		
 	 */
-	public function lottery_draw_range($draw, $max)
+	public function lottery_draw_range($draw, $max)       
 	{
 		$range = 0;		// Set the range to 0
 		$range = intval($draw['ball'.$max])-intval($draw['ball1']);
