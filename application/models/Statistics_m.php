@@ -1004,7 +1004,7 @@ class Statistics_m extends MY_Model
 			// Execute Query
 			$query = $this->db->query($sql);
  			$row = $query->first_row('array');
-			$followlist = array();
+			$followlist = array(); // default empty set array
 			if(!$blnExDup) // Condition has not been met, not Duplicate Extra
 			{
 				do 
@@ -1015,6 +1015,7 @@ class Statistics_m extends MY_Model
 						if(!is_null($row))
 						{
 							unset($row['draw_date']);
+							if(($duple)&&(!$bonus)) unset($row['extra']); // Special condition for a dupli cate extra and the bonus flag
 							if(!empty($followlist))
 							{
 								$followlist = $this->update_followers($followlist, $row);
@@ -1059,7 +1060,10 @@ class Statistics_m extends MY_Model
 			}
 		
 		// Build Follower string
-		if(empty($followlist)) $followlist = NULL; 
+		if(empty($followlist)) $followlist = NULL;
+		/* echo"<pre>";
+		print_r($followlist);
+		echo "</pre>"; */
 		$followers .= $this->follower_string($c_b, $followlist); 
 		// Return $follower number associative numbers that have 3 and above in this format, save in this format e.g. ball drawn 10 => 22=3,37=4,42=4
 		// update ball counter
@@ -1088,7 +1092,10 @@ class Statistics_m extends MY_Model
 		// 		if query ball equals current ball then
 		//   	for each query ball that does not exist, +1 for each ball add to associative array
 		//		if query ball exists in associative array then +1 for existing associative query ball
-		If($ex&&($num==$curr['extra'])) $found = TRUE;
+		if(isset($curr['extra'])) // only if the extra does exit, it will be removed if the bonus flag is false
+		{
+			If($ex&&($num==$curr['extra'])) $found = TRUE;
+		}
 		if(!$found)
 		{
 			do
@@ -1201,7 +1208,7 @@ class Statistics_m extends MY_Model
 			{
 				if($follows>=3) $str .= $key.'='.$follows.'|'; // Format 3=4 Occurences with pipe and continue until the last follower has been added.
 			}
-			$str = (!empty($str) ? $ball.'>'.$str :  ''); // Format '10>'  Drawn Ball Number 10
+			$str = (!empty($str) ? $ball.'>'.$str :  $ball.'>0=0|'); // Format '10>'  Drawn Ball Number 10 or (only if all the counts are 2 or less. Default is ball 0 = 0 times
 		}
 	return substr($str, 0, -1);		// Return the followers of the current draw without the extra Pipe character on the end of string
 	}

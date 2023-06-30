@@ -130,7 +130,7 @@
 							<div class="tab-pane fade p-3 <?php if($b==1) echo 'show active'; ?>" id="ball<?=$b?>" role="tabpanel" aria-labelledby="tab-<?=$b;?>">
 								<?php if(array_key_exists(($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]), $lottery->last_drawn)):
 										$trailer = explode('|', ($b>$cd ? $lottery->last_drawn[$lottery->last_drawn['extra']] : $lottery->last_drawn[$lottery->last_drawn['ball'.$b]])); ?>
-										<h5 class="card-title">After Ball <?=($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);?> has been drawn in <?=$lottery->last_drawn['range']?> draws.</h5>
+ 										<h5 class="card-title">After Ball <?=($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);?> has been drawn in <?=$lottery->last_drawn['range']; ?> draws.</h5>
 										<?php $t_picks = array(); 
 											foreach($trailer as $t):  
 												$picks = explode('=', $t);
@@ -143,38 +143,47 @@
 										$s_picks = "";
 										$sum = 0;
 										$counts = current($t_picks);
-										do
-										{
-											if($counts==current($t_picks)):
-												$s_picks .= 'Number <strong>'.key($t_picks).'</strong>';
-												$current = next($t_picks);
-												$sum++;
-												if($counts!=$current):
-													$s_picks .= ' has been drawn <strong>'.$counts.'</strong> Times.</p>';
-													echo "<p class='card-text'> ".$s_picks."</p>";
-													$counts = $current;
-													$s_picks = "";
+										if($counts) // followers with a count of greater than 0
+											{
+												do
+											{
+												if($counts==current($t_picks)):
+													$s_picks .= 'Number <strong>'.key($t_picks).'</strong>';
+													$current = next($t_picks);
+													$sum++;
+													if($counts!=$current):
+														$s_picks .= ' has been drawn <strong>'.$counts.'</strong> Times.</p>';
+														echo "<p class='card-text'> ".$s_picks."</p>";
+														$counts = $current;
+														$s_picks = "";
+													else:
+														$s_picks .= ' AND ';
+													endif;
 												else:
-													$s_picks .= ' AND ';
-												endif;
-											 else:
- 												 $counts = next($t_picks); 
-											endif; 
-										} while(!is_null(key($t_picks)));
-										unset($trailer);?>
-										<p class="card-text">The total number of predictor balls for this ball is <strong><?=$sum;?></strong>.</p>
-										<p class="card-text">These are the numbers listed above that have the highest probability of being drawn.</p>
-										<?php
+													$counts = next($t_picks); 
+												endif; 
+											} while(!is_null(key($t_picks)));
+											unset($trailer);?>
+											<p class="card-text">The total number of predictor balls for this ball is <strong><?=$sum;?></strong>.</p>
+											<p class="card-text">These are the numbers listed above that have the highest probability of being drawn.</p>
+										<?php }
+										else{ ?>
+											<p class="card-text">There a followers with not more than 2 occurrences in the range of <?=$lottery->last_drawn['range'];?> draws.</p>
+										<?php }
 										/* Display the non - following numbers for the given range */
 										/* Determine the number from the ball position and then access the ball+nf for not followed */
 											$nonfollowers = explode('|', ($b>$cd ? $lottery->last_drawn[$lottery->last_drawn['extra'].'nf'] : $lottery->last_drawn[$lottery->last_drawn['ball'.$b].'nf'])); 
 											$non_picks = "";
 											if($nonfollowers[0]): /* Check for all non followers have followed */
+												$sum = 0; // Reset the sum counter;
 												$non_picks .= "These Numbers have <strong>NEVER</strong> followed this Ball <strong>".($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b])."</strong> for ".$lottery->last_drawn['range']." Draws:<br />";
 												foreach($nonfollowers as $nf):  
-													$non_picks .= 'Number: <strong>'.$nf.'</strong><br />';	
+													$non_picks .= 'Number: <strong>'.$nf.'</strong><br />';
+													$sum++;	
 												endforeach;
 												echo "<p class='card-text'> ".$non_picks."</p>";
+												$plural = (string) ($sum>1 ?  " balls " : " ball ");
+												echo "<p class='card-text'><strong>".$sum.$plural."</strong> in this non-follower group.</p>";
 											unset($nonfollowers);
 										endif;  
 									else: 
