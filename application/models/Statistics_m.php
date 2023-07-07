@@ -1015,7 +1015,7 @@ class Statistics_m extends MY_Model
 						if(!is_null($row))
 						{
 							unset($row['draw_date']);
-							if(($duple)&&(!$bonus)) unset($row['extra']); // Special condition for a dupli cate extra and the bonus flag
+							if($duple) unset($row['extra']); // Special condition for a duplicate extra is not to include the extra ball (in case the duplicate extra is set)
 							if(!empty($followlist))
 							{
 								$followlist = $this->update_followers($followlist, $row);
@@ -1244,7 +1244,7 @@ class Statistics_m extends MY_Model
 	 * @param  	integer	$range			Range of number of draws (default is 100). If less than 100, the number must be set in $range
 	 * @param	integer	$top			Last Ball in Lottery that is drawn, e.g. 649 - 49 balls maximum
 	 * @param	string	$last			last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
-	 * @param 	boolean	$duple			Duplicate extra ball. FALSE by default.  The extra can have the same number drawn based on the minimum and maximum number drawn
+	 * @param 	boolean	$duple			Duplicate extra ball. FALSE by default.  The extra can have the same number drawn as a duplicate from any of the main set of numbers
 	 * @param 	integer	$mx_ex			Maximum Extra Ball drawn for the independent and duplicate extra lotteries
 	 * @return  string	$nonfollowers	non-Followers string in this format that follow with the number of occurrences (minumum 3 Occurrences)
 	 * 									e.g. 10=>3=4|22=3,17=>10=5|37=4|48=4
