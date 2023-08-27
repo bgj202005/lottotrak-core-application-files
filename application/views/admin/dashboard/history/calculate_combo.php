@@ -43,7 +43,6 @@
 	.card-text {
 		color:steelblue;
 	}
-}
 </style>
 	<h2><?php echo 'File Select For: '.$lottery->lottery_name; ?></h2>
 	<h5 style = "text-align:left"><?php echo anchor('admin/history', 'Back to the Lottery Wins History Dashboard', 'title="Back to Lottery  Wins History"'); ?></h5>

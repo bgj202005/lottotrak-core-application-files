@@ -276,6 +276,29 @@ class History extends Admin_Controller {
 		return anchor($uri, '<i class="fa fa-eye-slash fa-2x" aria-hidden="true">', array('title' => 'View the latest winning opptunities for this lottery with the at a glance option'));
 
 	}
+
+	/**
+	 * View the Results of the Hot Warm Cold Numbers as it applies to the H-W-C
+	 * 
+	 * @param       string	$uri	uri admin address of the statistics page
+	 * @return      none
+	 */
+	public function btn_hwc($uri) 
+	{
+		return anchor($uri, '<i class="fa fa-thermometer-full fa-2x" aria-hidden="true">', array('title' => 'View the actual win results of H-W-C from positional values'));
+	}
+
+	/**
+	 * View the results of historic wins from  Followers of the last draw
+	 * 
+	 * @param       string	$uri	uri admin address of the statistics page
+	 * @return      none
+	 */
+	public function btn_followers($uri)
+	{
+		return anchor($uri, '<i class="fa fa-retweet fa-2x" aria-hidden="true">', array('title' => 'View the actual results of follower wins'));
+	}
+	
 	/**
 	 * Display History Icon 
 	 * 

@@ -2264,4 +2264,19 @@ class Statistics_m extends MY_Model
 		ON (t1.draw_id=t2.draw_id)&&(t1.draw_id=t3.draw_id) WHERE t1.draw_id='".$ref."' && t1.lottery_id='".$lt_id."';");
 	return (isset($query->row) ? FALSE : TRUE);
 	}
+	/** 
+	* Returns the number of hots, warms, colds in the group as the h_count, w_count and c_count
+	* 
+	* @param 	integer	$id		Lottery id
+	* @return   array	$size	Returns the hot dimenion, warm dimension and cold dimension as an array
+	*/
+	public function hwc_size($id)
+	{
+		$size = array();
+		$this->db->reset_query();
+		$query = $this->db->query('SELECT `h_count`, `w_count`, `c_count` FROM `lottery_h_w_c` WHERE `lottery_id` = "'.$id.'";');
+		$size = $query->row_array();
+
+	return $size;
+	}
 }

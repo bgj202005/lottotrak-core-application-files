@@ -960,7 +960,7 @@ class Statistics extends Admin_Controller {
 		$hwc_history = $this->statistics_m->hwc_history_exists($id);
  		if(is_null($hwc_history)) // Correct Lottery & Range?
 		{
-			$hwc_history = $this->h_w_c_history($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, $blnduplicate);
+			$hwc_history = $this->h_w_c_history($id, $tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, $blnduplicate);
 			if (!$hwc_history) // Problem with calculating H-W-C's over range
 			{
 				$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$$new_range.' Draws.');
@@ -1002,7 +1002,7 @@ class Statistics extends Admin_Controller {
 			if(($old_range!=$new_range)||($blnheat))	 // Range has changed OR change in extra draws / extra ball included
 			{
 				// Recalculation is nesessary
-				$hwc_history = $this->h_w_c_history($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, $blnduplicate);
+				$hwc_history = $this->h_w_c_history($id, $tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, $blnduplicate);
 				if (!$hwc_history) // Problem with calculating H-W-C's over range
 				{
 					$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$$new_range.' Draws.');
@@ -1057,6 +1057,7 @@ class Statistics extends Admin_Controller {
 	 * h_w_c_history. Calculates the Lottery the Historic H-W-C.  It will determine the last H - W - C from the range of draws and the H-W-C from the last draw.
 	 * For example, if a 100 draw range is selected, there must be a minimum of 100 draws prior to calcuatling the 100 draw range.  
 	 * This will remain constant for all ranges. e.g. 100 draws will be calculated prior to a 200, 300, 400, 500 or all draw ranges.
+	 * @param	integer	$id				lottery_id (identifier)
 	 * @param 	string	$table			Exact name of the lottery
 	 * @param 	integer	$picks			Pick 6, Pick 7, etc.
 	 * @param 	boolean	$bn				Extra Ball included, 0 = no, 1 = yes
@@ -1067,12 +1068,17 @@ class Statistics extends Admin_Controller {
 	 * @param	boolean $dup			Boolean True or False. If the extra ball is separate from the other balls that were drawn. True = Yes, False = No
 	 * @return 	string	$totals			String return of the range of draws H-W-Cs and the last draw H-W-C.
 	 */
-	public function h_w_c_history($table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $dup)
+	public function h_w_c_history($id, $table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $dup)
 	{
+		$scale = $this->statistics_m->hwc_size($id);
+		/* $h_positions = new SplFixedArray($scale[0]); // Declare the hots
+		$w_positions = new SplFixedArray($scale[1]); // Declare the warms
+		$c_positions = new SplFixedArray($scale[2]); // Declare the colds */
+
 		$examine_date = $this->statistics_m->lottery_return_date($table, $range+1, $xtra); 	// Please note: This an off by 1 error. It has to go +1 draw back 
 		if(!$examine_date) return false;													// to iterate for the given range
-		$heats = explode(",",$this->statistics_m->hwc_heats[$picks]); // break the heat h-w-c in an array
-		$heats = array_flip($heats);								  // reverse the values as associative keys
+		$heats = explode(",",$this->statistics_m->hwc_heats[$picks]); 						// break the heat h-w-c in an array
+		$heats = array_flip($heats);								  						// reverse the values as associative keys
 
 		foreach($heats as $level => $value)
 		{
@@ -1132,10 +1138,39 @@ class Statistics extends Admin_Controller {
 			}
 			$lvl = (string)$h.'-'.$w.'-'.$c;
 			if(array_key_exists($lvl, $heats)) $heats[$lvl]++; 
+			// Find in the associative positions array if the current h-w-c exists?
+			// If current h-w-c does not exist, instantiate the new associate array with the hots, warms and colds with the scales (resizes)
+					// Iterate the hot positions where if the ball was not drawn set hot position = 0 else the hot position = +1
+					// Iterate the warm positions where if the ball was not drawn set warm position = 0 else the warm position = +1 
+					// Iterate the colds positions where if the ball was not drawn set cold position = 0 else the cold position = +1
+			// if current h-w-c does exist, iterate the hot position = +1 AND iterate the warm position = +1 AND iterate the cold position = +1  
 			$row++;
 		} 
 		while($row<=$range);
-		$totals = array();
+		// Create an empty string for h-w-c position counts called $strheats
+		// Iterate each h-w-c until last h-w-c. e.g. 6 - 0 - 0, 5 - 1 - 0
+		// concatenate the h-w-c to string plus the '>' to the $strheats
+			// $h_position is 0 
+			// do hots whule $h_position not greater than $scale
+				// If associate array $count = $h_w_c[$h_position] does not equal zero, concatenate $h_position=$count plus ',' (separator)
+				// if associate array $count = $h_w_c[$h_position] equals zero, do nothing and move on to the next position
+				// $h_position = $h_position + 1
+			// end do
+			// concatenate the '|' separator symbol for the warms
+			// $w_position is 0 
+			// do warms whule $w_position not greater than $scale
+				// If associate array $count = $h_w_c[$w_position] does not equal zero, concatenate $h_position=$count plus ',' (separator)
+				// if associate array $count = $h_w_c[$w_position] equals zero, do nothing and move on to the next position
+				// $w_position = $w_position + 1
+			// end do
+			// $c_position is 0 
+			// do colds whule $c_position not greater than $scale
+				// If associate array $count = $h_w_c[$c_position] does not equal zero, concatenate $c_position=$count plus ',' (separator)
+				// if associate array $count = $h_w_c[$c_position] equals zero, do nothing and move on to the next position
+				// $c_position = $c_position + 1
+			// end do 
+
+ 		$totals = array();
 		$totals['h_w_c_last_1'] = $lvl;	// include the last h-w-c
 		$totals['h_w_c_range'] = '';
 		foreach($heats as $hwc => $tot)
@@ -1341,7 +1376,7 @@ class Statistics extends Admin_Controller {
 		);
 		$this->statistics_m->hwc_data_save($hwc, TRUE);
 		// Recalculation is nesessary
-		$hwc_history = $this->h_w_c_history($tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
+		$hwc_history = $this->h_w_c_history($id, $tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
 	 }
 	 else 
 	 {
@@ -1380,7 +1415,7 @@ class Statistics extends Admin_Controller {
 				 );
 		 $this->statistics_m->hwc_data_save($hwc, FALSE);
 		 // Recalculation is nesessary
-		$hwc_history = $this->h_w_c_history($tbl, $drawn, $lotto['extra_included'], $lotto['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
+		$hwc_history = $this->h_w_c_history($id, $tbl, $drawn, $lotto['extra_included'], $lotto['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
 	 }
 	 
 	 if (!$hwc_history) // Problem with calculating H-W-C's over range
