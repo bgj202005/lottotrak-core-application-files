@@ -316,9 +316,9 @@ class History extends Admin_Controller {
 	 * @param       string	$uri	uri admin address of the statistics page
 	 * @return      none
 	 */
-	public function btn_calculate($uri)
+	public function btn_friends($uri)
 	{
-		return anchor($uri, '<i class="fa fa-calculator fa-2x" aria-hidden="true">', array('title' => 'Calculate the Current History or Update to the latest Draw', 'class' => 'calculate'));
+		return anchor($uri, '<i class="fa fa-history fa-2x" aria-hidden="true">', array('title' => 'Calculate the Current History or Update to the latest Draw', 'class' => 'calculate'));
 	}
 	/**
 	 * go to a form that lists the number of combination files 

@@ -28,7 +28,7 @@
 				<th style = "text-align:center; white-space: nowrap;">At a Glance</th>
 				<th style = "text-align:center; white-space: nowrap;">H-W-C Wins</th>
 				<th style = "text-align:center; white-space: nowrap;">Follower Wins</th>
-				<th style = "text-align:center; white-space: nowrap;">Calculate All Actual Wins</th>
+				<th style = "text-align:center; white-space: nowrap;">Friend Wins</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -56,7 +56,7 @@
 		<td style = "text-align:center;"><?php echo $history->btn_glance('admin/history/glance/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $history->btn_hwc('admin/history/hwc/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $history->btn_followers('admin/history/followers/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><?php echo $history->btn_calculate('admin/history/calculate/'.$lottery->id); ?></td>
+		<td style = "text-align:center;"><?php echo $history->btn_friends('admin/history/friends/'.$lottery->id); ?></td>
 	</tr>
 	<?php endforeach; ?> 
 	
