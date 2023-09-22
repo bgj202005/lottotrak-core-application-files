@@ -172,21 +172,21 @@
 							<div style = "text-align: center;">
 							<?php if ($lottery->id) // If $id
 								{ 
-									$extra = array('style' => 'padding:5px;', 'class' => 'btn btn-primary btn-lg btn-info');
+									$extra = array('style' => 'margin-top:20px; padding:5px;', 'class' => 'btn btn-primary btn-lg btn-info');
 									echo form_submit('submit', 'Update Lottery Profile', $extra);
 								}
 								else
 								{
 									echo form_submit('submit', 'Create Lottery Profile', 'style = "padding:5px;" class="btn btn-primary btn-lg btn-info"');
 								}
-								$js = "location.href='".base_url()."admin/lotteries/import/".$lottery->id."'";
+								$js = "location.href='".base_url()."admin/lotteries/prizes/".$lottery->id."'";
 								$class = ($lottery->id ? "btn btn-primary btn-lg btn-info" : "btn btn-secondary btn-lg disabled");
 								if ($lottery->id) 
 								{
 									$attributes = array(
 										'class' 	=> "$class", 
 										'onClick' 	=> "$js", 
-										'style' 	=> "margin-left:20px; padding:5px;",
+										'style' 	=> "margin-left:20px; margin-top:20px; padding:5px;",
 										'role'		=> 'button'
 									);
 								}
@@ -194,7 +194,28 @@
 								{
 									$attributes = array(
 										'class' 	=> "$class", 
-										'style' 	=> "margin-left:20px; padding:5px;",
+										'style' 	=> "margin-left:20px; margin-top:20px; padding:5px;",
+										'role'		=> 'button',
+										'disabled'	=> 'disabled'
+									);
+								}
+								echo form_button('lotteries_import', 'Lottery Prizes', $attributes); 
+								$js = "location.href='".base_url()."admin/lotteries/import/".$lottery->id."'";
+								$class = ($lottery->id ? "btn btn-primary btn-lg btn-info" : "btn btn-secondary btn-lg disabled");
+								if ($lottery->id) 
+								{
+									$attributes = array(
+										'class' 	=> "$class", 
+										'onClick' 	=> "$js", 
+										'style' 	=> "margin-left:20px; margin-top:20px; padding:5px;",
+										'role'		=> 'button'
+									);
+								}
+								else
+								{
+									$attributes = array(
+										'class' 	=> "$class", 
+										'style' 	=> "margin-left:20px; margin-top:20px; padding:5px;",
 										'role'		=> 'button',
 										'disabled'	=> 'disabled'
 									);
@@ -207,7 +228,7 @@
 									$attributes = array(
 										'class' 	=> "$class", 
 										'onClick' 	=> "$js", 
-										'style' 	=> "margin-left:20px; padding:5px;",
+										'style' 	=> "margin-top:20px; margin-left:20px; padding: 5px;",
 										'role'		=> 'button'
 									);
 								}
@@ -215,7 +236,7 @@
 								{
 									$attributes = array(
 										'class' 	=> "$class", 
-										'style' 	=> "margin-left:20px; padding:5px;",
+										'style' 	=> "margin-top:20px; margin-left:20px; padding: 5px;",
 										'role'		=> 'button',
 										'disabled'	=> 'disabled'
 									);
@@ -226,7 +247,7 @@
 								$attributes = array(
 									'class' 	=> "btn btn-primary btn-lg btn-info", 
 									'onClick' 	=> "$js", 
-									'style' 	=> "padding:5px; margin: 0 auto; display: block; margin-top:20px;"
+									'style' 	=> "margin-top:20px; margin-left:5px; padding: 5px;"
 								);
 								echo form_button('lotteries_list', 'Back to Lotteries List', $attributes); 
 								?>
