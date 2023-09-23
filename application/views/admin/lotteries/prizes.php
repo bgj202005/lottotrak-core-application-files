@@ -1,3 +1,4 @@
+
 <!-- Bootstrap Form Helpers -->
 <link href="<?php echo site_url('css/bootstrap-formhelpers.min.css');?>" rel="stylesheet" media="screen">
 <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
@@ -125,7 +126,7 @@
 															if ($prize=='6_win'): echo "6 / ".$lottery->balls_drawn." Balls"; endif;
 															if ($prize=='5_win_extra'): echo "5 / ".$lottery->balls_drawn." plus the Extra (Bonus)"; endif;
 															if ($prize=='5_win'): echo "5 / ".$lottery->balls_drawn." Balls"; endif;
-															if ($prize=='4_win_extra'): echo "3 / ".$lottery->balls_drawn." plus the Extra (Bonus)"; endif;
+															if ($prize=='4_win_extra'): echo "4 / ".$lottery->balls_drawn." plus the Extra (Bonus)"; endif;
 															if ($prize=='4_win'): echo "4 / ".$lottery->balls_drawn." Balls"; endif;
 															if ($prize=='3_win_extra'): echo "3 / ".$lottery->balls_drawn." plus the Extra (Bonus)"; endif;
 															if ($prize=='3_win'): echo "3 / ".$lottery->balls_drawn." Balls"; endif;

@@ -914,4 +914,22 @@ class Lotteries_m extends MY_Model
 
 	return (!empty($result) ? $result : FALSE); 
 	}
+	/** 
+	* prize_nulled, Iterates the submitted prize category values comparing with the set prizes in the database for any prize categories removed
+	* 
+	* @param 	array	$submit_prizes		$POST values of the submitted prizes before SAVE
+	* @param 	array	$db_prizes			Database values of prizes before SAVE
+	* @return   array	$prizes 			Returns array of prizes for the lottery profile, return FALSE on no prizes associated with lottery
+	**/
+	public function prize_nulled($submit_prizes, $db_prizes)
+	{
+		
+		foreach ($db_prizes as $prize => $active)
+		{
+			if ((!isset($submit_prizes[$prize])&&$db_prizes[$prize]==$active))
+				$submit_prizes[$prize] = NULL; // If it was a set prize category then deactivate it
+		}
+
+	return (!empty($submit_prizes) ? $submit_prizes : FALSE); 
+	}
 }

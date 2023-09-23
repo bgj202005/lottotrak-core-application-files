@@ -231,6 +231,7 @@ class Lotteries extends Admin_Controller {
 	{
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		$this->data['message'] = '';	// Defaulted to No Error Messages
+		$this->data['lottery']->set_prizes = $this->lotteries_m->load_prizes($id); // Load the prizes first
 		if($this->input->post(NULL, TRUE))
 		{
 			$post_prizes = array();
@@ -259,6 +260,7 @@ class Lotteries extends Admin_Controller {
 			if ($this->form_validation->run() == TRUE) 
 			{
 				$this->data['lottery'] = $this->lotteries_m->array_to_object($this->data['lottery'], $post_prizes);
+				$post_prizes = $this->lotteries_m->prize_nulled($post_prizes, $this->data['lottery']->set_prizes); // Any updates?
 				if(!empty($post_prizes)) $post_prizes += ['lottery_id' => $id];
 				$this->lotteries_m->prizes_data_save($post_prizes);
 				$this->data['message'] = "Prize Categories have been saved.";
@@ -269,7 +271,7 @@ class Lotteries extends Admin_Controller {
 			}
 		}
 		$this->data['lottery']->prizes = $this->lotteries_m->list_prizes($this->data['lottery']->balls_drawn, $this->data['lottery']->extra_ball);
-		$this->data['lottery']->set_prizes = $this->lotteries_m->load_prizes($id);
+		// $this->data['lottery']->set_prizes = $this->lotteries_m->load_prizes($id);
 			
 		$this->data['current'] = $this->uri->segment(2);
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/prizes');
