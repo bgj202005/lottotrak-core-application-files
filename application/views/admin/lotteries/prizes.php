@@ -23,7 +23,7 @@
 									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md', 'style' => 'white-space: nowrap;');
 									echo form_label('Lottery Description:', 'lottery_descriptiuon_lb', $extra); ?>
 								<div class="col-8">
-									<?php echo form_label(wordwrap($lottery->lottery_description, 70, '<br /> ', FALSE), 'lottery_description_lb', $extra); ?>
+									<?php echo form_label(wordwrap($lottery->lottery_description, 64, '<br />', FALSE), 'lottery_description_lb', $extra); ?>
 								</div>
 							</div>
 
