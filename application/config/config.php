@@ -25,7 +25,6 @@ spl_autoload_register(function ($classname)
 | environments.
 |
 */
-//$config['base_url'] = 'http://localhost/codeigniter_cms/';
 
 switch (ENVIRONMENT) {
 	
