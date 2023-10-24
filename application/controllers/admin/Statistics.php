@@ -957,6 +957,7 @@ class Statistics extends Admin_Controller {
 			$this->data['lottery']->overdue[$n] = $c; 
 		}
 
+
 		$hwc_history = $this->statistics_m->hwc_history_exists($id);
  		if(is_null($hwc_history)) // Correct Lottery & Range?
 		{
@@ -990,6 +991,7 @@ class Statistics extends Admin_Controller {
 								'h_w_c_range'		=> 	$hwc_history['h_w_c_range'],
 								'h_w_c_last_1'		=> 	$this->data['lottery']->last_hwc,
 								'h_w_c_last_10'		=> 	$hwc_history['h_w_c_last_10'],
+								'position'			=> 	$hwc_history['position'],
 								'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
 								'lottery_id'		=> 	$id,
 								'extra_included'	=> 	$this->data['lottery']->extra_included,
@@ -1031,6 +1033,7 @@ class Statistics extends Admin_Controller {
 								'h_w_c_range'		=> 	$hwc_history['h_w_c_range'],
 								'h_w_c_last_1'		=> 	$this->data['lottery']->last_hwc,
 								'h_w_c_last_10'		=> 	$hwc_history['h_w_c_last_10'],
+								'position'			=> 	$hwc_history['position'],
 								'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
 								'lottery_id'		=> 	$id,
 								'extra_included'	=> 	$this->data['lottery']->extra_included,
@@ -1070,13 +1073,24 @@ class Statistics extends Admin_Controller {
 	 */
 	public function h_w_c_history($id, $table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $dup)
 	{
+
 		$scale = $this->statistics_m->hwc_size($id);
-		/* $h_positions = new SplFixedArray($scale[0]); // Declare the hots
-		$w_positions = new SplFixedArray($scale[1]); // Declare the warms
-		$c_positions = new SplFixedArray($scale[2]); // Declare the colds */
+		$h_cnt = intval($scale['h_count']); // integer count only
+		$w_cnt = intval($scale['w_count']);	// integer count only
+		$c_cnt = intval($scale['c_count']); // integer count only
+ 		$h_pos = new SplFixedArray($h_cnt); 	// Declare the hot positions
+			$h_pos = array_fill(0, $h_cnt, 0); // Zeroed array
+		$w_pos = new SplFixedArray($w_cnt); // Declare the warm positions
+			$w_pos = array_fill(0, $w_cnt, 0); // Zeroed array
+		$c_pos = new SplFixedArray($c_cnt); // Declare the colds positions
+			$c_pos = array_fill(0, $c_cnt, 0); // Zeroed array		
 
 		$examine_date = $this->statistics_m->lottery_return_date($table, $range+1, $xtra); 	// Please note: This an off by 1 error. It has to go +1 draw back 
 		if(!$examine_date) return false;													// to iterate for the given range
+		
+		$fd = $this->statistics_m->hwc_next_draw($table, $examine_date); 					// 1st examine draw requested
+		$next_drawn = $this->statistics_m->only_picks($picks, $fd);							// and return only the drawn numbers
+
 		$heats = explode(",",$this->statistics_m->hwc_heats[$picks]); 						// break the heat h-w-c in an array
 		$heats = array_flip($heats);								  						// reverse the values as associative keys
 
@@ -1116,7 +1130,11 @@ class Statistics extends Admin_Controller {
 				$c = explode('=', $colds[$key]);
 				array_push($lows, $c[0]);
 			}
-
+			// Determine your positional values based on heat, Hot, Warm, Cold
+			$h_pos = $this->statistics_m->positions($next_drawn,$highs,$h_pos,$bn,$xtra,$dup); 		// Pass the hot positional value array, compare the current drawn numbers with the high numbers 
+			$w_pos = $this->statistics_m->positions($next_drawn,$averages,$w_pos,$bn,$xtra,$dup); 	// Pass the hot positional value array, compare the current drawn numbers with the average numbers 
+			$c_pos = $this->statistics_m->positions($next_drawn,$lows,$c_pos,$bn,$xtra,$dup); 		// Pass the hot positional value array, compare the current drawn numbers with the average numbers 
+			
 			$fd = $this->statistics_m->hwc_next_draw($table, $examine_date); // return the full with draw date, ball 1 ... ball n + extra
 			if($fd)	// next draw returned?
 			{
@@ -1138,37 +1156,11 @@ class Statistics extends Admin_Controller {
 			}
 			$lvl = (string)$h.'-'.$w.'-'.$c;
 			if(array_key_exists($lvl, $heats)) $heats[$lvl]++; 
-			// Find in the associative positions array if the current h-w-c exists?
-			// If current h-w-c does not exist, instantiate the new associate array with the hots, warms and colds with the scales (resizes)
-					// Iterate the hot positions where if the ball was not drawn set hot position = 0 else the hot position = +1
-					// Iterate the warm positions where if the ball was not drawn set warm position = 0 else the warm position = +1 
-					// Iterate the colds positions where if the ball was not drawn set cold position = 0 else the cold position = +1
-			// if current h-w-c does exist, iterate the hot position = +1 AND iterate the warm position = +1 AND iterate the cold position = +1  
+			  
 			$row++;
 		} 
 		while($row<=$range);
-		// Create an empty string for h-w-c position counts called $strheats
-		// Iterate each h-w-c until last h-w-c. e.g. 6 - 0 - 0, 5 - 1 - 0
-		// concatenate the h-w-c to string plus the '>' to the $strheats
-			// $h_position is 0 
-			// do hots whule $h_position not greater than $scale
-				// If associate array $count = $h_w_c[$h_position] does not equal zero, concatenate $h_position=$count plus ',' (separator)
-				// if associate array $count = $h_w_c[$h_position] equals zero, do nothing and move on to the next position
-				// $h_position = $h_position + 1
-			// end do
-			// concatenate the '|' separator symbol for the warms
-			// $w_position is 0 
-			// do warms whule $w_position not greater than $scale
-				// If associate array $count = $h_w_c[$w_position] does not equal zero, concatenate $h_position=$count plus ',' (separator)
-				// if associate array $count = $h_w_c[$w_position] equals zero, do nothing and move on to the next position
-				// $w_position = $w_position + 1
-			// end do
-			// $c_position is 0 
-			// do colds whule $c_position not greater than $scale
-				// If associate array $count = $h_w_c[$c_position] does not equal zero, concatenate $c_position=$count plus ',' (separator)
-				// if associate array $count = $h_w_c[$c_position] equals zero, do nothing and move on to the next position
-				// $c_position = $c_position + 1
-			// end do 
+		
 
  		$totals = array();
 		$totals['h_w_c_last_1'] = $lvl;	// include the last h-w-c
@@ -1245,6 +1237,9 @@ class Statistics extends Admin_Controller {
 		{
 			$totals['h_w_c_last_10'] .= $hwc.'='.$tot.',';
 		}
+
+		$str_positions = $this->statistics_m->positIon_string($h_pos, $w_pos, $c_pos); 			// Generate the formatted string
+		$totals['position'] = $str_positions; 										   			// Add a new position elemnt to the totals
 	return $totals;
 	}
 	/**

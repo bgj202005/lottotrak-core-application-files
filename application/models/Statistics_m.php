@@ -2279,4 +2279,70 @@ class Statistics_m extends MY_Model
 
 	return $size;
 	}
+
+	/** 
+	* Returns the positions that were drawn based on the heat level
+	* 
+	* @param 	array	$drawn_array	Current Drawn Numbers
+	* @param  	array	$heat_array		Grouped Numbers based on heat level (hot, warm, colds)
+	* @param	array	$position_array Old Position totals prior to the next drawn numbers
+	* @param	boolean	$b	 			Bonus / Extra Flag, 0 = False. 1 = True
+	* @param	boolean	$e 				Extra Draws Flags, 0 = False, 1 = Treue
+	* @param	boolean	$dp				Duplicate Extra Ball Flag, 0 = False, 1 = True
+	* @return	array	$position_array	Returns the updated positional hits after the next drawn numbers have been checked
+	*/
+	public function positions($drawn_array, $heat_array, $position_array, $b, $e, $dp)
+	{
+
+	if (!$b||$dp||$e) 								// If a bonus number, extra ball or duplicate extra number 
+	{
+		$key = array_key_last($drawn_array); 		//  Return the key from the drawn_array	
+		unset($drawn_array[$key]); 					// Remove the last element from the drawn numbers
+	}
+
+	foreach ($drawn_array as $draw_pos => $ball)
+	{
+		foreach($heat_array as $pos => $heat)
+		{
+			if($heat==$ball) 
+			{
+				$position_array[$pos]++;			// Update the counter for that position
+				break;
+			}
+		}		
+	}
+	
+	return $position_array; // updated positions after the last draw has been validated.
+	}
+	/** 
+	* Returns the formatted stroing of hots, warms, colds. Positions with a count of 0 are eliminated and will be decoded as such.
+	* 
+	* @param 	array	$h				Hot Numbers array
+	* @param  	array	$w				Warm Numbers array
+	* @param	array	$c				Cold Numbers array
+	* @return	string	$str_positions	Returns the formated string
+	*/
+	public function position_string($h, $w, $c)
+	{
+		$str_positions = 'H>';
+
+		foreach($h as $position => $count)
+		{
+			if($count!=0) $str_positions .= $position.'='.$count.',';
+		}
+		$str_positions = substr($str_positions,0,-1); // Remove last ','
+		$str_positions .= '|W>';
+		foreach($w as $position => $count)
+		{
+			if($count!=0) $str_positions .= $position.'='.$count.',';
+		}
+		$str_positions = substr($str_positions,0,-1); // Remove last ','
+		$str_positions .= '|C>';
+		foreach($c as $position => $count)
+		{
+			if($count!=0) $str_positions .= $position.'='.$count.','; 
+		}
+		$str_positions = substr($str_positions,0,-1); // Remove last ','
+	return $str_positions; // formatted string returned
+	}
 }
