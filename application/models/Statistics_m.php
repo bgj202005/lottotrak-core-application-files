@@ -605,7 +605,7 @@ class Statistics_m extends MY_Model
 	 * @param	string			$tbl	Current Lottery Data Table Name
 	 * @param 	integer			$row	Return the last, previous or next database object. Default to the last row of the database draws
 	 * @param	integer			$e		Include Extra Draws such as bonus draws. 		
-	 * @return	object 			last row, previous row or next row depending on the row value of lottery records		
+	 * @return	array 			last row, previous row or next row depending on the row value of lottery records		
 	 */
 	public function db_row($tbl, $row = 0)
 	{	
@@ -1076,7 +1076,7 @@ class Statistics_m extends MY_Model
 		return $followers;
 	}
 
-	/**
+	 /**
 	 * Return if the drawn number was drawn from the current row
 	 * 
 	 * @param	integer	$num		Drawn number from the most recent draw
@@ -1420,6 +1420,66 @@ class Statistics_m extends MY_Model
 			$this->db->update('lottery_nonfollowers');
 		}
 	}
+	
+	/**
+	 * Returns the prize pool group to summarize wins based on the prize pool
+	 * 
+	 * @param 	integer			$id		Lottery id foreign key
+	 * @return	array 			Return Complete Prize Profile from the lottery id
+	 */
+	public function prize_group_profile($id)
+	{	
+		$query = $this->db->query('SELECT * FROM `lottery_prize_profiles` WHERE `lottery_id` ='.$id.';');
+		
+	return $query->result_array(); // Return the Lottery Prize Pool for analysis
+	}
+
+	/**
+	 * Returns only the prizes for the lottery
+	 * 
+	 * @param 	array			$p	DB record of prize group profile
+	 * @param 	boolean			$e	Extra Included
+	 * @return	array 			$p	Returns only the winning prizes and removes the NULL prizes (don't exist)
+	 */
+	public function prizes_only(array $p, $e)	
+	{
+		unset($p['lottery_id']); // both lottery id and id not required
+		unset ($p['id']);
+
+		// ** important ** Eliminate all non-winning fields 
+		foreach($p as $onlywins => $prizes)
+		{
+			if($prizes == NULL) unset($p[$onlywins]);
+			else (int) $p[$onlywins] = 0; 				// Active Win Categories. Will be used as a counter and all values are set to 0.
+			 if (!$e&&(strpos($onlywins, 'extra')) !== 0) 
+			 {
+        		unset($p[$onlywins]);
+			 }
+		}
+	
+	return $p;		//pass array back without lottery id and id
+	}
+
+	/**
+	 * Returns only the prizes for the lottery
+	 * 
+	 * @param 	array			$p			updated prize group, constant for each drawn number
+	 * @param 	integer			$min		Minimum Regular ball drawn e.g. 1
+	 * @param 	integer			$max		Maximum Regular ball drawn e.g. 49
+	 * @return	array 			$p_result	Returns the associated array of an associated array for number drawn (1, 2, 3, etc.) 
+	 * 										and the win zeroed totals (3_win, 3_win_extra, 4_win, 4_win_extra, etc.)
+	 */
+	public function create_prize_array(array $p, $min, $max)
+	{
+		$p_result = array();
+		do
+		{
+			$p_result[$min] = $p;
+			$min++;
+		} while($min<$max);
+	return $p_result;		//return array with 1 => '3_win' = 0, '3_win_extra' = 0
+	}
+
 	/**
 	 * Calculate the Friends of the Lottery from Ball 1 to Ball N range, include the extra ball if TRUE. Based on the range of draws covered
 	 * 

@@ -451,7 +451,7 @@ class Statistics extends Admin_Controller {
 	return $icon;
 	}
 	/**
-	 * View the follower numbers after the current draw. Default is 100 draws.
+	 * View the follower numbers after the current draw. Default is set at 100 draws.
 	 * 
 	 * @param		$id		current id of Lottery related to the draw database of the lottery	
 	 * @return      none
@@ -464,6 +464,8 @@ class Statistics extends Admin_Controller {
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$blnduplicate = ($this->data['lottery']->duplicate_extra_ball ? TRUE : FALSE);
 		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
+		$low = $this->data['lottery']->minimum_ball;		// Regular Drawn Low ball e.g. ball 1
+		$high = $this->data['lottery']->maximum_ball;		// Regular Drawn High ball e.g. ball 49
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 		{
@@ -512,6 +514,8 @@ class Statistics extends Admin_Controller {
 			} 
 			//$this->data['lottery']->extra_included = $this->uri->segment(6)=='extra' ? $this->statistics_m->extra_included($id, TRUE, 'lottery_followers') : $this->statistics_m->extra_included($id, FALSE, 'lottery_followers');
 			//$this->data['lottery']->extra_draws = ($this->uri->segment(6)=='draws' ? $this->statistics_m->extra_draws($id, TRUE, 'lottery_followers') : $this->statistics_m->extra_draws($id, FALSE, 'lottery_followers'));
+			$prizes = $this->statistics_m->prizes_only($this->statistics_m->prize_group_profile($id)[0],$this->data['lottery']->extra_included);
+			$prizes = $this->statistics_m->create_prize_array($prizes, $low, $high);
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
 			$range = $this->uri->segment(5,0); // Return segment range
 			if(!$range) $range = $followers['range'];
@@ -549,6 +553,8 @@ class Statistics extends Admin_Controller {
 		}
 		else // 3. If does not exist, calculate for the given draw range, return results and save to follower table
 		{
+			$prizes = $this->statistics_m->prizes_only($this->statistics_m->prize_group_profile($id)[0],$this->data['lottery']->extra_included);
+			$prizes = $this->statistics_m->create_prize_array($prizes, $low, $high);
 			// range is set with either less than 100 rows (based on the exact number of draws) or calculate the number of followers using only 100 rows
 			$range = ($all<100 ? $all : 100);
 			$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, ''. $blnduplicate);
@@ -601,7 +607,7 @@ class Statistics extends Admin_Controller {
 				$this->data['lottery']->last_drawn[$n.'nf'] = $nf;
 			}
 		}
-		
+		unset($prizes);													// Remove this array, free up memory
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
 		$this->data['lottery']->last_drawn['range'] = $range;
