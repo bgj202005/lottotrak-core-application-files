@@ -1451,7 +1451,7 @@ class Statistics_m extends MY_Model
 		{
 			if($prizes == NULL) unset($p[$onlywins]);
 			else (int) $p[$onlywins] = 0; 				// Active Win Categories. Will be used as a counter and all values are set to 0.
-			 if (!$e&&(strpos($onlywins, 'extra')) !== 0) 
+			 if (!$e&&(strpos($onlywins, 'extra')) !== FALSE) 
 			 {
         		unset($p[$onlywins]);
 			 }
