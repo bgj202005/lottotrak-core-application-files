@@ -7,6 +7,7 @@ class Statistics extends Admin_Controller {
 		 parent::__construct();
 
 		 $this->load->dbforge();
+		 $this->load->library('session');
 		 $this->load->model('lotteries_m');
 		 $this->load->model('statistics_m');
 		 $this->load->model('maintenance_m');
@@ -515,7 +516,8 @@ class Statistics extends Admin_Controller {
 			//$this->data['lottery']->extra_included = $this->uri->segment(6)=='extra' ? $this->statistics_m->extra_included($id, TRUE, 'lottery_followers') : $this->statistics_m->extra_included($id, FALSE, 'lottery_followers');
 			//$this->data['lottery']->extra_draws = ($this->uri->segment(6)=='draws' ? $this->statistics_m->extra_draws($id, TRUE, 'lottery_followers') : $this->statistics_m->extra_draws($id, FALSE, 'lottery_followers'));
 			$prizes = $this->statistics_m->prizes_only($this->statistics_m->prize_group_profile($id)[0],$this->data['lottery']->extra_included);
-			$prizes = $this->statistics_m->create_prize_array($prizes, $low, $high);
+ 			$prizes = $this->statistics_m->create_prize_array($prizes, $low, $high);
+			if($this->session->has_userdata('prizes')) $this->session->set_userdata('prizes',$prizes);
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
 			$range = $this->uri->segment(5,0); // Return segment range
 			if(!$range) $range = $followers['range'];
@@ -555,6 +557,7 @@ class Statistics extends Admin_Controller {
 		{
 			$prizes = $this->statistics_m->prizes_only($this->statistics_m->prize_group_profile($id)[0],$this->data['lottery']->extra_included);
 			$prizes = $this->statistics_m->create_prize_array($prizes, $low, $high);
+			if($this->session->has_userdata('prizes')) $this->session->set_userdata('prizes',$prizes);
 			// range is set with either less than 100 rows (based on the exact number of draws) or calculate the number of followers using only 100 rows
 			$range = ($all<100 ? $all : 100);
 			$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, ''. $blnduplicate);
