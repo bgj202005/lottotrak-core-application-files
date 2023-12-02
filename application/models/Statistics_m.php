@@ -1456,7 +1456,6 @@ class Statistics_m extends MY_Model
         		unset($p[$onlywins]);
 			 }
 		}
-	
 	return $p;		//pass array back without lottery id and id
 	}
 
@@ -1503,7 +1502,7 @@ class Statistics_m extends MY_Model
 		{
 			$prize_counts = $this->session->userdata('prizes');
 			$dbl_range = (int) $range * 2;  // Must be double the available draws available
-			$range_ptr = 1; 				// sgl_range starts at the first draw (single Range)
+			$range_ptr = 1; 				// range_ptr starts at the first draw (single Range)
 			
 			// Query Builder
 			$s = 'ball'; 
@@ -1624,8 +1623,8 @@ class Statistics_m extends MY_Model
 							$row = $query->next_row('array');
 						}
 					$prev_row = $query->row($range_ptr,'array');
-					$followlist = $this->remove_oldfollowers($followlist,$prev_row);
-					$nonfollowlist = $this->remove_oldnonfollowers($nonfollowlist,$prev_row);
+					$followlist = $this->remove_oldfollowers($followlist,$row,$prev_row);
+					$nonfollowlist = $this->remove_oldnonfollowers($nonfollowlist,$row,$prev_row);
 					} while(!is_null($row)); 
 				}
 				else		// Condition has been met
@@ -1654,8 +1653,9 @@ class Statistics_m extends MY_Model
 							$row = $query->next_row('array');
 						}
 					$prev_row = $query->row($range_ptr,'array');
-					$followlist = $this->remove_oldfollowers($followlist,$prev_row);
-					$nonfollowlist = $this->remove_oldnonfollowers($followlist,$prev_row);
+					$followlist = $this->remove_oldfollowers($followlist,$row,$prev_row);
+					$nonfollowlist = $this->remove_oldnonfollowers($followlist,$row,$prev_row);
+					$range_ptr++;
 					} while(!is_null($row)); 
 				}
 			$nonfollowlist = $this->non_followers($followlist, $top); // ??
@@ -1666,6 +1666,7 @@ class Statistics_m extends MY_Model
 				unset($nonfollowlist);
 				$query->free_result();	// Removes the Memory associated with the result resource ID
 			} while ($b<=$max);
+		$this->session->set_userdata('prizes',$prize_counts); // Update the current prize counts
 		}
 	return $error;
 	}
@@ -1678,11 +1679,11 @@ class Statistics_m extends MY_Model
 	 * @param 	boolean	$dp			Duplicate Extra Flag
 	 * @param 	array	$r			Associative Row of the current Draw Array minus the draw date
 	 * @param 	array	$fl			Associative Followers Array
-	 * @param 	array	$nfl		Associative non Follower Array
+	 * @param 	array	$nonfl		Associative non Follower Array
 	 * @param 	array	$p			Associative Prizes Array with current counts
 	 * @return	array	$p			Return the updated associative prizes with counts 
 	 */
-	private function follower_prizecounts($ball, $ex, $dp, $r, $fl, $nfl, $p)
+	private function follower_prizecounts($ball, $ex, $dp, $r, $fl, $nonfl, $p)
 	{
 		$prizes_cnt = 0;
 		$extra_cnt = FALSE;
@@ -1699,11 +1700,11 @@ class Statistics_m extends MY_Model
 
 		// for each non followers
 		// for each followers
-		foreach($nfl as $follower => $nfl_value)
+		foreach($nonfl as $follower => $nonfl_value)
 		{
 			foreach($r as $drawn => $dr_value)
 			{
-				if(($nfl_value==$dr_value)&&($drawn!='extra')) $prizes_cnt++;
+				if(($nonfl_value==$dr_value)&&($drawn!='extra')) $prizes_cnt++;
 				elseif(($fl_value==$dr_value)&&(drawn=='extra'&&$ex||$dp)) $extra_cnt=TRUE;
 			}
 		}
@@ -1737,7 +1738,7 @@ class Statistics_m extends MY_Model
 				if(array_key_exists('8_win', $hit)) ++$hit['8_win'];
 				break;
 			case 9:
-				if(array_key_exists('9_win', $hit)) ++$hit['9 _win'];
+				if(array_key_exists('9_win', $hit)) ++$hit['9_win'];
 		}
 	return $p;
 	}
@@ -1746,23 +1747,54 @@ class Statistics_m extends MY_Model
 	 * Update the followers list. FIFO - First in, Last out. Meaning the first set of drawn numbers are removed from the followers list
 	 * 
 	 * @param 	array	$fl			Current Follower list
+	 * @param 	array 	$first		Draw to be added as the most recent draw
 	 * @param 	array	$last		Draw from the bottom of the list is removed
 	 * @return	array	$fl			Returns updated followers list
 	 */
-	private function remove_oldfollowers($fl, $last)
+	private function remove_oldfollowers($fl, $first, $last)
 	{
+
+		unset($first['date']); // Remove the date from the first draw in the range
+
+		foreach($first as $early => $num)
+		{
+			if($fl[$early]==$early) $fl[$early]--;
+			if($fl[$early]==0) unset($fl[$early]); // Remove the old array element
+		}
+
+		foreach($last as $recent => $num)
+		{
+			if($fl[$recent]==$recent) $fl[$recent]++;
+			if($fl[$recent]!=$recent) $fl[$recent] = 1;	// Create a new array element with 1 hit 
+		}
+
 	return $fl;
 	}
 
 	/**
 	 * Update the nonfollowers list. FIFO - First in, Last out. Meaning the first set of drawn numbers are removed from the non followers list
 	 * 
-	 * @param 	array	$nonfl			Current Follower list
+	 * @param 	array	$nonfl		Current Follower list
+	 * @param 	array 	$first		Draw to be added as the most recent draw
 	 * @param 	array	$last		Draw from the bottom of the list is removed
 	 * @return	array	$fl			Returns updated followers list
 	 */
-	private function remove_oldnonfollowers($nonfl, $last)
+	private function remove_oldnonfollowers($nonfl, $first, $last)
 	{
+		unset($first['date']); // Remove the date from the first draw in the range
+
+		foreach($first as $early => $num)
+		{
+			if($nonfl[$early]==$early) $nonfl[$early]--;
+			if($nonfl[$early]==0) unset($nonfl[$early]); // Remove the old array element
+		}
+
+		foreach($last as $recent => $num)
+		{
+			if($nonfl[$recent]==$recent) $nonfl[$recent]++;
+			if($nonfl[$recent]!=$recent) $nonfl[$recent] = 1;	// Create a new array element with 1 hit
+		} 
+	
 	return $nonfl;
 	}
 
@@ -1775,6 +1807,30 @@ class Statistics_m extends MY_Model
 		if (!$query) return TRUE;	// Draw Database Does not Exist, error = TRUE
 		$total = $this->db->count_all_results();	
 	return ($total > $r ? TRUE : FALSE); // Range is more existing draws, error else the range exists.
+	}
+
+	/**
+	 * Return the formatted string of prizes for each ball drawn
+	 * @param	array	$p			Associative Array of prizes and the counts, directly from the session
+	 * @return	string	$str		Return formatted string of the follower numbers with the counts in this format, 10>3=4|22=3
+	 */
+	public function prize_string($p)
+	{
+		$str = "";	// Start with an empty string
+		if(!is_null($p))
+		{
+			foreach($p as $ball => $prizes)
+			{
+				$str .= $ball.">";
+				foreach($prizes as $prize => $total)
+				{
+					$str .= $total.",";
+				}
+				$str= substr($str, 0, -1);	
+			$str .= "><";
+			}
+		}
+	return substr($str, 0, -1);		// Return the prizes for each number drawn
 	}
 
 	/**

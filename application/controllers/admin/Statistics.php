@@ -527,6 +527,8 @@ class Statistics extends Admin_Controller {
 				if(intval($followers['range'])!=(intval($range))||$blnEX) // Any Change in Selection/Settings of the Draws?
 				{
 					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, '', $blnduplicate);
+					$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, '', $blnduplicate);
+					$str_prizes = ($outofrange ? $this->statistics_m->prize_string($this->session->userdata('prizes')) : ''); 
 					/** NEW included nonfollower calculations **/
 					$max = $this->data['lottery']->maximum_ball;
 					$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
@@ -534,6 +536,7 @@ class Statistics extends Admin_Controller {
 					$followers = array(
 						'range'				=> $range,
 						'lottery_followers'	=> $str_followers,
+						'wins'				=> $str_prizes,
 						'draw_id'			=> $this->data['lottery']->last_drawn['id'],
 						'lottery_id'		=> $id
 					);
@@ -561,9 +564,12 @@ class Statistics extends Admin_Controller {
 			// range is set with either less than 100 rows (based on the exact number of draws) or calculate the number of followers using only 100 rows
 			$range = ($all<100 ? $all : 100);
 			$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, ''. $blnduplicate);
+			$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, '', $blnduplicate);
+			$str_prizes = ($outofrange ? $this->statistics_m->prize_string($this->session->userdata('prizes')) : ''); 
 			$followers = array(
 				'range'				=> $range,
 				'lottery_followers'	=> $str_followers,
+				'wins'				=> $str_prizes,
 				'draw_id'			=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'		=> $id
 			);
@@ -611,6 +617,7 @@ class Statistics extends Admin_Controller {
 			}
 		}
 		unset($prizes);													// Remove this array, free up memory
+		$this->data['lottery']->out_of_range = $outofrange; 			// Is there enough draws to calculate the prizes?
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
 		$this->data['lottery']->last_drawn['range'] = $range;
