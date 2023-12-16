@@ -886,13 +886,11 @@ class Lotteries_m extends MY_Model
 		foreach($prizes as $prize)
 		{
 			if(intval(substr($prize, 0, 1))>intval($max)) unset($prizes[$c]);
-		// Remove all Extras, if FALSE
+		// Remove all Extra prize options, if FALSE
 			if(!$extra) 
 			{
 				if (strstr( $prize, 'extra')) unset($prizes[$c]);
 			}
-		// Lastly, Remove the maximum ball drawn plus the extra
-			elseif($extra&&(strstr($prize, $max.'_win_extra'))) unset($prizes[$c]);
 			$c++;
 		}
 	return array_values($prizes);	// Reindex the array
