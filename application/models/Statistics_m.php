@@ -1497,17 +1497,16 @@ class Statistics_m extends MY_Model
 	 * @return  boolean	$error 			Default is False, True is exceeding the lottery draws range and in error.
 	 * 								 
 	 */
-	public function followers_prizes($name, $ldn, $max, $bonus, $draws = 0, $range = 100, $top, $last = '', $duple = FALSE, $mx_ex)
+	public function followers_prizes($name, $ldn, $max, $bonus, $draws = 0, $range = 100, $top, $last = '', $duple = FALSE)
 	{
 		$error = $this->inrange($name,$range,$draws);
 		 
 		if(!$error) // The Range is good, let's do this!
 		{
 			$prize_counts = $this->session->userdata('prizes');
-			$dbl_range = (int) $range * 2;  // Must be double the available draws available
-			$range_ptr = 1; 				// range_ptr starts at the first draw (single Range)
-			$last_ball = $top;				// $top drawn ball is different when there is a duplicate extra ball
-			$chk_duple = FALSE;				// The Extra Duplicate ball is not checked yet!
+			$dbl_range = (int) ($range * 2)-1;  // Must be double the available draws available less the most recent draw
+			$range_ptr = 1; 					// range_ptr starts at the first draw (single Range)
+			$last_ball = $top;					// $top drawn ball is different when there is a duplicate extra ball
 
 			// Step 1. Must have the first range of draws for each drawn number of this lottery
 			// Query Builder
@@ -1531,25 +1530,25 @@ class Statistics_m extends MY_Model
 			$b = 1; // ball 1 to ball N for this lottery
 			do
 			{
-				$blnExDup = ($bonus&&$duple&&($chk_duple) ? TRUE : FALSE); // Has reached the extra number that is an independent and duplicate Extra ball (TRUE) or everything else is FALSE
-				$sql = ($blnExDup ? "SELECT t.* FROM (SELECT extra, draw_date FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;" 
-				: "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$dbl_range.") as t ORDER BY t.draw_date ASC;");
+				$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$dbl_range.") as t ORDER BY t.draw_date ASC;";
 				// Execute Query
 				$query = $this->db->query($sql);
 				$row = $query->first_row('array');
 				// Initialize and create blank associate array
 				$followlist = array();
 				$nonfollowlist = array();
+				$lowest_row = array(); // First Drawn numbers after followers occurred
+				$first = array();		// Lowest draw from the lowest row array
+				if($duple) $duplelist = array(); // Only if this lottery has a duplicate extra ball
 				
 				// Step 1, get the totals for the first range of draws
-				if(!$blnExDup) // Condition has not been met, not Duplicate Extra
-				{
 					do 
 					{
 						if($this->is_drawn($b, $row, $b_max, $bonus))
 						{
-
+							if($duple) $extra = $row['extra'];
 							$row = $query->next_row('array');
+							array_push($lowest_row, $row); // Add this row to the end of the array 
 							if(!is_null($row))
 							{
 								unset($row['draw_date']);
@@ -1561,72 +1560,43 @@ class Statistics_m extends MY_Model
 								{
 									$followlist = $this->add_followers($row);
 								}
+								if($duple&&(isset($extra))&&($b==$extra)) // Only with the duplicate extra and must exist
+								{
+									unset($row['draw_date']);
+									if(!empty($duplelist))
+									{
+										$duplelist = $this->update_dupalextra($duplelist, $row['extra']);
+									}
+									else
+									{
+										$duplelist = $this->add_dupalextra($row['extra']);  
+									}
+								}
 							}
-						}
+							if($range_ptr>=$range) // Reached or exceeded the half way point? If yes .. do the prize counts
+							{
+								// Step 2. Next Range of Draws will include the prize pool
+								$nonfollowlist = $this->non_followers($followlist, $last_ball);
+								$prize_counts[$b] = $this->follower_prizecounts($bonus, $row, $followlist, $nonfollowlist, $duple, ($duple ? $duplelist : FALSE), $prize_counts[$b]);
+								$first = $lowest_row[0];
+								$followlist = $this->remove_oldfollowers($followlist, $first, $bonus);
+								if($duple) $duplelist = $this->remove_duplicates($duplelist, $first, $bonus);
+								if(!empty($nonfollowlist)) $nonfollowlist = $this->remove_oldnonfollowers($nonfollowlist, $first, $bonus);
+								array_shift($lowest_row); // Remove the lowest draw date freom the array, shift it off the beginning of the array
+							}
+						 }
 						else
 						{
 							$row = $query->next_row('array');
 						}
-					if($range_ptr>=$range) // Reached or exceeded the half way point? If yes .. do the prize counts
-					{
-						// Step 2. Next Range of Draws will include the prize pool
-						$nonfollowlist = $this->non_followers($followlist, $last_ball);
-						// A duplicate extra ball lottery is designated with an 'd' after the drawn number, indicating that the ball drawn is an extra duplicate number
-						$prize_counts[$b] = $this->follower_prizecounts($bonus, $duple, $row, $followlist, $nonfollowlist, $prize_counts[$b]);
-						$prev_row = $query->row($range_ptr,'array');
-						$followlist = $this->remove_oldfollowers($followlist,$row,$prev_row);
-						$nonfollowlist = $this->remove_oldnonfollowers($nonfollowlist,$row,$prev_row);
-					}
 					$range_ptr++; // update draw counter
 					} while($range_ptr<$dbl_range&&(!is_null($row))); // !is_null($row)
-				}
-				else		// Condition has been met
-				{
-					do 
-					{
-						if($b==$row['extra'])
-						{
-							$row = $query->next_row('array');
-							if(!is_null($row))
-							{
-								unset($row['draw_date']);
-								if(!empty($followlist))
-								{
-									$followlist = $this->update_dupalextra($followlist, $row['extra']);
-								}
-								else
-								{
-									$followlist = $this->add_dupalextra($row['extra']); 
-								}
-							}
-						}
-						else
-						{
-							$row = $query->next_row('array');
-						}
-					if($range_ptr>=$range) // Reached or exceeded the half way point? If yes .. do the prize counts
-					{
-						// Step 2. Next Range of Draws will include the prize pool
-						$nonfollowlist = $this->non_followers($followlist, $last_ball);
-						$prize_counts[$b] = $this->follower_prizecounts($bonus, $duple, $row, $followlist, $nonfollowlist, $prize_counts[$b]);
-						$prev_row = $query->row($range_ptr,'array');
-						$followlist = $this->remove_oldfollowers($followlist,$row,$prev_row);
-						$nonfollowlist = $this->remove_oldnonfollowers($nonfollowlist,$row,$prev_row);
-					}
-					$range_ptr++; // update draw counter
-					} while(($range_ptr<$dbl_range)&&(!is_null($row))); // !is_null($row)
-				}
 			
-				$range_ptr = 1; // Reset the range for the next ball
+ 				$range_ptr = 1; // Reset the range for the next ball
 				$b++;
-				if($bonus&&$duple&&!$chk_duple&&($b>$last_ball)) 
-				{
-					$b = 1;				 // First extra ball
-					$last_ball = $mx_ex; // The maximum extra ball is now the last drawn ball for the extra duplicate number
-					$chk_duple = TRUE;
-				}
-				unset($followlist);		// Destroy the old followerlist
-				unset($nonfollowlist);
+				unset($followlist);				// Destroy the old followerlist
+				unset($nonfollowlist);			// non follower list
+				if($duple) unset($duplelist); 	// duplicate extra list
 				$query->free_result();	// Removes the Memory associated with the result resource ID
 			} while ($b<=$last_ball); 	// Not maximum balls drawn but the last ball drawn for this lottery
 		$this->session->set_userdata('prizes',$prize_counts); // Update the current prize counts
@@ -1635,20 +1605,24 @@ class Statistics_m extends MY_Model
 	}
 
 	/**
-	 * Updates current prize counts 
+	 * Totals and updates current prize counts 
 	 * 
 	 * @param 	boolean	$ex			Extra Ball Flag
-	 * @param 	boolean	$dp			Duplicate Extra Flag
 	 * @param 	array	$r			Associative Row of the current Draw Array minus the draw date
 	 * @param 	array	$fl			Associative Followers Array
 	 * @param 	array	$nonfl		Associative non Follower Array
+	 * @param 	boolean	$df			Duplicate Extra Ball flag (TRUE = Duplicate Extra Ball Lottery, FALSE = Not Duplicate Extra Ball Lottery)
+	 * @param 	array	$da			Associative Duplicate Extra Array (Associative Array, else FALSE)
 	 * @param 	array	$p			Associative Prizes Array with current counts
 	 * @return	array	$hits		Return the updated associative prizes with counts 
 	 */
-	private function follower_prizecounts($ex, $dp, $r, $fl, $nonfl, $p)
+	private function follower_prizecounts($ex, $r, $fl, $nonfl, $df, $da, $p)
 	{
-		$prizes_cnt = 0;
+		// Initialize Counters
+		$prizes_cnt = 0; 			// init prize counter amd ball counter
+		$ball_counter = 0; 
 		$extra_cnt = FALSE;
+		unset($r['draw_date']); 	// Draw date not required
 
 		// for each followers
 		if(!empty($fl))
@@ -1657,29 +1631,48 @@ class Statistics_m extends MY_Model
 			{
 				foreach($fl as $follower => $fl_value)
 				{
- 					if(($dr_value==$follower)&&($fl_value>=3)&&($drawn!='extra')) $prizes_cnt++;
-					elseif(($dr_value==$follower)&&($fl_value>=3)&&($drawn=='extra'&&$ex||$dp)) 
+ 					if(($dr_value==$follower)) $ball_counter++; // Kepp count of followers
+					if(($dr_value==$follower)&&($fl_value>=3)&&($drawn!='extra')) $prizes_cnt++;
+					if(($dr_value==$follower)&&($fl_value>=3)&&($drawn=='extra'&&$ex&&!$df)) 
 					{
 						$prizes_cnt++;
-						$extra_cnt=TRUE;
+						$extra_cnt=TRUE; // The Extra flag is set
+						break;
 					}
 				}
 			}
 		}
-
-		// for each of the non followers
-		if(!empty($nonfl))
+		
+		if(count($r)!=$ball_counter) // Continue with the non followers, if not all balls have been found in the followers table
 		{
-			foreach($r as $drawn => $dr_value)
+			// for each of the non followers
+			if(!empty($nonfl))
 			{
-			foreach($nonfl as $nonfollower => $nonfl_value)
+				foreach($r as $drawn => $dr_value)
 				{
-					if(($dr_value==$nonfollower)&&($drawn!='extra'))  $prizes_cnt++;
-					elseif(($dr_value==$nonfollower)&&($drawn=='extra'&&$ex||$dp)) 
+				foreach($nonfl as $nonfollower => $nonfl_value)
 					{
-						$prizes_cnt++;
-						$extra_cnt=TRUE;
+						if(($dr_value==$nonfl_value)&&($drawn!='extra')) $prizes_cnt++;
+						if(($dr_value==$nonfl_value)&&($drawn=='extra'&&$ex&&!$df)) 
+						{
+							$prizes_cnt++;
+							$extra_cnt=TRUE;	// The extra flag is set
+							break; 
+						}
 					}
+				}
+			}
+		}
+		
+		if($df&&(is_array($da))) // Duplicate Extra Number is in the prize pool and the duplicates is an array
+		{
+			foreach($da as $dup => $dup_value)
+			{
+				if(($r['extra']==$dup&&($dup_value>=3))&&($ex)) // Must have the extra option, the duplicate count must be greater or equal to 3 
+				{
+					$prizes_cnt++;
+					$extra_cnt=TRUE;	// The extra flag is set
+					break;				// Found, exit loop
 				}
 			}
 		}
@@ -1717,7 +1710,8 @@ class Statistics_m extends MY_Model
 				case 9:
 					if(array_key_exists('9_win', $hits)) ++$hits['9_win'];
 			}
-		} else //* Only the prize pool balls and with the an extra (bonus) ball AND/OR duplicate ball
+		} 
+		else //* Only the prize pool balls and with an extra (bonus) ball AND/OR duplicate ball
 		{
 			switch($prizes_cnt) 
 			{
@@ -1751,32 +1745,26 @@ class Statistics_m extends MY_Model
 		}
 	return $hits;
 	}
-
+	
 	/**
 	 * Update the followers list. FIFO - First in, Last out. Meaning the first set of drawn numbers are removed from the followers list
 	 * 
 	 * @param 	array	$fl			Current Follower list
-	 * @param 	array 	$first		Draw to be added as the most recent draw
-	 * @param 	array	$last		Draw from the bottom of the list is removed
+	 * @param 	array 	$prev		Draw that is removed from the previous follower list
+	 * @param 	boolean $ex			Extra Ball, True (include) False (do not include)
 	 * @return	array	$fl			Returns updated followers list
 	 */
-	private function remove_oldfollowers($fl, $first, $last)
+	private function remove_oldfollowers($fl, $prev, $ex)
 	{
 
-		unset($first['date']); // Remove the date from the first draw in the range
+		unset($prev['draw_date']); // Remove the date from the first draw in the range
 
-		foreach($first as $early => $num)
+		foreach($prev as $before => $drawn)
 		{
-			if($fl[$early]==$early) $fl[$early]--;
-			if($fl[$early]==0) unset($fl[$early]); // Remove the old array element
+			if(isset($fl[$drawn])&&($before!='extra')) $fl[$drawn]--;
+			if(($before=='extra')&&($ex)&&(isset($fl[$drawn]))) $fl[$drawn]--;
+			if(isset($fl[$drawn])&&$fl[$drawn]==0) unset($fl[$drawn]); // Remove the old array element
 		}
-
-		foreach($last as $recent => $num)
-		{
-			if($fl[$recent]==$recent) $fl[$recent]++;
-			if($fl[$recent]!=$recent) $fl[$recent] = 1;	// Create a new array element with 1 hit 
-		}
-
 	return $fl;
 	}
 
@@ -1785,32 +1773,58 @@ class Statistics_m extends MY_Model
 	 * 
 	 * @param 	array	$nonfl		Current Follower list
 	 * @param 	array 	$first		Draw to be added as the most recent draw
-	 * @param 	array	$last		Draw from the bottom of the list is removed
+* 	 * @param 	boolean $ex			Extra Ball, True (include) False (do not include)
 	 * @return	array	$fl			Returns updated followers list
 	 */
-	private function remove_oldnonfollowers($nonfl, $first, $last)
+	private function remove_oldnonfollowers($nonfl,$prev,$ex)
 	{
-		unset($first['date']); // Remove the date from the first draw in the range
+		unset($prev['draw_date']); // Remove the date from the first draw in the range
 
-		foreach($first as $early => $num)
+		foreach($prev as $before => $drawn)
 		{
-			if($nonfl[$early]==$early) $nonfl[$early]--;
-			if($nonfl[$early]==0) unset($nonfl[$early]); // Remove the old array element
+			foreach($nonfl as $count => $nf)
+			{
+				// Non Followers  are only listed in a sequential array
+				// and if the draw has 1 or more of non followers, remove them from the list.			
+				if(($drawn==$nf)&&($before!='extra')) unset($nonfl[$drawn]);
+				if(($before=='extra')&&($ex)&&($drawn==$nf)) unset($nonfl[$drawn]);
+			}
 		}
-
-		foreach($last as $recent => $num)
-		{
-			if($nonfl[$recent]==$recent) $nonfl[$recent]++;
-			if($nonfl[$recent]!=$recent) $nonfl[$recent] = 1;	// Create a new array element with 1 hit
-		} 
-	
 	return $nonfl;
 	}
 
+	/**
+	 * Update the DUplicate Extra list. FIFO - First in, Last out. Meaning the first set of drawn numbers are removed from the followers list
+	 * 
+	 * @param 	array	$da			Current Duplicate List
+	 * @param 	array 	$prev		Draw that is removed from the previous follower list, First from a 100 Range
+	 * @param 	boolean $ex			Extra Ball, True (include) False (do not include)
+	 * @return	array	$da			Returns updated followers list
+	 */
+	private function remove_duplicates($da, $prev, $ex)
+	{
+		If(!$ex) return FALSE;
+		unset($prev['draw_date']); // Remove the date from the first draw in the range
+
+		if(isset($da[$prev['extra']])) $da[$prev['extra']]--;
+		if(isset($da[$prev['extra']])&&$da[$prev['extra']]==0) unset($da[$prev['extra']]); // Remove the old array element
+	
+	return $da;
+	}
+
+	/**
+	 * Checks the previous range of draws, that there is an minimum of 100 draws available
+	 * 
+	 * @param 	string	$tbl		Name of Lottery table
+	 * @param 	integer $r			Current set range of draws
+* 	 * @param 	boolean $dr			Extra Ball, True (include) False (do not include)
+	 * @return	boolean				Error flag, TRUE (range exceeeded), FALSE (in range - OK)
+	 */
 	private function inrange($tbl, $r, $dr)
 	{
-		$r = (int) $r * 2;	// The range will always be double (E.g. 100 Draw range plus 100 draws), 
-							// for the follower totals and then the wins of those followers
+ 		$r = $r * 2; 		// The range must be twice the range of draws 
+		//$r = $r - 100;	// The range will be a minimum of 100 draws 
+		// for the follower totals and then the wins of those followers
 		$where = (!$dr ? ' WHERE `extra` <> "0" ' : '');
 		$query = $this->db->query('SELECT `draw_date` FROM '.$tbl.$where.' ORDER BY `draw_date` DESC LIMIT '.$r.';');
 		if (!$query) return TRUE;	// Draw Database Does not Exist, error = TRUE
@@ -1836,7 +1850,7 @@ class Statistics_m extends MY_Model
 					$str .= $total.",";
 				}
 				$str= substr($str, 0, -1);	
-			$str .= "><";
+			$str .= "<";
 			}
 		}
 	return substr($str, 0, -1);		// Return the prizes for each number drawn

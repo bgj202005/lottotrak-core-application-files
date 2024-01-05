@@ -531,11 +531,11 @@ class Statistics extends Admin_Controller {
 					$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
 					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, '', $blnduplicate);
 					$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
-					$str_prizes  = ($outofrange ? $this->statistics_m->prize_string($this->session->userdata('prizes')) : ''); 
+					$str_prizes  = (!$outofrange ? $this->statistics_m->prize_string($this->session->userdata('prizes')) : ''); 
 					/** NEW included nonfollower calculations **/
 					$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
 					$followers = array(
-						'range'				=> $range,
+ 						'range'				=> $range,
 						'lottery_followers'	=> $str_followers,
 						'wins'				=> $str_prizes,
 						'draw_id'			=> $this->data['lottery']->last_drawn['id'],
