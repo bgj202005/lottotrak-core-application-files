@@ -485,12 +485,12 @@ class Statistics extends Admin_Controller {
 			$interval = 0;
 		}
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
-		// 1. Check for a record for the current lottery in the friends table
+		// 1. Check for a record for the current lottery in the followers table
 		$followers = $this->statistics_m->followers_exists($id);		// Existing follower row 
 		$nonfollowers = $this->statistics_m->nonfollowers_exists($id);	// Non Follower existing row
 		$sel_range = 1;
 		$this->data['lottery']->extra_included = 0; // No Extra Ball as part of the calculation
-		$this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
+		$this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the follower calculation
 		$outofrange = FALSE;						// default is not out of range for the prize pool
 		$blnEX = false;								// Extra Bonus Ball / Draws flag are no change or update
 		if(!is_null($followers))
@@ -617,7 +617,7 @@ class Statistics extends Admin_Controller {
 				$this->data['lottery']->last_drawn[$n.'nf'] = $nf;
 			}
 		}
-		unset($prizes);													// Remove this array, free up memory
+		$this->session->unset_userdata('prizes');						// Remove this array, free up memory
 		$this->data['lottery']->out_of_range = $outofrange; 			// Is there enough draws to calculate the prizes?
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
@@ -647,8 +647,8 @@ class Statistics extends Admin_Controller {
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$blnduplicate = ($this->data['lottery']->duplicate_extra_ball ? TRUE : FALSE);
 		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
+		$min_ball = $this->data['lottery']->minimum_ball;	// Regular Drawn Low ball e.g. ball 1
 		$max_ball = $this->data['lottery']->maximum_ball;	// Get the highest ball drawn for this lottery, e.g. 49 in Lottery 649, 50 in Lottomax
-		$extra_ball = $this->data['lottery']->extra_ball;	// Make sure the extra ball is even used.
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 		{
@@ -691,6 +691,8 @@ class Statistics extends Admin_Controller {
 			{
 				if(intval($old_range)!=(intval($new_range))||($change)) // Any Change in Selection of the Draws? then update ... e.i. 200 draws in db and 300 in query url
 				{
+					$relatives = $this->statistics_m->create_friend_array();
+					$this->session->set_userdata('relativws',$relatives); // Set a new empty set 
 					$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
 					$associate = explode('+', $str_friends); // The '+' is the separator
 					$str_friends = $associate[0];			 // separated the friends
@@ -718,6 +720,8 @@ class Statistics extends Admin_Controller {
 		}
 		else 
 		{
+			$relatives = $this->statistics_m->create_friend_array();
+			$this->session->set_userdata('relatives',$relatives); // Set a new empty set 
 			$new_range = ($all<100 ? $all : 100);
 			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
 			$associate = explode('+', $str_friends); // The '+' is the separator
@@ -756,6 +760,7 @@ class Statistics extends Admin_Controller {
 			$b++;
 		}
 
+		if($this->session->has_userdata('relatives')) $this->session->unset_userdata('relatives'); // Only if exists?
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
 		$this->data['lottery']->last_drawn['range'] = $new_range;

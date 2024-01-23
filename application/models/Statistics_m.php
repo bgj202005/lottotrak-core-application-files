@@ -58,7 +58,7 @@ class Statistics_m extends MY_Model
 				'4'		=>		'4-0-0,3-1-0,3-0-1,2-2-0,2-1-1,2-0-2,1-3-0,1-2-1,1-1-2,1-0-3,0-3-1,0-2-2,0-1-3,0-4-0,0-0-4',
 				'5'		=>		'5-0-0,4-1-0,4-0-1,3-2-0,3-1-1,3-0-2,2-3-0,2-2-1,2-1-2,2-0-3,1-4-0,1-3-1,1-2-2,1-1-3,1-0-4,0-5-0,0-4-1,0-3-2,0-2-3,0-1-4,0-5-0,0-0-5',
 				'6'		=>		'6-0-0,5-1-0,5-0-1,4-2-0,4-1-1,4-0-2,3-3-0,3-2-1,3-1-2,3-0-3,2-4-0,2-3-1,2-2-2,2-1-3,2-0-4,1-5-0,1-4-1,1-3-2,1-2-3,1-1-4,1-0-5,0-6-0,0-5-1,0-4-2,0-3-3,0-2-4,0-1-5,0-6-0,0-0-6',
-				'7'		=>		'7-0-0,6-1-0,6-0-1,5-2-0,5-1-1,5-0-2,4-3-0,4-2-2,4-2-1,4-1-2,4-0-3,3-4-0,3-3-1,3-2-2,3-1-3,3-0-4,2-5-0,2-4-1,2-3-2,2-2-3,2-1-4,2-0-5,1-6-0,1-5-1,1-4-2,1-3-3,1-2-4,1-1-5,1-0-6,0-6-1,0-5-2,0-4-3,0-3-4,0-2-5,0-1-6,0-7-0,0-0-7',
+				'7'		=>		'7-0-0,6-1-0,6-0-1,5-2-0,5-1-1,5-0-2,4-3-0,4-2-1,4-1-2,4-0-3,3-4-0,3-3-1,3-2-2,3-1-3,3-0-4,2-5-0,2-4-1,2-3-2,2-2-3,2-1-4,2-0-5,1-6-0,1-5-1,1-4-2,1-3-3,1-2-4,1-1-5,1-0-6,0-6-1,0-5-2,0-4-3,0-3-4,0-2-5,0-1-6,0-7-0,0-0-7',
 				'8'		=>		'8-0-0,7-1-0,7-0-1,6-2-0,6-1-1,6-0-2,5-3-0,5-2-1,5-1-2,5-0-3,4-4-0,4-3-1,4-2-2,4-1-3,4-0-4,3-5-0,3-4-1,3-3-2,3-2-3,3-1-4,3-0-5,2-6-0,2-5-1,2-4-2,2-3-3,2-2-4,2-1-5,2-0-6,1-7-0,1-6-1,1-5-2,1-4-3,1-3-4,1-2-5,1-1-6,1-0-7,0-8-0,0-0-8',
 				'9'		=>		'9-0-0,8-1-0,8-0-1,7-2-0,7-1-1,7-0-2,6-3-0,6-2-1,6-1-2,6-0-3,5-4-0,5-3-1,5-2-2,5-1-3,5-0-4,4-5-0,4-4-1,4-3-2,4-2-3,4-1-4,4-0-5,3-6-0,3-5-1,3-4-2,3-3-3,3-2-4,3-1-5,3-0-6,2-7-0,2-6-1,2-5-2,2-4-3,2-3-4,2-2-5,2-1-6,2-0-7,1-8-0,1-7-1,1-6-2,1-5-3,1-4-4,1-3-5,1-2-6,1-1-7,1-0-8,0-8-1,0-7-2,0-6-3,0-5-4,0-4-5,0-3-6,0-2-7,0-1-8,0-9-0,0-0-9'
 	);
@@ -232,7 +232,7 @@ class Statistics_m extends MY_Model
 	 */
 	public function lottery_next_rows($table)
 	{
-		$conditions = array('sum_draw ' => NULL, 'sum_digits ' => NULL, 'even ' => NULL, 'odd ' => NULL, 'range_draw ' => NULL, 'repeat_decade ' => NULL, 'repeat_decade ' => NULL);
+		$conditions = array('sum_draw ' => NULL, 'sum_digits ' => NULL, 'even ' => NULL, 'odd ' => NULL, 'range_draw ' => NULL, 'repeat_decade ' => NULL, 'repeat_last ' => NULL);
 		$this->db->where($conditions);
 		$this->db->from($table);
 		return $this->db->count_all_results();
@@ -247,7 +247,8 @@ class Statistics_m extends MY_Model
 	{
 		$this->db->reset_query();	// Clear any previous queries that are cached
 		$conditions = array('sum_draw ' => NULL, 'sum_digits ' => NULL, 'even ' => NULL, 'odd ' => NULL, 'range_draw ' => NULL, 
-							'repeat_decade ' => NULL, 'repeat_decade ' => NULL, 'extra !=' => '0');
+							'repeat_decade ' => NULL, 'repeat_last ' => NULL); //, 'extra !=' => '0' --> Does not matter if they are extra draws
+		// include extra draw statistics					
 		$query = $this->db->select('id')
 						->where($conditions)
 						->order_by('id', 'ASC')
@@ -1459,7 +1460,6 @@ class Statistics_m extends MY_Model
 	return $p;		//pass array back without lottery id and id
 	}
 
-	
 	/**
 	 * Returns only the prizes for the lottery
 	 * 
@@ -1479,6 +1479,7 @@ class Statistics_m extends MY_Model
 		} while($min<=$max); 
 	return $p_result;		//return array with 1 => '3_win' = 0, '3_win_extra' = 0
 	}
+
 	/**  
 	 * Calculate the prize results for the follower and non follower group. E.g. Range is 100 will be 100 draws previous plus 100 draws with the prize pool
 	 * This does the follower group for each drawn number. For example, Canada 649 has 49 drawn numbers. The prizes will be calcalated for all balls
@@ -1548,10 +1549,12 @@ class Statistics_m extends MY_Model
 						{
 							if($duple) $extra = $row['extra'];
 							$row = $query->next_row('array');
-							array_push($lowest_row, $row); // Add this row to the end of the array 
+							$row['row'] = $range_ptr+1; 	// This is completed only within range
+							array_push($lowest_row, $row); 		// Add this row to the end of the array 
 							if(!is_null($row))
 							{
 								unset($row['draw_date']);
+								unset($row['row']);
 								if(!empty($followlist))
 								{
 									$followlist = $this->update_followers($followlist, $row);
@@ -1563,6 +1566,7 @@ class Statistics_m extends MY_Model
 								if($duple&&(isset($extra))&&($b==$extra)) // Only with the duplicate extra and must exist
 								{
 									unset($row['draw_date']);
+									unset($row['row']);
 									if(!empty($duplelist))
 									{
 										$duplelist = $this->update_dupalextra($duplelist, $row['extra']);
@@ -1579,10 +1583,14 @@ class Statistics_m extends MY_Model
 								$nonfollowlist = $this->non_followers($followlist, $last_ball);
 								$prize_counts[$b] = $this->follower_prizecounts($bonus, $row, $followlist, $nonfollowlist, $duple, ($duple ? $duplelist : FALSE), $prize_counts[$b]);
 								$first = $lowest_row[0];
-								$followlist = $this->remove_oldfollowers($followlist, $first, $bonus);
-								if($duple) $duplelist = $this->remove_duplicates($duplelist, $first, $bonus);
-								if(!empty($nonfollowlist)) $nonfollowlist = $this->remove_oldnonfollowers($nonfollowlist, $first, $bonus);
-								array_shift($lowest_row); // Remove the lowest draw date freom the array, shift it off the beginning of the array
+								if(intval($range_ptr-$first['row'])>$range) // Only if the current row pointer
+																			// is out of range of the target range, remove draw. e.g. Range = 100 draws
+								{
+									$followlist = $this->remove_oldfollowers($followlist, $first, $bonus);
+									if($duple) $duplelist = $this->remove_duplicates($duplelist, $first, $bonus);
+									if(!empty($nonfollowlist)) $nonfollowlist = $this->remove_oldnonfollowers($nonfollowlist, $first, $bonus);
+									array_shift($lowest_row); // Remove the lowest draw date freom the array, shift it off the beginning of the array
+								}
 							}
 						 }
 						else
@@ -1627,7 +1635,7 @@ class Statistics_m extends MY_Model
 		// for each followers
 		if(!empty($fl))
 		{
-			foreach($r as $drawn => $dr_value) //* Based on the next draw that has occurred
+			foreach($r as $drawn => $dr_value) // Based on the next draw that has occurred
 			{
 				foreach($fl as $follower => $fl_value)
 				{
@@ -1757,7 +1765,8 @@ class Statistics_m extends MY_Model
 	private function remove_oldfollowers($fl, $prev, $ex)
 	{
 
-		unset($prev['draw_date']); // Remove the date from the first draw in the range
+		unset($prev['draw_date']); 	// Remove the date from the first draw in the range
+		unset($prev['row']);		// Remove the draw number from which it occurred
 
 		foreach($prev as $before => $drawn)
 		{
@@ -1779,6 +1788,7 @@ class Statistics_m extends MY_Model
 	private function remove_oldnonfollowers($nonfl,$prev,$ex)
 	{
 		unset($prev['draw_date']); // Remove the date from the first draw in the range
+		unset($prev['row']);		// Remove the draw number from which it occurred
 
 		foreach($prev as $before => $drawn)
 		{
@@ -1854,6 +1864,19 @@ class Statistics_m extends MY_Model
 			}
 		}
 	return substr($str, 0, -1);		// Return the prizes for each number drawn
+	}
+
+	/**
+	 * Initializes the friend relationships for no friends, a one-way friendship and a two way friendship
+	 * @param 	none			
+	 * @return	array	$f_result	return array with no friends, 1-way friendshps and 2-way friendships
+	 */
+	public function create_friend_array()
+	{
+		$f_init = array('nofriends' => 0,
+						'1-way'	=> 0,
+						'2-way'	=>	0);
+	return $f_init;		//return array with nofriends, 1-way friendshps and 2-way friendships
 	}
 
 	/**
