@@ -1869,14 +1869,31 @@ class Statistics_m extends MY_Model
 	/**
 	 * Initializes the friend relationships for no friends, a one-way friendship and a two way friendship
 	 * @param 	none			
-	 * @return	array	$f_result	return array with no friends, 1-way friendshps and 2-way friendships
+	 * @return	array	$f_init		return array with no friends, 1-way friendshps and 2-way friendships
 	 */
 	public function create_friend_array()
 	{
 		$f_init = array('nofriends' => 0,
 						'1-way'	=> 0,
-						'2-way'	=>	0);
+						'2-way'	=> 0);
 	return $f_init;		//return array with nofriends, 1-way friendshps and 2-way friendships
+	}
+
+	/**
+	 * Initializes the number of 0 draws with nonfriendships, 1 draws with nonfriendships, 2 to 4 draws with nonfriendships
+	 * @param 	none			
+	 * @return	array	$f_init	return array with draws of non-friends (0-nfdraws), draws of 1 non-friends 1-nfdraws, 
+	 * 					2 draws of non-friendships (2-nfdraws), 3 draws of non-friendships (3-nfdraws),
+	 * 					4 draws of non-friendships (4-nfdraws)
+	 */
+	public function create_nonfriend_array()
+	{
+		$f_init = array('0-nfdraws' => 0,
+						'1-nfdraws' => 0,
+						'2-nfdraws' => 0,
+						'3-nfdraws' => 0,
+						'4-nfdraws' => 0);
+	return $f_init;		//return array with draws of non friend wins, 1 draw win 1 non friends wins
 	}
 
 	/**
@@ -1894,6 +1911,8 @@ class Statistics_m extends MY_Model
 	 */
 	 public function friends_calculate($name, $max, $top, $bonus = 0, $draws = 0, $range = 100, $last = '', $duple = FALSE)
 	{
+		global $relatives;
+		global $nonrelatives;
 		// Build Query
 		$s = 'ball'; 
 		$i = 1; 	// Default Ball 1

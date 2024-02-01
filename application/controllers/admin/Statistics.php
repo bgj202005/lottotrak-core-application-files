@@ -641,6 +641,8 @@ class Statistics extends Admin_Controller {
 	 */
 	public function friends($id)
 	{
+		global $relatives;
+		global $nonrelatives;
 		$this->data['message'] = '';	// Defaulted to No Error Messages
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		// Retrieve the lottery table name for the database
@@ -692,7 +694,7 @@ class Statistics extends Admin_Controller {
 				if(intval($old_range)!=(intval($new_range))||($change)) // Any Change in Selection of the Draws? then update ... e.i. 200 draws in db and 300 in query url
 				{
 					$relatives = $this->statistics_m->create_friend_array();
-					$this->session->set_userdata('relativws',$relatives); // Set a new empty set 
+					$nonrelatives = $this->statistics_m->create_nonfriend_array();
 					$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
 					$associate = explode('+', $str_friends); // The '+' is the separator
 					$str_friends = $associate[0];			 // separated the friends
@@ -721,7 +723,7 @@ class Statistics extends Admin_Controller {
 		else 
 		{
 			$relatives = $this->statistics_m->create_friend_array();
-			$this->session->set_userdata('relatives',$relatives); // Set a new empty set 
+			$nonrelatives = $this->statistics_m->create_nonfriend_array();
 			$new_range = ($all<100 ? $all : 100);
 			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
 			$associate = explode('+', $str_friends); // The '+' is the separator
