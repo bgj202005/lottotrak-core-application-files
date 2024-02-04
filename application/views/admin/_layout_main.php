@@ -40,9 +40,16 @@
             <?php echo anchor('admin/predictions', 'View Lottery Predictions', 'class = "dropdown-item"'); ?>
           </div> 
         </li>
-        <li class="nav-item<?= ($current=='0' ? ' active' : ''); ?>"><?php echo anchor('admin/page/order/0', 'Header Order ', 'class = "nav-link"');?></li>
-        <li class="nav-item<?= ($current=='1' ? ' active' : ''); ?>"><?php echo anchor('admin/page/order/1', 'Footer Inside Order ', 'class = "nav-link"');?></li>
-        <li class="nav-item<?= ($current=='2' ? ' active' : ''); ?>"><?php echo anchor('admin/page/order/2', 'Footer Outside Order ', 'class = "nav-link"');?></li>
+        <li class="nav-item dropdown<?= (($current=='0'||$current=='1'||$current=='2') ? ' active' : ''); ?>">
+        <?php $attr = array('class' => "nav-link dropdown-toggle", 'id' => "navbarDropdown", 'role'=> "button", 
+        'data-toggle'=> "dropdown",  'aria-haspopup' => "true", 'aria-expanded' => "false");
+        echo anchor('admin/menuorder', 'Menu Order', $attr);?>
+          <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+            <?php echo anchor('admin/page/order/0', 'Header Order', 'class = "dropdown-item"'); ?>
+            <?php echo anchor('admin/page/order/1', 'Footer Inside Order', 'class = "dropdown-item"'); ?>
+            <?php echo anchor('admin/page/order/2', 'Footer Outside Order', 'class = "dropdown-item"'); ?>
+          </div> 
+        </li>
         <li class="nav-item<?= ($current=='user' ? ' active' : ''); ?>"><?php echo anchor('admin/user', 'Admins', 'class = "nav-link"');?></li>
         <li class="nav-item"><?php echo anchor_popup(base_url(), '<i class="fa fa-globe" style="color:#fff; padding: 5px; margin-top:5px;"></i>')?></li>        
       </ul>
