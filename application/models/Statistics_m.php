@@ -2184,6 +2184,138 @@ class Statistics_m extends MY_Model
 			$this->db->update('lottery_nonfriends');
 		}
 	}
+	
+	/**
+	 * Calculate the Friends of the Lottery from Ball 1 to Ball N range, include the extra ball if TRUE. 
+	 * Based on twice the range of draws covered
+	 * 
+	 * @param 	string 	$name		specific lottery table name
+	 * @param 	integer $max		maximum number of balls drawn
+	 * @param	integer	$top		Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649
+	 * @param	boolean	$bonus		If an extra / bonus ball is included (1 = TRUE, 0 = False)
+	 * @param	boolean $draws		If extra (bonus) draws are included in the calculation (1 = TRUE, 0 = FALSE)
+	 * @param  	integer	$range		Range of number of draws (default is 100). If less than 100, the number must be set in $range
+	 * @param 	string 	$last		last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
+	 * @param 	boolean	$duple		Duplicate extra ball. FALSE by default.  The extra can have the same number drawn based on the minimum and maximum number drawn
+	 * @return  boolean	$error		Default is False, True is exceeding the lottery draws range and in error.
+	 */
+	public function friends_hits($name, $max, $top, $bonus = 0, $draws = 0, $range = 100, $last = '', $duple = FALSE)
+	{
+		$error = $this->inrange($name,$range,$draws);
+
+		if(!$error) // The Range is good, let's do this!
+		{
+			global $relatives;
+			global $nonrelatives;
+			
+			$dbl_range = (int) ($range * 2)-1;  // Must be double the available draws available less the most recent draw
+			$range_ptr = 1; 					// range_ptr starts at the first draw (single Range)
+			$last_ball = $top;					// $top drawn ball is different when there is a duplicate extra ball
+			// Build Query
+			$s = 'ball'; 
+			$i = 1; 	// Default Ball 1
+			do
+			{	
+				$s .= $i;
+				$i++;
+				if($i<=$max) $s .= ', ball';
+			} 
+			while($i<=$max);
+
+			$s .= ', extra, draw_date'; // Include the draw date is this query
+
+			$w = (!$draws ? ' WHERE extra <> "0" ' : ' ');
+			$w .= (!empty($last)&&(!$draws) ? " AND draw_date <= '".$last."'" : "");
+			$w .= (!empty($last)&&($draws) ? " WHERE draw_date <= '".$last."'" : "");  
+			//$l = (!is_null($last) ? " WHERE draw_date <='".$last['draw_date']."'" : "");
+			
+			$b = 1; // Number 1 to Number N from the size of the Lottery
+			do
+			{
+				// Calculate
+				
+				$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
+				// Execute Query
+				$query = $this->db->query($sql);
+				$row = $query->first_row('array'); // Doing the reverse to the first row because of the descending order.
+				$friendlist = array();
+				$nonfriendlist = array();
+				$lowest_row = array(); 				// First Drawn numbers after followers occurred
+				$first = array();					// Lowest draw from the lowest row array
+				
+				do {
+					$blnExDup = ($bonus&&$duple&&($b==$row['extra']) ? TRUE : FALSE); // Has reached the extra number that is an independent and 
+																					// duplicate Extra ball (TRUE) or everything else is FALSE
+					if($this->is_drawn($b, $row, $max, $bonus)&&(!$blnExDup))		  // Must always be FALSE to place on the friends list
+					{
+						if(!is_null($row))
+						{
+							if(!empty($friendlist))
+							{
+								$friendlist = $this->update_friends($b, $friendlist, $row, $bonus);
+							}
+							else
+							{
+								$friendlist = $this->add_friends($b, $row, $bonus);
+							}
+						}
+						$row = $query->next_row('array'); // Go to the next draw for examination
+						if($range_ptr>=$range) // Reached or exceeded the half way point? If yes .. do the prize counts
+						{
+							// Step 2. Next Range of Draws will include the prize pool
+							$nonfriendlist = $this->nonfriends($friendlist, $b, $last_ball);
+							$relatives = $this->friends_hitcounts($bonus, $row, $friendlist, $nonfriendlist, $duple, $relatives);
+							$nonrelatives = $this->nonfriends_hitcounts($bonus, $row, $nonfriendlist, $duple, $nonrelatives);
+							$first = $lowest_row[0];
+							if(intval($range_ptr-$first['row'])>$range) // Only if the current row pointer
+																		// is out of range of the target range, remove draw. e.g. Range = 100 draws
+							{
+								$friendlist = $this->remove_oldfriends($friendlist, $first, $bonus);
+								if(!empty($nonfriendlist)) $nonrelatives = $this->remove_oldfriendslist($nonfriendlist, $first, $bonus);
+								array_shift($lowest_row); // Remove the lowest draw date freom the array, shift it off the beginning of the array
+							}
+						}
+					}
+					else
+					{
+						$row = $query->next_row('array');
+					}
+				$range_ptr++;
+				} while($range_ptr<$dbl_range(!is_null($row))); // Do until all draws complete
+			
+				$range_ptr = 1; // Reset the range for the next ball
+				$b++;
+				unset($friendlist);		// Destroy the old friendlist
+				unset($nonfriendlist);	// Destroy old nonfriendlist
+				$query->free_result();	// Removes the Memory associated with the result resource ID
+			} while ($b<=$top);
+		}
+	return $error; 
+	}
+
+		/**
+	 * Return the non existent friends after the current draw
+	 * @param	array	$list		Associative Array of followers and the counts
+	 * @param	integer	$exclude	Current Ball is excluded from the nonfriends. It can't be a friend to itself
+	 * @param	integer	$limit		Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649	
+	 * @return	string	$str		Return formatted string of all the non friends in that range that have NEVER followed a given ball.
+	 */
+	private function nonfriends($list, $exclude, $limit)
+	{
+		$non = array();
+		$index = 0;
+		for ($count = 1; $count <= $limit; $count++)
+		{
+			if (!array_key_exists($count, $list)&&($count!=$exclude)) // Include ONLY if that number has NEVER occurred
+			{
+				$non[index] = $count; 								 // Used as display only with a comma and space
+				$index++;
+			}
+		}
+
+	return $non;	// Return the non-friends
+	}
+
 	/**
 	 * Returns the list of evens, odds, number of occureeces and the percentage of the occurences for the given range
 	 * 
