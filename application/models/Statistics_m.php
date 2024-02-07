@@ -1461,12 +1461,12 @@ class Statistics_m extends MY_Model
 	}
 
 	/**
-	 * Returns only the prizes for the lottery
+	 * Returns the associative array of prizes for each ball played
 	 * 
 	 * @param 	array			$p			updated prize group, constant for each drawn number
 	 * @param 	integer			$min		Minimum Regular ball drawn e.g. 1
 	 * @param 	integer			$max		Maximum Regular ball drawn e.g. 49
-	 * @return	array 			$p_result	Returns the associated array of an associated array for number drawn (1, 2, 3, etc.) 
+	 * @return	array 			$p_result	Returns the associated array of an array for number drawn (1, 2, 3, etc.) 
 	 * 										and the win zeroed totals (3_win, 3_win_extra, 4_win, 4_win_extra, etc.)
 	 */
 	public function create_prize_array(array $p, $min, $max)
