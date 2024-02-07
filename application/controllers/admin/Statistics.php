@@ -468,6 +468,7 @@ class Statistics extends Admin_Controller {
 		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$low = $this->data['lottery']->minimum_ball;		// Regular Drawn Low ball e.g. ball 1
 		$high = $this->data['lottery']->maximum_ball;		// Regular Drawn High ball e.g. ball 49
+		global $positions;
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 		{
@@ -519,6 +520,7 @@ class Statistics extends Admin_Controller {
 			$prizes = $this->statistics_m->prizes_only($this->statistics_m->prize_group_profile($id)[0],$this->data['lottery']->extra_included);
  			$prizes = $this->statistics_m->create_prize_array($prizes, $low, $high);
 			$this->session->set_userdata('prizes',$prizes); // Set the empty set prize session
+			$positions = $this->statistics_m->create_position_prize_array($prizes, $drawn, $this->data['lottery']->extra_included);
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
 			$range = $this->uri->segment(5,0); // Return segment range
 			if(!$range) $range = $followers['range'];

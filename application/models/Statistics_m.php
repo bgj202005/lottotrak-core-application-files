@@ -1480,6 +1480,30 @@ class Statistics_m extends MY_Model
 	return $p_result;		//return array with 1 => '3_win' = 0, '3_win_extra' = 0
 	}
 
+	/**
+	 * Returns the associative array of prizes for each ball played
+	 * 
+	 * @param 	array			$p			updated prize group, constant for each drawn number
+	 * @param 	integer			$max_ball	Maximum Number of balls drawn. Excluding Extra
+	 * @param	booleaan		$ex			Extra Ball / Duplicate Extra Ball
+	 * @return	array 			$p_result	Returns the associated array for draw positions (position 1, position 2, position 3, etc.) 
+	 * 										and the win zeroed totals (3_win, 3_win_extra, 4_win, 4_win_extra, etc.)
+	 */
+	public function create_position_prize_array(array $p, $max_ball, $ex)
+	{
+		$p_result = array();
+		$pos = 1;  // Array begins with position 1
+		
+		do
+		{
+			$p_result[$pos] = $p; // Interste prize categories for each position
+			$pos++;
+		} while($pos<=$max_ball);
+		if($ex) $p_result['E'] = $p; // Only if the $extrs flag is set
+
+	return $p_result;		//return array with 1 => '3_win' = 0, '3_win_extra' = 0, e
+	}
+
 	/**  
 	 * Calculate the prize results for the follower and non follower group. E.g. Range is 100 will be 100 draws previous plus 100 draws with the prize pool
 	 * This does the follower group for each drawn number. For example, Canada 649 has 49 drawn numbers. The prizes will be calcalated for all balls
