@@ -564,6 +564,7 @@ class Statistics extends Admin_Controller {
 			$prizes = $this->statistics_m->prizes_only($this->statistics_m->prize_group_profile($id)[0],$this->data['lottery']->extra_included);
 			$prizes = $this->statistics_m->create_prize_array($prizes, $low, $high);
 			$this->session->set_userdata('prizes',$prizes); // Set an new empty set session 'prizes'
+			$positions = $this->statistics_m->create_position_prize_array($prizes, $drawn, $this->data['lottery']->extra_included);
 			// range is set with either less than 100 rows (based on the exact number of draws) or calculate the number of followers using only 100 rows
 			$range = ($all<100 ? $all : 100);
 			$max = $this->data['lottery']->maximum_ball;

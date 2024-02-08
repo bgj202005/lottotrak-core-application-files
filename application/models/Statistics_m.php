@@ -1529,6 +1529,7 @@ class Statistics_m extends MY_Model
 		if(!$error) // The Range is good, let's do this!
 		{
 			$prize_counts = $this->session->userdata('prizes');
+			global $positions;					// Wins only by positions e.g. position 1 ... position 6 (pick 6 game)
 			$dbl_range = (int) ($range * 2)-1;  // Must be double the available draws available less the most recent draw
 			$range_ptr = 1; 					// range_ptr starts at the first draw (single Range)
 			$last_ball = $top;					// $top drawn ball is different when there is a duplicate extra ball
@@ -1571,6 +1572,7 @@ class Statistics_m extends MY_Model
 					{
 						if($this->is_drawn($b, $row, $b_max, $bonus))
 						{
+							if ($range_ptr>=$range) $loc = $this->follower_positions($b,$row,$bonus);
 							if($duple) $extra = $row['extra'];
 							$row = $query->next_row('array');
 							$row['row'] = $range_ptr+1; 	// This is completed only within range
@@ -1606,6 +1608,7 @@ class Statistics_m extends MY_Model
 								// Step 2. Next Range of Draws will include the prize pool
 								$nonfollowlist = $this->non_followers($followlist, $last_ball);
 								$prize_counts[$b] = $this->follower_prizecounts($bonus, $row, $followlist, $nonfollowlist, $duple, ($duple ? $duplelist : FALSE), $prize_counts[$b]);
+								$positions[$loc] = $this->follower_positions_prizecounts($positions[$loc],$loc,$prize_counts[$b]);
 								$first = $lowest_row[0];
 								if(intval($range_ptr-$first['row'])>$range) // Only if the current row pointer
 																			// is out of range of the target range, remove draw. e.g. Range = 100 draws
@@ -1634,6 +1637,106 @@ class Statistics_m extends MY_Model
 		$this->session->set_userdata('prizes',$prize_counts); // Update the current prize counts
 		}
 	return $error;
+	}
+
+	/**
+	 * Determine the position in the draw for the current matching drawn number 
+	 * 
+	 * @param 	integer	$bl		Current ball examined
+	 * @param 	array	$dw		Associative Current Drawn Numbers
+	 * @param 	boolean	$ex		Boolean flag for the extra / bonus ball
+	 */
+	private function follower_positions($bl, $dw, $ex)
+	{
+		unset($dw['draw_date']); // don't require draw date
+		$pos_number = 1;
+		foreach($dw as $key => $value)
+		{
+			if($bl!=$value) $pos_number++;
+			elseif($bl==$value&&($ex))
+			{
+				$pos_number = 'e'; // Extra / Bonus position
+			}
+		}
+	return $pos_number;
+	}
+
+	/**
+	 * Determine the position in the draw for the current matching drawn number 
+	 * 
+	 * @param 	array	$p_wins	Curent Associative prizes array
+	 * @param 	integer	$l		Drae Position 1 through 9 (maximum) or 'e' for extra
+	 * @param 	array	$p		Wins Array from followers
+	 * @param 	return	$p_wins	Currents wins updated based on position 
+	 */
+	private function follower_positions_prizecounts($p_wins, $l, $p)
+	{
+		if($l!='e') 
+		{
+			switch($p) //* Only the prize pool balls and no extra (bonus) or duplicate extra
+			{
+				case 1:
+					if(array_key_exists('1_win', $p_wins)) ++$p_wins['1_win']; 
+					break;
+				case 2:
+					if(array_key_exists('2_win', $p_wins)) ++$p_wins['2_win'];			
+					break;
+				case 3:
+					if(array_key_exists('3_win', $p_wins)) ++$p_wins['3_win'];
+					break;
+				case 4:
+					if(array_key_exists('4_win', $p_wins)) ++$p_wins['4_win'];
+					break;
+				case 5:
+					if(array_key_exists('5_win', $p_wins)) ++$p_wins['5_win'];
+					break;
+				case 6:
+					if(array_key_exists('6_win', $p_wins)) ++$p_wins['6_win'];
+					break;
+				case 7:
+					if(array_key_exists('7_win', $p_wins)) ++$p_wins['7_win'];
+					break;
+				case 8:
+					if(array_key_exists('8_win', $p_wins)) ++$p_wins['8_win'];
+					break;
+				case 9:
+					if(array_key_exists('9_win', $p_wins)) ++$p_wins['9_win'];
+			}
+		} 
+		else //* Only the prize pool balls and with an extra (bonus) ball AND/OR duplicate ball
+		{
+			switch($p) 
+			{
+				case 1:
+					if(array_key_exists('extra', $p_wins)) ++$p_wins['extra']; 
+					break;
+				case 2:
+					if(array_key_exists('1_win_extra', $p_wins)) ++$p_wins['1_win_extra'];			
+					break;
+				case 3:
+					if(array_key_exists('2_win_extra', $p_wins)) ++$p_wins['2_win_extra'];
+					break;
+				case 4:
+					if(array_key_exists('3_win_extra', $p_wins)) ++$p_wins['3_win_extra'];
+					break;
+				case 5:
+					if(array_key_exists('4_win_extra', $p_wins)) ++$p_wins['4_win_extra'];
+					break;
+				case 6:
+					if(array_key_exists('5_win_extra', $p_wins)) ++$p_wins['5_win_extra'];
+					break;
+				case 7:
+					if(array_key_exists('6_win_extra', $p_wins)) ++$p_wins['6_win_extra'];
+					break;
+				case 8:
+					if(array_key_exists('7_win_extra', $p_wins)) ++$p_wins['7_win_extra'];
+					break;
+				case 9:
+					if(array_key_exists('8_win_extra', $p_wins)) ++$p_wins['8_win_extra'];
+			}
+		}
+
+	return $p_wins;
 	}
 
 	/**
