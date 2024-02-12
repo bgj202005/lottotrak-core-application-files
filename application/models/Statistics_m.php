@@ -1432,7 +1432,28 @@ class Statistics_m extends MY_Model
 	{	
 		$query = $this->db->query('SELECT * FROM `lottery_prize_profiles` WHERE `lottery_id` ='.$id.';');
 		
-	return $query->result_array(); // Return the Lottery Prize Pool for analysis
+	return $this->prize_group_nonnulls($query->result_array()); // Return the Lottery Prize Pool for analysis
+	}
+
+	/**
+	 * Returns only the actual prize categories that exist
+	 * 
+	 * @param 	array	$p	Prize Group Profile
+	 * @return	array	$pool 	Prize Group without Prizes that are NULL or non-existent prize categories
+	 */
+	private function prize_group_nonnulls(array $p)
+	{	
+
+		$pool = $p[0];
+		unset($pool['lottery_id']); // both lottery id and id not required for this return
+		unset ($pool['id']);
+		
+		foreach($pool as $key => $value)
+		{
+			if($value==NULL) unset($pool[$key]);
+		}
+		
+	return $pool;
 	}
 
 	/**
@@ -1444,14 +1465,11 @@ class Statistics_m extends MY_Model
 	 */
 	public function prizes_only(array $p, $e)	
 	{
-		unset($p['lottery_id']); // both lottery id and id not required
-		unset ($p['id']);
 
 		// ** important ** Eliminate all non-winning fields 
 		foreach($p as $onlywins => $prizes)
 		{
-			if($prizes == NULL) unset($p[$onlywins]);
-			else (int) $p[$onlywins] = 0; 				// Active Win Categories. Will be used as a counter and all values are set to 0.
+			(int) $p[$onlywins] = 0;	// Active Win Categories. Will be used as a counter and all values are set to 0.
 			 if (!$e&&(strpos($onlywins, 'extra')) !== FALSE) 
 			 {
         		unset($p[$onlywins]);
@@ -1484,12 +1502,12 @@ class Statistics_m extends MY_Model
 	 * Returns the associative array of prizes for each ball played
 	 * 
 	 * @param 	array			$p			updated prize group, constant for each drawn number
-	 * @param 	integer			$max_ball	Maximum Number of balls drawn. Excluding Extra
+	 * @param 	integer			$max_drawn	Maximum Number of balls drawn. Excluding Extra
 	 * @param	booleaan		$ex			Extra Ball / Duplicate Extra Ball
 	 * @return	array 			$p_result	Returns the associated array for draw positions (position 1, position 2, position 3, etc.) 
 	 * 										and the win zeroed totals (3_win, 3_win_extra, 4_win, 4_win_extra, etc.)
 	 */
-	public function create_position_prize_array(array $p, $max_ball, $ex)
+	public function create_positions_prize_array(array $p, $max_drawn, $ex)
 	{
 		$p_result = array();
 		$pos = 1;  // Array begins with position 1
@@ -1498,7 +1516,7 @@ class Statistics_m extends MY_Model
 		{
 			$p_result[$pos] = $p; // Interste prize categories for each position
 			$pos++;
-		} while($pos<=$max_ball);
+		} while($pos<=$max_drawn);
 		if($ex) $p_result['E'] = $p; // Only if the $extrs flag is set
 
 	return $p_result;		//return array with 1 => '3_win' = 0, '3_win_extra' = 0, e
@@ -1572,7 +1590,7 @@ class Statistics_m extends MY_Model
 					{
 						if($this->is_drawn($b, $row, $b_max, $bonus))
 						{
-							if ($range_ptr>=$range) $loc = $this->follower_positions($b,$row,$bonus);
+							if ($range_ptr>=$range) $loc = $this->followers_positions($b,$row,$bonus);
 							if($duple) $extra = $row['extra'];
 							$row = $query->next_row('array');
 							$row['row'] = $range_ptr+1; 	// This is completed only within range
@@ -1607,8 +1625,8 @@ class Statistics_m extends MY_Model
 							{
 								// Step 2. Next Range of Draws will include the prize pool
 								$nonfollowlist = $this->non_followers($followlist, $last_ball);
-								$prize_counts[$b] = $this->follower_prizecounts($bonus, $row, $followlist, $nonfollowlist, $duple, ($duple ? $duplelist : FALSE), $prize_counts[$b]);
-								$positions[$loc] = $this->follower_positions_prizecounts($positions[$loc],$loc,$prize_counts[$b]);
+								$prize_counts[$b] = $this->followers_prizecounts($bonus, $row, $followlist, $nonfollowlist, $duple, ($duple ? $duplelist : FALSE), $prize_counts[$b]);
+								if(isset($loc)) $positions[$loc] = $this->followers_positions_prizecounts($positions[$loc],$loc,$prize_counts[$b]);
 								$first = $lowest_row[0];
 								if(intval($range_ptr-$first['row'])>$range) // Only if the current row pointer
 																			// is out of range of the target range, remove draw. e.g. Range = 100 draws
@@ -1646,7 +1664,7 @@ class Statistics_m extends MY_Model
 	 * @param 	array	$dw		Associative Current Drawn Numbers
 	 * @param 	boolean	$ex		Boolean flag for the extra / bonus ball
 	 */
-	private function follower_positions($bl, $dw, $ex)
+	private function followers_positions($bl, $dw, $ex)
 	{
 		unset($dw['draw_date']); // don't require draw date
 		$pos_number = 1;
@@ -1655,7 +1673,7 @@ class Statistics_m extends MY_Model
 			if($bl!=$value) $pos_number++;
 			elseif($bl==$value&&($ex))
 			{
-				$pos_number = 'e'; // Extra / Bonus position
+				$pos_number = 'E'; // (E)xtra / Bonus position
 			}
 		}
 	return $pos_number;
@@ -1669,7 +1687,7 @@ class Statistics_m extends MY_Model
 	 * @param 	array	$p		Wins Array from followers
 	 * @param 	return	$p_wins	Currents wins updated based on position 
 	 */
-	private function follower_positions_prizecounts($p_wins, $l, $p)
+	private function followers_positions_prizecounts($p_wins, $l, $p)
 	{
 		if($l!='e') 
 		{
@@ -1751,7 +1769,7 @@ class Statistics_m extends MY_Model
 	 * @param 	array	$p			Associative Prizes Array with current counts
 	 * @return	array	$hits		Return the updated associative prizes with counts 
 	 */
-	private function follower_prizecounts($ex, $r, $fl, $nonfl, $df, $da, $p)
+	private function followers_prizecounts($ex, $r, $fl, $nonfl, $df, $da, $p)
 	{
 		// Initialize Counters
 		$prizes_cnt = 0; 			// init prize counter amd ball counter
@@ -1971,10 +1989,10 @@ class Statistics_m extends MY_Model
 
 	/**
 	 * Return the formatted string of prizes for each ball drawn. e/g 1>10,27,24,22,10,5,2,0<2>10,27,24,22,10,5,2,0 ... etc.
-	 * @param	array	$p			Associative Array of prizes and the counts, directly from the session
+	 * @param	array	$p			Associative Array of prizes and the counts, directly from the prize session
 	 * @return	string	$str		Return formatted string of the follower numbers with the counts in this format, 10>3=4|22=3
 	 */
-	public function prize_string($p)
+	public function followers_prize_string($p)
 	{
 		$str = "";	// Start with an empty string
 		if(!is_null($p))
@@ -1988,6 +2006,30 @@ class Statistics_m extends MY_Model
 				}
 				$str= substr($str, 0, -1);	
 			$str .= "<";
+			}
+		}
+	return substr($str, 0, -1);		// Return the prizes for each number drawn
+	}
+
+	/**
+	 * Return the formatted string of prizes for each position, 1>10,27,24,22,10,5,2,02>10,27,24,22,10,5,2,03>10,27,24,22,10,5,2,0
+	 * 4>10,27,24,22,10,5,2,05>10,27,24,22,10,5,2,06>10,27,24,22,10,5,2,0E>10,27,24,22,10,5,2,0 
+	 * @param	array	$p			Associative Array of prizes and the counts, directly from the (global) position prize array
+	 * @return	string	$str		Return formatted string of the follower numbers with the counts in this format, 10>3=4|22=3
+	 */
+	public function followers_positions_prize_string($p)
+	{
+		$str = "";	// Start with an empty string and the left bracket
+		if(!is_null($p))
+		{
+			foreach($p as $ball => $prizes)
+			{
+				$str .= $ball.">";
+				foreach($prizes as $prize => $total)
+				{
+					$str .= $total.",";
+				}
+				$str= substr($str, 0, -1);	
 			}
 		}
 	return substr($str, 0, -1);		// Return the prizes for each number drawn
