@@ -1668,13 +1668,15 @@ class Statistics_m extends MY_Model
 	{
 		unset($dw['draw_date']); // don't require draw date
 		$pos_number = 1;
-		foreach($dw as $key => $value)
+		
+		$key = array_search($bl,$dw);  // Returns the key
+		if($key!='extra')
 		{
-			if($bl!=$value) $pos_number++;
-			elseif($bl==$value&&($ex))
-			{
-				$pos_number = 'E'; // (E)xtra / Bonus position
-			}
+			$pos_number = filter_var($key, FILTER_SANITIZE_NUMBER_INT); // Strip the string portion
+		}
+		elseif($key=='extra'&&($ex))
+		{
+			$pos_number = 'E'; // (E)xtra / Bonus position
 		}
 	return $pos_number;
 	}
