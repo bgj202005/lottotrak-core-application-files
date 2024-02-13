@@ -1668,13 +1668,26 @@ class Statistics_m extends MY_Model
 	{
 		unset($dw['draw_date']); // don't require draw date
 		$pos_number = 1;
+		$key = array_search($bl,$dw); // Ball = 1 and key is ball1. Position is 1
+		
+		if($key)
+		{
+
+		}
+		
 		foreach($dw as $key => $value)
 		{
-			if($bl!=$value) $pos_number++;
-			elseif($bl==$value&&($ex))
+			if($bl!=$value) 
+			{
+				$pos_number++;
+				break;		// look no further
+			}
+			if($bl==$value&&($ex))
 			{
 				$pos_number = 'E'; // (E)xtra / Bonus position
+				break;		// look no further
 			}
+
 		}
 	return $pos_number;
 	}
@@ -2019,12 +2032,12 @@ class Statistics_m extends MY_Model
 	 */
 	public function followers_positions_prize_string($p)
 	{
-		$str = "";	// Start with an empty string and the left bracket
+		$str = "<";	// Start with an empty string and the left bracket
 		if(!is_null($p))
 		{
 			foreach($p as $ball => $prizes)
 			{
-				$str .= $ball.">";
+				$str .= '<'.$ball.">";
 				foreach($prizes as $prize => $total)
 				{
 					$str .= $total.",";
