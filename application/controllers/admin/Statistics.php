@@ -1522,7 +1522,7 @@ class Statistics extends Admin_Controller {
 		{
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
 			$p_group = $this->statistics_m->prize_group_profile($id);
-			$p_group = $this->statistics_m->prizes_only($p_group,$lotto->extra_included);
+			$p_group = $this->statistics_m->prizes_only($p_group,$followers['extra_included']);
  			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
 			if($this->session->has_userdata('prizes')) $this->session->set_userdata('prizes',$prizes);
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $followers['extra_included']);
