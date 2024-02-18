@@ -791,7 +791,7 @@ class Statistics_m extends MY_Model
 
 		$dec_ave = $query->row();
 		
-	return (integer) round($dec_ave->average_decade,0); // Returns the average maximum decade rounded off
+	return  ceil($dec_ave->average_decade); // Returns the average maximum decade rounded off
 	}
 	/**
 	 * Returns the number of maximum number of repeating last digits for the current drawn numbers
@@ -813,9 +813,9 @@ class Statistics_m extends MY_Model
 		$query = $this->db->query($sql);
 		if (!$query) return FALSE;	
 
-		$last_ave = $query->row();
-		
-	return (integer) round($last_ave,0); // Returns the average maximum decade rounded off
+		$result = $query->row();
+	
+	return ceil($result->average_last); // Returns the average maximum decade rounded off
 	}
 	/**
 	 * If existing Record for the Followers table exist
