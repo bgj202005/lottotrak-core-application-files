@@ -1546,7 +1546,8 @@ class Statistics_m extends MY_Model
 		 
 		if(!$error) // The Range is good, let's do this!
 		{
-			$prize_counts = $this->session->userdata('prizes');
+			global $prizes;						// Retrieve Global $prizes array
+			$prize_counts = $prizes;
 			global $positions;					// Wins only by positions e.g. position 1 ... position 6 (pick 6 game)
 			$dbl_range = (int) ($range * 2)-1;  // Must be double the available draws available less the most recent draw
 			$range_ptr = 1; 					// range_ptr starts at the first draw (single Range)
@@ -1650,9 +1651,9 @@ class Statistics_m extends MY_Model
 				unset($followlist);				// Destroy the old followerlist
 				unset($nonfollowlist);			// non follower list
 				if($duple) unset($duplelist); 	// duplicate extra list
-				$query->free_result();	// Removes the Memory associated with the result resource ID
-			} while ($b<=$last_ball); 	// Not maximum balls drawn but the last ball drawn for this lottery
-		$this->session->set_userdata('prizes',$prize_counts); // Update the current prize counts
+				$query->free_result();		// Removes the Memory associated with the result resource ID
+			} while ($b<=$last_ball); 		// Not maximum balls drawn but the last ball drawn for this lottery
+			$prizes = $prize_counts;		// Update the prize informaton for each ball
 		}
 	return $error;
 	}

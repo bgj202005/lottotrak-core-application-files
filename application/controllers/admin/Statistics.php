@@ -461,7 +461,6 @@ class Statistics extends Admin_Controller {
 	{
 		$this->data['message'] = '';	// Defaulted to No Error Messages
 		$this->data['lottery'] = $this->lotteries_m->get($id);
-		if($this->session->has_userdata('prizes')) $this->session->unset_userdata('prizes');
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$blnduplicate = ($this->data['lottery']->duplicate_extra_ball ? TRUE : FALSE);
@@ -469,6 +468,8 @@ class Statistics extends Admin_Controller {
 		$low = $this->data['lottery']->minimum_ball;		// Regular Drawn Low ball e.g. ball 1
 		$high = $this->data['lottery']->maximum_ball;		// Regular Drawn High ball e.g. ball 49
 		global $positions;									// ** New ** Prize Wins based on the position of the ball drawn and not the ball itself
+		global $prizes;										// prizes are global to model methods
+		$prizes = array();
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 		{
@@ -520,7 +521,7 @@ class Statistics extends Admin_Controller {
 			$p_group = $this->statistics_m->prize_group_profile($id); // Prize Group Profile Only
 			$p_group = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_included);
  			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
-			$this->session->set_userdata('prizes',$prizes); // Set the empty set prize session
+
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
 			$range = $this->uri->segment(5,0); // Return segment range
@@ -534,7 +535,7 @@ class Statistics extends Admin_Controller {
 					$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
 					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, '', $blnduplicate);
 					$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
-					$str_prizes  = (!$outofrange ? $this->statistics_m->followers_prize_string($this->session->userdata('prizes')) : ''); 
+					$str_prizes  = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
 					//$str_positions_prizes = '';
 					$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
 					/** NEW included nonfollower calculations **/
@@ -568,7 +569,7 @@ class Statistics extends Admin_Controller {
 			$p_group = $this->statistics_m->prize_group_profile($id); // Prize Group Profile Only
 			$prizes = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_included);
 			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
-			$this->session->set_userdata('prizes',$prizes); // Set an new empty set session 'prizes'
+
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
 			// range is set with either less than 100 rows (based on the exact number of draws) or calculate the number of followers using only 100 rows
 			$range = ($all<100 ? $all : 100);
@@ -576,7 +577,7 @@ class Statistics extends Admin_Controller {
 			$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
 			$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, ''. $blnduplicate);
 			$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
-			$str_prizes = ($outofrange ? $this->statistics_m->followers_prize_string($this->session->userdata('prizes')) : ''); 
+			$str_prizes = ($outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
 			//$str_positions_prizes = '';
 			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
 			$followers = array(
@@ -628,7 +629,7 @@ class Statistics extends Admin_Controller {
 				$this->data['lottery']->last_drawn[$n.'nf'] = $nf;
 			}
 		}
-		$this->session->unset_userdata('prizes');						// Remove this array, free up memory
+		unset($prizes);													// Remove this array, free up memory
 		$this->data['lottery']->out_of_range = $outofrange; 			// Is there enough draws to calculate the prizes?
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
