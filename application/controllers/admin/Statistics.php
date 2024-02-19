@@ -1501,6 +1501,7 @@ class Statistics extends Admin_Controller {
 		$drawn = $lotto->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$low = $lotto->minimum_ball;		// Regular Drawn Low ball e.g. ball 1
 		$high = $lotto->maximum_ball;		// Regular Drawn High ball e.g. ball 49
+		global $prizes;						// $prizes is global to statistics_m(odel) methods
 		global $positions;					// ** New ** Prize Wins based on the position of the ball drawn and not the ball itself
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl))
@@ -1525,13 +1526,13 @@ class Statistics extends Admin_Controller {
 			$p_group = $this->statistics_m->prize_group_profile($id);
 			$p_group = $this->statistics_m->prizes_only($p_group,$followers['extra_included']);
  			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
-			if($this->session->has_userdata('prizes')) $this->session->set_userdata('prizes',$prizes);
+
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $followers['extra_included']);
 
 			$range = $followers['range'];
 			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range,'',$blnduplicate);
 			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $max, '', $blnduplicate, $mx_extra);
-			$str_prizes = ($outofrange ? $this->statistics_m->followers_prize_string($this->session->userdata('prizes')) : ''); 
+			$str_prizes = ($outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
 			//$str_positions_prizes = '';
 			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
 			/** NEW included nonfollower calculations **/
@@ -1562,12 +1563,12 @@ class Statistics extends Admin_Controller {
 			$p_group = $this->statistics_m->prize_group_profile($id);
 			$p_group = $this->statistics_m->prizes_only($p_group,$followers['extra_included']);
  			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
-			if($this->session->has_userdata('prizes')) $this->session->set_userdata('prizes',$prizes);
+
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $followers['extra_included']);
 			
 			$range = ($all<100 ? $all : 100);
 			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $max, '', $blnduplicate, $mx_extra);
-			$str_prizes = ($outofrange ? $this->statistics_m->followers_prize_string($this->session->userdata('prizes')) : ''); 
+			$str_prizes = ($outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
 			//$str_positions_prizes = '';
 			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
 			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, 0, 0, $range,'',$blnduplicate);
@@ -1590,6 +1591,7 @@ class Statistics extends Admin_Controller {
 			);
 			$this->statistics_m->nonfollower_data_save($nonfollowers, FALSE);
 		}
+		unset($prizes);			// Remove the $prize array - Free up memory 
 	}
 
 	/**
