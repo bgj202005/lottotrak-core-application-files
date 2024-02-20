@@ -2493,11 +2493,11 @@ class Statistics_m extends MY_Model
 
 	/**
 	* Return the relationships of a friend, e.g. # of non-friendship draws, # of 1-way friendships draws, #2 of 2-way friendships draws
-	* @param	array	$rel		Associative Array of the commulative totals for the different friendships
-	* @param	array	$fl			Associiative Array
+	* @param	array	$rel		Associative Array of relatives for the different friendships
+	* @param	array	$fl			Associative Array of followers
 	* @param	array	$rw			Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649
-	* @param	boolean	$b			Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649
-	* @param	boolean	$d			Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649
+	* @param	boolean	$b			Bonus Flag, 0 = No Bonus / Extra, 1 = No Bonus / Extra Included
+	* @param	boolean	$d			Duplicate Flag, 0 = No Duplicate, 1 = Duplicate Extra Ball
 	* @return	array	$rel		Return formatted string of all the non friends in that range that have NEVER followed a given ball.
 	*/
 	private function friends_hitcounts($rel, $fl, $rw, $b, $d)
@@ -2515,8 +2515,8 @@ class Statistics_m extends MY_Model
 	* @param	array	$nonrel		Associative Array of followers and the counts
 	* @param	array	$nonfl		Current Ball is excluded from the nonfriends. It can't be a friend to itself
 	* @param	array	$rw			Current Row of Next Drawn numbers
-	* @param	boolean	$b			Bonus Flag
-	* @param	boolean	$d			Duplicate Flag
+	* @param	boolean	$b			Bonus Flag, 0 = No Bonus / Extra, 1 = No Bonus / Extra Included
+	* @param	boolean	$d			Duplicate Flag, 0 = No Duplicate, 1 = Duplicate Extra Ball
 	* @return	array	$rel		Return Associated Array of updated totals
 	*/
 	private function nonfriends_hitcounts($nonrel, $nonfl, $rw, $b, $d)
