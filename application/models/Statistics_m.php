@@ -2055,9 +2055,9 @@ class Statistics_m extends MY_Model
 	/**
 	 * Initializes the number of 0 draws with nonfriendships, 1 draws with nonfriendships, 2 to 4 draws with nonfriendships
 	 * @param 	none			
-	 * @return	array	$f_init	return array with draws of non-friends (0-nfdraws), draws of 1 non-friends 1-nfdraws, 
-	 * 					2 draws of non-friendships (2-nfdraws), 3 draws of non-friendships (3-nfdraws),
-	 * 					4 draws of non-friendships (4-nfdraws)
+	 * @return	array	$f_init		return array with draws of non-friends (0-nfdraws), draws of 1 non-friends 1-nfdraws, 
+	 * 								2 draws of non-friendships (2-nfdraws), 3 draws of non-friendships (3-nfdraws),
+	 * 								4 draws of non-friendships (4-nfdraws)
 	 */
 	public function create_nonfriend_array()
 	{
@@ -2084,8 +2084,7 @@ class Statistics_m extends MY_Model
 	 */
 	 public function friends_calculate($name, $max, $top, $bonus = 0, $draws = 0, $range = 100, $last = '', $duple = FALSE)
 	{
-		global $relatives;
-		global $nonrelatives;
+
 		// Build Query
 		$s = 'ball'; 
 		$i = 1; 	// Default Ball 1
@@ -2378,8 +2377,9 @@ class Statistics_m extends MY_Model
 
 		if(!$error) // The Range is good, let's do this!
 		{
-			global $relatives;
-			global $nonrelatives;
+			global $relatives;		// friendship array win totals for non friendship wins, 1 - way friendships and 2 way friendships
+			global $nonrelatives;	// non friendship array win totals for non friendships, 1 non-friendship win occurence, 2 non-friendship
+									// win occurences, 3 non-friendship win occurences, and 4 non-friendship win occurrences  
 			
 			$dbl_range = (int) ($range * 2)-1;  // Must be double the available draws available less the most recent draw
 			$range_ptr = 1; 					// range_ptr starts at the first draw (single Range)
@@ -2437,8 +2437,10 @@ class Statistics_m extends MY_Model
 						{
 							// Step 2. Next Range of Draws will include the prize pool
 							$nonfriendlist = $this->nonfriends($friendlist, $b, $last_ball);
-							$relatives = $this->friends_hitcounts($bonus, $row, $friendlist, $nonfriendlist, $duple, $relatives);
-							$nonrelatives = $this->nonfriends_hitcounts($bonus, $row, $nonfriendlist, $duple, $nonrelatives);
+							$friendlist = (!empty($friendlist) ? $this->duplicate_friends($friendlist) : NULL);
+							
+							$relatives = $this->friends_hitcounts($relatives, $friendlist, $row, $bonus, $duple);
+							$nonrelatives = $this->nonfriends_hitcounts($nonrelatives, $nonfriendlist, $row, $bonus, $duple);
 							$first = $lowest_row[0];
 							if(intval($range_ptr-$first['row'])>$range) // Only if the current row pointer
 																		// is out of range of the target range, remove draw. e.g. Range = 100 draws
@@ -2466,13 +2468,13 @@ class Statistics_m extends MY_Model
 	return $error; 
 	}
 
-		/**
-	 * Return the non existent friends after the current draw
-	 * @param	array	$list		Associative Array of followers and the counts
-	 * @param	integer	$exclude	Current Ball is excluded from the nonfriends. It can't be a friend to itself
-	 * @param	integer	$limit		Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649	
-	 * @return	string	$str		Return formatted string of all the non friends in that range that have NEVER followed a given ball.
-	 */
+	/**
+	* Return the non existent friends after the current draw
+	* @param	array	$list		Associative Array of followers and the counts
+	* @param	integer	$exclude	Current Ball is excluded from the nonfriends. It can't be a friend to itself
+	* @param	integer	$limit		Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649	
+	* @return	string	$str		Return formatted string of all the non friends in that range that have NEVER followed a given ball.
+	*/
 	private function nonfriends($list, $exclude, $limit)
 	{
 		$non = array();
@@ -2487,6 +2489,41 @@ class Statistics_m extends MY_Model
 		}
 
 	return $non;	// Return the non-friends
+	}
+
+	/**
+	* Return the relationships of a friend, e.g. # of non-friendship draws, # of 1-way friendships draws, #2 of 2-way friendships draws
+	* @param	array	$rel		Associative Array of the commulative totals for the different friendships
+	* @param	array	$fl			Associiative Array
+	* @param	array	$rw			Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649
+	* @param	boolean	$b			Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649
+	* @param	boolean	$d			Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649
+	* @return	array	$rel		Return formatted string of all the non friends in that range that have NEVER followed a given ball.
+	*/
+	private function friends_hitcounts($rel, $fl, $rw, $b, $d)
+	{
+		$rel = array();
+		
+
+	return $rel;	// Return the friendship relationship counts.
+	}
+
+	/**
+	* Return the non friendships that were drawn (totals). Number of 0 draws with no friendships,
+	* Draws with only 1 non-friend in the draw, 2 non-friends in the draw, 3 non-friends in the draw
+	* or 4 non-friends in the draw
+	* @param	array	$nonrel		Associative Array of followers and the counts
+	* @param	array	$nonfl		Current Ball is excluded from the nonfriends. It can't be a friend to itself
+	* @param	array	$rw			Current Row of Next Drawn numbers
+	* @param	boolean	$b			Bonus Flag
+	* @param	boolean	$d			Duplicate Flag
+	* @return	array	$rel		Return Associated Array of updated totals
+	*/
+	private function nonfriends_hitcounts($nonrel, $nonfl, $rw, $b, $d)
+	{
+		$nonfl = array();
+		
+	return $nonfl;	// Return the non-friends
 	}
 
 	/**
