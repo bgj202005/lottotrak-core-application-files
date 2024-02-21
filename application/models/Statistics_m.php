@@ -2493,17 +2493,29 @@ class Statistics_m extends MY_Model
 
 	/**
 	* Return the relationships of a friend, e.g. # of non-friendship draws, # of 1-way friendships draws, #2 of 2-way friendships draws
-	* @param	array	$rel		Associative Array of relatives for the different friendships
-	* @param	array	$fl			Associative Array of followers
-	* @param	array	$rw			Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649
+	* @param	array	$rel		Associative Array of relatives for different friendships
+	* @param	array	$fl			Associative Array of current followers
+	* @param	array	$rw			Current next row of drawn numbers. Compared with the current followers
 	* @param	boolean	$b			Bonus Flag, 0 = No Bonus / Extra, 1 = No Bonus / Extra Included
 	* @param	boolean	$d			Duplicate Flag, 0 = No Duplicate, 1 = Duplicate Extra Ball
-	* @return	array	$rel		Return formatted string of all the non friends in that range that have NEVER followed a given ball.
+	* @return	array	$rel		Return Array of updated relatives
 	*/
 	private function friends_hitcounts($rel, $fl, $rw, $b, $d)
 	{
-		$rel = array();
+		// $fl is the search array
 		
+		foreach($rw as $drawn => $ball)
+		{
+			if(array_key_exists($ball,$fl)&&($b)&&(!$d))
+			{
+				// Two way
+				//if($fl[$ball]==$ball) $rel +=
+
+				// One way
+
+				// no friends
+			}
+		}
 
 	return $rel;	// Return the friendship relationship counts.
 	}
@@ -2512,18 +2524,18 @@ class Statistics_m extends MY_Model
 	* Return the non friendships that were drawn (totals). Number of 0 draws with no friendships,
 	* Draws with only 1 non-friend in the draw, 2 non-friends in the draw, 3 non-friends in the draw
 	* or 4 non-friends in the draw
-	* @param	array	$nonrel		Associative Array of followers and the counts
-	* @param	array	$nonfl		Current Ball is excluded from the nonfriends. It can't be a friend to itself
-	* @param	array	$rw			Current Row of Next Drawn numbers
+	* @param	array	$nonrel		Associative Array of non relatives and the counts
+	* @param	array	$nonfl		Associative Array of current non followers
+	* @param	array	$rw			Current next row of drawn numbers. Compared with the current followers
 	* @param	boolean	$b			Bonus Flag, 0 = No Bonus / Extra, 1 = No Bonus / Extra Included
-	* @param	boolean	$d			Duplicate Flag, 0 = No Duplicate, 1 = Duplicate Extra Ball
-	* @return	array	$rel		Return Associated Array of updated totals
+	* @param	boolean	$d			Duplicate Flag, 0 = No Duplicate lottery, 1 = Duplicate Extra Ball lottery
+	* @return	array	$nonrel		Return Associated Array of non relatives updated 
 	*/
 	private function nonfriends_hitcounts($nonrel, $nonfl, $rw, $b, $d)
 	{
-		$nonfl = array();
+		$nonrel = array();
 		
-	return $nonfl;	// Return the non-friends
+	return $nonrel;	// Return the non-friends
 	}
 
 	/**
