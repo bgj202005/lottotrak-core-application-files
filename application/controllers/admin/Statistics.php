@@ -577,7 +577,7 @@ class Statistics extends Admin_Controller {
 			$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
 			$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, ''. $blnduplicate);
 			$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
-			$str_prizes = ($outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
+			$str_prizes = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
 			//$str_positions_prizes = '';
 			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
 			$followers = array(
@@ -1532,7 +1532,7 @@ class Statistics extends Admin_Controller {
 			$range = $followers['range'];
 			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range,'',$blnduplicate);
 			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $max, '', $blnduplicate, $mx_extra);
-			$str_prizes = ($outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
+			$str_prizes = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
 			//$str_positions_prizes = '';
 			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
 			/** NEW included nonfollower calculations **/
@@ -1568,7 +1568,7 @@ class Statistics extends Admin_Controller {
 			
 			$range = ($all<100 ? $all : 100);
 			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $max, '', $blnduplicate, $mx_extra);
-			$str_prizes = ($outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
+			$str_prizes = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
 			//$str_positions_prizes = '';
 			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
 			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, 0, 0, $range,'',$blnduplicate);
