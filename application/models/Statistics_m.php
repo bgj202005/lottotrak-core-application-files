@@ -2508,7 +2508,7 @@ class Statistics_m extends MY_Model
 
 		foreach($rw as $drawn => $ball)
 		{
-			if(array_key_exists($ball,$fl)&&($b)&&(!$d))
+			if(array_key_exists($ball,$fl)&&($b)&&((!$d||($d&&$drawn!='extra'))))
 			{
 				$blnfound = TRUE;
 				// Two way
@@ -2535,8 +2535,34 @@ class Statistics_m extends MY_Model
 	*/
 	private function nonfriends_hitcounts($nonrel, $nonfl, $rw, $b, $d)
 	{
-		$nonrel = array();
+		$hit_counter=0;	// Non - Friend Counter
 		
+		foreach($rw as $drawn => $ball)
+		{
+			if(array_key_exists($ball,$nonfl)&&($b)&&(!$d||($d&&$drawn!='extra')))
+			{
+				++$hit_counter;
+			}
+		}
+
+		switch($hit_counter) 
+			{
+				case 0:
+					if(array_key_exists('0-nfdraws', $nonrel)) ++$nonrel['0-nfdraws']; 
+					break;
+				case 1:
+					if(array_key_exists('1-nfdraws', $nonrel)) ++$nonrel['1-nfdraws'];			
+					break;
+				case 2:
+					if(array_key_exists('2-nfdraws', $nonrel)) ++$nonrel['2-nfdraws'];
+					break;
+				case 3:
+					if(array_key_exists('3-nfdraws', $nonrel)) ++$nonrel['3-nfdraws'];
+					break;
+				case 4:
+					if(array_key_exists('4-nfdraws', $nonrel)) ++$nonrel['4-nfdraws'];
+			}
+
 	return $nonrel;	// Return the non-friends
 	}
 
