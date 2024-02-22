@@ -2503,19 +2503,21 @@ class Statistics_m extends MY_Model
 	private function friends_hitcounts($rel, $fl, $rw, $b, $d)
 	{
 		// $fl is the search array
-		
+			
+		$blnfound = FALSE;
+
 		foreach($rw as $drawn => $ball)
 		{
 			if(array_key_exists($ball,$fl)&&($b)&&(!$d))
 			{
+				$blnfound = TRUE;
 				// Two way
-				//if($fl[$ball]==$ball) $rel +=
-
-				// One way
-
+				if(isset($fl[$ball])) ++$rel['two-way'];
+				elseif(!isset($fl[$ball])) ++$rel['one-way'];
 				// no friends
 			}
 		}
+		if(!$blnfound) ++$rel['nofriends']; 
 
 	return $rel;	// Return the friendship relationship counts.
 	}
