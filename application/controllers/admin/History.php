@@ -265,6 +265,60 @@ class History extends Admin_Controller {
 		$this->data['history'] = $this;				// Access the methods in the view
 		$this->load->view('admin/_layout_main', $this->data);
 	}
+
+	/**
+	 * Display the win history based on the hots, warms, colds positional hits.  
+	 * 
+	 * @param	integer		$id		Lottery id
+	 * @return 	none	
+	 * */
+	public function hwc($id)
+	{
+		// Fetch the selected lottery from the database
+		$this->data['message'] = '';						// Defaulted to No Error Messages
+		$blnheat = FALSE;									// CHANGE flag. default is FALSE, 
+															//if the form was submitted, the database values will compared to the submitted ones.
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		// Retrieve the lottery table name for the database
+		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		$blnduplicate = ($this->data['lottery']->duplicate_extra_ball ? TRUE : FALSE);
+		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
+		$max_ball = $this->data['lottery']->maximum_ball;	// Get the highest ball drawn for this lottery, e.g. 49 in Lottery 649, 50 in Lottomax
+		// Check to see if the actual table exists in the db?
+		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
+		{
+			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
+			redirect('admin/statistics');
+		}
+
+		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
+
+		$h_w_c = $this->statistics_m->h_w_c_exists($id);
+
+		if(!is_null($h_w_c))	// Existing HWC?
+		{
+
+		}
+		else
+		{
+			$this->session->set_flashdata('message', 'There is an No Hots, Warms, Colds Profile.  Calculate the H-W-C at the Lottery Profile Statistics, Recalc Checkbox.');
+			redirect('admin/history');
+		}
+
+		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
+		else $this->data['message'] = '';
+		// Load the view
+		$this->data['current'] = $this->uri->segment(2); // Sets the Statistics menu
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	 
+		$this->data['subview'] = 'admin/dashboard/history/hwc';
+		$this->data['history'] = $this;										// Access the methods in the view
+		$this->load->view('admin/_layout_main', $this->data);
+	}
+
 	/**
 	 * At a Glance Icon 
 	 * 
