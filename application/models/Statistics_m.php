@@ -1930,7 +1930,7 @@ class Statistics_m extends MY_Model
 	 * 
 	 * @param 	array	$nonfl		Current Follower list
 	 * @param 	array 	$first		Draw to be added as the most recent draw
-* 	 * @param 	boolean $ex			Extra Ball, True (include) False (do not include)
+	 * @param 	boolean $ex			Extra Ball, True (include) False (do not include)
 	 * @return	array	$fl			Returns updated followers list
 	 */
 	private function remove_oldnonfollowers($nonfl,$prev,$ex)
@@ -2082,7 +2082,7 @@ class Statistics_m extends MY_Model
 	 * @param 	boolean	$duple		Duplicate extra ball. FALSE by default.  The extra can have the same number drawn based on the minimum and maximum number drawn
 	 * @return  string	$friends	Friends string in this format: 1>9=4:01/24/2020,2>11=8:09/18/2020,3>44=10:06/22/2019  ,etc. 
 	 */
-	 public function friends_calculate($name, $max, $top, $bonus = 0, $draws = 0, $range = 100, $last = '', $duple = FALSE)
+	public function friends_calculate($name, $max, $top, $bonus = 0, $draws = 0, $range = 100, $last = '', $duple = FALSE)
 	{
 
 		// Build Query
@@ -2386,6 +2386,9 @@ class Statistics_m extends MY_Model
 			$last_ball = $top;					// $top drawn ball is different when there is a duplicate extra ball
 			// Build Query
 			$s = 'ball'; 
+			/* Part 1 */
+			$friends = '';	// set as a blank string
+			$nonfriends = '';	// set as a blank string
 			$i = 1; 	// Default Ball 1
 			do
 			{	
@@ -2400,26 +2403,22 @@ class Statistics_m extends MY_Model
 			$w = (!$draws ? ' WHERE extra <> "0" ' : ' ');
 			$w .= (!empty($last)&&(!$draws) ? " AND draw_date <= '".$last."'" : "");
 			$w .= (!empty($last)&&($draws) ? " WHERE draw_date <= '".$last."'" : "");  
-			//$l = (!is_null($last) ? " WHERE draw_date <='".$last['draw_date']."'" : "");
 			
 			$b = 1; // Number 1 to Number N from the size of the Lottery
 			do
 			{
 				// Calculate
 				
-				$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
+				$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$dbl_range.") as t ORDER BY t.draw_date ASC;";
 				// Execute Query
 				$query = $this->db->query($sql);
 				$row = $query->first_row('array'); // Doing the reverse to the first row because of the descending order.
 				$friendlist = array();
 				$nonfriendlist = array();
-				$lowest_row = array(); 				// First Drawn numbers after followers occurred
-				$first = array();					// Lowest draw from the lowest row array
-				
 				do {
-					$blnExDup = ($bonus&&$duple&&($b==$row['extra']) ? TRUE : FALSE); // Has reached the extra number that is an independent and 
-																					// duplicate Extra ball (TRUE) or everything else is FALSE
-					if($this->is_drawn($b, $row, $max, $bonus)&&(!$blnExDup))		  // Must always be FALSE to place on the friends list
+					$blnExDup = ($bonus&&$duple&&($b==$row['extra']) ? TRUE : FALSE); 	// Has reached the extra number that is an independent and 
+																						// duplicate Extra ball (TRUE) or everything else is FALSE
+					if($this->is_drawn($b, $row, $max, $bonus)&&(!$blnExDup))			// Must always be FALSE to place on the friends list
 					{
 						if(!is_null($row))
 						{
@@ -2432,36 +2431,88 @@ class Statistics_m extends MY_Model
 								$friendlist = $this->add_friends($b, $row, $bonus);
 							}
 						}
+						
 						$row = $query->next_row('array'); // Go to the next draw for examination
-						if($range_ptr>=$range) // Reached or exceeded the half way point? If yes .. do the prize counts
-						{
-							// Step 2. Next Range of Draws will include the prize pool
-							$nonfriendlist = $this->nonfriends($friendlist, $b, $last_ball);
-							$friendlist = (!empty($friendlist) ? $this->duplicate_friends($friendlist) : NULL);
-							
-							$relatives = $this->friends_hitcounts($relatives, $friendlist, $row, $bonus, $duple);
-							$nonrelatives = $this->nonfriends_hitcounts($nonrelatives, $nonfriendlist, $row, $bonus, $duple);
-							$first = $lowest_row[0];
-							if(intval($range_ptr-$first['row'])>$range) // Only if the current row pointer
-																		// is out of range of the target range, remove draw. e.g. Range = 100 draws
-							{
-								$friendlist = $this->remove_oldfriends($friendlist, $first, $bonus);
-								if(!empty($nonfriendlist)) $nonrelatives = $this->remove_oldfriendslist($nonfriendlist, $first, $bonus);
-								array_shift($lowest_row); // Remove the lowest draw date freom the array, shift it off the beginning of the array
-							}
-						}
+						
 					}
 					else
 					{
 						$row = $query->next_row('array');
 					}
 				$range_ptr++;
-				} while($range_ptr<$dbl_range(!is_null($row))); // Do until all draws complete
-			
+				} while($range_ptr<$range); // Do until all draws to the range of draws complete
+				$nonfriends .= $this->nonfriends_string($friendlist, $b, $top);
+				// Check duplicate occurrences in the array. If duplicate, go with most recent draw date following the latest trend for that number. return only 1 friend array
+				$friendlist = (!empty($friendlist) ? $this->duplicate_friends($friendlist) : NULL);
+				// Build Friend string
+				$friends .= $this->friends_string($friendlist); // Empty Set? Then Skip
+				if($b<=$top) $friends .= ','; //If there are numbers to do in a pick 3 to pick 9 system
 				$range_ptr = 1; // Reset the range for the next ball
 				$b++;
 				unset($friendlist);		// Destroy the old friendlist
-				unset($nonfriendlist);	// Destroy old nonfriendlist
+				$query->free_result();	// Removes the Memory associated with the result resource ID
+			} while ($b<=$top);
+			// Step 2. Next Range of Draws will include the prize pool
+			$b = 1; 					// Start Again
+			do
+			{
+				// Calculate
+				$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
+				// Execute Query
+				$query = $this->db->query($sql);
+				$row = $query->first_row('array'); // Doing the reverse to the first row because of the descending order.
+				$friendlist = array();
+				$nonfriendlist = array();
+				$lowest_row = array(); 				// First Drawn numbers after followers occurred
+				$first = array();					// Lowest draw from the lowest row array
+				do {
+					$blnExDup = ($bonus&&$duple&&($b==$row['extra']) ? TRUE : FALSE); 	// Has reached the extra number that is an independent and 
+																						// duplicate Extra ball (TRUE) or everything else is FALSE
+					if($this->is_drawn($b, $row, $max, $bonus)&&(!$blnExDup))			// Must always be FALSE to place on the friends list
+					{
+						$row['row'] = $range_ptr+1; 									// This is completed only within range
+						array_push($lowest_row, $row); 									// Add this row to the end of the array
+						if(!is_null($row))
+						{
+							if(!empty($friendlist))
+							{
+								$friendlist = $this->update_friends($b, $friendlist, $row, $bonus);
+							}
+							else
+							{
+								$friendlist = $this->add_friends($b, $row, $bonus);
+							}
+						}
+						
+						$row = $query->next_row('array'); // Go to the next draw for examination
+						// Update the hit counts
+						$relatives = $this->friends_hitcounts($relatives, $friendlist, $row, $bonus, $duple);
+						$nonrelatives = $this->nonfriends_hitcounts($nonrelatives, $nonfriendlist, $row, $bonus, $duple);
+						$first = $lowest_row[0];
+						if(intval($range_ptr-$first['row'])>$range) // Only if the current row pointer
+																	// is out of range of the target range, remove draw. e.g. Range = 100 draws
+						{
+							//$relatives = $this->remove_friends_hitcounts($friendlist, $first, $bonus);
+							//if(!empty($nonfriendlist)) $nonrelatives = $this->remove_nonfriends_hitcounts($nonfriendlist, $first, $bonus);
+							array_shift($lowest_row); // Remove the lowest draw date freom the array, shift it off the beginning of the array
+						}
+						$nonfriendlist = $this->nonfriends($friendlist, $b, $last_ball);
+						$friendlist = (!empty($friendlist) ? $this->duplicate_friends($friendlist) : NULL);
+						$friends .= $this->friends_string($friendlist); // Empty Set? Then Skip
+						if($b<=$top) $friends .= ','; //If there are numbers to do in a pick 3 to pick 9 system	
+					}
+					else
+					{
+						$row = $query->next_row('array');
+					}
+				
+				$range_ptr++;
+				} while(!is_null($row)); // Do until all draws complete
+				
+				$range_ptr = $range; 	// Reset the range to the last range of draws
+				if($b<=$top) $friends .= ','; //If there are numbers to do in a pick 3 to pick 9 system
+				$b++;
+				unset($friendlist);		// Destroy the old friendlist
 				$query->free_result();	// Removes the Memory associated with the result resource ID
 			} while ($b<=$top);
 		}
@@ -2483,7 +2534,7 @@ class Statistics_m extends MY_Model
 		{
 			if (!array_key_exists($count, $list)&&($count!=$exclude)) // Include ONLY if that number has NEVER occurred
 			{
-				$non[index] = $count; 								 // Used as display only with a comma and space
+				$non[$index] = $count; 								 // Used as display only with a comma and space
 				$index++;
 			}
 		}
@@ -2506,9 +2557,9 @@ class Statistics_m extends MY_Model
 			
 		$blnfound = FALSE;
 
-		foreach($rw as $drawn => $ball)
+		foreach($rw as $position => $ball)
 		{
-			if(array_key_exists($ball,$fl)&&($b)&&((!$d||($d&&$drawn!='extra'))))
+			if(array_key_exists($ball,$fl)&&($b)&&((!$d||($d&&$position!='extra'))))
 			{
 				$blnfound = TRUE;
 				// Two way

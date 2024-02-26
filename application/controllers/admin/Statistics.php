@@ -653,8 +653,8 @@ class Statistics extends Admin_Controller {
 	 */
 	public function friends($id)
 	{
-		global $relatives;
-		global $nonrelatives;
+		global $relatives;				// global totals of no friends, 1 way friend, 2 way friends
+		global $nonrelatives;			// global non friend occurences
 		$this->data['message'] = '';	// Defaulted to No Error Messages
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		// Retrieve the lottery table name for the database
@@ -663,6 +663,7 @@ class Statistics extends Admin_Controller {
 		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$min_ball = $this->data['lottery']->minimum_ball;	// Regular Drawn Low ball e.g. ball 1
 		$max_ball = $this->data['lottery']->maximum_ball;	// Get the highest ball drawn for this lottery, e.g. 49 in Lottery 649, 50 in Lottomax
+		$outofrange = FALSE;								// default is not out of range for the friend and non friend totals
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 		{
@@ -708,6 +709,7 @@ class Statistics extends Admin_Controller {
 					$relatives = $this->statistics_m->create_friend_array();
 					$nonrelatives = $this->statistics_m->create_nonfriend_array();
 					$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
+					$outofrange = $this->statistics_m->friends_hits($tbl_name, $drawn,  $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
 					$associate = explode('+', $str_friends); // The '+' is the separator
 					$str_friends = $associate[0];			 // separated the friends
 					$str_nonfriends = $associate[1]; 		 // from the non friends
@@ -738,6 +740,7 @@ class Statistics extends Admin_Controller {
 			$nonrelatives = $this->statistics_m->create_nonfriend_array();
 			$new_range = ($all<100 ? $all : 100);
 			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
+			$outofrange = $this->statistics_m->friends_hits($tbl_name, $drawn,  $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
 			$associate = explode('+', $str_friends); // The '+' is the separator
 			$str_friends = $associate[0];			 // separated the friends
 			$str_nonfriends = $associate[1];		 // from the non friends
@@ -774,7 +777,9 @@ class Statistics extends Admin_Controller {
 			$b++;
 		}
 
-		if($this->session->has_userdata('relatives')) $this->session->unset_userdata('relatives'); // Only if exists?
+		unset($relatives);
+		unset($nonrelatives);
+		$this->data['lottery']->out_of_range = $outofrange; 			// Is there enough draws to calculate the prizes?
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
 		$this->data['lottery']->last_drawn['range'] = $new_range;
@@ -788,6 +793,7 @@ class Statistics extends Admin_Controller {
 		$this->data['subview']  = 'admin/dashboard/statistics/friends';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
+
 	/**
 	 * View the Hots, Warms and Colds of Draw based on range. Default is 100 draws or up to the number of draws in the database.
 	 * 
