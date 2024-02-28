@@ -2157,8 +2157,39 @@ class Statistics_m extends MY_Model
 			unset($friendlist);	// Destroy the old friendlist
 			$query->free_result();	// Removes the Memory associated with the result resource ID
 		} while ($b<=$top);
-		return $friends.'+'.$nonfriends; // return friends+nonfriends (without the '|' at the end of non friends)
+		return $friends.'+'.$nonfriends;  // return friends+nonfriends (without the '|' at the end of non friends)
 	}
+	
+	/**
+	 * Determine the direction of a friendship, 
+	 * 1> = 1 way frienship, current ball is a friend of the other ball but the other ball
+	 * is not a friend of the current ball
+	 * 1< = 1 way friendship, current ball is not a friend of the other ball but the other ball
+	 * is a friend of the current ball
+	 * 2 = 2 way friendship, the current ball is friends with the other ball and the other
+	 * ball is a friend of the current ball 
+	 * @param 	string	$friendship		string format, ball1>count|last draw date,ball2>count|last draw date, etc.
+	 * @return	string	$friendship		undated string format, ball>count|last draw date|1>, etc.
+	 */
+	private function friendship_direction($friendship)
+	{
+		$other = array();
+		$ball = 1;	//start at ball 1
+		// $friend_array is ball>count|last draw date
+		$friend_array = explode(",", $friendship);
+		
+		foreach($friend_array as $items =>  $value)
+		{
+			$other[$ball] = strstr($value, '>', TRUE); // Strip off each number
+			$ball++;
+		}
+
+		// Find Uniques
+		$uniques = array_unique($other, SORT_NUMERIC);
+	
+	return $friendship;
+	}
+	
 	/**
 	 * Return the added only list of friends of the ball drawn for this ball number
 	 * 
