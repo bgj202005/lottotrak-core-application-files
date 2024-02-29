@@ -2169,9 +2169,10 @@ class Statistics_m extends MY_Model
 	 * 2 = 2 way friendship, the current ball is friends with the other ball and the other
 	 * ball is a friend of the current ball 
 	 * @param 	string	$friendship		string format, ball1>count|last draw date,ball2>count|last draw date, etc.
-	 * @return	string	$friendship		undated string format, ball>count|last draw date|1>, etc.
+	 * @param 	integer	$max			integer on the last ball drawn in the lottery, e.g. 49 in a 649
+	 * @return	string	$direction		partial string format, ball>count|last draw date|1>, etc.
 	 */
-	private function friendship_direction($friendship)
+	private function friendship_direction($friendship,$max)
 	{
 		$other = array();
 		$ball = 1;	//start at ball 1
@@ -2184,8 +2185,30 @@ class Statistics_m extends MY_Model
 			$ball++;
 		}
 
-		// Find Uniques
-		$uniques = array_unique($other, SORT_NUMERIC);
+		$direction = ''; // start with empty string
+		// Find friendship direction
+		$ball = 1;
+		do
+		{
+			foreach($other as $items => $value)
+			{
+				if(($ball==$value)&&($other[$value]==$ball))
+				{
+					$direction .= '<>'.$other[$value];
+				}
+				elseif(($ball==$value)&&($other[$value]!=$ball))
+				{
+					$direction .= $other[$value].'>';
+				}
+				elseif(($ball!=$value)&&($other[$value]==$ball))
+				{
+					$direction .= $other[$value].'<';	
+				}
+				$direction .= ',';
+				$ball++;
+			}
+		} while($ball<=$max);
+
 	
 	return $friendship;
 	}
@@ -2392,28 +2415,22 @@ class Statistics_m extends MY_Model
 	 * Calculate the Friends of the Lottery from Ball 1 to Ball N range, include the extra ball if TRUE. 
 	 * Based on twice the range of draws covered
 	 * 
-	 * @param 	string 	$name		specific lottery table name
-	 * @param 	integer $max		maximum number of balls drawn
-	 * @param	integer	$top		Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649
-	 * @param	boolean	$bonus		If an extra / bonus ball is included (1 = TRUE, 0 = False)
-	 * @param	boolean $draws		If extra (bonus) draws are included in the calculation (1 = TRUE, 0 = FALSE)
-	 * @param  	integer	$range		Range of number of draws (default is 100). If less than 100, the number must be set in $range
-	 * @param 	string 	$last		last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
-	 * @param 	boolean	$duple		Duplicate extra ball. FALSE by default.  The extra can have the same number drawn based on the minimum and maximum number drawn
-	 * @return  boolean	$error		Default is False, True is exceeding the lottery draws range and in error.
+	 * @param 	string 	$name			specific lottery table name
+	 * @param 	integer $max			maximum number of balls drawn
+	 * @param	integer	$top			Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649
+	 * @param	boolean	$bonus			If an extra / bonus ball is included (1 = TRUE, 0 = False)
+	 * @param	boolean $draws			If extra (bonus) draws are included in the calculation (1 = TRUE, 0 = FALSE)
+	 * @param  	integer	$range			Range of number of draws (default is 100). If less than 100, the number must be set in $range
+	 * @param 	string 	$last			last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
+	 * @param 	boolean	$duple			Duplicate extra ball. FALSE by default.  The extra can have the same number drawn based on the minimum and maximum number drawn
+	 * @return  string	$f_stats		String on Friend Direction,
 	 */
 	public function friends_hits($name, $max, $top, $bonus = 0, $draws = 0, $range = 100, $last = '', $duple = FALSE)
 	{
-		$error = $this->inrange($name,$range,$draws);
-
-		if(!$error) // The Range is good, let's do this!
-		{
 			global $relatives;		// friendship array win totals for non friendship wins, 1 - way friendships and 2 way friendships
 			global $nonrelatives;	// non friendship array win totals for non friendships, 1 non-friendship win occurence, 2 non-friendship
 									// win occurences, 3 non-friendship win occurences, and 4 non-friendship win occurrences  
-			
-			$dbl_range = (int) ($range * 2)-1;  // Must be double the available draws available less the most recent draw
-			$range_ptr = 1; 					// range_ptr starts at the first draw (single Range)
+			$f_stats = '';	
 			$last_ball = $top;					// $top drawn ball is different when there is a duplicate extra ball
 			// Build Query
 			$s = 'ball'; 
@@ -2440,69 +2457,17 @@ class Statistics_m extends MY_Model
 			{
 				// Calculate
 				
-				$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$dbl_range.") as t ORDER BY t.draw_date ASC;";
-				// Execute Query
-				$query = $this->db->query($sql);
-				$row = $query->first_row('array'); // Doing the reverse to the first row because of the descending order.
-				$friendlist = array();
-				$nonfriendlist = array();
-				do {
-					$blnExDup = ($bonus&&$duple&&($b==$row['extra']) ? TRUE : FALSE); 	// Has reached the extra number that is an independent and 
-																						// duplicate Extra ball (TRUE) or everything else is FALSE
-					if($this->is_drawn($b, $row, $max, $bonus)&&(!$blnExDup))			// Must always be FALSE to place on the friends list
-					{
-						if(!is_null($row))
-						{
-							if(!empty($friendlist))
-							{
-								$friendlist = $this->update_friends($b, $friendlist, $row, $bonus);
-							}
-							else
-							{
-								$friendlist = $this->add_friends($b, $row, $bonus);
-							}
-						}
-						
-						$row = $query->next_row('array'); // Go to the next draw for examination
-						
-					}
-					else
-					{
-						$row = $query->next_row('array');
-					}
-				$range_ptr++;
-				} while($range_ptr<$range); // Do until all draws to the range of draws complete
-				$nonfriends .= $this->nonfriends_string($friendlist, $b, $top);
-				// Check duplicate occurrences in the array. If duplicate, go with most recent draw date following the latest trend for that number. return only 1 friend array
-				$friendlist = (!empty($friendlist) ? $this->duplicate_friends($friendlist) : NULL);
-				// Build Friend string
-				$friends .= $this->friends_string($friendlist); // Empty Set? Then Skip
-				if($b<=$top) $friends .= ','; //If there are numbers to do in a pick 3 to pick 9 system
-				$range_ptr = 1; // Reset the range for the next ball
-				$b++;
-				unset($friendlist);		// Destroy the old friendlist
-				$query->free_result();	// Removes the Memory associated with the result resource ID
-			} while ($b<=$top);
-			// Step 2. Next Range of Draws will include the prize pool
-			$b = 1; 					// Start Again
-			do
-			{
-				// Calculate
 				$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
 				// Execute Query
 				$query = $this->db->query($sql);
 				$row = $query->first_row('array'); // Doing the reverse to the first row because of the descending order.
 				$friendlist = array();
 				$nonfriendlist = array();
-				$lowest_row = array(); 				// First Drawn numbers after followers occurred
-				$first = array();					// Lowest draw from the lowest row array
 				do {
 					$blnExDup = ($bonus&&$duple&&($b==$row['extra']) ? TRUE : FALSE); 	// Has reached the extra number that is an independent and 
 																						// duplicate Extra ball (TRUE) or everything else is FALSE
 					if($this->is_drawn($b, $row, $max, $bonus)&&(!$blnExDup))			// Must always be FALSE to place on the friends list
 					{
-						$row['row'] = $range_ptr+1; 									// This is completed only within range
-						array_push($lowest_row, $row); 									// Add this row to the end of the array
 						if(!is_null($row))
 						{
 							if(!empty($friendlist))
@@ -2516,38 +2481,28 @@ class Statistics_m extends MY_Model
 						}
 						
 						$row = $query->next_row('array'); // Go to the next draw for examination
-						// Update the hit counts
-						$relatives = $this->friends_hitcounts($relatives, $friendlist, $row, $bonus, $duple);
-						$nonrelatives = $this->nonfriends_hitcounts($nonrelatives, $nonfriendlist, $row, $bonus, $duple);
-						$first = $lowest_row[0];
-						if(intval($range_ptr-$first['row'])>$range) // Only if the current row pointer
-																	// is out of range of the target range, remove draw. e.g. Range = 100 draws
-						{
-							//$relatives = $this->remove_friends_hitcounts($friendlist, $first, $bonus);
-							//if(!empty($nonfriendlist)) $nonrelatives = $this->remove_nonfriends_hitcounts($nonfriendlist, $first, $bonus);
-							array_shift($lowest_row); // Remove the lowest draw date freom the array, shift it off the beginning of the array
-						}
-						$nonfriendlist = $this->nonfriends($friendlist, $b, $last_ball);
-						$friendlist = (!empty($friendlist) ? $this->duplicate_friends($friendlist) : NULL);
-						$friends .= $this->friends_string($friendlist); // Empty Set? Then Skip
-						if($b<=$top) $friends .= ','; //If there are numbers to do in a pick 3 to pick 9 system	
+						
 					}
 					else
 					{
 						$row = $query->next_row('array');
 					}
-				
-				$range_ptr++;
 				} while(!is_null($row)); // Do until all draws complete
-				
-				$range_ptr = $range; 	// Reset the range to the last range of draws
+				$nonfriends .= $this->nonfriends_string($friendlist, $b, $top);
+				// Check duplicate occurrences in the array. If duplicate, go with most recent draw date following the latest trend for that number. return only 1 friend array
+				$friendlist = (!empty($friendlist) ? $this->duplicate_friends($friendlist) : NULL);
+				// Build Friend string
+				$friends .= $this->friends_string($friendlist); // Empty Set? Then Skip
 				if($b<=$top) $friends .= ','; //If there are numbers to do in a pick 3 to pick 9 system
 				$b++;
 				unset($friendlist);		// Destroy the old friendlist
 				$query->free_result();	// Removes the Memory associated with the result resource ID
 			} while ($b<=$top);
-		}
-	return $error; 
+				if($b<=$top) $friends .= ','; //If there are numbers to do in a pick 3 to pick 9 system
+				$b++;
+				unset($friendlist);		// Destroy the old friendlist
+				$query->free_result();	// Removes the Memory associated with the result resource ID
+	return $f_stats; 
 	}
 
 	/**
