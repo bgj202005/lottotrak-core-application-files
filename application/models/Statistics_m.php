@@ -1016,7 +1016,8 @@ class Statistics_m extends MY_Model
 						if(!is_null($row))
 						{
 							unset($row['draw_date']);
-							if($duple) unset($row['extra']); // Special condition for a duplicate extra is not to include the extra ball (in case the duplicate extra is set)
+							if((!$bonus)||($duple)) unset($row['extra']); // do not use in the add / update compare
+							// Special condition for a duplicate extra is not to include the extra ball (in case the duplicate extra is set)
 							if(!empty($followlist))
 							{
 								$followlist = $this->update_followers($followlist, $row);
@@ -1086,7 +1087,7 @@ class Statistics_m extends MY_Model
 	 * @param 	boolean $ex			Extra / Bonus ball include flag. TRUE / FALSE
 	 * @return	boolean $found		Found the ball drawn during this draw
 	 */
-	private function is_drawn($num, $curr, $pick, $ex)
+	 private function is_drawn($num, $curr, $pick, $ex)
 	{
 		$found = FALSE;
 		$i=1;
@@ -1115,7 +1116,7 @@ class Statistics_m extends MY_Model
 	/**
 	 * Return the added only list of followers after the current draw
 	 * 
-	 * @param	array	$row		Current Draw to compare and add to the followers list		
+	 * @param	array	$row		Current Draw to compare and add to the followers list
 	 * @return	array	$list		List of updated followers
 	 */
 	private function add_followers($row)
@@ -1143,7 +1144,7 @@ class Statistics_m extends MY_Model
 	{
 		foreach($row as $key => $balls_drawn)
 		{
-			if(($balls_drawn!=0)&&(array_key_exists($balls_drawn, $list)))
+			if((($balls_drawn!=0)&&(array_key_exists($balls_drawn, $list))))
 			{
 				$list[$balls_drawn]++;	// Auto increment the array from the $key
 			}
@@ -1296,6 +1297,7 @@ class Statistics_m extends MY_Model
 						if(!is_null($row))
 						{
 							unset($row['draw_date']);
+							if((!$bonus)||($duple)) unset($row['extra']);
 							if(!empty($followlist))
 							{
 								$followlist = $this->update_followers($followlist, $row);
@@ -2209,7 +2211,7 @@ class Statistics_m extends MY_Model
 	 * Return the added only list of friends of the ball drawn for this ball number
 	 * 
 	 * @param 	string	$fr			String of Friends to be extracted
-	 * @return	array	$balls		Array of Balls that are friends
+	 * @return	array	$balls		Array of Balls that are friends of balls e.g. 1 to 49 balls
 	 */
 	private function extract_friends($fr)
 	{
@@ -2230,7 +2232,7 @@ class Statistics_m extends MY_Model
 	 * Return the added only list of nonfriends of the balls drawn
 	 * 
 	 * @param 	string	$nfr		String of non Friends to be extracted
-	 * @return	array	$balls		Array of Balls that are non friends for the set range
+	 * @return	array	$nonfriends Array of Balls that are non friends for the set range
 	 */
 	private function extract_nonfriends($nfr)
 	{
@@ -2239,12 +2241,7 @@ class Statistics_m extends MY_Model
 		// $friend_array is ball>count|last draw date
 		$nonfriends_array = explode("|", $nfr);
 		
-		foreach($nonfriends_array as $items =>  $value)
-		{
-			$balls[$ball] = strstr($value, '>', TRUE); // Strip off each number
-			$ball++;
-		}
-	return $balls;
+	return $nonfriends_array;
 	}
 
 	/**
@@ -2450,6 +2447,7 @@ class Statistics_m extends MY_Model
 	 * Based on twice the range of draws covered
 	 * 
 	 * @param 	string 	$str_fr			completed string of the friends
+	 * @param 	string 	$str_nfr		completed string of the nonfriends
 	 * @param 	string 	$name			specific lottery table name
 	 * @param 	integer $max			maximum number of balls drawn
 	 * @param	integer	$top			Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649
@@ -2458,17 +2456,19 @@ class Statistics_m extends MY_Model
 	 * @param  	integer	$range			Range of number of draws (default is 100). If less than 100, the number must be set in $range
 	 * @param 	string 	$last			last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
 	 * @param 	boolean	$duple			Duplicate extra ball. FALSE by default.  The extra can have the same number drawn based on the minimum and maximum number drawn
-	 * @return  string	$f_stats		String on Friend Direction,
+	 * @return  none					Return the globals
 	 */
-	public function friends_hits($str_fr, $name, $max, $top, $bonus = 0, $draws = 0, $range = 100, $last = '', $duple = FALSE)
+	public function friends_hits($str_fr, $str_nfr, $name, $max, $top, $bonus = 0, $draws = 0, $range = 100, $last = '', $duple = FALSE)
 	{
 			global $relatives;		// friendship array win totals for non friendship wins, 1 - way friendships and 2 way friendships
 			global $nonrelatives;	// non friendship array win totals for non friendships, 1 non-friendship win occurence, 2 non-friendship
 									// win occurences, 3 non-friendship win occurences, and 4 non-friendship win occurrences  
 			$f_stats = '';			// blank string of friend and non friend stats
 			$friends = array();
+			$nonfriends = array();
 			$friends = $this->extract_friends($str_fr);
-			$last_ball = $top;		// $top drawn ball is different when there is a duplicate extra ball
+			$nonfriends = $this->extract_nonfriends($str_nfr);
+
 			// Build Query
 			$s = 'ball'; 
 			/* Part 1 */
@@ -2502,36 +2502,25 @@ class Statistics_m extends MY_Model
 																						// duplicate Extra ball (TRUE) or everything else is FALSE
 					if($this->is_drawn($b, $row, $max, $bonus)&&(!$blnExDup))			// Must always be FALSE to place on the friends list
 					{
+						// a hit has been found
 						if(!is_null($row))
 						{
-							if(!empty($friendlist))
-							{
-								$friendlist = $this->update_friends($b, $friendlist, $row, $bonus);
-							}
-							else
-							{
-								$friendlist = $this->add_friends($b, $row, $bonus);
-							}
+							
 						}
-						
 						$row = $query->next_row('array'); // Go to the next draw for examination
-						
 					}
 					else
 					{
 						$row = $query->next_row('array');
 					}
 				} while(!is_null($row)); // Do until all draws complete
-		
-				$b++;
-				unset($friendlist);		// Destroy the old friendlist
-				$query->free_result();	// Removes the Memory associated with the result resource ID
-			} while ($b<=$top);
-				if($b<=$top) $friends .= ','; //If there are numbers to do in a pick 3 to pick 9 system
-				$b++;
-				unset($friendlist);		// Destroy the old friendlist
-				$query->free_result();	// Removes the Memory associated with the result resource ID
-	return $f_stats; 
+			$b++;
+			unset($friendlist);		// Destroy the old friendlist
+			$query->free_result();	// Removes the Memory associated with the result resource ID
+		} while ($b<=$top);
+		unset($friends);		// Destroy the old friendlist
+		unset($nonfriends);
+		$query->free_result();	// Removes the Memory associated with the result resource ID
 	}
 
 	/**
