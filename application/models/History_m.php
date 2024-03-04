@@ -146,26 +146,23 @@ class History_m extends MY_Model
         {
             if(($total-1)!=$count)
             {
-            $repeats = 0;    
+            $repeats = 0; 
                 for($c=1; $c<=$pick; $c++)                      // Interate the draw for changes from the previous draw and the next draw
                 {
                     $n = 1;                                     // Compare with the next drawn numbers
-                    $found = FALSE;
                     do
                     {
                         if($draw['ball'.$c]==$draws[$count+1]['ball'.$n])
                         {
                             $repeats++;
                             $next[$draw['ball'.$c]] = ((!array_key_exists($draw['ball'.$c], $next)) ? 1 : $next[$draw['ball'.$c]]+1); // Add Key or Existing One?
-                            break;  // not required to continue with this loop
-                            $found = TRUE;
+                            $found = TRUE;  // not required to continue with this loop
                         }
                     $n++;
                     }
                     while($n<=$pick); 
-                    if($found) break; // No further interation for the current and next draw is required
                 }
-                if($b_ex&&$draw['extra']!=0&&!$found) // Extra included in the Repeaters
+                if($b_ex&&$draw['extra']!=0) // Extra included in the Repeaters
                 {
                     for($c=1; $c<=$pick; $c++)                      // Interate the draw for changes from the previous draw and the next draw
                     {
