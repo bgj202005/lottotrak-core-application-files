@@ -156,7 +156,6 @@ class History_m extends MY_Model
                         {
                             $repeats++;
                             $next[$draw['ball'.$c]] = ((!array_key_exists($draw['ball'.$c], $next)) ? 1 : $next[$draw['ball'.$c]]+1); // Add Key or Existing One?
-                            $found = TRUE;  // not required to continue with this loop
                         }
                     $n++;
                     }
@@ -170,6 +169,11 @@ class History_m extends MY_Model
                         {
                             $repeats++;
                             $next[$draw['extra']] = (!array_key_exists($draw['extra'], $next) ? 1 : $next[$draw['extra']]+1); // Add Key or Existing One?
+                        }
+                        if($draw['ball'.$c]==$draws[$count+1]['extra'])
+                        {
+                            $repeats++;
+                            $next[$draw['ball'.$c]] = ((!array_key_exists($draw['ball'.$c], $next)) ? 1 : $next[$draw['ball'.$c]]+1); // Add Key or Existing One?
                         }
                     }
                     if($draw['extra']==$draws[$count+1]['extra'])
