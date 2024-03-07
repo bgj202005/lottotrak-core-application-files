@@ -607,11 +607,15 @@ class Statistics extends Admin_Controller {
 			$f = substr(strstr($ball_drawn, '>', FALSE),1); // Remove the '>' from the string
 			for($b = 1; $b<=$drawn; $b++)
 			{
-				if($this->data['lottery']->last_drawn['ball'.$b]==$n) $this->data['lottery']->last_drawn[$n] = $f;
+				if(($this->data['lottery']->last_drawn['ball'.$b]==$n)&&(!isset($this->data['lottery']->last_drawn[$n]))) $this->data['lottery']->last_drawn[$n] = $f;
 			}
-			if(($this->data['lottery']->extra_included)&&($this->data['lottery']->last_drawn['extra']==$n))
+			if(($this->data['lottery']->extra_included)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
 			{
 				$this->data['lottery']->last_drawn[$n] = $f;
+			}
+			elseif(($this->data['lottery']->extra_included)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
+			{
+				$this->data['lottery']->last_drawn[$n.'x'] = $f; // denotes x for 'duplicate' extra
 			}
 		}
 		// 5. Do the same for non-following string into the array counter parts also
@@ -622,11 +626,15 @@ class Statistics extends Admin_Controller {
 			$nf = substr(strstr($ball_drawn, '>', FALSE),1); // Remove the '>' from the string
 			for($b = 1; $b<=$drawn; $b++)
 			{
-				if($this->data['lottery']->last_drawn['ball'.$b]==$n) $this->data['lottery']->last_drawn[$n.'nf'] = $nf;
+				if(($this->data['lottery']->last_drawn['ball'.$b]==$n)&&(!isset($this->data['lottery']->last_drawn[$n.'nf']))) $this->data['lottery']->last_drawn[$n.'nf'] = $nf;
 			}
-			if(($this->data['lottery']->extra_included&&$this->data['lottery']->last_drawn['extra']==$n))
+			if(($this->data['lottery']->extra_included)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
 			{
 				$this->data['lottery']->last_drawn[$n.'nf'] = $nf;
+			}
+			elseif(($this->data['lottery']->extra_included)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
+			{
+				$this->data['lottery']->last_drawn[$n.'nfx'] = $f;
 			}
 		}
 		unset($prizes);													// Remove this array, free up memory
