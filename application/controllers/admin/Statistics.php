@@ -536,7 +536,6 @@ class Statistics extends Admin_Controller {
 					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, '', $blnduplicate);
 					$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
 					$str_prizes  = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
-					//$str_positions_prizes = '';
 					$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
 					/** NEW included nonfollower calculations **/
 					$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
@@ -578,7 +577,6 @@ class Statistics extends Admin_Controller {
 			$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, ''. $blnduplicate);
 			$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
 			$str_prizes = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
-			//$str_positions_prizes = '';
 			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
 			$followers = array(
 				'range'				=> $range,
@@ -634,7 +632,7 @@ class Statistics extends Admin_Controller {
 			}
 			elseif(($this->data['lottery']->extra_included)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
 			{
-				$this->data['lottery']->last_drawn[$n.'nfx'] = $f;
+				$this->data['lottery']->last_drawn[$n.'nfx'] = $nf;
 			}
 		}
 		unset($prizes);													// Remove this array, free up memory
