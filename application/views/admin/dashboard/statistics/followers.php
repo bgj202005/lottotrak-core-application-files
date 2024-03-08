@@ -141,7 +141,11 @@
 							<div class="tab-pane fade p-3 <?php if($b==1) echo 'show active'; ?>" id="ball<?=$b?>" role="tabpanel" aria-labelledby="tab-<?=$b;?>">
 								<?php if(array_key_exists(($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]), $lottery->last_drawn)):
 										/* difference is when any of the regular balls match the duplicate extra ball **/
-										$xtr = (($lottery->duplicate_extra_ball&&$lottery->extra_included) ? $lottery->last_drawn[$lottery->last_drawn['extra'].'x'] : $lottery->last_drawn[$lottery->last_drawn['extra']]);
+										if(isset($lottery->last_drawn[$lottery->last_drawn['extra']])):
+											$xtr = (($lottery->duplicate_extra_ball&&$lottery->extra_included) ? $lottery->last_drawn[$lottery->last_drawn['extra'].'x'] : $lottery->last_drawn[$lottery->last_drawn['extra']]);
+										else:
+											$xtr = "0|0";
+										endif;
 										$trailer = explode('|', ($b>$cd ? $xtr : $lottery->last_drawn[$lottery->last_drawn['ball'.$b]])); ?>
  										<h5 class="card-title">After Ball <?=($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);?> has been drawn in <?=$lottery->last_drawn['range']; ?> draws.</h5>
 										<?php $t_picks = array(); 
@@ -186,7 +190,11 @@
 										/* Display the non - following numbers for the given range */
 										/* Determine the number from the ball position and then access the ball+nf for not followed */
 											/* difference is when any of the regular balls match the duplicate extra ball load the duplicate extra non followers **/
-											$xtr = (($lottery->duplicate_extra_ball&&$lottery->extra_included) ? $lottery->last_drawn[$lottery->last_drawn['extra'].'nfx'] : $lottery->last_drawn[$lottery->last_drawn['extra']]);
+											if(isset($lottery->last_drawn[$lottery->last_drawn['extra'].'nf'])):
+												$xtr = (($lottery->duplicate_extra_ball&&$lottery->extra_included) ? $lottery->last_drawn[$lottery->last_drawn['extra'].'nfx'] : $lottery->last_drawn[$lottery->last_drawn['extra'].'nf']);
+											else:
+												$xtr = '0|0';
+											endif;	
 											$nonfollowers = explode('|', ($b>$cd ? $xtr : $lottery->last_drawn[$lottery->last_drawn['ball'.$b].'nf'])); 
 											$non_picks = "";
 											if($nonfollowers[0]): /* Check for all non followers have followed */
