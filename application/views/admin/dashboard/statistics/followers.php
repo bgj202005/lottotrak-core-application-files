@@ -139,9 +139,10 @@
 							do
 							{ ?> 
 							<div class="tab-pane fade p-3 <?php if($b==1) echo 'show active'; ?>" id="ball<?=$b?>" role="tabpanel" aria-labelledby="tab-<?=$b;?>">
-								<?php if(array_key_exists(($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]), $lottery->last_drawn)):
+								<?php $dup_or_not = ($lottery->duplicate_extra_ball ? $lottery->last_drawn['extra'].'x' : $lottery->last_drawn['extra']);
+									if(array_key_exists(($b>$cd ? $dup_or_not : $lottery->last_drawn['ball'.$b]), $lottery->last_drawn)):
 										/* difference is when any of the regular balls match the duplicate extra ball **/
-										if(isset($lottery->last_drawn[$lottery->last_drawn['extra']])):
+										if(isset($lottery->last_drawn[$dup_or_not])):
 											$xtr = (($lottery->duplicate_extra_ball&&$lottery->extra_included) ? $lottery->last_drawn[$lottery->last_drawn['extra'].'x'] : $lottery->last_drawn[$lottery->last_drawn['extra']]);
 										else:
 											$xtr = "0|0";
