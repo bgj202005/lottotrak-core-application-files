@@ -519,7 +519,7 @@ class Statistics extends Admin_Controller {
 			} 
 
 			$p_group = $this->statistics_m->prize_group_profile($id); // Prize Group Profile Only
-			$p_group = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_included);
+			$p_group = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_ball);
  			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
 
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
@@ -566,7 +566,7 @@ class Statistics extends Admin_Controller {
 		else // 3. If does not exist, calculate for the given draw range, return results and save to follower table
 		{
 			$p_group = $this->statistics_m->prize_group_profile($id); // Prize Group Profile Only
-			$prizes = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_included);
+			$prizes = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_ball);
 			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
 
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
