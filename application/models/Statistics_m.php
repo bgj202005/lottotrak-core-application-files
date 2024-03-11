@@ -2167,14 +2167,13 @@ class Statistics_m extends MY_Model
 	 * 2 = 2 way friendship, the current ball is friends with the other ball and the other
 	 * ball is a friend of the current ball 
 	 * @param 	string	$friendship		string format, ball1>count|last draw date,ball2>count|last draw date, etc.
-	 * @param 	integer	$max			integer on the last ball drawn in the lottery, e.g. 49 in a 649
+	 * @param 	integer	$max			top ball drawn in the lottery, e.g. 49 in a 649
 	 * @return	string	$direction		partial string format, ball>count|last draw date|1>, etc.
 	 */
 	private function friendship_direction($friendship,$max)
 	{
 		$other = array();
 		$other = $this->extract_friends($friendship);
-		
 		$direction = ''; // start with empty string
 		// Find friendship direction
 		$ball = 1;
@@ -2446,9 +2445,8 @@ class Statistics_m extends MY_Model
 			global $relatives;		// friendship array win totals for non friendship wins, 1 - way friendships and 2 way friendships
 			global $nonrelatives;	// non friendship array win totals for non friendships, 1 non-friendship win occurence, 2 non-friendship
 									// win occurences, 3 non-friendship win occurences, and 4 non-friendship win occurrences  
-			$f_stats = '';			// blank string of friend and non friend stats
 			$friends = array();		// Index array of friends
-			$nonfriends = array();	// Index array of non friends
+			$nonfriends = array();	// Associative  array of non friends
 			$friends = $this->extract_friends($str_fr);
 			$nonfriends = $this->extract_nonfriends($str_nfr);
 			// Build Query
@@ -2471,7 +2469,6 @@ class Statistics_m extends MY_Model
 			do
 			{
 				// Calculate
-				
 				$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
 				// Execute Query
 				$query = $this->db->query($sql);
@@ -2485,7 +2482,9 @@ class Statistics_m extends MY_Model
 						$row = $query->next_row('array'); // Go to the next draw for examination
 						if(!is_null($row))
 						{
-							
+							$relatives = $this->friends_hitcounts($relatives,$friends,$b,$row,$bonus,$duple);
+							$nonassociates = $this->nonfriends($nonfriends, $b);
+							$nonrelatives = $this->nonfriends_hitcounts($nonrelatives,$nonassociates,$row,$bonus,$duple);
 						}
 					}
 					else
@@ -2505,22 +2504,13 @@ class Statistics_m extends MY_Model
 	/**
 	* Return the non existent friends after the current draw
 	* @param	array	$list		Associative Array of followers and the counts
-	* @param	integer	$exclude	Current Ball is excluded from the nonfriends. It can't be a friend to itself
-	* @param	integer	$limit		Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649	
-	* @return	string	$str		Return formatted string of all the non friends in that range that have NEVER followed a given ball.
+	* @param	integer	$bl			Current Ball examined with the nonfriends. 
+	* @return	array	$non		Return the array of all non friends in the current range
 	*/
-	private function nonfriends($list, $exclude, $limit)
+	private function nonfriends($list, $bl)
 	{
 		$non = array();
-		$index = 0;
-		for ($count = 1; $count <= $limit; $count++)
-		{
-			if (!array_key_exists($count, $list)&&($count!=$exclude)) // Include ONLY if that number has NEVER occurred
-			{
-				$non[$index] = $count; 								 // Used as display only with a comma and space
-				$index++;
-			}
-		}
+		$non = explode(",", $list[$bl]);
 	return $non;	// Return the non-friends
 	}
 
@@ -2557,7 +2547,7 @@ class Statistics_m extends MY_Model
 	* Draws with only 1 non-friend in the draw, 2 non-friends in the draw, 3 non-friends in the draw
 	* or 4 non-friends in the draw
 	* @param	array	$nonrel		Associative Array of non relatives and the counts
-	* @param	array	$nonfl		Associative Array of current non followers
+	* @param	array	$nonfl		index Array of current non followers
 	* @param	array	$rw			Current next row of drawn numbers. Compared with the current followers
 	* @param	boolean	$b			Bonus Flag, 0 = No Bonus / Extra, 1 = No Bonus / Extra Included
 	* @param	boolean	$d			Duplicate Flag, 0 = No Duplicate lottery, 1 = Duplicate Extra Ball lottery
