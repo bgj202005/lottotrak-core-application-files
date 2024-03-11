@@ -715,10 +715,10 @@ class Statistics extends Admin_Controller {
 					$relatives = $this->statistics_m->create_friend_array();
 					$nonrelatives = $this->statistics_m->create_nonfriend_array();
 					$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
-					//$outofrange = $this->statistics_m->friends_hits($tbl_name, $drawn,  $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
 					$associate = explode('+', $str_friends); // The '+' is the separator
-					$str_friends = $associate[0];			 // separated the friends
-					$str_nonfriends = $associate[1]; 		 // from the non friends
+					$str_friends = $associate[0];			 // separated the friends which is a string
+					$str_nonfriends = $associate[1]; 		 // from the non friends which is a string
+					$outofrange = $this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
 					$friends = array(
 						'range'				=> $new_range,
 						'lottery_friends'	=> $str_friends,

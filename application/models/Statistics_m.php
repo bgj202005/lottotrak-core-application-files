@@ -1803,7 +1803,6 @@ class Statistics_m extends MY_Model
 				}
 			}
 		}
-		
 		if(count($r)!=$ball_counter) // Continue with the non followers, if not all balls have been found in the followers table
 		{
 			// for each of the non followers
@@ -1824,7 +1823,6 @@ class Statistics_m extends MY_Model
 				}
 			}
 		}
-		
 		if($df&&(is_array($da))) // Duplicate Extra Number is in the prize pool and the duplicates is an array
 		{
 			foreach($da as $dup => $dup_value)
@@ -1837,7 +1835,6 @@ class Statistics_m extends MY_Model
 				}
 			}
 		}
-
 		// for each prize based on ball
 		$hits = $p;
 		if(!$extra_cnt) 
@@ -1917,10 +1914,8 @@ class Statistics_m extends MY_Model
 	 */
 	private function remove_oldfollowers($fl, $prev, $ex)
 	{
-
 		unset($prev['draw_date']); 	// Remove the date from the first draw in the range
 		unset($prev['row']);		// Remove the draw number from which it occurred
-
 		foreach($prev as $before => $drawn)
 		{
 			if(isset($fl[$drawn])&&($before!='extra')) $fl[$drawn]--;
@@ -1971,7 +1966,6 @@ class Statistics_m extends MY_Model
 
 		if(isset($da[$prev['extra']])) $da[$prev['extra']]--;
 		if(isset($da[$prev['extra']])&&$da[$prev['extra']]==0) unset($da[$prev['extra']]); // Remove the old array element
-	
 	return $da;
 	}
 
@@ -2089,7 +2083,6 @@ class Statistics_m extends MY_Model
 	 */
 	public function friends_calculate($name, $max, $top, $bonus = 0, $draws = 0, $range = 100, $last = '', $duple = FALSE)
 	{
-
 		// Build Query
 		$s = 'ball'; 
 		$i = 1; 	// Default Ball 1
@@ -2115,7 +2108,7 @@ class Statistics_m extends MY_Model
 		do
 		{
 			// Calculate
-			
+ 			
 			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
 			// Execute Query
 			$query = $this->db->query($sql);
@@ -2179,7 +2172,6 @@ class Statistics_m extends MY_Model
 	 */
 	private function friendship_direction($friendship,$max)
 	{
-		
 		$other = array();
 		$other = $this->extract_friends($friendship);
 		
@@ -2206,7 +2198,6 @@ class Statistics_m extends MY_Model
 				$ball++;
 			}
 		} while($ball<=$max);
-	
 	return $direction;
 	}
 
@@ -2239,11 +2230,8 @@ class Statistics_m extends MY_Model
 	 */
 	private function extract_nonfriends($nfr)
 	{
-		$balls = array();
-		$ball = 1;	//start at ball 1
 		// $friend_array is ball>count|last draw date
 		$nonfriends_array = explode("|", $nfr);
-		
 	return $nonfriends_array;
 	}
 
@@ -2310,15 +2298,11 @@ class Statistics_m extends MY_Model
 	 */
 	private function duplicate_friends($duplicates)
 	{
-	
 	// Complete a key sort, no boolean check required
 	ksort($duplicates);
-
 	$counts = array();	// declare a blank associative array for counts
 	$dates = array();   // and ditto for the dates
-
 	// Strip out counts and the dates into their own arrays
-	
 	foreach($duplicates as $key => $value) // $date could be the count or it could be the date
 	{
 		if(strpos($key, '_draw_date')) 
@@ -2348,9 +2332,7 @@ class Statistics_m extends MY_Model
 		{
 			if($value==$max) $k = $key;  // Retrieve the key from the highest count
 		}
-
 		$max_date = strtotime($d_dates[(intval($k)<10 ? '0'.$k : $k).'_draw_date']);	// convert to a unix date
-
 		// Second iteration for looking for the most recent draw date
 		foreach($totals as $key => $value)
 		{
@@ -2361,13 +2343,11 @@ class Statistics_m extends MY_Model
 				$k = $key;		// Make this key, the new key as the friend 
 			}
 		}
-
 		$friend = [
 			'number'	=> $k,
 			'count'		=> $totals[$k],
 			'draw_date'	=> $d_dates[(intval($k)<10 ? '0'.$k : $k).'_draw_date']
 		];
-		
 	return $friend;	// Return the single most important friend after the current draw
 	}
 	/**
@@ -2446,11 +2426,11 @@ class Statistics_m extends MY_Model
 	}
 	
 	/**
-	 * Calculate the Friends of the Lottery from Ball 1 to Ball N range, include the extra ball if TRUE. 
-	 * Based on twice the range of draws covered
+	 * Calculate the Friendships that have NEVER hit, 1 way friendship counts and 2 way friendship counts
+	 * Also calculate the number of non friendships that have occurred during each draw
 	 * 
-	 * @param 	string 	$str_fr			completed string of the friends
-	 * @param 	string 	$str_nfr		completed string of the nonfriends
+	 * @param 	array 	$str_fr			completed array string of the friends
+	 * @param 	array 	$str_nfr		completed array string of the nonfriends
 	 * @param 	string 	$name			specific lottery table name
 	 * @param 	integer $max			maximum number of balls drawn
 	 * @param	integer	$top			Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649
@@ -2459,7 +2439,7 @@ class Statistics_m extends MY_Model
 	 * @param  	integer	$range			Range of number of draws (default is 100). If less than 100, the number must be set in $range
 	 * @param 	string 	$last			last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
 	 * @param 	boolean	$duple			Duplicate extra ball. FALSE by default.  The extra can have the same number drawn based on the minimum and maximum number drawn
-	 * @return  none					Return the globals
+	 * @return  none					none. Globals will be available from the controller
 	 */
 	public function friends_hits($str_fr, $str_nfr, $name, $max, $top, $bonus = 0, $draws = 0, $range = 100, $last = '', $duple = FALSE)
 	{
@@ -2467,15 +2447,13 @@ class Statistics_m extends MY_Model
 			global $nonrelatives;	// non friendship array win totals for non friendships, 1 non-friendship win occurence, 2 non-friendship
 									// win occurences, 3 non-friendship win occurences, and 4 non-friendship win occurrences  
 			$f_stats = '';			// blank string of friend and non friend stats
-			$friends = array();
-			$nonfriends = array();
+			$friends = array();		// Index array of friends
+			$nonfriends = array();	// Index array of non friends
 			$friends = $this->extract_friends($str_fr);
 			$nonfriends = $this->extract_nonfriends($str_nfr);
-
 			// Build Query
 			$s = 'ball'; 
 			/* Part 1 */
-		
 			$i = 1; 	// Default Ball 1
 			do
 			{	
@@ -2484,13 +2462,11 @@ class Statistics_m extends MY_Model
 				if($i<=$max) $s .= ', ball';
 			} 
 			while($i<=$max);
-
 			$s .= ', extra, draw_date'; // Include the draw date is this query
 
 			$w = (!$draws ? ' WHERE extra <> "0" ' : ' ');
 			$w .= (!empty($last)&&(!$draws) ? " AND draw_date <= '".$last."'" : "");
 			$w .= (!empty($last)&&($draws) ? " WHERE draw_date <= '".$last."'" : "");  
-			
 			$b = 1; // Number 1 to Number N from the size of the Lottery
 			do
 			{
@@ -2506,11 +2482,11 @@ class Statistics_m extends MY_Model
 					if($this->is_drawn($b, $row, $max, $bonus)&&(!$blnExDup))			// Must always be FALSE to place on the friends list
 					{
 						// a hit has been found
+						$row = $query->next_row('array'); // Go to the next draw for examination
 						if(!is_null($row))
 						{
 							
 						}
-						$row = $query->next_row('array'); // Go to the next draw for examination
 					}
 					else
 					{
@@ -2545,28 +2521,25 @@ class Statistics_m extends MY_Model
 				$index++;
 			}
 		}
-
 	return $non;	// Return the non-friends
 	}
 
 	/**
 	* Return the relationships of a friend, e.g. # of non-friendship draws, # of 1-way friendships draws, #2 of 2-way friendships draws
 	* @param	array	$rel		Associative Array of relatives for different friendships
-	* @param	array	$fl			Associative Array of current followers
-	* @param	array	$rw			Current next row of drawn numbers. Compared with the current followers
+	* @param	array	$fr			Index Array of current friends
+	* @param	array	$rw			Current associative array of the next drawn numbers.
 	* @param	boolean	$b			Bonus Flag, 0 = No Bonus / Extra, 1 = No Bonus / Extra Included
 	* @param	boolean	$d			Duplicate Flag, 0 = No Duplicate, 1 = Duplicate Extra Ball
 	* @return	array	$rel		Return Array of updated relatives
 	*/
-	private function friends_hitcounts($rel, $fl, $rw, $b, $d)
+	private function friends_hitcounts($rel, $fr, $rw, $b, $d)
 	{
 		// $fl is the search array
-			
 		$blnfound = FALSE;
-
 		foreach($rw as $position => $ball)
 		{
-			if(array_key_exists($ball,$fl)&&($b)&&((!$d||($d&&$position!='extra'))))
+			if(array_key_exists($ball,$fr)&&($b)&&((!$d||($d&&$position!='extra'))))
 			{
 				$blnfound = TRUE;
 				// Two way
@@ -2576,7 +2549,6 @@ class Statistics_m extends MY_Model
 			}
 		}
 		if(!$blnfound) ++$rel['nofriends']; 
-
 	return $rel;	// Return the friendship relationship counts.
 	}
 
@@ -2602,7 +2574,6 @@ class Statistics_m extends MY_Model
 				++$hit_counter;
 			}
 		}
-
 		switch($hit_counter) 
 			{
 				case 0:
@@ -2620,7 +2591,6 @@ class Statistics_m extends MY_Model
 				case 4:
 					if(array_key_exists('4-nfdraws', $nonrel)) ++$nonrel['4-nfdraws'];
 			}
-
 	return $nonrel;	// Return the non-friends
 	}
 
