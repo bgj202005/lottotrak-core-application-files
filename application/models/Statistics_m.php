@@ -1593,7 +1593,7 @@ class Statistics_m extends MY_Model
 					{
 						if($this->is_drawn($b, $row, $b_max, $bonus))
 						{
-							if ($range_ptr>=$range) $loc = $this->followers_positions($b,$row,$bonus);
+							if (($range_ptr>=$range)&&(!isset($loc))) $loc = $this->followers_positions($b,$row,$bonus);
 							if($duple) $extra = $row['extra'];
 							$row = $query->next_row('array');
 							$row['row'] = $range_ptr+1; 	// This is completed only within range
@@ -1629,7 +1629,7 @@ class Statistics_m extends MY_Model
 								// Step 2. Next Range of Draws will include the prize pool
 								$nonfollowlist = $this->non_followers($followlist, $last_ball);
 								$prize_counts[$b] = $this->followers_prizecounts($bonus, $row, $followlist, $nonfollowlist, $duple, ($duple ? $duplelist : FALSE), $prize_counts[$b]);
-								if(isset($loc)) $positions[$loc] = $this->followers_positions_prizecounts($positions[$loc],$loc);
+								if(isset($loc)) $positions[$loc] = $this->followers_positions_prizecounts($positions[$loc]);
 								$first = $lowest_row[0];
 								if(intval($range_ptr-$first['row'])>$range) // Only if the current row pointer
 																			// is out of range of the target range, remove draw. e.g. Range = 100 draws
@@ -1650,8 +1650,9 @@ class Statistics_m extends MY_Model
 			
  				$range_ptr = 1; // Reset the range for the next ball
 				$b++;
-				unset($followlist);				// Destroy the old followerlist
-				unset($nonfollowlist);			// non follower list
+				unset($followlist);				// clear the old followerlist
+				unset($nonfollowlist);			// clear the old non follower list
+				unset($loc);					// clear the previous position location index
 				if($duple) unset($duplelist); 	// duplicate extra list
 				$query->free_result();		// Removes the Memory associated with the result resource ID
 			} while ($b<=$last_ball); 		// Not maximum balls drawn but the last ball drawn for this lottery
@@ -1665,7 +1666,7 @@ class Statistics_m extends MY_Model
 	 * 
 	 * @param 	integer	$bl		Current ball examined
 	 * @param 	array	$dw		Associative Current Drawn Numbers
-	 * @param 	boolean	$ex		Boolean flag for the extra / bonus ball
+	 * @param 	boolean	$ex		Boolean flag for the extra / bonus ball selection
 	 */
 	private function followers_positions($bl, $dw, $ex)
 	{
@@ -1687,13 +1688,14 @@ class Statistics_m extends MY_Model
 	 * Determine the position in the draw for the current matching drawn number 
 	 * 
 	 * @param 	array	$p_wins	Curent Associative prizes array
-	 * @param 	integer	$l		Drae Position 1 through 9 (maximum) or 'e' for extra
 	 * @param 	return	$p_wins	Currents wins updated based on position 
 	 */
-	private function followers_positions_prizecounts($p_wins, $l)
+	private function followers_positions_prizecounts($p_wins)
 	{
-		global $prizes_cnt;
-		if($l!='E') 
+		global $prizes_cnt; // globals from the individual draw prize count
+		global $extra_cnt;	// global if the extra number is included in the prize pool: TRUE / FALSE
+
+		if(!$extra_cnt) 
 		{
 			switch($prizes_cnt) //* Only the prize pool balls and no extra (bonus) or duplicate extra
 			{
@@ -1777,6 +1779,7 @@ class Statistics_m extends MY_Model
 	{
 		// Initialize Counters
 		global $prizes_cnt;			// prizes_cnt global availability
+		global $extra_cnt;			// Extra has also been included
 		$prizes_cnt = 0; 			// init prize counter amd ball counter
 		$ball_counter = 0; 
 		$extra_cnt = FALSE;
