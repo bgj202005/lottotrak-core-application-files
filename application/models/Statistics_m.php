@@ -2162,8 +2162,6 @@ class Statistics_m extends MY_Model
 	 * Determine the direction of a friendship, 
 	 * 1> = 1 way frienship, current ball is a friend of the other ball but the other ball
 	 * is not a friend of the current ball
-	 * 1< = 1 way friendship, current ball is not a friend of the other ball but the other ball
-	 * is a friend of the current ball
 	 * 2 = 2 way friendship, the current ball is friends with the other ball and the other
 	 * ball is a friend of the current ball 
 	 * @param 	string	$friendship		string format, ball1>count|last draw date,ball2>count|last draw date, etc.
@@ -2173,7 +2171,7 @@ class Statistics_m extends MY_Model
 	private function friendship_direction($friendship,$max)
 	{
 		$other = array();
-		$other = $this->extract_friends($friendship);
+		$other = $this->extract_friends($friendship); // extract friendship string
 		$direction = ''; // start with empty string
 		// Find friendship direction
 		$ball = 1;
@@ -2187,11 +2185,11 @@ class Statistics_m extends MY_Model
 				}
 				elseif(($ball==$value)&&($other[$value]!=$ball))
 				{
-					$direction .= $other[$value].'>';
+					$direction .= '>'.$other[$value];
 				}
 				elseif(($ball!=$value)&&($other[$value]==$ball))
 				{
-					$direction .= $other[$value].'<';	
+					$direction .= '>'.$other[$value];	
 				}
 				$direction .= ',';
 				$ball++;
@@ -2211,11 +2209,12 @@ class Statistics_m extends MY_Model
 		$balls = array();
 		$ball = 1;	//start at ball 1
 		// $friend_array is ball>count|last draw date
-		$friend_array = explode(",", $fr);
+		$friend_array = explode("|", $fr);
 		
 		foreach($friend_array as $items =>  $value)
 		{
-			$balls[$ball] = strstr($value, '>', TRUE); // Strip off each number
+			$pos = strpos($value, '>'); // check an element with the '>' great than character
+			if($pos===TRUE) $balls[$ball] = strstr($value, '>', TRUE); // Strip off each number
 			$ball++;
 		}
 	return $balls;
@@ -2233,6 +2232,46 @@ class Statistics_m extends MY_Model
 		$nonfriends_array = explode("|", $nfr);
 	return $nonfriends_array;
 	}
+
+	/**
+	 * Return the added only list of nonfriends of the balls drawn
+	 * 
+	 * @param 	array	$non		Associative array of the non friend global array
+	 * @return	string	$nonfriends String of the non friend totals
+	 */
+	public function combine_nonfriends($non)
+	{
+		$nonfriends = '';
+		foreach($non as $cat => $total)
+		{
+			$nonfriends .= $total.'|';
+		}
+	return substr($nonfriends, 0, -1);
+	}
+
+	/* Return the combined string of the relationship totals XX,XX,XX|>37,<>7,<>19,>42,>14,<>11,<>2,
+	>3,>48,<>32,<>6,>17,<>47,>18,>48,>27,<>30,<5,<>3,<>44,>22,>25,>41,>17,<>48,>5,>19,>26,>5,<>17,>44,
+	<>10,>35,>41,>48,>25,>9,<>41,>10,>47,<>38,>32,>6,<>20,>38,>31,<>13,<>25,>21
+	* 
+	* @param	array	$r				associative relationship array
+	* @param 	string	$fr				String of friend directions 1 through the maximum ball drawn
+	* @param 	integer	$max			Maximum ball drawn from the lottery
+	* @return	string	$combined	 	Return the string as the example above
+	*/
+   public function combine_friends_string($r, $fr, $max)
+   {
+	$directions = '';	// empty string   
+	// 
+	$directions = $this->friendship_direction($fr, $max);
+	$combined = '';
+	foreach($r as $total => $value)
+	{
+		$combined .= $value.',';
+	}
+	$combined = substr($combined, 0, -1);
+
+   return $combined.'|'.$directions;
+   }
 
 	/**
 	 * Return the added only list of friends of the ball drawn for this ball number
@@ -2268,7 +2307,6 @@ class Statistics_m extends MY_Model
 	 */
 	private function update_friends($ball, $list, $row, $ex)
 	{
-		
 		if(!$ex&&($ball==$row['extra'])) return $list;  // Returns the array if the bonus is not included and the ball compared is the extra ball drawn
 		if(!$ex) unset($row['extra']);					// This totally eliminates the extra from the friend tabulation, as in, the independent and duplicate extra
 		foreach($row as $key => $balls_drawn)
@@ -2378,7 +2416,6 @@ class Statistics_m extends MY_Model
 				$str .= $count.', '; 								 // Used as display only with a comma and space
 			}
 		}
-
 	return substr($str,0,-2).'|';	// Return the friends with a '|' separator
 	}
 	/** 
@@ -2610,7 +2647,6 @@ class Statistics_m extends MY_Model
 			if(!isset($all[$key]->last_100)&&$interval>=1) $all[$key]->count_100=0;
 			if(!isset($all[$key]->last_200)&&$interval>=2) $all[$key]->count_200=0;
 		}
-
 		$range = 10;
 		do
 		{

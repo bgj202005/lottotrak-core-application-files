@@ -718,7 +718,7 @@ class Statistics extends Admin_Controller {
 					$associate = explode('+', $str_friends); // The '+' is the separator
 					$str_friends = $associate[0];			 // separated the friends which is a string
 					$str_nonfriends = $associate[1]; 		 // from the non friends which is a string
-					$outofrange = $this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
+					//$outofrange = $this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
 					$friends = array(
 						'range'				=> $new_range,
 						'lottery_friends'	=> $str_friends,
