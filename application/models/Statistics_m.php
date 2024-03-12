@@ -1628,7 +1628,7 @@ class Statistics_m extends MY_Model
 							{
 								// Step 2. Next Range of Draws will include the prize pool
 								$nonfollowlist = $this->non_followers($followlist, $last_ball);
-								$prize_counts[$b] = $this->followers_prizecounts($bonus, $row, $followlist, $nonfollowlist, $duple, ($duple ? $duplelist : FALSE), $prize_counts[$b]);
+								$prize_counts[$b] = $this->followers_prizecounts($row, $followlist, $nonfollowlist, $duple, ($duple ? $duplelist : FALSE), $prize_counts[$b]);
 								if(isset($loc)) $positions[$loc] = $this->followers_positions_prizecounts($positions[$loc]);
 								$first = $lowest_row[0];
 								if(intval($range_ptr-$first['row'])>$range) // Only if the current row pointer
@@ -1766,7 +1766,6 @@ class Statistics_m extends MY_Model
 	/**
 	 * Totals and updates current prize counts 
 	 * 
-	 * @param 	boolean	$ex			Extra Ball Flag
 	 * @param 	array	$r			Associative Row of the current Draw Array minus the draw date
 	 * @param 	array	$fl			Associative Followers Array
 	 * @param 	array	$nonfl		Associative non Follower Array
@@ -1775,7 +1774,7 @@ class Statistics_m extends MY_Model
 	 * @param 	array	$p			Associative Prizes Array with current counts
 	 * @return	array	$hits		Return the updated associative prizes with counts 
 	 */
-	private function followers_prizecounts($ex, $r, $fl, $nonfl, $df, $da, $p)
+	private function followers_prizecounts($r, $fl, $nonfl, $df, $da, $p)
 	{
 		// Initialize Counters
 		global $prizes_cnt;			// prizes_cnt global availability
@@ -1794,7 +1793,7 @@ class Statistics_m extends MY_Model
 				{
  					if(($dr_value==$follower)) $ball_counter++; // Kepp count of followers
 					if(($dr_value==$follower)&&($fl_value>=3)&&($drawn!='extra')) $prizes_cnt++;
-					if(($dr_value==$follower)&&($fl_value>=3)&&($drawn=='extra'&&$ex&&!$df)) 
+					if(($dr_value==$follower)&&($fl_value>=3)&&($drawn=='extra'&&!$df)) 
 					{
 						$prizes_cnt++;
 						$extra_cnt=TRUE; // The Extra flag is set
@@ -1813,7 +1812,7 @@ class Statistics_m extends MY_Model
 				foreach($nonfl as $nonfollower => $nonfl_value)
 					{
 						if(($dr_value==$nonfl_value)&&($drawn!='extra')) $prizes_cnt++;
-						if(($dr_value==$nonfl_value)&&($drawn=='extra'&&$ex&&!$df)) 
+						if(($dr_value==$nonfl_value)&&($drawn=='extra'&&!$df)) 
 						{
 							$prizes_cnt++;
 							$extra_cnt=TRUE;	// The extra flag is set
@@ -1827,7 +1826,7 @@ class Statistics_m extends MY_Model
 		{
 			foreach($da as $dup => $dup_value)
 			{
-				if(($r['extra']==$dup&&($dup_value>=3))&&($ex)) // Must have the extra option, the duplicate count must be greater or equal to 3 
+				if(($r['extra']==$dup&&($dup_value>=3))) // Must have the extra option, the duplicate count must be greater or equal to 3 
 				{
 					$prizes_cnt++;
 					$extra_cnt=TRUE;	// The extra flag is set
