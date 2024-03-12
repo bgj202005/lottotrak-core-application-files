@@ -1793,7 +1793,7 @@ class Statistics_m extends MY_Model
 				{
  					if(($dr_value==$follower)) $ball_counter++; // Kepp count of followers
 					if(($dr_value==$follower)&&($fl_value>=3)&&($drawn!='extra')) $prizes_cnt++;
-					if(($dr_value==$follower)&&($fl_value>=3)&&($drawn=='extra'&&!$df)) 
+					if(($dr_value==$follower)&&($fl_value>=3)&&(($drawn=='extra'&&$dr_value!=0)&&!$df)) 
 					{
 						$prizes_cnt++;
 						$extra_cnt=TRUE; // The Extra flag is set
@@ -1812,7 +1812,7 @@ class Statistics_m extends MY_Model
 				foreach($nonfl as $nonfollower => $nonfl_value)
 					{
 						if(($dr_value==$nonfl_value)&&($drawn!='extra')) $prizes_cnt++;
-						if(($dr_value==$nonfl_value)&&($drawn=='extra'&&!$df)) 
+						if(($dr_value==$nonfl_value)&&(($drawn=='extra'&&$dr_value!=0)&&!$df)) 
 						{
 							$prizes_cnt++;
 							$extra_cnt=TRUE;	// The extra flag is set
