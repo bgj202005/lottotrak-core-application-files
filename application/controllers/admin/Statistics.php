@@ -669,7 +669,6 @@ class Statistics extends Admin_Controller {
 		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$min_ball = $this->data['lottery']->minimum_ball;	// Regular Drawn Low ball e.g. ball 1
 		$max_ball = $this->data['lottery']->maximum_ball;	// Get the highest ball drawn for this lottery, e.g. 49 in Lottery 649, 50 in Lottomax
-		$outofrange = FALSE;								// default is not out of range for the friend and non friend totals
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 		{
@@ -718,10 +717,14 @@ class Statistics extends Admin_Controller {
 					$associate = explode('+', $str_friends); // The '+' is the separator
 					$str_friends = $associate[0];			 // separated the friends which is a string
 					$str_nonfriends = $associate[1]; 		 // from the non friends which is a string
-					//$outofrange = $this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
+					$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
+					$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
+					$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
+					
 					$friends = array(
 						'range'				=> $new_range,
 						'lottery_friends'	=> $str_friends,
+						'wins'				=> $fr_stats,
 						'draw_id'			=> $this->data['lottery']->last_drawn['id'],
 						'lottery_id'		=> $id
 					);
@@ -729,6 +732,7 @@ class Statistics extends Admin_Controller {
 					$nonfriends = array(
 						'range'					=> $new_range,
 						'lottery_nonfriends'	=> $str_nonfriends,
+						'wins'					=> $nfr_stats,
 						'draw_id'				=> $this->data['lottery']->last_drawn['id'],
 						'lottery_id'			=> $id
 					);
@@ -746,13 +750,17 @@ class Statistics extends Admin_Controller {
 			$nonrelatives = $this->statistics_m->create_nonfriend_array();
 			$new_range = ($all<100 ? $all : 100);
 			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
-			//$outofrange = $this->statistics_m->friends_hits($tbl_name, $drawn,  $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
 			$associate = explode('+', $str_friends); // The '+' is the separator
 			$str_friends = $associate[0];			 // separated the friends
 			$str_nonfriends = $associate[1];		 // from the non friends
+			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
+			$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
+			$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
+
 			$friends = array(
 				'range'				=> $new_range,
 				'lottery_friends'	=> $str_friends,
+				'wins'				=> $fr_stats,
 				'draw_id'			=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'		=> $id
 			);
@@ -760,6 +768,7 @@ class Statistics extends Admin_Controller {
 			$nonfriends = array(
 				'range'					=> $new_range,
 				'lottery_nonfriends'	=> $str_nonfriends,
+				'wins'					=> $nfr_stats,
 				'draw_id'				=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'			=> $id
 			);
@@ -785,7 +794,6 @@ class Statistics extends Admin_Controller {
 
 		unset($relatives);
 		unset($nonrelatives);
-		$this->data['lottery']->out_of_range = $outofrange; 			// Is there enough draws to calculate the prizes?
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
 		$this->data['lottery']->last_drawn['range'] = $new_range;

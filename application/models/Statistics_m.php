@@ -2236,7 +2236,7 @@ class Statistics_m extends MY_Model
 	 * @param 	array	$non		Associative array of the non friend global array
 	 * @return	string	$nonfriends String of the non friend totals
 	 */
-	public function combine_nonfriends($non)
+	public function combine_nonfriends_string($non)
 	{
 		$nonfriends = '';
 		foreach($non as $cat => $total)
@@ -2251,7 +2251,7 @@ class Statistics_m extends MY_Model
 	<>10,>35,>41,>48,>25,>9,<>41,>10,>47,<>38,>32,>6,<>20,>38,>31,<>13,<>25,>21
 	* 
 	* @param	array	$r				associative relationship array
-	* @param 	string	$fr				String of friend directions 1 through the maximum ball drawn
+	* @param 	string	$fr				String of friend 1 through the maximum ball drawn
 	* @param 	integer	$max			Maximum ball drawn from the lottery
 	* @return	string	$combined	 	Return the string as the example above
 	*/
@@ -2537,7 +2537,7 @@ class Statistics_m extends MY_Model
 
 	/**
 	* Return the non existent friends after the current draw
-	* @param	array	$list		Associative Array of followers and the counts
+	* @param	array	$list		Associative Array of non followers and the counts
 	* @param	integer	$bl			Current Ball examined with the nonfriends. 
 	* @return	array	$non		Return the array of all non friends in the current range
 	*/
