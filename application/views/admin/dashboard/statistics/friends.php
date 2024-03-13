@@ -49,17 +49,6 @@
 	<?php $max = $lottery->maximum_ball; 
 	   $b = 1; ?>
 	<h5 style = "text-align:left"><?php echo anchor('admin/statistics', 'Back to Statistics Dashboard', 'title="Back to Statistics"'); ?></h5>
-	<?php if($lottery->out_of_range): ?>
-	<div class="container">
-		<div class="row">
-			<div class="col-12">
-				<div class="alert alert-danger" role="alert" style = "text-align:center;">
-					<h4>There are not enough draws to calculate the friend drawn hits and non friend drawn hits.</h4>
-				</div>
-			</div>
-		</div>
-	</div>
-	<?php endif; ?>
 	<section>
 		<div class="container">
 			<div class="row">
