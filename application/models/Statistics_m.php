@@ -1634,9 +1634,9 @@ class Statistics_m extends MY_Model
 								if(intval($range_ptr-$first['row'])>$range) // Only if the current row pointer
 																			// is out of range of the target range, remove draw. e.g. Range = 100 draws
 								{
-									$followlist = $this->remove_oldfollowers($followlist, $first, $bonus);
+									$followlist = $this->remove_oldfollowers($followlist, $first);
 									if($duple) $duplelist = $this->remove_duplicates($duplelist, $first, $bonus);
-									if(!empty($nonfollowlist)) $nonfollowlist = $this->remove_oldnonfollowers($nonfollowlist, $first, $bonus);
+									if(!empty($nonfollowlist)) $nonfollowlist = $this->remove_oldnonfollowers($nonfollowlist, $first);
 									array_shift($lowest_row); // Remove the lowest draw date freom the array, shift it off the beginning of the array
 								}
 							}
@@ -1908,17 +1908,16 @@ class Statistics_m extends MY_Model
 	 * 
 	 * @param 	array	$fl			Current Follower list
 	 * @param 	array 	$prev		Draw that is removed from the previous follower list
-	 * @param 	boolean $ex			Extra Ball, True (include) False (do not include)
 	 * @return	array	$fl			Returns updated followers list
 	 */
-	private function remove_oldfollowers($fl, $prev, $ex)
+	private function remove_oldfollowers($fl, $prev)
 	{
 		unset($prev['draw_date']); 	// Remove the date from the first draw in the range
 		unset($prev['row']);		// Remove the draw number from which it occurred
 		foreach($prev as $before => $drawn)
 		{
 			if(isset($fl[$drawn])&&($before!='extra')) $fl[$drawn]--;
-			if(($before=='extra')&&($ex)&&(isset($fl[$drawn]))) $fl[$drawn]--;
+			if(($before=='extra')&&(isset($fl[$drawn]))) $fl[$drawn]--;
 			if(isset($fl[$drawn])&&$fl[$drawn]==0) unset($fl[$drawn]); // Remove the old array element
 		}
 	return $fl;
@@ -1929,10 +1928,9 @@ class Statistics_m extends MY_Model
 	 * 
 	 * @param 	array	$nonfl		Current Follower list
 	 * @param 	array 	$first		Draw to be added as the most recent draw
-	 * @param 	boolean $ex			Extra Ball, True (include) False (do not include)
 	 * @return	array	$fl			Returns updated followers list
 	 */
-	private function remove_oldnonfollowers($nonfl,$prev,$ex)
+	private function remove_oldnonfollowers($nonfl,$prev)
 	{
 		unset($prev['draw_date']); // Remove the date from the first draw in the range
 		unset($prev['row']);		// Remove the draw number from which it occurred
@@ -1944,7 +1942,7 @@ class Statistics_m extends MY_Model
 				// Non Followers  are only listed in a sequential array
 				// and if the draw has 1 or more of non followers, remove them from the list.			
 				if(($drawn==$nf)&&($before!='extra')) unset($nonfl[$drawn]);
-				if(($before=='extra')&&($ex)&&($drawn==$nf)) unset($nonfl[$drawn]);
+				if(($before=='extra')&&($drawn==$nf)) unset($nonfl[$drawn]);
 			}
 		}
 	return $nonfl;
