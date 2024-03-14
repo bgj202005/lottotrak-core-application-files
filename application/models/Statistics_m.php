@@ -2203,15 +2203,15 @@ class Statistics_m extends MY_Model
 	 */
 	private function extract_friends($fr)
 	{
-		$balls = array();
-		$ball = 1;	//start at ball 1
+		$balls = array(); // init associative index array, not 0 based
+		$ball = 1;		  // start at ball 1
 		// $friend_array is ball>count|last draw date
-		$friend_array = explode("|", $fr);
+		$friend_array = explode(",", $fr); // separate the individual friends
 		
 		foreach($friend_array as $items =>  $value)
 		{
-			$pos = strpos($value, '>'); // check an element with the '>' great than character
-			if($pos===TRUE) $balls[$ball] = strstr($value, '>', TRUE); // Strip off each number
+			$pos = explode(">",$value);	// extract the Ball from the count
+			$balls[$ball] = $pos[0]; 	// place the ball into the index array
 			$ball++;
 		}
 	return $balls;
@@ -2516,7 +2516,7 @@ class Statistics_m extends MY_Model
 						$row = $query->next_row('array'); // Go to the next draw for examination
 						if(!is_null($row))
 						{
-							$relatives = $this->friends_hitcounts($relatives,$friends,$b,$row,$bonus,$duple);
+							$relatives = $this->friends_hitcounts($relatives,$friends,$row,$bonus,$duple);
 							$nonassociates = $this->nonfriends($nonfriends, $b);
 							$nonrelatives = $this->nonfriends_hitcounts($nonrelatives,$nonassociates,$row,$bonus,$duple);
 						}
@@ -2553,22 +2553,22 @@ class Statistics_m extends MY_Model
 	* @param	array	$rel		Associative Array of relatives for different friendships
 	* @param	array	$fr			Index Array of current friends
 	* @param	array	$rw			Current associative array of the next drawn numbers.
-	* @param	boolean	$b			Bonus Flag, 0 = No Bonus / Extra, 1 = No Bonus / Extra Included
+	* @param	boolean	$bns		Bonus Flag, 0 = No Bonus / Extra, 1 = No Bonus / Extra Included
 	* @param	boolean	$d			Duplicate Flag, 0 = No Duplicate, 1 = Duplicate Extra Ball
 	* @return	array	$rel		Return Array of updated relatives
 	*/
-	private function friends_hitcounts($rel, $fr, $rw, $b, $d)
+	private function friends_hitcounts($rel, $fr, $rw, $bns, $d)
 	{
 		// $fl is the search array
 		$blnfound = FALSE;
 		foreach($rw as $position => $ball)
 		{
-			if(array_key_exists($ball,$fr)&&($b)&&((!$d||($d&&$position!='extra'))))
+			if(array_key_exists($ball,$fr)&&($bns)&&((!$d||($d&&$position!='extra'))))
 			{
 				$blnfound = TRUE;
 				// Two way
-				if(isset($fl[$ball])) ++$rel['two-way'];
-				elseif(!isset($fl[$ball])) ++$rel['one-way'];
+				if(isset($fr[$ball])) ++$rel['two-way'];
+				elseif(!isset($fr[$ball])) ++$rel['one-way'];
 				// no friends
 			}
 		}
