@@ -2516,9 +2516,9 @@ class Statistics_m extends MY_Model
 						$row = $query->next_row('array'); // Go to the next draw for examination
 						if(!is_null($row))
 						{
-							$relatives = $this->friends_hitcounts($relatives,$friends,$row,$bonus,$duple);
+							$relatives = $this->friends_hitcounts($relatives,$friends,$row,$duple);
 							$nonassociates = $this->nonfriends($nonfriends, $b);
-							$nonrelatives = $this->nonfriends_hitcounts($nonrelatives,$nonassociates,$row,$bonus,$duple);
+							$nonrelatives = $this->nonfriends_hitcounts($nonrelatives,$nonassociates,$row,$duple);
 						}
 					}
 					else
@@ -2553,26 +2553,32 @@ class Statistics_m extends MY_Model
 	* @param	array	$rel		Associative Array of relatives for different friendships
 	* @param	array	$fr			Index Array of current friends
 	* @param	array	$rw			Current associative array of the next drawn numbers.
-	* @param	boolean	$bns		Bonus Flag, 0 = No Bonus / Extra, 1 = No Bonus / Extra Included
 	* @param	boolean	$d			Duplicate Flag, 0 = No Duplicate, 1 = Duplicate Extra Ball
 	* @return	array	$rel		Return Array of updated relatives
 	*/
-	private function friends_hitcounts($rel, $fr, $rw, $bns, $d)
+	private function friends_hitcounts($rel, $fr, $rw, $d)
 	{
-		// $fl is the search array
+		// $fr is the search array
 		$blnfound = FALSE;
 		foreach($rw as $position => $ball)
 		{
-			if(array_key_exists($ball,$fr)&&($bns)&&((!$d||($d&&$position!='extra'))))
+			if((!$d)||($d&&$position!='extra'))
 			{
-				$blnfound = TRUE;
+				$friend2 = $fr[$ball];
 				// Two way
-				if(isset($fr[$ball])) ++$rel['two-way'];
-				elseif(!isset($fr[$ball])) ++$rel['one-way'];
-				// no friends
+				if(in_array($friend2,$position)) 
+				{
+					++$rel['2-way']; // Two-way
+					$blnfound = TRUE;
+				}
+				elseif(intval($ball)!=(intval($friend2))) 
+				{
+					++$rel['1-way']; // One-way
+					$blnfound = TRUE;
+				}
 			}
 		}
-		if(!$blnfound) ++$rel['nofriends']; 
+		if(!$blnfound) ++$rel['nofriends']; // no friends
 	return $rel;	// Return the friendship relationship counts.
 	}
 
@@ -2583,17 +2589,15 @@ class Statistics_m extends MY_Model
 	* @param	array	$nonrel		Associative Array of non relatives and the counts
 	* @param	array	$nonfl		index Array of current non followers
 	* @param	array	$rw			Current next row of drawn numbers. Compared with the current followers
-	* @param	boolean	$b			Bonus Flag, 0 = No Bonus / Extra, 1 = No Bonus / Extra Included
 	* @param	boolean	$d			Duplicate Flag, 0 = No Duplicate lottery, 1 = Duplicate Extra Ball lottery
 	* @return	array	$nonrel		Return Associated Array of non relatives updated 
 	*/
-	private function nonfriends_hitcounts($nonrel, $nonfl, $rw, $b, $d)
+	private function nonfriends_hitcounts($nonrel, $nonfl, $rw, $d)
 	{
 		$hit_counter=0;	// Non - Friend Counter
-		
 		foreach($rw as $drawn => $ball)
 		{
-			if(array_key_exists($ball,$nonfl)&&($b)&&(!$d||($d&&$drawn!='extra')))
+			if(array_key_exists($ball,$nonfl)&&(!$d||($d&&$drawn!='extra')))
 			{
 				++$hit_counter;
 			}
