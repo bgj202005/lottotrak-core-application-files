@@ -2071,8 +2071,8 @@ class Statistics_m extends MY_Model
 	 * @param 	string 	$name		specific lottery table name
 	 * @param 	integer $max		maximum number of balls drawn
 	 * @param	integer	$top		Maximum Ball drawn for this lottery. e.g. 49 in Lotto 649
-	 * @param	boolean	$bonus		If an extra / bonus ball is included (1 = TRUE, 0 = False)
-	 * @param	boolean $draws		If extra (bonus) draws are included in the calculation (1 = TRUE, 0 = FALSE)
+	 * @param	boolean	$bonus		If an extra / bonus ball is included (1 = TRUE, 0 = False), user selected
+	 * @param	boolean $draws		If extra (bonus) draws are included in the calculation (1 = TRUE, 0 = FALSE), user selected
 	 * @param  	integer	$range		Range of number of draws (default is 100). If less than 100, the number must be set in $range
 	 * @param 	string 	$last		last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
 	 * @param 	boolean	$duple		Duplicate extra ball. FALSE by default.  The extra can have the same number drawn based on the minimum and maximum number drawn
@@ -2152,124 +2152,9 @@ class Statistics_m extends MY_Model
 			unset($friendlist);	// Destroy the old friendlist
 			$query->free_result();	// Removes the Memory associated with the result resource ID
 		} while ($b<=$top);
-		return $friends.'+'.$nonfriends;  // return friends+nonfriends (without the '|' at the end of non friends)
+		return $friends.'+'.$nonfriends;  	// return friends+nonfriends (without the '|' at the end of non friends)
 	}
 	
-	/**
-	 * Determine the direction of a friendship, 
-	 * 1> = 1 way frienship, current ball is a friend of the other ball but the other ball
-	 * is not a friend of the current ball
-	 * 2 = 2 way friendship, the current ball is friends with the other ball and the other
-	 * ball is a friend of the current ball 
-	 * @param 	string	$friendship		string format, ball1>count|last draw date,ball2>count|last draw date, etc.
-	 * @param 	integer	$max			top ball drawn in the lottery, e.g. 49 in a 649
-	 * @return	string	$direction		partial string format, ball>count|last draw date|1>, etc.
-	 */
-	private function friendship_direction($friendship,$max)
-	{
-		$other = array();
-		$other = $this->extract_friends($friendship); // extract friendship string
-		$direction = ''; // start with empty string
-		// Find friendship direction
-		$ball = 1;
-		do
-		{
-			foreach($other as $items => $value)
-			{
-				if(($ball==$value)&&($other[$value]==$ball))
-				{
-					$direction .= '<>'.$other[$value];
-				}
-				elseif(($ball==$value)&&($other[$value]!=$ball))
-				{
-					$direction .= '>'.$other[$value];
-				}
-				elseif(($ball!=$value)&&($other[$value]==$ball))
-				{
-					$direction .= '>'.$other[$value];	
-				}
-				$direction .= ',';
-				$ball++;
-			}
-		} while($ball<=$max);
-	return $direction;
-	}
-
-	/**
-	 * Return the added only list of friends of the ball drawn for this ball number
-	 * 
-	 * @param 	string	$fr			String of Friends to be extracted
-	 * @return	array	$balls		Array of Balls that are friends of balls e.g. 1 to 49 balls
-	 */
-	private function extract_friends($fr)
-	{
-		$balls = array(); // init associative index array, not 0 based
-		$ball = 1;		  // start at ball 1
-		// $friend_array is ball>count|last draw date
-		$friend_array = explode(",", $fr); // separate the individual friends
-		
-		foreach($friend_array as $items =>  $value)
-		{
-			$pos = explode(">",$value);	// extract the Ball from the count
-			$balls[$ball] = $pos[0]; 	// place the ball into the index array
-			$ball++;
-		}
-	return $balls;
-	}
-
-	/**
-	 * Return the added only list of nonfriends of the balls drawn
-	 * 
-	 * @param 	string	$nfr		String of non Friends to be extracted
-	 * @return	array	$nonfriends Array of Balls that are non friends for the set range
-	 */
-	private function extract_nonfriends($nfr)
-	{
-		// $friend_array is ball>count|last draw date
-		$nonfriends_array = explode("|", $nfr);
-	return $nonfriends_array;
-	}
-
-	/**
-	 * Return the added only list of nonfriends of the balls drawn
-	 * 
-	 * @param 	array	$non		Associative array of the non friend global array
-	 * @return	string	$nonfriends String of the non friend totals
-	 */
-	public function combine_nonfriends_string($non)
-	{
-		$nonfriends = '';
-		foreach($non as $cat => $total)
-		{
-			$nonfriends .= $total.'|';
-		}
-	return substr($nonfriends, 0, -1);
-	}
-
-	/* Return the combined string of the relationship totals XX,XX,XX|>37,<>7,<>19,>42,>14,<>11,<>2,
-	>3,>48,<>32,<>6,>17,<>47,>18,>48,>27,<>30,<5,<>3,<>44,>22,>25,>41,>17,<>48,>5,>19,>26,>5,<>17,>44,
-	<>10,>35,>41,>48,>25,>9,<>41,>10,>47,<>38,>32,>6,<>20,>38,>31,<>13,<>25,>21
-	* 
-	* @param	array	$r				associative relationship array
-	* @param 	string	$fr				String of friend 1 through the maximum ball drawn
-	* @param 	integer	$max			Maximum ball drawn from the lottery
-	* @return	string	$combined	 	Return the string as the example above
-	*/
-   public function combine_friends_string($r, $fr, $max)
-   {
-	$directions = '';	// empty string   
-	// 
-	$directions = $this->friendship_direction($fr, $max);
-	$combined = '';
-	foreach($r as $total => $value)
-	{
-		$combined .= $value.',';
-	}
-	$combined = substr($combined, 0, -1);
-
-   return $combined.'|'.$directions;
-   }
-
 	/**
 	 * Return the added only list of friends of the ball drawn for this ball number
 	 * 
@@ -2410,10 +2295,10 @@ class Statistics_m extends MY_Model
 		{
 			if (!array_key_exists($count, $list)&&($count!=$exclude)) // Include ONLY if that number has NEVER occurred
 			{
-				$str .= $count.', '; 								 // Used as display only with a comma and space
+				$str .= $count.',';  // Used as display only with a comma and space
 			}
 		}
-	return substr($str,0,-2).'|';	// Return the friends with a '|' separator
+	return substr($str,0,-1).'|';	// Return the friends with a '|' separator
 	}
 	/** 
 	* Insert / Update Friends Profile of current lottery
@@ -2458,6 +2343,122 @@ class Statistics_m extends MY_Model
 		}
 	}
 	
+	/**
+	 * Determine the direction of a friendship, 
+	 * 1> = 1 way frienship, current ball is a friend of the other ball but the other ball
+	 * is not a friend of the current ball
+	 * 2 = 2 way friendship, the current ball is friends with the other ball and the other
+	 * ball is a friend of the current ball 
+	 * @param 	string	$friendship		string format, ball1>count|last draw date,ball2>count|last draw date, etc.
+	 * @param 	integer	$max			top ball drawn in the lottery, e.g. 49 in a 649
+	 * @return	string	$direction		partial string format, ball>count|last draw date|1>, etc.
+	 */
+	private function friendship_direction($friendship,$max)
+	{
+		$other = array();
+		$other = $this->extract_friends($friendship); // extract friendship string
+		$direction = ''; // start with empty string
+		// Find friendship direction
+		$ball = 1;
+		do
+		{
+			foreach($other as $items => $value)
+			{
+				if(($ball==$value)&&($other[$value]==$ball))
+				{
+					$direction .= '<>'.$other[$value];
+				}
+				elseif(($ball==$value)&&($other[$value]!=$ball))
+				{
+					$direction .= '>'.$other[$value];
+				}
+				elseif(($ball!=$value)&&($other[$value]==$ball))
+				{
+					$direction .= '>'.$other[$value];	
+				}
+				$direction .= ',';
+				$ball++;
+			}
+		} while($ball<=$max);
+	return $direction;
+	}
+
+	/**
+	 * Return the added only list of friends of the ball drawn for this ball number
+	 * 
+	 * @param 	string	$fr			String of Friends to be extracted
+	 * @return	array	$balls		Array of Balls that are friends of balls e.g. 1 to 49 balls
+	 */
+	private function extract_friends($fr)
+	{
+		$balls = array(); // init associative index array, not 0 based
+		$ball = 1;		  // start at ball 1
+		// $friend_array is ball>count|last draw date
+		$friend_array = explode(",", $fr); // separate the individual friends
+		
+		foreach($friend_array as $items =>  $value)
+		{
+			$pos = explode(">",$value);	// extract the Ball from the count
+			$balls[$ball] = $pos[0]; 	// place the ball into the index array
+			$ball++;
+		}
+	return $balls;
+	}
+
+	/**
+	 * Return the added only list of nonfriends of the balls drawn
+	 * 
+	 * @param 	string	$nfr		String of non Friends to be extracted
+	 * @return	array	$nonfriends Array of Balls that are non friends for the set range
+	 */
+	private function extract_nonfriends($nfr)
+	{
+		// $friend_array is ball>count|last draw date
+		$nonfriends_array = explode("|", $nfr);
+		$nonfriends_array = array_combine(range(1, count($nonfriends_array)), $nonfriends_array); // The array should be starting a 1 and not 0
+	return $nonfriends_array;
+	}
+
+	/**
+	 * Return the added only list of nonfriends of the balls drawn
+	 * 
+	 * @param 	array	$non		Associative array of the non friend global array
+	 * @return	string	$nonfriends String of the non friend totals
+	 */
+	public function combine_nonfriends_string($non)
+	{
+		$nonfriends = '';
+		foreach($non as $cat => $total)
+		{
+			$nonfriends .= $total.'|';
+		}
+	return substr($nonfriends, 0, -1);
+	}
+
+	/* Return the combined string of the relationship totals XX,XX,XX|>37,<>7,<>19,>42,>14,<>11,<>2,
+	>3,>48,<>32,<>6,>17,<>47,>18,>48,>27,<>30,<5,<>3,<>44,>22,>25,>41,>17,<>48,>5,>19,>26,>5,<>17,>44,
+	<>10,>35,>41,>48,>25,>9,<>41,>10,>47,<>38,>32,>6,<>20,>38,>31,<>13,<>25,>21
+	* 
+	* @param	array	$r				associative relationship array
+	* @param 	string	$fr				String of friend 1 through the maximum ball drawn
+	* @param 	integer	$max			Maximum ball drawn from the lottery
+	* @return	string	$combined	 	Return the string as the example above
+	*/
+   public function combine_friends_string($r, $fr, $max)
+   {
+	$directions = '';	// empty string   
+	// 
+	$directions = $this->friendship_direction($fr, $max);
+	$combined = '';
+	foreach($r as $total => $value)
+	{
+		$combined .= $value.',';
+	}
+	$combined = substr($combined, 0, -1);
+
+   return $combined.'|'.$directions;
+   }
+
 	/**
 	 * Calculate the Friendships that have NEVER hit, 1 way friendship counts and 2 way friendship counts
 	 * Also calculate the number of non friendships that have occurred during each draw
@@ -2516,9 +2517,9 @@ class Statistics_m extends MY_Model
 						$row = $query->next_row('array'); // Go to the next draw for examination
 						if(!is_null($row))
 						{
-							$relatives = $this->friends_hitcounts($relatives,$friends,$row,$duple);
+							$relatives = $this->friends_hitcounts($relatives,$friends,$row,$bonus,$duple);
 							$nonassociates = $this->nonfriends($nonfriends, $b);
-							$nonrelatives = $this->nonfriends_hitcounts($nonrelatives,$nonassociates,$row,$duple);
+							$nonrelatives = $this->nonfriends_hitcounts($nonrelatives,$nonassociates,$row,$bonus,$duple);
 						}
 					}
 					else
@@ -2553,32 +2554,41 @@ class Statistics_m extends MY_Model
 	* @param	array	$rel		Associative Array of relatives for different friendships
 	* @param	array	$fr			Index Array of current friends
 	* @param	array	$rw			Current associative array of the next drawn numbers.
+	* @param	boolean	$b			Extra / Bonus included in the hit count
 	* @param	boolean	$d			Duplicate Flag, 0 = No Duplicate, 1 = Duplicate Extra Ball
 	* @return	array	$rel		Return Array of updated relatives
 	*/
-	private function friends_hitcounts($rel, $fr, $rw, $d)
+	private function friends_hitcounts($rel, $fr, $rw, $b, $d)
 	{
+		if(!$b) unset($rw['extra']); 	// No extra included in the hit count
+		unset($rw['draw_date']);		// Don't include
+		$elim = array(); // Associate elimination array in this format
+						 // $elim = array(6 = 38, 2 = 5); // For 2 - way friendships only
+		$blnfound = FALSE;	// no frienships at this point
 		// $fr is the search array
-		$blnfound = FALSE;
-		foreach($rw as $position => $ball)
+		foreach($rw as $position => $ball) // Interate the draw, duplicate extra is excluded
 		{
-			if((!$d)||($d&&$position!='extra'))
+			if((!$d)||($d&&$position!='extra')) // Never do the duplicate
 			{
-				$friend2 = $fr[$ball];
+				$friend1 = $fr[$ball];		// Friend 1
+				$friend2 = $fr[$friend1];	// Friend 2
 				// Two way
-				if(in_array($friend2,$position)) 
+				if((in_array($friend1,$rw)&&in_array($friend2,$rw))&&(!isset($elim[$ball])&&(!isset($elim[$friend1])))) 
 				{
-					++$rel['2-way']; // Two-way
+					++$rel['2-way']; 			// Two-way
+					$elim[$ball] = $friend1;	// Record this, so it is not duplicated, e.g. ball = friend2 
+					$elim[$friend1] = $ball;	// and friend2=ball
 					$blnfound = TRUE;
 				}
-				elseif(intval($ball)!=(intval($friend2))) 
+				elseif((in_array($friend1,$rw))&&(!in_array($friend2,$rw))||(!in_array($friend1,$rw))&&(in_array($friend2,$rw))) 
 				{
 					++$rel['1-way']; // One-way
 					$blnfound = TRUE;
 				}
-			}
+			} 
 		}
 		if(!$blnfound) ++$rel['nofriends']; // no friends
+	unset($elim);
 	return $rel;	// Return the friendship relationship counts.
 	}
 
@@ -2589,15 +2599,19 @@ class Statistics_m extends MY_Model
 	* @param	array	$nonrel		Associative Array of non relatives and the counts
 	* @param	array	$nonfl		index Array of current non followers
 	* @param	array	$rw			Current next row of drawn numbers. Compared with the current followers
+	* @param	boolean	$b			Extra / Bonus included in the hit count
 	* @param	boolean	$d			Duplicate Flag, 0 = No Duplicate lottery, 1 = Duplicate Extra Ball lottery
 	* @return	array	$nonrel		Return Associated Array of non relatives updated 
 	*/
-	private function nonfriends_hitcounts($nonrel, $nonfl, $rw, $d)
+	private function nonfriends_hitcounts($nonrel, $nonfl, $rw, $b, $d)
 	{
-		$hit_counter=0;	// Non - Friend Counter
+		$hit_counter=0;					// Non - Friend Counter
+		if(!$b) unset($rw['extra']);	// No extra included in the hit count
+		unset($rw['draw_date']);		// Don't include
+
 		foreach($rw as $drawn => $ball)
 		{
-			if(array_key_exists($ball,$nonfl)&&(!$d||($d&&$drawn!='extra')))
+			if((in_array($ball,$nonfl))&&(!$d||($d&&$drawn!='extra')))
 			{
 				++$hit_counter;
 			}
