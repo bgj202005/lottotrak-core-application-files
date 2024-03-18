@@ -2366,21 +2366,21 @@ class Statistics_m extends MY_Model
 			{
 				if((in_array($ball,$other))&&(in_array($value,$other)))
 				{
-					$direction .= '<>'.$other[$value];
+					$direction .= '<>'.$value;
 				}
 				elseif((in_array($ball,$other))&&(!in_array($value,$other)))
 				{
-					$direction .= '>'.$other[$value];
+					$direction .= '>'.$value;
 				}
 				elseif((!in_array($ball,$other))&&(in_array($value,$other)))
 				{
-					$direction .= '>'.$other[$value];	
+					$direction .= '>'.$value;	
 				}
 				$direction .= ',';
 				$ball++;
 			}
 		} while($ball<=$max);
-	return $direction;
+	return substr($direction, 0, -1);
 	}
 
 	/**
