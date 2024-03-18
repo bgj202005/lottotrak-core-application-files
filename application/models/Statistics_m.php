@@ -2364,15 +2364,15 @@ class Statistics_m extends MY_Model
 		{
 			foreach($other as $items => $value)
 			{
-				if(($ball==$value)&&($other[$value]==$ball))
+				if((in_array($ball,$other))&&(in_array($value,$other)))
 				{
 					$direction .= '<>'.$other[$value];
 				}
-				elseif(($ball==$value)&&($other[$value]!=$ball))
+				elseif((in_array($ball,$other))&&(!in_array($value,$other)))
 				{
 					$direction .= '>'.$other[$value];
 				}
-				elseif(($ball!=$value)&&($other[$value]==$ball))
+				elseif((!in_array($ball,$other))&&(in_array($value,$other)))
 				{
 					$direction .= '>'.$other[$value];	
 				}
