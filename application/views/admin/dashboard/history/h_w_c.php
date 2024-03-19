@@ -95,102 +95,37 @@
 					<div id = "error"></div>
 						<div class="card-header tab-card-header">
 							<div class="d-flex flex-row-reverse">
-								<div class="p-1">
-								<div class="dropdown" style = "margin-left: 50px;">
-										<button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-											Draw Range
-										</button>
-											<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-												<?php $interval = (integer) $lottery->last_drawn['interval'];
-												if(!$interval) : 
-													$sel_range = $lottery->last_drawn['range']; ?>
-													<a class="dropdown-item active" href="<?=base_url('admin/statistics/h_w_c/'.$lottery->id)?>">All Draws (<?=$lottery->last_drawn['range'];?>) </a>
-												<?php else:
-													$sel_range = (integer) $lottery->last_drawn['sel_range']; // Selected a different range from the complete range of draws?
-													for($i = 1; $i <= $interval; $i++):
-														$step = $i * 100;	// in multiples of 100
-														if($i!=$interval): ?>
-															<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?>" href="<?=base_url('admin/statistics/h_w_c/'.$lottery->id.'/'.$step);?>">Last <?=$step;?></a>
-														<?php else : ?>
-															<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?>" href="<?=base_url('admin/statistics/h_w_c/'.$lottery->id.'/'.$lottery->last_drawn['all']);?>">All Draws (<?=$lottery->last_drawn['all'];?>)</a>
-														<?php endif;
-													endfor; ?> 
-													<?php endif;?>
-											</div>
-										</div>
-									</div>
-									<div class="p-2">	
-										<div class="form-check">
-										<?php 
-											$js = "location.href='".base_url()."admin/statistics/h_w_c/".$lottery->id."/".(!$interval ? $sel_range : ($sel_range*100))."/extra'";
-											$attr = array(
-												'onClick' 	=> "$js", 
-												'class'		=> "form-check-input",
-												'id'		=>	"extra_included"
-											);
-											$extra = array('for' => 'extra_lb');
-											echo form_checkbox('extra_included', set_value('extra_included', '1'), set_checkbox('extra_included', '1', (!empty($lottery->extra_included))), $attr);
-											echo form_label('Extra (Bonus) Ball Included?', 'extra_lb', $extra);
-										?>
-										</div>
-									</div>
-									<div class="p-3">
-										<div class="form-check" style = "margin-top:-8px;">
+								<div style = "margin-left: 50px;" class=".col-md-4">
+								<h4 class="text-dark header-title">Draw Range: <?=$lottery->last_drawn['range'];?></h4>
+								</div>
+									<div class=".col-md-4">	
 										<?php
-											$js = "location.href='".base_url()."admin/statistics/h_w_c/".$lottery->id."/".(!$interval ? $sel_range : ($sel_range*100))."/draws'";
-											$attr = array(
-												'onClick' 	=> "$js", 
-												'class'		=> "form-check-input",
-												'id'		=>	"extra_draws"
-											);
-										$extra = array('for' => 'extra_draw_lb');
-											echo form_checkbox('extra_draws', '1', set_checkbox('extra_draws', '1', (!empty($lottery->extra_draws))), $attr);
-											echo form_label('Extra Draw(s) Included?', 'extra_draw_lb', $extra); 
+											$extra = array('for' => 'extra_lb');
+											echo form_label('Extra (Bonus) Ball Included?', 'extra_lb', $extra);
+											echo (!empty($lottery->extra_included)) ? form_label(' YES', 'extra_lb', $extra) : form_label(' NO', 'extra_lb', $extra);
 										?>
 										</div>
 									</div>
-								</div>		
+									<div class=".col-md-4">
+										<?php
+											$extra = array('for' => 'extra_draw_lb');
+											echo form_label('Extra Draw(s) Included?', 'extra_draw_lb', $extra);
+											echo (!empty($lottery->extra_draws)) ? form_label('YES', 'extra_lb', $extra) : form_label('NO', 'extra_lb', $extra); 
+										?>
+									</div>
+								<div class = "text-center" style = "display:inline-block;">
+									<?php 
+										echo form_label("Hots:", "id => 'lb_hots'");
+										echo form_label($lottery->H, "id => 'lb_hots'");
+										echo form_label("Warms:", "id => 'lb_warms'");
+										echo form_label($lottery->W, "id => 'lb_warms'");
+										echo form_label("Colds:", "id => 'lb_colds'");
+										echo form_label($lottery->C, "id => 'lb_colds'");
+									?>
+								</div>
 							</div>
-						<div class = "text-center" style = "display:inline-block;">
-							<?php $frm_attr = array('id' => 'frmheat');
-							echo form_open(base_url('admin/statistics/h_w_c/'.$lottery->id), $frm_attr);
-							echo form_label("Hots:", "id => 'lb_hots'");
-							$h_details = array( 'name'          => 'hots',
-												'id'            => 'hots',
-												'value'         => $lottery->H,
-												'min'		    => '1',
-												'max' 	        => '50',
-												'step'			=> '1',
-												'style'         => 'margin:10px 10px -5px; width:3em; height:30px;',
-												'readonly'		=> 'true'
-							);
-							echo form_input($h_details);
-							echo form_label("Warms:", "id => 'lb_warms'");
-							$w_details = array( 'name'          => 'warms',
-												'id'            => 'warms',
-												'value'         => $lottery->W,
-												'min'		    => '1',
-												'max' 	        => '50',
-												'step'			=> '1',
-												'style'         => 'margin:10px 10px -5px; width:3em; height:30px;',
-												'readonly'		=> 'true'
-							);
-							echo form_input($w_details);
-							echo form_label("Colds:", "id => 'lb_colds'");
-							$c_details = array( 'name'          => 'colds',
-												'id'            => 'colds',
-												'value'         => $lottery->C,
-												'min'		    => '1',
-												'max' 	        => '50',
-												'step'			=> '1',
-												'style'         => 'margin:10px 10px -5px; width:3em; height:30px;',
-												'readonly'		=> 'true'
-							);
-							echo form_input($c_details);
-							$attr = array('class'	=> 'btn btn-primary', 'style' => 'margin: 4px; margin-left:10px;');
-							echo form_submit("heat", "Change Heat Levels", $attr);
-							echo form_close(); ?>
-						</div>
+						</div>		
+						
 						<div class="container" id="content" style = "margin:20px;">
 							<div class = "row justify-content-center">
 								<table class="table">
@@ -348,7 +283,7 @@
 								<table style = "max-width: 130px;" class="table table-striped table-sm">
 									<thead>
 									<tr>
-											<th colspan = "2" class = "datafont">Last <?=$sel_range*100; ?> Draws</th>
+											<th colspan = "2" class = "datafont">Last <?=$lottery->last_drawn['range'];?> Draws</th>
 									</tr>	
 									<tr>
 											<th class = "datafont">H - W - C</th>
@@ -370,26 +305,4 @@
 				</div>
 			</div>
 		</div>
-	</section>
-	<script>
-	$(document).ready(function(){
-    $('#frmheat').on('submit', function(e){
-        e.preventDefault();
-        var hotValue = $('#hots').val();
-		var warmValue = $('#warms').val();
-		var coldValue = $('#colds').val();
-		var totalValue = parseInt(hotValue)+parseInt(warmValue)+parseInt(coldValue);
-		var maxValue = <?=$lottery->maximum_ball;?>;
-		if(totalValue!=maxValue) {
-			$('#error').html("<h3 class='bg-warning' style = 'margin: 15px; text-align:center;'>The hot Value: <strong>"+hotValue+"</strong> Warm Value: <strong>"+warmValue+"</strong> Cold Value: <strong>"+coldValue+"</strong> does not equal the maximum ball value of "+maxValue+". Please Re-enter values.");
-		}
-		else {
-			$('#error').html("");
-			this.submit();
-		}
-    	});
-	});
-    $("#hots").spinner();
-	$("#warms").spinner();
-	$("#colds").spinner();
-</script>
+	</section>	

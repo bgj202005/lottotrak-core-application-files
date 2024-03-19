@@ -289,35 +289,33 @@ class History extends Admin_Controller {
 			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
 			redirect('admin/statistics');
 		}
-
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
-
 		$h_w_c = $this->statistics_m->h_w_c_exists($id);
 		if(!is_null($h_w_c))	// Existing HWC?
 		{
+			$range = $h_w_c['range'];
 			$hwc_history = $this->statistics_m->hwc_history_exists($id);
 			if(!is_null($hwc_history)) // Correct Lottery & Range?
 			{
-					$range = $h_w_c['range'];
 					$hots = $h_w_c['h_count'];
 					$warms = $h_w_c['w_count'];
 					$colds = $h_w_c['c_count'];
+					$this->data['lottery']->H = $hots;  // Number of Hots Distributed e.g. 16 Hots
+					$this->data['lottery']->W = $warms; // Number of Warms Distributed e.g 18 Colds
+					$this->data['lottery' 	]->C = $colds; // Number of colds Distributed e.g 18 Colds
 					$this->data['lottery']->extra_included = $h_w_c['extra_included'];
 					$this->data['lottery']->extra_draws = $h_w_c['extra_draws'];
 					$this->data['lottery']->last_drawn['range'] = $h_w_c['range'];
-
 					$strhots = $h_w_c['hots']; 		// Pull from DB
 					$strwarms = $h_w_c['warms'];
 					$strcolds = $h_w_c['colds'];
 					$strdupextra = $h_w_c['dupextra'];
 					$stroverdue = $h_w_c['overdue'];
-				
 					$hots = explode(",", $strhots); // Convert to Arrays
 					$warms = explode(",", $strwarms); 
 					$colds = explode(",", $strcolds); 
 					if(!empty($strdupextra)) $dupextra = explode(",", $strdupextra);
 					$overdue = explode(",", $stroverdue); 
-
 					// Iterate Hots
 					foreach($hots as $all_hots)
 					{
@@ -325,7 +323,6 @@ class History extends Admin_Controller {
 						$c = substr(strstr($all_hots, '='), 1); // Strip off to the left of the equal sign count
 						$this->data['lottery']->hots[$n] = $c; 
 					}
-
 					// Interate Warms
 					foreach($warms as $all_warms)
 					{
@@ -333,7 +330,6 @@ class History extends Admin_Controller {
 						$c = substr(strstr($all_warms, '='), 1); // Strip off to the left of the equal sign count
 						$this->data['lottery']->warms[$n] = $c; 
 					}
-
 					// Iterate Colds
 					foreach($colds as $all_colds)
 					{
@@ -341,7 +337,6 @@ class History extends Admin_Controller {
 						$c = substr(strstr($all_colds, '='), 1); // Strip off to the left of the equal sign count
 						$this->data['lottery']->colds[$n] = $c; 
 					}
-
 					if (!empty($strdupextra)) // Only if there is the duplicate extra in this lottery?
 					{
 						// Iterate Extra Numbers that can have duplicates of the main balls
@@ -359,8 +354,6 @@ class History extends Admin_Controller {
 						$c = substr(strstr($all_overdue, '='), 1); // Strip off to the left of the equal sign count
 						$this->data['lottery']->overdue[$n] = $c; 
 					}
-
-				}
 				$hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  				// Remove the last comma
 				$hwc_history['h_w_c_last_10'] = substr($hwc_history['h_w_c_last_10'], 0, -1);
 				$this->data['lottery']->last_hwc = $hwc_history['h_w_c_last_1'];
@@ -381,7 +374,12 @@ class History extends Admin_Controller {
 					$this->data['lottery']->last10[$n] = $c; 
 				}
 			}
-			
+			else
+			{
+				$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$range.' Draws.');
+				redirect('admin/history');
+			}
+		}
 		else
 		{
 			$this->session->set_flashdata('message', 'There is an No Hots, Warms, Colds Profile.  Calculate the H-W-C at the Lottery Profile Statistics, Recalc Checkbox.');
