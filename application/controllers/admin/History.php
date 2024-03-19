@@ -272,11 +272,10 @@ class History extends Admin_Controller {
 	 * @param	integer		$id		Lottery id
 	 * @return 	none	
 	 * */
-	public function hwc($id)
+	public function h_w_c($id)
 	{
 		// Fetch the selected lottery from the database
 		$this->data['message'] = '';						// Defaulted to No Error Messages
-		$blnheat = FALSE;									// CHANGE flag. default is FALSE, 
 															//if the form was submitted, the database values will compared to the submitted ones.
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		// Retrieve the lottery table name for the database
@@ -294,11 +293,95 @@ class History extends Admin_Controller {
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 
 		$h_w_c = $this->statistics_m->h_w_c_exists($id);
-
 		if(!is_null($h_w_c))	// Existing HWC?
 		{
+			$hwc_history = $this->statistics_m->hwc_history_exists($id);
+			if(!is_null($hwc_history)) // Correct Lottery & Range?
+			{
+					$range = $h_w_c['range'];
+					$hots = $h_w_c['h_count'];
+					$warms = $h_w_c['w_count'];
+					$colds = $h_w_c['c_count'];
+					$this->data['lottery']->extra_included = $h_w_c['extra_included'];
+					$this->data['lottery']->extra_draws = $h_w_c['extra_draws'];
+					$this->data['lottery']->last_drawn['range'] = $h_w_c['range'];
 
-		}
+					$strhots = $h_w_c['hots']; 		// Pull from DB
+					$strwarms = $h_w_c['warms'];
+					$strcolds = $h_w_c['colds'];
+					$strdupextra = $h_w_c['dupextra'];
+					$stroverdue = $h_w_c['overdue'];
+				
+					$hots = explode(",", $strhots); // Convert to Arrays
+					$warms = explode(",", $strwarms); 
+					$colds = explode(",", $strcolds); 
+					if(!empty($strdupextra)) $dupextra = explode(",", $strdupextra);
+					$overdue = explode(",", $stroverdue); 
+
+					// Iterate Hots
+					foreach($hots as $all_hots)
+					{
+						$n = strstr($all_hots, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+						$c = substr(strstr($all_hots, '='), 1); // Strip off to the left of the equal sign count
+						$this->data['lottery']->hots[$n] = $c; 
+					}
+
+					// Interate Warms
+					foreach($warms as $all_warms)
+					{
+						$n = strstr($all_warms, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+						$c = substr(strstr($all_warms, '='), 1); // Strip off to the left of the equal sign count
+						$this->data['lottery']->warms[$n] = $c; 
+					}
+
+					// Iterate Colds
+					foreach($colds as $all_colds)
+					{
+						$n = strstr($all_colds, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+						$c = substr(strstr($all_colds, '='), 1); // Strip off to the left of the equal sign count
+						$this->data['lottery']->colds[$n] = $c; 
+					}
+
+					if (!empty($strdupextra)) // Only if there is the duplicate extra in this lottery?
+					{
+						// Iterate Extra Numbers that can have duplicates of the main balls
+						foreach($dupextra as $all_dupextra)
+						{
+							$n = strstr($all_dupextra, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+							$c = substr(strstr($all_dupextra, '='), 1); // Strip off to the left of the equal sign count
+							$this->data['lottery']->dupextra[$n] = $c; 
+						}
+					}
+					// Iterate Overdues
+					foreach($overdue as $all_overdue)
+					{
+						$n = strstr($all_overdue, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+						$c = substr(strstr($all_overdue, '='), 1); // Strip off to the left of the equal sign count
+						$this->data['lottery']->overdue[$n] = $c; 
+					}
+
+				}
+				$hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  				// Remove the last comma
+				$hwc_history['h_w_c_last_10'] = substr($hwc_history['h_w_c_last_10'], 0, -1);
+				$this->data['lottery']->last_hwc = $hwc_history['h_w_c_last_1'];
+				// Iterate Top H - W - C's from Range
+				$hwc_totals = explode(',',$hwc_history['h_w_c_range']);							
+				foreach($hwc_totals as $heat)
+				{
+					$n = strstr($heat, '=', TRUE);										// Strip off the h-w-c to the left of the equal sign
+					$c = substr(strrchr($heat, "="), 1); 								// Strip off the count to the right of the equal sign
+					$this->data['lottery']->hwc[$n] = $c; 
+				}
+				// Iterate H - W - C's from last 10 draws
+				$hwc_last10 = explode(',',$hwc_history['h_w_c_last_10']);							
+				foreach($hwc_last10 as $heat)
+				{
+					$n = strstr($heat, '=', TRUE);										// Strip off the h-w-c to the left of the equal sign
+					$c = substr(strrchr($heat, "="), 1); 								// Strip off the count to the right of the equal sign
+					$this->data['lottery']->last10[$n] = $c; 
+				}
+			}
+			
 		else
 		{
 			$this->session->set_flashdata('message', 'There is an No Hots, Warms, Colds Profile.  Calculate the H-W-C at the Lottery Profile Statistics, Recalc Checkbox.');
