@@ -51,21 +51,13 @@
   		max-width: 178px;
   		margin:20px;
 	}
-	/* hwc */
-	table hwc{
-    	width:100%;
+	/* pos */
+	table.pos{
+    	width:185px;
+		border:1px solid black;
+  		display:inline-block;
+		max-width: 185px;
 	}
-	tr hwc{
-		font-size: 0.90em;
-	}
-	th hwc{
-		text-align:center;
-		font-size: 0.90em;
-	}
-	table.hwc tr{
-		font-size: 0.65em;
-	}
-	
 	th.datafont{
 		text-align:center;
 		font-size: 0.95em;
@@ -74,9 +66,6 @@
 		font-size: 	0.95em;
 		text-align: center; 
 		white-space: nowrap;
-	}
-	#hwc_paginate{
-    float:right;
 	}
 	.last-draws {
 		margin-top:3em;
@@ -177,6 +166,25 @@
 										endforeach; ?>
 									</tbody>
 								</table>
+								<table class="table pos">
+									<thead>
+										<tr>
+											<th class="text-center" colspan="2">Hot Win Positions</th>
+										</tr>
+										<tr>
+											<th class="text-center">Position</th>
+											<th class="text-center">Count</th>
+										</tr>
+									</thead>
+									<tbody>
+										<?php foreach($lottery->hots_pos as $position => $count):	
+												echo "<tr class='table-light'>";
+												echo "<td class='text-center'>".$position."</td>";
+												echo "<td class='text-center'>".$count."</td>";
+												echo "</tr>";
+										endforeach; ?>
+									</tbody>
+								</table>
 								<table class="table">
 									<thead>
 										<tr>
@@ -197,6 +205,25 @@
 											else:
 												echo "<tr class='table-warning'><td colspan = '2'>No Warms</td></tr>";
 											endif;
+										endforeach; ?>
+									</tbody>
+								</table>
+								<table class="table pos">
+									<thead>
+										<tr>
+											<th class="text-center" colspan="2">Warm Win Positions</th>
+										</tr>
+										<tr>
+											<th class="text-center">Position</th>
+											<th class="text-center">Count</th>
+										</tr>
+									</thead>
+									<tbody>
+										<?php foreach($lottery->warms_pos as $position => $count):	
+												echo "<tr class='table-light'>";
+												echo "<td class='text-center'>".$position."</td>";
+												echo "<td class='text-center'>".$count."</td>";
+												echo "</tr>";
 										endforeach; ?>
 									</tbody>
 								</table>
@@ -223,6 +250,25 @@
 										endforeach; ?>
 									</tbody>
 								</table>
+								<table class="table pos">
+									<thead>
+										<tr>
+											<th class="text-center" colspan="2">Cold Win Positions</th>
+										</tr>
+										<tr>
+											<th class="text-center">Position</th>
+											<th class="text-center">Count</th>
+										</tr>
+									</thead>
+									<tbody>
+										<?php foreach($lottery->colds_pos as $position => $count):	
+												echo "<tr class='table-light'>";
+												echo "<td class='text-center'>".$position."</td>";
+												echo "<td class='text-center'>".$count."</td>";
+												echo "</tr>";
+										endforeach; ?>
+									</tbody>
+								</table>
 								<!-- Extra Ball if it outside of the balls being drawn and can have a duplicate drawn ball -->
 								<?php if(isset($lottery->dupextra)) : ?>
 								<table class="table">
@@ -245,86 +291,6 @@
 									</tbody>
 								</table>
 									<?php endif; ?>
-
-								<table class="table" style = "max-width: 229px;">
-									<thead>
-										<tr>
-											<th class="text-center" colspan="2">Overdue</th>
-										</tr>
-										<tr>
-											<th class="text-center">Ball</th>
-											<th class="text-center">Draws Skipped</th>
-											<th class="text-center">Draw Average</th>
-										</tr>
-									</thead>
-									<tbody>
-									<?php foreach($lottery->overdue as $ball => $count):	
-												$skips = explode('|', $count); // break the actual overdue draws and the average that the ball is drawn
-												if($ball) :
-													echo "<tr class='table-info'>";
-													echo "<td class='text-center'>".$ball."</td>";
-													echo "<td class='text-center'>".$skips[0]."</td>";
-													echo "<td class='text-center'>".$skips[1]."</td>";
-													echo "</tr>";
-												else:
-													echo "<tr class='table-info'><td colspan = '3'>No Overdue Balls</td></tr>";
-												endif;			
-											endforeach; ?>
-									</tbody>
-								</table>
-								<table style = "max-width: 85px; max-height: 100px;" class="table table-sm">
-								<thead>
-									<tr>
-										<th colspan = "2" class = "datafont">Last Draw</th>
-									</tr>
-									<tr>
-										<th class = "datafont">H - W - C</th>
-									</tr>
-								</thead>
-								<tbody>
-									<tr>
-										<td class="text-center datafont"><?=str_replace('-',' - ',$lottery->last_hwc);?></td>
-									</tr>
-								</tbody>	
-								</table>
-								<table style = "max-width: 130px;" class="table table-striped table-sm">
-									<thead>
-										<tr>
-											<th colspan = "2" class = "datafont">Last 10 Draws</th>
-										</tr>
-										<tr>
-											<th class = "datafont">H - W - C</th>
-											<th class = "datafont">Count</th>
-										</tr>
-									</thead>
-									<tbody>
-										<?php foreach ($lottery->last10 as $last10 => $total): ?>
-										<tr>
-											<td class="text-center datafont"><?=str_replace('-',' - ',$last10);?></td>
-											<td class="text-center datafont"><?=$total;?></td>
-										</tr>
-										<?php endforeach; ?>
-									</tbody>	
-								</table>
-								<table style = "max-width: 130px;" class="table table-striped table-sm">
-									<thead>
-									<tr>
-											<th colspan = "2" class = "datafont">Last <?=$lottery->last_drawn['range'];?> Draws</th>
-									</tr>	
-									<tr>
-											<th class = "datafont">H - W - C</th>
-											<th class = "datafont">Count</th>
-										</tr>
-									</thead>
-									<tbody>
-										<?php foreach ($lottery->hwc as $h_w_c => $total): ?>
-										<tr>
-											<td class="text-center datafont"><?=str_replace('-',' - ',$h_w_c);?></td>
-											<td class="text-center datafont"><?=$total;?></td>
-										</tr>
-										<?php endforeach; ?>
-									</tbody>	
-								</table>
 							</div>
 						</div>
 					</div>

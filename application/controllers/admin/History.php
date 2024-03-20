@@ -310,12 +310,10 @@ class History extends Admin_Controller {
 					$strwarms = $h_w_c['warms'];	// All counts for Hots, Warms, Colds
 					$strcolds = $h_w_c['colds'];
 					$strdupextra = $h_w_c['dupextra'];
-					$stroverdue = $h_w_c['overdue'];
 					$hots = explode(",", $strhots); // Convert to Arrays
 					$warms = explode(",", $strwarms); 
 					$colds = explode(",", $strcolds); 
 					if(!empty($strdupextra)) $dupextra = explode(",", $strdupextra);
-					$overdue = explode(",", $stroverdue); 
 					// Iterate Hots
 					foreach($hots as $all_hots)
 					{
@@ -347,38 +345,36 @@ class History extends Admin_Controller {
 							$this->data['lottery']->dupextra[$n] = $c; 
 						}
 					}
-					// Iterate Overdues
-					foreach($overdue as $all_overdue)
-					{
-						$n = strstr($all_overdue, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
-						$c = substr(strstr($all_overdue, '='), 1); // Strip off to the left of the equal sign count
-						$this->data['lottery']->overdue[$n] = $c; 
-					}
-				$hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  	// Remove the last comma
-				$hwc_history['h_w_c_last_10'] = substr($hwc_history['h_w_c_last_10'], 0, -1);
-				$this->data['lottery']->last_hwc = $hwc_history['h_w_c_last_1'];
-				// Iterate Top H - W - C's from Range
-				$hwc_totals = explode(',',$hwc_history['h_w_c_range']);							
-				foreach($hwc_totals as $heat)
-				{
-					$n = strstr($heat, '=', TRUE);										// Strip off the h-w-c to the left of the equal sign
-					$c = substr(strrchr($heat, "="), 1); 								// Strip off the count to the right of the equal sign
-					$this->data['lottery']->hwc[$n] = $c; 
-				}
-				// Iterate H - W - C's from last 10 draws
-				$hwc_last10 = explode(',',$hwc_history['h_w_c_last_10']);							
-				foreach($hwc_last10 as $heat)
-				{
-					$n = strstr($heat, '=', TRUE);										// Strip off the h-w-c to the left of the equal sign
-					$c = substr(strrchr($heat, "="), 1); 								// Strip off the count to the right of the equal sign
-					$this->data['lottery']->last10[$n] = $c; 
-				}
 			// Pull the winning positions for the Hots, Warms, Colds
-			$strpositions = $h_w_c['position'];
+			$strpositions = $hwc_history['position'];
 			$heat_position = explode("|", $strpositions); // Split into arrays of heat_position, 0, 1, 2
-			$strhotpos = explode(">", $heat_position[0]);	 // Hots
-			$strwarmpos = explode(">", $heat_position[1]);	 // Warms
-			$strcoldpos = explode(">", $heat_position[2]);	 // Colds
+			$hotpos = explode(">", $heat_position[0]);	 	// Hots
+			$warmpos = explode(">", $heat_position[1]);	 	// Warms
+			$coldpos = explode(">", $heat_position[2]); 	// Colds
+			$hot_hits = explode(",", $hotpos[1]);
+			$warm_hits = explode(",", $warmpos[1]);
+			$cold_hits = explode(",", $coldpos[1]);
+				// Iterate Hots Win Position
+				foreach($hot_hits as $hots_pos)
+				{
+					$n = strstr($hots_pos, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($hots_pos, '='), 1); // Strip off to the left of the equal sign count
+					$this->data['lottery']->hots_pos[$n] = $c; 
+				}
+				// Interate Warms Win Positions
+				foreach($warm_hits as $warm_hits)
+				{
+					$n = strstr($warm_hits, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($warm_hits, '='), 1); // Strip off to the left of the equal sign count
+					$this->data['lottery']->warms_pos[$n] = $c; 
+				}
+				// Iterate Colds Win Positionds
+				foreach($colds as $cold_hits)
+				{
+					$n = strstr($cold_hits, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($cold_hits, '='), 1); // Strip off to the left of the equal sign count
+					$this->data['lottery']->colds_pos[$n] = $c; 
+				}
 			}
 			else
 			{
