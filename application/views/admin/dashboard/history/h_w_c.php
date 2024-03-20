@@ -93,7 +93,7 @@
 	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
 	<script src="//code.jquery.com/jquery-1.12.4.js"></script>
   	<script src="//code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
-	<h2><?php echo 'View the Hot, Warm and Cold numbers for: '.$lottery->lottery_name; ?></h2>
+	<h2><?php echo 'H (Hots), W (Warms and C (Colds) winners for: '.$lottery->lottery_name; ?></h2>
 	<?php $max = $lottery->balls_drawn; 
 	   $b = 1; 
 	   ?>	
@@ -145,7 +145,7 @@
 												<h4 class="mb-1">
 												<?php $extra = array('for' => 'extra_lb', 'style' =>'margin-right:10px;');
 												echo form_label('Extra Draws Included?', 'extra_lb', $extra);
-												echo (!empty($lottery->draws_included)) ? form_label(' YES', 'extra_lb', $extra) : form_label(' NO', 'extra_lb', $extra);
+												echo (!empty($lottery->extra_draws)) ? form_label(' YES', 'extra_lb', $extra) : form_label(' NO', 'extra_lb', $extra);
 												?></h4>
 												
 											</div>

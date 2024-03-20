@@ -307,7 +307,7 @@ class History extends Admin_Controller {
 					$this->data['lottery']->extra_draws = $h_w_c['extra_draws'];
 					$this->data['lottery']->last_drawn['range'] = $h_w_c['range'];
 					$strhots = $h_w_c['hots']; 		// Pull from DB
-					$strwarms = $h_w_c['warms'];
+					$strwarms = $h_w_c['warms'];	// All counts for Hots, Warms, Colds
 					$strcolds = $h_w_c['colds'];
 					$strdupextra = $h_w_c['dupextra'];
 					$stroverdue = $h_w_c['overdue'];
@@ -354,7 +354,7 @@ class History extends Admin_Controller {
 						$c = substr(strstr($all_overdue, '='), 1); // Strip off to the left of the equal sign count
 						$this->data['lottery']->overdue[$n] = $c; 
 					}
-				$hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  				// Remove the last comma
+				$hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  	// Remove the last comma
 				$hwc_history['h_w_c_last_10'] = substr($hwc_history['h_w_c_last_10'], 0, -1);
 				$this->data['lottery']->last_hwc = $hwc_history['h_w_c_last_1'];
 				// Iterate Top H - W - C's from Range
@@ -373,6 +373,12 @@ class History extends Admin_Controller {
 					$c = substr(strrchr($heat, "="), 1); 								// Strip off the count to the right of the equal sign
 					$this->data['lottery']->last10[$n] = $c; 
 				}
+			// Pull the winning positions for the Hots, Warms, Colds
+			$strpositions = $h_w_c['position'];
+			$heat_position = explode("|", $strpositions); // Split into arrays of heat_position, 0, 1, 2
+			$strhotpos = explode(">", $heat_position[0]);	 // Hots
+			$strwarmpos = explode(">", $heat_position[1]);	 // Warms
+			$strcoldpos = explode(">", $heat_position[2]);	 // Colds
 			}
 			else
 			{
@@ -385,7 +391,6 @@ class History extends Admin_Controller {
 			$this->session->set_flashdata('message', 'There is an No Hots, Warms, Colds Profile.  Calculate the H-W-C at the Lottery Profile Statistics, Recalc Checkbox.');
 			redirect('admin/history');
 		}
-
 		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
 		else $this->data['message'] = '';
 		// Load the view
