@@ -77,7 +77,18 @@
 	}
 	#hwc_paginate{
     float:right;
-	}	  
+	}
+	.last-draws {
+		margin-top:3em;
+		text-align: center;
+	}
+	.h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6 {
+    color: #000000;
+	}	
+.shadow-sm {
+    box-shadow: 0 .125rem .25rem rgba(0,0,0,.075)!important;
+	}
+
 </style>
 	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
 	<script src="//code.jquery.com/jquery-1.12.4.js"></script>
@@ -92,40 +103,55 @@
 			<div class="row">
 				<div class="col-12">
 					<div class="card mt-3 tab-card">
-					<div id = "error"></div>
-						<div class="card-header tab-card-header">
-							<div class="d-flex flex-row-reverse">
-								<div style = "margin-left: 50px;" class=".col-md-4">
-								<h4 class="text-dark header-title">Draw Range: <?=$lottery->last_drawn['range'];?></h4>
-								</div>
-									<div class=".col-md-4">	
-										<?php
-											$extra = array('for' => 'extra_lb');
-											echo form_label('Extra (Bonus) Ball Included?', 'extra_lb', $extra);
-											echo (!empty($lottery->extra_included)) ? form_label(' YES', 'extra_lb', $extra) : form_label(' NO', 'extra_lb', $extra);
-										?>
+						<div id = "error"></div>
+							<div class="card-header tab-card-header">
+								<div class="d-flex flex-row-reverse">
+									<div class="col-md-6">
+										<div class="bg-white card last-draws mb-4 shadow-sm">
+											<div class="p-4">
+												<h4 class="mb-1">Draw Range: <?=$lottery->last_drawn['range'];?> Draws</h4>
+											</div>
+										</div>
+									<div class="bg-white card last-draws mb-4 shadow-sm">
+											<div class="p-4">
+												<h4 class="mb-1">
+												<?php $extra = array('for' => 'extra_lb', 'style' =>'margin-right:10px;');
+												echo form_label('Extra (Bonus) Ball Included?', 'extra_lb', $extra);
+												echo (!empty($lottery->extra_included)) ? form_label(' YES', 'extra_lb', $extra) : form_label(' NO', 'extra_lb', $extra);
+												?></h4>
+											</div>
 										</div>
 									</div>
-									<div class=".col-md-4">
-										<?php
-											$extra = array('for' => 'extra_draw_lb');
-											echo form_label('Extra Draw(s) Included?', 'extra_draw_lb', $extra);
-											echo (!empty($lottery->extra_draws)) ? form_label('YES', 'extra_lb', $extra) : form_label('NO', 'extra_lb', $extra); 
-										?>
-									</div>
-								<div class = "text-center" style = "display:inline-block;">
-									<?php 
-										echo form_label("Hots:", "id => 'lb_hots'");
-										echo form_label($lottery->H, "id => 'lb_hots'");
-										echo form_label("Warms:", "id => 'lb_warms'");
-										echo form_label($lottery->W, "id => 'lb_warms'");
-										echo form_label("Colds:", "id => 'lb_colds'");
-										echo form_label($lottery->C, "id => 'lb_colds'");
-									?>
+									<div class="col-md-6">
+										<div class="bg-white card last-draws mb-4 shadow-sm">
+											<div class="p-4">
+												<h4 class="mb-1">
+												<div class = "text-center" style = "display:inline-block;">
+												<?php $hot = array('style' =>'margin-right:10px; color:red;');
+														$warm = array('style' =>'margin-right:10px; color:orange;');
+														$cold = array('style' =>'color:blue;');
+														echo form_label("Hots:", "id => 'lb_hots'", $extra);
+														echo form_label($lottery->H, "id => 'hots'", $hot);
+														echo form_label("Warms:", "id => 'lb_warms'", $extra);
+														echo form_label($lottery->W, "id => 'warms'", $warm);
+														echo form_label("Colds:", "id => 'lb_colds'", $extra);
+														echo form_label($lottery->C, "id => 'colds'", $cold);
+													?>
+												</div></h4>
+											</div>
+										</div>
+										<div class="bg-white card last-draws mb-4 shadow-sm">
+											<div class="p-4">
+												<h4 class="mb-1">
+												<?php $extra = array('for' => 'extra_lb', 'style' =>'margin-right:10px;');
+												echo form_label('Extra Draws Included?', 'extra_lb', $extra);
+												echo (!empty($lottery->draws_included)) ? form_label(' YES', 'extra_lb', $extra) : form_label(' NO', 'extra_lb', $extra);
+												?></h4>
+												
+											</div>
+										</div>
+									</div>		
 								</div>
-							</div>
-						</div>		
-						
 						<div class="container" id="content" style = "margin:20px;">
 							<div class = "row justify-content-center">
 								<table class="table">
