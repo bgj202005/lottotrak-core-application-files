@@ -295,6 +295,9 @@ class History extends Admin_Controller {
 			$hwc_history = $this->statistics_m->hwc_history_exists($id);
 			if(!is_null($hwc_history)) // Correct Lottery & Range?
 			{
+				$draw = array(); 		// Temporary draw array
+				$positions = array();	// Temporary position array
+				$draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn,$h_w_c['extra_included']);
 				$hots = $h_w_c['h_count'];
 				$warms = $h_w_c['w_count'];
 				$colds = $h_w_c['c_count'];
@@ -313,25 +316,55 @@ class History extends Admin_Controller {
 				$colds = explode(",", $strcolds); 
 				if(!empty($strdupextra)) $dupextra = explode(",", $strdupextra);
 				// Iterate Hots
+				$pos = 0;
 				foreach($hots as $all_hots)
 				{
 					$n = strstr($all_hots, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
 					$c = substr(strstr($all_hots, '='), 1); // Strip off to the left of the equal sign count
-					$this->data['lottery']->hots[$n] = $c; 
+					if(!in_array($n,$draw))
+					{
+						$this->data['lottery']->hots[$n] = $c;
+					}
+					else
+					{
+						$this->data['lottery']->hots[$n.'*'] = $c;
+						$positions[$pos] = 'h';
+					}
+					$pos++;
 				}
 				// Interate Warms
+				$pos = 0;
 				foreach($warms as $all_warms)
 				{
 					$n = strstr($all_warms, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
 					$c = substr(strstr($all_warms, '='), 1); // Strip off to the left of the equal sign count
-					$this->data['lottery']->warms[$n] = $c; 
+					if(!in_array($n,$draw))
+					{
+						$this->data['lottery']->warms[$n] = $c;
+					}
+					else
+					{
+						$this->data['lottery']->warms[$n.'*'] = $c;
+						$positions[$pos] = 'w';
+					}
+					$pos++;
 				}
 				// Iterate Colds
+				$pos = 0;
 				foreach($colds as $all_colds)
 				{
 					$n = strstr($all_colds, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
 					$c = substr(strstr($all_colds, '='), 1); // Strip off to the left of the equal sign count
-					$this->data['lottery']->colds[$n] = $c; 
+					if(!in_array($n,$draw))
+					{
+						$this->data['lottery']->colds[$n] = $c;
+					}
+					else
+					{
+						$this->data['lottery']->colds[$n.'*'] = $c;
+						$positions[$pos] = 'c';
+					}
+					$pos++;
 				}
 				if (!empty($strdupextra)) // Only if there is the duplicate extra in this lottery?
 				{
@@ -389,6 +422,9 @@ class History extends Admin_Controller {
 		else $this->data['message'] = '';
 		//Don't forget to include the last drawn h-w-c
 		$this->data['lottery']->hwc = explode('-',$hwc_history['h_w_c_last_1']);
+		$this->data['lottery']->positions = $positions;
+		unset($draws);
+		unset($positions);
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the Statistics menu
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);

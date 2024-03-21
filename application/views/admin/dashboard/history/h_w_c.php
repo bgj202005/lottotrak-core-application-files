@@ -53,10 +53,9 @@
 	}
 	/* pos */
 	table.pos{
-    	width:185px;
-		border:1px solid black;
+ 		border:1px solid black;
   		display:inline-block;
-		max-width: 185px;
+		max-width: 178px;
 	}
 	th.datafont{
 		text-align:center;
@@ -115,6 +114,7 @@
 												<h4 class="mb-1">
 												<?php $extra = array('for' => 'extra_lb', 'style' =>'margin-right:10px;');
 												echo form_label('Last Draw Date:', 'extra_lb', $extra);
+												echo "<br />";
 												echo date("l, M-d-Y",strtotime(str_replace('/','-',$lottery->last_drawn['draw_date']))); 
 												echo "<br />";
 												//var_dump($lottery->last_drawn);
@@ -206,8 +206,8 @@
 										<tbody>
 											<?php foreach($lottery->hots_pos as $position => $count):	
 													echo "<tr class='table-light'>";
-													echo "<td class='text-center'>".$position."</td>";
-													echo "<td class='text-center'>".$count."</td>";
+													echo (isset($lottery->positions[$position])&&($lottery->positions[$position]=='h') ? "<td class='text-center bg-danger text-white'>".$position."</td>" : "<td class='text-center'>".$position."</td>");
+													echo (isset($lottery->positions[$position])&&($lottery->positions[$position]=='h') ? "<td class='text-center bg-danger text-white'>".$count."</td>" : "<td class='text-center'>".$count."</td>");
 													echo "</tr>";
 											endforeach; ?>
 										</tbody>
@@ -248,8 +248,8 @@
 										<tbody>
 											<?php foreach($lottery->warms_pos as $position => $count):	
 													echo "<tr class='table-light'>";
-													echo "<td class='text-center'>".$position."</td>";
-													echo "<td class='text-center'>".$count."</td>";
+													echo (isset($lottery->positions[$position])&&($lottery->positions[$position]=='w') ? "<td class='text-center bg-danger text-white'>".$position."</td>" : "<td class='text-center'>".$position."</td>");
+													echo (isset($lottery->positions[$position])&&($lottery->positions[$position]=='w') ? "<td class='text-center bg-danger text-white'>".$count."</td>" : "<td class='text-center'>".$count."</td>");
 													echo "</tr>";
 											endforeach; ?>
 										</tbody>
@@ -290,8 +290,8 @@
 										<tbody>
 											<?php foreach($lottery->colds_pos as $position => $count):	
 													echo "<tr class='table-light'>";
-													echo "<td class='text-center'>".$position."</td>";
-													echo "<td class='text-center'>".$count."</td>";
+													echo (isset($lottery->positions[$position])&&($lottery->positions[$position]=='c') ? "<td class='text-center bg-danger text-white'>".$position."</td>" : "<td class='text-center'>".$position."</td>");
+													echo (isset($lottery->positions[$position])&&($lottery->positions[$position]=='c') ? "<td class='text-center bg-danger text-white'>".$count."</td>" : "<td class='text-center'>".$count."</td>");
 													echo "</tr>";
 											endforeach; ?>
 										</tbody>

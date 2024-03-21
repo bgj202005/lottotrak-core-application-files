@@ -2,7 +2,7 @@
 class History_m extends MY_Model
 {
     /**
-	 * This load_history loads a range od draws in ascending order and returned as an array. 
+	 * This load_history loads a range of draws in ascending order and returned as an array. 
      * key / value pairs:
 	 * history( 'id' => '859', 
      *          'ball1' => '25',
@@ -682,5 +682,28 @@ class History_m extends MY_Model
           elseif(!$l) break; // Break out of the interation as complete.
         }
     return substr($str, 0, -1);	// Return the string without an extra ','
+	}
+    /** 
+	* Onlydrawn draw numbers from the last draw. Return only the numbers in an index array (1,2,3...)
+	* 
+	* @param 	array	$dr		    key / value pairs of the last drawn numbers in this lottery
+	* @param	boolean $bs		    Bonus Flag set or unset. No Extra Ball = 0 (FALSE), Extra/Bonus ball included = 1 (TRUE) 
+	* @return   array   $drawn      Return index array of only drawn numbers	
+	*/
+	public function onlydrawn($dr, $bs)
+	{
+		$drawn = array();
+        $ball = 1;
+        unset($dr['id']);
+        unset($dr['draw_date']);
+        if(!$bs) unset($dr['extra']);    // No extra / bonus included
+        do
+        {
+            if(isset($dr['ball'.$ball])) $drawn[$ball] = $dr['ball'.$ball];
+            ++$ball;
+        } while($ball<10);
+        if($bs) $drawn[$ball] = $dr['extra'];  // include the extra / bonus
+        unset($dr);
+    return $drawn;
 	}
 }
