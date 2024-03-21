@@ -178,7 +178,6 @@ class History extends Admin_Controller {
 			redirect('admin/history'); 
 		}
 		/**** At A Glance Statistics Analysis Methods up to the latest draw *****/
-
 		$this->data['lottery']->last_drawn['trends'] = ((!empty($glance)&&!$bln_chg) ? $glance->trends : $this->history_m->trend_history($drawings, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_included));
 		$this->data['lottery']->last_drawn['repeats'] = ((!empty($glance)&&!$bln_chg) ? $glance->repeats : $this->history_m->repeat_history($drawings, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_included));
 		// Required to get the drawings with or without the extra draws, consecutives is OK, adjacents is OK, sums are OK, digits are OK, Range is OK, Parity is OK
@@ -251,7 +250,6 @@ class History extends Admin_Controller {
 			$c = $this->statistics_m->lottery_rows($tbl_name);
 			if($c>100) $c = 100;
 		}
-
 		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
 		else $this->data['message'] = '';
 		// Load the view
@@ -297,63 +295,63 @@ class History extends Admin_Controller {
 			$hwc_history = $this->statistics_m->hwc_history_exists($id);
 			if(!is_null($hwc_history)) // Correct Lottery & Range?
 			{
-					$hots = $h_w_c['h_count'];
-					$warms = $h_w_c['w_count'];
-					$colds = $h_w_c['c_count'];
-					$this->data['lottery']->H = $hots;  // Number of Hots Distributed e.g. 16 Hots
-					$this->data['lottery']->W = $warms; // Number of Warms Distributed e.g 18 Colds
-					$this->data['lottery' 	]->C = $colds; // Number of colds Distributed e.g 18 Colds
-					$this->data['lottery']->extra_included = $h_w_c['extra_included'];
-					$this->data['lottery']->extra_draws = $h_w_c['extra_draws'];
-					$this->data['lottery']->last_drawn['range'] = $h_w_c['range'];
-					$strhots = $h_w_c['hots']; 		// Pull from DB
-					$strwarms = $h_w_c['warms'];	// All counts for Hots, Warms, Colds
-					$strcolds = $h_w_c['colds'];
-					$strdupextra = $h_w_c['dupextra'];
-					$hots = explode(",", $strhots); // Convert to Arrays
-					$warms = explode(",", $strwarms); 
-					$colds = explode(",", $strcolds); 
-					if(!empty($strdupextra)) $dupextra = explode(",", $strdupextra);
-					// Iterate Hots
-					foreach($hots as $all_hots)
+				$hots = $h_w_c['h_count'];
+				$warms = $h_w_c['w_count'];
+				$colds = $h_w_c['c_count'];
+				$this->data['lottery']->H = $hots;  // Number of Hots Distributed e.g. 16 Hots
+				$this->data['lottery']->W = $warms; // Number of Warms Distributed e.g 18 Colds
+				$this->data['lottery' 	]->C = $colds; // Number of colds Distributed e.g 18 Colds
+				$this->data['lottery']->extra_included = $h_w_c['extra_included'];
+				$this->data['lottery']->extra_draws = $h_w_c['extra_draws'];
+				$this->data['lottery']->last_drawn['range'] = $h_w_c['range'];
+				$strhots = $h_w_c['hots']; 		// Pull from DB
+				$strwarms = $h_w_c['warms'];	// All counts for Hots, Warms, Colds
+				$strcolds = $h_w_c['colds'];
+				$strdupextra = $h_w_c['dupextra'];
+				$hots = explode(",", $strhots); // Convert to Arrays
+				$warms = explode(",", $strwarms); 
+				$colds = explode(",", $strcolds); 
+				if(!empty($strdupextra)) $dupextra = explode(",", $strdupextra);
+				// Iterate Hots
+				foreach($hots as $all_hots)
+				{
+					$n = strstr($all_hots, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($all_hots, '='), 1); // Strip off to the left of the equal sign count
+					$this->data['lottery']->hots[$n] = $c; 
+				}
+				// Interate Warms
+				foreach($warms as $all_warms)
+				{
+					$n = strstr($all_warms, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($all_warms, '='), 1); // Strip off to the left of the equal sign count
+					$this->data['lottery']->warms[$n] = $c; 
+				}
+				// Iterate Colds
+				foreach($colds as $all_colds)
+				{
+					$n = strstr($all_colds, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($all_colds, '='), 1); // Strip off to the left of the equal sign count
+					$this->data['lottery']->colds[$n] = $c; 
+				}
+				if (!empty($strdupextra)) // Only if there is the duplicate extra in this lottery?
+				{
+					// Iterate Extra Numbers that can have duplicates of the main balls
+					foreach($dupextra as $all_dupextra)
 					{
-						$n = strstr($all_hots, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
-						$c = substr(strstr($all_hots, '='), 1); // Strip off to the left of the equal sign count
-						$this->data['lottery']->hots[$n] = $c; 
+						$n = strstr($all_dupextra, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+						$c = substr(strstr($all_dupextra, '='), 1); // Strip off to the left of the equal sign count
+						$this->data['lottery']->dupextra[$n] = $c; 
 					}
-					// Interate Warms
-					foreach($warms as $all_warms)
-					{
-						$n = strstr($all_warms, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
-						$c = substr(strstr($all_warms, '='), 1); // Strip off to the left of the equal sign count
-						$this->data['lottery']->warms[$n] = $c; 
-					}
-					// Iterate Colds
-					foreach($colds as $all_colds)
-					{
-						$n = strstr($all_colds, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
-						$c = substr(strstr($all_colds, '='), 1); // Strip off to the left of the equal sign count
-						$this->data['lottery']->colds[$n] = $c; 
-					}
-					if (!empty($strdupextra)) // Only if there is the duplicate extra in this lottery?
-					{
-						// Iterate Extra Numbers that can have duplicates of the main balls
-						foreach($dupextra as $all_dupextra)
-						{
-							$n = strstr($all_dupextra, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
-							$c = substr(strstr($all_dupextra, '='), 1); // Strip off to the left of the equal sign count
-							$this->data['lottery']->dupextra[$n] = $c; 
-						}
-					}
+				}
 			// Pull the winning positions for the Hots, Warms, Colds
-			$strpositions = $hwc_history['position'];
-			$heat_position = explode("|", $strpositions); // Split into arrays of heat_position, 0, 1, 2
-			$hotpos = explode(">", $heat_position[0]);	 	// Hots
-			$warmpos = explode(">", $heat_position[1]);	 	// Warms
-			$coldpos = explode(">", $heat_position[2]); 	// Colds
-			$hot_hits = explode(",", $hotpos[1]);
-			$warm_hits = explode(",", $warmpos[1]);
-			$cold_hits = explode(",", $coldpos[1]);
+				$strpositions = $hwc_history['position'];
+				$heat_position = explode("|", $strpositions); // Split into arrays of heat_position, 0, 1, 2
+				$hotpos = explode(">", $heat_position[0]);	 	// Hots
+				$warmpos = explode(">", $heat_position[1]);	 	// Warms
+				$coldpos = explode(">", $heat_position[2]); 	// Colds
+				$hot_hits = explode(",", $hotpos[1]);
+				$warm_hits = explode(",", $warmpos[1]);
+				$cold_hits = explode(",", $coldpos[1]);
 				// Iterate Hots Win Position
 				foreach($hot_hits as $hots_pos)
 				{
@@ -402,7 +400,6 @@ class History extends Admin_Controller {
 		$this->data['history'] = $this;										// Access the methods in the view
 		$this->load->view('admin/_layout_main', $this->data);
 	}
-
 	/**
 	 * At a Glance Icon 
 	 * 
@@ -412,7 +409,6 @@ class History extends Admin_Controller {
 	public function btn_glance($uri) 
 	{
 		return anchor($uri, '<i class="fa fa-eye-slash fa-2x" aria-hidden="true">', array('title' => 'View the latest winning opptunities for this lottery with the at a glance option'));
-
 	}
 
 	/**
@@ -446,7 +442,6 @@ class History extends Admin_Controller {
 	public function btn_history($uri) 
 	{
 		return anchor($uri, '<i class="fa fa-history fa-2x" aria-hidden="true">', array('title' => 'View History of Actual Wins of the lottery'));
-
 	}
 	/**
 	 * Calculate the Current History or Update to the latest Draw
