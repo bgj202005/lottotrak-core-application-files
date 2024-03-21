@@ -369,7 +369,7 @@ class History extends Admin_Controller {
 					$this->data['lottery']->warms_pos[$n] = $c; 
 				}
 				// Iterate Colds Win Positionds
-				foreach($colds as $cold_hits)
+				foreach($cold_hits as $cold_hits)
 				{
 					$n = strstr($cold_hits, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
 					$c = substr(strstr($cold_hits, '='), 1); // Strip off to the left of the equal sign count
@@ -389,6 +389,8 @@ class History extends Admin_Controller {
 		}
 		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
 		else $this->data['message'] = '';
+		//Don't forget to include the last drawn h-w-c
+		$this->data['lottery']->hwc = explode('-',$hwc_history['h_w_c_last_1']);
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the Statistics menu
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);

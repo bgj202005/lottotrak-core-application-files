@@ -101,12 +101,23 @@
 												<h4 class="mb-1">Draw Range: <?=$lottery->last_drawn['range'];?> Draws</h4>
 											</div>
 										</div>
-									<div class="bg-white card last-draws mb-4 shadow-sm">
+										<div class="bg-white card last-draws mb-4 shadow-sm">
 											<div class="p-4">
 												<h4 class="mb-1">
 												<?php $extra = array('for' => 'extra_lb', 'style' =>'margin-right:10px;');
 												echo form_label('Extra (Bonus) Ball Included?', 'extra_lb', $extra);
 												echo (!empty($lottery->extra_included)) ? form_label(' YES', 'extra_lb', $extra) : form_label(' NO', 'extra_lb', $extra);
+												?></h4>
+											</div>
+										</div>
+										<div class="bg-white card last-draws mb-4 shadow-sm">
+											<div class="p-4">
+												<h4 class="mb-1">
+												<?php $extra = array('for' => 'extra_lb', 'style' =>'margin-right:10px;');
+												echo form_label('Last Draw Date:', 'extra_lb', $extra);
+												echo date("l, M-d-Y",strtotime(str_replace('/','-',$lottery->last_drawn['draw_date']))); 
+												echo "<br />";
+												//var_dump($lottery->last_drawn);
 												?></h4>
 											</div>
 										</div>
@@ -116,7 +127,7 @@
 											<div class="p-4">
 												<h4 class="mb-1">
 												<div class = "text-center" style = "display:inline-block;">
-												<?php $hot = array('style' =>'margin-right:10px; color:red;');
+												<?php 	$hot = array('style' =>'margin-right:10px; color:red;');
 														$warm = array('style' =>'margin-right:10px; color:orange;');
 														$cold = array('style' =>'color:blue;');
 														echo form_label("Hots:", "id => 'lb_hots'", $extra);
@@ -136,160 +147,176 @@
 												echo form_label('Extra Draws Included?', 'extra_lb', $extra);
 												echo (!empty($lottery->extra_draws)) ? form_label(' YES', 'extra_lb', $extra) : form_label(' NO', 'extra_lb', $extra);
 												?></h4>
-												
+											</div>
+										</div>
+										<div class="bg-white card last-draws mb-4 shadow-sm">
+											<div class="p-4">
+												<h4 class="mb-1">
+												<?php $extra = array('for' => 'extra_lb', 'style' =>'margin-right:10px;');
+												echo form_label('Last Drawn HWC:', 'extra_lb', $extra);
+												$hot = array('style' =>'margin-right:10px; color:red;');
+														$warm = array('style' =>'margin-right:10px; color:orange;');
+														$cold = array('style' =>'color:blue;');
+														echo form_label("H:", "id => 'lb_hots'", $extra);
+														echo form_label($lottery->hwc[0], "id => 'hots'", $hot);
+														echo form_label("W:", "id => 'lb_warms'", $extra);
+														echo form_label($lottery->hwc[1], "id => 'warms'", $warm);
+														echo form_label("C:", "id => 'lb_colds'", $extra);
+														echo form_label($lottery->hwc[2], "id => 'colds'", $cold);
+												?></h4>
 											</div>
 										</div>
 									</div>		
 								</div>
-						<div class="container" id="content" style = "margin:20px;">
-							<div class = "row justify-content-center">
-								<table class="table">
-									<thead>
-										<tr>
-											<th class="text-center" colspan="2">Hots</th>
-										</tr>
-										<tr>
-											<th class="text-center">Ball</th>
-											<th class="text-center">Occurrences</th>
-										</tr>
-									</thead>
-									<tbody>
-										<?php foreach($lottery->hots as $ball => $count):	
-											if($ball) :
-												echo "<tr class='table-danger'>";
-												echo "<td class='text-center'>".$ball."</td>";
-												echo "<td class='text-center'>".$count."</td>";
-												echo "</tr>";
-											else:
-												echo "<tr class='table-danger'><td colspan = '2'>No Hots</td></tr>";
-											endif;
-										endforeach; ?>
-									</tbody>
-								</table>
-								<table class="table pos">
-									<thead>
-										<tr>
-											<th class="text-center" colspan="2">Hot Win Positions</th>
-										</tr>
-										<tr>
-											<th class="text-center">Position</th>
-											<th class="text-center">Count</th>
-										</tr>
-									</thead>
-									<tbody>
-										<?php foreach($lottery->hots_pos as $position => $count):	
-												echo "<tr class='table-light'>";
-												echo "<td class='text-center'>".$position."</td>";
-												echo "<td class='text-center'>".$count."</td>";
-												echo "</tr>";
-										endforeach; ?>
-									</tbody>
-								</table>
-								<table class="table">
-									<thead>
-										<tr>
-											<th class="text-center" colspan="2">Warms</th>
-										</tr>
-										<tr>
-											<th class="text-text-center">Ball</th>
-											<th class="text-text-center">Occurrences</th>
-										</tr>
-									</thead>
-									<tbody>
-										<?php foreach($lottery->warms as $ball => $count):	
-											if($ball) :
-												echo "<tr class='table-warning'>";
-												echo "<td class='text-center'>".$ball."</td>";
-												echo "<td class='text-center'>".$count."</td>";
-												echo "</tr>";
-											else:
-												echo "<tr class='table-warning'><td colspan = '2'>No Warms</td></tr>";
-											endif;
-										endforeach; ?>
-									</tbody>
-								</table>
-								<table class="table pos">
-									<thead>
-										<tr>
-											<th class="text-center" colspan="2">Warm Win Positions</th>
-										</tr>
-										<tr>
-											<th class="text-center">Position</th>
-											<th class="text-center">Count</th>
-										</tr>
-									</thead>
-									<tbody>
-										<?php foreach($lottery->warms_pos as $position => $count):	
-												echo "<tr class='table-light'>";
-												echo "<td class='text-center'>".$position."</td>";
-												echo "<td class='text-center'>".$count."</td>";
-												echo "</tr>";
-										endforeach; ?>
-									</tbody>
-								</table>
-								<table class="table">
-									<thead>
-										<tr>
-											<th class="text-center" colspan="2">Colds</th>
-										</tr>
-										<tr>
-											<th class="text-center">Ball</th>
-											<th class="text-center">Occurrences</th>
-										</tr>
-									</thead>
-									<tbody>
-										<?php foreach($lottery->colds as $ball => $count):	
-											if($ball) :
-												echo "<tr class='table-primary'>";
-												echo "<td class='text-center'>".$ball."</td>";
-												echo "<td class='text-center'>".$count."</td>";
-												echo "</tr>";
-											else:
-												echo "<tr class='table-primary'><td colspan = '2'>No Colds</td></tr>";
-											endif;
-										endforeach; ?>
-									</tbody>
-								</table>
-								<table class="table pos">
-									<thead>
-										<tr>
-											<th class="text-center" colspan="2">Cold Win Positions</th>
-										</tr>
-										<tr>
-											<th class="text-center">Position</th>
-											<th class="text-center">Count</th>
-										</tr>
-									</thead>
-									<tbody>
-										<?php foreach($lottery->colds_pos as $position => $count):	
-												echo "<tr class='table-light'>";
-												echo "<td class='text-center'>".$position."</td>";
-												echo "<td class='text-center'>".$count."</td>";
-												echo "</tr>";
-										endforeach; ?>
-									</tbody>
-								</table>
-								<!-- Extra Ball if it outside of the balls being drawn and can have a duplicate drawn ball -->
-								<?php if(isset($lottery->dupextra)) : ?>
-								<table class="table">
-									<thead>
-										<tr>
-											<th class="text-center" colspan="2">Extra Ball</th>
-										</tr>
-										<tr>
-											<th class="text-center">Ball</th>
-											<th class="text-center">Occurrences</th>
-										</tr>
-									</thead>
-									<tbody>
-										<?php foreach($lottery->dupextra as $ball => $count):	
-												echo "<tr class='table-success'>";
-												echo "<td class='text-center'>".$ball."</td>";
-												echo "<td class='text-center'>".$count."</td>";
-												echo "</tr>";
-										endforeach; ?>
-									</tbody>
-								</table>
+							<div class="container" id="content" style = "margin:20px;">
+								<div class = "row justify-content-center">
+									<table class="table">
+										<thead>
+											<tr>
+												<th class="text-center" colspan="2">Hots</th>
+											</tr>
+											<tr>
+												<th class="text-center">Ball</th>
+												<th class="text-center">Occurrences</th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php foreach($lottery->hots as $ball => $count):	
+												if($ball) :
+													echo "<tr class='table-danger'>";
+													echo "<td class='text-center'>".$ball."</td>";
+													echo "<td class='text-center'>".$count."</td>";
+													echo "</tr>";
+												else:
+													echo "<tr class='table-danger'><td colspan = '2'>No Hots</td></tr>";
+												endif;
+											endforeach; ?>
+										</tbody>
+									</table>
+									<table class="table pos">
+										<thead>
+											<tr>
+												<th class="text-center" colspan="2">Hot Win Positions</th>
+											</tr>
+											<tr>
+												<th class="text-center">Position</th>
+												<th class="text-center">Count</th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php foreach($lottery->hots_pos as $position => $count):	
+													echo "<tr class='table-light'>";
+													echo "<td class='text-center'>".$position."</td>";
+													echo "<td class='text-center'>".$count."</td>";
+													echo "</tr>";
+											endforeach; ?>
+										</tbody>
+									</table>
+									<table class="table">
+										<thead>
+											<tr>
+												<th class="text-center" colspan="2">Warms</th>
+											</tr>
+											<tr>
+												<th class="text-text-center">Ball</th>
+												<th class="text-text-center">Occurrences</th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php foreach($lottery->warms as $ball => $count):	
+												if($ball) :
+													echo "<tr class='table-warning'>";
+													echo "<td class='text-center'>".$ball."</td>";
+													echo "<td class='text-center'>".$count."</td>";
+													echo "</tr>";
+												else:
+													echo "<tr class='table-warning'><td colspan = '2'>No Warms</td></tr>";
+												endif;
+											endforeach; ?>
+										</tbody>
+									</table>
+									<table class="table pos">
+										<thead>
+											<tr>
+												<th class="text-center" colspan="2">Warm Win Positions</th>
+											</tr>
+											<tr>
+												<th class="text-center">Position</th>
+												<th class="text-center">Count</th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php foreach($lottery->warms_pos as $position => $count):	
+													echo "<tr class='table-light'>";
+													echo "<td class='text-center'>".$position."</td>";
+													echo "<td class='text-center'>".$count."</td>";
+													echo "</tr>";
+											endforeach; ?>
+										</tbody>
+									</table>
+									<table class="table">
+										<thead>
+											<tr>
+												<th class="text-center" colspan="2">Colds</th>
+											</tr>
+											<tr>
+												<th class="text-center">Ball</th>
+												<th class="text-center">Occurrences</th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php foreach($lottery->colds as $ball => $count):	
+												if($ball) :
+													echo "<tr class='table-primary'>";
+													echo "<td class='text-center'>".$ball."</td>";
+													echo "<td class='text-center'>".$count."</td>";
+													echo "</tr>";
+												else:
+													echo "<tr class='table-primary'><td colspan = '2'>No Colds</td></tr>";
+												endif;
+											endforeach; ?>
+										</tbody>
+									</table>
+									<table class="table pos">
+										<thead>
+											<tr>
+												<th class="text-center" colspan="2">Cold Win Positions</th>
+											</tr>
+											<tr>
+												<th class="text-center">Position</th>
+												<th class="text-center">Count</th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php foreach($lottery->colds_pos as $position => $count):	
+													echo "<tr class='table-light'>";
+													echo "<td class='text-center'>".$position."</td>";
+													echo "<td class='text-center'>".$count."</td>";
+													echo "</tr>";
+											endforeach; ?>
+										</tbody>
+									</table>
+									<!-- Extra Ball if it outside of the balls being drawn and can have a duplicate drawn ball -->
+									<?php if(isset($lottery->dupextra)) : ?>
+									<table class="table">
+										<thead>
+											<tr>
+												<th class="text-center" colspan="2">Extra Ball</th>
+											</tr>
+											<tr>
+												<th class="text-center">Ball</th>
+												<th class="text-center">Occurrences</th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php foreach($lottery->dupextra as $ball => $count):	
+													echo "<tr class='table-success'>";
+													echo "<td class='text-center'>".$ball."</td>";
+													echo "<td class='text-center'>".$count."</td>";
+													echo "</tr>";
+											endforeach; ?>
+										</tbody>
+									</table>
 									<?php endif; ?>
 							</div>
 						</div>
