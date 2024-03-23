@@ -55,7 +55,8 @@
 	table.pos{
  		border:1px solid black;
   		display:inline-block;
-		max-width: 178px;
+		max-width: 160px;
+		margin:20px;
 	}
 	th.datafont{
 		text-align:center;
@@ -112,12 +113,23 @@
 										<div class="bg-white card last-draws mb-4 shadow-sm">
 											<div class="p-4">
 												<h4 class="mb-1">
-												<?php $extra = array('for' => 'extra_lb', 'style' =>'margin-right:10px;');
-												echo form_label('Last Draw Date:', 'extra_lb', $extra);
+												<?php $format = array('for' => 'extra_lb', 'style' =>'margin-right:10px;');
+												echo form_label('Last Draw Date:', 'extra_lb', $format);
 												echo "<br />";
 												echo date("l, M-d-Y",strtotime(str_replace('/','-',$lottery->last_drawn['draw_date']))); 
-												echo "<br />";
-												//var_dump($lottery->last_drawn);
+												echo "<br /><br />";
+												$mx = 1;
+												$extra_ball = 0;	// set extra ball to something, even if not used.
+												$xtr = FALSE;
+												foreach($lottery->draw as $count => $drawn):
+													echo $drawn." ";
+													if($xtr) $extra_ball = $drawn; // capture the extra / bonus ball
+													$mx++;
+													if(($mx>$lottery->balls_drawn)&&($lottery->extra_ball)&&(!$xtr)):
+														echo " + ";
+														$xtr = TRUE;
+													endif;
+												endforeach;
 												?></h4>
 											</div>
 										</div>
@@ -184,8 +196,18 @@
 											<?php foreach($lottery->hots as $ball => $count):	
 												if($ball) :
 													echo "<tr class='table-danger'>";
-													echo "<td class='text-center'>".$ball."</td>";
-													echo "<td class='text-center'>".$count."</td>";
+													$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
+													$ball = rtrim($ball,'*');  // Remove the special '*' symbol
+													if($sym=='*'&&$ball!=$extra_ball) :
+														echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
+														echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+													elseif($sym=='*'&&$ball==$extra_ball):
+														echo "<td class='text-center bg-info text-white'>".$ball."</td>";
+														echo "<td class='text-center bg-info text-white'>".$count."</td>";
+													else:
+														echo "<td class='text-center'>".$ball."</td>";
+														echo "<td class='text-center'>".$count."</td>";
+													endif;
 													echo "</tr>";
 												else:
 													echo "<tr class='table-danger'><td colspan = '2'>No Hots</td></tr>";
@@ -196,7 +218,7 @@
 									<table class="table pos">
 										<thead>
 											<tr>
-												<th class="text-center" colspan="2">Hot Win Positions</th>
+												<th class="text-center" colspan="2">Hot Positions</th>
 											</tr>
 											<tr>
 												<th class="text-center">Position</th>
@@ -226,8 +248,18 @@
 											<?php foreach($lottery->warms as $ball => $count):	
 												if($ball) :
 													echo "<tr class='table-warning'>";
-													echo "<td class='text-center'>".$ball."</td>";
-													echo "<td class='text-center'>".$count."</td>";
+													$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
+													$ball = rtrim($ball,'*');  // Remove the special '*' symbol
+													if($sym=='*'&&$ball!=$extra_ball) :
+														echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
+														echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+													elseif($sym=='*'&&$ball==$extra_ball):
+														echo "<td class='text-center bg-info text-white'>".$ball."</td>";
+														echo "<td class='text-center bg-info text-white'>".$count."</td>";
+													else:
+														echo "<td class='text-center'>".$ball."</td>";
+														echo "<td class='text-center'>".$count."</td>";
+													endif;
 													echo "</tr>";
 												else:
 													echo "<tr class='table-warning'><td colspan = '2'>No Warms</td></tr>";
@@ -238,7 +270,7 @@
 									<table class="table pos">
 										<thead>
 											<tr>
-												<th class="text-center" colspan="2">Warm Win Positions</th>
+												<th class="text-center" colspan="2">Warm Positions</th>
 											</tr>
 											<tr>
 												<th class="text-center">Position</th>
@@ -268,8 +300,19 @@
 											<?php foreach($lottery->colds as $ball => $count):	
 												if($ball) :
 													echo "<tr class='table-primary'>";
-													echo "<td class='text-center'>".$ball."</td>";
-													echo "<td class='text-center'>".$count."</td>";
+													$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
+													$ball = rtrim($ball,'*');  // Remove the special '*' symbol
+													if($sym=='*'&&$ball!=$extra_ball) :
+														$ball = rtrim($ball,'*'); // Remove the special '*' symbol
+														echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
+														echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+													elseif($sym=='*'&&$ball==$extra_ball):
+														echo "<td class='text-center bg-info text-white'>".$ball."</td>";
+														echo "<td class='text-center bg-info text-white'>".$count."</td>";
+													else:
+														echo "<td class='text-center'>".$ball."</td>";
+														echo "<td class='text-center'>".$count."</td>";
+													endif;
 													echo "</tr>";
 												else:
 													echo "<tr class='table-primary'><td colspan = '2'>No Colds</td></tr>";
@@ -280,7 +323,7 @@
 									<table class="table pos">
 										<thead>
 											<tr>
-												<th class="text-center" colspan="2">Cold Win Positions</th>
+												<th class="text-center" colspan="2">Cold Positions</th>
 											</tr>
 											<tr>
 												<th class="text-center">Position</th>

@@ -345,7 +345,8 @@ class History extends Admin_Controller {
 					else
 					{
 						$this->data['lottery']->warms[$n.'*'] = $c;
-						$positions[$pos] = 'w';
+						if(!isset($positions[$pos])) $positions[$pos] = 'w';
+						else $positions[$pos*10] = 'w'; // Duplicate warm, multiple the index by 10 to reduce duplicate numbers from overwritten
 					}
 					$pos++;
 				}
@@ -362,7 +363,8 @@ class History extends Admin_Controller {
 					else
 					{
 						$this->data['lottery']->colds[$n.'*'] = $c;
-						$positions[$pos] = 'c';
+						if(!isset($positions[$pos])) $positions[$pos] = 'c';
+						else $positions[$pos*10] = 'c'; // duplicate cold, multiple the index by 10 to reduce duplicate numbers from overwritten
 					}
 					$pos++;
 				}
@@ -422,8 +424,9 @@ class History extends Admin_Controller {
 		else $this->data['message'] = '';
 		//Don't forget to include the last drawn h-w-c
 		$this->data['lottery']->hwc = explode('-',$hwc_history['h_w_c_last_1']);
+		$this->data['lottery']->draw = $draw;
 		$this->data['lottery']->positions = $positions;
-		unset($draws);
+		unset($draw);
 		unset($positions);
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the Statistics menu
