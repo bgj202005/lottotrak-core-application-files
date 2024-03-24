@@ -47,9 +47,19 @@
 										<?php   
 										if (!empty($lottery->lottery_image)) 
 										{ 
-											$image_info = getimagesize(base_url().'images/uploads/'.$lottery->lottery_image); 
-											$extra = array('width' => $image_info[0], 'height' => $image_info[1]);
-											echo img(base_url().'images/uploads/'.$lottery->lottery_image, FALSE, $extra); } 
+											if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') 
+											{
+    											$image_info = getimagesize(base_url().'images/uploads/'.$lottery->lottery_image); 
+												$extra = array('width' => $image_info[0], 'height' => $image_info[1]);
+												echo img(base_url().'images/uploads/'.$lottery->lottery_image, FALSE, $extra);
+											} 
+											else 
+											{
+												$image_info = getimagesize('images/uploads/'.$lottery->lottery_image); 
+												$extra = array('width' => $image_info[0], 'height' => $image_info[1]);
+												echo img('images/uploads/'.$lottery->lottery_image, FALSE, $extra); 
+											}
+										} 
 										else 
 										{ 
 											$extra = array('class' => 'col-4 col-form-label col-form-label-md', 'style' => 'white-space: nowrap; overflow:visible');
