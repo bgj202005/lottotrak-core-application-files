@@ -439,6 +439,96 @@ class History extends Admin_Controller {
 		$this->data['history'] = $this;										// Access the methods in the view
 		$this->load->view('admin/_layout_main', $this->data);
 	}
+
+/**
+	 * View the follower numbers after the current draw. Default is set at 100 draws.
+	 * 
+	 * @param		$id		current id of Lottery related to the draw database of the lottery	
+	 * @return      none
+	 */
+	public function followers($id)
+	{
+		$this->data['message'] = '';	// Defaulted to No Error Messages
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		// Retrieve the lottery table name for the database
+		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		$blnduplicate = ($this->data['lottery']->duplicate_extra_ball ? TRUE : FALSE);
+		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
+		$low = $this->data['lottery']->minimum_ball;		// Regular Drawn Low ball e.g. ball 1
+		$high = $this->data['lottery']->maximum_ball;		// Regular Drawn High ball e.g. ball 49
+
+		// Check to see if the actual table exists in the db?
+		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
+		{
+			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
+			redirect('admin/statistics');
+		}
+		
+		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
+		// 1. Check for a record for the current lottery in the followers table
+		$followers = $this->statistics_m->followers_exists($id);		// Existing follower row 
+		$nonfollowers = $this->statistics_m->nonfollowers_exists($id);	// Non Follower existing row
+
+		if(!is_null($followers))
+		{
+		$range = $followers['range'];
+		// 1. Extract the follower string into the array counter parts
+		$str_followers = $followers['lottery_followers'];
+		$str_nonfollowers = $nonfollowers['lottery_nonfollowers'];
+		$next_draw = (!is_null($followers) ? explode(",", $followers['lottery_followers']) : explode(",", $str_followers));
+		foreach($next_draw as $ball_drawn)
+		{
+			$n = strstr($ball_drawn, '>', TRUE); // Strip off each number
+			$f = substr(strstr($ball_drawn, '>', FALSE),1); // Remove the '>' from the string
+			for($b = 1; $b<=$drawn; $b++)
+			{
+				if(($this->data['lottery']->last_drawn['ball'.$b]==$n)&&(!isset($this->data['lottery']->last_drawn[$n]))) $this->data['lottery']->last_drawn[$n] = $f;
+			}
+			if(($this->data['lottery']->extra_included)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
+			{
+				$this->data['lottery']->last_drawn[$n] = $f;
+			}
+			elseif(($this->data['lottery']->extra_included)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
+			{
+				$this->data['lottery']->last_drawn[$n.'x'] = $f; // denotes x for 'duplicate' extra
+			}
+		}
+			// 2. Do the same for non-following string into the array counter parts also
+			$nf_next = (!is_null($nonfollowers) ? explode(",", $nonfollowers['lottery_nonfollowers']) : explode(",", $str_nonfollowers));
+			foreach($nf_next as $ball_drawn)
+			{
+				$n = strstr($ball_drawn, '>', TRUE); // Strip off each number
+				$nf = substr(strstr($ball_drawn, '>', FALSE),1); // Remove the '>' from the string
+				for($b = 1; $b<=$drawn; $b++)
+				{
+					if(($this->data['lottery']->last_drawn['ball'.$b]==$n)&&(!isset($this->data['lottery']->last_drawn[$n.'nf']))) $this->data['lottery']->last_drawn[$n.'nf'] = $nf;
+				}
+				if(($this->data['lottery']->extra_included)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
+				{
+					$this->data['lottery']->last_drawn[$n.'nf'] = $nf;
+				}
+				elseif(($this->data['lottery']->extra_included)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
+				{
+					$this->data['lottery']->last_drawn[$n.'nfx'] = $nf;
+				}
+			}
+		}
+		else // 3. If does not exist, calculate for the given draw range, return results and save to follower table
+		{
+			$this->session->set_flashdata('message', 'There is an Followers or No Followers Profile.  Calculate the Followers at the Lottery Profile Statistics, Recalc Checkbox.');
+			redirect('admin/history');
+		}
+		$this->data['lottery']->last_drawn['range'] = $range;
+		$this->data['current'] = $this->uri->segment(2); 				// Sets the Admins Menu Highlighted
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/followers'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	 
+		$this->data['subview']  = 'admin/dashboard/history/followers';
+		$this->load->view('admin/_layout_main', $this->data);
+	}
+
 	/**
 	 * At a Glance Icon 
 	 * 
@@ -513,4 +603,4 @@ class History extends Admin_Controller {
 		$this->data['subview'] = 'admin/dashboard/history/calculate_combo';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
-}
+}	
