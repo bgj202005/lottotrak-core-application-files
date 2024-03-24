@@ -22,9 +22,18 @@
 								<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
 								echo form_label('Current Lottery Image Logo:', 'current_lottery_image_logo_lb', $extra); ?>
 								<div class="col-8">
-										<?php $image_info = getimagesize(base_url().'images/uploads/'.$lottery->lottery_image); 
-											$extra = array('width' => $image_info[0], 'height' => $image_info[1]);
-											echo img(base_url().'images/uploads/'.$lottery->lottery_image, FALSE, $extra); ?>
+										<?php if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') 
+											{
+    											$image_info = getimagesize(base_url().'images/uploads/'.$lottery->lottery_image); 
+												$extra = array('width' => $image_info[0], 'height' => $image_info[1]);
+												echo img(base_url().'images/uploads/'.$lottery->lottery_image, FALSE, $extra);
+											} 
+											else 
+											{
+												$image_info = getimagesize('images/uploads/'.$lottery->lottery_image); 
+												$extra = array('width' => $image_info[0], 'height' => $image_info[1]);
+												echo img('images/uploads/'.$lottery->lottery_image, FALSE, $extra); 
+											} ?>
 								</div>
 							</div>
 							<!-- Lottery Description  -->
