@@ -463,7 +463,6 @@ class History extends Admin_Controller {
 			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
 			redirect('admin/statistics');
 		}
-		
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 		// 1. Check for a record for the current lottery in the followers table
 		$followers = $this->statistics_m->followers_exists($id);		// Existing follower row 
@@ -475,6 +474,8 @@ class History extends Admin_Controller {
 		// 1. Extract the follower string into the array counter parts
 		$str_followers = $followers['lottery_followers'];
 		$str_nonfollowers = $nonfollowers['lottery_nonfollowers'];
+		$this->data['lottery']->extra_included = $followers['extra_included'];
+		$this->data['lottery']->extra_draws = $followers['extra_draws'];
 		$next_draw = (!is_null($followers) ? explode(",", $followers['lottery_followers']) : explode(",", $str_followers));
 		foreach($next_draw as $ball_drawn)
 		{
