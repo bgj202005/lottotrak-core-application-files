@@ -702,7 +702,15 @@ class History_m extends MY_Model
             if(isset($dr['ball'.$ball])) $drawn[$ball] = $dr['ball'.$ball];
             ++$ball;
         } while($ball<10);
-        if($bs) $drawn[$ball] = $dr['extra'];  // include the extra / bonus
+        if($bs) 
+        {
+            $next = array_key_last($drawn); // next available index key value
+            if($next!=NULL) 
+            {
+                $next++;
+                $drawn[$next] = $dr['extra'];  // include the extra / bonus
+            }
+        }
         unset($dr);
     return $drawn;
 	}

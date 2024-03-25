@@ -279,6 +279,7 @@
 										</thead>
 										<tbody>
 											<?php foreach($lottery->warms_pos as $position => $count):	
+													if(isset($lottery->positions[$position.'w'])) $position = rtrim($lottery->positions[$position.'w']);  
 													echo "<tr class='table-light'>";
 													echo (isset($lottery->positions[$position])&&($lottery->positions[$position]=='w') ? "<td class='text-center bg-danger text-white'>".$position."</td>" : "<td class='text-center'>".$position."</td>");
 													echo (isset($lottery->positions[$position])&&($lottery->positions[$position]=='w') ? "<td class='text-center bg-danger text-white'>".$count."</td>" : "<td class='text-center'>".$count."</td>");
@@ -332,6 +333,7 @@
 										</thead>
 										<tbody>
 											<?php foreach($lottery->colds_pos as $position => $count):	
+													if(isset($lottery->positions[$position.'c'])) $position = rtrim($lottery->positions[$position.'c']);  
 													echo "<tr class='table-light'>";
 													echo (isset($lottery->positions[$position])&&($lottery->positions[$position]=='c') ? "<td class='text-center bg-danger text-white'>".$position."</td>" : "<td class='text-center'>".$position."</td>");
 													echo (isset($lottery->positions[$position])&&($lottery->positions[$position]=='c') ? "<td class='text-center bg-danger text-white'>".$count."</td>" : "<td class='text-center'>".$count."</td>");

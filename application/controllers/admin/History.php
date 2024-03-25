@@ -303,7 +303,7 @@ class History extends Admin_Controller {
 				$colds = $h_w_c['c_count'];
 				$this->data['lottery']->H = $hots;  // Number of Hots Distributed e.g. 16 Hots
 				$this->data['lottery']->W = $warms; // Number of Warms Distributed e.g 18 Colds
-				$this->data['lottery' 	]->C = $colds; // Number of colds Distributed e.g 18 Colds
+				$this->data['lottery']->C = $colds; // Number of colds Distributed e.g 18 Colds
 				$this->data['lottery']->extra_included = $h_w_c['extra_included'];
 				$this->data['lottery']->extra_draws = $h_w_c['extra_draws'];
 				$this->data['lottery']->last_drawn['range'] = $h_w_c['range'];
@@ -346,7 +346,7 @@ class History extends Admin_Controller {
 					{
 						$this->data['lottery']->warms[$n.'*'] = $c;
 						if(!isset($positions[$pos])) $positions[$pos] = 'w';
-						else $positions[$pos*10] = 'w'; // Duplicate warm, multiple the index by 10 to reduce duplicate numbers from overwritten
+						else $positions[$pos.'w'] = 'w'; // Duplicate warm, multiple the index by 10 to reduce duplicate numbers from overwritten
 					}
 					$pos++;
 				}
@@ -364,7 +364,7 @@ class History extends Admin_Controller {
 					{
 						$this->data['lottery']->colds[$n.'*'] = $c;
 						if(!isset($positions[$pos])) $positions[$pos] = 'c';
-						else $positions[$pos*10] = 'c'; // duplicate cold, multiple the index by 10 to reduce duplicate numbers from overwritten
+						else $positions[$pos.'c'] = 'c'; // Duplicate warm, multiple the index by 10 to reduce duplicate numbers from overwritten
 					}
 					$pos++;
 				}
