@@ -328,7 +328,7 @@ class History extends Admin_Controller {
 					else
 					{
 						$this->data['lottery']->hots[$n.'*'] = $c;
-						$positions[$pos] = 'h';
+						$positions[$pos.'h'] = 'h';
 					}
 					$pos++;
 				}
@@ -345,8 +345,7 @@ class History extends Admin_Controller {
 					else
 					{
 						$this->data['lottery']->warms[$n.'*'] = $c;
-						if(!isset($positions[$pos])) $positions[$pos] = 'w';
-						else $positions[$pos.'w'] = 'w'; // Duplicate warm, multiple the index by 10 to reduce duplicate numbers from overwritten
+						if(!isset($positions[$pos.'w'])) $positions[$pos.'w'] = 'w';
 					}
 					$pos++;
 				}
@@ -363,8 +362,7 @@ class History extends Admin_Controller {
 					else
 					{
 						$this->data['lottery']->colds[$n.'*'] = $c;
-						if(!isset($positions[$pos])) $positions[$pos] = 'c';
-						else $positions[$pos.'c'] = 'c'; // Duplicate warm, multiple the index by 10 to reduce duplicate numbers from overwritten
+						if(!isset($positions[$pos.'c'])) $positions[$pos.'c'] = 'c';
 					}
 					$pos++;
 				}
@@ -392,21 +390,21 @@ class History extends Admin_Controller {
 				{
 					$n = strstr($hots_pos, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
 					$c = substr(strstr($hots_pos, '='), 1); // Strip off to the left of the equal sign count
-					$this->data['lottery']->hots_pos[$n] = $c; 
+					$this->data['lottery']->hots_pos[$n.'h'] = $c; 
 				}
 				// Interate Warms Win Positions
 				foreach($warm_hits as $warm_hits)
 				{
 					$n = strstr($warm_hits, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
 					$c = substr(strstr($warm_hits, '='), 1); // Strip off to the left of the equal sign count
-					$this->data['lottery']->warms_pos[$n] = $c; 
+					$this->data['lottery']->warms_pos[$n.'w'] = $c; 
 				}
 				// Iterate Colds Win Positionds
 				foreach($cold_hits as $cold_hits)
 				{
 					$n = strstr($cold_hits, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
 					$c = substr(strstr($cold_hits, '='), 1); // Strip off to the left of the equal sign count
-					$this->data['lottery']->colds_pos[$n] = $c; 
+					$this->data['lottery']->colds_pos[$n.'c'] = $c; 
 				}
 			}
 			else

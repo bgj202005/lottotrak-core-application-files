@@ -227,11 +227,19 @@
 										</thead>
 										<tbody>
 											<?php foreach($lottery->hots_pos as $position => $count):	
+													$exists = FALSE;
 													echo "<tr class='table-light'>";
-													echo (isset($lottery->positions[$position])&&($lottery->positions[$position]=='h') ? "<td class='text-center bg-danger text-white'>".$position."</td>" : "<td class='text-center'>".$position."</td>");
-													echo (isset($lottery->positions[$position])&&($lottery->positions[$position]=='h') ? "<td class='text-center bg-danger text-white'>".$count."</td>" : "<td class='text-center'>".$count."</td>");
+													$exists = array_key_exists($position, $lottery->positions);
+													$position = rtrim($position,'h');  // Remove the special '*' symbol
+													if($exists) :
+														echo "<td class='text-center bg-danger text-white'>".$position."</td>";
+													 	echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+													else:
+														echo "<td class='text-center'>".$position."</td>";
+														echo "<td class='text-center'>".$count."</td>";
+													endif;
 													echo "</tr>";
-											endforeach; ?>
+												endforeach; ?>
 										</tbody>
 									</table>
 									<table class="table">
@@ -279,10 +287,17 @@
 										</thead>
 										<tbody>
 											<?php foreach($lottery->warms_pos as $position => $count):	
-													if(isset($lottery->positions[$position.'w'])) $position = rtrim($lottery->positions[$position.'w']);  
+													$exists = FALSE;
 													echo "<tr class='table-light'>";
-													echo (isset($lottery->positions[$position])&&($lottery->positions[$position]=='w') ? "<td class='text-center bg-danger text-white'>".$position."</td>" : "<td class='text-center'>".$position."</td>");
-													echo (isset($lottery->positions[$position])&&($lottery->positions[$position]=='w') ? "<td class='text-center bg-danger text-white'>".$count."</td>" : "<td class='text-center'>".$count."</td>");
+													$exists = array_key_exists($position, $lottery->positions);
+													$position = rtrim($position,'w');  // Remove the special '*' symbol
+													if($exists) :
+														echo "<td class='text-center bg-danger text-white'>".$position."</td>";
+													 	echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+													else:
+														echo "<td class='text-center'>".$position."</td>";
+														echo "<td class='text-center'>".$count."</td>";
+													endif;
 													echo "</tr>";
 											endforeach; ?>
 										</tbody>
@@ -333,10 +348,17 @@
 										</thead>
 										<tbody>
 											<?php foreach($lottery->colds_pos as $position => $count):	
-													if(isset($lottery->positions[$position.'c'])) $position = rtrim($lottery->positions[$position.'c']);  
+													$exists = FALSE;
 													echo "<tr class='table-light'>";
-													echo (isset($lottery->positions[$position])&&($lottery->positions[$position]=='c') ? "<td class='text-center bg-danger text-white'>".$position."</td>" : "<td class='text-center'>".$position."</td>");
-													echo (isset($lottery->positions[$position])&&($lottery->positions[$position]=='c') ? "<td class='text-center bg-danger text-white'>".$count."</td>" : "<td class='text-center'>".$count."</td>");
+													$exists = array_key_exists($position, $lottery->positions);
+													$position = rtrim($position,'c');  // Remove the special '*' symbol
+													if($exists) :
+														echo "<td class='text-center bg-danger text-white'>".$position."</td>";
+													 	echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+													else:
+														echo "<td class='text-center'>".$position."</td>";
+														echo "<td class='text-center'>".$count."</td>";
+													endif;
 													echo "</tr>";
 											endforeach; ?>
 										</tbody>

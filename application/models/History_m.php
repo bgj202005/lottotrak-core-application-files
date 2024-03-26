@@ -708,7 +708,7 @@ class History_m extends MY_Model
             if($next!=NULL) 
             {
                 $next++;
-                $drawn[$next] = $dr['extra'];  // include the extra / bonus
+                $drawn[$next] = $dr['extra'];  // include the extra / bonus (whihc is the last ball!)
             }
         }
         unset($dr);
