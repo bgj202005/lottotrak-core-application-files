@@ -201,7 +201,7 @@
 													if($sym=='*'&&$ball!=$extra_ball) :
 														echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
 														echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-													elseif($sym=='*'&&$ball==$extra_ball):
+													elseif($sym=='*'&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
 														echo "<td class='text-center bg-info text-white'>".$ball."</td>";
 														echo "<td class='text-center bg-info text-white'>".$count."</td>";
 													else:
@@ -261,7 +261,7 @@
 													if($sym=='*'&&$ball!=$extra_ball) :
 														echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
 														echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-													elseif($sym=='*'&&$ball==$extra_ball):
+													elseif($sym=='*'&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
 														echo "<td class='text-center bg-info text-white'>".$ball."</td>";
 														echo "<td class='text-center bg-info text-white'>".$count."</td>";
 													else:
@@ -322,7 +322,7 @@
 														$ball = rtrim($ball,'*'); // Remove the special '*' symbol
 														echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
 														echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-													elseif($sym=='*'&&$ball==$extra_ball):
+													elseif($sym=='*'&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
 														echo "<td class='text-center bg-info text-white'>".$ball."</td>";
 														echo "<td class='text-center bg-info text-white'>".$count."</td>";
 													else:
