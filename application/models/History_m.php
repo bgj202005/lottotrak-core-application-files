@@ -687,22 +687,21 @@ class History_m extends MY_Model
 	* Onlydrawn draw numbers from the last draw. Return only the numbers in an index array (1,2,3...)
 	* 
 	* @param 	array	$dr		    key / value pairs of the last drawn numbers in this lottery
-	* @param	boolean $bs		    Bonus Flag set or unset. No Extra Ball = 0 (FALSE), Extra/Bonus ball included = 1 (TRUE) 
+	* @param	boolean $xt		    The lottery has an extra / bonus flag. No Extra Ball = 0 (FALSE), Extra/Bonus ball included = 1 (TRUE) 
 	* @return   array   $drawn      Return index array of only drawn numbers	
 	*/
-	public function onlydrawn($dr, $bs)
+	public function onlydrawn($dr, $xt)
 	{
 		$drawn = array();
         $ball = 1;
         unset($dr['id']);
-        unset($dr['draw_date']);
-        if(!$bs) unset($dr['extra']);    // No extra / bonus included
+        unset($dr['draw_date']);         
         do
         {
             if(isset($dr['ball'.$ball])) $drawn[$ball] = $dr['ball'.$ball];
             ++$ball;
         } while($ball<10);
-        if($bs) 
+        if($xt) 
         {
             $next = array_key_last($drawn); // next available index key value
             if($next!=NULL) 

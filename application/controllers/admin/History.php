@@ -297,7 +297,7 @@ class History extends Admin_Controller {
 			{
 				$draw = array(); 		// Temporary draw array
 				$positions = array();	// Temporary position array
-				$draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn,$h_w_c['extra_included']);
+				$draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn,$this->data['lottery']->extra_ball);
 				$hots = $h_w_c['h_count'];
 				$warms = $h_w_c['w_count'];
 				$colds = $h_w_c['c_count'];

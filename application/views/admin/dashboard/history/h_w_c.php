@@ -201,7 +201,7 @@
 													if($sym=='*'&&$ball!=$extra_ball) :
 														echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
 														echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-													elseif($sym=='*'&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
+													elseif($sym=='*'&&$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
 														echo "<td class='text-center bg-info text-white'>".$ball."</td>";
 														echo "<td class='text-center bg-info text-white'>".$count."</td>";
 													else:
@@ -230,7 +230,7 @@
 													$exists = FALSE;
 													echo "<tr class='table-light'>";
 													$exists = array_key_exists($position, $lottery->positions);
-													$position = rtrim($position,'h');  // Remove the special '*' symbol
+													$position = rtrim($position,'h');  // Remove the special 'h' symbol
 													if($exists) :
 														echo "<td class='text-center bg-danger text-white'>".$position."</td>";
 													 	echo "<td class='text-center bg-danger text-white'>".$count."</td>";
@@ -261,7 +261,7 @@
 													if($sym=='*'&&$ball!=$extra_ball) :
 														echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
 														echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-													elseif($sym=='*'&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
+													elseif($sym=='*'&&$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
 														echo "<td class='text-center bg-info text-white'>".$ball."</td>";
 														echo "<td class='text-center bg-info text-white'>".$count."</td>";
 													else:
@@ -322,7 +322,7 @@
 														$ball = rtrim($ball,'*'); // Remove the special '*' symbol
 														echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
 														echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-													elseif($sym=='*'&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
+													elseif($sym=='*'&&$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
 														echo "<td class='text-center bg-info text-white'>".$ball."</td>";
 														echo "<td class='text-center bg-info text-white'>".$count."</td>";
 													else:
@@ -378,8 +378,13 @@
 										<tbody>
 											<?php foreach($lottery->dupextra as $ball => $count):	
 													echo "<tr class='table-success'>";
-													echo "<td class='text-center'>".$ball."</td>";
-													echo "<td class='text-center'>".$count."</td>";
+													if($ball==$lottery->last_drawn['extra']):
+														echo "<td class='text-center bg-info'>".$ball."</td>";
+														echo "<td class='text-center bg-info'>".$count."</td>";
+													else:
+														echo "<td class='text-center'>".$ball."</td>";
+														echo "<td class='text-center'>".$count."</td>";
+													endif;
 													echo "</tr>";
 											endforeach; ?>
 										</tbody>
