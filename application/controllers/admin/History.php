@@ -474,6 +474,25 @@ class History extends Admin_Controller {
 		$str_nonfollowers = $nonfollowers['lottery_nonfollowers'];
 		$this->data['lottery']->extra_included = $followers['extra_included'];
 		$this->data['lottery']->extra_draws = $followers['extra_draws'];
+		$follower_wins = explode(">", $followers['wins']);
+		$follow_poswins = explode(">", $followers['positions']);
+		
+		foreach($follower_wins as $ball => $wins)
+		{
+			//$categories = explode(",", $wins); // breakout the historic win catorgories
+			for($b = 1; $b<=$drawn; $b++)
+			{
+				if(($this->data['lottery']->last_drawn['ball'.$b]==$ball)&&(!isset($this->data['lottery']->last_drawn[$ball]))) $this->data['lottery']->last_drawn[$ball] = $wins;
+			}
+			if(($this->data['lottery']->extra_included)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$ball))
+			{
+				$this->data['lottery']->last_drawn[$ball] = $wins;
+			}
+			elseif(($this->data['lottery']->extra_included)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$ball))
+			{
+				$this->data['lottery']->last_drawn[$ball.'x'] = $wins; // denotes x for 'duplicate' extra
+			}	
+		}
 		$next_draw = (!is_null($followers) ? explode(",", $followers['lottery_followers']) : explode(",", $str_followers));
 		foreach($next_draw as $ball_drawn)
 		{

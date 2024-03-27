@@ -1998,13 +1998,12 @@ class Statistics_m extends MY_Model
 		{
 			foreach($p as $ball => $prizes)
 			{
-				$str .= $ball.">";
 				foreach($prizes as $prize => $total)
 				{
 					$str .= $total.",";
 				}
 				$str= substr($str, 0, -1);	
-			$str .= "<";
+			$str .= ">"; //separator
 			}
 		}
 	return substr($str, 0, -1);		// Return the prizes for each number drawn
@@ -2023,13 +2022,12 @@ class Statistics_m extends MY_Model
 		{
 			foreach($p as $ball => $prizes)
 			{
-				$str .= $ball.">";
 				foreach($prizes as $prize => $total)
 				{
 					$str .= $total.",";
 				}
 				$str= substr($str, 0, -1);
-				$str .= '<';	
+				$str .= '>';	
 			}
 		}
 	return substr($str, 0, -1);		// Return the prizes for each number drawn
