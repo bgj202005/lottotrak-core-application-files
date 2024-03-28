@@ -468,70 +468,33 @@ class History extends Admin_Controller {
 
 		if(!is_null($followers))
 		{
-		$range = $followers['range'];
-		// 1. Extract the follower string into the array counter parts
-		$str_followers = $followers['lottery_followers'];
-		$str_nonfollowers = $nonfollowers['lottery_nonfollowers'];
-		$this->data['lottery']->extra_included = $followers['extra_included'];
-		$this->data['lottery']->extra_draws = $followers['extra_draws'];
-		$follower_wins = explode(">", $followers['wins']);
-		$follow_poswins = explode(">", $followers['positions']);
-		
+			$range = $followers['range'];
+			// 1. Extract the follower string into the array counter parts
+			$str_followers = $followers['lottery_followers'];
+			$str_nonfollowers = $nonfollowers['lottery_nonfollowers'];
+			$this->data['lottery']->extra_included = $followers['extra_included'];
+			$this->data['lottery']->extra_draws = $followers['extra_draws'];
+			$follower_wins = explode(">", $followers['wins']);
+			$follow_poswins = explode(">", $followers['positions']);
 			for($b = 1; $b<=$drawn; $b++)
 			{
 				$ball = $this->data['lottery']->last_drawn['ball'.$b];
-				$this->data['lottery']->last_drawn['ball'.$b]['wins'] = $follower_wins[$ball-1];
-				//$this->data['lottery']->last_drawn['ball'.$b]['positions'] = $follow_poswins[$ball-1];
+				$this->data['lottery']->last_drawn['wins'.$b] = $follower_wins[$ball-1];
+				$this->data['lottery']->last_drawn['poswins'.$b] = $follow_poswins[$b-1];
 			}
 			if(($this->data['lottery']->extra_included)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$ball))
 			{
-				$this->data['lottery']->last_drawn[$ball] = $follower_wins[$ball-1];
+				$this->data['lottery']->last_drawn['wins'.$b] = $follower_wins[$ball-1];
+				$this->data['lottery']->last_drawn['poswins'.$b] = $follow_poswins[$b-1];
 			}
 			elseif(($this->data['lottery']->extra_included)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$ball))
 			{
 				$this->data['lottery']->last_drawn[$ball.'x'] = $follower_wins[$ball-1]; // denotes x for 'duplicate' extra
 			}	
-		$next_draw = (!is_null($followers) ? explode(",", $followers['lottery_followers']) : explode(",", $str_followers));
-		foreach($next_draw as $ball_drawn)
-		{
-			$n = strstr($ball_drawn, '>', TRUE); // Strip off each number
-			$f = substr(strstr($ball_drawn, '>', FALSE),1); // Remove the '>' from the string
-			for($b = 1; $b<=$drawn; $b++)
-			{
-				if(($this->data['lottery']->last_drawn['ball'.$b]==$n)&&(!isset($this->data['lottery']->last_drawn[$n]))) $this->data['lottery']->last_drawn[$n] = $f;
-			}
-			if(($this->data['lottery']->extra_included)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
-			{
-				$this->data['lottery']->last_drawn[$n] = $f;
-			}
-			elseif(($this->data['lottery']->extra_included)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
-			{
-				$this->data['lottery']->last_drawn[$n.'x'] = $f; // denotes x for 'duplicate' extra
-			}
-		}
-			// 2. Do the same for non-following string into the array counter parts also
-			$nf_next = (!is_null($nonfollowers) ? explode(",", $nonfollowers['lottery_nonfollowers']) : explode(",", $str_nonfollowers));
-			foreach($nf_next as $ball_drawn)
-			{
-				$n = strstr($ball_drawn, '>', TRUE); // Strip off each number
-				$nf = substr(strstr($ball_drawn, '>', FALSE),1); // Remove the '>' from the string
-				for($b = 1; $b<=$drawn; $b++)
-				{
-					if(($this->data['lottery']->last_drawn['ball'.$b]==$n)&&(!isset($this->data['lottery']->last_drawn[$n.'nf']))) $this->data['lottery']->last_drawn[$n.'nf'] = $nf;
-				}
-				if(($this->data['lottery']->extra_included)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
-				{
-					$this->data['lottery']->last_drawn[$n.'nf'] = $nf;
-				}
-				elseif(($this->data['lottery']->extra_included)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
-				{
-					$this->data['lottery']->last_drawn[$n.'nfx'] = $nf;
-				}
-			}
 		}
 		else // 3. If does not exist, calculate for the given draw range, return results and save to follower table
 		{
-			$this->session->set_flashdata('message', 'There is an Followers or No Followers Profile.  Calculate the Followers at the Lottery Profile Statistics, Recalc Checkbox.');
+			$this->session->set_flashdata('message', 'There are no follower prize details. Calculate the Followers at the Lottery Profile Statistics, Recalc Checkbox.');
 			redirect('admin/history');
 		}
 		$this->data['lottery']->last_drawn['range'] = $range;
