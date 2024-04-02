@@ -713,4 +713,79 @@ class History_m extends MY_Model
         unset($dr);
     return $drawn;
 	}
+    
+    /** 
+	* Adds the prize array to each number drawm in the last draw and the position of each drawn number
+	* 
+	* @param 	array	$last_draw	 key / value pairs of the last drawn numbers in this lottery
+	* @param	integer $drn		The number of drawn numbers for this lottery, e.g. Canada 649 has 6 numbers plus the extra / bonus number
+	* @param	boolean $ex		    The lottery has an extra / bonus flag. No Extra Ball = 0 (FALSE), Extra/Bonus ball included = 1 (TRUE) 
+	* @param	array   $pg 	    Array structure of the associated prize pool
+	* @return   array   $last_draw  Return index array of the last drawn numbers including the associated array of the prize pool for each number drawn	
+	*/
+    public function last_draw_prizegroup($last_draw, $drn, $ex, $pg)
+    {
+        for($b = 1; $b <= $drn; $b++)
+        {
+            $found = FALSE;
+            foreach ($last_draw as $key => $value) 
+            {
+                if ($key === 'ball'.$b && !$found) 
+                {
+                    // Insert the sub-array after 'ball
+                    $last_draw[$key.'_win'] =  $pg;
+                    $last_draw['position'.$b.'_win'] = $pg;
+                    $found = true;
+                }
+            }
+        }
+        if($ex) // Extra / Bonus ball
+        {
+            $last_draw['extra_win'] = $pg;
+            $last_draw['position_extra_win'] = $pg;
+        }
+    return $last_draw; // (array) of prize group arrays and positional prize group array
+    }
+    
+    /** 
+	* Adds the prize array to each number drawm in the last draw and the position of each drawn number
+	* 
+	* @param 	array	$last_draw	 key / value pairs of the last drawn numbers in this lottery
+	* @param	integer $drn		The number of drawn numbers for this lottery, e.g. Canada 649 has 6 numbers plus the extra / bonus number
+	* @param	boolean $ei		    The extra / bonus flag is used. No Extra Ball included = 0 (FALSE), Extra/Bonus ball included = 1 (TRUE)
+    * @param	array   $pg		    Array of the prize group profile
+	* @param	array   $fp 	    Array of all follower lottery balls prizes ($fp) not extracted. e.g. ball 1 = 2,2,3,0,4,1,5, etc.
+   	* @param	array   $ps 	    Array of all follower lottery draw positions ($ps) not extracted. e.g. ball 1 = 2,2,3,0,4,1,5, etc.
+  	* @return   array   $last_draw  Return index array of the last drawn numbers including the associated array of the prize pool for each number drawn	
+	*/
+    public function last_draw_addwins($last_draw,$drn,$ei,$pg,$fp,$ps)
+    {
+        for($b = 1; $b<=$drn; $b++)
+        {
+            $ball = $last_draw['ball'.$b];
+            $ball_prizes = explode(',',$fp[$ball-1]); 
+            $position_prizes = explode(',',$ps[$b-1]); 
+            $index = 0;     
+            foreach($pg as $prize => $value)
+            {
+                $last_draw['ball'.$b.'_win'][$prize] = $ball_prizes[$index];
+                $last_draw['position'.$b.'_win'][$prize] = $position_prizes[$index];
+                $index++;
+            }
+        }
+        if(($ei)) // Doesn't matter if duplicate extra / bonus
+        {
+            $extra = $last_draw['extra'];
+            $extra_prize = explode(',',$fp[$extra-1]);
+            $position_prizes = explode(',',$ps[$drn]);
+            $index = 0;
+            foreach($pg as $prize => $value)
+            {
+                $last_draw['extra_win'][$prize] = $extra_prize[$index];
+                $last_draw['position_extra_win'][$prize] = $position_prizes[$index];
+                $index++;
+            }
+        }
+    return $last_draw;   	
+    }
 }

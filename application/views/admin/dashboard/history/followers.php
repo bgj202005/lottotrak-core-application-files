@@ -64,7 +64,12 @@
 	}
 	.h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6 {
     color: #000000;
-	}	
+	}
+	ul li { 
+		font-family: Arial, Sans-Serif;
+		font-size: 0.95em;
+		color: #000000;
+	} 
 .shadow-sm {
     box-shadow: 0 .125rem .25rem rgba(0,0,0,.075)!important;
 	}
@@ -141,33 +146,165 @@
 							{ ?> 
 							<div class="tab-pane fade p-3 <?php if($b==1) echo 'show active'; ?>" id="ball<?=$b?>" role="tabpanel" aria-labelledby="tab-<?=$b;?>">
 								<?php $dup_or_not = ($lottery->duplicate_extra_ball ? $lottery->last_drawn['extra'].'x' : $lottery->last_drawn['extra']);
-									if(!array_key_exists(($lottery->last_drawn['ball'.$b]), $lottery->last_drawn)):
 										/* difference is when any of the regular balls match the duplicate extra ball **/
 										if(isset($lottery->last_drawn[$dup_or_not])):
 											$xtr = (($lottery->duplicate_extra_ball&&$lottery->extra_included) ? $lottery->last_drawn[$lottery->last_drawn['extra'].'x'] : $lottery->last_drawn[$lottery->last_drawn['extra']]);
 										else:
 											$xtr = "0|0";
-										endif;
-										//$trailer = explode('|', ($b>$cd ? $xtr : $lottery->last_drawn[$lottery->last_drawn['ball'.$b]])); ?>
- 										<h5 class="card-title">After Ball <?=($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);?> has been drawn in <?=$lottery->last_drawn['range']; ?> draws.</h5>
-										<?php $d_wins = array(); 
-											$wins = $lottery->last_drawn['wins'.$b];
-											$placement = explode(',', $wins);
-											$count = 1;
-											foreach($placement as $p):  
-												$p_wins += array(
-														'wins '.$count => $p
-												);
-												$count++;
-											endforeach;
-										foreach($p_wins as $winner => $total)
-										{
-											$s_picks = '<strong>'.$winner.'</strong> had '.total.' wins';
-											echo "<p class='card-text'> ".$s_picks."</p>";
-										}
-									else: 
-										echo "<p class='card-text'> No Criteria High enough to Use for this Ball. </p>";
-									endif; ?>
+										endif; ?>
+										<div class="card-deck mb-3 text-center">
+											<div class="card mb-4 shadow-sm">
+											<div class="card-header">
+												<h5 class="my-0 font-weight-normal card-title">Win Record After Ball <?=($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);?> has been drawn in <?=$lottery->last_drawn['range']; ?> draws.</h5>
+											</div>
+											<div class="card-body">
+												<ul class="list-unstyled list-group">
+												<?php $wins = array();
+													$wins = ($b>$cd ? $lottery->last_drawn['extra_win'] : $lottery->last_drawn['ball'.$b.'_win']);
+													foreach($wins as $prize => $winners):
+														$s_prizes = "<li class = 'list-group-item'><strong>";  
+														switch ($prize) :
+														case "9_win":
+															$s_prizes .= $winners." Draws had 9 out of $cd Winners";
+														break;
+														case "8_win_extra":
+															$s_prizes .= $winners." Draws had 8 out of $cd Winners plus the Extra / Bonus Ball";
+														break;
+														case "8_win":
+															$s_prizes .= $winners." Draws had 8 out of $cd Winners";
+														break;
+														case "7_win_extra":
+															$s_prizes .= $winners." Draws had 7 out of $cd Winners plus the Extra / Bonus Ball";
+														break;
+														case "7_win":
+															$s_prizes .= $winners." Draws had 7 out of $cd Winners";
+														break;
+														case "6_win_extra":
+															$s_prizes .= $winners." Draws had 6 out of $cd Winners plus the Extra / Bonus Ball";
+														break;
+														case "6_win":
+															$s_prizes .= $winners." Draws had 6 out of $cd Winners";
+														break;
+														case "5_win_extra":
+															$s_prizes .= $winners." Draws had 5 out of $cd Winners plus the Extra / Bonus Ball";
+														break;
+														case "5_win":
+															$s_prizes .= $winners." Draws had 5 out of $cd Winners";
+														break;
+														case "4_win_extra":
+															$s_prizes .= $winners." Draws had 4 out of $cd Winners plus the Extra / Bonus Ball";
+														break;
+														case "4_win":
+															$s_prizes .= $winners." Draws had 4 out of $cd Winners";
+														break;
+														case "3_win_extra":
+															$s_prizes .= $winners." Draws had 3 out of $cd Winners plus the Extra / Bonus Ball";
+														break;
+														case "3_win":
+															$s_prizes .= $winners." Draws had 3 out of $cd Winners";
+														break;
+														case "2_win_extra":
+															$s_prizes .= $winners." Draws had 2 out of $cd Winners plus the Extra / Bonus Ball";
+														break;
+														case "2_win":
+															$s_prizes .= $winners." Draws had 2 out of $cd Winners";
+														break;
+														case "1_win_extra":
+															$s_prizes .= $winners." Draws had 1 out of $cd Winners plus the Extra / Bonus Ball";
+														break;
+														case "1_win":
+															$s_prizes .= $winners." Draws had 1 out of $cd Winners";
+														break;
+														case "extra":
+															$s_prizes .= $winners." Draws had the Extra / Bonus ball out of $cd Winners";
+														break;
+														default:
+															$s_prizes .= $winners." Draws with no winners.";
+														endswitch;
+														$s_prizes .= "</strong></li>";
+													echo $s_prizes;
+													endforeach;
+													?>
+												</ul>
+											</div>
+											</div>
+											<div class="card mb-4 shadow-sm">
+											<div class="card-header">
+											<h5 class="my-0 font-weight-normal">Win Record for Position <?=$b;?> (Ball <?=($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);?>) in <?=$lottery->last_drawn['range']; ?> draws.</h5>
+											</div>
+											<div class="card-body">
+												<ul class="list-unstyled list-group">
+												<?php $positions = array();
+													$positions = ($b>$cd ? $lottery->last_drawn['position_extra_win'] : $lottery->last_drawn['position'.$b.'_win']);
+													foreach($positions as $prize => $winners):
+														$s_prizes = "<li class = 'list-group-item'><strong>";  
+														switch ($prize) :
+														case "9_win":
+															$s_prizes .= $winners." Draws had 9 out of $cd Winners";
+														break;
+														case "8_win_extra":
+															$s_prizes .= $winners." Draws had 8 out of $cd Winners plus the Extra / Bonus Ball";
+														break;
+														case "8_win":
+															$s_prizes .= $winners." Draws had 8 out of $cd Winners";
+														break;
+														case "7_win_extra":
+															$s_prizes .= $winners." Draws had 7 out of $cd Winners plus the Extra / Bonus Ball";
+														break;
+														case "7_win":
+															$s_prizes .= $winners." Draws had 7 out of $cd Winners";
+														break;
+														case "6_win_extra":
+															$s_prizes .= $winners." Draws had 6 out of $cd Winners plus the Extra / Bonus Ball";
+														break;
+														case "6_win":
+															$s_prizes .= $winners." Draws had 6 out of $cd Winners";
+														break;
+														case "5_win_extra":
+															$s_prizes .= $winners." Draws had 5 out of $cd Winners plus the Extra / Bonus Ball";
+														break;
+														case "5_win":
+															$s_prizes .= $winners." Draws had 5 out of $cd Winners";
+														break;
+														case "4_win_extra":
+															$s_prizes .= $winners." Draws had 4 out of $cd Winners plus the Extra / Bonus Ball";
+														break;
+														case "4_win":
+															$s_prizes .= $winners." Draws had 4 out of $cd Winners";
+														break;
+														case "3_win_extra":
+															$s_prizes .= $winners." Draws had 3 out of $cd Winners plus the Extra / Bonus Ball";
+														break;
+														case "3_win":
+															$s_prizes .= $winners." Draws had 3 out of $cd Winners";
+														break;
+														case "2_win_extra":
+															$s_prizes .= $winners." Draws had 2 out of $cd Winners plus the Extra / Bonus Ball";
+														break;
+														case "2_win":
+															$s_prizes .= $winners." Draws had 2 out of $cd Winners";
+														break;
+														case "1_win_extra":
+															$s_prizes .= $winners." Draws had 1 out of $cd Winners plus the Extra / Bonus Ball";
+														break;
+														case "1_win":
+															$s_prizes .= $winners." Draws had 1 out of $cd Winners";
+														break;
+														case "extra":
+															$s_prizes .= $winners." Draws had the Extra / Bonus ball out of $cd Winners";
+														break;
+														default:
+															$s_prizes .= $winners." Draws with no winners.";
+														endswitch;
+														$s_prizes .= "</strong></li>";
+													echo $s_prizes;
+													endforeach;
+													?>
+												</ul>
+											</div>
+											</div>
+										</div>
+										
 							</div>
 							<?php $b++;
 							}

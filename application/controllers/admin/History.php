@@ -463,36 +463,25 @@ class History extends Admin_Controller {
 		}
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 		// 1. Check for a record for the current lottery in the followers table
+		$p_group = $this->statistics_m->prize_group_profile($id); // Prize Group Profile Only
+		$p_group = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_ball);
 		$followers = $this->statistics_m->followers_exists($id);		// Existing follower row 
 		$nonfollowers = $this->statistics_m->nonfollowers_exists($id);	// Non Follower existing row
-
 		if(!is_null($followers))
 		{
 			$range = $followers['range'];
-			// 1. Extract the follower string into the array counter parts
-			$str_followers = $followers['lottery_followers'];
-			$str_nonfollowers = $nonfollowers['lottery_nonfollowers'];
+			// 2. Extract the details of follower with exctra included and / or extra draws 
 			$this->data['lottery']->extra_included = $followers['extra_included'];
 			$this->data['lottery']->extra_draws = $followers['extra_draws'];
+			// 3. Create the structure for the last draw and the current wins for each number drawn
+			$this->data['lottery']->last_drawn = $this->history_m->last_draw_prizegroup($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_ball, $p_group); 
+			// 4. extract the win record for each number into an array
 			$follower_wins = explode(">", $followers['wins']);
 			$follow_poswins = explode(">", $followers['positions']);
-			for($b = 1; $b<=$drawn; $b++)
-			{
-				$ball = $this->data['lottery']->last_drawn['ball'.$b];
-				$this->data['lottery']->last_drawn['wins'.$b] = $follower_wins[$ball-1];
-				$this->data['lottery']->last_drawn['poswins'.$b] = $follow_poswins[$b-1];
-			}
-			if(($this->data['lottery']->extra_included)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$ball))
-			{
-				$this->data['lottery']->last_drawn['wins'.$b] = $follower_wins[$ball-1];
-				$this->data['lottery']->last_drawn['poswins'.$b] = $follow_poswins[$b-1];
-			}
-			elseif(($this->data['lottery']->extra_included)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$ball))
-			{
-				$this->data['lottery']->last_drawn[$ball.'x'] = $follower_wins[$ball-1]; // denotes x for 'duplicate' extra
-			}	
+			// 5. Only populate the numbers with the win record that was actually drawn
+			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included,$p_group,$follower_wins,$follow_poswins);
 		}
-		else // 3. If does not exist, calculate for the given draw range, return results and save to follower table
+		else // The prize details have not been found or instantiated
 		{
 			$this->session->set_flashdata('message', 'There are no follower prize details. Calculate the Followers at the Lottery Profile Statistics, Recalc Checkbox.');
 			redirect('admin/history');
