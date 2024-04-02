@@ -93,8 +93,12 @@
 												<h4 class="mb-1">Draw Range: <?=$lottery->last_drawn['range'];?> Draws</h4>
 											</div>
 										</div>
-										<div class="bg-white">
+										<div class="bg-white card followers mb-4 shadow-sm">
 											<div class="p-4">
+											<h4 class="mb-1">
+											<?php $extra = array('for' => 'extra_lb', 'style' =>'margin-right:10px;');
+												echo form_label('Next Draw Date:', 'extra_lb', $extra); 
+												?></h4>
 											</div>
 										</div>
 									</div>
@@ -155,73 +159,73 @@
 										<div class="card-deck mb-3 text-center">
 											<div class="card mb-4 shadow-sm">
 											<div class="card-header">
-												<h5 class="my-0 font-weight-normal card-title">Win Record After Ball <?=($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);?> has been drawn in <?=$lottery->last_drawn['range']; ?> draws.</h5>
+												<h6 class="my-0 font-weight-normal card-title"><strong>Win Record After Ball <?=($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);?> has been drawn in <?=$lottery->last_drawn['range']; ?> draws</strong></h6>
 											</div>
 											<div class="card-body">
 												<ul class="list-unstyled list-group">
 												<?php $wins = array();
 													$wins = ($b>$cd ? $lottery->last_drawn['extra_win'] : $lottery->last_drawn['ball'.$b.'_win']);
 													foreach($wins as $prize => $winners):
-														$s_prizes = "<li class = 'list-group-item'><strong>";  
+														$s_prizes = "<li class = 'list-group-item'>";  
 														switch ($prize) :
 														case "9_win":
-															$s_prizes .= $winners." Draws had 9 out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 9 out of $cd Winners";
 														break;
 														case "8_win_extra":
-															$s_prizes .= $winners." Draws had 8 out of $cd Winners plus the Extra / Bonus Ball";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 8 out of $cd Winners plus the Extra / Bonus Ball";
 														break;
 														case "8_win":
-															$s_prizes .= $winners." Draws had 8 out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 8 out of $cd Winners";
 														break;
 														case "7_win_extra":
-															$s_prizes .= $winners." Draws had 7 out of $cd Winners plus the Extra / Bonus Ball";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 7 out of $cd Winners plus the Extra / Bonus Ball";
 														break;
 														case "7_win":
-															$s_prizes .= $winners." Draws had 7 out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 7 out of $cd Winners";
 														break;
 														case "6_win_extra":
-															$s_prizes .= $winners." Draws had 6 out of $cd Winners plus the Extra / Bonus Ball";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 6 out of $cd Winners plus the Extra / Bonus Ball";
 														break;
 														case "6_win":
-															$s_prizes .= $winners." Draws had 6 out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 6 out of $cd Winners";
 														break;
 														case "5_win_extra":
-															$s_prizes .= $winners." Draws had 5 out of $cd Winners plus the Extra / Bonus Ball";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 5 out of $cd Winners plus the Extra / Bonus Ball";
 														break;
 														case "5_win":
-															$s_prizes .= $winners." Draws had 5 out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 5 out of $cd Winners";
 														break;
 														case "4_win_extra":
-															$s_prizes .= $winners." Draws had 4 out of $cd Winners plus the Extra / Bonus Ball";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 4 out of $cd Winners plus the Extra / Bonus Ball";
 														break;
 														case "4_win":
-															$s_prizes .= $winners." Draws had 4 out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 4 out of $cd Winners";
 														break;
 														case "3_win_extra":
-															$s_prizes .= $winners." Draws had 3 out of $cd Winners plus the Extra / Bonus Ball";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 3 out of $cd Winners plus the Extra / Bonus Ball";
 														break;
 														case "3_win":
-															$s_prizes .= $winners." Draws had 3 out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 3 out of $cd Winners";
 														break;
 														case "2_win_extra":
-															$s_prizes .= $winners." Draws had 2 out of $cd Winners plus the Extra / Bonus Ball";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 2 out of $cd Winners plus the Extra / Bonus Ball";
 														break;
 														case "2_win":
-															$s_prizes .= $winners." Draws had 2 out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 2 out of $cd Winners";
 														break;
 														case "1_win_extra":
-															$s_prizes .= $winners." Draws had 1 out of $cd Winners plus the Extra / Bonus Ball";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 1 out of $cd Winners plus the Extra / Bonus Ball";
 														break;
 														case "1_win":
-															$s_prizes .= $winners." Draws had 1 out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 1 out of $cd Winners";
 														break;
 														case "extra":
-															$s_prizes .= $winners." Draws had the Extra / Bonus ball out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had the Extra / Bonus ball out of $cd Winners";
 														break;
 														default:
-															$s_prizes .= $winners." Draws with no winners.";
+															$s_prizes .= "<strong>".$winners."</strong> Draws with no winners.";
 														endswitch;
-														$s_prizes .= "</strong></li>";
+														$s_prizes .= "</li>";
 													echo $s_prizes;
 													endforeach;
 													?>
@@ -230,73 +234,73 @@
 											</div>
 											<div class="card mb-4 shadow-sm">
 											<div class="card-header">
-											<h5 class="my-0 font-weight-normal">Win Record for Position <?=$b;?> (Ball <?=($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);?>) in <?=$lottery->last_drawn['range']; ?> draws.</h5>
+											<h6 class="my-0 font-weight-normal"><strong>Win Record for Position <?=$b;?> (Ball <?=($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);?>) in <?=$lottery->last_drawn['range']; ?> draws</strong></h5>
 											</div>
 											<div class="card-body">
 												<ul class="list-unstyled list-group">
 												<?php $positions = array();
 													$positions = ($b>$cd ? $lottery->last_drawn['position_extra_win'] : $lottery->last_drawn['position'.$b.'_win']);
 													foreach($positions as $prize => $winners):
-														$s_prizes = "<li class = 'list-group-item'><strong>";  
+														$s_prizes = "<li class = 'list-group-item'>";  
 														switch ($prize) :
 														case "9_win":
-															$s_prizes .= $winners." Draws had 9 out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 9 out of $cd Winners";
 														break;
 														case "8_win_extra":
-															$s_prizes .= $winners." Draws had 8 out of $cd Winners plus the Extra / Bonus Ball";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 8 out of $cd Winners plus the Extra / Bonus Ball";
 														break;
 														case "8_win":
-															$s_prizes .= $winners." Draws had 8 out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 8 out of $cd Winners";
 														break;
 														case "7_win_extra":
-															$s_prizes .= $winners." Draws had 7 out of $cd Winners plus the Extra / Bonus Ball";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 7 out of $cd Winners plus the Extra / Bonus Ball";
 														break;
 														case "7_win":
-															$s_prizes .= $winners." Draws had 7 out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 7 out of $cd Winners";
 														break;
 														case "6_win_extra":
-															$s_prizes .= $winners." Draws had 6 out of $cd Winners plus the Extra / Bonus Ball";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 6 out of $cd Winners plus the Extra / Bonus Ball";
 														break;
 														case "6_win":
-															$s_prizes .= $winners." Draws had 6 out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 6 out of $cd Winners";
 														break;
 														case "5_win_extra":
-															$s_prizes .= $winners." Draws had 5 out of $cd Winners plus the Extra / Bonus Ball";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 5 out of $cd Winners plus the Extra / Bonus Ball";
 														break;
 														case "5_win":
-															$s_prizes .= $winners." Draws had 5 out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 5 out of $cd Winners";
 														break;
 														case "4_win_extra":
-															$s_prizes .= $winners." Draws had 4 out of $cd Winners plus the Extra / Bonus Ball";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 4 out of $cd Winners plus the Extra / Bonus Ball";
 														break;
 														case "4_win":
-															$s_prizes .= $winners." Draws had 4 out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 4 out of $cd Winners";
 														break;
 														case "3_win_extra":
-															$s_prizes .= $winners." Draws had 3 out of $cd Winners plus the Extra / Bonus Ball";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 3 out of $cd Winners plus the Extra / Bonus Ball";
 														break;
 														case "3_win":
-															$s_prizes .= $winners." Draws had 3 out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 3 out of $cd Winners";
 														break;
 														case "2_win_extra":
-															$s_prizes .= $winners." Draws had 2 out of $cd Winners plus the Extra / Bonus Ball";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 2 out of $cd Winners plus the Extra / Bonus Ball";
 														break;
 														case "2_win":
-															$s_prizes .= $winners." Draws had 2 out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 2 out of $cd Winners";
 														break;
 														case "1_win_extra":
-															$s_prizes .= $winners." Draws had 1 out of $cd Winners plus the Extra / Bonus Ball";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 1 out of $cd Winners plus the Extra / Bonus Ball";
 														break;
 														case "1_win":
-															$s_prizes .= $winners." Draws had 1 out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had 1 out of $cd Winners";
 														break;
 														case "extra":
-															$s_prizes .= $winners." Draws had the Extra / Bonus ball out of $cd Winners";
+															$s_prizes .= "<strong>".$winners."</strong> Draws had the Extra / Bonus ball out of $cd Winners";
 														break;
 														default:
-															$s_prizes .= $winners." Draws with no winners.";
+															$s_prizes .= "<strong>".$winners."</strong> Draws with no winners.";
 														endswitch;
-														$s_prizes .= "</strong></li>";
+														$s_prizes .= "</li>";
 													echo $s_prizes;
 													endforeach;
 													?>
