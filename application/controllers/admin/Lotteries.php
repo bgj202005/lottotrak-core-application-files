@@ -721,7 +721,7 @@ class Lotteries extends Admin_Controller {
 		{
 			$c = count($this->data['draws']);					// Determine total count of array of objects
 			$ld = $this->data['draws'][0]->draw_date;			// Return last draw date
-			$day = $this->return_day($ld);							// Returns the day of draw, Saturday, Sunday, etc.
+			$day = $this->lotteries_m->return_day($ld);							// Returns the day of draw, Saturday, Sunday, etc.
 			$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
 			$this->data['lottery']->num = strval(++$c);
 		}
@@ -1028,7 +1028,7 @@ class Lotteries extends Admin_Controller {
 			$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name);
 			$c = count($this->data['draws']);					// Determine total count of array of objects
 			$ld = $this->data['draws'][0]->draw_date;		// Return last draw date
-			$day = $this->return_day($ld);						// Returns the day of draw, Saturdday, Sunday, etc.
+			$day = $this->lotteries_m->return_day($ld);						// Returns the day of draw, Saturdday, Sunday, etc.
 
 			$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
 			$this->data['lottery']->num = strval(++$c);
@@ -1202,7 +1202,7 @@ class Lotteries extends Admin_Controller {
 		$this->data['selected'] = $this->input->post('draw');	// Return the posted array
 		$c = count($this->data['draws']);						// Determine total count of array of objects
 		$ld = $this->data['draws'][0]->draw_date;			// Return last draw date
-		$day = $this->return_day($ld);							// Returns the day of draw, Saturdday, Sunday, etc.
+		$day = $this->lotteries_m->return_day($ld);							// Returns the day of draw, Saturdday, Sunday, etc.
 		$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
 		$this->data['lottery']->num = strval(++$c);
 
@@ -1229,17 +1229,5 @@ class Lotteries extends Admin_Controller {
 	public function _duplicate_check($str, $lottery) 
 	{
 	return (intval($str)>$lottery['maximum_ball'] ? FALSE : TRUE);
-	}
-	
-	/**
-	 * Add Draw input boxes to the latest draw
-	 * 
-	 * @param	str	$last		Data Object			
-	 * @return	str				Day of Draw 
-	 */
-	private function return_day($last)
-	{
-		$unixTimestamp = strtotime($last);  	// Convert the date string into a unix timestamp.
-		return strtolower(date("l", $unixTimestamp));	
 	}
 }

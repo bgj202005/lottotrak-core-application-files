@@ -930,4 +930,16 @@ class Lotteries_m extends MY_Model
 
 	return (!empty($submit_prizes) ? $submit_prizes : FALSE); 
 	}
+	
+	/**
+	 * Add Draw input boxes to the latest draw
+	 * 
+	 * @param	str	$last		Data Object			
+	 * @return	str				Day of Draw 
+	 */
+	public function return_day($last)
+	{
+		$unixTimestamp = strtotime($last);  	// Convert the date string into a unix timestamp.
+		return strtolower(date("l", $unixTimestamp));	
+	}
 }
