@@ -514,132 +514,59 @@ class History extends Admin_Controller {
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 		{
-			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
-			redirect('admin/statistics');
-		}
-		$all = $this->lotteries_m->db_row_count($tbl_name); // Return the total number of draws for this lottery
-		if($all>100)
-		{
-			$interval = intval($all / 100); // Create the drop down in multiples of 100 and typecast to an integer value (truncates the floating point portion)
-			if(!$interval) $interval = 1;	// 1 to 100 draws
-		}
-		else
-		{
-			$interval = 0;
+			$this->session->set_flashdata('message', 'There are no friendship prize details. Calculate the Friends at the Lottery Profile Statistics, Recalc Checkbox');
+			redirect('admin/history');
 		}
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 
 		$friends = $this->statistics_m->friends_exists($id);
 		$nonfriends = $this->statistics_m->nonfriends_exists($id);
-		$new_range = $this->uri->segment(5,0); // Return segment range
-		$old_range = $friends['range'];
-		if(!$new_range) $new_range = $old_range;	// Database Range
-		$sel_range = 1;								// All Defaults
-		$this->data['lottery']->extra_included = 0; // No Extra Ball as part of the calculation
-		$this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
-
 		if(!is_null($friends)&&(!is_null($nonfriends)))
 		{
-			$change = FALSE;  // Default is no change
-			$this->data['lottery']->extra_included = $this->uri->segment(6)=='extra' ? $this->statistics_m->extra_included($id, TRUE, 'lottery_friends') : $this->statistics_m->extra_included($id, FALSE, 'lottery_friends');
-			$this->data['lottery']->extra_draws = ($this->uri->segment(6)=='draws' ? $this->statistics_m->extra_draws($id, TRUE, 'lottery_friends') : $this->statistics_m->extra_draws($id, FALSE, 'lottery_friends'));
- 			$change = ($this->data['lottery']->extra_included!=$friends['extra_included'] ? TRUE : FALSE); // Only for a change in the extra (bonus) ball
-			if(!$change)
+			$range = $friends['range'];
+			// 4. Extract the friends string into the array counter parts
+			$next_draw = explode(",", $friends['lottery_friends']); // DB or ??
+			$nonfriends_draw = explode("|", $nonfriends['lottery_nonfriends']); // DB
+			$b = 1;
+			foreach($next_draw as $all_balls)
 			{
-				$change = ($this->data['lottery']->extra_draws!=$friends['extra_draws'] ? TRUE : FALSE); // Only for a change in the extra draws and there was no change in the extra ball
+				$n = strstr($all_balls, '>', TRUE); // Strip off each number
+				$d = substr($all_balls, strpos($all_balls, "|") + 1);
+				$tm = strstr($all_balls, '|', TRUE);
+				$c = substr($tm, strpos($tm, ">") + 1);    // Strip off the count
+				$this->data['lottery']->friend['ball'.$b] = $n; 
+				$this->data['lottery']->friend['count'.$b] = $c;
+				$this->data['lottery']->friend['date'.$b] = $d;
+				$this->data['lottery']->nonfriends['ball'.$b] = $nonfriends_draw[$b-1];  // Array is zero based
+				$b++;
 			}
-			if($new_range>100) $sel_range = intval($new_range / 100);
-			if($new_range!=0)	
+			// Friend only wins
+			$wins = explode("|", $friends['wins']); // $wins[0]  = broken like this nofriends,1-wayfriends,2-wayfriends & wins[1] = 1 - 49 (canada 649 for example), 1-way or 2 way friends 
+			$direction = explode(",", $wins[0]); // no friends ($direction[0]), 1 - way ($direction[1]) and 2 - way ($direction[2])
+			$nonfriend_wins = explode("|", $nonfriends['wins']);  // Canada 649 (example) 1 to 49, Number 1 has a 1 way 34, number 2 has a 1 way 7, 
+			// number 2 has a 1 way 25, etc.
+			$this->data['lottery']->friend['nofriends'] = $direction[0];
+			$this->data['lottery']->friend['1-way'] = $direction[1];
+			$this->data['lottery']->friend['2-way'] = $direction[2];
+			// Non Friends only with the occurrences of non friends drawn in the next draw
+			$this->data['lottery']->friend['0-friends'] = $nonfriend_wins[0];
+			$this->data['lottery']->friend['1-friends'] = $nonfriend_wins[1];
+			$this->data['lottery']->friend['2-friends'] = $nonfriend_wins[2];
+			$this->data['lottery']->friend['3-friends'] = $nonfriend_wins[3];
+			$this->data['lottery']->friend['4-friends'] = $nonfriend_wins[4];
+			$ball_friend = explode(',', $wins[1]);
+			// Zero-based, so all balls drawn start at ba1l 1
+			foreach($ball_friend as $friend => $direct)
 			{
-				if(intval($old_range)!=(intval($new_range))||($change)) // Any Change in Selection of the Draws? then update ... e.i. 200 draws in db and 300 in query url
-				{
-					$relatives = $this->statistics_m->create_friend_array();
-					$nonrelatives = $this->statistics_m->create_nonfriend_array();
-					$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
-					$associate = explode('+', $str_friends); // The '+' is the separator
-					$str_friends = $associate[0];			 // separated the friends which is a string
-					$str_nonfriends = $associate[1]; 		 // from the non friends which is a string
-					$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
-					$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
-					$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
-					
-					$friends = array(
-						'range'				=> $new_range,
-						'lottery_friends'	=> $str_friends,
-						'wins'				=> $fr_stats,
-						'draw_id'			=> $this->data['lottery']->last_drawn['id'],
-						'lottery_id'		=> $id
-					);
-					$this->statistics_m->friends_data_save($friends, TRUE);
-					$nonfriends = array(
-						'range'					=> $new_range,
-						'lottery_nonfriends'	=> $str_nonfriends,
-						'wins'					=> $nfr_stats,
-						'draw_id'				=> $this->data['lottery']->last_drawn['id'],
-						'lottery_id'			=> $id
-					);
-					$this->statistics_m->nonfriends_data_save($nonfriends, TRUE);
-				}
-			}
-			else
-			{
-				$new_range = $all;
-			}
+				$this->data['lottery']->friend['ball_friend'.($friend+1)] = $direct;
+			} 
 		}
-		else 
+		else
 		{
-			$relatives = $this->statistics_m->create_friend_array();
-			$nonrelatives = $this->statistics_m->create_nonfriend_array();
-			$new_range = ($all<100 ? $all : 100);
-			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
-			$associate = explode('+', $str_friends); // The '+' is the separator
-			$str_friends = $associate[0];			 // separated the friends
-			$str_nonfriends = $associate[1];		 // from the non friends
-			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
-			$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
-			$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
-
-			$friends = array(
-				'range'				=> $new_range,
-				'lottery_friends'	=> $str_friends,
-				'wins'				=> $fr_stats,
-				'draw_id'			=> $this->data['lottery']->last_drawn['id'],
-				'lottery_id'		=> $id
-			);
-			$this->statistics_m->friends_data_save($friends, FALSE);
-			$nonfriends = array(
-				'range'					=> $new_range,
-				'lottery_nonfriends'	=> $str_nonfriends,
-				'wins'					=> $nfr_stats,
-				'draw_id'				=> $this->data['lottery']->last_drawn['id'],
-				'lottery_id'			=> $id
-			);
-			$this->statistics_m->nonfriends_data_save($nonfriends, FALSE);
+			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
+			redirect('admin/HISTORY');
 		}
-		
-		// 4. Extract the friends string into the array counter parts
-		$next_draw = (!is_null($friends) ? explode(",", $friends['lottery_friends']) : explode(",", $str_friends)); // DB or ??
-		$nonfriends_draw = (!is_null($nonfriends) ? explode("|", $nonfriends['lottery_nonfriends']) : explode("|", $str_nonfriends)); // DB or ??
-		$b = 1;
-		foreach($next_draw as $all_balls)
-		{
-			$n = strstr($all_balls, '>', TRUE); // Strip off each number
-			$d = substr($all_balls, strpos($all_balls, "|") + 1);
-			$tm = strstr($all_balls, '|', TRUE);
-			$c = substr($tm, strpos($tm, ">") + 1);    // Strip off the count
-			$this->data['lottery']->friend['ball'.$b] = $n; 
-			$this->data['lottery']->friend['count'.$b] = $c;
-			$this->data['lottery']->friend['date'.$b] = $d;
-			$this->data['lottery']->nonfriends['ball'.$b] = $nonfriends_draw[$b-1];  // Array is zero based
-			$b++;
-		}
-
-		unset($relatives);
-		unset($nonrelatives);
-		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
-		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
-		$this->data['lottery']->last_drawn['range'] = $new_range;
-		$this->data['lottery']->last_drawn['all'] = $all;
+		$this->data['lottery']->last_drawn['range'] = $range;
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/friends'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();

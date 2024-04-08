@@ -43,7 +43,32 @@
 	.card-text {
 		color:steelblue; 
 	}
-	
+	/* pos */
+	table.friendtype{
+ 		border:1px solid black;
+  		display:inline-block;
+		max-width: 221px;
+		margin:20px;
+	}
+	th.datafont{
+		text-align:center;
+		font-size: 0.95em;
+	}
+	td.datafont { 
+		font-size: 	0.95em;
+		text-align: center; 
+		white-space: nowrap;
+	}
+	.last-draws {
+		margin-top:3em;
+		text-align: center;
+	}
+	.h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6 {
+    color: #000000;
+	}	
+.shadow-sm {
+    box-shadow: 0 .125rem .25rem rgba(0,0,0,.075)!important;
+	}
 </style>
 	<h2><?php echo 'View Friends for: '.$lottery->lottery_name; ?></h2>	
 	<?php $max = $lottery->maximum_ball; 
@@ -52,9 +77,47 @@
 	<section>
 		<div class="container">
 			<div class="row">
-				<div class="col-8">
+				<div class="col-12">
 					<div class="card mt-3 tab-card">
+						<div id = "message"></div>
 						<div class="card-header tab-card-header">
+							<div class="d-flex flex-row-reverse">
+								<div class="col-md-6">
+									<div class="bg-white card followers mb-4 shadow-sm">
+										<div class="p-4">
+											<h4 class="mb-1">Draw Range: <?=$lottery->last_drawn['range'];?> Draws</h4>
+										</div>
+									</div>
+										<div class="bg-white card followers mb-4 shadow-sm">
+											<div class="p-4">
+											<h4 class="mb-1">
+											<?php $extra = array('for' => 'extra_lb', 'style' =>'margin-right:10px;');
+												echo form_label('Next Draw Date:', 'extra_lb', $extra); 
+												?></h4>
+											</div>
+										</div>
+									</div>
+									<div class="col-md-6">
+										<div class="bg-white card followers mb-4 shadow-sm">
+											<div class="p-4">
+												<h4 class="mb-1">
+												<?php $extra = array('for' => 'extra_lb', 'style' =>'margin-right:10px;');
+												echo form_label('Extra (Bonus) Ball Included?', 'extra_lb', $extra);
+												echo (!empty($lottery->extra_included)) ? form_label(' YES', 'extra_lb', $extra) : form_label(' NO', 'extra_lb', $extra);
+												?></h4>
+											</div>
+										</div>
+									<div class="bg-white card followers mb-4 shadow-sm">
+											<div class="p-4">
+												<h4 class="mb-1">
+												<?php $extra = array('for' => 'extra_lb', 'style' =>'margin-right:10px;');
+												echo form_label('Extra Draws Included?', 'extra_lb', $extra);
+												echo (!empty($lottery->extra_draws)) ? form_label(' YES', 'extra_lb', $extra) : form_label(' NO', 'extra_lb', $extra);
+												?></h4>
+											</div>
+										</div>
+									</div>
+								</div>
 							<ul class="nav nav-tabs card-header-tabs" id="myTab" role="tablist">
 								<?php do
 								{ ?>
@@ -99,55 +162,95 @@
 							}
 							while ($b<=$max); ?>
 							<p style = "margin:10px;" class="card-text">These are the numbers that have the highest probability of being drawn for the next draw.</p>  	
+						<div class="container" id="content" style = "margin:20px;">
+								<div class = "row justify-content-center">
+									<table class="table friendtype">
+										<thead>
+											<tr>
+												<th class="text-center" colspan="2">Friendship Occurrences</th>
+											</tr>
+											<tr>
+												<th class="text-center">Draws</th>
+												<th class="text-center">Friendship Type</th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php echo "<tr class='table-light'>"; 
+											echo "<tr class='table-light'>";
+											echo "<td class='text-center'>".$lottery->friend['nofriends']."</td>";
+											echo "<td class='text-center'>No Friends</td></tr>";
+											echo "<td class='text-center'>".$lottery->friend['1-way']."</td>";
+											echo "<td class='text-center'>1-Way Friend</td></tr>";
+											echo "<td class='text-center'>".$lottery->friend['2-way']."</td>";
+											echo "<td class='text-center'>2-Way Friends</td></tr>"; ?>
+										</tbody>
+									</table>
+									<div class = "row justify-content-center">
+									<table class="table friendtype">
+										<thead>
+											<tr>
+												<th class="text-center" colspan="2">Non-Friendship Occurrences</th>
+											</tr>
+											<tr>
+												<th class="text-center">Draws</th>
+												<th class="text-center">Non-Friendships Drawn</th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php echo "<tr class='table-light'>"; 
+											echo "<tr class='table-light'>";
+											echo "<td class='text-center'>".$lottery->friend['0-friends']."</td>";
+											echo "<td class='text-center'>No Friends Drawn</td></tr>";
+											echo "<td class='text-center'>".$lottery->friend['1-friends']."</td>";
+											echo "<td class='text-center'>1 Friend Drawn</td></tr>";
+											echo "<td class='text-center'>".$lottery->friend['2-friends']."</td>";
+											echo "<td class='text-center'>2 Friends Drawn</td></tr>";
+											echo "<td class='text-center'>".$lottery->friend['3-friends']."</td>";
+											echo "<td class='text-center'>3 Friend Drawn</td></tr>";
+											echo "<td class='text-center'>".$lottery->friend['4-friends']."</td>";
+											echo "<td class='text-center'>4 Friends Drawn</td></tr>";
+											echo "<td class='text-center'>".$lottery->friend['5-friends']."</td>";
+											echo "<td class='text-center'>5 Friends Drawn</td></tr>";  
+											?>
+										</tbody>
+									</table>
+									<?php $row = 1; // Pagenation row 
+									$counter = 1;	// Countinuous counter
+									do 
+									{ ?>
+									<table class="table friendtype">
+										<thead>
+											<tr>
+												<th class="text-center" colspan="2">Friendship Directions</th>
+											</tr>
+											<tr>
+												<th class="text-text-center">Ball Drawn</th>
+												<th class="text-text-center">Direction</th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php  
+												for($ball = $row; $ball < $max; $ball++):	
+													echo "<tr class='table-light'>";
+													echo "<td class='text-center'>".$ball."</td>";
+													echo "<td class='text-center'>".$lottery->friend['ball_friend'.$counter]."</td>";
+													echo "</tr>";
+													$counter++;
+													if($counter==26):
+														$row = $counter;
+														break;
+													elseif($counter==51) :
+														$row = $counter;
+														break;
+													endif;
+												endfor; ?>
+										</tbody>
+									</table>
+									<?php } 
+										while($row<$max); ?>
+								</div>
+							</div>
 						</div>
-					</div>
-				</div>
-				<div class="col-4">
-					<div class="dropdown" style = "margin-left: 50px; margin-bottom: 2em;">
-						<button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-							Draw Range
-						</button>
-						<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-							<?php $interval = (integer) $lottery->last_drawn['interval'];
-							if(!$interval) : 
-								$sel_range = $lottery->last_drawn['range']; ?>
-								<a class="dropdown-item active" href="<?=base_url('admin/statistics/friends/'.$lottery->id)?>">All Draws (<?=$sel_range;?>) </a>
-							<?php else:
-								$sel_range = (integer) $lottery->last_drawn['sel_range']; // Selected a different range from the complete range of draws?
-								for($i = 1; $i <= $interval; $i++):
-									$step = $i * 100;	// in multiples of 100
-									if($i!=$interval): ?>
-										<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?> " href="<?=base_url('admin/statistics/friends/'.$lottery->id.'/'.$step);?>">Last <?=$step;?></a>
-									<?php else : ?>
-										<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?> " href="<?=base_url('admin/statistics/friends/'.$lottery->id.'/'.$lottery->last_drawn['all']);?>">All Draws (<?=$lottery->last_drawn['all'];?>)</a>
-									<?php endif;
-								endfor; ?> 
-								<?php endif;?>
-						</div>
-						<div class="form-check" style="margin-top: 10px;">
-						<?php 
-							$js = "location.href='".base_url()."admin/statistics/friends/".$lottery->id."/".(!$interval ? $sel_range : ($sel_range*100))."/extra'";
-							$attr = array(
-								'onClick' 	=> "$js", 
-								'class'		=> "form-check-input"
-							);
-							$extra = array('for' => 'extra_lb');
-							echo form_checkbox('extra_included', set_value('extra_included', '1'), set_checkbox('extra_included', '1', (!empty($lottery->extra_included))), $attr);
-							echo form_label('Extra (Bonus) Ball Included?', 'extra_lb', $extra);
-						?>
-						</div>
-						<div class="form-check" style="margin-top: 10px;">
-						<?php
-							$js = "location.href='".base_url()."admin/statistics/friends/".$lottery->id."/".(!$interval ? $sel_range : ($sel_range*100))."/draws'";
-							$attr = array(
-								'onClick' 	=> "$js", 
-								'class'		=> "form-check-input"
-							);
-						$extra = array('for' => 'extra_draw_lb');
-							echo form_checkbox('extra_draws', '1', set_checkbox('extra_draws', '1', (!empty($lottery->extra_draws))), $attr);
-							echo form_label('Extra Draw(s) Included?', 'extra_draw_lb', $extra); 
-						?>
-						</div>		
 					</div>
 				</div>
 			</div>

@@ -88,11 +88,11 @@
 						<div class="card-header tab-card-header">
 							<div class="d-flex flex-row-reverse">
 								<div class="col-md-6">
-										<div class="bg-white card followers mb-4 shadow-sm">
-											<div class="p-4">
-												<h4 class="mb-1">Draw Range: <?=$lottery->last_drawn['range'];?> Draws</h4>
-											</div>
+									<div class="bg-white card followers mb-4 shadow-sm">
+										<div class="p-4">
+											<h4 class="mb-1">Draw Range: <?=$lottery->last_drawn['range'];?> Draws</h4>
 										</div>
+									</div>
 										<div class="bg-white card followers mb-4 shadow-sm">
 											<div class="p-4">
 											<h4 class="mb-1">
