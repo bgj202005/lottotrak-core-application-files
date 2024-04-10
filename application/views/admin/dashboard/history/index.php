@@ -75,7 +75,7 @@ $(document).ready(function(){
   $('.calculate').click(function(){
 	$('#status').css('display', 'block');
 	$('#message').css('display', 'none'); 
-	document.getElementById("status").innerHTML = "Updating Lottery. Please Wait.";
+	document.getElementById("status").innerHTML = "Retrieving Lottery Win Results. Please Wait.";
 	setTimeout(fade_out, 1500);
 	});
 	function fade_out() {

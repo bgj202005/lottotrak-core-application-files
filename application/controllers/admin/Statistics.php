@@ -756,7 +756,6 @@ class Statistics extends Admin_Controller {
 			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
 			$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
 			$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
-
 			$friends = array(
 				'range'				=> $new_range,
 				'lottery_friends'	=> $str_friends,

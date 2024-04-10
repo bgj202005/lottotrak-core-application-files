@@ -43,11 +43,25 @@
 	.card-text {
 		color:steelblue; 
 	}
-	/* pos */
+	/* friendtype table */
 	table.friendtype{
  		border:1px solid black;
   		display:inline-block;
 		max-width: 221px;
+		margin:20px;
+	}
+	/* nonfriendtype table */
+	table.nonfriendtype{
+ 		border:1px solid black;
+  		display:inline-block;
+		max-width: 280px;
+		margin:20px;
+	}
+	/* directions table */
+	table.directions{
+ 		border:1px solid black;
+  		display:inline-block;
+		max-width: 203px;
 		margin:20px;
 	}
 	th.datafont{
@@ -69,6 +83,12 @@
 .shadow-sm {
     box-shadow: 0 .125rem .25rem rgba(0,0,0,.075)!important;
 	}
+.row-striped:nth-of-type(odd){
+  background-color: #efefef;
+}
+.row-striped:nth-of-type(even){
+  background-color: #ffffff;
+}
 </style>
 	<h2><?php echo 'View Friends for: '.$lottery->lottery_name; ?></h2>	
 	<?php $max = $lottery->maximum_ball; 
@@ -176,7 +196,7 @@
 										</thead>
 										<tbody>
 											<?php echo "<tr class='table-light'>"; 
-											echo "<tr class='table-light'>";
+											echo "<tr class='table-light row-stripped'>";
 											echo "<td class='text-center'>".$lottery->friend['nofriends']."</td>";
 											echo "<td class='text-center'>No Friends</td></tr>";
 											echo "<td class='text-center'>".$lottery->friend['1-way']."</td>";
@@ -185,8 +205,8 @@
 											echo "<td class='text-center'>2-Way Friends</td></tr>"; ?>
 										</tbody>
 									</table>
-									<div class = "row justify-content-center">
-									<table class="table friendtype">
+								
+									<table class="table nonfriendtype">
 										<thead>
 											<tr>
 												<th class="text-center" colspan="2">Non-Friendship Occurrences</th>
@@ -209,16 +229,16 @@
 											echo "<td class='text-center'>3 Friend Drawn</td></tr>";
 											echo "<td class='text-center'>".$lottery->friend['4-friends']."</td>";
 											echo "<td class='text-center'>4 Friends Drawn</td></tr>";
-											echo "<td class='text-center'>".$lottery->friend['5-friends']."</td>";
-											echo "<td class='text-center'>5 Friends Drawn</td></tr>";  
 											?>
 										</tbody>
 									</table>
+									</div>
+									<div class = "row justify-content-center">
 									<?php $row = 1; // Pagenation row 
 									$counter = 1;	// Countinuous counter
 									do 
 									{ ?>
-									<table class="table friendtype">
+									<table class="table directions">
 										<thead>
 											<tr>
 												<th class="text-center" colspan="2">Friendship Directions</th>
@@ -230,11 +250,16 @@
 										</thead>
 										<tbody>
 											<?php  
-												for($ball = $row; $ball < $max; $ball++):	
-													echo "<tr class='table-light'>";
-													echo "<td class='text-center'>".$ball."</td>";
-													echo "<td class='text-center'>".$lottery->friend['ball_friend'.$counter]."</td>";
-													echo "</tr>";
+												for($ball = $row; $ball <= $max; $ball++):	
+													if(isset($lottery->friend['ball_friend'.$counter]))
+													{  echo "<tr class='row-striped'>";
+													   echo "<td class='text-center'>".$ball."</td>";
+													   $direction = ((substr($lottery->friend['ball_friend'.$counter],0,2)=='<>') ? '<i class="fa fa-arrows-h fa-2x" aria-hidden="true"></i> '
+													   .ltrim($lottery->friend['ball_friend'.$counter],'<>') : 
+													   '<i class="fa fa-long-arrow-right fa-2x" aria-hidden="true"></i> '.ltrim($lottery->friend['ball_friend'.$counter],">"));
+													   echo "<td class='text-center'>".$direction."</td>";
+													   echo "</tr>";
+													}
 													$counter++;
 													if($counter==26):
 														$row = $counter;
@@ -247,7 +272,7 @@
 										</tbody>
 									</table>
 									<?php } 
-										while($row<$max); ?>
+										while(($row<=$max)&&($counter<$max)); ?>
 								</div>
 							</div>
 						</div>

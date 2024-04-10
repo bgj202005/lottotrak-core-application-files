@@ -540,31 +540,39 @@ class History extends Admin_Controller {
 				$this->data['lottery']->nonfriends['ball'.$b] = $nonfriends_draw[$b-1];  // Array is zero based
 				$b++;
 			}
-			// Friend only wins
-			$wins = explode("|", $friends['wins']); // $wins[0]  = broken like this nofriends,1-wayfriends,2-wayfriends & wins[1] = 1 - 49 (canada 649 for example), 1-way or 2 way friends 
-			$direction = explode(",", $wins[0]); // no friends ($direction[0]), 1 - way ($direction[1]) and 2 - way ($direction[2])
-			$nonfriend_wins = explode("|", $nonfriends['wins']);  // Canada 649 (example) 1 to 49, Number 1 has a 1 way 34, number 2 has a 1 way 7, 
-			// number 2 has a 1 way 25, etc.
-			$this->data['lottery']->friend['nofriends'] = $direction[0];
-			$this->data['lottery']->friend['1-way'] = $direction[1];
-			$this->data['lottery']->friend['2-way'] = $direction[2];
-			// Non Friends only with the occurrences of non friends drawn in the next draw
-			$this->data['lottery']->friend['0-friends'] = $nonfriend_wins[0];
-			$this->data['lottery']->friend['1-friends'] = $nonfriend_wins[1];
-			$this->data['lottery']->friend['2-friends'] = $nonfriend_wins[2];
-			$this->data['lottery']->friend['3-friends'] = $nonfriend_wins[3];
-			$this->data['lottery']->friend['4-friends'] = $nonfriend_wins[4];
-			$ball_friend = explode(',', $wins[1]);
-			// Zero-based, so all balls drawn start at ba1l 1
-			foreach($ball_friend as $friend => $direct)
+			if(!empty($friends['wins'])) 
 			{
-				$this->data['lottery']->friend['ball_friend'.($friend+1)] = $direct;
-			} 
+				// Friend only wins
+				$wins = explode("|", $friends['wins']); // $wins[0]  = broken like this nofriends,1-wayfriends,2-wayfriends & wins[1] = 1 - 49 (canada 649 for example), 1-way or 2 way friends 
+				$direction = explode(",", $wins[0]); // no friends ($direction[0]), 1 - way ($direction[1]) and 2 - way ($direction[2])
+				$nonfriend_wins = explode("|", $nonfriends['wins']);  // Canada 649 (example) 1 to 49, Number 1 has a 1 way 34, number 2 has a 1 way 7, 
+				// number 2 has a 1 way 25, etc.
+				$this->data['lottery']->friend['nofriends'] = $direction[0];
+				$this->data['lottery']->friend['1-way'] = $direction[1];
+				$this->data['lottery']->friend['2-way'] = $direction[2];
+				// Non Friends only with the occurrences of non friends drawn in the next draw
+				$this->data['lottery']->friend['0-friends'] = $nonfriend_wins[0];
+				$this->data['lottery']->friend['1-friends'] = $nonfriend_wins[1];
+				$this->data['lottery']->friend['2-friends'] = $nonfriend_wins[2];
+				$this->data['lottery']->friend['3-friends'] = $nonfriend_wins[3];
+				$this->data['lottery']->friend['4-friends'] = $nonfriend_wins[4];
+				$ball_friend = explode(',', $wins[1]);
+				// Zero-based, so all balls drawn start at ba1l 1
+				foreach($ball_friend as $friend => $direct)
+				{
+					$this->data['lottery']->friend['ball_friend'.($friend+1)] = $direct;
+				} 
+			}
+			else
+			{
+				$this->session->set_flashdata('message', 'There is no win information associated with this lottery. Select Lottery Profile Statistics in dropdown, Recalc Checkbox');
+				redirect('admin/history');
+			}	
 		}
 		else
 		{
 			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
-			redirect('admin/HISTORY');
+			redirect('admin/history');
 		}
 		$this->data['lottery']->last_drawn['range'] = $range;
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
@@ -585,7 +593,7 @@ class History extends Admin_Controller {
 	 */
 	public function btn_glance($uri) 
 	{
-		return anchor($uri, '<i class="fa fa-eye-slash fa-2x" aria-hidden="true">', array('title' => 'View the latest winning opptunities for this lottery with the at a glance option'));
+		return anchor($uri, '<i class="fa fa-eye-slash fa-2x" aria-hidden="true">', array('title' => 'View the latest winning opportunities for this lottery with the at a glance option'));
 	}
 
 	/**
