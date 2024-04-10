@@ -451,9 +451,10 @@ class History extends Admin_Controller {
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
-		$low = $this->data['lottery']->minimum_ball;		// Regular Drawn Low ball e.g. ball 1
-		$high = $this->data['lottery']->maximum_ball;		// Regular Drawn High ball e.g. ball 49
-
+		$last_drawn = $this->lotteries_m->last_draw_db($tbl_name);
+		$ld = $last_drawn->draw_date;				// Return last draw date
+		$day = $this->lotteries_m->return_day($ld);	// Returns the day of draw, Saturday, Sunday, etc.
+		$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 		{
@@ -507,10 +508,10 @@ class History extends Admin_Controller {
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
-		$blnduplicate = ($this->data['lottery']->duplicate_extra_ball ? TRUE : FALSE);
-		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
-		$min_ball = $this->data['lottery']->minimum_ball;	// Regular Drawn Low ball e.g. ball 1
-		$max_ball = $this->data['lottery']->maximum_ball;	// Get the highest ball drawn for this lottery, e.g. 49 in Lottery 649, 50 in Lottomax
+		$last_drawn = $this->lotteries_m->last_draw_db($tbl_name);
+		$ld = $last_drawn->draw_date;				// Return last draw date
+		$day = $this->lotteries_m->return_day($ld);	// Returns the day of draw, Saturday, Sunday, etc.
+		$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 		{

@@ -98,6 +98,7 @@
 											<h4 class="mb-1">
 											<?php $extra = array('for' => 'extra_lb', 'style' =>'margin-right:10px;');
 												echo form_label('Next Draw Date:', 'extra_lb', $extra); 
+												echo (($lottery->next_draw_date)||$lottery->next_draw_date!='nodraws') ? form_label($lottery->next_draw_date, 'extra_lb', $extra) : form_label(' Not Available', 'extra_lb', $extra);
 												?></h4>
 											</div>
 										</div>
