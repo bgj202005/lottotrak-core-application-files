@@ -686,7 +686,6 @@ class Statistics extends Admin_Controller {
 			$interval = 0;
 		}
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
-
 		$friends = $this->statistics_m->friends_exists($id);
 		$nonfriends = $this->statistics_m->nonfriends_exists($id);
 		$new_range = $this->uri->segment(5,0); // Return segment range
@@ -695,7 +694,6 @@ class Statistics extends Admin_Controller {
 		$sel_range = 1;								// All Defaults
 		$this->data['lottery']->extra_included = 0; // No Extra Ball as part of the calculation
 		$this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
-
 		if(!is_null($friends)&&(!is_null($nonfriends)))
 		{
 			$change = FALSE;  // Default is no change
@@ -843,7 +841,6 @@ class Statistics extends Admin_Controller {
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 
 		$h_w_c = $this->statistics_m->h_w_c_exists($id);
-
 		if(!is_null($h_w_c))	// Existing HWC?
 		{
 			$new_range = $this->uri->segment(5,0); 					// Return segment range
@@ -937,7 +934,6 @@ class Statistics extends Admin_Controller {
 			$c_start = ($max_ball-intval($heat[2]))+1; 				// Return the Cold value
 			$this->data['lottery']->W = $heat[1];  					// Number of Warms Distributed e.g 18 Colds
 			$this->data['lottery']->C = $heat[2]; 					// Num
-			
 			$str_hwc = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '', $blnduplicate);
 			if($blnduplicate&&$this->data['lottery']->extra_included) $strdupextra = $this->statistics_m->hwc_duple_extra($tbl_name, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '');
 			$strhots = $this->statistics_m->hots($str_hwc);
@@ -968,7 +964,6 @@ class Statistics extends Admin_Controller {
 		$colds = explode(",", $strcolds); 
 		if(!empty($strdupextra)) $dupextra = explode(",", $strdupextra);
 		$overdue = explode(",", $stroverdue); 
-
 		// Iterate Hots
 		foreach($hots as $all_hots)
 		{
@@ -976,7 +971,6 @@ class Statistics extends Admin_Controller {
 			$c = substr(strstr($all_hots, '='), 1); // Strip off to the left of the equal sign count
 			$this->data['lottery']->hots[$n] = $c; 
 		}
-
 		// Interate Warms
 		foreach($warms as $all_warms)
 		{
@@ -984,7 +978,6 @@ class Statistics extends Admin_Controller {
 			$c = substr(strstr($all_warms, '='), 1); // Strip off to the left of the equal sign count
 			$this->data['lottery']->warms[$n] = $c; 
 		}
-
 		// Iterate Colds
 		foreach($colds as $all_colds)
 		{
@@ -992,7 +985,6 @@ class Statistics extends Admin_Controller {
 			$c = substr(strstr($all_colds, '='), 1); // Strip off to the left of the equal sign count
 			$this->data['lottery']->colds[$n] = $c; 
 		}
-
 		if (!empty($strdupextra)) // Only if there is the duplicate extra in this lottery?
 		{
 			// Iterate Extra Numbers that can have duplicates of the main balls
@@ -1003,7 +995,6 @@ class Statistics extends Admin_Controller {
 				$this->data['lottery']->dupextra[$n] = $c; 
 			}
 		}
-
 		// Iterate Overdues
 		foreach($overdue as $all_overdue)
 		{
@@ -1011,8 +1002,6 @@ class Statistics extends Admin_Controller {
 			$c = substr(strstr($all_overdue, '='), 1); // Strip off to the left of the equal sign count
 			$this->data['lottery']->overdue[$n] = $c; 
 		}
-
-
 		$hwc_history = $this->statistics_m->hwc_history_exists($id);
  		if(is_null($hwc_history)) // Correct Lottery & Range?
 		{
@@ -1097,7 +1086,6 @@ class Statistics extends Admin_Controller {
 			$this->statistics_m->hwc_history_save($hwc_h_data, TRUE); // Update existing lottery H W C Record
 		}
 		unset($hwc_history); // Remove this temporary holding place for historic h-w-c's
-		
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
 		$this->data['lottery']->last_drawn['range'] = $new_range;
@@ -1128,7 +1116,6 @@ class Statistics extends Admin_Controller {
 	 */
 	public function h_w_c_history($id, $table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $dup)
 	{
-
 		$scale = $this->statistics_m->hwc_size($id);
 		$h_cnt = intval($scale['h_count']); // integer count only
 		$w_cnt = intval($scale['w_count']);	// integer count only
@@ -1139,21 +1126,17 @@ class Statistics extends Admin_Controller {
 			$w_pos = array_fill(0, $w_cnt, 0); // Zeroed array
 		$c_pos = new SplFixedArray($c_cnt); // Declare the colds positions
 			$c_pos = array_fill(0, $c_cnt, 0); // Zeroed array		
-
 		$examine_date = $this->statistics_m->lottery_return_date($table, $range+1, $xtra); 	// Please note: This an off by 1 error. It has to go +1 draw back 
 		if(!$examine_date) return false;													// to iterate for the given range
-		
 		$fd = $this->statistics_m->hwc_next_draw($table, $examine_date); 					// 1st examine draw requested
 		$next_drawn = $this->statistics_m->only_picks($picks, $fd);							// and return only the drawn numbers
 
 		$heats = explode(",",$this->statistics_m->hwc_heats[$picks]); 						// break the heat h-w-c in an array
 		$heats = array_flip($heats);								  						// reverse the values as associative keys
-
 		foreach($heats as $level => $value)
 		{
 			$heats[$level] = 0;		// Will be used as counters and zero out the values
 		}
-
 		$row  = 1;	// Starting point at $row 1
 		do
 		{
@@ -1165,11 +1148,9 @@ class Statistics extends Admin_Controller {
 			$hots = explode(",", $str_hots);
 			$warms = explode(",", $str_warms);
 			$colds = explode(",", $str_colds);
-
 			$highs = array();
 			$averages = array();
 			$lows = array();
-
 			foreach($hots as $key => $value) 			
 			{
 				$h = explode('=', $hots[$key]);
@@ -1200,9 +1181,7 @@ class Statistics extends Admin_Controller {
 			{
 				break;
 			}
-			
 			$h = 0; $w = 0; $c = 0;
-
 			foreach($next_drawn as $temp)
 			{
 				if(in_array($temp, $highs)) $h++;
@@ -1211,12 +1190,9 @@ class Statistics extends Admin_Controller {
 			}
 			$lvl = (string)$h.'-'.$w.'-'.$c;
 			if(array_key_exists($lvl, $heats)) $heats[$lvl]++; 
-			  
 			$row++;
 		} 
 		while($row<=$range);
-		
-
  		$totals = array();
 		$totals['h_w_c_last_1'] = $lvl;	// include the last h-w-c
 		$totals['h_w_c_range'] = '';
@@ -1238,15 +1214,12 @@ class Statistics extends Admin_Controller {
 			$str_hots = $this->statistics_m->hots($str_h_w_c);
 			$str_warms = $this->statistics_m->warms($str_h_w_c);
 			$str_colds = $this->statistics_m->colds($str_h_w_c);
-
 			$hots = explode(",", $str_hots);
 			$warms = explode(",", $str_warms);
 			$colds = explode(",", $str_colds);
-
 			$highs = array();
 			$averages = array();
 			$lows = array();
-
 			foreach($hots as $key => $value) 			
 			{
 				$h = explode('=', $hots[$key]);
@@ -1262,7 +1235,6 @@ class Statistics extends Admin_Controller {
 				$c = explode('=', $colds[$key]);
 				array_push($lows, $c[0]);
 			}
-
 			$fd = $this->statistics_m->hwc_next_draw($table, $examine_date); // return the full with draw date, ball 1 ... ball n + extra
 			if($fd)	// next draw returned?
 			{
@@ -1273,9 +1245,7 @@ class Statistics extends Admin_Controller {
 			{
 				break;
 			}
-			
 			$h = 0; $w = 0; $c = 0;
-
 			foreach($next_drawn as $temp)
 			{
 				if(in_array($temp, $highs)) $h++;
@@ -1292,7 +1262,6 @@ class Statistics extends Admin_Controller {
 		{
 			$totals['h_w_c_last_10'] .= $hwc.'='.$tot.',';
 		}
-
 		$str_positions = $this->statistics_m->positIon_string($h_pos, $w_pos, $c_pos); 			// Generate the formatted string
 		$totals['position'] = $str_positions; 										   			// Add a new position elemnt to the totals
 	return $totals;
@@ -1387,7 +1356,6 @@ class Statistics extends Admin_Controller {
 	 $str_dupextra = "";																	// Always empty for all lotteries. 
 	 																						// exception is a lottery with an extra ball that can have a duplicate number
 	 $h_w_c = $this->statistics_m->h_w_c_exists($id);
-
 	 if(!is_null($h_w_c))	// Existing HWC?
 	 {
 		 $new_range = $h_w_c['range'];
@@ -1529,25 +1497,20 @@ class Statistics extends Admin_Controller {
 			redirect('admin/statistics');
 		}
 		$all = $this->lotteries_m->db_row_count($tbl); // Return the total number of draws for this lottery
-
 		$lotto->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl);	// Retrieve the last drawn numbers and draw date
 		// 1. Check for a record for the current lottery in the friends table
 		$followers = $this->statistics_m->followers_exists($id);		// Existing follower row 
 		$nonfollowers = $this->statistics_m->nonfollowers_exists($id);	// Non Follower existing row
-	
 		$outofrange = FALSE; // default is not out of range for the prize pool
 		$max = $this->data['lottery']->maximum_ball;
 		$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
-
 		if(!is_null($followers))
 		{
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
 			$p_group = $this->statistics_m->prize_group_profile($id);
 			$p_group = $this->statistics_m->prizes_only($p_group,$followers['extra_included']);
  			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
-
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $followers['extra_included']);
-
 			$range = $followers['range'];
 			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range,'',$blnduplicate);
 			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $max, '', $blnduplicate, $mx_extra);
@@ -1556,7 +1519,6 @@ class Statistics extends Admin_Controller {
 			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
 			/** NEW included nonfollower calculations **/
 			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $max, '', $blnduplicate, $mx_extra);
-			
 			$followers = array(
 				'range'				=> $range,
 				'lottery_followers'	=> $str_followers,
@@ -1591,7 +1553,6 @@ class Statistics extends Admin_Controller {
 			//$str_positions_prizes = '';
 			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
 			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, 0, 0, $range,'',$blnduplicate);
-
 			$followers = array(
 				'range'				=> $range,
 				'lottery_followers'	=> $str_followers,
@@ -1623,6 +1584,8 @@ class Statistics extends Admin_Controller {
 	*/
 	public function recalc_friends($id, $lotto)
 	{
+		global $relatives;		// global totals of no friends, 1 way friend, 2 way friends
+		global $nonrelatives;	// global non friend occurences
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($lotto->lottery_name);
 		$blnduplicate = ($lotto->duplicate_extra_ball ? TRUE : FALSE);
@@ -1635,22 +1598,26 @@ class Statistics extends Admin_Controller {
 			redirect('admin/statistics');
 		}
 		$all = $this->lotteries_m->db_row_count($tbl_name); // Return the total number of draws for this lottery
-	
 		$lotto->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
-
 		$friends = $this->statistics_m->friends_exists($id);
 		$nonfriends = $this->statistics_m->nonfriends_exists($id);
 
 		if(!is_null($friends)&&(!is_null($nonfriends)))
 		{
 			$range = $friends['range'];
+			$relatives = $this->statistics_m->create_friend_array();
+			$nonrelatives = $this->statistics_m->create_nonfriend_array();
 			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $friends['extra_included'], $friends['extra_draws'], $range, '', $blnduplicate);
 			$associate = explode('+', $str_friends); // The '+' is the separator
 			$str_friends = $associate[0];			 // separated the friends
 			$str_nonfriends = $associate[1]; 		 // from the non friends
+			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball,   $friends['extra_draws'],  $friends['extra_draws'], $range, '', $blnduplicate);
+			$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
+			$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
 			$friends = array(
 				'range'				=> $range,
 				'lottery_friends'	=> $str_friends,
+				'wins'				=> $fr_stats,
 				'draw_id'			=> $lotto->last_drawn['id'],
 				'lottery_id'		=> $id
 			);
@@ -1658,6 +1625,7 @@ class Statistics extends Admin_Controller {
 			$nonfriends = array(
 				'range'					=> $range,
 				'lottery_nonfriends'	=> $str_nonfriends,
+				'wins'					=> $nfr_stats,
 				'draw_id'				=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'			=> $id
 			);
@@ -1666,13 +1634,19 @@ class Statistics extends Admin_Controller {
 		else 
 		{
 			$new_range = ($all<100 ? $all : 100);
+			$relatives = $this->statistics_m->create_friend_array();
+			$nonrelatives = $this->statistics_m->create_nonfriend_array();
 			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, 0, 0, $new_range, '', $blnduplicate);
 			$associate = explode('+', $str_friends); // The '+' is the separator
 			$str_friends = $associate[0];			 // separated the friends
 			$str_nonfriends = $associate[1]; 		 // from the non friends
+			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $friends['extra_draws'],  $friends['extra_draws'], $new_range, '', $blnduplicate);
+			$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
+			$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
 			$friends = array(
 				'range'				=> $new_range,
 				'lottery_friends'	=> $str_friends,
+				'wins'				=> $fr_stats,
 				'draw_id'			=> $lotto->last_drawn['id'],
 				'lottery_id'		=> $id
 			);
@@ -1680,6 +1654,7 @@ class Statistics extends Admin_Controller {
 			$nonfriends = array(
 				'range'					=> $new_range,
 				'lottery_nonfriends'	=> $str_nonfriends,
+				'wins'					=> $nfr_stats,
 				'draw_id'				=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'			=> $id
 			);
