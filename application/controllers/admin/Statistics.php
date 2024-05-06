@@ -1498,6 +1498,7 @@ class Statistics extends Admin_Controller {
 		}
 		$all = $this->lotteries_m->db_row_count($tbl); // Return the total number of draws for this lottery
 		$lotto->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl);	// Retrieve the last drawn numbers and draw date
+		$lottery_extra = $lotto->extra_ball; // the lottery definition of the extra ball when it is created (doesn't change!)
 		// 1. Check for a record for the current lottery in the friends table
 		$followers = $this->statistics_m->followers_exists($id);		// Existing follower row 
 		$nonfollowers = $this->statistics_m->nonfollowers_exists($id);	// Non Follower existing row
@@ -1508,7 +1509,7 @@ class Statistics extends Admin_Controller {
 		{
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
 			$p_group = $this->statistics_m->prize_group_profile($id);
-			$p_group = $this->statistics_m->prizes_only($p_group,$followers['extra_included']);
+			$p_group = $this->statistics_m->prizes_only($p_group,$lottery_extra);
  			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $followers['extra_included']);
 			$range = $followers['range'];
@@ -1542,7 +1543,7 @@ class Statistics extends Admin_Controller {
 			// range is set with either less than 100 rows (based on the exact number of draws) or calculate the number of followers using only 100 rows
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
 			$p_group = $this->statistics_m->prize_group_profile($id);
-			$p_group = $this->statistics_m->prizes_only($p_group,$followers['extra_included']);
+			$p_group = $this->statistics_m->prizes_only($p_group,$lottery_extra);
  			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
 
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $followers['extra_included']);
