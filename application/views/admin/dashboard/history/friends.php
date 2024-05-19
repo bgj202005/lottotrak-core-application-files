@@ -221,15 +221,15 @@
 											<?php echo "<tr class='table-light'>"; 
 											echo "<tr class='table-light'>";
 											echo "<td class='text-center'>".$lottery->friend['0-friends']."</td>";
-											echo "<td class='text-center'>No Friends Drawn</td></tr>";
+											echo "<td class='text-center'>No Non-friends Drawn</td></tr>";
 											echo "<td class='text-center'>".$lottery->friend['1-friends']."</td>";
-											echo "<td class='text-center'>1 Friend Drawn</td></tr>";
+											echo "<td class='text-center'>1 Non-friend Drawn</td></tr>";
 											echo "<td class='text-center'>".$lottery->friend['2-friends']."</td>";
-											echo "<td class='text-center'>2 Friends Drawn</td></tr>";
+											echo "<td class='text-center'>2 Non-friends Drawn</td></tr>";
 											echo "<td class='text-center'>".$lottery->friend['3-friends']."</td>";
-											echo "<td class='text-center'>3 Friend Drawn</td></tr>";
+											echo "<td class='text-center'>3 Non-Friend Drawn</td></tr>";
 											echo "<td class='text-center'>".$lottery->friend['4-friends']."</td>";
-											echo "<td class='text-center'>4 Friends Drawn</td></tr>";
+											echo "<td class='text-center'>4 Non-Friends Drawn</td></tr>";
 											?>
 										</tbody>
 									</table>
