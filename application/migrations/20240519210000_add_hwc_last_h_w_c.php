@@ -9,19 +9,19 @@ class Migration_Add_Hwc_last_H_w_c extends CI_Migration {
             'hots_last' => array(
         	     'type' => 'VARCHAR',
         	    'constraint' => '1000',
-                'null' => false, 
+                'null' => TRUE, 
                 'after' => 'hots'
              ),
             'warms_last' => array(
         	   'type' => 'VARCHAR',
         	    'constraint' => '1000',
-                'null' => false, 
+                'null' => TRUE, 
                 'after' => 'warms'
             ),
             'colds_last' => array(
                 'type' => 'VARCHAR',
                 'constraint' => '1000',
-                'null' => false, 
+                'null' => TRUE, 
                 'after' => 'colds'
             ),
         ));

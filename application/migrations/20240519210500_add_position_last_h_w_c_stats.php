@@ -9,7 +9,7 @@ class Migration_Add_Position_Last_H_w_c_stats extends CI_Migration {
             'position_last' => array(
         	    'type' => 'VARCHAR',
         	    'constraint' => '3000',
-                'null' => false, 
+                'null' => TRUE, 
                 'after' => 'position'
             )
         ));

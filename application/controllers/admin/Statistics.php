@@ -1331,8 +1331,7 @@ class Statistics extends Admin_Controller {
 	/**
 	 * ReCALCULATES the Lottery H-W-C, it will retrieve the last H-W-C. If it exists, the first draw (for the given range) will be retrieved.
 	 * Each number that was drawn in the first draw will be subtracted from the counts in the H-W-C. The last draw will be retrieved and will be
-	 * added to the 
-	 * H-W-C. The overdue will be reset, if the last drawn number was an overdue number 
+	 * added to the H-W-C. The overdue will be reset, if the last drawn number was an overdue number 
 	 * @param 	integer	$id			Lottery ID
 	 * @param 	array	$lotto		Lottery Profile Objects
 	 * @return 	none
