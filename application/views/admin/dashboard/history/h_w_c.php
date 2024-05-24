@@ -82,7 +82,7 @@
 	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
 	<script src="//code.jquery.com/jquery-1.12.4.js"></script>
   	<script src="//code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
-	<h2><?php echo 'H (Hots), W (Warms and C (Colds) winners for: '.$lottery->lottery_name; ?></h2>
+	<h2><?php echo 'H (Hots), W (Warms) and C (Colds) winners for: '.$lottery->lottery_name; ?></h2>
 	<?php $max = $lottery->balls_drawn; 
 	   $b = 1; 
 	   ?>	

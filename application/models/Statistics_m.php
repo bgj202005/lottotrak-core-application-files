@@ -3138,6 +3138,24 @@ class Statistics_m extends MY_Model
 	return (!$next ? FALSE : $next);
 	}
 
+	/**
+	 * if table-lottery_h_w_c returns Null for hots_last, warm_last and cold_last, no previous h_w_c has been saved to DB 
+	 * then Returns FALSE (all fields must have a value of NULL)
+	 * else return TRUE (any fields have existin g data)
+	 * @param	integer		Current Lottery id
+	 * @return	boolean		TRUE/FALSE	TRUE - any fields have data, FALSE - all fields have NULL set 			
+	 */
+	public function hwc_last_exists($id)
+	{	
+		$this->db->reset_query();
+		$query = $this->db->query('SELECT * FROM lottery_h_w_c WHERE lottery_id ='.$id);
+		$hwc = $query->row(0);
+	if((is_null($hwc->hots_last))&&(is_null($hwc->warms_last))&&(is_null($hwc->colds_last))) 
+		return FALSE;
+ 	else
+		return TRUE;
+	}
+
 	/** 
 	* Returns the next resulting draw from the given date
 	* 
