@@ -855,7 +855,7 @@ class Statistics extends Admin_Controller {
 				$this->data['lottery']->H = $hots;  				// Number of Hots Distributed e.g. 16 Hots
 				$c_start = ($max_ball-intval($colds))+1; 			// Return the Cold value
 				$this->data['lottery']->W = $warms;  				// Number of Warms Distributed e.g 18 Colds
-				$this->data['lottery' 	]->C = $colds; 				// Number of Colds Distributed e.g 16 Colds
+				$this->data['lottery']->C = $colds; 				// Number of Colds Distributed e.g 16 Colds
 			}
 			else
 			{

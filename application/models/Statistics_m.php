@@ -3133,6 +3133,27 @@ class Statistics_m extends MY_Model
 		$next =  $query->next_row('array');
 	return (!$next ? FALSE : $next);
 	}
+	
+	/** 
+	* Store the previous calculated h_w_c hots, warms, colds fron the last draw
+	* 
+	* @param 	array	$heat	copy of the database h_w_c array		
+	* @return   array	$heat	updated h_w_c profile array
+	*/
+	public function hwc_previous($heats)
+	{
+	// If any of the fields are empty, copy the corresponding values from hots, warms, and colds to hots_last, warms_last, and colds_last, respectively
+	if (empty($hots_last)) {
+		$heats['hots_last'] = $heats['hots_last'];
+	}
+	if (empty($warms_last)) {
+		$heats['warms_last'] = $heats['hots_last'];
+	}
+	if (empty($colds_last)) {
+		$heats['colds_last'] = $heats['hots_last'];
+	}
+	return $heats;
+	}
 	/**
 	 * if table-lottery_h_w_c returns Null for position_last, no previous h_w_c has been saved to DB 
 	 * then Returns FALSE (all fields will be determined as NULL (hots_last), (warms_last) and (colds_last) if position_last is NULL)
