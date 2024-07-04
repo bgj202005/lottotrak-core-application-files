@@ -3144,15 +3144,15 @@ class Statistics_m extends MY_Model
 	{
 	// If any of the fields are empty, copy the corresponding values from hots, warms, and colds to hots_last, warms_last, and colds_last, respectively
 	if (empty($hots_last)) {
-		$heats['hots_last'] = $heats['hots_last'];
+		$heats['hots_last'] = $heats['hots'];
 	}
 	if (empty($warms_last)) {
-		$heats['warms_last'] = $heats['hots_last'];
+		$heats['warms_last'] = $heats['warms'];
 	}
 	if (empty($colds_last)) {
-		$heats['colds_last'] = $heats['hots_last'];
+		$heats['colds_last'] = $heats['colds'];
 	}
-	return $heats;
+	return $heats; 
 	}
 	/**
 	 * if table-lottery_h_w_c returns Null for position_last, no previous h_w_c has been saved to DB 
