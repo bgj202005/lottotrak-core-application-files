@@ -843,6 +843,7 @@ class Statistics extends Admin_Controller {
 		$h_w_c = $this->statistics_m->h_w_c_exists($id);
 		if(!is_null($h_w_c))	// Existing HWC?
 		{
+			$h_w_c = $this->statistics_m->hwc_nolasts($h_w_c);
 			$new_range = $this->uri->segment(5,0); 					// Return segment range
 			$old_range = $h_w_c['range'];
 			if(!$new_range) $new_range = $old_range;				// Database Range
@@ -889,11 +890,17 @@ class Statistics extends Admin_Controller {
 					$strwarms = $this->statistics_m->warms($str_hwc);
 					$strcolds = $this->statistics_m->colds($str_hwc);
 					$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '');
+					$strhots_last = $h_w_c['hots_last'];
+					$strwarms_last = $h_w_c['warms_last'];
+					$strcolds_last = $h_w_c['colds_last'];
 					$hwc = array(
 						'range'				=> 	$new_range,
 						'hots'				=> 	$strhots,
 						'warms'				=> 	$strwarms,
 						'colds'				=> 	$strcolds,
+						'hots_last'			=> 	$strhots_last,
+						'warms_last'		=> 	$strwarms_last,
+						'colds_last'		=> 	$strcolds_last,
 						'dupextra'			=>	$strdupextra,
 						'overdue'			=> 	$stroverdue,
 						'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
@@ -940,11 +947,17 @@ class Statistics extends Admin_Controller {
 			$strwarms = $this->statistics_m->warms($str_hwc);
 			$strcolds = $this->statistics_m->colds($str_hwc);
 			$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl_name, $drawn, $new_range);
+			$strhots_last = $h_w_c['hots_last'];
+			$strwarms_last = $h_w_c['warms_last'];
+			$strcolds_last = $h_w_c['colds_last'];
 			$hwc = array(
 						'range'				=> 	$new_range,
 						'hots'				=> 	$strhots,
 						'warms'				=> 	$strwarms,
 						'colds'				=> 	$strcolds,
+						'hots_last'			=> 	$strhots_last,
+						'warms_last'		=> 	$strwarms_last,
+						'colds_last'		=> 	$strcolds_last,
 						'dupextra'			=>	$strdupextra,
 						'overdue'			=> 	$stroverdue,
 						'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
@@ -1011,6 +1024,7 @@ class Statistics extends Admin_Controller {
 				$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$new_range.' Draws.');
 				redirect('admin/statistics');
 			}
+			$hwc_history = $this->statistics_m->position_nolasts($hwc_history);
 			$hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  				// Remove the last comma
 			$hwc_history['h_w_c_last_10'] = substr($hwc_history['h_w_c_last_10'], 0, -1);
 			$this->data['lottery']->last_hwc = $hwc_history['h_w_c_last_1'];
@@ -1036,6 +1050,7 @@ class Statistics extends Admin_Controller {
 								'h_w_c_last_1'		=> 	$this->data['lottery']->last_hwc,
 								'h_w_c_last_10'		=> 	$hwc_history['h_w_c_last_10'],
 								'position'			=> 	$hwc_history['position'],
+								'position_last'		=> 	$hwc_history['position_last'],
 								'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
 								'lottery_id'		=> 	$id,
 								'extra_included'	=> 	$this->data['lottery']->extra_included,
@@ -1054,6 +1069,7 @@ class Statistics extends Admin_Controller {
 					$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$$new_range.' Draws.');
 				redirect('admin/statistics');
 				}
+				$hwc_history = $this->statistics_m->positions_nolasts($hwc_history);
 				$hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  				// Remove the last comma
 				$hwc_history['h_w_c_last_10'] = substr($hwc_history['h_w_c_last_10'], 0, -1);
 			}
