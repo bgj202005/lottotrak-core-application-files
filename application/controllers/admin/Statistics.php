@@ -1069,7 +1069,7 @@ class Statistics extends Admin_Controller {
 					$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$$new_range.' Draws.');
 				redirect('admin/statistics');
 				}
-				$hwc_history = $this->statistics_m->positions_nolasts($hwc_history);
+				$hwc_history = $this->statistics_m->position_nolasts($hwc_history);
 				$hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  				// Remove the last comma
 				$hwc_history['h_w_c_last_10'] = substr($hwc_history['h_w_c_last_10'], 0, -1);
 			}
