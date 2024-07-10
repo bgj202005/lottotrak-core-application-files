@@ -193,7 +193,10 @@
 											</tr>
 										</thead>
 										<tbody>
-											<?php foreach($lottery->hots as $ball => $count):	
+											<?php 
+												$cntr = 0;
+												$noEX = FALSE; 
+												foreach($lottery->hots as $ball => $count):	
 												if($ball) :
 													echo "<tr class='table-danger'>";
 													$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
@@ -212,6 +215,12 @@
 												else:
 													echo "<tr class='table-danger'><td colspan = '2'>No Hots</td></tr>";
 												endif;
+												if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
+												    $noEX = TRUE;
+												endif;
+											if(!$noEX):
+											    $cntr++;
+											endif;
 											endforeach; ?>
 										</tbody>
 									</table>
