@@ -3303,19 +3303,22 @@ class Statistics_m extends MY_Model
 
 		foreach($h as $position => $count)
 		{
-			if($count!=0) $str_positions .= $position.'='.$count.',';
+			//if($count!=0) $str_positions .= $position.'='.$count.',';
+			$str_positions .= $position.'='.$count.',';
 		}
 		$str_positions = substr($str_positions,0,-1); // Remove last ','
 		$str_positions .= '|W>';
 		foreach($w as $position => $count)
 		{
-			if($count!=0) $str_positions .= $position.'='.$count.',';
+			//if($count!=0) $str_positions .= $position.'='.$count.',';
+			$str_positions .= $position.'='.$count.',';
 		}
 		$str_positions = substr($str_positions,0,-1); // Remove last ','
 		$str_positions .= '|C>';
 		foreach($c as $position => $count)
 		{
-			if($count!=0) $str_positions .= $position.'='.$count.','; 
+			// if($count!=0) $str_positions .= $position.'='.$count.',';
+			$str_positions .= $position.'='.$count.','; 
 		}
 		$str_positions = substr($str_positions,0,-1); // Remove last ','
 	return $str_positions; // formatted string returned

@@ -218,9 +218,9 @@
 												if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
 												    $noEX = TRUE;
 												endif;
-											if(!$noEX):
-											    $cntr++;
-											endif;
+												if(!$noEX):
+													$cntr++;
+												endif;
 											endforeach; ?>
 										</tbody>
 									</table>
@@ -235,17 +235,23 @@
 											</tr>
 										</thead>
 										<tbody>
-											<?php foreach($lottery->hots_pos as $position => $count):	
+											<?php 
+												foreach($lottery->hots_pos as $position => $count):	
 													$exists = FALSE;
 													echo "<tr class='table-light'>";
 													$exists = array_key_exists($position, $lottery->positions);
 													$position = rtrim($position,'h');  // Remove the special 'h' symbol
 													if($exists) :
-														echo "<td class='text-center bg-danger text-white'>".$position."</td>";
-													 	echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+														if($noEX&&($cntr==$position)):
+															echo "<td class='text-center'>".$position."</td>";
+															echo "<td class='text-center'>".$count."</td>";
+														else:	
+															echo "<td class='text-center bg-danger text-white'>".$position."</td>";
+															echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+														endif;
 													else:
-														echo "<td class='text-center'>".$position."</td>";
-														echo "<td class='text-center'>".$count."</td>";
+													echo "<td class='text-center'>".$position."</td>";
+													echo "<td class='text-center'>".$count."</td>";
 													endif;
 													echo "</tr>";
 												endforeach; ?>
@@ -262,7 +268,10 @@
 											</tr>
 										</thead>
 										<tbody>
-											<?php foreach($lottery->warms as $ball => $count):	
+											<?php  
+												$cntr = 0;
+												$noEX = FALSE;
+												foreach($lottery->warms as $ball => $count):	
 												if($ball) :
 													echo "<tr class='table-warning'>";
 													$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
@@ -280,6 +289,12 @@
 													echo "</tr>";
 												else:
 													echo "<tr class='table-warning'><td colspan = '2'>No Warms</td></tr>";
+												endif;
+												if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
+												    $noEX = TRUE;
+												endif;
+												if(!$noEX):
+													$cntr++;
 												endif;
 											endforeach; ?>
 										</tbody>
@@ -301,8 +316,13 @@
 													$exists = array_key_exists($position, $lottery->positions);
 													$position = rtrim($position,'w');  // Remove the special '*' symbol
 													if($exists) :
-														echo "<td class='text-center bg-danger text-white'>".$position."</td>";
-													 	echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+														if($noEX&&($cntr==$position)):
+															echo "<td class='text-center'>".$position."</td>";
+															echo "<td class='text-center'>".$count."</td>";
+														else:	
+															echo "<td class='text-center bg-danger text-white'>".$position."</td>";
+															echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+														endif;
 													else:
 														echo "<td class='text-center'>".$position."</td>";
 														echo "<td class='text-center'>".$count."</td>";
@@ -322,7 +342,10 @@
 											</tr>
 										</thead>
 										<tbody>
-											<?php foreach($lottery->colds as $ball => $count):	
+											<?php 
+												$cntr = 0;
+												$noEX = FALSE;
+												foreach($lottery->colds as $ball => $count):	
 												if($ball) :
 													echo "<tr class='table-primary'>";
 													$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
@@ -341,6 +364,12 @@
 													echo "</tr>";
 												else:
 													echo "<tr class='table-primary'><td colspan = '2'>No Colds</td></tr>";
+												endif;
+												if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
+												    $noEX = TRUE;
+												endif;
+												if(!$noEX):
+													$cntr++;
 												endif;
 											endforeach; ?>
 										</tbody>
@@ -362,8 +391,13 @@
 													$exists = array_key_exists($position, $lottery->positions);
 													$position = rtrim($position,'c');  // Remove the special '*' symbol
 													if($exists) :
-														echo "<td class='text-center bg-danger text-white'>".$position."</td>";
-													 	echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+														if($noEX&&($cntr==$position)):
+															echo "<td class='text-center'>".$position."</td>";
+															echo "<td class='text-center'>".$count."</td>";
+														else:	
+															echo "<td class='text-center bg-danger text-white'>".$position."</td>";
+															echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+														endif;
 													else:
 														echo "<td class='text-center'>".$position."</td>";
 														echo "<td class='text-center'>".$count."</td>";
