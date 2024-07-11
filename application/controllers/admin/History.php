@@ -524,6 +524,8 @@ class History extends Admin_Controller {
 		$nonfriends = $this->statistics_m->nonfriends_exists($id);
 		if(!is_null($friends)&&(!is_null($nonfriends)))
 		{
+			$this->data['lottery']->extra_included = $friends['extra_included'];
+			$this->data['lottery']->extra_draws = $friends['extra_draws'];
 			$range = $friends['range'];
 			// 4. Extract the friends string into the array counter parts
 			$next_draw = explode(",", $friends['lottery_friends']); // DB or ??
