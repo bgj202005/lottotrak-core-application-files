@@ -3160,17 +3160,20 @@ class Statistics_m extends MY_Model
 	/** 
 	* Store the previous from the db hwc hots, warms, colds fron the last draw
 	* 
-	* @param 	array	$heat_stats		copy of the database h_w_c statistic array		
-	* @return   array	$heat_stats		updated h_w_c statistics array
+	* @param 	integer	$id				lottery id (indentify)		
+	* @param 	string	$position		copy of the database h_w_c statistic position value		
+	* @return   string	$position_last	return position_last value if was NULL
 	*/
-	public function position_nolasts($heat_stats)
+	public function position_nolasts($id, $position)
 	{
+		$query = $this->db->query('SELECT `position_last` FROM `lottery_h_w_c_stats` WHERE `lottery_id` ='.$id.';');
 		// If any of the fields are empty, copy the corresponding values from hots, warms, and colds to hots_last, warms_last, and colds_last, respectively
-		if (empty($heat_stats['position_last'])) 
+		$position_last = $query->row();
+		if(is_null($position_last))
 		{
-			$heat_stats['position_last'] = $heat_stats['position'];
+			$position_last = $position;
 		}
-	return $heat_stats; 
+	return $position_last;
 	}
 	/**
 	 * if table-lottery_h_w_c returns Null for position_last, no previous h_w_c has been saved to DB 

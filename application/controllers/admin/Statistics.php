@@ -1024,7 +1024,7 @@ class Statistics extends Admin_Controller {
 				$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$new_range.' Draws.');
 				redirect('admin/statistics');
 			}
-			$hwc_history = $this->statistics_m->position_nolasts($hwc_history);
+			$hwc_history['position_last'] = $this->statistics_m->position_nolasts($id, $hwc_history['position']);
 			$hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  				// Remove the last comma
 			$hwc_history['h_w_c_last_10'] = substr($hwc_history['h_w_c_last_10'], 0, -1);
 			$this->data['lottery']->last_hwc = $hwc_history['h_w_c_last_1'];
@@ -1069,7 +1069,7 @@ class Statistics extends Admin_Controller {
 					$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$$new_range.' Draws.');
 				redirect('admin/statistics');
 				}
-				$hwc_history = $this->statistics_m->position_nolasts($hwc_history);
+				$hwc_history['position_last'] = $this->statistics_m->position_nolasts($id, $hwc_history['position']);
 				$hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  				// Remove the last comma
 				$hwc_history['h_w_c_last_10'] = substr($hwc_history['h_w_c_last_10'], 0, -1);
 			}
@@ -1094,6 +1094,7 @@ class Statistics extends Admin_Controller {
 								'h_w_c_last_1'		=> 	$this->data['lottery']->last_hwc,
 								'h_w_c_last_10'		=> 	$hwc_history['h_w_c_last_10'],
 								'position'			=> 	$hwc_history['position'],
+								'position_last'		=> 	$hwc_history['position_last'],
 								'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
 								'lottery_id'		=> 	$id,
 								'extra_included'	=> 	$this->data['lottery']->extra_included,
