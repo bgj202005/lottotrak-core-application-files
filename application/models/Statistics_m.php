@@ -3135,26 +3135,17 @@ class Statistics_m extends MY_Model
 	}
 	
 	/** 
-	* Store the previous from the db hwc hots, warms, colds fron the last draw
+	* Store the previous h_w_c hots, warms, colds fron the last draw so the next draw can be calculated
 	* 
 	* @param 	array	$heat	copy of the database h_w_c profile array		
 	* @return   array	$heat	updated h_w_c profile array
 	*/
-	public function hwc_nolasts($heats)
+	public function hwc_copylasts($heats)
 	{
 	// If any of the fields are empty, copy the corresponding values from hots, warms, and colds to hots_last, warms_last, and colds_last, respectively
-		if (empty($heats['hots_last'])) 
-		{
-			$heats['hots_last'] = $heats['hots'];
-		}
-		if (empty($heats['warms_last'])) 
-		{
-			$heats['warms_last'] = $heats['warms'];
-		}
-		if (empty($heats['colds_last'])) 
-		{
-			$heats['colds_last'] = $heats['colds'];
-		}
+		$heats['hots_last'] = $heats['hots'];
+		$heats['warms_last'] = $heats['warms'];
+		$heats['colds_last'] = $heats['colds'];
 	return $heats; 
 	}
 	/** 
@@ -3164,14 +3155,14 @@ class Statistics_m extends MY_Model
 	* @param 	string	$position				copy of the database h_w_c statistic position value		
 	* @return   object	$row->position_last		return position_last value if was NULL
 	*/
-	public function position_nolasts($id, $position)
+	public function position_nolasts($id)
 	{
-		$query = $this->db->query('SELECT `position_last` FROM `lottery_h_w_c_stats` WHERE `lottery_id` ='.$id.';');
+		$query = $this->db->query('SELECT `position`,`position_last` FROM `lottery_h_w_c_stats` WHERE `lottery_id` ='.$id.';');
 		// If any of the fields are empty, copy the corresponding values from hots, warms, and colds to hots_last, warms_last, and colds_last, respectively
 		$row = $query->row();
 		if(empty($row->position_last))
 		{
-			$row->position_last = $position;
+			$row->position_last = $row->position;
 		}
 	return $row->position_last;
 	}
