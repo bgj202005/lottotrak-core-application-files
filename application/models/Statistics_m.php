@@ -1593,7 +1593,7 @@ class Statistics_m extends MY_Model
 					{
 						if($this->is_drawn($b, $row, $b_max, $bonus))
 						{
-							if (($range_ptr>=$range)&&(!isset($loc))) $loc = $this->followers_positions($b,$row,$bonus);
+							if (($range_ptr>=(int)$range)&&(!isset($loc))) $loc = $this->followers_positions($b,$row,$bonus);
 							if($duple) $extra = $row['extra'];
 							$row = $query->next_row('array');
 							$row['row'] = $range_ptr+1; 	// This is completed only within range
@@ -1624,7 +1624,7 @@ class Statistics_m extends MY_Model
 									}
 								}
 							}
-							if($range_ptr>=$range) // Reached or exceeded the half way point? If yes .. do the prize counts
+							if($range_ptr>=(int)$range) // Reached or exceeded the half way point? If yes .. do the prize counts
 							{
 								// Step 2. Next Range of Draws will include the prize pool
 								$nonfollowlist = $this->non_followers($followlist, $last_ball);
