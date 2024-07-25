@@ -1588,7 +1588,7 @@ class Statistics_m extends MY_Model
 				$first = array();		// Lowest draw from the lowest row array
 				if($duple) $duplelist = array(); // Only if this lottery has a duplicate extra ball
 				
-				// Step 1, get the totals for the first range of draws
+					// Step 1, get the totals for the first range of draws
 					do 
 					{
 						if($this->is_drawn($b, $row, $b_max, $bonus))
@@ -1629,7 +1629,7 @@ class Statistics_m extends MY_Model
 								// Step 2. Next Range of Draws will include the prize pool
 								$nonfollowlist = $this->non_followers($followlist, $last_ball);
 								$prize_counts[$b] = $this->followers_prizecounts($row, $followlist, $nonfollowlist, $duple, ($duple ? $duplelist : FALSE), $prize_counts[$b]);
-								if(isset($loc)) $positions[$loc] = $this->followers_positions_prizecounts($positions[$loc]);
+ 								if(isset($loc)) $positions[$loc] = $this->followers_positions_prizecounts($positions[$loc]);
 								$first = $lowest_row[0];
 								if(intval($range_ptr-$first['row'])>$range) // Only if the current row pointer
 																			// is out of range of the target range, remove draw. e.g. Range = 100 draws
@@ -1751,12 +1751,30 @@ class Statistics_m extends MY_Model
 					break;
 				case 7:
 					if(array_key_exists('6_win_extra', $p_wins)) ++$p_wins['6_win_extra'];
+					// If all the numbers were drawn incuding the extra ball, would give two winning tickets
+					if(!array_key_exists('6_win_extra', $p_wins)&&isset($p_wins['6_win'])&&isset($p_wins['5_win_extra'])) 
+					{
+						++$p_wins['6_win']; // main prize
+						++$p_wins['5_win_extra']; // 5 plus the extra
+					}
 					break;
 				case 8:
 					if(array_key_exists('7_win_extra', $p_wins)) ++$p_wins['7_win_extra'];
+					// If all the numbers were drawn incuding the extra ball, would give two winning tickets
+					if(!array_key_exists('7_win_extra', $p_wins)&&isset($p_wins['7_win'])&&isset($p_wins['6_win_extra'])) 
+					{
+						++$p_wins['7_win']; // main prize
+						++$p_wins['6_win_extra']; // 5 plus the extra
+					}
 					break;
 				case 9:
 					if(array_key_exists('8_win_extra', $p_wins)) ++$p_wins['8_win_extra'];
+					// If all the numbers were drawn incuding the extra ball, would give two winning tickets
+					if(!array_key_exists('8_win_extra', $p_wins)&&isset($p_wins['8_win'])&&isset($p_wins['7_win_extra'])) 
+					{
+						++$p_wins['8_win']; // main prize
+						++$p_wins['7_win_extra']; // 5 plus the extra
+					}
 			}
 		}
 
@@ -1780,7 +1798,7 @@ class Statistics_m extends MY_Model
 		global $prizes_cnt;			// prizes_cnt global availability
 		global $extra_cnt;			// Extra has also been included
 		$prizes_cnt = 0; 			// init prize counter amd ball counter
-		$ball_counter = 0; 
+		$ball_counter = 0;
 		$extra_cnt = FALSE;
 		unset($r['draw_date']); 	// Draw date not required
 
@@ -1793,10 +1811,10 @@ class Statistics_m extends MY_Model
 				{
  					if(($dr_value==$follower)) $ball_counter++; // Kepp count of followers
 					if(($dr_value==$follower)&&($fl_value>=3)&&($drawn!='extra')) $prizes_cnt++;
-					if(($dr_value==$follower)&&($fl_value>=3)&&(($drawn=='extra'&&$dr_value!=0)&&!$df)) 
+					elseif(($dr_value==$follower)&&($fl_value>=3)&&(($drawn=='extra'&&$dr_value!=0)&&!$df)&&(array_key_exists($prizes_cnt.'_win_extra', $p))) 
 					{
-						$prizes_cnt++;
 						$extra_cnt=TRUE; // The Extra flag is set
+						$prizes_cnt++;
 						break;
 					}
 				}
@@ -1812,10 +1830,10 @@ class Statistics_m extends MY_Model
 				foreach($nonfl as $nonfollower => $nonfl_value)
 					{
 						if(($dr_value==$nonfl_value)&&($drawn!='extra')) $prizes_cnt++;
-						if(($dr_value==$nonfl_value)&&(($drawn=='extra'&&$dr_value!=0)&&!$df)) 
+						elseif(($dr_value==$nonfl_value)&&(($drawn=='extra'&&$dr_value!=0)&&!$df)&&(array_key_exists($prizes_cnt.'_win_extra', $p))) 
 						{
+							$extra_cnt=TRUE; // The Extra flag is set
 							$prizes_cnt++;
-							$extra_cnt=TRUE;	// The extra flag is set
 							break; 
 						}
 					}
@@ -1892,12 +1910,30 @@ class Statistics_m extends MY_Model
 					break;
 				case 7:
 					if(array_key_exists('6_win_extra', $hits)) ++$hits['6_win_extra'];
+					// Exception, if the extra is set and 6_win_extra does not exist, then we have two prizes 5_win_extra and 6_win
+					if(!array_key_exists('6_win_extra', $hits)&&isset($hits['6_win'])&&isset($hits['5_win_extra'])) 
+					{
+						++$hits['6_win']; 		// main prize
+						++$hits['5_win_extra']; // 5 plus the extra
+					}
 					break;
 				case 8:
 					if(array_key_exists('7_win_extra', $hits)) ++$hits['7_win_extra'];
+					// Exception, if the extra is set and 7_win_extra does not exist, then we have two prizes 6_win_extra and 7_win
+					if(!array_key_exists('7_win_extra', $hits)&&isset($hits['7_win'])&&isset($hits['6_win_extra'])) 
+					{
+						++$hits['7_win']; 		// main prize
+						++$hits['6_win_extra']; // 6 plus the extra
+					}
 					break;
 				case 9:
 					if(array_key_exists('8_win_extra', $hits)) ++$hits['8_win_extra'];
+					// Exception, if the extra is set and 8_win_extra does not exist, then we have two hrizes 7_win_extra and 8_win
+					if(!array_key_exists('8_win_extra', $hits)&&isset($hits['8_win'])&&isset($hits['7_win_extra'])) 
+					{
+						++$hits['8_win']; // main prize
+						++$hits['7_win_extra']; // 5 plus the extra
+					}
 			}
 		}
 	return $hits;
