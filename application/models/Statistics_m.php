@@ -916,7 +916,6 @@ class Statistics_m extends MY_Model
                 	->get($table);
 		$row = $query->row();			
 		$included = $row->extra_included;
-
 		if($update)
 		{
 			$included = (!$included ? '1' : '0'); // Toggle the Extra (Bonus) Ball to included
@@ -927,7 +926,6 @@ class Statistics_m extends MY_Model
 		}
 	return $included; 
 	}
-
 	/**
 	 * Toggle Extra (Bonus) Ball included in the query for friends
 	 * 
@@ -956,7 +954,6 @@ class Statistics_m extends MY_Model
 		}
 	return $included; // included has been updated, FALSE to don't use and TRUE to include the extra (Bonus) draws
 	}
-
 	/**
 	 * Calculate the number of trailing (follower) numbers based on the last draw
 	 * 
@@ -1660,7 +1657,6 @@ class Statistics_m extends MY_Model
 		}
 	return $error;
 	}
-
 	/**
 	 * Determine the position in the draw for the current matching drawn number 
 	 * 
