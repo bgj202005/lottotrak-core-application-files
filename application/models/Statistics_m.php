@@ -2760,7 +2760,6 @@ class Statistics_m extends MY_Model
 		{
 			$sql_draws = ' WHERE extra <> "0"';
 		} 
-
 		$sql = 'SELECT ball_drawn, count(*) as heat 
 				FROM ((SELECT ball1 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.') UNION ALL
       			(SELECT ball2 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.') UNION ALL
@@ -2798,6 +2797,30 @@ class Statistics_m extends MY_Model
 		}
  	return substr($hwc_string, 0, -1);		// Return the hwc string without the last comma in the string
 	}
+ /**
+ * Retrieves the draw before the most recent draw from the existing h_w_c array
+ * 
+ * @param	string		$lotto_tbl			Table of Lottery
+ * @return	mixed 		$last_draw_date		Last draw date in yyyy-mm-dd format (object) or FALSE if no date found
+ */
+public function hwc_DrawBeforeLast($lotto_tbl)
+{
+    // Build associative array of last previous draw id and the corresponding draw date
+	$last_draw = array();
+	// Build query
+    $sql = 'SELECT draw_date FROM '.$lotto_tbl.' ORDER BY `id` DESC Limit 2;';
+    // Execute query
+    $query = $this->db->query($sql);
+    $result = $query->last_row();		// get the previous draw date and the previous draw id (doesn't mean that all id's are sequential)    
+    if (!empty($result)) 
+	{
+		$last_draw['draw_date'] = $result->draw_date;
+		return $last_draw;
+    } else 
+	 {
+        return FALSE; // Return FALSE if no last draw date found
+    }
+}
 	/**
 	 * Returns the list of extras only (as a separate set of numbers) for a given range and date
 	 * 
@@ -3187,7 +3210,7 @@ class Statistics_m extends MY_Model
 	* @param 	string	$position				copy of the database h_w_c statistic position value		
 	* @return   object	$row->position_last		return position_last value if was NULL
 	*/
-	public function position_nolasts($id)
+	public function position_copylasts($id)
 	{
 		$query = $this->db->query('SELECT `position`,`position_last` FROM `lottery_h_w_c_stats` WHERE `lottery_id` ='.$id.';');
 		// If any of the fields are empty, copy the corresponding values from hots, warms, and colds to hots_last, warms_last, and colds_last, respectively

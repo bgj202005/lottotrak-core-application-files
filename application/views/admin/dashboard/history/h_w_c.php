@@ -1,5 +1,6 @@
 <link href="https://unpkg.com/bootstrap-table@1.18.0/dist/bootstrap-table.min.css" rel="stylesheet">
 <link href="https://unpkg.com/bootstrap-table@1.18.0/dist/extensions/reorder-rows/bootstrap-table-reorder-rows.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
 <style>
 	.card {
     background-color: #ffffff;
@@ -77,7 +78,13 @@
 .shadow-sm {
     box-shadow: 0 .125rem .25rem rgba(0,0,0,.075)!important;
 	}
-
+.nav-tabs {
+  margin: 20px 0;
+}
+.tab-card-header > .tab-content {
+  padding-bottom: 0;
+  margin: 25px;
+}
 </style>
 	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
 	<script src="//code.jquery.com/jquery-1.12.4.js"></script>
@@ -180,259 +187,525 @@
 										</div>
 									</div>		
 								</div>
-							<div class="container" id="content" style = "margin:20px;">
-								<div class = "row justify-content-center">
-									<table class="table">
-										<thead>
-											<tr>
-												<th class="text-center" colspan="2">Hots</th>
-											</tr>
-											<tr>
-												<th class="text-center">Ball</th>
-												<th class="text-center">Occurrences</th>
-											</tr>
-										</thead>
-										<tbody>
-											<?php 
-												$cntr = 0;
-												$noEX = FALSE; 
-												foreach($lottery->hots as $ball => $count):	
-												if($ball) :
-													echo "<tr class='table-danger'>";
-													$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
-													$ball = rtrim($ball,'*');  // Remove the special '*' symbol
-													if($sym=='*'&&$ball!=$extra_ball) :
-														echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
-														echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-													elseif($sym=='*'&&$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
-														echo "<td class='text-center bg-info text-white'>".$ball."</td>";
-														echo "<td class='text-center bg-info text-white'>".$count."</td>";
-													else:
-														echo "<td class='text-center'>".$ball."</td>";
-														echo "<td class='text-center'>".$count."</td>";
-													endif;
-													echo "</tr>";
-												else:
-													echo "<tr class='table-danger'><td colspan = '2'>No Hots</td></tr>";
-												endif;
-												if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
-												    $noEX = TRUE;
-												endif;
-												if(!$noEX):
-													$cntr++;
-												endif;
-											endforeach; ?>
-										</tbody>
-									</table>
-									<table class="table pos">
-										<thead>
-											<tr>
-												<th class="text-center" colspan="2">Hot Positions</th>
-											</tr>
-											<tr>
-												<th class="text-center">Position</th>
-												<th class="text-center">Count</th>
-											</tr>
-										</thead>
-										<tbody>
-											<?php 
-												foreach($lottery->hots_pos as $position => $count):	
-													$exists = FALSE;
-													echo "<tr class='table-light'>";
-													$exists = array_key_exists($position, $lottery->positions);
-													$position = rtrim($position,'h');  // Remove the special 'h' symbol
-													if($exists) :
-														if($noEX&&($cntr==$position)):
-															echo "<td class='text-center'>".$position."</td>";
-															echo "<td class='text-center'>".$count."</td>";
-														else:	
-															echo "<td class='text-center bg-danger text-white'>".$position."</td>";
-															echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-														endif;
-													else:
+							
+					</div>
+					<ul class="nav nav-tabs" id="myTab" role="tablist">
+						<li class="nav-item">
+							<a class="nav-link active" id="home-tab" data-toggle="tab" href="#home" role="tab" aria-controls="home" aria-selected="true"><div class = "card-heading">Last Draw</div></a>
+						</li>
+						<li class="nav-item">
+							<a class="nav-link" id="profile-tab" data-toggle="tab" href="#profile" role="tab" aria-controls="profile" aria-selected="false"><div class = "card-heading">Next Draw</div></a>
+						</li>
+					</ul>
+					<div class="tab-content" id="myTabContent">
+					<div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
+						<div class = "row justify-content-center" style = " margin: 25px;">
+							<table class="table">
+								<thead>
+									<tr>
+										<th class="text-center" colspan="2">Hots</th>
+									</tr>
+									<tr>
+										<th class="text-center">Ball</th>
+										<th class="text-center">Occurrences</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php 
+										$cntr = 0;
+										$noEX = FALSE; 
+										foreach($lottery->hots as $ball => $count):	
+										if($ball) :
+											echo "<tr class='table-danger'>";
+											$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
+											$ball = rtrim($ball,'*');  // Remove the special '*' symbol
+											if($sym=='*'&&$ball!=$extra_ball) :
+												echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
+												echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+											elseif($sym=='*'&&$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
+												echo "<td class='text-center bg-info text-white'>".$ball."</td>";
+												echo "<td class='text-center bg-info text-white'>".$count."</td>";
+											else:
+												echo "<td class='text-center'>".$ball."</td>";
+												echo "<td class='text-center'>".$count."</td>";
+											endif;
+											echo "</tr>";
+										else:
+											echo "<tr class='table-danger'><td colspan = '2'>No Hots</td></tr>";
+										endif;
+										if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
+											$noEX = TRUE;
+										endif;
+										if(!$noEX):
+											$cntr++;
+										endif;
+									endforeach; ?>
+								</tbody>
+							</table>
+							<table class="table pos">
+								<thead>
+									<tr>
+										<th class="text-center" colspan="2">Hot Positions</th>
+									</tr>
+									<tr>
+										<th class="text-center">Position</th>
+										<th class="text-center">Count</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php 
+										foreach($lottery->hots_pos as $position => $count):	
+											$exists = FALSE;
+											echo "<tr class='table-light'>";
+											$exists = array_key_exists($position, $lottery->positions);
+											$position = rtrim($position,'h');  // Remove the special 'h' symbol
+											if($exists) :
+												if($noEX&&($cntr==$position)):
 													echo "<td class='text-center'>".$position."</td>";
 													echo "<td class='text-center'>".$count."</td>";
-													endif;
-													echo "</tr>";
-												endforeach; ?>
-										</tbody>
-									</table>
-									<table class="table">
-										<thead>
-											<tr>
-												<th class="text-center" colspan="2">Warms</th>
-											</tr>
-											<tr>
-												<th class="text-text-center">Ball</th>
-												<th class="text-text-center">Occurrences</th>
-											</tr>
-										</thead>
-										<tbody>
-											<?php  
-												$cntr = 0;
-												$noEX = FALSE;
-												foreach($lottery->warms as $ball => $count):	
-												if($ball) :
-													echo "<tr class='table-warning'>";
-													$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
-													$ball = rtrim($ball,'*');  // Remove the special '*' symbol
-													if($sym=='*'&&$ball!=$extra_ball) :
-														echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
-														echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-													elseif($sym=='*'&&$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
-														echo "<td class='text-center bg-info text-white'>".$ball."</td>";
-														echo "<td class='text-center bg-info text-white'>".$count."</td>";
-													else:
-														echo "<td class='text-center'>".$ball."</td>";
-														echo "<td class='text-center'>".$count."</td>";
-													endif;
-													echo "</tr>";
-												else:
-													echo "<tr class='table-warning'><td colspan = '2'>No Warms</td></tr>";
+												else:	
+													echo "<td class='text-center bg-danger text-white'>".$position."</td>";
+													echo "<td class='text-center bg-danger text-white'>".$count."</td>";
 												endif;
-												if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
-												    $noEX = TRUE;
+											else:
+											echo "<td class='text-center'>".$position."</td>";
+											echo "<td class='text-center'>".$count."</td>";
+											endif;
+											echo "</tr>";
+										endforeach; ?>
+								</tbody>
+							</table>
+							<table class="table">
+								<thead>
+									<tr>
+										<th class="text-center" colspan="2">Warms</th>
+									</tr>
+									<tr>
+										<th class="text-text-center">Ball</th>
+										<th class="text-text-center">Occurrences</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php  
+										$cntr = 0;
+										$noEX = FALSE;
+										foreach($lottery->warms as $ball => $count):	
+										if($ball) :
+											echo "<tr class='table-warning'>";
+											$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
+											$ball = rtrim($ball,'*');  // Remove the special '*' symbol
+											if($sym=='*'&&$ball!=$extra_ball) :
+												echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
+												echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+											elseif($sym=='*'&&$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
+												echo "<td class='text-center bg-info text-white'>".$ball."</td>";
+												echo "<td class='text-center bg-info text-white'>".$count."</td>";
+											else:
+												echo "<td class='text-center'>".$ball."</td>";
+												echo "<td class='text-center'>".$count."</td>";
+											endif;
+											echo "</tr>";
+										else:
+											echo "<tr class='table-warning'><td colspan = '2'>No Warms</td></tr>";
+										endif;
+										if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
+											$noEX = TRUE;
+										endif;
+										if(!$noEX):
+											$cntr++;
+										endif;
+									endforeach; ?>
+								</tbody>
+							</table>
+							<table class="table pos">
+								<thead>
+									<tr>
+										<th class="text-center" colspan="2">Warm Positions</th>
+									</tr>
+									<tr>
+										<th class="text-center">Position</th>
+										<th class="text-center">Count</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php foreach($lottery->warms_pos as $position => $count):	
+											$exists = FALSE;
+											echo "<tr class='table-light'>";
+											$exists = array_key_exists($position, $lottery->positions);
+											$position = rtrim($position,'w');  // Remove the special '*' symbol
+											if($exists) :
+												if($noEX&&($cntr==$position)):
+													echo "<td class='text-center'>".$position."</td>";
+													echo "<td class='text-center'>".$count."</td>";
+												else:	
+													echo "<td class='text-center bg-danger text-white'>".$position."</td>";
+													echo "<td class='text-center bg-danger text-white'>".$count."</td>";
 												endif;
-												if(!$noEX):
-													$cntr++;
+											else:
+												echo "<td class='text-center'>".$position."</td>";
+												echo "<td class='text-center'>".$count."</td>";
+											endif;
+											echo "</tr>";
+									endforeach; ?>
+								</tbody>
+							</table>
+							<table class="table">
+								<thead>
+									<tr>
+										<th class="text-center" colspan="2">Colds</th>
+									</tr>
+									<tr>
+										<th class="text-center">Ball</th>
+										<th class="text-center">Occurrences</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php 
+										$cntr = 0;
+										$noEX = FALSE;
+										foreach($lottery->colds as $ball => $count):	
+										if($ball) :
+											echo "<tr class='table-primary'>";
+											$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
+											$ball = rtrim($ball,'*');  // Remove the special '*' symbol
+											if($sym=='*'&&$ball!=$extra_ball) :
+												$ball = rtrim($ball,'*'); // Remove the special '*' symbol
+												echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
+												echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+											elseif($sym=='*'&&$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
+												echo "<td class='text-center bg-info text-white'>".$ball."</td>";
+												echo "<td class='text-center bg-info text-white'>".$count."</td>";
+											else:
+												echo "<td class='text-center'>".$ball."</td>";
+												echo "<td class='text-center'>".$count."</td>";
+											endif;
+											echo "</tr>";
+										else:
+											echo "<tr class='table-primary'><td colspan = '2'>No Colds</td></tr>";
+										endif;
+										if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
+											$noEX = TRUE;
+										endif;
+										if(!$noEX):
+											$cntr++;
+										endif;
+									endforeach; ?>
+								</tbody>
+							</table>
+							<table class="table pos">
+								<thead>
+									<tr>
+										<th class="text-center" colspan="2">Cold Positions</th>
+									</tr>
+									<tr>
+										<th class="text-center">Position</th>
+										<th class="text-center">Count</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php foreach($lottery->colds_pos as $position => $count):	
+											$exists = FALSE;
+											echo "<tr class='table-light'>";
+											$exists = array_key_exists($position, $lottery->positions);
+											$position = rtrim($position,'c');  // Remove the special '*' symbol
+											if($exists) :
+												if($noEX&&($cntr==$position)):
+													echo "<td class='text-center'>".$position."</td>";
+													echo "<td class='text-center'>".$count."</td>";
+												else:	
+													echo "<td class='text-center bg-danger text-white'>".$position."</td>";
+													echo "<td class='text-center bg-danger text-white'>".$count."</td>";
 												endif;
-											endforeach; ?>
-										</tbody>
-									</table>
-									<table class="table pos">
-										<thead>
-											<tr>
-												<th class="text-center" colspan="2">Warm Positions</th>
-											</tr>
-											<tr>
-												<th class="text-center">Position</th>
-												<th class="text-center">Count</th>
-											</tr>
-										</thead>
-										<tbody>
-											<?php foreach($lottery->warms_pos as $position => $count):	
-													$exists = FALSE;
-													echo "<tr class='table-light'>";
-													$exists = array_key_exists($position, $lottery->positions);
-													$position = rtrim($position,'w');  // Remove the special '*' symbol
-													if($exists) :
-														if($noEX&&($cntr==$position)):
-															echo "<td class='text-center'>".$position."</td>";
-															echo "<td class='text-center'>".$count."</td>";
-														else:	
-															echo "<td class='text-center bg-danger text-white'>".$position."</td>";
-															echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-														endif;
-													else:
-														echo "<td class='text-center'>".$position."</td>";
-														echo "<td class='text-center'>".$count."</td>";
-													endif;
-													echo "</tr>";
-											endforeach; ?>
-										</tbody>
-									</table>
-									<table class="table">
-										<thead>
-											<tr>
-												<th class="text-center" colspan="2">Colds</th>
-											</tr>
-											<tr>
-												<th class="text-center">Ball</th>
-												<th class="text-center">Occurrences</th>
-											</tr>
-										</thead>
-										<tbody>
-											<?php 
-												$cntr = 0;
-												$noEX = FALSE;
-												foreach($lottery->colds as $ball => $count):	
-												if($ball) :
-													echo "<tr class='table-primary'>";
-													$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
-													$ball = rtrim($ball,'*');  // Remove the special '*' symbol
-													if($sym=='*'&&$ball!=$extra_ball) :
-														$ball = rtrim($ball,'*'); // Remove the special '*' symbol
-														echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
-														echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-													elseif($sym=='*'&&$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
-														echo "<td class='text-center bg-info text-white'>".$ball."</td>";
-														echo "<td class='text-center bg-info text-white'>".$count."</td>";
-													else:
-														echo "<td class='text-center'>".$ball."</td>";
-														echo "<td class='text-center'>".$count."</td>";
-													endif;
-													echo "</tr>";
-												else:
-													echo "<tr class='table-primary'><td colspan = '2'>No Colds</td></tr>";
+											else:
+												echo "<td class='text-center'>".$position."</td>";
+												echo "<td class='text-center'>".$count."</td>";
+											endif;
+											echo "</tr>";
+									endforeach; ?>
+								</tbody>
+							</table>
+							<!-- Extra Ball if it outside of the balls being drawn and can have a duplicate drawn ball -->
+							<?php if(isset($lottery->dupextra)) : ?>
+							<table class="table">
+								<thead>
+									<tr>
+										<th class="text-center" colspan="2">Extra Ball</th>
+									</tr>
+									<tr>
+										<th class="text-center">Ball</th>
+										<th class="text-center">Occurrences</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php foreach($lottery->dupextra as $ball => $count):	
+											echo "<tr class='table-success'>";
+											if($ball==$lottery->last_drawn['extra']):
+												echo "<td class='text-center bg-info'>".$ball."</td>";
+												echo "<td class='text-center bg-info'>".$count."</td>";
+											else:
+												echo "<td class='text-center'>".$ball."</td>";
+												echo "<td class='text-center'>".$count."</td>";
+											endif;
+											echo "</tr>";
+									endforeach; ?>
+								</tbody>
+							</table>
+							<?php endif; ?>
+							</div>
+						</div>
+					<div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+						<div class = "row justify-content-center" style = " margin: 25px;">
+							<table class="table">
+								<thead>
+									<tr>
+										<th class="text-center" colspan="2">Next Hots</th>
+									</tr>
+									<tr>
+										<th class="text-center">Ball</th>
+										<th class="text-center">Occurrences</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php 
+										$cntr = 0;
+										$noEX = FALSE; 
+										foreach($lottery->hots as $ball => $count):	
+										if($ball) :
+											echo "<tr class='table-danger'>";
+											$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
+											$ball = rtrim($ball,'*');  // Remove the special '*' symbol
+											if($sym=='*'&&$ball!=$extra_ball) :
+												echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
+												echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+											elseif($sym=='*'&&$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
+												echo "<td class='text-center bg-info text-white'>".$ball."</td>";
+												echo "<td class='text-center bg-info text-white'>".$count."</td>";
+											else:
+												echo "<td class='text-center'>".$ball."</td>";
+												echo "<td class='text-center'>".$count."</td>";
+											endif;
+											echo "</tr>";
+										else:
+											echo "<tr class='table-danger'><td colspan = '2'>No Hots</td></tr>";
+										endif;
+										if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
+											$noEX = TRUE;
+										endif;
+										if(!$noEX):
+											$cntr++;
+										endif;
+									endforeach; ?>
+								</tbody>
+							</table>
+							<table class="table pos">
+								<thead>
+									<tr>
+										<th class="text-center" colspan="2">Next Hot Positions</th>
+									</tr>
+									<tr>
+										<th class="text-center">Position</th>
+										<th class="text-center">Count</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php 
+										foreach($lottery->hots_pos as $position => $count):	
+											$exists = FALSE;
+											echo "<tr class='table-light'>";
+											$exists = array_key_exists($position, $lottery->positions);
+											$position = rtrim($position,'h');  // Remove the special 'h' symbol
+											if($exists) :
+												if($noEX&&($cntr==$position)):
+													echo "<td class='text-center'>".$position."</td>";
+													echo "<td class='text-center'>".$count."</td>";
+												else:	
+													echo "<td class='text-center bg-danger text-white'>".$position."</td>";
+													echo "<td class='text-center bg-danger text-white'>".$count."</td>";
 												endif;
-												if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
-												    $noEX = TRUE;
+											else:
+											echo "<td class='text-center'>".$position."</td>";
+											echo "<td class='text-center'>".$count."</td>";
+											endif;
+											echo "</tr>";
+										endforeach; ?>
+								</tbody>
+							</table>
+							<table class="table">
+								<thead>
+									<tr>
+										<th class="text-center" colspan="2">Next Warms</th>
+									</tr>
+									<tr>
+										<th class="text-text-center">Ball</th>
+										<th class="text-text-center">Occurrences</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php  
+										$cntr = 0;
+										$noEX = FALSE;
+										foreach($lottery->warms as $ball => $count):	
+										if($ball) :
+											echo "<tr class='table-warning'>";
+											$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
+											$ball = rtrim($ball,'*');  // Remove the special '*' symbol
+											if($sym=='*'&&$ball!=$extra_ball) :
+												echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
+												echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+											elseif($sym=='*'&&$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
+												echo "<td class='text-center bg-info text-white'>".$ball."</td>";
+												echo "<td class='text-center bg-info text-white'>".$count."</td>";
+											else:
+												echo "<td class='text-center'>".$ball."</td>";
+												echo "<td class='text-center'>".$count."</td>";
+											endif;
+											echo "</tr>";
+										else:
+											echo "<tr class='table-warning'><td colspan = '2'>No Warms</td></tr>";
+										endif;
+										if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
+											$noEX = TRUE;
+										endif;
+										if(!$noEX):
+											$cntr++;
+										endif;
+									endforeach; ?>
+								</tbody>
+							</table>
+							<table class="table pos">
+								<thead>
+									<tr>
+										<th class="text-center" colspan="2">Next Warm Positions</th>
+									</tr>
+									<tr>
+										<th class="text-center">Position</th>
+										<th class="text-center">Count</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php foreach($lottery->warms_pos as $position => $count):	
+											$exists = FALSE;
+											echo "<tr class='table-light'>";
+											$exists = array_key_exists($position, $lottery->positions);
+											$position = rtrim($position,'w');  // Remove the special '*' symbol
+											if($exists) :
+												if($noEX&&($cntr==$position)):
+													echo "<td class='text-center'>".$position."</td>";
+													echo "<td class='text-center'>".$count."</td>";
+												else:	
+													echo "<td class='text-center bg-danger text-white'>".$position."</td>";
+													echo "<td class='text-center bg-danger text-white'>".$count."</td>";
 												endif;
-												if(!$noEX):
-													$cntr++;
+											else:
+												echo "<td class='text-center'>".$position."</td>";
+												echo "<td class='text-center'>".$count."</td>";
+											endif;
+											echo "</tr>";
+									endforeach; ?>
+								</tbody>
+							</table>
+							<table class="table">
+								<thead>
+									<tr>
+										<th class="text-center" colspan="2">Next Colds</th>
+									</tr>
+									<tr>
+										<th class="text-center">Ball</th>
+										<th class="text-center">Occurrences</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php 
+										$cntr = 0;
+										$noEX = FALSE;
+										foreach($lottery->colds as $ball => $count):	
+										if($ball) :
+											echo "<tr class='table-primary'>";
+											$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
+											$ball = rtrim($ball,'*');  // Remove the special '*' symbol
+											if($sym=='*'&&$ball!=$extra_ball) :
+												$ball = rtrim($ball,'*'); // Remove the special '*' symbol
+												echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
+												echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+											elseif($sym=='*'&&$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
+												echo "<td class='text-center bg-info text-white'>".$ball."</td>";
+												echo "<td class='text-center bg-info text-white'>".$count."</td>";
+											else:
+												echo "<td class='text-center'>".$ball."</td>";
+												echo "<td class='text-center'>".$count."</td>";
+											endif;
+											echo "</tr>";
+										else:
+											echo "<tr class='table-primary'><td colspan = '2'>No Colds</td></tr>";
+										endif;
+										if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
+											$noEX = TRUE;
+										endif;
+										if(!$noEX):
+											$cntr++;
+										endif;
+									endforeach; ?>
+								</tbody>
+							</table>
+							<table class="table pos">
+								<thead>
+									<tr>
+										<th class="text-center" colspan="2">Next Cold Positions</th>
+									</tr>
+									<tr>
+										<th class="text-center">Position</th>
+										<th class="text-center">Count</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php foreach($lottery->colds_pos as $position => $count):	
+											$exists = FALSE;
+											echo "<tr class='table-light'>";
+											$exists = array_key_exists($position, $lottery->positions);
+											$position = rtrim($position,'c');  // Remove the special '*' symbol
+											if($exists) :
+												if($noEX&&($cntr==$position)):
+													echo "<td class='text-center'>".$position."</td>";
+													echo "<td class='text-center'>".$count."</td>";
+												else:	
+													echo "<td class='text-center bg-danger text-white'>".$position."</td>";
+													echo "<td class='text-center bg-danger text-white'>".$count."</td>";
 												endif;
-											endforeach; ?>
-										</tbody>
-									</table>
-									<table class="table pos">
-										<thead>
-											<tr>
-												<th class="text-center" colspan="2">Cold Positions</th>
-											</tr>
-											<tr>
-												<th class="text-center">Position</th>
-												<th class="text-center">Count</th>
-											</tr>
-										</thead>
-										<tbody>
-											<?php foreach($lottery->colds_pos as $position => $count):	
-													$exists = FALSE;
-													echo "<tr class='table-light'>";
-													$exists = array_key_exists($position, $lottery->positions);
-													$position = rtrim($position,'c');  // Remove the special '*' symbol
-													if($exists) :
-														if($noEX&&($cntr==$position)):
-															echo "<td class='text-center'>".$position."</td>";
-															echo "<td class='text-center'>".$count."</td>";
-														else:	
-															echo "<td class='text-center bg-danger text-white'>".$position."</td>";
-															echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-														endif;
-													else:
-														echo "<td class='text-center'>".$position."</td>";
-														echo "<td class='text-center'>".$count."</td>";
-													endif;
-													echo "</tr>";
-											endforeach; ?>
-										</tbody>
-									</table>
-									<!-- Extra Ball if it outside of the balls being drawn and can have a duplicate drawn ball -->
-									<?php if(isset($lottery->dupextra)) : ?>
-									<table class="table">
-										<thead>
-											<tr>
-												<th class="text-center" colspan="2">Extra Ball</th>
-											</tr>
-											<tr>
-												<th class="text-center">Ball</th>
-												<th class="text-center">Occurrences</th>
-											</tr>
-										</thead>
-										<tbody>
-											<?php foreach($lottery->dupextra as $ball => $count):	
-													echo "<tr class='table-success'>";
-													if($ball==$lottery->last_drawn['extra']):
-														echo "<td class='text-center bg-info'>".$ball."</td>";
-														echo "<td class='text-center bg-info'>".$count."</td>";
-													else:
-														echo "<td class='text-center'>".$ball."</td>";
-														echo "<td class='text-center'>".$count."</td>";
-													endif;
-													echo "</tr>";
-											endforeach; ?>
-										</tbody>
-									</table>
-									<?php endif; ?>
+											else:
+												echo "<td class='text-center'>".$position."</td>";
+												echo "<td class='text-center'>".$count."</td>";
+											endif;
+											echo "</tr>";
+									endforeach; ?>
+								</tbody>
+							</table>
+							<!-- Extra Ball if it outside of the balls being drawn and can have a duplicate drawn ball -->
+							<?php if(isset($lottery->dupextra)) : ?>
+							<table class="table">
+								<thead>
+									<tr>
+										<th class="text-center" colspan="2">Extra Ball</th>
+									</tr>
+									<tr>
+										<th class="text-center">Ball</th>
+										<th class="text-center">Occurrences</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php foreach($lottery->dupextra as $ball => $count):	
+											echo "<tr class='table-success'>";
+											if($ball==$lottery->last_drawn['extra']):
+												echo "<td class='text-center bg-info'>".$ball."</td>";
+												echo "<td class='text-center bg-info'>".$count."</td>";
+											else:
+												echo "<td class='text-center'>".$ball."</td>";
+												echo "<td class='text-center'>".$count."</td>";
+											endif;
+											echo "</tr>";
+									endforeach; ?>
+								</tbody>
+							</table>
+							<?php endif; ?>
 							</div>
 						</div>
 					</div>
