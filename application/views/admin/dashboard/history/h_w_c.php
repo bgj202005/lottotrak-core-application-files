@@ -1,6 +1,5 @@
 <link href="https://unpkg.com/bootstrap-table@1.18.0/dist/bootstrap-table.min.css" rel="stylesheet">
 <link href="https://unpkg.com/bootstrap-table@1.18.0/dist/extensions/reorder-rows/bootstrap-table-reorder-rows.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
 <style>
 	.card {
     background-color: #ffffff;
@@ -458,7 +457,7 @@
 							<table class="table">
 								<thead>
 									<tr>
-										<th class="text-center" colspan="2">Next Hots</th>
+										<th class="text-center" colspan="2">N Hots</th>
 									</tr>
 									<tr>
 										<th class="text-center">Ball</th>
@@ -474,16 +473,8 @@
 											echo "<tr class='table-danger'>";
 											$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
 											$ball = rtrim($ball,'*');  // Remove the special '*' symbol
-											if($sym=='*'&&$ball!=$extra_ball) :
-												echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
-												echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-											elseif($sym=='*'&&$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
-												echo "<td class='text-center bg-info text-white'>".$ball."</td>";
-												echo "<td class='text-center bg-info text-white'>".$count."</td>";
-											else:
-												echo "<td class='text-center'>".$ball."</td>";
-												echo "<td class='text-center'>".$count."</td>";
-											endif;
+											echo "<td class='text-center'>".$ball."</td>";
+											echo "<td class='text-center'>".$count."</td>";
 											echo "</tr>";
 										else:
 											echo "<tr class='table-danger'><td colspan = '2'>No Hots</td></tr>";
@@ -500,7 +491,7 @@
 							<table class="table pos">
 								<thead>
 									<tr>
-										<th class="text-center" colspan="2">Next Hot Positions</th>
+										<th class="text-center" colspan="2">NH Positions</th>
 									</tr>
 									<tr>
 										<th class="text-center">Position</th>
@@ -533,7 +524,7 @@
 							<table class="table">
 								<thead>
 									<tr>
-										<th class="text-center" colspan="2">Next Warms</th>
+										<th class="text-center" colspan="2">N Warms</th>
 									</tr>
 									<tr>
 										<th class="text-text-center">Ball</th>
@@ -575,7 +566,7 @@
 							<table class="table pos">
 								<thead>
 									<tr>
-										<th class="text-center" colspan="2">Next Warm Positions</th>
+										<th class="text-center" colspan="2">NW Positions</th>
 									</tr>
 									<tr>
 										<th class="text-center">Position</th>
@@ -607,7 +598,7 @@
 							<table class="table">
 								<thead>
 									<tr>
-										<th class="text-center" colspan="2">Next Colds</th>
+										<th class="text-center" colspan="2">N Colds</th>
 									</tr>
 									<tr>
 										<th class="text-center">Ball</th>
@@ -650,7 +641,7 @@
 							<table class="table pos">
 								<thead>
 									<tr>
-										<th class="text-center" colspan="2">Next Cold Positions</th>
+										<th class="text-center" colspan="2">NC Positions</th>
 									</tr>
 									<tr>
 										<th class="text-center">Position</th>
