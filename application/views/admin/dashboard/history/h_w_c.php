@@ -36,6 +36,11 @@
 	.tab-card-header > .nav-tabs > li > a:hover {
 		color: #007bff;
 	}
+	/* Custom class for nav-tabs */
+        .nav-tabs.custom-nav-tabs {
+            margin-left: 20px;
+            margin-right: 20px;
+    }
 	.tab-card-header > .tab-content {
 	padding-bottom: 0;
 	}
@@ -84,6 +89,24 @@
   padding-bottom: 0;
   margin: 25px;
 }
+/* New styles for tab margins and padding */
+    .tab-content {
+        margin-left: 20px;
+        margin-right: 20px;
+        padding-bottom: 20px;
+        border: 1px solid #eee; /* Add border around tab content */
+        padding: 20px; /* Add padding inside the tab content */
+        margin-bottom: 10px; /* Add bottom margin */
+        border-radius: 0.15rem; /* Rounded corners for all sides */
+        margin-top: -20px; /* Ensure border starts below tabs */
+    }
+    /* Add border around tabs */
+    .nav-tabs {
+        border: none; /* Remove border from tabs */
+    }
+    .nav-tabs .nav-item.show .nav-link, .nav-tabs .nav-link.active {
+        border-color: #eee #eee #fff; /* Ensure active tab blends with content border */
+    }
 </style>
 	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
 	<script src="//code.jquery.com/jquery-1.12.4.js"></script>
@@ -187,7 +210,7 @@
 								</div>		
 							</div>
 						</div>
-						<ul class="nav nav-tabs" id="myTab" role="tablist">
+						<ul class="nav nav-tabs" id="myTab" role="tablist" style="margin-left: 20px; margin-right: 20px;">
 							<li class="nav-item">
 								<a class="nav-link active" id="home-tab" data-toggle="tab" href="#home" role="tab" aria-controls="home" aria-selected="true"><div class = "card-heading">Last Draw</div></a>
 							</li>
@@ -502,20 +525,9 @@
 											foreach($lottery->hots_pos as $position => $count):	
 												$exists = FALSE;
 												echo "<tr class='table-light'>";
-												$exists = array_key_exists($position, $lottery->positions);
 												$position = rtrim($position,'h');  // Remove the special 'h' symbol
-												if($exists) :
-													if($noEX&&($cntr==$position)):
-														echo "<td class='text-center'>".$position."</td>";
-														echo "<td class='text-center'>".$count."</td>";
-													else:	
-														echo "<td class='text-center bg-danger text-white'>".$position."</td>";
-														echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-													endif;
-												else:
 												echo "<td class='text-center'>".$position."</td>";
 												echo "<td class='text-center'>".$count."</td>";
-												endif;
 												echo "</tr>";
 											endforeach; ?>
 									</tbody>
@@ -539,17 +551,9 @@
 												echo "<tr class='table-warning'>";
 												$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
 												$ball = rtrim($ball,'*');  // Remove the special '*' symbol
-												if($sym=='*'&&$ball!=$extra_ball) :
-													echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
-													echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-												elseif($sym=='*'&&$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
-													echo "<td class='text-center bg-info text-white'>".$ball."</td>";
-													echo "<td class='text-center bg-info text-white'>".$count."</td>";
-												else:
 													echo "<td class='text-center'>".$ball."</td>";
 													echo "<td class='text-center'>".$count."</td>";
-												endif;
-												echo "</tr>";
+													echo "</tr>";
 											else:
 												echo "<tr class='table-warning'><td colspan = '2'>No Warms</td></tr>";
 											endif;
@@ -578,18 +582,8 @@
 												echo "<tr class='table-light'>";
 												$exists = array_key_exists($position, $lottery->positions);
 												$position = rtrim($position,'w');  // Remove the special '*' symbol
-												if($exists) :
-													if($noEX&&($cntr==$position)):
-														echo "<td class='text-center'>".$position."</td>";
-														echo "<td class='text-center'>".$count."</td>";
-													else:	
-														echo "<td class='text-center bg-danger text-white'>".$position."</td>";
-														echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-													endif;
-												else:
-													echo "<td class='text-center'>".$position."</td>";
-													echo "<td class='text-center'>".$count."</td>";
-												endif;
+												echo "<td class='text-center'>".$position."</td>";
+												echo "<td class='text-center'>".$count."</td>";
 												echo "</tr>";
 										endforeach; ?>
 									</tbody>
@@ -613,17 +607,8 @@
 												echo "<tr class='table-primary'>";
 												$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
 												$ball = rtrim($ball,'*');  // Remove the special '*' symbol
-												if($sym=='*'&&$ball!=$extra_ball) :
-													$ball = rtrim($ball,'*'); // Remove the special '*' symbol
-													echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
-													echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-												elseif($sym=='*'&&$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
-													echo "<td class='text-center bg-info text-white'>".$ball."</td>";
-													echo "<td class='text-center bg-info text-white'>".$count."</td>";
-												else:
-													echo "<td class='text-center'>".$ball."</td>";
-													echo "<td class='text-center'>".$count."</td>";
-												endif;
+												echo "<td class='text-center'>".$ball."</td>";
+												echo "<td class='text-center'>".$count."</td>";
 												echo "</tr>";
 											else:
 												echo "<tr class='table-primary'><td colspan = '2'>No Colds</td></tr>";
@@ -653,18 +638,8 @@
 												echo "<tr class='table-light'>";
 												$exists = array_key_exists($position, $lottery->positions);
 												$position = rtrim($position,'c');  // Remove the special '*' symbol
-												if($exists) :
-													if($noEX&&($cntr==$position)):
-														echo "<td class='text-center'>".$position."</td>";
-														echo "<td class='text-center'>".$count."</td>";
-													else:	
-														echo "<td class='text-center bg-danger text-white'>".$position."</td>";
-														echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-													endif;
-												else:
-													echo "<td class='text-center'>".$position."</td>";
-													echo "<td class='text-center'>".$count."</td>";
-												endif;
+												echo "<td class='text-center'>".$position."</td>";
+												echo "<td class='text-center'>".$count."</td>";
 												echo "</tr>";
 										endforeach; ?>
 									</tbody>
