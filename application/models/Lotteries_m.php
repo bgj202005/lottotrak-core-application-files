@@ -336,7 +336,7 @@ class Lotteries_m extends MY_Model
 			}
 			else
 			{
-				$query = $this->db->get_where($lotto_tbl, array('draw_date' => $draw_date), 1, 0);	// Limit only 1 row & no offset
+ 				$query = $this->db->get_where($lotto_tbl, array('draw_date' => $draw_date), 1, 0);	// Limit only 1 row & no offset
 			}
 		}
 		else 

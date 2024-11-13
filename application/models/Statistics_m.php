@@ -2775,17 +2775,8 @@ class Statistics_m extends MY_Model
 		$sql .= ') as hwc
 				GROUP BY ball_drawn
 				ORDER BY heat DESC;';
-		/* EXAMPLE: SELECT ball_drawn, count(*) as heat FROM ((SELECT ball1 as ball_drawn FROM lotto_max 
-		WHERE draw_date <= '2022-01-25' ORDER BY draw_date DESC LIMIT 10) UNION ALL (SELECT ball2 
-		as ball_drawn FROM lotto_max WHERE draw_date <= '2022-01-25' ORDER BY draw_date DESC LIMIT 10) 
-		UNION ALL (SELECT ball3 as ball_drawn FROM lotto_max WHERE draw_date <= '2022-01-25' ORDER BY 
-		draw_date DESC LIMIT 10) UNION ALL (SELECT ball4 as ball_drawn FROM lotto_max WHERE draw_date <= 
-		'2022-01-25' ORDER BY draw_date DESC LIMIT 10) UNION ALL (SELECT ball5 as ball_drawn FROM lotto_max WHER E draw_date 
-		<= '2022-01-25' ORDER BY draw_date DESC LIMIT 10) UNION ALL (SELECT ball6 as ball_drawn FROM lotto_max WHERE draw_date 
-		<= '2022-01-25' ORDER BY draw_date DESC LIMIT 10) UNION ALL (SELECT ball7 as ball_drawn FROM lotto_max WHERE draw_date 
-		<= '2022-01-25' ORDER BY draw_date DESC LIMIT 10)) as hwc GROUP BY ball_drawn ORDER BY heat DESC;
-		*/
-		//var_dump($sql); exit(1); 
+		
+		//if($last) var_dump($sql); exit(1); 
 		$query = $this->db->query($sql);
 		$hwc_string = ""; // List string in the format of number=hits,
 		$i = 1; // non-zero integer
@@ -3253,7 +3244,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	return ((is_null($position->position_last)) ? FALSE : TRUE);
 	}
 	/** 
-	* Returns the next resulting draw from the given date
+	* Returns the next drawn numbers without the draw date, or id
 	* 
 	* @param 	integer	$pk		Pick 3, Pick 4, Pick 5, Pick 6, Pick 7, Pick 8 or Pick 9
 	* @param	Array 	$drawn	Complete Draw structure id, draw date, ball 1 ... ball N, extra		
@@ -3269,7 +3260,6 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		}	
 	return $only;
 	}
-
 	/* Returns only the last draw id from the selected lottery database
 	 * 
 	 * @param	string			$tbl				Current Lottery Data Table Name

@@ -1197,7 +1197,6 @@ class Statistics extends Admin_Controller {
 			$h_pos = $this->statistics_m->positions($next_drawn,$highs,$h_pos,$bn,$xtra,$dup); 		// Pass the hot positional value array, compare the current drawn numbers with the high numbers 
 			$w_pos = $this->statistics_m->positions($next_drawn,$averages,$w_pos,$bn,$xtra,$dup); 	// Pass the hot positional value array, compare the current drawn numbers with the average numbers 
 			$c_pos = $this->statistics_m->positions($next_drawn,$lows,$c_pos,$bn,$xtra,$dup); 		// Pass the hot positional value array, compare the current drawn numbers with the average numbers 
-			
 			$fd = $this->statistics_m->hwc_next_draw($table, $examine_date); // return the full with draw date, ball 1 ... ball n + extra
 			if($fd)	// next draw returned?
 			{
@@ -1573,9 +1572,7 @@ class Statistics extends Admin_Controller {
 			$p_group = $this->statistics_m->prize_group_profile($id);
 			$p_group = $this->statistics_m->prizes_only($p_group,$lottery_extra);
  			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
-
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $followers['extra_included']);
-			
 			$range = ($all<100 ? $all : 100);
 			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $max, '', $blnduplicate, $mx_extra);
 			$str_prizes = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
@@ -1630,7 +1627,6 @@ class Statistics extends Admin_Controller {
 		$lotto->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 		$friends = $this->statistics_m->friends_exists($id);
 		$nonfriends = $this->statistics_m->nonfriends_exists($id);
-
 		if(!is_null($friends)&&(!is_null($nonfriends)))
 		{
 			$range = $friends['range'];

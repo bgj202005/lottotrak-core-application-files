@@ -235,7 +235,7 @@
 										<?php 
 											$cntr = 0;
 											$noEX = FALSE; 
-											foreach($lottery->hots as $ball => $count):	
+											foreach($lottery->hots_last as $ball => $count):	
 											if($ball) :
 												echo "<tr class='table-danger'>";
 												$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
@@ -275,10 +275,10 @@
 									</thead>
 									<tbody>
 										<?php 
-											foreach($lottery->hots_pos as $position => $count):	
+											foreach($lottery->hots_pos_last as $position => $count):	
 												$exists = FALSE;
 												echo "<tr class='table-light'>";
-												$exists = array_key_exists($position, $lottery->positions);
+												$exists = array_key_exists($position, $lottery->positions_last);
 												$position = rtrim($position,'h');  // Remove the special 'h' symbol
 												if($exists) :
 													if($noEX&&($cntr==$position)):
@@ -310,7 +310,7 @@
 										<?php  
 											$cntr = 0;
 											$noEX = FALSE;
-											foreach($lottery->warms as $ball => $count):	
+											foreach($lottery->warms_last as $ball => $count):	
 											if($ball) :
 												echo "<tr class='table-warning'>";
 												$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
@@ -349,10 +349,10 @@
 										</tr>
 									</thead>
 									<tbody>
-										<?php foreach($lottery->warms_pos as $position => $count):	
+										<?php foreach($lottery->warms_pos_last as $position => $count):	
 												$exists = FALSE;
 												echo "<tr class='table-light'>";
-												$exists = array_key_exists($position, $lottery->positions);
+												$exists = array_key_exists($position, $lottery->positions_last);
 												$position = rtrim($position,'w');  // Remove the special '*' symbol
 												if($exists) :
 													if($noEX&&($cntr==$position)):
@@ -384,7 +384,7 @@
 										<?php 
 											$cntr = 0;
 											$noEX = FALSE;
-											foreach($lottery->colds as $ball => $count):	
+											foreach($lottery->colds_last as $ball => $count):	
 											if($ball) :
 												echo "<tr class='table-primary'>";
 												$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
@@ -424,10 +424,10 @@
 										</tr>
 									</thead>
 									<tbody>
-										<?php foreach($lottery->colds_pos as $position => $count):	
+										<?php foreach($lottery->colds_pos_last as $position => $count):	
 												$exists = FALSE;
 												echo "<tr class='table-light'>";
-												$exists = array_key_exists($position, $lottery->positions);
+												$exists = array_key_exists($position, $lottery->positions_last);
 												$position = rtrim($position,'c');  // Remove the special '*' symbol
 												if($exists) :
 													if($noEX&&($cntr==$position)):

@@ -296,6 +296,7 @@ class History extends Admin_Controller {
 			{
 				$draw = array(); 		// Temporary draw array
 				$positions = array();	// Temporary position array
+				$positions_last = array();	// Temporary position from last array
 				$draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn,$this->data['lottery']->extra_ball);
 				$hots = $h_w_c['h_count'];
 				$warms = $h_w_c['w_count'];
@@ -306,15 +307,38 @@ class History extends Admin_Controller {
 				$this->data['lottery']->extra_included = $h_w_c['extra_included'];
 				$this->data['lottery']->extra_draws = $h_w_c['extra_draws'];
 				$this->data['lottery']->last_drawn['range'] = $h_w_c['range'];
+				$strhots_last = $h_w_c['hots_last']; 		// Pull from DB
+				$strwarms_last = $h_w_c['warms_last'];	// All counts for Hots, Warms, Colds
+				$strcolds_last = $h_w_c['colds_last'];
 				$strhots = $h_w_c['hots']; 		// Pull from DB
 				$strwarms = $h_w_c['warms'];	// All counts for Hots, Warms, Colds
 				$strcolds = $h_w_c['colds'];
 				$strdupextra = $h_w_c['dupextra'];
 				$hots = explode(",", $strhots); // Convert to Arrays
 				$warms = explode(",", $strwarms); 
-				$colds = explode(",", $strcolds); 
+				$colds = explode(",", $strcolds);
+				$hots_last = explode(",", $strhots_last); // Convert to Arrays
+				$warms_last = explode(",", $strwarms_last); 
+				$colds_last = explode(",", $strcolds_last); 
 				if(!empty($strdupextra)) $dupextra = explode(",", $strdupextra);
-				// Iterate Hots
+				// Iterate Hots from last draw
+				$pos = 0;
+				foreach($hots_last as $all_hots)
+				{
+					$n = strstr($all_hots, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($all_hots, '='), 1); // Strip off to the left of the equal sign count
+					if(!in_array($n,$draw))
+					{
+						$this->data['lottery']->hots_last[$n] = $c;
+					}
+					else
+					{
+						$this->data['lottery']->hots_last[$n.'*'] = $c;
+						$positions_last[$pos.'h'] = 'h';
+					}
+					$pos++;
+				}
+				// Iterate Hots for next draw
 				$pos = 0;
 				foreach($hots as $all_hots)
 				{
@@ -331,7 +355,24 @@ class History extends Admin_Controller {
 					}
 					$pos++;
 				}
-				// Interate Warms
+				// Interate Warms for last draw
+				$pos = 0;
+				foreach($warms_last as $all_warms)
+				{
+					$n = strstr($all_warms, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($all_warms, '='), 1); // Strip off to the left of the equal sign count
+					if(!in_array($n,$draw))
+					{
+						$this->data['lottery']->warms_last[$n] = $c;
+					}
+					else
+					{
+						$this->data['lottery']->warms_last[$n.'*'] = $c;
+						if(!isset($positions_last[$pos.'w'])) $positions_last[$pos.'w'] = 'w';
+					}
+					$pos++;
+				}
+				// Interate Warms for next draw
 				$pos = 0;
 				foreach($warms as $all_warms)
 				{
@@ -348,7 +389,24 @@ class History extends Admin_Controller {
 					}
 					$pos++;
 				}
-				// Iterate Colds
+				// Iterate Colds for last draw
+				$pos = 0;
+				foreach($colds_last as $all_colds)
+				{
+					$n = strstr($all_colds, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($all_colds, '='), 1); // Strip off to the left of the equal sign count
+					if(!in_array($n,$draw))
+					{
+						$this->data['lottery']->colds_last[$n] = $c;
+					}
+					else
+					{
+						$this->data['lottery']->colds_last[$n.'*'] = $c;
+						if(!isset($positions_last[$pos.'c'])) $positions_last[$pos.'c'] = 'c';
+					}
+					$pos++;
+				}
+				// Iterate Colds for last next
 				$pos = 0;
 				foreach($colds as $all_colds)
 				{
@@ -375,7 +433,17 @@ class History extends Admin_Controller {
 						$this->data['lottery']->dupextra[$n] = $c; 
 					}
 				}
-			// Pull the winning positions for the Hots, Warms, Colds
+			// Pull the winning positions for the Hots, Warms, Colds from last draw
+				$strpositions_last = $hwc_history['position_last'];
+				$heat_position_last = explode("|", $strpositions_last); // Split into arrays of heat_position, 0, 1, 2
+				$hotpos_last = explode(">", $heat_position_last[0]);	 	// Hots
+				$warmpos_last = explode(">", $heat_position_last[1]);	 	// Warms
+				$coldpos_last = explode(">", $heat_position_last[2]); 	// Colds
+				$hot_hits_last = explode(",", $hotpos_last[1]);
+				$warm_hits_last = explode(",", $warmpos_last[1]);
+				$cold_hits_last = explode(",", $coldpos_last[1]);
+
+				// Pull the winning positions for the Hots, Warms, Colds for mext draw
 				$strpositions = $hwc_history['position'];
 				$heat_position = explode("|", $strpositions); // Split into arrays of heat_position, 0, 1, 2
 				$hotpos = explode(">", $heat_position[0]);	 	// Hots
@@ -384,25 +452,46 @@ class History extends Admin_Controller {
 				$hot_hits = explode(",", $hotpos[1]);
 				$warm_hits = explode(",", $warmpos[1]);
 				$cold_hits = explode(",", $coldpos[1]);
-				// Iterate Hots Win Position
+				// Iterate Hots Win Position for last draw
+				foreach($hot_hits_last as $hots_pos)
+				{
+					$n = strstr($hots_pos, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($hots_pos, '='), 1); // Strip off to the left of the equal sign count
+					$this->data['lottery']->hots_pos_last[$n.'h'] = $c; 
+				}
+				// Iterate Hots Win Position for next draw
 				foreach($hot_hits as $hots_pos)
 				{
 					$n = strstr($hots_pos, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
 					$c = substr(strstr($hots_pos, '='), 1); // Strip off to the left of the equal sign count
 					$this->data['lottery']->hots_pos[$n.'h'] = $c; 
 				}
-				// Interate Warms Win Positions
-				foreach($warm_hits as $warm_hits)
+				// Interate Warms Win Positions for last draw
+				foreach($warm_hits_last as $warm_pos)
 				{
-					$n = strstr($warm_hits, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
-					$c = substr(strstr($warm_hits, '='), 1); // Strip off to the left of the equal sign count
+					$n = strstr($warm_pos, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($warm_pos, '='), 1); // Strip off to the left of the equal sign count
+					$this->data['lottery']->warms_pos_last[$n.'w'] = $c; 
+				}
+				// Interate Warms Win Positions	for next draw
+				foreach($warm_hits as $warm_pos)
+				{
+					$n = strstr($warm_pos, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($warm_pos, '='), 1); // Strip off to the left of the equal sign count
 					$this->data['lottery']->warms_pos[$n.'w'] = $c; 
 				}
-				// Iterate Colds Win Positionds
-				foreach($cold_hits as $cold_hits)
+				// Iterate Colds Win Positions for last draw
+				foreach($cold_hits_last as $cold_pos)
 				{
-					$n = strstr($cold_hits, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
-					$c = substr(strstr($cold_hits, '='), 1); // Strip off to the left of the equal sign count
+					$n = strstr($cold_pos, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($cold_pos, '='), 1); // Strip off to the left of the equal sign count
+					$this->data['lottery']->colds_pos_last[$n.'c'] = $c; 
+				}
+				// Iterate Colds Win Positions for next draw
+				foreach($cold_hits as $cold_pos)
+				{
+					$n = strstr($cold_pos, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($cold_pos, '='), 1); // Strip off to the left of the equal sign count
 					$this->data['lottery']->colds_pos[$n.'c'] = $c; 
 				}
 			}
@@ -423,8 +512,10 @@ class History extends Admin_Controller {
 		$this->data['lottery']->hwc = explode('-',$hwc_history['h_w_c_last_1']);
 		$this->data['lottery']->draw = $draw;
 		$this->data['lottery']->positions = $positions;
+		$this->data['lottery']->positions_last = $positions_last;
 		unset($draw);
 		unset($positions);
+		unset($positions_last);
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the Statistics menu
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);

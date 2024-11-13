@@ -325,7 +325,9 @@ $(document).ready(function() {
 					}
 				},
 				error: function(jqXhr, textStatus, errorMessage){
-      			//alert("Error: "+errorMessage+" text:"+textStatus);
+				$('#import_message').html('<div class="alert alert-danger">Error: ' + errorMessage + '</div>');
+    			$('#import').attr('disabled', false);
+    			$('#import').val('Begin Import / Upload');
    			}	 
 			})
 		});
@@ -392,6 +394,15 @@ $(document).ready(function() {
 					$('.card-text').html("This was the last draw date attempted on import: "+data.draw_date+". <br /> Please check the numbers in this draw, correct and import CSV file again.");
 					error = 1;
 				}
+				else if(data.exit)
+				{
+					clearInterval(clear_timer);
+					$('#process').css('display', 'none');
+					$('#lottery_upload_csv').val('');
+					$('#import_message').html('<div class="alert alert-danger">No Data Import Required.</div>');
+					$('#import').attr('disabled',false);
+					$('#import').val('Begin Import / Upload');
+				}
 				if (error)
 				{
 					$('#process').css('display', 'none');
@@ -424,7 +435,7 @@ $(document).ready(function() {
 				$('#draw_number').html(data);
 				if(width >= 100)
 				{
-					document.getElementById("import_click").value = '0'; // Import Completed, no warming message is required
+					document.getElementById("import_click").value = '0'; // Import Completed, no warning message is required
 					clearInterval(clear_timer);
 					$('#process').css('display', 'none');
 					$('#lottery_upload_csv').val('');

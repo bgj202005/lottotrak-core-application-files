@@ -400,8 +400,8 @@ class Lotteries extends Admin_Controller {
 						// Download it to the correct directory
 						$url_filename = self::FILE_PATH . basename($url);
 
-						$file_name = fopen($url, 'r');  // Open file for reading
-						if (!$file_name)
+						$rw = file_put_contents( $url_filename, fopen($url, 'r'));  // Transfer the contents of file to server in directory
+						if (!$rw)
 						{
 							$output = array(
 								'error' => $url.' does not exist. Please check the url again.'
@@ -414,7 +414,7 @@ class Lotteries extends Admin_Controller {
 							unzip in directory, uncompress csv file
 							delete current zip file
 							open csv file */
-							file_put_contents( $url_filename, $file_name);  // Transfer the contents of file to server in directory
+							
 							if ($ext=='zip')
 							{
 								 ## Extract the zip file ---- start
@@ -650,6 +650,8 @@ class Lotteries extends Admin_Controller {
 			if (isset($draw_data)) {
 				echo json_encode($draw_data);
 				unset($draw_data);
+			} elseif(!isset($draw_data)) { // No more data to process
+				echo json_encode(array('exit' => TRUE));
 			}
 		}
 		$this->session->unset_userdata(array('new_file_name', 'table_name', 'last_draw', 'balls_drawn', 'extra_ball', 'minimum_ball', 
