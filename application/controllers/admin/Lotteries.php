@@ -398,9 +398,17 @@ class Lotteries extends Admin_Controller {
 					{
 						// Yes, it is either a csv or zip file type
 						// Download it to the correct directory
+						// Create stream context with custom user agent
+						$opts = [
+							'http' => [
+								'method' => 'GET',
+								'header' => 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+								'timeout' => 30
+							]
+						];
+						$context = stream_context_create($opts);
 						$url_filename = self::FILE_PATH . basename($url);
-
-						$rw = file_put_contents( $url_filename, fopen($url, 'r'));  // Transfer the contents of file to server in directory
+						$rw = file_put_contents( $url_filename, fopen($url, 'r', false, $context));  // Transfer the contents of file to server in directory
 						if (!$rw)
 						{
 							$output = array(

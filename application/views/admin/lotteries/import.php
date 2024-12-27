@@ -458,16 +458,21 @@ $(document).ready(function() {
 		})
 	} 
 })										
-var columns = <?php echo json_encode($columns); ?>											
-csv_field = document.getElementsByName('csv_field[]');
-// Loop through the array and target the next available textbox
-var count=0;
-for(var i = 0; i < columns.length; i++){
-// If there are any names to use, use one
-	// Pop the next name off of your array and set the value
-	// of your textbox
-	csv_field[i].value = columns[i];
-	count++;
-	if(i < columns.length-1) $('#dynamic_field').append('<tr id="row'+i+'"><td><input type="text" name="csv_field[]" value = "'+csv_field[i].value+'" style="width:90%" class="form-control field_list" /></td><td align="center"><button type="button" name="remove" id="'+i+'" class="btn btn-danger btn_remove text-center">X</button></td></tr>');
-} 
+<?php if(isset($columns)):?> var columns = <?php echo json_encode($columns); 
+endif;?>											
+<?php if(!isset($columns)):?> var columns = 0; 
+<?php endif;?>
+if(columns!=0) {
+	csv_field = document.getElementsByName('csv_field[]');
+	// Loop through the array and target the next available textbox
+	var count=0;
+	for(var i = 0; i < columns.length; i++){
+	// If there are any names to use, use one
+		// Pop the next name off of your array and set the value
+		// of your textbox
+		csv_field[i].value = columns[i];
+		count++;
+		if(i < columns.length-1) $('#dynamic_field').append('<tr id="row'+i+'"><td><input type="text" name="csv_field[]" value = "'+csv_field[i].value+'" style="width:90%" class="form-control field_list" /></td><td align="center"><button type="button" name="remove" id="'+i+'" class="btn btn-danger btn_remove text-center">X</button></td></tr>');
+	} 
+}
 </script>
