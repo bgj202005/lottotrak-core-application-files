@@ -2760,24 +2760,25 @@ class Statistics_m extends MY_Model
 		{
 			$sql_draws = ' WHERE extra <> "0"';
 		} 
-		$sql = 'SELECT ball_drawn, count(*) as heat 
-				FROM ((SELECT ball1 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.') UNION ALL
-      			(SELECT ball2 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.') UNION ALL
-     			(SELECT ball3 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
+		$sql = 'SELECT ball_drawn, count(*) as heat FROM ((SELECT ball1 as ball_drawn FROM '
+		.$lotto_tbl.$sql_draws.$sql_date.$sql_range.') UNION ALL (SELECT ball2 as ball_drawn FROM '
+		.$lotto_tbl.$sql_draws.$sql_date.$sql_range.') UNION ALL (SELECT ball3 as ball_drawn FROM '
+		.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
 		if($picks>=4) $sql .= ' UNION ALL (SELECT ball4 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
 		if($picks>=5) $sql .= ' UNION ALL (SELECT ball5 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
 		if($picks>=6) $sql .= ' UNION ALL (SELECT ball6 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
 		if($picks>=7) $sql .= ' UNION ALL (SELECT ball7 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
 		if($picks>=8) $sql .= ' UNION ALL (SELECT ball8 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
 		if($picks==9) $sql .= ' UNION ALL (SELECT ball9 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
-		if($bonus&&!$duple) $sql .= (!empty($last) ? ' UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.' WHERE extra <> "0"'.$sql_date.$sql_range.')'
-		: ' UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.' WHERE extra <> "0"'.$sql_range.')');
-		$sql .= ') as hwc
-				GROUP BY ball_drawn
-				ORDER BY heat DESC;';
-		
-		//if($last) var_dump($sql); exit(1); 
-		$query = $this->db->query($sql);
+		$sql_bonus = '';
+		if($bonus&&!$duple) 
+		{
+			$sql_bonus = (!empty($last) ? ' UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.' WHERE extra <> "0"'
+			.$sql_date.$sql_range.')' : ' UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.' WHERE extra <> "0"'
+			.$sql_range.')');
+		}
+		$sql_ext = ') as hwc GROUP BY ball_drawn ORDER BY heat DESC;';
+		$query = $this->db->query($sql.$sql_bonus.$sql_ext);
 		$hwc_string = ""; // List string in the format of number=hits,
 		$i = 1; // non-zero integer
 		foreach ($query->result() as $hwc)

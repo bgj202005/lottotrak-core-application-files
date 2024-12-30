@@ -161,7 +161,7 @@ class Statistics extends Admin_Controller {
 		$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $new_range, $this->data['trend']);
 		if (!$this->data['draws'])
 		{
-			$this->session->set_flashdata('message', 'There are no draws associated with this lottery. Please import draws.');
+			$this->session->set_flashdata('message', 'There are no draws associated with this lottery. Please    draws.');
 			redirect('admin/statistics'); 
 		}
 		$this->data['interval'] = $interval;		// Record the interval here (for the dropdown)
@@ -1056,7 +1056,7 @@ class Statistics extends Admin_Controller {
 								'h_w_c_range'		=> 	$hwc_history['h_w_c_range'],
 								'h_w_c_last_1'		=> 	$this->data['lottery']->last_hwc,
 								'h_w_c_last_10'		=> 	$hwc_history['h_w_c_last_10'],
-								'position'			=> 	$hwc_history['position'],
+								'position'			=> 	$hwc_history[' '],
 								'position_last'		=> 	$hwc_history['position_last'],
 								'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
 								'last_draw_id'		=> 	$hwc_history['last_draw_id'],
