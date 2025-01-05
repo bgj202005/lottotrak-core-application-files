@@ -3380,4 +3380,126 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$str_positions = substr($str_positions,0,-1); // Remove last ','
 	return $str_positions; // formatted string returned
 	}
+	/** 
+	* Returns the formatted string of hot positions, warm positions, and cold positions from the draw before the last draw
+	* 
+	* @param 	string	$table			Name of the lottery (actual table name)
+	* @param  	integer	$max			Maximum number of balls drawn
+	* @param  	boolean	$xtra			Boolean Extra ball flag, 0 = False, 1 = True
+	* @param  	string	$highs			Hot numbers and counts from the previous draw (number = count, number = count, etc)
+	* @param  	string	$middles		Warm numbers and counts from the previous draw (number = count, number = count, etc)
+	* @param  	string	$lows			Cold numbers and counts	from the previous draw (number = count, number = count, etc)
+	* @param  	string	$current		Current positions string (h>|,w>|,c>|)
+	* @return	string	$_previous		Returns the formated string for the draw before the last draw. This will be returned as position_last
+	* in hwc_history['position_last']
+	*/
+	public function positions_before_last($table, $max, $xtra, $highs, $middles, $lows, $current)
+	{
+		$pv = $this->db_row($table);  	 // Get the most recent drawn numbers
+		$pv = (array)$pv; 	 		   	  // Convert the object to an array
+		$prev_drawn = $this->only_picks($max, $pv); // Get the numbers drawn only
+		if($xtra) // If the extra ball is included
+		{
+			$extra = $pv['extra']; 	// Get the extra ball
+			$prev_drawn[] = $extra; 	// Add the extra ball to the drawn numbers
+		}
+		unset($pv); // Remove the previous draw from memory
+		// 1. remove the separator
+		$positions = explode('|', $current); // Split the current positions into hot, warm and cold
+		// 2. Split the hot, warm and cold numbers and positions
+		$hot_positions = ltrim($positions[0],'H>'); // Trim off H> the hot positions
+		$warm_positions	= ltrim($positions[1],'W>'); // Trim off W> the warm positions
+		$cold_positions = ltrim($positions[2],'C>'); // Trim off C> from the cold positions
+		// 3. Separate the numbers drawn and the positions
+		$hp = explode(',',$hot_positions); // Split the hot positions
+		$wp = explode(',',$warm_positions); // Split the warm positions
+		$cp  = explode(',',$cold_positions); // Split the cold positions
+		// 4. place the numbers into arrays for numbers drawn and the hit counts
+		$h_array = explode(',',$highs); // Split the hot numbers and counts
+		$m_array = explode(',', $middles); // Split the warm numbers and counts
+		$l_array = explode(',',$lows);	// Split the cold numbers and counts
+
+		foreach($h_array as $key => $value) // without the hot number counts
+		{
+			$h_array[$key] = substr($value, 0, strpos($value, "=")); // Get the number only
+		} // So, 23=18, 18=16, 42=15 becomes 23, 18, 42 for index 0,1,3
+
+		foreach($m_array as $key => $value) // without the warm number counts
+		{
+			$m_array[$key] = substr($value, 0, strpos($value, "=")); // Get the number only
+		}
+
+		foreach($l_array as $key => $value) // without the cold number counts
+		{
+			$l_array[$key] = substr($value, 0, strpos($value, "=")); // Get the number only
+		}	
+		// 5. Remove the position numbers and only have the counts
+		$hp_totals = [];
+		$wp_totals = [];
+		$lp_totals = [];
+		foreach($hp as $h)
+		{
+			list($key,$value) = explode('=', $h);
+			$hp_totals[] = $value; 
+		}
+		foreach($wp as $w)
+		{
+			list($key,$value) = explode('=', $w);
+			$wp_totals[] = $value; 
+		}
+		foreach($cp as $c)
+		{
+			list($key,$value) = explode('=', $c);
+			$lp_totals[] = $value; 
+		}
+		// 6. Compare the previous draw numbers with hot, warm and cold numbers list to 
+		// find the array index (key) for the position, start with hots, then warms, then colds	
+		// hot positions
+		foreach($h_array as $h => $value)
+		{
+			if(in_array($value, $prev_drawn))
+			{
+				$index = array_search($value, $h_array);
+				$hp_totals[$index]--; // Decrement the count by 1
+			}
+		}
+		// warm positions
+		foreach($m_array as $w => $value)
+		{
+			if(in_array($value, $prev_drawn))
+			{
+				$index = array_search($value, $m_array);
+				$wp_totals[$index]--; // Decrement the count by 1
+			}
+		}
+		// cold positions
+		foreach($l_array as $l => $value)
+		{
+			if(in_array($value, $prev_drawn))
+			{
+				$index = array_search($value, $l_array);
+				$lp_totals[$index]--; // Decrement the count by 1
+			}
+		}
+		// 7. Format the string for the previous draw positions
+		$_previous = 'H>';
+		foreach($hp_totals as $key => $value)
+		{
+			$_previous .= $key.'='.$value.',';
+		}
+		$_previous = substr($_previous, 0, -1); // Remove the last comma
+		$_previous .= '|W>';
+		foreach($wp_totals as $key => $value)
+		{
+			$_previous .= $key.'='.$value.',';
+		}
+		$_previous = substr($_previous, 0, -1); // Remove the last comma
+		$_previous .= '|C>';
+		foreach($lp_totals as $key => $value)
+		{
+			$_previous .= $key.'='.$value.',';
+		}
+		$_previous = substr($_previous, 0, -1); // Remove the last comma
+	return $_previous; // Return the formatted string for the previous draw positions
+	}
 }

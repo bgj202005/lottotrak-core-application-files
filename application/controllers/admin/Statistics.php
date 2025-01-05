@@ -1023,15 +1023,14 @@ class Statistics extends Admin_Controller {
 		$hwc_history = $this->statistics_m->hwc_history_exists($id);
  		if(is_null($hwc_history)) // Correct Lottery & Range?
 		{
-			$pos_last = $this->statistics_m->position_copylasts($id);
 			$hwc_history = $this->h_w_c_history($id, $tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, $blnduplicate);
+			$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl_name, $drawn, $this->data['lottery']->extra_included, $strhots_last, $strwarms_last, $strcolds_last, $hwc_history['position']);
 			if (!$hwc_history) // Problem with calculating H-W-C's over range
 			{
 				$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$new_range.' Draws.');
 				redirect('admin/statistics');
 			}
 			if(empty($hwc_history['last_draw_id'])) $hwc_history['last_draw_id']=$this->data['lottery']->last_drawn['id']; // Last Draw ID
-			$hwc_history['position_last'] = $pos_last;
 			$hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  				// Remove the last comma
 			$hwc_history['h_w_c_last_10'] = substr($hwc_history['h_w_c_last_10'], 0, -1);
 			$this->data['lottery']->last_hwc = $hwc_history['h_w_c_last_1'];
@@ -1056,7 +1055,7 @@ class Statistics extends Admin_Controller {
 								'h_w_c_range'		=> 	$hwc_history['h_w_c_range'],
 								'h_w_c_last_1'		=> 	$this->data['lottery']->last_hwc,
 								'h_w_c_last_10'		=> 	$hwc_history['h_w_c_last_10'],
-								'position'			=> 	$hwc_history[' '],
+								'position'			=> 	$hwc_history['position'],
 								'position_last'		=> 	$hwc_history['position_last'],
 								'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
 								'last_draw_id'		=> 	$hwc_history['last_draw_id'],
@@ -1071,15 +1070,14 @@ class Statistics extends Admin_Controller {
 			if(($old_range!=$new_range)||($blnheat))	 // Range has changed OR change in extra draws / extra ball included
 			{
 				// Recalculation is nesessary
-				$pos_last = $this->statistics_m->position_copylasts($id);
 				$hwc_history = $this->h_w_c_history($id, $tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, $blnduplicate);
+				$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl_name, $drawn, $this->data['lottery']->extra_included, $strhots_last, $strwarms_last, $strcolds_last, $hwc_history['position']);
 				if (!$hwc_history) // Problem with calculating H-W-C's over range
 				{
 					$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$$new_range.' Draws.');
 				redirect('admin/statistics');
 				}
 				if(empty($hwc_history['last_draw_id'])) $hwc_history['last_draw_id']=$this->data['lottery']->last_drawn['id']; // Last Draw ID
-				if($pos_last!=$hwc_history['position']) $hwc_history['position_last'] = $pos_last;
 				$hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  				// Remove the last comma
 				$hwc_history['h_w_c_last_10'] = substr($hwc_history['h_w_c_last_10'], 0, -1);
 			}
