@@ -3386,6 +3386,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	* @param 	string	$table			Name of the lottery (actual table name)
 	* @param  	integer	$max			Maximum number of balls drawn
 	* @param  	boolean	$xtra			Boolean Extra ball flag, 0 = False, 1 = True
+	* @param  	boolean	$dup			Boolean Duplication Flag, 0 = False, 1 = True
 	* @param  	string	$highs			Hot numbers and counts from the previous draw (number = count, number = count, etc)
 	* @param  	string	$middles		Warm numbers and counts from the previous draw (number = count, number = count, etc)
 	* @param  	string	$lows			Cold numbers and counts	from the previous draw (number = count, number = count, etc)
@@ -3393,12 +3394,12 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	* @return	string	$_previous		Returns the formated string for the draw before the last draw. This will be returned as position_last
 	* in hwc_history['position_last']
 	*/
-	public function positions_before_last($table, $max, $xtra, $highs, $middles, $lows, $current)
+	public function positions_before_last($table, $max, $xtra, $dup, $highs, $middles, $lows, $current)
 	{
 		$pv = $this->db_row($table);  	 // Get the most recent drawn numbers
 		$pv = (array)$pv; 	 		   	  // Convert the object to an array
 		$prev_drawn = $this->only_picks($max, $pv); // Get the numbers drawn only
-		if($xtra) // If the extra ball is included
+		if($xtra&&!$dup) // If the extra ball is included
 		{
 			$extra = $pv['extra']; 	// Get the extra ball
 			$prev_drawn[] = $extra; 	// Add the extra ball to the drawn numbers
