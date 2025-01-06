@@ -631,10 +631,11 @@ class Lotteries extends Admin_Controller {
 					//sleep(1);
 					//usleep(500000); // 0.5 of a second delay
 
-					if(ob_get_level() > 0)
-					{
-						ob_end_flush();
-					}
+				if(ob_get_level() > 0)
+				{
+					ob_flush();
+					flush();
+				}
 				echo json_encode($draw_data);
 				} // if ($ld=='nodraws'||(($ld<=$csv_date)&&($csv_date!=FALSE)))
 				elseif($draw_exists)		// Only if draw exists, go to the next draw.

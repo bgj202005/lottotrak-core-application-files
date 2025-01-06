@@ -278,11 +278,13 @@ $(document).ready(function() {
 		  {
 			if (window.confirm("Do you want to exit before the import is complete?"))
 				{	
+					event.preventDefault();
 					clearInterval(clear_timer);
 					window.location.href = url_exit;
 				}
 				else return false;
 		  } else {
+			event.preventDefault();	
 			clearInterval(clear_timer);
 			window.location.href = url_exit;
 		  }
@@ -402,6 +404,7 @@ $(document).ready(function() {
 					$('#import_message').html('<div class="alert alert-danger">No Data Import Required.</div>');
 					$('#import').attr('disabled',false);
 					$('#import').val('Begin Import / Upload');
+					document.getElementById("import_click").value = '0'; // No popup warning message is required
 				}
 				if (error)
 				{
@@ -410,6 +413,7 @@ $(document).ready(function() {
 					$('#import_message').html('<div class="alert alert-danger">Data Has Been Stopped.</div>');
 					$('#import').attr('disabled',false);
 					$('#import').val('Begin Import / Upload');
+					document.getElementById("import_click").value = '0'; // No	popup warning message is required	
 				}
 			},
 			complete:function(data) {
