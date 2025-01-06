@@ -17,6 +17,7 @@
     	margin-top: .5rem;
 }	
 </style>
+	<h5 style = "text-align:left"><?php echo anchor('admin/lotteries', 'Back to the Lotteries Dashboard', 'title="Back to Lotteries"'); ?></h5>
 	<section>
 		<h2><?php echo 'View Lottery Draws for: '.$lottery->lottery_name; ?></h2>
 		<h3 style = "text-align:center;" id="view_message" class = "text-danger"><?= $message; ?></h3>

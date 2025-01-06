@@ -7,6 +7,7 @@
 	<![endif]-->
 <!-- Bootstrap Form Helpers -->	
 <script src="<?php echo site_url('js/bootstrap-formhelpers.min.js');?>"></script>	
+<h5 style = "text-align:left"><?php echo anchor('admin/lotteries', 'Back to the Lotteries Dashboard', 'title="Back to Lotteries"'); ?></h5>
 <section>
 	<div class="container">
 			<?php echo form_open_multipart(base_url().'admin/lotteries/import/'.$lottery->id, 'id = "import_form"'); ?>
