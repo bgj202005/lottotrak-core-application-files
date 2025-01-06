@@ -2,8 +2,8 @@
 
 echo validation_errors();
 echo form_open(base_url()."admin/article/edit/".(!empty($article->id) ? $article->id : '')); ?>
+<h5 style = "text-align:left"><?php echo anchor('admin/article', 'Back to the Lottery News Article Dashboard', 'title="Back to Lottery News Article Dashboard"'); ?></h5>
 <h2><?php echo empty($article->id) ? 'Add a new article' : 'Edit an Article '.$article->title; ?></h2>
-
 <table class="table" style="width: 90%;">
 	<tr>
 		<td style="width: 20%;">Publication Date:</td>

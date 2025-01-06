@@ -7,6 +7,7 @@
 	<![endif]-->
 <!-- Bootstrap Form Helpers -->	
 <script src="<?php echo site_url('js/bootstrap-formhelpers.min.js');?>"></script>	
+<h5 style = "text-align:left"><?php echo anchor('admin/membership', 'Back to the Lottery Membership Dashboard', 'title="Back to Lottery Membership Dashboard"'); ?></h5>
 <?php echo form_open(base_url().'admin/membership/edit/'.$member->id); ?>
 	<h2><?php echo empty($member->id) ? 'Add a new Member' : 'Edit Member: '.$member->username; ?></h2>
 	<?php if (!empty($message)) ?> <h3 style = "text-align:center;"><?=$message; ?></h3>

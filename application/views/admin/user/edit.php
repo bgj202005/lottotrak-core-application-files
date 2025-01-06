@@ -1,5 +1,6 @@
 <?php echo validation_errors(); ?>
 <?php echo form_open(); ?>
+	<h5 style = "text-align:left"><?php echo anchor('admin/user', 'Back to the Lottery Administrator Dashboard', 'title="Back to Lottery Administrator Dashboard"'); ?></h5>
 	<h2><?php echo empty($user->id) ? 'Add a new admin user' : 'Edit Administrator: '.$user->name; ?></h2>
 	<div class = "modal-body" style = "width:85%">
 	

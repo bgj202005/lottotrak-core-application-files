@@ -1,8 +1,8 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed');
 echo validation_errors();
 echo form_open(base_url()."admin/page/edit/".(!empty($page->id) ? $page->id : '')); ?>
-	<h2><?php echo empty($page->id) ? 'Add a new page' : 'Edit page '.$page->title; ?></h2>
-	
+<h5 style = "text-align:left"><?php echo anchor('admin/page', 'Back to the Lottery Pages Dashboard', 'title="Back to Lottery Pages Dashboard"'); ?></h5>
+<h2><?php echo empty($page->id) ? 'Add a new page' : 'Edit page '.$page->title; ?></h2>
 <table class = "table" style = "width:90%;">
 	<tr>
 		<td>Menu Locaton:</td>
