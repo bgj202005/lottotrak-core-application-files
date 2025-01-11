@@ -1419,6 +1419,7 @@ class Statistics extends Admin_Controller {
 		$pos_last = $this->statistics_m->position_copylasts($id);
 		// Recalculation is nesessary
 		$hwc_history = $this->h_w_c_history($id, $tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
+	 	$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl, $drawn, $this->data['lottery']->extra_included, $blnduplicate, $strhots_last, $strwarms_last, $strcolds_last, $hwc_history['position']);
 	 }
 	 else 
 	 {
@@ -1458,13 +1459,14 @@ class Statistics extends Admin_Controller {
 		 // Recalculation is nesessary
 		$pos_last = $this->statistics_m->position_copylasts($id);	
 		$hwc_history = $this->h_w_c_history($id, $tbl, $drawn, $lotto['extra_included'], $lotto['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
+	 	$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl, $drawn, $this->data['lottery']->extra_included, $blnduplicate, $strhots_last, $strwarms_last, $strcolds_last, $hwc_history['position']);
 	 }
 	 if (!$hwc_history) // Problem with calculating H-W-C's over range
 	 {
 		$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$new_range.' Draws.');
 	 	redirect('admin/statistics');
 	 }
-	 if($hwc_history['position']!=$pos_last) $hwc_history['position_last']=$pos_last; 
+	 //if($hwc_history['position']!=$pos_last) $hwc_history['position_last']=$pos_last; 
 	 $hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  				// Remove the last comma
 	 $hwc_history['h_w_c_last_10'] = substr($hwc_history['h_w_c_last_10'], 0, -1);
 	 $this->data['lottery']->last_hwc = $hwc_history['h_w_c_last_1'];
