@@ -8,12 +8,12 @@ class Migration_add_Firstdate_And_Lastdate_To_Lottery_Profiles extends CI_Migrat
         $field = (array(
             'firstdate' => array(
 						'type' => 'DATE',
-                        'null' => FALSE, 
+                        'null' => TRUE, 
                         'after' => 'sunday'
             ),          
              'lastdate' => array(
 						'type' => 'DATE',
-                        'null' => FALSE           
+                        'null' => TRUE           
             )
         ));
         $this->dbforge->add_column('lottery_profiles', $field);
