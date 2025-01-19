@@ -677,7 +677,7 @@ class Lotteries extends Admin_Controller {
 	public function process($table)
 	{
 		$row_count = $this->lotteries_m->db_row_count($table);
-	echo $row_count;
+	echo($row_count);
 	}
 
 	/**

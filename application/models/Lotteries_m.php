@@ -500,23 +500,24 @@ class Lotteries_m extends MY_Model
 	public function csv_array_to_query($tbl_name, $db_values)
 	{
 		foreach ($db_values as $key => $value) {
-			if(empty($value)&&$value!=='0') return FALSE;
+			if(empty($value)&&$value !=='0') return FALSE;
 		}
 
 		$str = $this->db->insert_string($tbl_name, $db_values);
 
-		return $this->db->simple_query($str);	// Return TRUE on insert OK or FALSE on failure of insert
+		return TRUE; //$this->db->simple_query($str); // Return TRUE on insert OK or FALSE on failure of insert
 	}
 
 	/**
 	 * Returns the current count of rows that have been imported from the CSV File
 	 * 
 	 * @param	integer	$table			id of Lottery Table
-	 * @return  boolean 				SUCCESS / FAIL for adding key/value pairs
+	 * @return  integer 				Returns the total number of rows in a lottery, or 0 if no table was provided or false
 	 */
 	public function db_row_count($table)
 	{
-		return $this->db->count_all($table);
+		return $this->db->count_all_results($table);
+		//return $this->db->count_all($table);
 	}
 
 	/**

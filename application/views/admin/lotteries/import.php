@@ -201,7 +201,7 @@
 											<div class = "progress-bar progress-bar-striped progress-bar-animated active" 
 											style = "width: 400%; display: inline-block; text-align:center; margin:5px;" role = "progressbar" 
 											aria-valuemin="0" aria-valuemax = "100">
-												<span id ="process_data">1</span> - <span id = "total_data"></span>
+												<span style ="margin-top:10px;" id ="process_data">1</span><span style ="color:#f00000;font-size: x-large; margin-top:10px;"> - </span></span><span id = "total_data" style="margin-top:10px;"></span>
 											</div>
 										</div>
 									</div>
@@ -418,7 +418,7 @@ $(document).ready(function() {
 				}
 			},
 			complete:function(data) {
-				clear_timer = setInterval(get_import_data, 1000);
+				clear_timer = setInterval(get_import_data, 500);
 			},
 			error: function(jqXhr, textStatus, errorMessage){
       			//alert("Error: "+errorMessage+" text:"+textStatus);
