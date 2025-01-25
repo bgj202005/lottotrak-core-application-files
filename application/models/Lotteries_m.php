@@ -68,16 +68,25 @@ class Lotteries_m extends MY_Model
 		),
 		'saturday' => array(
 			'field' => 'saturday', 
-			'label' => 'Saturday', 
+			'label' => 'saturday', 
 			'rules' => 'callback__require_day_of_week_set'
 		),
 		'sunday' => array(
 			'field' => 'sunday', 
 			'label' => 'sunday', 
 			'rules' => 'callback__require_day_of_week_set'
+		),
+		'firstdate' => array(
+			'field' => 'firstdate', 
+			'label' => 'firstdate', 
+			'rules' => 'callback__firstdate_greater_equal_lastdate'
+		),
+		'lastdate' => array(
+			'field' => 'lastdate', 
+			'label' => 'lastdate', 
+			'rules' => 'callback__lastdate_less_equal_firstdate'
 		)
 	);
-
 	public $prize_rules = array(
 		'9_win' => array(
 			'field' => '9_win', 
@@ -196,6 +205,8 @@ class Lotteries_m extends MY_Model
 			'friday' => 0,
 			'saturday' => 0
 		);
+		$lottery->firstdate = NULL;
+		$lottery->lastdate = NULL;
 		$lottery->last_draw_date = '';
 		return $lottery;
 	}
@@ -505,7 +516,7 @@ class Lotteries_m extends MY_Model
 
 		$str = $this->db->insert_string($tbl_name, $db_values);
 
-		return TRUE; //$this->db->simple_query($str); // Return TRUE on insert OK or FALSE on failure of insert
+		return $this->db->simple_query($str); // Return TRUE on insert OK or FALSE on failure of insert
 	}
 
 	/**

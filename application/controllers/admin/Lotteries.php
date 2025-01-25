@@ -92,8 +92,6 @@ class Lotteries extends Admin_Controller {
 	}
 	
 	public function edit($id = NULL) {
-		
-
 		// Fetch a lottery profile or create a new one
 		if ($id) {
 			$this->data['lottery'] = $this->lotteries_m->get($id);
@@ -150,10 +148,11 @@ class Lotteries extends Admin_Controller {
 		$this->form_validation->set_rules($rules);
 		
 		if ($this->form_validation->run() == TRUE&&is_null($error)) {
-			
-			//if (empty($this->input->post('lottery_state_prov'))) $_POST['lottery_state_prov'] = $this->data['lottery']->lottery_state_prov;
-			
 			$_POST['lottery_image'] = (is_null($_FILES['lottery_image']) ? '': $_FILES['lottery_image']['name']); 
+			$firstdate = DateTime::createFromFormat('D, M-d-Y', $_POST['firstdate']);
+			$_POST['firstdate'] = $firstdate->format('Y-m-d');
+			$lastdate = DateTime::createFromFormat('D, M-d-Y', $_POST['lastdate']);
+			$_POST['lastdate'] = $lastdate->format('Y-m-d');
 			// We can save and redirect
 			$data = $this->lotteries_m->array_from_post ( array (
 					'lottery_name',
@@ -175,19 +174,19 @@ class Lotteries extends Admin_Controller {
 					'friday',
 					'saturday',
 					'sunday',
+					'firstdate',
+					'lastdate'
 			) );
 
 			$data['lottery_image'] = (empty($data['lottery_image']) ? $_POST['image']: $data['lottery_image']);  // Only if not updating the image
 			foreach ($data as $key => $value)
 			{
-				if(intval($value)) 
+				if(intval($value)&&(!$this->is_valid_date($value))) // If the value is an integer and not a date	
 				{
 					$data[$key] = intval($value);
 				}
 				if(is_null($value)||empty($value)&&($key!='lottery_state_prov'&&$key!='lottery_image')) $data[$key] = 0;  // Revert from NULL to 0 only or FALSE (int 0)
 			}
-
-
 			$this->data['lottery'] = $this->lotteries_m->array_to_object($this->data['lottery'], $data);
 			$this->data['lottery']->id = $this->lotteries_m->save($data, $id);
 			if (!$id) $this->lotteries_m->create_lottery_db($data);
@@ -212,7 +211,15 @@ class Lotteries extends Admin_Controller {
 		$this->data['subview']  = 'admin/lotteries/edit';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
-
+	/**
+	 * Function to check if a string is a valid date using strtotime
+	 * @param       $date_str
+	 * @return      $timestamp	// Returns a timestamp if the date is valid
+	 */
+	public function is_valid_date($date_str) {
+    $timestamp = strtotime($date_str);
+    return $timestamp !== false;
+	}
 	/**
 	 * Lottery Prize Breakdown
 	 * 
@@ -221,7 +228,6 @@ class Lotteries extends Admin_Controller {
 	 */
 
 	public function prizes($id)
-	
 	/**
 	 * Displays the Prizes Page
 	 * 
@@ -253,10 +259,8 @@ class Lotteries extends Admin_Controller {
 			if ($this->input->post('1_win_extra')!==NULL) $post_prizes += ['1_win_extra' => '1'];
 			if ($this->input->post('1_win')!==NULL) $post_prizes += ['1_win' => '1'];
 			if ($this->input->post('extra')!==NULL) $post_prizes += ['extra' => '1'];
-			
 			$prize_rules = $this->lotteries_m->prize_rules;
 			$this->form_validation->set_rules($prize_rules);
-		
 			if ($this->form_validation->run() == TRUE) 
 			{
 				$this->data['lottery'] = $this->lotteries_m->array_to_object($this->data['lottery'], $post_prizes);
@@ -282,7 +286,6 @@ class Lotteries extends Admin_Controller {
 		$this->data['subview']  = 'admin/lotteries/prizes';
 		$this->load->view('admin/_layout_main', $this->data); 
 	}
-
 	public function import($id)
 	{
 		$this->data['lottery'] = $this->lotteries_m->get($id);
@@ -770,9 +773,7 @@ class Lotteries extends Admin_Controller {
 		$lottery_name = $this->input->post('lottery_name');
 		$this->db->where('lottery_name', $lottery_name);
 		! $id || $this->db->where('id !=', $id);
-		
 		$lotteries = $this->lotteries_m->get();
-			
 			if (count($lotteries)) 
 			{
 				$this->form_validation->set_message('_unique_lotteryname', '%s already exists. Please type another Lottery Name');
@@ -890,7 +891,40 @@ class Lotteries extends Admin_Controller {
 	$this->form_validation->set_message('_require_one_prize_set', 'There is no prizes set for this lottery.<br />Select at least one prize category for this lottery.');
 	return FALSE;	
 	}
-	
+	/**
+	 * Returns FALSE if the first date is greater than or equal to the last date
+	 * 
+	 * @param       none		
+	 * @return      TRUE/FALSE 	TRUE (if firstdate is less than lastdate), FALSE (if firstdate is greater than lastdate)
+	 */
+	public function _firstdate_greater_equal_lastdate() 
+	{
+		$firstdate = strtotime($this->input->post('firstdate'));
+		$lastdate  = strtotime($this->input->post('lastdate'));
+		if ($firstdate>=$lastdate) 
+		{
+			$this->form_validation->set_message('_firstdate_greater_equal_lastdate', 'The First Date must be less than the Last Date.');
+			return FALSE;
+		}
+	return TRUE;
+	}
+	/**
+	 * Returns FALSE if the first date is greater than or equal to the last date
+	 * 
+	 * @param       none		
+	 * @return      TRUE/FALSE 	TRUE (if lastdate is less than firstdate), FALSE (if lastdate is greater than or equal lastdate)
+	 */
+	public function _lastdate_less_equal_firstdate() 
+	{
+		$firstdate = strtotime($this->input->post('firstdate'));
+		$lastdate  = strtotime($this->input->post('lastdate'));
+		if ($lastdate<=$firstdate) 
+		{
+			$this->form_validation->set_message('_lastdate_less_equal_firstdate', 'The Last Date must be greater than the First Date.');
+			return FALSE;
+		}
+	return TRUE;
+	}
 	/**
 	 * Add Draw input boxes to the latest draw
 	 * 

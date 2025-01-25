@@ -104,6 +104,21 @@
 										<div id="countries_states2" class="bfh-selectbox bfh-countries" data-flags="true" data-country="CA" data-name="lottery_country_id"></div>
 									</div>
 								</div>
+								<!-- Date of the first draw in the lottery history -->
+								<div class = "form group form-group-lg row">
+									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
+										echo form_label('Date of First Draw:', 'first_draw_date_lb', $extra); ?>
+									<div class="col-8">
+										<?php $extra = array('class' => 'datepicker', 'id' => 'formGroupInputLarge',
+												'maxlength' => '50', 'size' => '50', 'style'=> 'width:40%;'); ?>
+										<div class="input-group date" id="datepicker1" data-provide="datepicker"> 
+											<?php if (is_null($lottery->firstdate)): $lottery->firstdate = date('d-m-Y'); endif; // Only on a New Lottery
+											echo form_input('firstdate', set_value('firstdate', date("D, M-d-Y",strtotime(str_replace('/','-',$lottery->firstdate)))), $extra); ?>
+											<span class="input-group-addon"><i class="fa fa-calendar" style = "padding:5px;"></i></span>
+											<?php echo form_error('firstdate', '<div class="bg-warning" style = "margin-top:10px; margin-bottom:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
+										</div>
+									</div>
+								</div>
 								<!-- Pick / Balls Drawn Field -->
 								<div class="form-group form-group-lg row"> 
 									<?php $extra = array('class' => 'col-4 col-form-label-md');
@@ -275,12 +290,16 @@
 						<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md', 'style' => 'margin-left:-25px;');
 										echo form_label('Last Draw Date:', 'last_draw_date_lb', $extra); ?>
 						<?php $extra = array('class' => 'datepicker', 'id' => 'formGroupInputLarge',
-											'maxlength' => '50', 'size' => '50', 'style'=> 'width:70%; margin-left:2em;'); ?>
+											'maxlength' => '50', 'size' => '50', 'style'=> 'width:50%; margin-left:2em;'); ?>
 							<div class="input-group date" id="datepicker1" data-provide="datepicker"> 
-								<?php /* if (empty($lottery->id)) */ $lottery->last_draw_date = date('d-m-Y'); // Only on a New Lottery
-								echo form_input('last_draw_date', set_value('last_draw_date', date("D, M-d-Y",strtotime(str_replace('/','-',$lottery->last_draw_date)))), $extra); ?>
+								<?php if (is_null($lottery->lastdate)) $lottery->lastdate = date('d-m-Y'); // Only on a New Lottery
+								echo form_input('lastdate', set_value('lastdate', date("D, M-d-Y",strtotime(str_replace('/','-',$lottery->lastdate)))), $extra); ?>
 								<span class="input-group-addon"><i class="fa fa-calendar" style = "padding:5px;"></i></span>
 							</div>
+						</div>
+						<!-- Error message on a separate line -->
+						<div class="form-group">
+							<?php echo form_error('lastdate', '<div class="bg-warning" style="margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 						</div>
 						<!-- Days of the Week for Draw -->
 						<h6>Days of the Draw?</h6>
