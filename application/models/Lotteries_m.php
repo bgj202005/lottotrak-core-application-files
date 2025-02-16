@@ -268,7 +268,6 @@ class Lotteries_m extends MY_Model
 		$exists = $this->create_lotto_table_fields($lotto_name, $post_fields['balls_drawn'], $post_fields['extra_ball']);
 		} while (!$exists);
 	}
-
 	/**
 	 * Updates Lottery Fields 
 	 * 
@@ -294,7 +293,6 @@ class Lotteries_m extends MY_Model
 		}
 	return TRUE;	
 	}
-	
 	/**
 	 * Convert Lottery Name to Table name conversion
 	 * 
@@ -316,7 +314,6 @@ class Lotteries_m extends MY_Model
 	{
 	    return $this->db->table_exists($lotto_tbl);
 	}
-
 	/**
 	 * If existing Draw from current imported Lottery draw exists
 	 * 
@@ -354,14 +351,12 @@ class Lotteries_m extends MY_Model
 		{
 			$query = $this->db->get_where($lotto_tbl, array('draw_date' => $draw_date), 1, 0);	// Limit only 1 row & no offset
 		}
-	
 	if ($query->num_rows() > 0)
     {
         return TRUE;
     }
     return FALSE;
 	}
-
 	/**
 	 * Create Lotto Table and Fields
 	 * 
@@ -396,7 +391,6 @@ class Lotteries_m extends MY_Model
 		$result = $this->db->query($sql);
 	return $result;
 	}
-
 	/**
 	 * Update Lottery Fields from current Lottery DB, this will alter current table structure either remove columns or adding columns to the database
 	 * Can be detremental if done improperly
@@ -406,7 +400,6 @@ class Lotteries_m extends MY_Model
 	 */
 	public function update_lotto_table_fields($lotto_tbl, $balls_drawn, $extra) 
 	{
-		
 		// Capture the list of Fields from the table
 		$fields = $this->db->list_fields($lotto_tbl);
 		$fields = array_flip($fields);	// Convert to associative array, id => 0, ball1 => 1, ball2 => 2, etc.
@@ -485,7 +478,6 @@ class Lotteries_m extends MY_Model
 		}
 	return FALSE;
 	}
-
 	/**
 	 * Returns TRUE if the date is after the first draw date found in the lottery, otherwise return false
 	 * 
@@ -495,7 +487,6 @@ class Lotteries_m extends MY_Model
 	 */
 	public function skip_next_draw($l_table, $dd)
 	{
-
 			$sql = "SELECT * FROM `".$l_table."` WHERE `draw_date` > '".$dd."' LIMIT 1"; // Is it before the first draw in the database?
 			$result = $this->db->query($sql);
 			
@@ -757,7 +748,17 @@ class Lotteries_m extends MY_Model
 			}
 		return $success;	
 	}
-	
+	/**
+	 * Function to check if there are prior draws in the database
+	 * @param string $table_name	// Name of the lottery table
+	 * @param date   $start_date	// Start date of first draw
+	 * @return integer $query->num_rows()	// Returns the number of rows in the query      
+	 */
+	public function check_prior_draws($table_name, $start_date) {
+    $this->db->where('draw_date <', $start_date);
+    $query = $this->db->get($table_name);
+    return $query->num_rows() > 0;
+	}
 	/** 
 	* Returns TRUE or FALSE for a url (with or without http:/https) active DNS
 	* 
@@ -811,6 +812,20 @@ class Lotteries_m extends MY_Model
 			if (empty($result->row())) return FALSE;
 	return $result->result_object;
 	}
+	/**
+     * Get the column index for the draw date from the CSV header
+     *
+     * @param array $header The CSV header row
+     * @return int|false The column index or false if not found
+     */
+    public function get_draw_date_column_index($header) {
+        foreach ($header as $index => $column_name) {
+            if (stripos($column_name, 'date') !== false) {
+                return $index;
+            }
+        }
+        return false;
+    }
 	/** 
 	* Insert Draw with Draw Number
 	* 

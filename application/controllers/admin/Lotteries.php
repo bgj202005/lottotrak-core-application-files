@@ -96,6 +96,10 @@ class Lotteries extends Admin_Controller {
 		if ($id) {
 			$this->data['lottery'] = $this->lotteries_m->get($id);
 			is_array($this->data['lottery']) || $this->data['errors'][] = 'Lottery Profile could not be found';
+			// Retrieve the lottery table name for the database
+			$table = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+			 // Check for prior draws
+    		$this->data['has_prior_draws'] = $this->lotteries_m->check_prior_draws($table, $this->data['lottery']->firstdate);
 		} else {
 			//load file helper
 			$this->data['lottery'] = $this->lotteries_m->get_new();
@@ -202,6 +206,9 @@ class Lotteries extends Admin_Controller {
 		if(($this->data['lottery']->extra_ball&&!$this->data['lottery']->minimum_extra_ball)||(!$this->data['lottery']->extra_ball)) $this->data['lottery']->minimum_extra_ball = '';
 		if(($this->data['lottery']->extra_ball&&!$this->data['lottery']->maximum_extra_ball)||(!$this->data['lottery']->extra_ball)) $this->data['lottery']->maximum_extra_ball = '';
 		if ($id) $this->data['lastdraw'] = $this->lotteries_m->last_draw_db($this->data['lottery']->lottery_name);
+		if(isset($this->data['lastdraw']->draw_date)) {
+			if((strtotime($this->data['lastdraw']->draw_date)!=(strtotime($this->data['lottery']->lastdate)))) $this->data['lottery']->lastdate=$this->data['lastdraw']->draw_date;
+		}
 		$this->data['current'] = $this->uri->segment(2); // Sets the Lottery Menu as Active
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/edit'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
@@ -219,6 +226,28 @@ class Lotteries extends Admin_Controller {
 	public function is_valid_date($date_str) {
     $timestamp = strtotime($date_str);
     return $timestamp !== false;
+	}
+	/**
+	 * Handle User's Response and Delete Prior Draws
+	 * If the user confirms, the prior draws are deleted from the specified table.
+	 * A success or no-action message is set in the session and the user is redirected back to the edit page.
+	 * @param none
+	 * @return none
+	 */
+	public function delete_prior_draws() {
+    $lottery_id = $this->input->post('lottery_id');
+    $table_name = $this->input->post('table_name');
+    $start_date = $this->input->post('start_date');
+    $confirm = $this->input->post('confirm');
+
+    if ($confirm === 'Y') {
+        $this->db->where('draw_date <', $start_date);
+        $this->db->delete($table_name);
+        $this->session->set_flashdata('message', 'Prior draws deleted successfully.');
+    } else {
+        $this->session->set_flashdata('message', 'No draws were deleted.');
+    }
+    redirect('admin/lotteries/edit/' . $lottery_id);
 	}
 	/**
 	 * Lottery Prize Breakdown
@@ -290,115 +319,120 @@ class Lotteries extends Admin_Controller {
 	{
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		$import_results = $this->lotteries_m->import_data_retrieve($id); // False or import result objects
-		if($import_results)  
-		{
+		if ($import_results) {
 			$this->data['import_data'] = $import_results;
-			if(!empty($import_results[0]->columns)) $columns = explode(',',$import_results[0]->columns);
+			if (!empty($import_results[0]->columns)) $columns = explode(',', $import_results[0]->columns);
 		}
 		// Retrieve the lottery table name for the database
 		$this->data['lottery']->table_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		// Check for existing lottery draws
-		$this->data['lottery']->last_draw =	$this->lotteries_m->last_draw_db($this->data['lottery']->lottery_name);
-		
+		$this->data['lottery']->last_draw = $this->lotteries_m->last_draw_db($this->data['lottery']->lottery_name);
+	
 		$zero_extra = (is_null($this->input->post('allow_zero_extra')) ? 0 : 1);
 		$this->data['lottery']->zero_extra = $zero_extra;
-		//$import_results = $zero_extra; 
-		$this->session->set_userdata(array('table_name' => $this->data['lottery']->table_name,
-		 									'last_draw' => $this->data['lottery']->last_draw,
-											'balls_drawn' => $this->data['lottery']->balls_drawn,
-											'minimum_ball' => $this->data['lottery']->minimum_ball,
-											'maximum_ball' => $this->data['lottery']->maximum_ball,
-											'minimum_extra_ball' => $this->data['lottery']->minimum_extra_ball,
-											'maximum_extra_ball' => $this->data['lottery']->maximum_extra_ball,
-											'extra_ball' => $this->data['lottery']->extra_ball,
-											'duplicate_extra' => $this->data['lottery']->duplicate_extra_ball,
-											'allow_zero_extra' => $zero_extra)
-									);
-		
-		if (is_array($this->input->post("csv_field"))&&count($this->input->post("csv_field")))
-		{
-
+		$this->session->set_userdata(array(
+			'table_name' => $this->data['lottery']->table_name,
+			'last_draw' => $this->data['lottery']->last_draw,
+			'balls_drawn' => $this->data['lottery']->balls_drawn,
+			'minimum_ball' => $this->data['lottery']->minimum_ball,
+			'maximum_ball' => $this->data['lottery']->maximum_ball,
+			'minimum_extra_ball' => $this->data['lottery']->minimum_extra_ball,
+			'maximum_extra_ball' => $this->data['lottery']->maximum_extra_ball,
+			'extra_ball' => $this->data['lottery']->extra_ball,
+			'duplicate_extra' => $this->data['lottery']->duplicate_extra_ball,
+			'allow_zero_extra' => $zero_extra,
+			'firstdate' => $this->data['lottery']->firstdate
+		));
+	
+		if (is_array($this->input->post("csv_field")) && count($this->input->post("csv_field"))) {
 			$n = count($this->input->post("csv_field"));
-			$csv_filter = '';	// No Filter Elmination at this point	
-			if ($n>0)			//There are currently fields that we can't import into the database
+			$csv_filter = ''; // No Filter Elimination at this point
+			if ($n > 0) // There are currently fields that we can't import into the database
 			{
-				$this->session->set_userdata(array('elim' => $_POST['csv_field'])); 
-				foreach($this->input->post("csv_field") as $filter => $key)
-				{
-					$csv_filter .= $key.',';
+				$this->session->set_userdata(array('elim' => $_POST['csv_field']));
+				foreach ($this->input->post("csv_field") as $filter => $key) {
+					$csv_filter .= $key . ',';
 				}
 				$csv_filter = substr($csv_filter, 0, -1);
 			}
 		}
-										
+	
 		$this->data['message'] = '';  // Create a Message object
-		$error = NULL;				  // Related to Image upload only
-		
-		if(!empty($this->input->post('hidden_field')))
-		{
-			if(empty($this->input->post('import_lottery_url'))) 
-			{
+		$error = NULL;                // Related to Image upload only
+	
+		if (!empty($this->input->post('hidden_field'))) {
+			if (empty($this->input->post('import_lottery_url'))) {
 				$error = '';
 				$total_data = '';
 				$allowed_extension = array('csv');
 				$file_array = explode(".", $_FILES["lottery_upload_csv"]["name"]);
 				$extension = end($file_array);
-
-				if($_FILES['lottery_upload_csv']['name'] != '') {
-					if(in_array($extension, $allowed_extension))
-					{
-						$new_file_name = rand(). '.' . $extension;
+	
+				if ($_FILES['lottery_upload_csv']['name'] != '') {
+					if (in_array($extension, $allowed_extension)) {
+						$new_file_name = rand() . '.' . $extension;
 						$this->session->set_userdata(array('new_file_name' => $new_file_name));
-						move_uploaded_file($_FILES['lottery_upload_csv']['tmp_name'], self::FILE_PATH.$new_file_name);
-						$file_content = file(self::FILE_PATH.$new_file_name, FILE_SKIP_EMPTY_LINES);
-						$total_data = count($file_content);
-						$this->lotteries_m->import_data_save(array('lottery_id' => $id, 'columns' => $csv_filter, 'zero_extra' => $zero_extra, 'csv_file' => $_FILES['lottery_upload_csv']['name'], 'csv_url' => '')); 
-					}
-					else
-					{
+						move_uploaded_file($_FILES['lottery_upload_csv']['tmp_name'], self::FILE_PATH . $new_file_name);
+						$file_content = array_map('str_getcsv', file(self::FILE_PATH . $new_file_name, FILE_SKIP_EMPTY_LINES));
+	
+						// Retrieve the column index for the draw date from the CSV header
+						$header = array_shift($file_content); // Remove the header row
+						$draw_date_column_index = $this->lotteries_m->get_draw_date_column_index($header);
+	
+						if ($draw_date_column_index === false) {
+							// Handle error: draw_date column not found
+							echo json_encode(['error' => 'Draw date column not found in the import data.']);
+							return;
+						}
+	
+						// Retrieve firstdate from session
+						$firstdate = $this->session->userdata('firstdate');
+						$firstdate_timestamp = strtotime($firstdate);
+	
+						// Filter out draws prior to the start date
+						$filtered_content = array_filter($file_content, function ($row) use ($firstdate_timestamp, $draw_date_column_index) {
+							$csv_date = (strpos($row[$draw_date_column_index], '-')) ? explode('-', $row[$draw_date_column_index]) : explode('/', $row[$draw_date_column_index]); // Assuming date is in the specified column
+							$unix_date = (isset($csv_date[2]) && isset($csv_date[1]) && isset($csv_date[0])) ? strtotime($csv_date[0] . '/' . $csv_date[1] . '/' . $csv_date[2]) : FALSE; // m / d / yyyy is assumed with '/'
+							return $unix_date >= $firstdate_timestamp;
+						});
+	
+						// Count the valid draws
+						$total_data = count($filtered_content);
+	
+						$this->lotteries_m->import_data_save(array('lottery_id' => $id, 'columns' => $csv_filter, 'zero_extra' => $zero_extra, 'csv_file' => $_FILES['lottery_upload_csv']['name'], 'csv_url' => ''));
+					} else {
 						$error = 'Only CSV File Format is allowed';
 					}
-				}
-				else
-				{
+				} else {
 					$error = 'Please Select File';
 				}
-				if($error !='')
-				{
+				if ($error != '') {
 					$output = array(
-						'error'		=> $error
+						'error' => $error
 					);
-				}
-				else
-				{
+				} else {
 					$output = array(
 						'success' => TRUE,
-						'total_data'	=>	($total_data - 1)
+						'total_data' => ($total_data - 1)
 					);
 				}
-			} 
-			else 
-			{
+			} else {
 				$url = $this->input->post('import_lottery_url');
-				$url = strtok($url, '?');	// Remove the query string
-
-			/* 	1. Check if the File has been selected (Uploading is first examined) 
-				check for a valid url (http: or https:) and active on the internet 
-			2.  if valid, copy file to server at uploaded location csv_zip_upload
-				If Filename is valid zip file */
-
-				if ($this->lotteries_m->is_valid_domain($url)) 
-				{
-					$file_path = explode(".", $url);  
+				$url = strtok($url, '?'); // Remove the query string
+	
+				/*  1. Check if the File has been selected (Uploading is first examined) 
+					check for a valid url (http: or https:) and active on the internet 
+				2.  if valid, copy file to server at uploaded location csv_zip_upload
+					If Filename is valid zip file */
+	
+				if ($this->lotteries_m->is_valid_domain($url)) {
+					$file_path = explode(".", $url);
 					$ext = end($file_path);
-					if (($ext!="csv")&&($ext!="zip")) 
-					{
+					if (($ext != "csv") && ($ext != "zip")) {
 						$output = array(
-							'error' => $url.' has neither a csv or zip file extention for transfer to our server.'
+							'error' => $url . ' has neither a csv or zip file extention for transfer to our server.'
 						);
-					}
-					else 
-					{
+					} else {
 						// Yes, it is either a csv or zip file type
 						// Download it to the correct directory
 						// Create stream context with custom user agent
@@ -411,85 +445,96 @@ class Lotteries extends Admin_Controller {
 						];
 						$context = stream_context_create($opts);
 						$url_filename = self::FILE_PATH . basename($url);
-						$rw = file_put_contents( $url_filename, fopen($url, 'r', false, $context));  // Transfer the contents of file to server in directory
-						if (!$rw)
-						{
+						$rw = file_put_contents($url_filename, fopen($url, 'r', false, $context));  // Transfer the contents of file to server in directory
+						if (!$rw) {
 							$output = array(
-								'error' => $url.' does not exist. Please check the url again.'
-							); 
-						} 
-						else
-						{
+								'error' => $url . ' does not exist. Please check the url again.'
+							);
+						} else {
 							/* if valid, copy file to server at uploaded location csv_zip_upload
 							If Filename is valid zip file
 							unzip in directory, uncompress csv file
 							delete current zip file
 							open csv file */
-							
-							if ($ext=='zip')
-							{
-								 ## Extract the zip file ---- start
-								 $zip = new ZipArchive;
-								 $res = $zip->open($url_filename);
-								 if ($res === TRUE) {
-								   // Extract file
+	
+							if ($ext == 'zip') {
+								## Extract the zip file ---- start
+								$zip = new ZipArchive;
+								$res = $zip->open($url_filename);
+								if ($res === TRUE) {
+									// Extract file
 									$zip->extractTo(self::FILE_PATH);
-									$unzip_name = $zip->getNameIndex(0);	// Returns the name of the compressed file 	
+									$unzip_name = $zip->getNameIndex(0);    // Returns the name of the compressed file     
 									$zip->close();
 									$unzip_ext = explode(".", $unzip_name);
 									$unzip_ext = end($unzip_ext);
-									
-									if ($unzip_ext=='csv') 
-										{
-											$this->session->set_userdata(array('new_file_name' => $unzip_name));
-											$file_content = file(self::FILE_PATH.$unzip_name, FILE_SKIP_EMPTY_LINES);
-											$total_data = count($file_content);
-											$output = array(
-												'success' => TRUE,
-												'total_data'	=>	($total_data - 1)
-											);
-										// Remove the zip file (dot zip in the directory) from the directory
-											unlink($url_filename);
-											$this->lotteries_m->import_data_save(array('lottery_id' => $id, 'columns' => $csv_filter, 'zero_extra' => $zero_extra, 'csv_file' => '', 'csv_url' => $url));
+	
+									if ($unzip_ext == 'csv') {
+										$this->session->set_userdata(array('new_file_name' => $unzip_name));
+										$file_content = array_map('str_getcsv', file(self::FILE_PATH . $unzip_name, FILE_SKIP_EMPTY_LINES));
+	
+										// Retrieve the column index for the draw date from the CSV header
+										$header = array_shift($file_content); // Remove the header row
+										$draw_date_column_index = $this->lotteries_m->get_draw_date_column_index($header);
+	
+										if ($draw_date_column_index === false) {
+											// Handle error: draw_date column not found
+											echo json_encode(['error' => 'Draw date column not found in the import data.']);
+											return;
 										}
-									else 
-									{
-										$output =  array(
+	
+										// Retrieve firstdate from session
+										$firstdate = $this->session->userdata('firstdate');
+										$firstdate_timestamp = strtotime($firstdate);
+	
+										// Filter out draws prior to the start date
+										$filtered_content = array_filter($file_content, function ($row) use ($firstdate_timestamp, $draw_date_column_index) {
+											$csv_date = (strpos($row[$draw_date_column_index], '-')) ? explode('-', $row[$draw_date_column_index]) : explode('/', $row[$draw_date_column_index]); // Assuming date is in the specified column
+											$unix_date = (isset($csv_date[2]) && isset($csv_date[1]) && isset($csv_date[0])) ? strtotime($csv_date[0] . '/' . $csv_date[1] . '/' . $csv_date[2]) : FALSE; // m / d / yyyy is assumed with '/'
+											return $unix_date >= $firstdate_timestamp;
+										});
+	
+										// Count the valid draws
+										$total_data = count($filtered_content);
+	
+										$output = array(
+											'success' => TRUE,
+											'total_data' => ($total_data - 1)
+										);
+										// Remove the zip file (dot zip in the directory) from the directory
+										unlink($url_filename);
+										$this->lotteries_m->import_data_save(array('lottery_id' => $id, 'columns' => $csv_filter, 'zero_extra' => $zero_extra, 'csv_file' => '', 'csv_url' => $url));
+									} else {
+										$output = array(
 											'error' => 'This is not a valid csv file extension.'
 										);
 									}
-								 }
-								 else 
-								 {
+								} else {
 									$output = array(
 										'error' => "Can't Open Zip File, Try Again."
-									);	
-								 }
-							}  
+									);
+								}
+							}
 						}
 					}
-				}
-				else 
-				{
-						// Correct this url
-						$output = array(
-							'error' => $url.' is not an active and valid url.'
-						);
+				} else {
+					// Correct this url
+					$output = array(
+						'error' => $url . ' is not an active and valid url.'
+					);
 				}
 			}
 			echo json_encode($output);
-		}
-		else 
-		{
-			if(!empty($columns)) $this->data['columns'] = $columns;
+		} else {
+			if (!empty($columns)) $this->data['columns'] = $columns;
 			$this->data['current'] = $this->uri->segment(2);
-			$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/import'.($id ? '/'.$id : ''));
+			$this->session->set_userdata('uri', 'admin/' . $this->data['current'] . '/import' . ($id ? '/' . $id : ''));
 			$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
-			$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
-			$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
-			$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	  	
-			$this->data['subview']  = 'admin/lotteries/import';
-			$this->load->view('admin/_layout_main', $this->data); 
+			$this->data['users'] = $this->maintenance_m->logged_online(0);    // Members
+			$this->data['admins'] = $this->maintenance_m->logged_online(1);    // Admins
+			$this->data['visitors'] = $this->maintenance_m->active_visitors();    // Active Visitors excluding users and admins        
+			$this->data['subview'] = 'admin/lotteries/import';
+			$this->load->view('admin/_layout_main', $this->data);
 		}
 	}
 
@@ -536,10 +581,13 @@ class Lotteries extends Admin_Controller {
 					$column_count--;
 				} while($column_count>=0);
 			} 
-			
+			// Retrieve firstdate from session
+    		$firstdate = $this->session->userdata('firstdate');
+    		$firstdate_timestamp = strtotime($firstdate);
 			// If existing draws in database, go to the next draw date in the csv file
 			$ld = $this->session->userdata('last_draw');
 			$ld = (is_object($ld) ? strtotime($ld->draw_date) : $ld);  // Change date format or return $ld as no draws, if no previous dates have been imported
+			$found_firstdate = false;
 			while($row = fgetcsv($file_data)) 
 			{
 				// Eliminate the data that will not be imported in the database
@@ -554,10 +602,18 @@ class Lotteries extends Admin_Controller {
 					$i++;
 				}
 				$row = array_values($row);	// Reindex the row without the eliminated column
-				// 
+				// Assuming the date is in a specific column, e.g., column 1 (index 0 after filtering)
 				$csv_date = (strpos($row[0], '-')) ? explode('-', $row[0]) : explode('/', $row[0]);	// Two formats of csv using either dash or forward slash to separate m, d, y
 				$unix_date = (isset($csv_date[2])&&isset($csv_date[1])&&isset($csv_date[0]) ? strtotime($csv_date[0].'/'.$csv_date[1].'/'.$csv_date[2]) : FALSE);  // m / d / yyyy is assumed with '/'
 
+				 // Check if the date in the CSV matches the firstdate
+        		if (!$found_firstdate) {
+            	if ($unix_date === $firstdate_timestamp) {
+                $found_firstdate = true;
+            	} else {
+                	continue; // Skip rows until the firstdate is found
+            		}
+        		}	
 				$draw_exists = (!$unix_date ? FALSE : $this->lotteries_m->lotto_draw_exists($table, $this->lotteries_m->drawn_only($row), $lottery_props->extra_ball, date('Y-m-d', $unix_date))); // check 1, Search existing draw, if csv_date does not match db, return false
 				$draw_skip = (($unix_date&&!$draw_exists) ? $this->lotteries_m->skip_next_draw($table, $csv_date[0].'-'.$csv_date[1].'-'.$csv_date[2]) : FALSE); // check 2, Skip over any old draws that are prior to first draw date in the db
 				if (($ld =='nodraws'||(($ld<=$unix_date))&&($unix_date!=FALSE)&&(!$draw_exists)&&(!$draw_skip))) 

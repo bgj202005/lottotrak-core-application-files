@@ -292,7 +292,9 @@
 						<?php $extra = array('class' => 'datepicker', 'id' => 'formGroupInputLarge',
 											'maxlength' => '50', 'size' => '50', 'style'=> 'width:50%; margin-left:2em;'); ?>
 							<div class="input-group date" id="datepicker1" data-provide="datepicker"> 
-								<?php if (is_null($lottery->lastdate)) $lottery->lastdate = date('d-m-Y'); // Only on a New Lottery
+								<?php if (is_null($lottery->lastdate)): $lottery->lastdate = date('d-m-Y'); // Only on a New Lottery
+									  else: $lottery->lastdate = $lastdraw->draw_date; 
+								endif;
 								echo form_input('lastdate', set_value('lastdate', date("D, M-d-Y",strtotime(str_replace('/','-',$lottery->lastdate)))), $extra); ?>
 								<span class="input-group-addon"><i class="fa fa-calendar" style = "padding:5px;"></i></span>
 							</div>
@@ -376,6 +378,19 @@
 		</div>
 	</div>
 </section>
+<!-- Add this code where you want to display the message -->
+<?php if ($has_prior_draws): ?>
+    <div class="alert alert-warning">
+        Draws prior to the start date. Do you want to delete prior draws? (Y/N)
+        <form method="post" action="<?php echo site_url('admin/lotteries/delete_prior_draws'); ?>">
+            <input type="hidden" name="lottery_id" value="<?php echo $lottery->id; ?>">
+            <input type="hidden" name="table_name" value="<?php echo $lottery->lottery_name; ?>">
+            <input type="hidden" name="start_date" value="<?php echo $lottery->firstdate; ?>">
+            <button type="submit" name="confirm" value="Y" class="btn btn-danger">Yes</button>
+            <button type="submit" name="confirm" value="N" class="btn btn-secondary">No</button>
+        </form>
+    </div>
+<?php endif; ?>
 <script type="text/javascript">
 $(function() {
   $('.input-group').datepicker({
