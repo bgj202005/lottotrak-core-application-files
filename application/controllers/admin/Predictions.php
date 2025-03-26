@@ -194,7 +194,16 @@ class Predictions extends Admin_Controller {
 		$this->data['predict']=$this->data['lottery']->generate[0]->N;				//Number of Predictions
 		$this->data['pick']=$this->data['lottery']->generate[0]->R;					// Pick Game
 		$this->data['filename']=$this->data['lottery']->generate[0]->file_name;		// File name of text file
+		// Read the content of the file
+    	$file_path = $this->predictions_m->full_path($file_name);
+		if (file_exists($file_path)) {
+			$this->data['file_content'] = file_get_contents($file_path); // Read file content
+		} else {
+			$this->data['file_content'] = ''; // No content if file does not exist
+		}
+		
 		unset($this->data['lottery']->generate);
+		
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/generate'.($id ? '/'.$id : ''));
@@ -264,12 +273,7 @@ class Predictions extends Admin_Controller {
 			'message'  => $message
 		);
 		}
-		
 		echo json_encode($output);
-		// Load the view
-		//$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
-		//$this->data['subview'] = 'admin/dashboard/predictions/generate';
-		//$this->load->view('admin/_layout_main', $this->data);
 	}
 
 	/**

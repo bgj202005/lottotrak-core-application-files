@@ -191,13 +191,18 @@
 										<div class="card-header">Combination Counter</div>
 										<div class="card-body">
 											<h5 class="card-title"><div id="row_number">Combination File: <?=$filename;?>.txt</div></h5>
-											<p class="card-text"><div id="result">
-											<?php $data = array('name' => 'combinations',
-																'id'	=>	'combinations',
-																'rows'	=> 10, 
-																'cols' => 40,
-																'value' => '',
-																'style'	=> 'overflow-y: scroll; height: 300px; resize: none;');
+											<p class="card-text">
+											<div id="result">
+											<?php 
+												$data = array(
+													'name' => 'combinations',
+													'id' => 'combinations',
+													'rows' => 10,
+													'cols' => 40,
+													'value' => isset($file_content) ? $file_content : '', // Display file content
+													'style' => 'overflow-y: scroll; height: 300px; resize: none;',
+													'readonly' => isset($file_content) && !empty($file_content) ? 'readonly' : '' // Make readonly if file exists
+												);
 											echo form_textarea($data); ?>
 											</div></p>
 										</div>
@@ -209,8 +214,11 @@
 										</div>
 								</div>
 								<div class="form-group form-group-lg row">
-									<?php $extra = array('class' => 'btn btn-primary btn-lg btn-info', 
-														'style' => "display: block; margin:20px 20px");
+									<?php $extra = array(
+											'class' => 'btn btn-primary btn-lg btn-info',
+											'style' => "display: block; margin:20px 20px",
+											'disabled' => isset($file_content) && !empty($file_content) ? 'disabled' : '' // Disable button if file exists
+										);
 										echo form_submit('submit', 'Generate Full Wheel Combination', $extra);
 										$js = "location.href='".base_url()."admin/predictions/delete/$lottery->id/$filename";
 										$attributes = array(
@@ -242,7 +250,6 @@
 	$('.progress.blue .progress-left .progress-bar').css('animation', 'loading-2 0.0s linear forwards 0.0s');	
 		// this is the id of the form
 	$(document).ready(function(){
-
 	 var clear_timer;
 	 var progress = 0;
 	 var URL_counter = "<?=base_url();?>admin/predictions/combo_counter/<?=$filename;?>/<?=$combinations;?>";
@@ -281,7 +288,7 @@
 					clear_timer = setInterval(combination, 1000);
 					$('.progress.blue .progress-bar').css('border-color', '#049dff');
 					$('.progress .progress-right .progress-bar').css('animation', 'loading-1 2.8s linear forwards');
-					$('.progress.blue .progress-left .progress-bar').css('animation', 'loading-2 2.5s linear forwards 1.8s');
+					$('.progress.blue .prog ress-left .progress-bar').css('animation', 'loading-2 2.5s linear forwards 1.8s');
 					$('#message').html('<h3 class="bg-warning" style = "margin: 15px; text-align:center;">'+data.message+'</h3>');
 			  	}
 			  	if(data.error)
@@ -306,7 +313,7 @@
 	 		{
 				 if(data.success)
 				 {
-					progress = progress + 10;
+					progress += 10;
 					if(progress>100) progress=100;	// Remain at 100%
 					$('.progress-value').html('<p>'+progress+'%</p>');
 					$("#combinations").append(data.combotext+'\r\n');
@@ -315,7 +322,9 @@
 						$('#message').html('<h3 class="bg-warning" style = "margin: 15px; text-align:center;">The Data File has ADDED the Combinations to the <?=$filename;?>.txt file.</h3>');
 						clearInterval(clear_timer);
 					}
-				 }
+				 } else if (data.error) {
+                $('#message').html('<h3 class="bg-warning" style="margin: 15px; text-align:center;">' + data.error + '</h3>');
+            }
 	 		}
 	 	})
 	 	} 
