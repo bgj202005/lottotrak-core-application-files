@@ -73,27 +73,31 @@
 											</tr>
 										</thead>
 										<tbody>
-									<?php $row = 1; 
-										foreach($lottery->generate as $file)
-										{ ?>
-											<tr>	
-											<th scope="row" style = "text-align:center;"><?=$row;?></th>
-											<div class="form-check">
-												<?php $extra = array('class' => 'form-check-input', 'name' => 'Radio_'.$file->id,
-												'id' => 'Radio_'.$file->id, 'style' => 'margin-left:1px; margin-right:5px; margin-top:10px;',
-												'checked');
-												echo '<td>'.form_radio('file', $file->file_name, $extra);
-												$extra = array('class' => 'col-4 col-form-label col-form-label-md', 'style' => 'white-space: nowrap;'); 
-												echo form_label($file->file_name.'.txt', 'file_name_lb_'.$file->id, $extra).'</td>';
-												echo '<td style = "text-align:center;">'.form_label($file->N, 'balls_predict_lb_'.$file->id, $extra).'</td>';
-												echo '<td style = "text-align:center;">'.form_label($file->R, 'pick_game_lb_'.$file->id, $extra).'</td>';
-												echo '<td style = "text-align:center;">'.form_label($file->CCCC, 'combinations_lb_'.$file->id, $extra).'</td>';
-												echo '<td style = "text-align:center;">'.$predictions->btn_trash('admin/predictions/delete/'.$lottery->id.'/'.$file->file_name, $file->file_name).'</td>';
-												echo '</tr>';?>
-											</div>
-											<?php $row++; 
-											} ?>
-											</tr>
+										<?php 
+										$row = 1; 
+										foreach ($lottery->generate as $index => $file) { ?>
+											<tr>    
+												<th scope="row" style="text-align:center;"><?= $row; ?></th>
+												<div class="form-check">
+													<?php 
+													// Set 'checked' only for the first radio button
+													$is_checked = ($index === 0); // Check if this is the first item
+													echo '<td>' . form_radio('file', $file->file_name, $is_checked, [
+														'class' => 'form-check-input',
+														'id' => 'Radio_' . $file->id,
+														'style' => 'margin-left:1px; margin-right:5px; margin-top:10px;',
+													]);
+													$extra = array('class' => 'col-4 col-form-label col-form-label-md', 'style' => 'white-space: nowrap; margin-left: 10px;'); 
+													echo form_label($file->file_name . '.txt', 'file_name_lb_' . $file->id, $extra) . '</td>';
+													echo '<td style="text-align:center;">' . form_label($file->N, 'balls_predict_lb_' . $file->id, $extra) . '</td>';
+													echo '<td style="text-align:center;">' . form_label($file->R, 'pick_game_lb_' . $file->id, $extra) . '</td>';
+													echo '<td style="text-align:center;">' . form_label($file->CCCC, 'combinations_lb_' . $file->id, $extra) . '</td>';
+													echo '<td style="text-align:center;">' . $predictions->btn_trash('admin/predictions/delete/' . $lottery->id . '/' . $file->file_name, $file->file_name) . '</td>';
+													echo '</tr>'; ?>
+												</div>
+											<?php 
+											$row++; 
+										} ?>
 										</tbody>
 									</table>
 								</div>
