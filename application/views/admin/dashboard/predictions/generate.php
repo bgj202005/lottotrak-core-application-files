@@ -194,6 +194,7 @@
 											<p class="card-text">
 											<div id="result">
 											<?php 
+												$is_generated = isset($file_content) && trim($file_content) !== ''; // Check if file content exists and is not empty
 												$data = array(
 													'name' => 'combinations',
 													'id' => 'combinations',
@@ -213,13 +214,18 @@
 											<div class="progress-value">0%</div>
 										</div>
 								</div>
-								<div class="form-group form-group-lg row">
-									<?php $extra = array(
-											'class' => 'btn btn-primary btn-lg btn-info',
-											'style' => "display: block; margin:20px 20px",
-											'disabled' => isset($file_content) && !empty($file_content) ? 'disabled' : '' // Disable button if file exists
-										);
-										echo form_submit('submit', 'Generate Full Wheel Combination', $extra);
+								 <div class="form-group form-group-lg row">
+								  <?php 
+								  $extra = array(
+										'class' => 'btn btn-primary btn-lg btn-info',
+										'style' => "display: block; margin:20px 20px",
+										'id' => 'submit',
+									);
+								   // Add the 'disabled' attribute only if $is_generated is true
+									if ($is_generated) {
+										$extra['disabled'] = 'disabled';
+									}
+								   echo form_submit('submit', 'Generate Full Wheel Combination', $extra);
 										$js = "location.href='".base_url()."admin/predictions/delete/$lottery->id/$filename";
 										$attributes = array(
 										'href' 		=> base_url()."admin/predictions/delete/'.$lottery->id.'/'.$filename",
@@ -251,10 +257,18 @@
 		// this is the id of the form
 	$(document).ready(function(){
 	 var clear_timer;
-	 var progress = 0;
+	 var progress = <?= $is_generated ? 100 : 0; ?>; // Set progress to 100% if combinations are already generated
 	 var URL_counter = "<?=base_url();?>admin/predictions/combo_counter/<?=$filename;?>/<?=$combinations;?>";
 	 var URL = "<?=base_url().'admin/predictions/combo_gen/'.$lottery->id;?>";
 
+ 	// Initialize progress circle
+    if (progress === 100) {
+        $('.progress-value').html('<p>100%</p>'); // Set progress value to 100%
+        $('.progress .progress-right .progress-bar').css('animation', 'loading-1 1.8s linear forwards');
+        $('.progress.blue .progress-left .progress-bar').css('animation', 'loading-2 1.5s linear forwards 1.8s');
+        $('#message').html('<h3 class="bg-warning" style="margin: 15px; text-align:center;">The combinations have already been generated and saved to the file.</h3>');
+    }
+	
 	 $('#delete').on('click', function () {
        if(confirm("You are about to make a permanent deletion. Both the Filename and the Database Record will be deleted. This can not be UNDONE. Are you sure Y/N?"))
 		{
@@ -315,8 +329,8 @@
 				 {
 					progress += 10;
 					if(progress>100) progress=100;	// Remain at 100%
-					$('.progress-value').html('<p>'+progress+'%</p>');
-					$("#combinations").append(data.combotext+'\r\n');
+					$('.progress-value').html('<p>' + progress +'%</p>');
+					$("#combinations").append(data.combotext + '\r\n');
 					if(progress>=100)
 					{
 						$('#message').html('<h3 class="bg-warning" style = "margin: 15px; text-align:center;">The Data File has ADDED the Combinations to the <?=$filename;?>.txt file.</h3>');

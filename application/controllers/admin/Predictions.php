@@ -197,11 +197,16 @@ class Predictions extends Admin_Controller {
 		// Read the content of the file
     	$file_path = $this->predictions_m->full_path($file_name);
 		if (file_exists($file_path)) {
-			$this->data['file_content'] = file_get_contents($file_path); // Read file content
-		} else {
-			$this->data['file_content'] = ''; // No content if file does not exist
+			$file_content = file_get_contents($file_path); // Read file content
+			$is_generated = !empty(trim($file_content)); // Check if file content is not empty
+		} 
+		else {
+			$file_content = ''; // No content if file does not exist
+			$is_generated = false; // File does not exist, so not generated
 		}
-		
+		// Pass these variables to the view
+		$this->data['file_content'] = $file_content;
+		$this->data['is_generated'] = $is_generated;
 		unset($this->data['lottery']->generate);
 		
 		// Load the view
