@@ -264,9 +264,10 @@
  	// Initialize progress circle
     if (progress === 100) {
         $('.progress-value').html('<p>100%</p>'); // Set progress value to 100%
-        $('.progress .progress-right .progress-bar').css('animation', 'loading-1 1.8s linear forwards');
-        $('.progress.blue .progress-left .progress-bar').css('animation', 'loading-2 1.5s linear forwards 1.8s');
-        $('#message').html('<h3 class="bg-warning" style="margin: 15px; text-align:center;">The combinations have already been generated and saved to the file.</h3>');
+        $('.progress .progress-right .progress-bar').css('transform', 'rotate(180deg)'); // Complete right half
+        $('.progress .progress-left .progress-bar').css('transform', 'rotate(180deg)'); // Complete left half
+        $('.progress.blue .progress-bar').css('border-color', '#049dff'); // Ensure blue border is applied
+		$('#message').html('<h3 class="bg-warning" style="margin: 15px; text-align:center;">The combinations have already been generated and saved to the file.</h3>');
     }
 	
 	 $('#delete').on('click', function () {
@@ -303,6 +304,7 @@
 					$('.progress.blue .progress-bar').css('border-color', '#049dff');
 					$('.progress .progress-right .progress-bar').css('animation', 'loading-1 2.8s linear forwards');
 					$('.progress.blue .prog ress-left .progress-bar').css('animation', 'loading-2 2.5s linear forwards 1.8s');
+					$('.progress.blue .progress-bar').css('border-color', '#049dff'); // Ensure blue border is applied
 					$('#message').html('<h3 class="bg-warning" style = "margin: 15px; text-align:center;">'+data.message+'</h3>');
 			  	}
 			  	if(data.error)
