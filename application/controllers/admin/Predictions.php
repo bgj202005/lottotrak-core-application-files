@@ -378,6 +378,10 @@ class Predictions extends Admin_Controller {
 			$this->data['predictions'] = $this;		// Access the methods in the view
 			$this->data['subview'] = 'admin/dashboard/predictions/file_select';
 		}
+		elseif(count($this->data['lottery']->generate)==1) 
+		{
+			redirect('admin/predictions'); 	// No More Files available, Redirect
+		}
 		elseif(!$this->data['lottery']->generate)
 		{
 			redirect('admin/predictions'); 	// No More Files available, Redirect
