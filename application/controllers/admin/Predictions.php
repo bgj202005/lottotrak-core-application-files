@@ -502,7 +502,7 @@ class Predictions extends Admin_Controller {
 		$icon_class = 'fa fa-circle-o-notch fa-2x';
 		if(!$disabled) 
 		{
-			$title = 'No text files currently exist for this lottery.';
+			$title = '';
 			$a = 'disabled';
 			$style = "pointer-events: none; color: #ccc;";
 			$icon_class .= ' disabled-icon'; // Add a class for additional styling if needed
