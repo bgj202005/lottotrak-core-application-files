@@ -183,7 +183,16 @@
 									echo form_label($pick, 'lottery_pick_lb', $extra); 
 									echo form_hidden('filename', $filename); ?> 
 								</div>
-								
+								<!-- Total Combinations in the text file -->
+								<div class="form-group form-group-lg row"> 
+									<?php 
+									// Combinations Label
+									$extra = array('class' => 'col-4 col-form-label col-form-label-md');
+									echo form_label('Combinations (Tickets):', 'combinations_lb', $extra);
+									// Combinations Value
+									echo form_label($combinations, 'combinations_lb', $extra); 
+								?>
+								</div>
 								<!-- Combination Counter Display -->
 								<div class="form-group form-group-lg row clearfix" style = "margin: 0 auto; display: block;"> 
 
