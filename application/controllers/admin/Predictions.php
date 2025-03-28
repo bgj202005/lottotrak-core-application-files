@@ -160,11 +160,23 @@ class Predictions extends Admin_Controller {
 		}
 		else
 		{
+			$file_name = $this->data['lottery']->generate[0]->file_name; // Get the single file name
+			$file_path = $this->predictions_m->full_path($file_name);
+			if (file_exists($file_path)) {
+				$file_content = file_get_contents($file_path); // Read file content
+				$is_generated = !empty(trim($file_content)); // Check if file content is not empty
+			} else {
+				$file_content = ''; // No content if file does not exist
+				$is_generated = false; // File does not exist, so not generated
+			}
 			$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; 	//Calculated Combinations
 			$this->data['predict']=$this->data['lottery']->generate[0]->N;			//Number of Predictions
 			$this->data['pick']=$this->data['lottery']->generate[0]->R;				// Pick Game
 			$this->data['filename']=$this->data['lottery']->generate[0]->file_name;	// File name of text file
 			unset($this->data['lottery']->generate);
+			// Pass these variables to the view
+	        $this->data['file_content'] = $file_content;
+    	    $this->data['is_generated'] = $is_generated;
 			$this->data['subview'] = 'admin/dashboard/predictions/generate';
 		}
 		// Load the view
@@ -487,17 +499,18 @@ class Predictions extends Admin_Controller {
 		$style = '';
 		$a = '';
 		$title = 'Existing text files can be generated now!';
+		$icon_class = 'fa fa-circle-o-notch fa-2x';
 		if(!$disabled) 
 		{
-			$title = '';
+			$title = 'No text files currently exist for this lottery.';
 			$a = 'disabled';
-			$style = "pointer-events: none";
+			$style = "pointer-events: none; color: #ccc;";
+			$icon_class .= ' disabled-icon'; // Add a class for additional styling if needed
 		}
 		$attributes = array('title' => $title,
 							'style' => $style,
 							'disabled' => $a);
-
-	return anchor($uri, '<i class="fa fa-circle-o-notch fa-2x" aria-hidden="true">', $attributes);
+	return anchor($uri, '<i class="' . $icon_class . '" aria-hidden="true"></i>', $attributes);
 	}
 
 	/**
