@@ -304,47 +304,69 @@ class Predictions extends Admin_Controller {
 	{
 		$fp = fopen($this->predictions_m->full_path($name), "r");
 		$combotext = '';
-		if(!$this->session->userdata('percent'))
-		{
-			$interval = intval($combs / 10);
-			$percent = 0; // Start will 0%
+		$processed_combinations = 20; // Process 20 combinations at a time
+
+		// Initialize session variables if not already set
+		if (!$this->session->userdata('percent')) {
+			$percent = 0; // Start with 0%
 			$offset = 0;
-		}
-		else // The percentage has previously been saved as a session variable.
-		{
+		} else {
 			$percent = $this->session->userdata('percent');
-			$interval = $this->session->userdata('interval');
 			$offset = $this->session->userdata('offset');
-			//fseek($fp, $offset, SEEK_SET);	// Reposition the Text File Data Pointer to the new location
 		}
+
+		// Calculate remaining combinations
+		$remaining_combinations = $combs - ($percent / 100 * $combs);
+		$interval = ($remaining_combinations < $processed_combinations) ? $remaining_combinations : $processed_combinations;
+
+		// If there are no remaining combinations, complete immediately
+		if ($remaining_combinations <= 0) {
+			$percent = 100;
+			$this->session->unset_userdata('percent');
+			$this->session->unset_userdata('offset');
+			fclose($fp);
+
+			$output = array(
+				'success' => true,
+				'combotext' => '',
+				'percent' => $percent
+			);
+
+			echo json_encode($output);
+			return;
+		}
+
+		// Process combinations in chunks
 		$i = $interval;
-		while($i>0 || !feof($fp))
-		{
+		fseek($fp, $offset); // Move the file pointer to the last processed position
+		while ($i > 0 && !feof($fp)) {
 			$combotext .= fgets($fp);
 			$i--;
 		}
-		$offset = ftell($fp);
-		$percent = $percent + 10;	// Update the percentage on this count
-		
-		$newdata = array('percent'	=> $percent,
-						 'interval'	=>	$interval,
-						 'offset'	=>	$offset
-		);
 
-		$this->session->set_userdata($newdata);	// Create or Update the existing Session
-		if($percent>=100) 
-		{
-			$this->session->unset_userdata('percent'); // Destroy all the session data
-			$this->session->unset_userdata('internal');
-			$this->session->unset_userdata('offset');
+		$offset = ftell($fp); // Update the file pointer offset
+		$percent += ($interval / $combs) * 100; // Calculate progress percentage
+
+		if ($percent > 100) {
+			$percent = 100; // Ensure progress does not exceed 100%
 		}
 
-		fclose($fp);	// Close any further reading from the text file
-
-		$output = array(
-		'success'  => true,
-		'combotext' => $combotext
+		// Update session data
+		$newdata = array(
+			'percent' => $percent,
+			'offset' => $offset
 		);
+		$this->session->set_userdata($newdata);
+
+		fclose($fp); // Close the file pointer
+
+		// Return the output
+		$output = array(
+			'success' => true,
+			'combotext' => $combotext,
+			'percent' => $percent // Return the updated progress percentage
+		);
+
 		echo json_encode($output);
 	}
 
