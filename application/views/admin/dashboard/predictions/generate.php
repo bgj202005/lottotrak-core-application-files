@@ -133,11 +133,6 @@
     animation: loading-2 1.5s linear forwards 1.8s;
 }
 
-.progress .progress-right .progress-bar,
-.progress .progress-left .progress-bar {
-    transition: transform 0.3s linear; /* Smooth transition for dynamic updates */
-}
-
 @keyframes loading-1 {
     0% {
         -webkit-transform: rotate(0deg);

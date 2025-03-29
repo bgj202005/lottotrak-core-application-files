@@ -1,3 +1,9 @@
+<?php
+// Sort the $lottery->generate array by the 'N' property in ascending order
+usort($lottery->generate, function ($a, $b) {
+    return $a->N - $b->N; // Compare the 'N' values
+});
+?>
 <style>
 	.card {
     background-color: #ffffff;
