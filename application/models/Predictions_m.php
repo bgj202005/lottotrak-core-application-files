@@ -310,4 +310,21 @@ class Predictions_m extends MY_Model
 		else return FALSE;
 	return $draws;
 	}
+	/** Checks if a combination file has been generated for the given filename.
+	 * This method verifies the existence of a combination file in the specified directory.
+	 * It returns `TRUE` if the file exists, otherwise `FALSE`.
+	 * @param string $filename The name of the combination file without the `.txt` extension.
+	 * @return bool  Returns `TRUE` if the combination file exists, otherwise `FALSE`.
+	 */
+	public function is_combination_generated($filename)
+	{
+		// Define the path to the combination files directory
+		$file_path = $this->full_path($filename);
+		// Check if the file exists
+		// Check if the file exists and is not empty
+		if (file_exists($file_path) && filesize($file_path) > 0) {
+			return TRUE; // File exists and contains data
+		}
+    return FALSE; // File does not exist or is empty
+	}
 }

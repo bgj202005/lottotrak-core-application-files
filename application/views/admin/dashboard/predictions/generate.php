@@ -260,15 +260,16 @@
 	</section>
 	<script>
 	// Do not Run until submit and combinations need to be created for the text file
-	$('.progress.blue .progress-bar').css('border-color', '#FFFFFF');
+	$('.progress.blue .progress-bar').css('border-color', '#049dff;');
 	$('.progress .progress-right .progress-bar').css('animation', 'loading-1 0.0s linear forwards');
-	$('.progress.blue .progress-left .progress-bar').css('animation', 'loading-2 0.0s linear forwards 0.0s');	
+	$('.progress.blue .progress-left .progress-bar').css('animation', 'loading-2 0.0s linear forwards 0.0s');
 
 $(document).ready(function () {
     var progress = <?= $is_generated ? 100 : 0; ?>; // Set progress to 100% if combinations are already generated
     var URL_counter = "<?= base_url(); ?>admin/predictions/combo_counter/<?=$filename;?>/<?=$combinations;?>";
     var URL = "<?= base_url().'admin/predictions/combo_gen/'.$lottery->id; ?>";
-    var clear_timer;
+    var clear_timer = null; // Declare clear_timer globally and initialize to null
+	var is_complete = false; // Add a flag to track completion
 
     // Initialize progress circle if combinations are already generated
     if (progress === 100) {
@@ -276,12 +277,18 @@ $(document).ready(function () {
         $('.progress-value').html('<p>100%</p>'); // Set progress value to 100%
         $('#submit').prop('disabled', true); // Disable the Generate button
         $('#message').html('<h3 class="bg-warning" style="margin: 15px; text-align:center;">The combinations have already been generated and saved to the file.</h3>');
-    }
+		is_complete = true; // Mark as complete
+	}
 
     // Handle form submission for generating combinations
     $("#frmgenerate").submit(function (e) {
         e.preventDefault(); // Prevent default form submission
-
+		// Clear any existing timer before starting a new one
+        if (clear_timer !== null) {
+            console.log("Clearing existing timer:", clear_timer);
+            clearInterval(clear_timer);
+			clear_timer = null; // Reset clear_timer to null
+        }
         $.ajax({
             type: "POST",
             url: URL,
@@ -293,7 +300,10 @@ $(document).ready(function () {
             processData: false,
             success: function (data) {
                 if (data.success) {
-                    clear_timer = setInterval(combination, 1000); // Start processing combinations
+                    if (clear_timer === null) { // Ensure no timer is already running
+                        clear_timer = setInterval(combination, 500); // Start processing combinations
+                        console.log("Timer started:", clear_timer); // Debugging log
+                    }
                     $('#submit').prop('disabled', true); // Disable the Generate button
                     $('.progress.blue .progress-bar').css('border-color', '#049dff');
                     $('#message').html('<h3 class="bg-warning" style="margin: 15px; text-align:center;">' + data.message + '</h3>');
@@ -307,47 +317,47 @@ $(document).ready(function () {
 
     // Function to process combinations in chunks
     function combination() {
-        $.ajax({
-            url: URL_counter,
-            dataType: "json",
-            success: function (data) {
-                if (data.success) {
-                     progress = Math.min(data.percent, 100); // Cap progress at 100%
-                    $('.progress-value').html('<p>' + Math.round(progress) + '%</p>');
-                    $("#combinations").append(data.combotext + '\r\n'); // Append new combinations
-
-                    updateProgressCircle(progress);
-
-                    if (progress >= 100) {
-                        $('#message').html('<h3 class="bg-warning" style="margin: 15px; text-align:center;">The Data File has ADDED the Combinations to the <?=$filename;?>.txt file.</h3>');
-                        clearInterval(clear_timer); // Stop the timer
-                        $('#submit').prop('disabled', true); // Disable the Generate button
-                    }
-                } else if (data.error) {
-                    $('#message').html('<h3 class="bg-warning" style="margin: 15px; text-align:center;">' + data.error + '</h3>');
-                }
-            }
-        });
-    }
-
+		if (is_complete) return; // Stop further updates if already complete
+		$.ajax({
+			url: URL_counter,
+			dataType: "json",
+			success: function (data) {
+				if (data.success) {
+					progress = Math.min(data.percent, 100); // Cap progress at 100%
+					console.log("Progress:", progress); // Debugging log
+					$('.progress-value').html('<p>' + Math.round(progress) + '%</p>');
+					// Append new combinations without extra spaces
+					if (data.combotext.trim() !== '') {
+						$("#combinations").val(function (index, value) {
+							return value + data.combotext.trim() + '\n';
+						});
+					}
+					updateProgressCircle(progress);
+					if (progress >= 100) {
+						console.log("Timer cleared"); // Debugging log
+						clearInterval(clear_timer); // Stop the timer
+                        clear_timer = null; // Reset clear_timer to null
+						$('#message').html('<h3 class="bg-warning" style="margin: 15px; text-align:center;">The Data File has ADDED the Combinations to the <?=$filename;?>.txt file.</h3>');
+						$('#submit').prop('disabled', true); // Disable the Generate button
+						is_complete = true; // Mark as complete
+					}
+				} else if (data.error) {
+					$('#message').html('<h3 class="bg-warning" style="margin: 15px; text-align:center;">' + data.error + '</h3>');
+				}
+			}
+		});
+	}
     // Function to update the progress circle visually
     function updateProgressCircle(progress) {
-        if (progress >= 100) {
-            $('.progress .progress-right .progress-bar').css('transform', 'rotate(180deg)');
-            $('.progress .progress-left .progress-bar').css('transform', 'rotate(180deg)');
-            $('.progress.blue .progress-bar').css('border-color', '#049dff'); // Ensure blue border is applied
+        var angle = (progress / 100) * 360; // Calculate the angle based on the progress percentage
+        if (angle <= 180) {
+            $('.progress .progress-right .progress-bar').css('transform', 'rotate(' + angle + 'deg)');
+            $('.progress .progress-left .progress-bar').css('transform', 'rotate(0deg)');
         } else {
-            var angle = (progress / 100) * 360;
-            if (angle <= 180) {
-                $('.progress .progress-right .progress-bar').css('transform', 'rotate(' + angle + 'deg)');
-                $('.progress .progress-left .progress-bar').css('transform', 'rotate(0deg)');
-            } else {
-                $('.progress .progress-right .progress-bar').css('transform', 'rotate(180deg)');
-                $('.progress .progress-left .progress-bar').css('transform', 'rotate(' + (angle - 180) + 'deg)');
-            }
+            $('.progress .progress-right .progress-bar').css('transform', 'rotate(180deg)');
+            $('.progress .progress-left .progress-bar').css('transform', 'rotate(' + (angle - 180) + 'deg)');
         }
     }
-
     // Handle delete button click
     $('#delete').on('click', function () {
         if (confirm("You are about to make a permanent deletion. Both the Filename and the Database Record will be deleted. This can not be UNDONE. Are you sure Y/N?")) {

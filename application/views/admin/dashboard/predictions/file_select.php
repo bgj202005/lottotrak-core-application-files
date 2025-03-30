@@ -75,13 +75,16 @@ usort($lottery->generate, function ($a, $b) {
 												<th scope="col" style = "text-align:center;">N</th>
 												<th scope="col" style = "text-align:center;">R</th>
 												<th scope="col" style = "text-align:center;">Combinations</th>
+												<th scope="col" style = "text-align:center;">Status</th> <!-- New column for status -->
 												<th scope="col" style = "text-align:center;">Options</th>
 											</tr>
 										</thead>
 										<tbody>
 										<?php 
 										$row = 1; 
-										foreach ($lottery->generate as $index => $file) { ?>
+										foreach ($lottery->generate as $index => $file) { 
+										// Call the is_combination_generated method from the predictions_m model
+            								$is_generated = $this->predictions_m->is_combination_generated($file->file_name); ?>
 											<tr>    
 												<th scope="row" style="text-align:center;"><?= $row; ?></th>
 												<div class="form-check">
@@ -98,6 +101,12 @@ usort($lottery->generate, function ($a, $b) {
 													echo '<td style="text-align:center;">' . form_label($file->N, 'balls_predict_lb_' . $file->id, $extra) . '</td>';
 													echo '<td style="text-align:center;">' . form_label($file->R, 'pick_game_lb_' . $file->id, $extra) . '</td>';
 													echo '<td style="text-align:center;">' . form_label($file->CCCC, 'combinations_lb_' . $file->id, $extra) . '</td>';
+													// Add the status column for is_combination_generated
+													echo '<td style="text-align:center;">';
+													echo $is_generated 
+														? '<span class="badge badge-success">Generated</span>' 
+														: '<span class="badge badge-warning">Not Generated</span>';
+														echo '</td>';
 													echo '<td style="text-align:center;">' . $predictions->btn_trash('admin/predictions/delete/' . $lottery->id . '/' . $file->file_name, $file->file_name) . '</td>';
 													echo '</tr>'; ?>
 												</div>
