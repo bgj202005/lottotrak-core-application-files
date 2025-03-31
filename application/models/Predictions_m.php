@@ -9,7 +9,7 @@ class Predictions_m extends MY_Model
         'ball_predict' => array(
             'field' => 'ball_predict',
             'label' => 'Number of Balls to Predict',
-            'rules' => 'trim|required|callback__range_ball_values'
+            'rules' => 'trim|required|callback__range_ball_values|callback__validate_picks'
 		)
 	);
 

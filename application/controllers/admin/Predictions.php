@@ -639,4 +639,22 @@ class Predictions extends Admin_Controller {
 	$this->form_validation->set_message('_range_ball_values', 'The Number of Balls for the Combinations are out of range (N).');
 	return FALSE;
 	}
+	/**
+ * Custom validation callback to ensure the number of balls to predict (N)
+ * is greater than the number to pick (R).
+ *
+ * @param none 
+ * @return bool Returns TRUE if valid, otherwise FALSE.
+ */
+public function _validate_picks($str)
+{
+    if (intval($this->input->post('ball_predict') <= (intval($this->input->post('lottery_balls_drawn'))))) {	
+        $this->form_validation->set_message(
+            '_validate_picks',
+            'The Number of Balls to Predict (N) must be greater than the Number to Balls to Pick (R).'
+        );
+        return FALSE; // Validation failed
+    }
+    return TRUE; // Validation passed
+}
 }

@@ -60,7 +60,7 @@
 						</div>
 						<div class="tab-content" id="myTabContent">
 							<?php if (!empty($message)) ?> <h3 class="bg-warning" style = "margin: 15px; text-align:center;"><?=$message; ?></h3>
-							<?php echo validation_errors('<H2><div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">','</div></H2>'); ?>
+							<?php echo validation_errors('<H2><div class="bg-warning" style = "margin: 15px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">','</div></H2>'); ?>
 							<?php echo form_open(base_url().'admin/predictions/combinations/'.$lottery->id); ?>
 							<div class = "col-12" style = "margin-top:2em;">
 								<?php echo img(base_url().'images/C(N_R).png'); ?>
