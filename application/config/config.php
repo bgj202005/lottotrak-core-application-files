@@ -30,10 +30,10 @@ switch (ENVIRONMENT) {
 	
 	case 'development':
 	  
-	  $config['base_url'] = 'http://localhost/lottotrak/'; 
+	  $config['base_url'] = 'https://localhost/lottotrak/'; 
 	  break;
 	default:
-      $config['base_url'] = 'http://lottotrak.com/';
+      $config['base_url'] = 'https://lottotrak.com/';
 }
 
 /*
