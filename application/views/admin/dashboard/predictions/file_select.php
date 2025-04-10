@@ -49,6 +49,14 @@ usort($lottery->generate, function ($a, $b) {
 	.card-text {
 		color:steelblue;
 	}
+	.subheading {
+    text-align: left;
+    font-size: 1rem;
+    margin-top: 10px;
+    margin-left: 25px;
+    color: #333;
+    font-weight: bold;
+	}
 }
 </style>
 	<h2><?php echo 'File Select For: '.$lottery->lottery_name; ?></h2>
@@ -61,6 +69,8 @@ usort($lottery->generate, function ($a, $b) {
 						<div class="card-header tab-card-header">
 							<H1 style = "text-align:center;">Please Select the Combination File</H1>
 						</div>
+						<!-- Add the subheading aligned to the left -->
+						<h3 class = "subheading">Selections per Ticket (R Value): <?= $lottery->balls_drawn; ?> Balls</h3>
 						<div class="tab-content" id="myTabContent">
 							<?php if (!empty($message)) ?> <h3 class="bg-warning" style = "text-align:center;"><?=$message; ?></h3>
 							<?php echo validation_errors('<H2><div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">','</div></H2>'); ?>
@@ -73,7 +83,6 @@ usort($lottery->generate, function ($a, $b) {
 												<th scope="col" style = "text-align:center;">#</th>
 												<th scope="col" style = "text-align:left;">Filename</th>
 												<th scope="col" style = "text-align:center;">N</th>
-												<th scope="col" style = "text-align:center;">R</th>
 												<th scope="col" style = "text-align:center;">Combinations</th>
 												<th scope="col" style = "text-align:center;">Status</th> <!-- New column for status -->
 												<th scope="col" style = "text-align:center;">Options</th>
@@ -99,7 +108,6 @@ usort($lottery->generate, function ($a, $b) {
 													$extra = array('class' => 'col-4 col-form-label col-form-label-md', 'style' => 'white-space: nowrap; margin-left: 10px;'); 
 													echo form_label($file->file_name . '.txt', 'file_name_lb_' . $file->id, $extra) . '</td>';
 													echo '<td style="text-align:center;">' . form_label($file->N, 'balls_predict_lb_' . $file->id, $extra) . '</td>';
-													echo '<td style="text-align:center;">' . form_label($file->R, 'pick_game_lb_' . $file->id, $extra) . '</td>';
 													echo '<td style="text-align:center;">' . form_label($file->CCCC, 'combinations_lb_' . $file->id, $extra) . '</td>';
 													// Add the status column for is_combination_generated
 													echo '<td style="text-align:center;">';

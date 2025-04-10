@@ -15,7 +15,7 @@
 				<td style = "white-space: nowrap;">Extra / Bonus Ball?</td>
 				<th>Combinations</th>
 				<th>Generate Wheel</th>
-				<th>Files</th>
+				<th>Wins</th>
 				<th>Predictions</th>
 				<th>Prize History</th>
 			</tr>
@@ -48,7 +48,7 @@
 		<td style = "text-align:center;"><?=($lottery->extra_ball ? 'Yes' : 'No'); ?></td>
 	    <td style = "text-align:center;"><?php echo $predictions->btn_calculate('admin/predictions/combinations/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $predictions->btn_generate('admin/predictions/generate/'.$lottery->id, $predictions->active($lottery->id)); ?></td>
-		<td style = "text-align:center;"><?php echo $predictions->btn_files('admin/predictions/files/'.$lottery->id, $predictions->active($lottery->id)); ?></td>
+		<td style = "text-align:center;"><?php echo $predictions->btn_table_of_wins('admin/predictions/files/'.$lottery->id, $predictions->active($lottery->id)); ?></td>
 		<td style = "text-align:center;"><?php echo $predictions->btn_predicts('admin/predictions/predicts/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $predictions->btn_wins('admin/predictions/history/'.$lottery->id); ?></td>
 	</tr>

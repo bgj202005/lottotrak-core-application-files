@@ -545,11 +545,11 @@ class Predictions extends Admin_Controller {
 	 * @param       string	$uri	uri admin address of the statistics page
 	 * @return      none
 	 */
-	public function btn_files($uri, $disabled = FALSE)
+	public function btn_table_of_wins($uri, $disabled = FALSE)
 	{
 		$style = '';
 		$a = '';
-		$title = 'Existing text files can be viewed now!';
+		$title = 'Detailed Breakdown of Win Possibilities!';
 		if(!$disabled) 
 		{
 			$title = '';
@@ -560,7 +560,7 @@ class Predictions extends Admin_Controller {
 							'style' => $style,
 							'disabled' => $a);
 
-		return anchor($uri, '<i class="fa fa-file-text-o fa-2x" aria-hidden="true">', $attributes);
+		return anchor($uri, '<i class="fa fa-table fa-2x" aria-hidden="true">', $attributes);
 	}
 
 	/**
