@@ -44,14 +44,18 @@
 		color:steelblue;
 	}
 	.subheading {
-    text-align: left;
-    font-size: 1rem;
-    margin-top: 10px;
-    margin-left: 25px;
-    color: #333;
-    font-weight: bold;
+		text-align: left;
+		font-size: 1.4rem; /* Slightly larger font size */
+		margin-top: 15px;
+		margin-bottom: 15px;
+		color: #ffffff; /* White text color */
+		font-weight: bold;
+		padding: 10px 15px; /* Padding around the text */
+		background: linear-gradient(90deg, #007bff, #0056b3); /* Gradient background */
+		border-radius: 8px; /* Rounded corners */
+		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+		display: inline-block; /* Prevent it from stretching full width */
 	}
-}
 </style>
 	<h2><?php echo 'File Select For: '.$lottery->lottery_name; ?></h2>
 	<h5 style = "text-align:left"><?php echo anchor('admin/predictions', 'Back to Predictions Dashboard', 'title="Back to Predictions"'); ?></h5>
