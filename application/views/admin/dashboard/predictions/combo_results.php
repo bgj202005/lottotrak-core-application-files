@@ -7,29 +7,26 @@
 <script src="https://unpkg.com/bootstrap-table@1.18.0/dist/extensions/reorder-rows/bootstrap-table-reorder-rows.min.js"></script>
 <style>
 	@media (max-width: 768px) {
-		.table th, .table td {
-			display: block;
-			width: 100%;
-			text-align: left;
-		}
-		.table thead {
-			display: none;
-		}
-	}
-	table{
-    width:100%;
-	}
-	#draws_filter{
-    float:right;
-	}
-	#draws_paginate{
-    float:right;
-	}
-	label {
-    	display: inline-flex;
-    	margin-bottom: .5rem;
-    	margin-top: .5rem;
-}	
+        .table th, .table td {
+            display: table-cell; 	/* Ensure table cells remain visible */
+            text-align: center; 	/* Center-align text for better readability */
+            font-size: 12px; 		/* Adjust font size for smaller screens */
+        }
+        .table {
+            overflow-x: auto; /* Allow horizontal scrolling */
+        }
+    }
+    table {
+        width: 100%;
+    }
+    #draws_filter, #draws_paginate {
+        float: right;
+    }
+    label {
+        display: inline-flex;
+        margin-bottom: 0.5rem;
+        margin-top: 0.5rem;
+    }
 </style>
 	<h2 class="text-center">Winning Statistics</h2>
 	<h2><?php echo 'Lottery: '.$lottery->lottery_name; ?></h2>	
