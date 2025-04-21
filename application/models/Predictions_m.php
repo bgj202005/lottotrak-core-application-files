@@ -327,4 +327,52 @@ class Predictions_m extends MY_Model
 		}
     return FALSE; // File does not exist or is empty
 	}
+	/**
+	 * Calculate the number of tickets that match the required number of balls for a prize tier.
+	 *
+	 * This method compares each combination in the file with the winning numbers
+	 * for a specific prize tier and counts how many tickets meet the criteria.
+	 *
+	 * @param array $combinations Array of ticket combinations (each combination is a string of numbers).
+	 * @param array $winning_numbers Array of winning numbers for the prize tier.
+	 * @return int Number of matching tickets.
+	 */
+	public function calculate_matching_tickets($combinations, $required_matches) {
+		$matching_tickets = 0;
+
+		 // Define the range of winning numbers (e.g., 1 to the maximum number of balls)
+		$winning_numbers = range(1, $required_matches);
+
+		foreach ($combinations as $combination) {
+			// Convert the combination string into an array of numbers
+			$numbers = explode(' ', trim($combination));
+
+			// Count how many numbers match the winning numbers
+			$matches = count(array_intersect($numbers, $winning_numbers));
+
+			// If the number of matches is equal to or greater than the required matches, count it
+			if ($matches >= $required_matches) {
+				$matching_tickets++;
+			}
+		}
+		return $matching_tickets;
+	}
+	/**
+	 * Returns the Lottery Prize Profile as an associative array.
+	 * This method retrieves the prize data for a given lottery ID and returns it
+	 * as an associative array. If no data exists, it returns FALSE.
+	 *
+	 * @param int $lotto_id The ID of the lottery.
+	 * @return array|false The prize data as an associative array, or FALSE if no data exists.
+	 */
+	public function prizes_data_array($lotto_id)
+	{
+		$sql = "SELECT * FROM `lottery_prize_profiles` WHERE `lottery_id` = " . $lotto_id . " LIMIT 1";
+		$result = $this->db->query($sql);
+
+		if (empty($result->row())) {
+			return FALSE; // Return FALSE if no data exists
+		}
+		return $result->row_array(); // Return the result as an associative array
+	}
 }

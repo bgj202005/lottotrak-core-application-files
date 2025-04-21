@@ -90,8 +90,8 @@ class Predictions extends Admin_Controller {
 		$this->data['lottery']->predict = $this->input->post('ball_predict', TRUE);
 		$this->data['lottery']->pick = $this->input->post('lottery_balls_drawn', TRUE);
 		$this->data['combinations'] = $this->input->post('combinations', TRUE);
-		$file_name = (intval($this->data['lottery']->pick)<9 ? '0'.$this->data['lottery']->pick : $this->data['lottery']->pick);
-		$file_name .= $this->data['lottery']->predict;
+		$file_name = (intval($this->data['lottery']->pick)<=9 ? '0'.$this->data['lottery']->pick : $this->data['lottery']->pick);
+		$file_name .= '0'.$this->data['lottery']->predict;
 		$file_name .= (intval($this->data['combinations'])<1000 ? '0'.$this->data['combinations'] : $this->data['combinations']);
 		
 		$path = $this->predictions_m->full_path($file_name);
@@ -504,6 +504,96 @@ class Predictions extends Admin_Controller {
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 
+	/**
+	 * Displays the statistics for a selected combination file.
+	 *
+	 * This method calculates the number of winning tickets for each prize tier,
+	 * the percentage of wins, and the probability of winning. It retrieves the
+	 * combinations from a text file and processes them for statistical analysis.
+	 *
+	 * @param int 		$id The ID of the selected lottery.
+	 * @param string $file_name The name of the combination file (without the .txt extension).
+	 * @return void
+	 */
+	public function combo_statistics($id) {
+		$file_name = (!empty($this->input->post('file')) ? $this->input->post('file') : $this->uri->segment(5));
+		// Decode the file name
+		$pick_per_ticket = substr($file_name, 0, 2); // First two digits
+		$numbers_to_pick = substr($file_name, 2, 2); // Next two digits
+    	$tickets = substr($file_name, 4); // Truncate the first 4 characters to get the tickets
+		// Fetch the prize tiers for the lottery
+		$lottery = $this->lotteries_m->get($id);
+    	// Fetch the prize tiers for the lottery
+    	$prizes_data = $this->predictions_m->prizes_data_array($id);
+		 // Map prize tiers to their corresponding names and required matches
+		$prize_tiers = [
+			'9_win_extra' => ['name' => '9 Matches + Extra', 'matches' => 9],
+			'9_win' => ['name' => '9 Matches', 'matches' => 9],
+			'8_win_extra' => ['name' => '8 Matches + Extra', 'matches' => 8],
+			'8_win' => ['name' => '8 Matches', 'matches' => 8],
+			'7_win_extra' => ['name' => '7 Matches + Extra', 'matches' => 7],
+			'7_win' => ['name' => '7 Matches', 'matches' => 7],
+			'6_win_extra' => ['name' => '6 Matches + Extra', 'matches' => 6],
+			'6_win' => ['name' => '6 Matches', 'matches' => 6],
+			'5_win_extra' => ['name' => '5 Matches + Extra', 'matches' => 5],
+			'5_win' => ['name' => '5 Matches', 'matches' => 5],
+			'4_win_extra' => ['name' => '4 Matches + Extra', 'matches' => 4],
+			'4_win' => ['name' => '4 Matches', 'matches' => 4],
+			'3_win_extra' => ['name' => '3 Matches + Extra', 'matches' => 3],
+			'3_win' => ['name' => '3 Matches', 'matches' => 3],
+			'2_win_extra' => ['name' => '2 Matches + Extra', 'matches' => 2],
+			'2_win' => ['name' => '2 Matches', 'matches' => 2],
+			'1_win_extra' => ['name' => '1 Match + Extra', 'matches' => 1],
+			'1_win' => ['name' => '1 Match', 'matches' => 1],
+			'extra' => ['name' => 'Extra Ball Only', 'matches' => 0],
+		];
+		// Filter out the prize tiers that are set (value is 1)
+		$prizes = [];
+		foreach ($prizes_data as $key => $value) {
+			if ($value == 1 && isset($prize_tiers[$key])) {
+				$prizes[] = $prize_tiers[$key];
+			}
+		}
+		// Path to the file containing combinations
+		$file_path = $this->predictions_m->full_path($file_name);
+		// Check if the file exists
+		if (!file_exists($file_path)) {
+			show_error('The selected combination file does not exist.');
+		}
+		// Read the file and extract combinations
+		$combinations = file($file_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+		// Total tickets in the file
+		$total_tickets = count($combinations);
+		// Calculate statistics for each prize tier
+		$stats = [];
+		foreach ($prizes as $prize) {
+			$matching_tickets = $this->predictions_m->calculate_matching_tickets($combinations, $prize['matches']);
+			$stats[] = [
+				'tier' => $prize['name'],
+				'tickets' => $matching_tickets,
+				'percentage' => round(($matching_tickets / $total_tickets) * 100, 2),
+				'probability' => round(($matching_tickets / $total_tickets) * 100 / 100, 6)
+			];
+		}
+		$this->data['current'] = $file_name; // Sets the Admins Menu Highlighted
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'combo_statistics'.($id ? '/'.$id : ''));
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	
+		$this->data['lottery'] = $lottery;
+		$this->data['file_name'] = $file_name;
+		$this->data['pick_per_ticket'] = $pick_per_ticket;
+		$this->data['numbers_to_pick'] = $numbers_to_pick;
+		$this->data['tickets'] = $tickets;
+		$this->data['stats'] = $stats;
+		// Add navigation links
+		$this->data['back_to_dashboard'] = base_url('admin/predictions');
+		$this->data['back_to_combo_list'] = base_url('admin/predictions/combo_select/' . $id);
+		// Load the statistics view
+		$this->data['subview'] = 'admin/dashboard/predictions/combo_results';
+		$this->load->view('admin/_layout_main', $this->data);
+	}
 	/**
 	 * Activate the link, if there are combo files waiting to be generated
 	 * 

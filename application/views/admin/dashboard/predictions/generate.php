@@ -249,7 +249,8 @@
 										'onClick' 	=> "$js", 
 										'style' 	=> "padding:5px; margin: 0 auto; display: block; margin:20px 20px;"
 									);
-										echo form_button('prediction_list', 'Back to Prediction List', $attributes); ?>
+										echo form_button('prediction_list', 'Back to Prediction List', $attributes); 
+										echo form_close();?>
 								</div>
 							</div>	
 						</div>
