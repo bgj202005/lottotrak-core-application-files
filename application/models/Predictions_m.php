@@ -107,9 +107,20 @@ class Predictions_m extends MY_Model
 			$full_path = 'd:\\wamp64\\www\\lottotrak\\'.self::DIR.'\\'.$name.'.txt';
 		}
 		else 
-		// Linux
+		// Linux 
 		{
-			$full_path = DIRECTORY_SEPARATOR.self::DIR.DIRECTORY_SEPARATOR.$name.'.txt';
+			// This is a Linux server, so the path must be changed to reflect the server
+			$full_path = '/home/metad231/lottotrak.com/'.self::DIR.'/'.$name.'.txt';
+		}
+		if(!file_exists($full_path))
+		{
+			// If the file does not exist, create it
+			$fp = fopen($full_path, 'w');
+			fclose($fp);
+		}
+		else //This is a Linux server, so the path must be changed to reflect the server
+		{
+			$full_path = self::DIR.DIRECTORY_SEPARATOR.$name.'.txt';
 		}
 	return $full_path; // Full Path of Filename
 	}
