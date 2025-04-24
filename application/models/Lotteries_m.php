@@ -757,7 +757,12 @@ class Lotteries_m extends MY_Model
 	public function check_prior_draws($table_name, $start_date) {
     $this->db->where('draw_date <', $start_date);
     $query = $this->db->get($table_name);
-    return $query->num_rows() > 0;
+   	$rows = $this->db->affected_rows(); // $query->num_rows(); Error on some servers
+		if ($rows > 0) {
+			return $rows;
+		} else {
+			return 0; // No prior draws found
+		}
 	}
 	/** 
 	* Returns TRUE or FALSE for a url (with or without http:/https) active DNS
