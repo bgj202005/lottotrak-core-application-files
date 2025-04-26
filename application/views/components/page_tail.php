@@ -8,8 +8,8 @@
                     <?php echo get_footer_menu($footer_menu_outside, $maintenance, 'footer-menu'); ?>
 					
 					<p class="credit">
-						Copyright (c) <?php echo date('Y'); ?><a href="http://lottotrak.com"> Lottotrak</a>
-						and <a href="http://metadatamedia.ca">MetaData Media Inc.</a>.
+						Copyright (c) <?php echo date('Y'); ?><a href="https://lottotrak.com"> Lottotrak</a>
+						and <a href="https://metadatamedia.ca">MetaData Media Inc.</a>.
 					</p>
 				</div>
 			  </div>
