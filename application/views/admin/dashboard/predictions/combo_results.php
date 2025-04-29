@@ -40,13 +40,13 @@
 							<h4 class="text-center">Combination File: <strong><?= $file_name.'.txt'; ?></strong></h4>
 							<div class="row text-center mt-3">
 								<div class="col-md-4">
-									<strong>Picks per Ticket:</strong> <?= $pick_per_ticket; ?> Numbers
+									<strong>Picks per Ticket:</strong> <?= (int) $pick_per_ticket; ?> Numbers
 								</div>
 								<div class="col-md-4">
-									<strong>Numbers to Pick:</strong> <?= $numbers_to_pick; ?>
+									<strong>Numbers to Pick:</strong> <?= (int) $numbers_to_pick; ?>
 								</div>
 								<div class="col-md-4">
-									<strong>Tickets:</strong> <?= $tickets; ?>
+									<strong>Tickets:</strong> <?= (int) $tickets; ?>
 								</div>
 							</div>
 						<div class="container mt-4">
