@@ -80,12 +80,17 @@
 										echo form_error('lottery_image', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 									</div>
 								</div>
-								<!-- Current State or Province Field -->
+								<!-- Country Field -->
 								<div class="form-group form-group-lg row"> 
 									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
-									echo form_label('Current State / Province:', 'state_province', $extra); ?>
-									<div class="col-8" style="margin-top:10px;">
-										<span class="bfh-states" data-country="<?=$lottery->lottery_country_id; ?>" data-state="<?=$lottery->lottery_state_prov; ?>"></span></label>
+									echo form_label('Country', 'country_lb', $extra); ?>
+									<div class="col-8">
+										<div id="countries_states2" 
+											class="bfh-selectbox bfh-countries" 
+											data-flags="true" 
+											data-country="<?php echo set_value('lottery_country_id', $lottery_country_id); ?>" 
+											data-name="lottery_country_id">
+        								</div>
 									</div>
 								</div>
 								<!-- State or Province Field -->
@@ -93,15 +98,11 @@
 									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
 									echo form_label('State / Province (If Different)', 'state_province_lb', $extra); ?>
 									<div class="col-8">
-										<div class="bfh-selectbox bfh-states" data-country="countries_states2" data-name="lottery_state_prov"></div>
-									</div>
-								</div>
-								<!-- Country Field -->
-								<div class="form-group form-group-lg row"> 
-									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
-									echo form_label('Country', 'country_lb', $extra); ?>
-									<div class="col-8">
-										<div id="countries_states2" class="bfh-selectbox bfh-countries" data-flags="true" data-country="CA" data-name="lottery_country_id"></div>
+										<div class="bfh-selectbox bfh-states" 
+											data-country="countries_states2" 
+											data-state="<?php echo set_value('lottery_state_prov', $lottery_state_prov); ?>" 
+											data-name="lottery_state_prov">
+        								</div>
 									</div>
 								</div>
 								<!-- Date of the first draw in the lottery history -->

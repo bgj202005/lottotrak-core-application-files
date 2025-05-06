@@ -103,6 +103,7 @@ class Lotteries extends Admin_Controller {
 		} else {
 			//load file helper
 			$this->data['lottery'] = $this->lotteries_m->get_new();
+			$this->data['has_prior_draws'] = FALSE; // No Prior Draws
 		}
 		$this->data['message'] = '';  // Create a Message object
 		$error = NULL;				  // Related to Image upload only
@@ -119,7 +120,6 @@ class Lotteries extends Admin_Controller {
 			$config['overwrite'] 	        = TRUE;
 			$this->load->library('upload', $config); 
 			/* $this->load->initialize($config); */
-
 			$image_field_name = 'lottery_image';
 			if ($_FILES['lottery_image']['error']!=4)  // Did not select a file to upload.  Indicates the file browse was not selected, 
 			// so no image required to upload
@@ -138,13 +138,11 @@ class Lotteries extends Admin_Controller {
 					$config['maintain_ratio'] = TRUE;
 					$config['width']         = 175;
 					$config['height']       = 175;
-
 					$this->image_lib->initialize($config);  // Change the dimentions keeping the proportions
 					$this->image_lib->resize();
 				}
 			} 
 		}
-
 		$_POST['extra_ball'] = (is_null($this->input->post('extra_ball')) ? 0 : 1);
 		$_POST['duplicate_extra_ball'] = (is_null($this->input->post('duplicate_extra_ball')) ? 0 : 1);
 
@@ -209,6 +207,9 @@ class Lotteries extends Admin_Controller {
 		if(isset($this->data['lastdraw']->draw_date)) {
 			if((strtotime($this->data['lastdraw']->draw_date)!=(strtotime($this->data['lottery']->lastdate)))) $this->data['lottery']->lastdate=$this->data['lastdraw']->draw_date;
 		}
+		// Pass the retrieved values to the view
+    	$this->data['lottery_country_id'] = $this->data['lottery']->lottery_country_id ?? 'CA'; // Default to Canada if not set
+	    $this->data['lottery_state_prov'] = $this->data['lottery']->lottery_state_prov ?? ''; // Default to empty if not set
 		$this->data['current'] = $this->uri->segment(2); // Sets the Lottery Menu as Active
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/edit'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();

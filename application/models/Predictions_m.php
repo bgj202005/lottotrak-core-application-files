@@ -38,17 +38,16 @@ class Predictions_m extends MY_Model
 	/**
 	 * Returns the Lottery Combination File(s), if does not exist return FALSE
 	 * 
-	 * @param       integer	$lotto_id	Foriegn Key to the orresponding Lottery
+	 * @param       integer	$pick_id	Related to the number of picks in a lottery. eg. 3, 4, 5, 6, 7, 8, 9
 	 * @return     	object 	$result		Return row, if lottery combination file(s) previously exists for the given lottery, else no record found and return false			
 	 */
-	public function lottery_combination_files($lotto_id)
+	public function lottery_combination_files($R)
 	{
 
-			$sql = "SELECT * FROM `lottery_combination_files` WHERE `lottery_id`=".$lotto_id;
-			$result = $this->db->query($sql);
-			
-			if (empty($result->row())) return FALSE;
-	return $result->result_object;
+		// Fetch combination files based on pick_id
+    	return $this->db->where('R', $R)
+                    ->get('lottery_combination_files')
+                    ->result();
 	}
 
 	/**
@@ -88,9 +87,14 @@ class Predictions_m extends MY_Model
 	*/
 	public function lottery_combo_save($data)
 	{
-		$this->db->reset_query();
-		$this->db->set($data);		// Set the query with the key / value pairs
-		return $this->db->insert('lottery_combination_files');
+		// Ensure the data includes pick_id instead of lottery_id
+    	$combo_data = [
+			'file_name' => $data['file_name'],
+			'N' => $data['N'], // Number of predictions
+			'R' => $data['R'], // Pick game (e.g., 3, 4, 5, 6, etc.)
+			'CCCC' => $data['CCCC'], // Calculated combinations
+    	];
+		return $this->db->insert('lottery_combination_files', $combo_data);
 	}
 
 	/**
@@ -385,5 +389,61 @@ class Predictions_m extends MY_Model
 			return FALSE; // Return FALSE if no data exists
 		}
 		return $result->row_array(); // Return the result as an associative array
+	}
+	/**
+     * Retrieves the list of all countries.
+     * @param $lottery_id	
+     * @return array An array of country objects with `id` and `name` fields.
+     */
+    public function get_countries($lottery_id)
+    {
+        return $this->db->select('lottery_country_id')->from('lottery_profiles')->where('lottery_id', $lottery_id)->get()->result();
+    }
+	/**
+     * Retrieves the list of provinces/states for a specific country.
+     *
+     * @param int $country_id The ID of the country.
+     * @return array An array of province/state objects with `id` and `name` fields.
+     */
+    public function get_prov_states($country_id)
+    {
+        return $this->db->select('lottery_state_prov')->from('lottery_profiles')->where('country_id', $country_id)->get()->result();
+    }
+	/**
+     * Retrieves the list of lottery games for a specific country and province/state.
+     *
+     * @param int $country_id The ID of the country.
+     * @param string $province_id The ID of the province/state or "ALL" for country-wide lotteries.
+     * @return array An array of lottery game objects with `id` and `name` fields.
+     */
+    public function get_lottery_games($country_id, $province_id)
+    {
+        $this->db->select('id, name')->from('lottery_games')->where('country_id', $country_id);
+        if ($province_id !== 'ALL') {
+            $this->db->where('province_id', $province_id);
+        }
+        return $this->db->get()->result();
+    }
+	/**
+     * Retrieves the list of wheeling tables for a specific lottery game.
+     *
+     * @param int $lottery_id The ID of the lottery game.
+     * @return array Field file_name wheeling (coverage) table to be returned from the lottery_id, to retrieve the text file.
+     */
+    public function get_wheeling_tables($lottery_id)
+    {
+        return $this->db->select('file_name')->from('lottery_combination_files')->where('lottery_id', $lottery_id)->get()->result();
+    }
+	/**
+	 * Checks if there is at least one generated file for the given number of balls drawn (R).
+	 *
+	 * @param int $balls_drawn The number of balls drawn (R) for the lottery.
+	 * @return bool TRUE if at least one file exists, FALSE otherwise.
+	 */
+	public function has_generated_file($balls_drawn)
+	{
+		$result = $this->db->where('R', $balls_drawn)
+						->count_all_results('lottery_combination_files');
+		return $result > 0;
 	}
 }

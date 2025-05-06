@@ -187,8 +187,8 @@ class Lotteries_m extends MY_Model
 		$lottery->lottery_name = '';
 		$lottery->lottery_description = '';
 		$lottery->lottery_image = '';
-		$lottery->lottery_country_id = '';
-		$lottery->lottery_state_prov = '';
+		$lottery->lottery_country_id = NULL;
+		$lottery->lottery_state_prov = NULL;
 		$lottery->balls_drawn = 0;
 		$lottery->minimum_ball = 0;
 		$lottery->maximum_ball = 0;

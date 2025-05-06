@@ -11,7 +11,6 @@ class Predictions extends Admin_Controller {
 		 $this->load->library('Math_Combinatorics'); // * Originally from the Pear Libraries *
 		 $this->load->model('maintenance_m'); 
 	}
-
 	/**
 	 * Retrieves List of All Lotteries
 	 * 
@@ -22,6 +21,10 @@ class Predictions extends Admin_Controller {
 	{ 
 		// Fetch all lotteries from the database
 		$this->data['lotteries'] = $this->lotteries_m->get();
+		// Check if there is at least one generated file for each lottery
+		foreach ($this->data['lotteries'] as &$lottery) {
+			$lottery->has_generated_file = $this->predictions_m->has_generated_file($lottery->balls_drawn); // Check if a file exists
+		}
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
@@ -50,7 +53,6 @@ class Predictions extends Admin_Controller {
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		$this->data['lottery']->predict = $this->input->post('ball_predict', TRUE);
 		$this->data['lottery']->pick = $this->input->post('lottery_balls_drawn', TRUE);
-		
 		if(isset($this->data['lottery']->predict)&&isset($this->data['lottery']->pick))	// Must be posted precict and pick
 		{
 			$combo_rules = $this->predictions_m->rules;
@@ -73,7 +75,6 @@ class Predictions extends Admin_Controller {
 		$this->data['subview'] = 'admin/dashboard/predictions/combinations';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
-
 	/**
 	 * Adds a record to the database and creates a blank text file for generating the full wheeling table
 	 * Check for a duplicate filename, return error or add new db record and save filename in combinations directory
@@ -81,7 +82,6 @@ class Predictions extends Admin_Controller {
 	 * @param       integer	$id		Lottery id
 	 * @return      none
 	 */
-
 	public function combo_save($id)
 	{
 		$this->data['message'] = '';	// Defaulted to No Error Messages
@@ -102,13 +102,13 @@ class Predictions extends Admin_Controller {
 		}
 		else
 		{
-			$combo_data = array(
-				'file_name'	=> $file_name,
-				'N'	=>	$this->data['lottery']->predict,
-				'R'	=>	$this->data['lottery']->pick,
-				'CCCC' => $this->data['combinations'],
-				'lottery_id' => $id
-			);
+			$combo_data = [
+            'file_name' => $file_name,
+            'N' => $this->data['lottery']->predict,
+            'R' => $this->data['lottery']->pick,
+            'CCCC' => $this->data['combinations'],
+            'pick_id' => $this->data['lottery']->pick, // Use pick_id instead of lottery_id
+        	];
 
 			if(!$this->predictions_m->lottery_combo_save($combo_data))
 			{
@@ -145,14 +145,14 @@ class Predictions extends Admin_Controller {
 	/**
 	 * Begin the generation process, go to a form that selects the proper combination 
 	 * File or start the generate combinations calls to html and php.
-	 * @param       integer $id		Lottery id
+	 * @param       integer $R		Pick Number for the lottery
 	 * @return      none
 	 */
 	public function generate($id)
 	{
 		$this->data['message'] = '';			// Defaulted to No Error Messages
 		$this->data['lottery'] = $this->lotteries_m->get($id);
-		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_files($id);
+		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_files($this->data['lottery']->balls_drawn);
 		if(count($this->data['lottery']->generate)>1) 
 		{
 			$this->data['predictions'] = $this;		// Access the methods in the view
@@ -440,7 +440,7 @@ class Predictions extends Admin_Controller {
 	{
 		$this->data['message'] = '';			// Defaulted to No Error Messages
 		$this->data['lottery'] = $this->lotteries_m->get($id);
-		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_files($id); //$this->predictions_m->all_combination_files();
+		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_files($this->data['lottery']->balls_drawn); //$this->predictions_m->all_combination_files();
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
@@ -452,6 +452,29 @@ class Predictions extends Admin_Controller {
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 	
+	/**
+	 * Main Prediction Futures Selection 
+	 * 
+	 * @param       none	
+	 * @return      none
+	 */
+	public function futures($id)
+	{
+		$this->data['message'] = '';			// Defaulted to No Error Messages
+		
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		$this->data['countries'] = $this->get_countries($id);
+		$this->data['lottery_state_prov'] = $this->get_prov_states($this->data['countries']);
+		// Load the view
+		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/futures');
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	
+		$this->data['subview'] = 'admin/dashboard/predictions/futures';
+		$this->load->view('admin/_layout_main', $this->data);
+	}
 	/**
 	 * Views all Combinations from this file, filtering and Draw Search Options
 	 *  being imported in the database
@@ -597,12 +620,12 @@ class Predictions extends Admin_Controller {
 	/**
 	 * Activate the link, if there are combo files waiting to be generated
 	 * 
-	 * @param       int		$id				Lottery_id associated with Combination Generated Files
+	 * @param       int		$result			Number of Combination Files for a pick lottery
 	 * @return      boolean TRUE / FALSE	True on Combination Files in the DB or FALSE that there is no record of the combination files.
 	 */
-	public function active($id) 
+	public function active($result) 
 	{
-		return ($this->predictions_m->lottery_combination_files($id) ? TRUE : FALSE);
+		return ($result > 0 ? TRUE : FALSE);
 	}
 	/**
 	 * Generate Full Wheeling Tables
@@ -730,21 +753,65 @@ class Predictions extends Admin_Controller {
 	return FALSE;
 	}
 	/**
- * Custom validation callback to ensure the number of balls to predict (N)
- * is greater than the number to pick (R).
- *
- * @param none 
- * @return bool Returns TRUE if valid, otherwise FALSE.
- */
-public function _validate_picks($str)
-{
-    if (intval($this->input->post('ball_predict') <= (intval($this->input->post('lottery_balls_drawn'))))) {	
-        $this->form_validation->set_message(
-            '_validate_picks',
-            'The Number of Balls to Predict (N) must be greater than the Number to Balls to Pick (R).'
-        );
-        return FALSE; // Validation failed
+	 * Custom validation callback to ensure the number of balls to predict (N)
+	 * is greater than the number to pick (R).
+	 *
+	 * @param none 
+	 * @return bool Returns TRUE if valid, otherwise FALSE.
+	 */
+	public function _validate_picks($str)
+	{
+		if (intval($this->input->post('ball_predict') <= (intval($this->input->post('lottery_balls_drawn'))))) {	
+			$this->form_validation->set_message(
+				'_validate_picks',
+				'The Number of Balls to Predict (N) must be greater than the Number to Balls to Pick (R).'
+			);
+			return FALSE; // Validation failed
+		}
+		return TRUE; // Validation passed
+	}
+	/**
+     * Fetches the list of countries for the first dropdown.
+     * @parm   none  
+     * @return string $countries Outputs string abreviation of Country
+     */
+    public function get_countries($id)
+    {
+        $countries = $this->predictions_m->get_countries($id);
+	return $countries;
     }
-    return TRUE; // Validation passed
-}
+	 /**
+     * Fetches the list of provinces/states based on the selected country.
+     *
+     * @param int $country_id The ID of the selected country.
+     * @return  Outputs a JSON-encoded array of provinces/states.
+     */
+    public function get_prov_states($country_id)
+    {
+        $prov_state = $this->predictions_m->get_prov_states($country_id);
+ 	return $prov_state;
+	}
+	/**
+     * Fetches the list of lottery games based on the selected country and province/state.
+     *
+     * @param int $country_id The ID of the selected country.
+     * @param string $province_id The ID of the selected province/state or "ALL" for country-wide lotteries.
+     * @return void Outputs a JSON-encoded array of lottery games.
+     */
+    public function get_lottery_games($country_id, $province_id)
+    {
+        $lottery_games = $this->predictions_m->get_lottery_games($country_id, $province_id);
+        echo json_encode($lottery_games);
+    }
+	/**
+     * Fetches the list of wheeling tables based on the selected lottery game.
+     *
+     * @param int $lottery_id The ID of the selected lottery game.
+     * @return void Outputs a JSON-encoded array of wheeling tables.
+     */
+    public function get_wheeling_tables($lottery_id)
+    {
+        $wheeling_table = $this->predictions_m->get_wheeling_tables($lottery_id);
+        echo json_encode($wheeling_table);
+    }
 }

@@ -96,7 +96,7 @@
 									<?php $extra = array('class' => 'btn btn-primary btn-lg btn-info', 
 														'style' => "padding:5px; margin: 0 auto; display: block; margin:20px 20px");
 										echo form_submit('submit', 'Update Full Combination', $extra);
-										$js = "javascript: form.action='".base_url()."/admin/predictions/combo_save/".$lottery->id."'";
+										$js = "javascript: form.action='".base_url()."admin/predictions/combo_save/".$lottery->id."'";
 										$class = "btn btn-primary btn-lg btn-info";
 										$attributes = array(
 											'class' 	=> "$class",
@@ -105,7 +105,7 @@
 										);
 										if(!$save) $attributes['disabled'] = 'disabled';
 										echo form_submit('combo_save', 'Save Combination File', $attributes);  	
-										$js = "location.href='".base_url()."/admin/predictions/'";
+										$js = "location.href='".base_url()."admin/predictions/'";
 										$attributes = array(
 										'class' 	=> "btn btn-primary btn-lg btn-info",
 										'onClick' 	=> "$js", 
