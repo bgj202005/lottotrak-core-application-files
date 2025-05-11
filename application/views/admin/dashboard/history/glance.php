@@ -230,7 +230,7 @@ $b = 1;
 															<i class="ion ion-ios-refresh-empty"></i>
 														</p>
 														<p class="d-flex flex-column text-right">
-															<span class="text-muted">DIGITS SUMS</span>
+															<span class="text-muted">DIGIT SUMS</span>
 														</p>
 													</div>
 													<!-- /.d-flex -->
@@ -242,7 +242,7 @@ $b = 1;
 													$s = '';
 													foreach ($digits_counts as $c => $t) :
 														$digits = explode('=', $t);
-														if (($digits[0] != '0') && ($digits[1] != '0')) $s .= 'Digits Sum: <strong>' . $digits[0] . '</strong> has occurred <strong>' . $digits[1] . "</strong> times.<br />";
+														if (($digits[0] != '0') && ($digits[1] != '0')) $s .= 'Digit Sum: <strong>' . $digits[0] . '</strong> has occurred <strong>' . $digits[1] . "</strong> times.<br />";
 													endforeach;
 													$s = (!empty($s) ? substr($s, 0, -2) . '.' : 'There are no digit sums for this lottery.<br />');
 													echo "<br />";
@@ -251,7 +251,7 @@ $b = 1;
 													$top = explode('=', $digits_range[0]);
 													foreach ($percents as $k => $v) :
 														if (intval($top[0]) == intval($k)):
-															$s = "<p>The digits sum had an <strong>" . $digits_range[1] . "</strong> of <strong>" . $v . "</strong>% from the previous draw and has occurred <strong>" . $top[1] . "</strong> times.</p>";
+															$s = "<p>The digit sums had an <strong>" . $digits_range[1] . "</strong> of <strong>" . $v . "</strong>% from the previous draw and has occurred <strong>" . $top[1] . "</strong> times.</p>";
 															break;
 														endif;
 													endforeach;
