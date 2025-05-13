@@ -28,9 +28,11 @@ if (isset($meta_canonical)&&$meta_canonical) echo '<link rel="canonical" href="'
 <!-- Include all compiled plugins (below), or include individual files as needed -->
 <link href='http://fonts.googleapis.com/css?family=Lato:400,700,900,400italic,700italic,900italic' rel='stylesheet' type='text/css'>
 <!-- jQuery -->
-<script type="text/javascript" src="<?php // echo site_url('js/jquery/jquery.js') ?>"></script>
 <script src="<?php echo site_url('js/jquery.smartmenus.min.js');?>" type="text/javascript"></script>
 <script src="<?php echo site_url('js/jquery.responsivemenu.js');?>" type="text/javascript"></script>
+<!-- SmartMenus Bootstrap 4 Addon -->
+<script src="<?php echo site_url('js/jquery.smartmenus.bootstrap-4.min.js'); ?>" type="text/javascript"></script>
+<link href="<?php echo site_url('css/jquery.smartmenus.bootstrap-4.css'); ?>" rel="stylesheet">
    	<script>
 		$(document).ready(function() { 
 			$('.play-button').hover(
