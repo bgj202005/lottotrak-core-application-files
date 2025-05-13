@@ -49,31 +49,49 @@ function add_meta_noindex()
 	$CI = &get_instance();
 	$CI->data['meta_noindex'] = TRUE;
 }
-
-
-function get_menu ($array, $m = FALSE, $child = FALSE)
+function get_menu($array, $m = FALSE, $child = FALSE)
 {
-	$str = '';
-	if (count($array)) 
- 	{
-	if ($child==FALSE) { $str .= '<ul id="top-menu" class="sm sm-clean">'.PHP_EOL; }
-	foreach ($array as $item) 
-		{
-			$str .= (!$m ? '<li><a href="'.site_url($item['slug']).'">'.e(($item['slug']=='home'? "Home" : $item['title'])).'</a>'
-			: '<li><a href="'.site_url($item['slug']).'" class = "disabled">'.e(($item['slug']=='home'? "Home" : $item['title'])).'</a>');
-			// Do we have any children?
-			if (isset($item['children']) && count($item['children'])) 
-			{
-				$str .= '<ul>'. PHP_EOL;
-				$str .= get_menu($item['children'], $m, TRUE);
-				$str .= '</ul>';
-			}
-			//$str .= '</li>' . PHP_EOL;
-			//$str .= $child == TRUE ? '</ul></li>' : '</li>';	
-		}
-	if ($child==FALSE) { $str .= '</ul>'; }
-	}
-return $str;
+    $str = '';
+    if ($m) {
+        // If maintenance mode is enabled, show a simple message
+        return '<nav class="navbar navbar-expand-lg navbar-dark bg-dark"><span class="navbar-text text-white">Maintenance Mode</span></nav>';
+    }
+
+    if (count($array)) {
+        if ($child == FALSE) {
+            $str .= '<nav class="navbar navbar-expand-lg navbar-dark bg-dark">' . PHP_EOL;
+            $str .= '<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#top-menu" aria-controls="top-menu" aria-expanded="false" aria-label="Toggle navigation" style="margin-left: auto;">' . PHP_EOL;
+            $str .= '<span class="navbar-toggler-icon"></span>' . PHP_EOL;
+            $str .= '</button>' . PHP_EOL;
+            $str .= '<div class="collapse navbar-collapse" id="top-menu">' . PHP_EOL;
+            $str .= '<ul class="navbar-nav ml-auto">' . PHP_EOL; // Align menu items to the right
+        }
+
+        foreach ($array as $item) {
+            $hasChildren = isset($item['children']) && count($item['children']);
+            $str .= '<li class="nav-item' . ($hasChildren ? ' dropdown' : '') . '">' . PHP_EOL;
+
+            if ($hasChildren) {
+                $str .= '<a href="' . site_url($item['slug']) . '" class="nav-link dropdown-toggle" id="dropdown' . $item['slug'] . '" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">' . e(($item['slug'] == 'home' ? "Home" : $item['title'])) . '</a>' . PHP_EOL;
+                $str .= '<div class="dropdown-menu" aria-labelledby="dropdown' . $item['slug'] . '">' . PHP_EOL;
+                foreach ($item['children'] as $child) {
+                    $str .= '<a href="' . site_url($child['slug']) . '" class="dropdown-item">' . e($child['title']) . '</a>' . PHP_EOL;
+                }
+                $str .= '</div>' . PHP_EOL;
+            } else {
+                $str .= '<a href="' . site_url($item['slug']) . '" class="nav-link">' . e(($item['slug'] == 'home' ? "Home" : $item['title'])) . '</a>' . PHP_EOL;
+            }
+
+            $str .= '</li>' . PHP_EOL;
+        }
+
+        if ($child == FALSE) {
+            $str .= '</ul>' . PHP_EOL;
+            $str .= '</div>' . PHP_EOL;
+            $str .= '</nav>' . PHP_EOL;
+        }
+    }
+    return $str;
 }
 
 function get_footer_menu($array, $m = FALSE, $class = NULL) 
