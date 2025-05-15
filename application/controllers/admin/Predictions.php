@@ -463,8 +463,8 @@ class Predictions extends Admin_Controller {
 		$this->data['message'] = '';			// Defaulted to No Error Messages
 		
 		$this->data['lottery'] = $this->lotteries_m->get($id);
-		$this->data['countries'] = $this->get_countries($id);
-		$this->data['lottery_state_prov'] = $this->get_prov_states($this->data['countries']);
+		$this->data['country_code'] = $this->predictions_m->get_lottery_country($id);
+		$this->data['state_prov_code'] = $this->predictions_m->get_lottery_state_prov($id);
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/futures');

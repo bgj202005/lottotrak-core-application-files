@@ -1,5 +1,9 @@
 <link href="https://unpkg.com/bootstrap-table@1.18.0/dist/bootstrap-table.min.css" rel="stylesheet">
 <link href="https://unpkg.com/bootstrap-table@1.18.0/dist/extensions/reorder-rows/bootstrap-table-reorder-rows.css" rel="stylesheet">
+<!-- Bootstrap Form Helper CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-formhelpers/2.3.0/css/bootstrap-formhelpers.min.css">
+<!-- Bootstrap Form Helper JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-formhelpers/2.3.0/js/bootstrap-formhelpers.min.js"></script>
 <style>
 	.card {
     background-color: #ffffff;
@@ -94,12 +98,7 @@
 					echo form_label('Country', 'country', $extra);
 					?>
 					<div class="col-6">
-						<?php
-						$country_options = ['' => 'Select Country'] + $countries; // $countries should be passed from the controller
-						$extra = ['class' => 'form-control', 'id' => 'country', 'onchange' => 'fetchProvinces(this.value)'];
-						echo form_dropdown('country', $country_options, set_value('country', $lottery->lottery_country_id), $extra);
-						echo form_error('country', '<div class="bg-warning mt-2 p-2 text-center text-white">', '</div>');
-						?>
+						<span id="country-name"></span>	
 					</div>
 				</div>
 				<!-- Province/State Dropdown -->
@@ -109,12 +108,7 @@
 					echo form_label('Province/State', 'province', $extra);
 					?>
 					<div class="col-6">
-						<?php
-						$province_options = ['' => 'Select Province/State', 'ALL' => 'ALL']; // Default options
-						$extra = ['class' => 'form-control', 'id' => 'province', 'onchange' => 'fetchLotteryGames(this.value)', 'disabled' => 'disabled'];
-						echo form_dropdown('province', $province_options, set_value('province', $lottery->lottery_state_prov), $extra);
-						echo form_error('province', '<div class="bg-warning mt-2 p-2 text-center text-white">', '</div>');
-						?>
+						<span id="state-name"></span>
 					</div>
 				</div>
 				<!-- Lottery Game Dropdown -->
@@ -158,81 +152,22 @@
 			</div>
 		</section>
 	<script>
-    $(document).ready(function () {
-        // Fetch provinces/states when a country is selected
-        $('#country').change(function () {
-            var country_id = $(this).val();
-            $('#province').prop('disabled', true).empty().append('<option value="">Select Province/State</option><option value="ALL">ALL</option>');
-            $('#lottery').prop('disabled', true).empty().append('<option value="">Select Lottery Game</option>');
-            $('#wheeling').prop('disabled', true).empty().append('<option value="">Select Wheeling Table</option>');
-            $('#submit-btn').prop('disabled', true);
+    // Pass PHP variables to JavaScript
+    const countryCode = '<?php echo $country_code; ?>';
+    const stateProvCode = '<?php echo $state_prov_code; ?>';
+    // Run your script after the page is loaded
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log('Country Code:', countryCode);
+        console.log('State/Province Code:', stateProvCode);
 
-            if (country_id) {
-                $.ajax({
-                    url: '<?php echo base_url("admin/predictions/get_provinces/"); ?>' + country_id,
-                    method: 'GET',
-                    dataType: 'json',
-                    success: function (data) {
-                        $('#province').prop('disabled', false);
-                        $.each(data, function (key, value) {
-                            $('#province').append('<option value="' + value.id + '">' + value.name + '</option>');
-                        });
-                    }
-                });
-            }
-        });
+        // Example: Use the codes to display full names
+        const countryName = BFHCountriesList[countryCode] || 'Unknown Country';
+        const stateName = stateProvCode
+            ? (BFHStatesList[countryCode] && BFHStatesList[countryCode][stateProvCode]) || 'Unknown State/Province'
+            : (countryCode === 'CA' ? 'All Provinces' : countryCode === 'US' ? 'All States' : 'All Regions');
 
-        // Fetch lottery games when a province/state is selected
-        $('#province').change(function () {
-            var country_id = $('#country').val();
-            var province_id = $(this).val();
-            $('#lottery').prop('disabled', true).empty().append('<option value="">Select Lottery Game</option>');
-            $('#wheeling').prop('disabled', true).empty().append('<option value="">Select Wheeling Table</option>');
-            $('#submit-btn').prop('disabled', true);
-
-            if (province_id) {
-                $.ajax({
-                    url: '<?php echo base_url("admin/predictions/get_lottery_games/"); ?>' + country_id + '/' + province_id,
-                    method: 'GET',
-                    dataType: 'json',
-                    success: function (data) {
-                        $('#lottery').prop('disabled', false);
-                        $.each(data, function (key, value) {
-                            $('#lottery').append('<option value="' + value.id + '">' + value.name + '</option>');
-                        });
-                    }
-                });
-            }
-        });
-
-        // Fetch wheeling tables when a lottery game is selected
-        $('#lottery').change(function () {
-            var lottery_id = $(this).val();
-            $('#wheeling').prop('disabled', true).empty().append('<option value="">Select Wheeling Table</option>');
-            $('#submit-btn').prop('disabled', true);
-
-            if (lottery_id) {
-                $.ajax({
-                    url: '<?php echo base_url("admin/predictions/get_wheeling_tables/"); ?>' + lottery_id,
-                    method: 'GET',
-                    dataType: 'json',
-                    success: function (data) {
-                        $('#wheeling').prop('disabled', false);
-                        $.each(data, function (key, value) {
-                            $('#wheeling').append('<option value="' + value.id + '">' + value.name + '</option>');
-                        });
-                    }
-                });
-            }
-        });
-
-        // Enable the submit button when a wheeling table is selected
-        $('#wheeling').change(function () {
-            if ($(this).val()) {
-                $('#submit-btn').prop('disabled', false);
-            } else {
-                $('#submit-btn').prop('disabled', true);
-            }
-        });
+        // Display the names in the view
+        document.getElementById('country-name').textContent = countryName;
+        document.getElementById('state-name').textContent = stateName;
     });
 </script>

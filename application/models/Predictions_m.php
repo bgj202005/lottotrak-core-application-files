@@ -354,10 +354,8 @@ class Predictions_m extends MY_Model
 	 */
 	public function calculate_matching_tickets($combinations, $required_matches) {
 		$matching_tickets = 0;
-
 		 // Define the range of winning numbers (e.g., 1 to the maximum number of balls)
 		$winning_numbers = range(1, $required_matches);
-
 		foreach ($combinations as $combination) {
 			// Convert the combination string into an array of numbers
 			$numbers = explode(' ', trim($combination));
@@ -446,4 +444,39 @@ class Predictions_m extends MY_Model
 						->count_all_results('lottery_combination_files');
 		return $result > 0;
 	}
+	/**
+     * Get the country code for a lottery
+     * @param int $id Lottery ID
+     * @return string|null Country code
+     */
+    public function get_lottery_country($lottery_id)
+    {
+        $this->db->select('lottery_country_id');
+        $this->db->from('lottery_profiles');
+        $this->db->where('id', $lottery_id);
+        $query = $this->db->get();
+
+        if ($query->num_rows() > 0) {
+            return $query->row()->lottery_country_id;
+        }
+        return null; // Return null if no record is found
+    }
+	/**
+     * Get the state/province code for a lottery
+     * @param int $lottery_id Lottery ID
+     * @return string|null State/Province code or NULL if blank
+     */
+    public function get_lottery_state_prov($lottery_id)
+    {
+        $this->db->select('lottery_state_prov');
+        $this->db->from('lottery_profiles');
+        $this->db->where('id', $lottery_id);
+        $query = $this->db->get();
+
+        if ($query->num_rows() > 0) {
+            $state_prov = $query->row()->lottery_state_prov;
+            return !empty($state_prov) ? $state_prov : null; // Return NULL if blank
+        }
+        return null; // Return null if no record is found
+    }
 }
