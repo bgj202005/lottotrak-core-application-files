@@ -465,6 +465,12 @@ class Predictions extends Admin_Controller {
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		$this->data['country_code'] = $this->predictions_m->get_lottery_country($id);
 		$this->data['state_prov_code'] = $this->predictions_m->get_lottery_state_prov($id);
+		// Fetch combination files for the lottery
+    	$this->data['combination_files'] = $this->predictions_m->get_combination_files($id);
+		// Fetch H-W-C, Followers, and Friends data
+		$this->data['h_w_c'] = $this->predictions_m->get_h_w_c($id);
+		$this->data['followers'] = $this->predictions_m->get_followers($id);
+		$this->data['friends'] = $this->predictions_m->get_friends($id);
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/futures');
@@ -510,7 +516,6 @@ class Predictions extends Admin_Controller {
 		{
 			$this->data['message'] = 'The Combination File of Picks could not be loaded.';
 		}
-		
 		$sel_range = 1;								// All Defaults
 		if($new_range>=400) $sel_range = intval($new_range / 400);
 		$this->data['interval'] = $interval;		// Record the interval here (for the dropdown)

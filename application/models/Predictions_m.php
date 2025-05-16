@@ -479,4 +479,66 @@ class Predictions_m extends MY_Model
         }
         return null; // Return null if no record is found
     }
+	/**
+     * Get combination files for a lottery
+     * @param int $lottery_id
+     * @return array
+     */
+    public function get_combination_files($lottery_id)
+    {
+        // Get the balls_drawn value for the lottery
+        $this->db->select('balls_drawn');
+        $this->db->from('lottery_profiles');
+        $this->db->where('id', $lottery_id);
+        $lottery = $this->db->get()->row();
+        if (!$lottery) {
+            return []; // Return an empty array if the lottery is not found
+        }
+        $balls_drawn = $lottery->balls_drawn;
+        // Fetch combination files that match the balls_drawn value
+        $this->db->select('file_name, N, CCCC');
+        $this->db->from('lottery_combination_files');
+        $this->db->where('R', $balls_drawn); // Match the balls_drawn value
+        $query = $this->db->get();
+        return $query->result_array(); // Return the result as an array
+    }
+	/**
+     * Retrieves the H-W-C (High, Winning, Cold) range, extra draws, and extra included settings for a lottery.
+     *
+     * @param int $lottery_id The ID of the lottery.
+     * @return array An associative array containing the range, extra_included, and extra_draws values.
+     */
+    public function get_h_w_c($lottery_id)
+    {
+        $this->db->select('range, extra_included, extra_draws');
+        $this->db->from('lottery_h_w_c');
+        $this->db->where('lottery_id', $lottery_id);
+        return $this->db->get()->row_array();
+    }
+    /**
+     * Retrieves the Followers range, extra draws, and extra included settings for a lottery.
+     *
+     * @param int $lottery_id The ID of the lottery.
+     * @return array An associative array containing the range, extra_included, and extra_draws values.
+     */
+    public function get_followers($lottery_id)
+    {
+        $this->db->select('range, extra_included, extra_draws');
+        $this->db->from('lottery_followers');
+        $this->db->where('lottery_id', $lottery_id);
+        return $this->db->get()->row_array();
+    }
+    /**
+     * Retrieves the Friends range, extra draws, and extra included settings for a lottery.
+     *
+     * @param int $lottery_id The ID of the lottery.
+     * @return array An associative array containing the range, extra_included, and extra_draws values.
+     */
+    public function get_friends($lottery_id)
+    {
+        $this->db->select('range, extra_included, extra_draws');
+        $this->db->from('lottery_friends');
+        $this->db->where('lottery_id', $lottery_id);
+        return $this->db->get()->row_array();
+    }
 }
