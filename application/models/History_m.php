@@ -713,7 +713,6 @@ class History_m extends MY_Model
         unset($dr);
     return $drawn;
 	}
-    
     /** 
 	* Adds the prize array to each number drawm in the last draw and the position of each drawn number
 	* 
@@ -746,7 +745,6 @@ class History_m extends MY_Model
         }
     return $last_draw; // (array) of prize group arrays and positional prize group array
     }
-    
     /** 
 	* Adds the prize array to each number drawm in the last draw and the position of each drawn number
 	* 
@@ -787,5 +785,67 @@ class History_m extends MY_Model
             }
         }
     return $last_draw;   	
+    }
+    /** 
+	* Adds the prize points element to each number drawm in the last draw and the position points element of each drawn number
+	* 
+	* @param 	array	$last_draw	 key / value pairs of the last drawn numbers in this lottery
+	* @param	integer $drn		The number of drawn numbers for this lottery, e.g. Canada 649 has 6 numbers plus the extra / bonus number
+	* @param	boolean $ex		    The lottery has an extra / bonus flag. No Extra Ball = 0 (FALSE), Extra/Bonus ball included = 1 (TRUE) 
+	* @return   array   $last_draw  Return index array of the last drawn numbers including the associated array of the prize pool for each number drawn	
+	*/
+    public function last_draw_addpoints($last_draw, $drn, $ex)
+    {
+        // For each ball
+        for ($b = 1; $b <= $drn; $b++) {
+            // Ball win
+            $win_key = 'ball' . $b . '_win';
+            $total_key = 'ball' . $b . '_total';
+            $last_draw[$total_key] = 0;
+            if (isset($last_draw[$win_key]) && is_array($last_draw[$win_key])) {
+                $win_counter = 1;
+                foreach ($last_draw[$win_key] as $cat => $val) {
+                    $points = $win_counter * intval($val);
+                    $last_draw[$total_key] += $points;
+                    // Store points inside the win array
+                    $last_draw[$win_key][$cat . '_points'] = $points;
+                    $win_counter++;
+                }
+            }
+            // Position win
+            $pos_key = 'position' . $b . '_win';
+            $pos_total_key = 'position' . $b . '_total';
+            $last_draw[$pos_total_key] = 0;
+            if (isset($last_draw[$pos_key]) && is_array($last_draw[$pos_key])) {
+                $win_counter = 1;
+                foreach ($last_draw[$pos_key] as $cat => $val) {
+                    $points = $win_counter * intval($val);
+                    $last_draw[$pos_total_key] += $points;
+                    // Store points inside the position win array
+                    $last_draw[$pos_key][$cat . '_points'] = $points;
+                    $win_counter++;
+                }
+            }
+        }
+        // For extra ball if $ex is true
+        if ($ex) {
+            if (isset($last_draw['extra_win']) && is_array($last_draw['extra_win'])) {
+                $win_counter = 1;
+                foreach ($last_draw['extra_win'] as $cat => $val) {
+                    $points = $win_counter * intval($val);
+                    $last_draw['extra_win'][$cat . '_points'] = $points;
+                    $win_counter++;
+                }
+            }
+            if (isset($last_draw['position_extra_win']) && is_array($last_draw['position_extra_win'])) {
+                $win_counter = 1;
+                foreach ($last_draw['position_extra_win'] as $cat => $val) {
+                    $points = $win_counter * intval($val);
+                    $last_draw['position_extra_win'][$cat . '_points'] = $points;
+                    $win_counter++;
+                }
+            }
+        }
+        return $last_draw;
     }
 }

@@ -1460,7 +1460,7 @@ class Statistics_m extends MY_Model
 	 * 
 	 * @param 	array			$p	DB record of prize group profile
 	 * @param 	boolean			$e	Extra Included
-	 * @return	array 			$p	Returns only the winning prizes and removes the NULL prizes (don't exist)
+	 * @return	array 			$p	Returns only the winnin g prizes and removes the NULL prizes (don't exist)
 	 */
 	public function prizes_only(array $p, $e)	
 	{
@@ -1603,7 +1603,7 @@ class Statistics_m extends MY_Model
 								{
 									$followlist = $this->update_followers($followlist, $row);
 								}
-								else
+								else 
 								{
 									$followlist = $this->add_followers($row);
 								}

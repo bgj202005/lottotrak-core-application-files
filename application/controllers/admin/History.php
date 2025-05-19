@@ -569,6 +569,7 @@ class History extends Admin_Controller {
 			$follow_poswins = explode(">", $followers['positions']);
 			// 5. Only populate the numbers with the win record that was actually drawn
 			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included,$p_group,$follower_wins,$follow_poswins);
+			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included);
 		}
 		else // The prize details have not been found or instantiated
 		{
@@ -585,7 +586,6 @@ class History extends Admin_Controller {
 		$this->data['subview']  = 'admin/dashboard/history/followers';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
-
 	/**
 	 * View the friends of drawn numbers that most often are drawn with this number. Default is 100 draws.
 	 * 
