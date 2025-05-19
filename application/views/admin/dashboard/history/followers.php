@@ -148,7 +148,6 @@
 						$best_pos_points = 0;
 						$max_balls = $lottery->balls_drawn;
 						if ($lottery->extra_included) $max_balls++;
-
 						for ($i = 1; $i <= $max_balls; $i++) {
 							// Ball points
 							$wins = ($i > $lottery->balls_drawn ? $lottery->last_drawn['extra_win'] : $lottery->last_drawn['ball'.$i.'_win']);
@@ -172,20 +171,6 @@
 							}
 						}
 						?>
-						<div class="row">
-							<div class="col-12">
-								<div class="alert alert-success text-center mb-2">
-									<strong>Ball with Highest Points:</strong>
-									<?= ($best_ball > $lottery->balls_drawn ? 'Extra Ball' : 'Ball '.$best_ball); ?>
-									(<?= $best_ball_points; ?> points)
-								</div>
-								<div class="alert alert-info text-center mb-4">
-									<strong>Position with Highest Points:</strong>
-									<?= ($best_pos > $lottery->balls_drawn ? 'Extra Ball Position' : 'Position '.$best_pos); ?>
-									(<?= $best_pos_points; ?> points)
-								</div>
-							</div>
-						</div>
 						<div class="tab-content" id="myTabContent">
 							<?php $b = 1;			   
 							$cd = intval($max);						  // This is the maximum ball drawn without an extra ball
@@ -193,147 +178,168 @@
 							do
 							{ ?> 
 							<div class="tab-pane fade p-3 <?php if($b==1) echo 'show active'; ?>" id="ball<?=$b?>" role="tabpanel" aria-labelledby="tab-<?=$b;?>">
-										<div class="card-deck mb-3 text-center">
-											<div class="card mb-4 shadow-sm">
-											<div class="card-header">
-												<h6 class="my-0 font-weight-normal card-title"><strong>Win Record After Ball <?=($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);?> has been drawn in <?=$lottery->last_drawn['range']; ?> draws</strong></h6>
-											</div>
-											<div class="card-body">
-												<?php // Prepare data
-												$wins = ($b > $cd ? $lottery->last_drawn['extra_win'] : $lottery->last_drawn['ball'.$b.'_win']);
-												$total_winners = 0;
-												$points_total = 0;
-												foreach ($wins as $key => $value) {
-													if (strpos($key, "_points") === false) $total_winners += intval($value);
-												}
-												?>
-												<table class="table table-bordered table-sm mb-3 w-100 mx-auto">
-													<thead class="thead-light">
-														<tr>
-															<th>Category</th>
-															<th>Winners</th>
-															<th>Points</th>
-															<th>(%) Percentage</th>
-														</tr>
-													</thead>
-													<tbody>
-														<?php
-														foreach ($wins as $prize => $winners) {
-															if (strpos($prize, "_points") !== false) continue; // Only process main categories
-															$points = isset($wins[$prize . '_points']) ? $wins[$prize . '_points'] : 0;
-															$points_total += $points;
-															$percentage = $total_winners > 0 ? round(($winners / $total_winners) * 100, 2) : 0;
-															switch ($prize) {
-																case "9_win": $label = "9 out of $cd Winners"; break;
-																case "8_win_extra": $label = "8 out of $cd Winners + Extra"; break;
-																case "8_win": $label = "8 out of $cd Winners"; break;
-																case "7_win_extra": $label = "7 out of $cd Winners + Extra"; break;
-																case "7_win": $label = "7 out of $cd Winners"; break;
-																case "6_win_extra": $label = "6 out of $cd Winners + Extra"; break;
-																case "6_win": $label = "6 out of $cd Winners"; break;
-																case "5_win_extra": $label = "5 out of $cd Winners + Extra"; break;
-																case "5_win": $label = "5 out of $cd Winners"; break;
-																case "4_win_extra": $label = "4 out of $cd Winners + Extra"; break;
-																case "4_win": $label = "4 out of $cd Winners"; break;
-																case "3_win_extra": $label = "3 out of $cd Winners + Extra"; break;
-																case "3_win": $label = "3 out of $cd Winners"; break;
-																case "2_win_extra": $label = "2 out of $cd Winners + Extra"; break;
-																case "2_win": $label = "2 out of $cd Winners"; break;
-																case "1_win_extra": $label = "1 out of $cd Winners + Extra"; break;
-																case "1_win": $label = "1 out of $cd Winners"; break;
-																case "extra": $label = "Extra / Bonus Ball"; break;
-																default: $label = $prize;
-															}
-															?>
-															<tr>
-																<td><?= $label ?></td>
-																<td><?= $winners ?></td>
-																<td><?= $points ?></td>
-																<td><?= $percentage ?>%</td>
-															</tr>
-														<?php } ?>
-													</tbody>
-													<tfoot>
-														<tr>
-															<th colspan="2" class="text-right">Total Points:</th>
-															<th><?= $points_total ?></th>
-															<th></th>
-														</tr>
-													</tfoot>
-												</table>
-											</div>
-											</div>
-											<div class="card mb-4 shadow-sm">
-											<div class="card-header">
-											<h6 class="my-0 font-weight-normal"><strong>Win Record for Position <?=$b;?> (Ball <?=($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);?>) in <?=$lottery->last_drawn['range']; ?> draws</strong></h5>
-											</div>
-											<div class="card-body">
-												<?php
-												$positions = ($b > $cd ? $lottery->last_drawn['position_extra_win'] : $lottery->last_drawn['position'.$b.'_win']);
-												$total_winners_pos = 0;
-												$points_total_pos = 0;
-												foreach ($positions as $key => $value) {
-													if (strpos($key, "_points") === false) $total_winners_pos += intval($value);
-												}
-												?>
-												<table class="table table-bordered table-sm mb-3 w-100 mx-auto">
-													<thead class="thead-light">
-														<tr>
-															<th>Category</th>
-															<th>Winners</th>
-															<th>Points</th>
-															<th>(%) Percentage</th>
-														</tr>
-													</thead>
-													<tbody>
-														<?php
-														foreach ($positions as $prize => $winners) {
-															if (strpos($prize, "_points") !== false) continue;
-															$points = isset($positions[$prize . '_points']) ? $positions[$prize . '_points'] : 0;
-															$points_total_pos += $points;
-															$percentage = $total_winners_pos > 0 ? round(($winners / $total_winners_pos) * 100, 2) : 0;
-															switch ($prize) {
-																case "9_win": $label = "9 out of $cd Winners"; break;
-																case "8_win_extra": $label = "8 out of $cd Winners + Extra"; break;
-																case "8_win": $label = "8 out of $cd Winners"; break;
-																case "7_win_extra": $label = "7 out of $cd Winners + Extra"; break;
-																case "7_win": $label = "7 out of $cd Winners"; break;
-																case "6_win_extra": $label = "6 out of $cd Winners + Extra"; break;
-																case "6_win": $label = "6 out of $cd Winners"; break;
-																case "5_win_extra": $label = "5 out of $cd Winners + Extra"; break;
-																case "5_win": $label = "5 out of $cd Winners"; break;
-																case "4_win_extra": $label = "4 out of $cd Winners + Extra"; break;
-																case "4_win": $label = "4 out of $cd Winners"; break;
-																case "3_win_extra": $label = "3 out of $cd Winners + Extra"; break;
-																case "3_win": $label = "3 out of $cd Winners"; break;
-																case "2_win_extra": $label = "2 out of $cd Winners + Extra"; break;
-																case "2_win": $label = "2 out of $cd Winners"; break;
-																case "1_win_extra": $label = "1 out of $cd Winners + Extra"; break;
-																case "1_win": $label = "1 out of $cd Winners"; break;
-																case "extra": $label = "Extra / Bonus Ball"; break;
-																default: $label = $prize;
-															}
-														?>
-														<tr>
-															<td><?= $label ?></td>
-															<td><?= $winners ?></td>
-															<td><?= $points ?></td>
-															<td><?= $percentage ?>%</td>
-														</tr>
-														<?php } ?>
-													</tbody>
-													<tfoot>
-														<tr>
-															<th colspan="2" class="text-right">Total Points:</th>
-															<th><?= $points_total_pos ?></th>
-															<th></th>
-														</tr>
-													</tfoot>
-												</table>
-											</div>
-											</div>
+								<div class="row mb-2">
+									<div class="col-md-6">
+										<div class="alert alert-success text-center mb-2">
+											<strong>Ball with Highest Points:</strong>
+											<?php
+											if ($best_ball > $lottery->balls_drawn) {
+												echo '<strong>Extra Ball</strong> (' . $lottery->last_drawn['extra'] . ')';
+											} else {
+												echo 'Ball <strong>' . $lottery->last_drawn['ball'.$best_ball] . '</strong>';
+											}
+											?>
+											(<?= $best_ball_points; ?> points)
 										</div>
-										
+									</div>
+									<div class="col-md-6">
+										<div class="alert alert-info text-center mb-2">
+											<strong>Position with Highest Points:</strong>
+											<?= ($best_pos > $lottery->balls_drawn ? '<strong>Extra Ball</strong> Position' : 'Position <strong>'.$best_pos.'</strong>'); ?>
+											(<?= $best_pos_points; ?> points)
+										</div>
+									</div>
+								</div>
+								<div class="card-deck mb-3 text-center">
+									<div class="card mb-4 shadow-sm">
+									<div class="card-header">
+										<h6 class="my-0 font-weight-normal card-title"><strong>Win Record After Ball <?=($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);?> has been drawn in <?=$lottery->last_drawn['range']; ?> draws</strong></h6>
+									</div>
+									<div class="card-body">
+										<?php // Prepare data
+										$wins = ($b > $cd ? $lottery->last_drawn['extra_win'] : $lottery->last_drawn['ball'.$b.'_win']);
+										$total_winners = 0;
+										$points_total = 0;
+										foreach ($wins as $key => $value) {
+											if (strpos($key, "_points") === false) $total_winners += intval($value);
+										}
+										?>
+										<table class="table table-bordered table-sm mb-3 w-100 mx-auto">
+											<thead class="thead-light">
+												<tr>
+													<th>Category</th>
+													<th>Winners</th>
+													<th>Points</th>
+													<th>(%) Percentage</th>
+												</tr>
+											</thead>
+											<tbody>
+												<?php
+												foreach ($wins as $prize => $winners) {
+													if (strpos($prize, "_points") !== false) continue; // Only process main categories
+													$points = isset($wins[$prize . '_points']) ? $wins[$prize . '_points'] : 0;
+													$points_total += $points;
+													$percentage = $total_winners > 0 ? round(($winners / $total_winners) * 100, 2) : 0;
+													switch ($prize) {
+														case "9_win": $label = "9 out of $cd Winners"; break;
+														case "8_win_extra": $label = "8 out of $cd Winners + Extra"; break;
+														case "8_win": $label = "8 out of $cd Winners"; break;
+														case "7_win_extra": $label = "7 out of $cd Winners + Extra"; break;
+														case "7_win": $label = "7 out of $cd Winners"; break;
+														case "6_win_extra": $label = "6 out of $cd Winners + Extra"; break;
+														case "6_win": $label = "6 out of $cd Winners"; break;
+														case "5_win_extra": $label = "5 out of $cd Winners + Extra"; break;
+														case "5_win": $label = "5 out of $cd Winners"; break;
+														case "4_win_extra": $label = "4 out of $cd Winners + Extra"; break;
+														case "4_win": $label = "4 out of $cd Winners"; break;
+														case "3_win_extra": $label = "3 out of $cd Winners + Extra"; break;
+														case "3_win": $label = "3 out of $cd Winners"; break;
+														case "2_win_extra": $label = "2 out of $cd Winners + Extra"; break;
+														case "2_win": $label = "2 out of $cd Winners"; break;
+														case "1_win_extra": $label = "1 out of $cd Winners + Extra"; break;
+														case "1_win": $label = "1 out of $cd Winners"; break;
+														case "extra": $label = "Extra / Bonus Ball"; break;
+														default: $label = $prize;
+													}
+													?>
+													<tr>
+														<td><?= $label ?></td>
+														<td><?= $winners ?></td>
+														<td><?= $points ?></td>
+														<td><?= $percentage ?>%</td>
+													</tr>
+												<?php } ?>
+											</tbody>
+											<tfoot>
+												<tr>
+													<th colspan="2" class="text-right">Total Points:</th>
+													<th><?= $points_total ?></th>
+													<th></th>
+												</tr>
+											</tfoot>
+										</table>
+									</div>
+									</div>
+									<div class="card mb-4 shadow-sm">
+									<div class="card-header">
+									<h6 class="my-0 font-weight-normal"><strong>Win Record for Position <?=$b;?> (Ball <?=($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);?>) in <?=$lottery->last_drawn['range']; ?> draws</strong></h5>
+									</div>
+									<div class="card-body">
+										<?php
+										$positions = ($b > $cd ? $lottery->last_drawn['position_extra_win'] : $lottery->last_drawn['position'.$b.'_win']);
+										$total_winners_pos = 0;
+										$points_total_pos = 0;
+										foreach ($positions as $key => $value) {
+											if (strpos($key, "_points") === false) $total_winners_pos += intval($value);
+										}
+										?>
+										<table class="table table-bordered table-sm mb-3 w-100 mx-auto">
+											<thead class="thead-light">
+												<tr>
+													<th>Category</th>
+													<th>Winners</th>
+													<th>Points</th>
+													<th>(%) Percentage</th>
+												</tr>
+											</thead>
+											<tbody>
+												<?php
+												foreach ($positions as $prize => $winners) {
+													if (strpos($prize, "_points") !== false) continue;
+													$points = isset($positions[$prize . '_points']) ? $positions[$prize . '_points'] : 0;
+													$points_total_pos += $points;
+													$percentage = $total_winners_pos > 0 ? round(($winners / $total_winners_pos) * 100, 2) : 0;
+													switch ($prize) {
+														case "9_win": $label = "9 out of $cd Winners"; break;
+														case "8_win_extra": $label = "8 out of $cd Winners + Extra"; break;
+														case "8_win": $label = "8 out of $cd Winners"; break;
+														case "7_win_extra": $label = "7 out of $cd Winners + Extra"; break;
+														case "7_win": $label = "7 out of $cd Winners"; break;
+														case "6_win_extra": $label = "6 out of $cd Winners + Extra"; break;
+														case "6_win": $label = "6 out of $cd Winners"; break;
+														case "5_win_extra": $label = "5 out of $cd Winners + Extra"; break;
+														case "5_win": $label = "5 out of $cd Winners"; break;
+														case "4_win_extra": $label = "4 out of $cd Winners + Extra"; break;
+														case "4_win": $label = "4 out of $cd Winners"; break;
+														case "3_win_extra": $label = "3 out of $cd Winners + Extra"; break;
+														case "3_win": $label = "3 out of $cd Winners"; break;
+														case "2_win_extra": $label = "2 out of $cd Winners + Extra"; break;
+														case "2_win": $label = "2 out of $cd Winners"; break;
+														case "1_win_extra": $label = "1 out of $cd Winners + Extra"; break;
+														case "1_win": $label = "1 out of $cd Winners"; break;
+														case "extra": $label = "Extra / Bonus Ball"; break;
+														default: $label = $prize;
+													}
+												?>
+												<tr>
+													<td><?= $label ?></td>
+													<td><?= $winners ?></td>
+													<td><?= $points ?></td>
+													<td><?= $percentage ?>%</td>
+												</tr>
+												<?php } ?>
+											</tbody>
+											<tfoot>
+												<tr>
+													<th colspan="2" class="text-right">Total Points:</th>
+													<th><?= $points_total_pos ?></th>
+													<th></th>
+												</tr>
+											</tfoot>
+										</table>
+									</div>
+									</div>
+								</div>
 							</div>
 							<?php $b++;
 							}
