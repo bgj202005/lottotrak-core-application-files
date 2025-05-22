@@ -519,11 +519,11 @@ class Predictions_m extends MY_Model
      * Retrieves the Followers range, extra draws, and extra included settings for a lottery.
      *
      * @param int $lottery_id The ID of the lottery.
-     * @return array An associative array containing the range, extra_included, and extra_draws values.
+     * @return array An associative array containing range, lottery_followers, wins, positions, draw_id, extra_included, extra_draws.
      */
     public function get_followers($lottery_id)
     {
-        $this->db->select('range, extra_included, extra_draws');
+        $this->db->select('range, lottery_followers, wins, positions, draw_id, extra_included, extra_draws');
         $this->db->from('lottery_followers');
         $this->db->where('lottery_id', $lottery_id);
         return $this->db->get()->row_array();
@@ -541,4 +541,298 @@ class Predictions_m extends MY_Model
         $this->db->where('lottery_id', $lottery_id);
         return $this->db->get()->row_array();
     }
+	/**
+	 * Retrieves and parses the h_w_c_range field for a lottery.
+	 * Returns an associative array: [ 'h-w-c' => total, ... ]
+	 *
+	 * @param int 		$lottery_id The ID of the lottery.
+	 * @return array 	 $hwc Associative array of h-w-c => total
+	 */
+	public function get_h_w_c_range($lottery_id)
+	{
+		$this->db->select('h_w_c_range');
+		$this->db->from('lottery_h_w_c_stats');
+		$this->db->where('lottery_id', $lottery_id);
+		$row = $this->db->get()->row();
+
+		if (!$row || empty($row->h_w_c_range)) {
+			return [];
+		}
+		$hwc = [];
+		$items = explode(',', $row->h_w_c_range);
+		foreach ($items as $item) {
+			$parts = explode('=', $item);
+			if (count($parts) == 2) {
+				$hwc[trim($parts[0])] = (int)trim($parts[1]);
+			}
+		}
+		$hwc = array_filter($hwc); // Remove empty values
+		arsort($hwc); 			   // Sort ascending by value
+	return $hwc; // Sort descending by value, keeping keys with their values
+	}
+	/**
+	 * Returns an associative array of actual ball numbers (including extra as +N) 
+	 * mapped to their total points, sorted descending by points.
+	 * Any ball with 0 points is excluded.
+	 *
+	 * @param array $last_drawn The last_drawn array from the lottery object.
+	 * @param int $balls_drawn  The number of main balls drawn.
+	 * @return array Sorted associative array: [ 'ball_number' => points, ... ]
+	 */
+	public function get_sorted_ball_points($last_drawn, $balls_drawn)
+	{
+		$ball_points = [];
+		// Main balls
+		for ($i = 1; $i <= $balls_drawn; $i++) {
+			$points = 0;
+			if (isset($last_drawn['ball'.$i.'_win'])) {
+				foreach ($last_drawn['ball'.$i.'_win'] as $k => $v) {
+					if (strpos($k, '_points') !== false) $points += intval($v);
+				}
+				$ball_number = $last_drawn['ball'.$i];
+				if ($points > 0) {
+					$ball_points[$ball_number] = $points;
+				}
+			}
+		}
+		// Extra ball (if exists)
+		if (isset($last_drawn['extra_win']) && isset($last_drawn['extra'])) {
+			$points = 0;
+			foreach ($last_drawn['extra_win'] as $k => $v) {
+				if (strpos($k, '_points') !== false) $points += intval($v);
+			}
+			if ($points > 0) {
+				$ball_points['+'.$last_drawn['extra']] = $points;
+			}
+		}
+		// Sort by points descending
+		arsort($ball_points);
+	return $ball_points;
+	}
+	/**
+	 * Returns an associative array of actual ball numbers (including extra as +N)
+	 * mapped to their total position points, sorted descending by points.
+	 * Any position with 0 points is excluded.
+	 *
+	 * @param array $last_drawn The last_drawn array from the lottery object.
+	 * @param int $balls_drawn  The number of main balls drawn.
+	 * @return array Sorted associative array: [ 'ball_number' => points, ... ]
+	 */
+	public function get_sorted_position_points($last_drawn, $balls_drawn)
+	{
+		$position_points = [];
+		// Main balls
+		for ($i = 1; $i <= $balls_drawn; $i++) {
+			$points = 0;
+			if (isset($last_drawn['position'.$i.'_win'])) {
+				foreach ($last_drawn['position'.$i.'_win'] as $k => $v) {
+					if (strpos($k, '_points') !== false) $points += intval($v);
+				}
+				$ball_number = $last_drawn['ball'.$i];
+				if ($points > 0) {
+					$position_points[$ball_number] = $points;
+				}
+			}
+		}
+		// Extra ball (if exists)
+		if (isset($last_drawn['position_extra_win']) && isset($last_drawn['extra'])) {
+			$points = 0;
+			foreach ($last_drawn['position_extra_win'] as $k => $v) {
+				if (strpos($k, '_points') !== false) $points += intval($v);
+			}
+			if ($points > 0) {
+				$position_points['+'.$last_drawn['extra']] = $points;
+			}
+		}
+		// Sort by points descending
+		arsort($position_points);
+	return $position_points;
+	}
+	/**
+	 * Retrieves lottery highlights for a given lottery_id.
+	 * Returns an associative array with keys: trends, repeats, consecutives, adjacents, winning_sums, winning_digits, number_range, parity.
+	 *
+	 * @param int $lottery_id The ID of the lottery.
+	 * @return array Associative array of highlights, or empty array if not found.
+	 */
+	public function get_lottery_highlights($lottery_id)
+	{
+		$this->db->select('trends, repeats, consecutives, adjacents, winning_sums, winning_digits, number_range, parity');
+		$this->db->from('lottery_highlights');
+		$this->db->where('lottery_id', $lottery_id);
+		$row = $this->db->get()->row_array();
+
+		if (!$row) {
+			return [];
+		}
+	return $row;
+	}
+	/**
+	 * Parses a trends string and returns an associative array for dropdown:
+	 * 0 => 'ALL', 1 => 'UP (N)', 2 => 'DOWN (N)'
+	 *
+	 * @param string $trend_string The trends string, e.g. "up=2,down=6,2024-11-29,down,6,down"
+	 * @return array Dropdown array for trends.
+	 */
+	public function get_trends($trend_string)
+	{
+		$up = 0;
+		$down = 0;
+		$parts = explode(',', $trend_string);
+		foreach ($parts as $part) {
+			if (strpos($part, 'up=') === 0) {
+				$up = (int)substr($part, 3);
+			}
+			if (strpos($part, 'down=') === 0) {
+				$down = (int)substr($part, 5);
+			}
+		}
+		$trends = [
+			0 => 'ALL',
+			1 => 'UP (' . $up . ')',
+			2 => 'DOWN (' . $down . ')'
+		];
+		return $trends;
+	}
+	/**
+	 * Parses the winning_digits string and returns an array for the top 10 digit sums.
+	 * Each entry is [digit_sum => total], in the order provided.
+	 *
+	 * @param string $winning_digits The string, e.g. "50=10,46=10,39=9,43=6,47=6,52=5,56=5,41=5,37=4,36=3|15=10,INCREASE"
+	 * @return array Array for dropdown: [digit_sum => total, ...]
+	 */
+	public function get_digit_sums($digits)
+	{
+		// Split by '|', take the first part
+		$parts = explode('|', $digits);
+		$main_part = isset($parts[0]) ? $parts[0] : '';
+		$digit_sums = [0 => 'ALL'];
+		if ($main_part) {
+			$pairs = explode(',', $main_part);
+			foreach ($pairs as $pair) {
+				$kv = explode('=', $pair);
+				if (count($kv) == 2) {
+					$digit_sum = trim($kv[0]);
+					$total = (int)trim($kv[1]);
+					$digit_sums[$digit_sum] = $total;
+				}
+			}
+		}
+	return $digit_sums;
+	}
+	/**
+	 * Parses the winning_sum string and returns an array for the dropdown.
+	 * Each entry is [sum => total], in the order provided.
+	 * Adds "ALL" (value: 0) as the top option.
+	 *
+	 * @param string $winning_sums The string, e.g. "163=4,147=3,178=3,173=3,190=3,149=3,151=3,221=2,200=2,153=2|15=13,INCREASE"
+	 * @return array Array for dropdown: [0 => 'ALL', sum => total, ...]
+	 */
+	public function get_sums($winning_sums)
+	{
+		// Split by '|', take the first part
+		$parts = explode('|', $winning_sums);
+		$main_part = isset($parts[0]) ? $parts[0] : '';
+		$sums = [0 => 'ALL'];
+		if ($main_part) {
+			$pairs = explode(',', $main_part);
+			foreach ($pairs as $pair) {
+				$kv = explode('=', $pair);
+				if (count($kv) == 2) {
+					$sum = trim($kv[0]);
+					$total = (int)trim($kv[1]);
+					$sums[$sum] = $total;
+				}
+			}
+		}
+		return $sums;
+	}
+	/**
+	 * Parses the repeaters string and returns an associative array for the dropdown.
+	 * Each entry is [repeater_count => total], in the order provided, with "ALL" (value: 0) as the top option.
+	 * Any repeater with a total of 0 is removed.
+	 *
+	 * @param string $repeaters The string, e.g. "0=17,1=44,2=30,3=9,4=0,5=0,6=0,7=0|27=7,46=5,30=5,28=5,33=5"
+	 * @return array Array for dropdown: [0 => 'ALL', repeater_count => total, ...]
+	 */
+	public function get_repeaters($repeaters)
+	{
+		// Split by '|', take the first part
+		$parts = explode('|', $repeaters);
+		$main_part = isset($parts[0]) ? $parts[0] : '';
+		$repeats = [0 => 'ALL'];
+		if ($main_part) {
+			$pairs = explode(',', $main_part);
+			foreach ($pairs as $pair) {
+				$kv = explode('=', $pair);
+				if (count($kv) == 2) {
+					$count = trim($kv[0]);
+					$total = (int)trim($kv[1]);
+					if ($total > 0) {
+						$repeats[$count] = $total;
+					}
+				}
+			}
+		}
+		return $repeats;
+	}
+	/**
+	 * Parses the consecutives string and returns an associative array for the dropdown.
+	 * Each entry is [consecutive_count => total], in the order provided, with "ALL" (value: 0) as the top option.
+	 * Any consecutive with a total of 0 is removed.
+	 *
+	 * @param string $c The string, e.g. "0=23,1=43,2=25,3=7,4=2,5=0,6=0,7=0|2=2025-01-31"
+	 * @return array $consecutives for dropdown: [0 => 'ALL', consecutive_count => total, ...]
+	 */
+	public function get_consecutives($c)
+	{
+		// Split by '|', take the first part
+		$parts = explode('|', $c);
+		$main_part = isset($parts[0]) ? $parts[0] : '';
+		$consecutives = [0 => 'ALL'];
+		if ($main_part) {
+			$pairs = explode(',', $main_part);
+			foreach ($pairs as $pair) {
+				$kv = explode('=', $pair);
+				if (count($kv) == 2) {
+					$count = trim($kv[0]);
+					$total = (int)trim($kv[1]);
+					if ($total > 0) {
+						$consecutives_arr[$count] = $total;
+					}
+				}
+			}
+		}
+		return $consecutives;
+	}
+	/**
+	 * Parses the parity string and returns an associative array for the dropdown.
+	 * Each entry is [odd-even => total], in the order provided, with "ALL" (value: 0) as the top option.
+	 * Any parity with a total of 0 is removed.
+	 *
+	 * @param string $parity The string, e.g. "4-3=29,5-2=28,3-4=25,2-5=11,1-6=4,6-1=3|0-0"
+	 * @return array Array for dropdown: [0 => 'ALL', '4-3' => 29, ...]
+	 */
+	public function get_parity($p)
+	{
+		// Split by '|', take the first part
+		$parts = explode('|', $p);
+		$main_part = isset($parts[0]) ? $parts[0] : '';
+
+		$parity = [0 => 'ALL'];
+		if ($main_part) {
+			$pairs = explode(',', $main_part);
+			foreach ($pairs as $pair) {
+				$kv = explode('=', $pair);
+				if (count($kv) == 2) {
+					$odd_even = trim($kv[0]);
+					$total = (int)trim($kv[1]);
+					if ($total > 0) {
+						$parity[$odd_even] = $total;
+					}
+				}
+			}
+		}
+	return $parity;
+	}
 }

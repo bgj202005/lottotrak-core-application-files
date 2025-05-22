@@ -6,8 +6,10 @@ class Predictions extends Admin_Controller {
 	
 	public function __construct() {
 		 parent::__construct();
-		 $this->load->model('lotteries_m');
-		 $this->load->model('predictions_m');
+		 $this->load->model('lotteries_m'); // Lottery Model
+		 $this->load->model('statistics_m'); // Statistics Model
+		 $this->load->model('predictions_m'); // Predictions Model	
+		 $this->load->model('history_m'); // History Model
 		 $this->load->library('Math_Combinatorics'); // * Originally from the Pear Libraries *
 		 $this->load->model('maintenance_m'); 
 	}
@@ -463,14 +465,38 @@ class Predictions extends Admin_Controller {
 		$this->data['message'] = '';			// Defaulted to No Error Messages
 		
 		$this->data['lottery'] = $this->lotteries_m->get($id);
+		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		$drawn = $this->data['lottery']->balls_drawn; // Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
+		
 		$this->data['country_code'] = $this->predictions_m->get_lottery_country($id);
 		$this->data['state_prov_code'] = $this->predictions_m->get_lottery_state_prov($id);
 		// Fetch combination files for the lottery
     	$this->data['combination_files'] = $this->predictions_m->get_combination_files($id);
 		// Fetch H-W-C, Followers, and Friends data
 		$this->data['h_w_c'] = $this->predictions_m->get_h_w_c($id);
+		$this->data['h_w_c_group'] = $this->predictions_m->get_h_w_c_range($id);
 		$this->data['followers'] = $this->predictions_m->get_followers($id);
-		$this->data['friends'] = $this->predictions_m->get_friends($id);
+			$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
+			// 1. Check for a record for the current lottery in the followers table
+			$p_group = $this->statistics_m->prize_group_profile($id); // Prize Group Profile Only
+			$p_group = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_ball);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_prizegroup($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_ball, $p_group); 
+			// 2. extract the win record for each number into an array
+			$follower_wins = explode(">",$this->data['followers']['wins']);
+			$follow_poswins = explode(">",$this->data['followers']['positions']);
+			// 3. Only populate the numbers with the win record that was actually drawn
+			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'],$p_group,$follower_wins,$follow_poswins);
+			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included']);
+			$this->data['lottery']->ball_points = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn);
+			$this->data['lottery']->position_points = $this->predictions_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
+			$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
+			$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);
+			$this->data['lottery']->winning_digits = $this->predictions_m->get_digit_sums($this->data['lottery']->highlights['winning_digits']);
+			$this->data['lottery']->winning_sums = $this->predictions_m->get_sums($this->data['lottery']->highlights['winning_sums']);
+			$this->data['lottery']->repeaters = $this->predictions_m->get_repeaters($this->data['lottery']->highlights['repeats']);
+			$this->data['lottery']->consecutives = $this->predictions_m->get_consecutives($this->data['lottery']->highlights['consecutives']);
+			$this->data['lottery']->parity = $this->predictions_m->get_parity($this->data['lottery']->highlights['parity']);
+			$this->data['friends'] = $this->predictions_m->get_friends($id);
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/futures');

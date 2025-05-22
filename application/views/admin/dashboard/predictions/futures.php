@@ -159,7 +159,6 @@
 								// Dropdown attributes
 								$extra = ['class' => 'form-control', 'id' => 'wheeling','style' => 'width: 70%;'];
 								echo form_dropdown('wheeling', $wheeling_options, set_value('wheeling', ''), $extra);
-
 								// Display form error if any
 								echo form_error('wheeling', '<div class="bg-warning mt-2 p-2 text-center text-white">', '</div>');
 								?>
