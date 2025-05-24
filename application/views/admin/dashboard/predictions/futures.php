@@ -180,6 +180,25 @@
     align-items: center;
     gap: 0.3em;
 	}
+	#h_w_c_group.greyed-out {
+    background-color: #444 !important;
+    color: #ccc !important;
+    cursor: not-allowed;
+    opacity: 0.7;
+	}
+	#ball_points.greyed-out,
+	#position_points.greyed-out {
+		background-color: #444 !important;
+		color: #ccc !important;
+		cursor: not-allowed;
+		opacity: 0.7;
+	}
+	#friends.greyed-out {
+		background-color: #444 !important;
+		color: #ccc !important;
+		cursor: not-allowed;
+		opacity: 0.7;
+	}
 </style>
 	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
 	<script src="//code.jquery.com/jquery-1.12.4.js"></script>
@@ -425,8 +444,66 @@
         const combinationDropdown = document.getElementById('wheeling');
         const presetCheckboxes = document.querySelectorAll('.preset-checkbox');
         const presetOptions = document.querySelectorAll('.preset-option');
-
-        // Listen for changes in the combination table dropdown
+		const hwcCheckbox = document.getElementById('hwc-checkbox');
+    	const hwcDropdown = document.getElementById('h_w_c_group');
+		const followersCheckbox = document.getElementById('followers-checkbox');
+		const afterBallDropdown = document.getElementById('ball_points');
+		const positionDropdown = document.getElementById('position_points');
+		const friendsCheckbox = document.getElementById('friends-checkbox');
+	    const friendsDropdown = document.getElementById('friends');
+		
+		function updateHwcDropdown() {
+			if (hwcCheckbox && hwcDropdown) {
+				if (hwcCheckbox.checked) {
+					hwcDropdown.disabled = false;
+					hwcDropdown.classList.remove('greyed-out');
+				} else {
+					hwcDropdown.disabled = true;
+					hwcDropdown.classList.add('greyed-out');
+				}
+			}
+		}
+		function updateFollowersDropdowns() {
+			if (followersCheckbox && afterBallDropdown && positionDropdown) {
+				if (followersCheckbox.checked) {
+					afterBallDropdown.disabled = false;
+					afterBallDropdown.classList.remove('greyed-out');
+					positionDropdown.disabled = false;
+					positionDropdown.classList.remove('greyed-out');
+				} else {
+					afterBallDropdown.disabled = true;
+					afterBallDropdown.classList.add('greyed-out');
+					positionDropdown.disabled = true;
+					positionDropdown.classList.add('greyed-out');
+				}
+			}
+    	}
+		function updateFriendsDropdown() {
+			if (friendsCheckbox && friendsDropdown) {
+				if (friendsCheckbox.checked) {
+					friendsDropdown.disabled = false;
+					friendsDropdown.classList.remove('greyed-out');
+				} else {
+					friendsDropdown.disabled = true;
+					friendsDropdown.classList.add('greyed-out');
+				}
+			}
+		}
+		// Initial state
+		updateHwcDropdown();
+		updateFollowersDropdowns();
+		updateFriendsDropdown();
+		// Listen for changes
+		if (hwcCheckbox) {
+			hwcCheckbox.addEventListener('change', updateHwcDropdown);
+		}
+		if (followersCheckbox) {
+			followersCheckbox.addEventListener('change', updateFollowersDropdowns);
+		}
+		 if (friendsCheckbox) {
+        	friendsCheckbox.addEventListener('change', updateFriendsDropdown);
+    	}
+		// Listen for changes in the combination table dropdown
         combinationDropdown.addEventListener('change', function () {
             if (combinationDropdown.value) {
                 // Enable the checkboxes and checkmarks
