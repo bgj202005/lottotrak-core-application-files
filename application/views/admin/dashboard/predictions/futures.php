@@ -10,8 +10,11 @@
         border: 1px solid rgba(0, 34, 51, 0.1);
         box-shadow: 2px 4px 10px 0 rgba(0, 34, 51, 0.05), 2px 4px 10px 0 rgba(0, 34, 51, 0.05);
         border-radius: 0.25rem;
-        padding: 20px;
-    }
+        padding: 0px;
+		max-width: 100%;
+    	width: 100%;
+    	box-sizing: border-box;
+	}
     .card-title {
         font-size: 1.5rem;
         font-weight: bold;
@@ -23,11 +26,24 @@
 	.card-text {
 		color:steelblue; 
 	}
+	.card-body {
+    width: 100%;
+    box-sizing: border-box;
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+	}
 	table{
   		border:1px solid black;
   		display:inline-block;
-  		max-width: 178px;
-  		margin:20px;
+  		max-width: 178px; 
+		margin-left: auto;
+    	margin-right: auto;
+	}
+	.table-bordered.text-center {
+    margin-left: auto;
+    margin-right: auto;
+    width: auto;
+    display: table;
 	}
 	.form-group label {
         font-weight: bold;
@@ -60,7 +76,6 @@
         color: #fff; /* White font color */
         pointer-events: none; /* Disable interaction */
     }
-
     /* Style for enabled preset-option */
     .preset-option.enabled {
         color: #fff; /* Keep font color white when enabled */
@@ -105,6 +120,66 @@
     .checkbox-row .preset-checkbox {
         accent-color: #fff; /* White checkbox color */
     }
+	#futures-filter-table {
+    max-width: 100%;         /* Ensure it doesn't exceed container */
+	margin-left: auto;
+    margin-right: auto;
+	table-layout: auto;
+	}
+	#futures-filter-table th,
+	#futures-filter-table td {
+		font-size: 0.75em;
+		padding: 0.18em 0.25em;
+		white-space: nowrap;
+	}
+
+	#futures-filter-table select.form-control,
+	#futures-filter-table select {
+		font-size: 0.90em;
+		padding: 0.1em 0.3em;
+		min-width: 65px;  /* Increased to fit most dropdown text */
+		max-width: 90px;  /* Allow to expand as needed */
+		text-overflow: ellipsis;
+		overflow: hidden;
+		white-space: nowrap;
+		background-color: #000 !important;
+    	color: #fff !important;
+    	border: 1px solid #444;
+	}
+	#futures-filter-table th,
+	#futures-filter-table td,
+	#futures-filter-table select,
+	#futures-filter-table .form-control {
+    text-align: center !important;
+	}
+	/* Remove horizontal scroll for desktop, keep for mobile only */
+	.table-responsive {
+		overflow-x: visible;
+		width: 100%;
+    	margin: 0;
+    	padding: 0;
+	}
+	@media (max-width: 991px) {
+		.table-responsive {
+			overflow-x: auto;
+			-webkit-overflow-scrolling: touch;
+		}
+		#futures-filter-table th, #futures-filter-table td {
+			font-size: 0.7em;
+			padding: 0.12em;
+		}
+		#futures-filter-table select.form-control,
+		#futures-filter-table select {
+			font-size: 0.7em;
+			padding: 0.08em 0.2em;
+		}
+	}
+	/* Add this to your style section */
+	.d-flex {
+    display: flex;
+    align-items: center;
+    gap: 0.3em;
+	}
 </style>
 	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
 	<script src="//code.jquery.com/jquery-1.12.4.js"></script>
@@ -196,7 +271,6 @@
 												<td data-label="Range"><?php echo $h_w_c['range']; ?></td>
 												<td data-label="Extra Draws?"> <span class="preset-option disabled"><?php echo $h_w_c['extra_draws'] ? '✓' : ''; ?></span></td>
 												<td data-label="Includes Extra?"><span class="preset-option disabled"><?php echo $h_w_c['extra_included'] ? '✓' : ''; ?></span></td>
-
 												<!-- Followers -->
 												<td data-label="Followers">
 													<?php
@@ -217,6 +291,100 @@
 												<td data-label="Range"><?php echo $friends['range']; ?></td>
 												<td data-label="Extra Draws?"><span class="preset-option disabled"><?php echo $friends['extra_draws'] ? '✓' : ''; ?></span></td>
 												<td data-label="Includes Extra?"><span class="preset-option disabled"><?php echo $friends['extra_included'] ? '✓' : ''; ?></span></td>
+											</tr>
+										</tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+						<div class="row">
+							<div class="col-md-12">
+								<!-- Move .table-responsive OUTSIDE the table for proper scrolling -->
+								<div class="table-responsive">
+									<table class="table table-bordered" id="futures-filter-table">
+										<thead>
+											<tr>
+												<th>H-W-C</th>
+												<th>After Ball</th>
+												<th>Position</th>
+												<th>Friends</th>
+												<th>Trends</th>
+												<th>Sums</th>
+												<th>Digit Sums</th>
+												<th>Repeaters</th>
+												<th>Consecutives</th>
+												<th>Odd/Even</th>
+												<th>Decades</th>
+												<th>Last</th>
+												<th>Range</th>
+												<th>Adjacent</th>
+											</tr>
+										</thead>
+										<tbody>
+											<tr>
+												<td data-label="H-W-C">
+													<?= form_dropdown('h_w_c_group', $h_w_c_group, '', 'class="form-control" id="h_w_c_group"') ?>
+												</td>
+												<td data-label="After Ball">
+													<div class="d-flex align-items-center" style="gap:0.3em;">
+														 <?= form_radio([
+																'name' => 'followers_type',
+																'id' => 'after_ball_radio',
+																'value' => 'after_ball',
+																'checked' => TRUE
+															]); ?>
+														<?= form_dropdown('ball_points', $lottery->ball_points, '', 'class="form-control" id="ball_points"') ?>
+													</div>
+												</td>
+												<td data-label="Position">
+													<div class="d-flex align-items-center" style="gap:0.3em;">
+														<?= form_radio([
+															'name' => 'followers_type',
+															'id' => 'position_radio',
+															'value' => 'position',
+															'checked' => FALSE
+														]); ?>
+														<?= form_dropdown('position_points', $lottery->position_points, '', 'class="form-control" id="position_points"') ?>
+													</div>
+												</td>
+												<td data-label="Friends">
+													<?= form_dropdown('friends', [
+														'all' => 'ALL',
+														'0' => '0 Friends',
+														'1' => '1-Way',
+														'2' => '2-Way'
+													], '', 'class="form-control" id="friends"') ?>
+												</td>
+												<td data-label="Trends">
+													<?= form_dropdown('trends', $lottery->trends, '', 'class="form-control"') ?>
+												</td>
+												<td data-label="Sums">
+													<?= form_dropdown('winning_sums', $lottery->winning_sums, '', 'class="form-control"') ?>
+												</td>
+												<td data-label="Digit Sums">
+													<?= form_dropdown('winning_digits', $lottery->winning_digits, '', 'class="form-control"') ?>
+												</td>
+												<td data-label="Repeaters">
+													<?= form_dropdown('repeaters', $lottery->repeaters, '', 'class="form-control"') ?>
+												</td>
+												<td data-label="Consecutives">
+													<?= form_dropdown('consecutives', $lottery->consecutives, '', 'class="form-control"') ?>
+												</td>
+												<td data-label="Odd/Even">
+													<?= form_dropdown('parity', $lottery->parity, '', 'class="form-control"') ?>
+												</td>
+												<td data-label="Decades">
+													<?= form_dropdown('decades', $lottery->decades, '', 'class="form-control"') ?>
+												</td>
+												<td data-label="Last">
+													<?= form_dropdown('last_digits', $lottery->last_digits, '', 'class="form-control"') ?>
+												</td>
+												<td data-label="Range">
+													<?= form_dropdown('number_range', $lottery->number_range, '', 'class="form-control"') ?>
+												</td>
+												<td data-label="Adjacent">
+													<?= form_dropdown('adjacents', $lottery->adjacents, '', 'class="form-control"') ?>
+												</td>
 											</tr>
 										</tbody>
 									</table>
@@ -273,7 +441,7 @@
                 // Disable the checkboxes and grey out the checkmarks
                 presetCheckboxes.forEach(checkbox => {
                     checkbox.disabled = true;
-                    checkbox.checked = false; // Uncheck the checkbox
+                    checkbox.checked = true; // Uncheck the checkbox
                 });
                 presetOptions.forEach(option => {
                     option.classList.remove('enabled');

@@ -554,21 +554,29 @@ class Predictions_m extends MY_Model
 		$this->db->from('lottery_h_w_c_stats');
 		$this->db->where('lottery_id', $lottery_id);
 		$row = $this->db->get()->row();
-
-		if (!$row || empty($row->h_w_c_range)) {
-			return [];
-		}
-		$hwc = [];
-		$items = explode(',', $row->h_w_c_range);
-		foreach ($items as $item) {
-			$parts = explode('=', $item);
-			if (count($parts) == 2) {
-				$hwc[trim($parts[0])] = (int)trim($parts[1]);
+		$result = [0 => 'ALL'];
+		if ($row && !empty($row->h_w_c_range)) {
+			$hwc = [];
+			$items = explode(',', $row->h_w_c_range);
+			foreach ($items as $item) {
+				$parts = explode('=', $item);
+				if (count($parts) == 2) {
+					$label = trim($parts[0]);
+					$total = (int)trim($parts[1]);
+					if ($total > 0) { // Only include if total > 0
+						$hwc[$label] = $total;
+					}
+				}
+			}
+			// Sort by total descending
+			arsort($hwc);
+			// Build dropdown array: 1 => '2-2-2 (16)', 2 => '1-3-2 (10)', ...
+			$i = 1;
+			foreach ($hwc as $label => $total) {
+				$result[$i++] = $label . ' (' . $total . ')';
 			}
 		}
-		$hwc = array_filter($hwc); // Remove empty values
-		arsort($hwc); 			   // Sort ascending by value
-	return $hwc; // Sort descending by value, keeping keys with their values
+    return $result;
 	}
 	/**
 	 * Returns an associative array of actual ball numbers (including extra as +N) 
@@ -607,7 +615,12 @@ class Predictions_m extends MY_Model
 		}
 		// Sort by points descending
 		arsort($ball_points);
-	return $ball_points;
+		// Build dropdown array: 0 => '7 (115)', 1 => '34 (83)', ...
+		$result = [];
+		foreach ($ball_points as $number => $points) {
+			$result[] = $number . ' (' . $points . ')';
+		}
+    return $result;
 	}
 	/**
 	 * Returns an associative array of actual ball numbers (including extra as +N)
@@ -620,33 +633,28 @@ class Predictions_m extends MY_Model
 	 */
 	public function get_sorted_position_points($last_drawn, $balls_drawn)
 	{
-		$position_points = [];
-		// Main balls
+			$position_points = [];
+		// Loop through each position
 		for ($i = 1; $i <= $balls_drawn; $i++) {
 			$points = 0;
 			if (isset($last_drawn['position'.$i.'_win'])) {
 				foreach ($last_drawn['position'.$i.'_win'] as $k => $v) {
 					if (strpos($k, '_points') !== false) $points += intval($v);
 				}
-				$ball_number = $last_drawn['ball'.$i];
+				$position_number = $i;
 				if ($points > 0) {
-					$position_points[$ball_number] = $points;
+					$position_points[$position_number] = $points;
 				}
-			}
-		}
-		// Extra ball (if exists)
-		if (isset($last_drawn['position_extra_win']) && isset($last_drawn['extra'])) {
-			$points = 0;
-			foreach ($last_drawn['position_extra_win'] as $k => $v) {
-				if (strpos($k, '_points') !== false) $points += intval($v);
-			}
-			if ($points > 0) {
-				$position_points['+'.$last_drawn['extra']] = $points;
 			}
 		}
 		// Sort by points descending
 		arsort($position_points);
-	return $position_points;
+		// Build dropdown array: 0 => '1 (115)', 1 => '2 (83)', ...
+		$result = [];
+		foreach ($position_points as $position => $points) {
+			$result[] = $position . ' (' . $points . ')';
+		}
+		return $result;
 	}
 	/**
 	 * Retrieves lottery highlights for a given lottery_id.
@@ -657,7 +665,7 @@ class Predictions_m extends MY_Model
 	 */
 	public function get_lottery_highlights($lottery_id)
 	{
-		$this->db->select('trends, repeats, consecutives, adjacents, winning_sums, winning_digits, number_range, parity');
+		$this->db->select('range, trends, repeats, consecutives, adjacents, winning_sums, winning_digits, number_range, parity');
 		$this->db->from('lottery_highlights');
 		$this->db->where('lottery_id', $lottery_id);
 		$row = $this->db->get()->row_array();
@@ -703,10 +711,11 @@ class Predictions_m extends MY_Model
 	 */
 	public function get_digit_sums($digits)
 	{
+		$result = [0 => 'ALL'];
 		// Split by '|', take the first part
 		$parts = explode('|', $digits);
 		$main_part = isset($parts[0]) ? $parts[0] : '';
-		$digit_sums = [0 => 'ALL'];
+		$digit_sums_arr = [];
 		if ($main_part) {
 			$pairs = explode(',', $main_part);
 			foreach ($pairs as $pair) {
@@ -714,11 +723,19 @@ class Predictions_m extends MY_Model
 				if (count($kv) == 2) {
 					$digit_sum = trim($kv[0]);
 					$total = (int)trim($kv[1]);
-					$digit_sums[$digit_sum] = $total;
+					if ($total > 0) {
+						$digit_sums_arr[$digit_sum] = $total;
+					}
 				}
 			}
+			// Sort by total descending, then by digit sum descending
+			arsort($digit_sums_arr);
+			// Build dropdown array: 1 => "50 (10)", 2 => "46 (10)", ...
+			foreach ($digit_sums_arr as $digit_sum => $total) {
+				$result[] = $digit_sum . ' (' . $total . ')';
+			}
 		}
-	return $digit_sums;
+		return $result;
 	}
 	/**
 	 * Parses the winning_sum string and returns an array for the dropdown.
@@ -733,19 +750,33 @@ class Predictions_m extends MY_Model
 		// Split by '|', take the first part
 		$parts = explode('|', $winning_sums);
 		$main_part = isset($parts[0]) ? $parts[0] : '';
-		$sums = [0 => 'ALL'];
-		if ($main_part) {
-			$pairs = explode(',', $main_part);
-			foreach ($pairs as $pair) {
-				$kv = explode('=', $pair);
-				if (count($kv) == 2) {
-					$sum = trim($kv[0]);
-					$total = (int)trim($kv[1]);
-					$sums[$sum] = $total;
+		$result = [0 => 'ALL'];
+		if ($winning_sums) {
+			// Split by '|' and use the first part
+			$parts = explode('|', $winning_sums);
+			$main_part = isset($parts[0]) ? $parts[0] : '';
+			$sums_arr = [];
+			if ($main_part) {
+				$pairs = explode(',', $main_part);
+				foreach ($pairs as $pair) {
+					$kv = explode('=', $pair);
+					if (count($kv) == 2) {
+						$sum = trim($kv[0]);
+						$count = (int)trim($kv[1]);
+						if ($count > 0) {
+							$sums_arr[$sum] = $count;
+						}
+					}
+				}
+				// Sort by count descending, then by sum descending
+				arsort($sums_arr);
+				// Build dropdown array: 1 => "145 (3)", 2 => "156 (3)", ...
+				foreach ($sums_arr as $sum => $count) {
+					$result[] = $sum . ' (' . $count . ')';
 				}
 			}
 		}
-		return $sums;
+		return $result;
 	}
 	/**
 	 * Parses the repeaters string and returns an associative array for the dropdown.
@@ -758,23 +789,31 @@ class Predictions_m extends MY_Model
 	public function get_repeaters($repeaters)
 	{
 		// Split by '|', take the first part
+		$result = [0 => 'ALL'];
+		// Split by '|', take the first part
 		$parts = explode('|', $repeaters);
 		$main_part = isset($parts[0]) ? $parts[0] : '';
-		$repeats = [0 => 'ALL'];
+		$repeaters_arr = [];
 		if ($main_part) {
 			$pairs = explode(',', $main_part);
 			foreach ($pairs as $pair) {
 				$kv = explode('=', $pair);
 				if (count($kv) == 2) {
-					$count = trim($kv[0]);
+					$repeater = trim($kv[0]);
 					$total = (int)trim($kv[1]);
 					if ($total > 0) {
-						$repeats[$count] = $total;
+						$repeaters_arr[$repeater] = $total;
 					}
 				}
 			}
+			// Sort by total descending, then by repeater descending
+			arsort($repeaters_arr);
+			// Build dropdown array: 1 => "1 (44)", 2 => "2 (30)", ...
+			foreach ($repeaters_arr as $repeater => $total) {
+				$result[] = $repeater . ' (' . $total . ')';
+			}
 		}
-		return $repeats;
+		return $result;
 	}
 	/**
 	 * Parses the consecutives string and returns an associative array for the dropdown.
@@ -789,7 +828,7 @@ class Predictions_m extends MY_Model
 		// Split by '|', take the first part
 		$parts = explode('|', $c);
 		$main_part = isset($parts[0]) ? $parts[0] : '';
-		$consecutives = [0 => 'ALL'];
+		$consecutives_arr = [];
 		if ($main_part) {
 			$pairs = explode(',', $main_part);
 			foreach ($pairs as $pair) {
@@ -803,7 +842,14 @@ class Predictions_m extends MY_Model
 				}
 			}
 		}
-		return $consecutives;
+		// Sort by total descending, then by count descending
+		arsort($consecutives_arr);
+		// Build dropdown array: 0 => "ALL", 1 => "1 (43)", 2 => "2 (25)", ...
+		$result = [0 => 'ALL'];
+		foreach ($consecutives_arr as $count => $total) {
+			$result[] = $count . ' (' . $total . ')';
+		}
+    return $result;
 	}
 	/**
 	 * Parses the parity string and returns an associative array for the dropdown.
@@ -818,8 +864,7 @@ class Predictions_m extends MY_Model
 		// Split by '|', take the first part
 		$parts = explode('|', $p);
 		$main_part = isset($parts[0]) ? $parts[0] : '';
-
-		$parity = [0 => 'ALL'];
+		$parity_arr = [];
 		if ($main_part) {
 			$pairs = explode(',', $main_part);
 			foreach ($pairs as $pair) {
@@ -828,11 +873,171 @@ class Predictions_m extends MY_Model
 					$odd_even = trim($kv[0]);
 					$total = (int)trim($kv[1]);
 					if ($total > 0) {
-						$parity[$odd_even] = $total;
+						$parity_arr[$odd_even] = $total;
 					}
 				}
 			}
 		}
-	return $parity;
+		// Sort by total descending, then by odd-even descending
+		arsort($parity_arr);
+		// Build dropdown array: 0 => "ALL", 1 => "3 - 3 (28)", ...
+		$result = [0 => 'ALL'];
+		foreach ($parity_arr as $odd_even => $total) {
+			$result[] = str_replace('-', ' / ', $odd_even) . ' (' . $total . ')';
+		}
+		return $result;
+	}
+	/**
+	 * Retrieves the count of repeat_decade values for a given table and range.
+	 * Returns an associative array: [decade => count, ...], sorted by count descending.
+	 * If no results, returns ['error' => 'No data found.']
+	 *
+	 * @param string $tbl_name The name of the lottery table.
+	 * @param int $range The number of draws to consider (e.g., 100).
+	 * @return array Associative array for dropdown: [decade => count, ...] or ['error' => 'No data found.']
+	 */
+	public function get_decade($tbl_name, $range)
+	{
+		// Query the latest $range draws for repeat_decade
+		$this->db->select('repeat_decade');
+		$this->db->from($tbl_name);
+		$this->db->order_by('draw_date', 'DESC');
+		$this->db->limit($range);
+		$query = $this->db->get();
+		if (!$query || $query->num_rows() == 0) {
+			return NULL; // No data found
+		}
+		// Count occurrences of each decade
+		$decade_counts = [];
+		foreach ($query->result() as $row) {
+			$decade = (int)$row->repeat_decade;
+			if ($decade >= 0) {
+				if (!isset($decade_counts[$decade])) {
+					$decade_counts[$decade] = 1;
+				} else {
+					$decade_counts[$decade]++;
+				}
+			}
+		}
+		if (empty($decade_counts)) {
+			return NULL; // No data found
+		}
+		// Sort by count descending
+		arsort($decade_counts);
+		// Build dropdown array: 0 => 'ALL', 1 => '3 (12)', 2 => '4 (10)', ...
+		$result = [0 => 'ALL'];
+		foreach ($decade_counts as $decade => $count) {
+			$result[] = $decade . ' (' . $count . ')';
+		}
+    return $result;
+	}
+	/**
+	 * Retrieves the count of last digits for a given table and range.
+	 * Returns an associative array: [last_digit => count, ...], sorted by count descending.
+	 * If no results, returns NULL.
+	 *
+	 * @param string $tbl_name The name of the lottery table.
+	 * @param int $range The number of draws to consider (e.g., 100).
+	 * @return array|null Associative array for dropdown: [last_digit => count, ...] or NULL if no data found.
+	 */
+	public function get_last($tbl_name, $range)
+	{
+		// Query the latest $range draws for repeat_last
+		$this->db->select('repeat_last');
+		$this->db->from($tbl_name);
+		$this->db->order_by('draw_date', 'DESC');
+		$this->db->limit($range);
+		$query = $this->db->get();
+		if (!$query || $query->num_rows() == 0) {
+			return NULL; // No data found
+		}
+		// Count occurrences of each last digit
+		$last_counts = [];
+		foreach ($query->result() as $row) {
+			$last_digit = (int)$row->repeat_last;
+			if ($last_digit >= 0) {
+				if (!isset($last_counts[$last_digit])) {
+					$last_counts[$last_digit] = 1;
+				} else {
+					$last_counts[$last_digit]++;
+				}
+			}
+		}
+		if (empty($last_counts)) {
+			return NULL; // No data found
+		}
+		// Sort by count descending
+		arsort($last_counts);
+		// Build dropdown array: 0 => 'ALL', 1 => '3 (12)', 2 => '7 (10)', ...
+		$result = [0 => 'ALL'];
+		foreach ($last_counts as $digit => $count) {
+			$result[] = $digit . ' (' . $count . ')';
+		}
+		return $result;
+	}
+	/**
+	 * Parses the number_range string from the highlights table and returns an array of the top 5 ranges.
+	 * Each entry is [range => total], in descending order by total.
+	 * Adds "ALL" as the first option in the array.
+	 *
+	 * @param string $number_range The string, e.g. "46=8,38=7,32=7,33=7,42=7"
+	 * @return array Array for dropdown: [0 => 'ALL', range => total, ...] (top 5 only, descending)
+	 */
+	public function get_range($number_range)
+	{
+	$ranges = [];
+    if ($number_range) {
+        $pairs = explode(',', $number_range);
+        foreach ($pairs as $pair) {
+            $kv = explode('=', $pair);
+            if (count($kv) == 2) {
+                $range = trim($kv[0]);
+                $total = (int)trim($kv[1]);
+                if ($total > 0) {
+                    $ranges[$range] = $total;
+                }
+            }
+        }
+    }
+    // Sort by total descending
+    arsort($ranges);
+    // Limit to top 5
+    $ranges = array_slice($ranges, 0, 5, true);
+    // Build dropdown array: 0 => 'ALL', 1 => '46 (8)', ...
+    $result = [0 => 'ALL'];
+    foreach ($ranges as $range => $total) {
+        $result[] = $range . ' (' . $total . ')';
+    }
+    return $result;
+	}
+	/**
+	 * Parses the adjacents string and returns an associative array for the dropdown.
+	 * Each entry is [adjacent_number => total], with "ALL" as the top option.
+	 * The description for each is "Between Ball X and Ball Y", e.g. 1 => "Between Ball 1 and Ball 2 (7)".
+	 *
+	 * @param string $adjacents The string, e.g. "1=6,2=7,3=7,4=6,5=6,6=7|4=27"
+	 * @return array Array for dropdown: [0 => 'ALL', 1 => 'Between Ball 1 and Ball 2 (6)', ...]
+	 */
+	public function get_adjacents($adjacents)
+	{
+		// Split by '|', take the first part
+		$parts = explode('|', $adjacents);
+		$main_part = isset($parts[0]) ? $parts[0] : '';
+		$adjacents_arr = [0 => 'ALL'];
+		if ($main_part) {
+			$pairs = explode(',', $main_part);
+			foreach ($pairs as $pair) {
+				$kv = explode('=', $pair);
+				if (count($kv) == 2) {
+					$adj_num = (int)trim($kv[0]);
+					$total = (int)trim($kv[1]);
+					if ($total > 0) {
+						$desc = "Ball {$adj_num} & Ball " . ($adj_num + 1) . " ({$total})";
+						$adjacents_arr[$adj_num] = $desc;
+					}
+				}
+			}
+		}
+	return $adjacents_arr;
 	}
 }
