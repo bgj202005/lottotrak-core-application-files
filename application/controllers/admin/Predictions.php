@@ -502,7 +502,12 @@ class Predictions extends Admin_Controller {
 			$this->data['lottery']->number_range = $this->predictions_m->get_range($this->data['lottery']->highlights['number_range']);
 			$this->data['lottery']->adjacents = $this->predictions_m->get_adjacents($this->data['lottery']->highlights['adjacents']);
 			$this->data['friends'] = $this->predictions_m->get_friends($id);
+			// Grab the next draw date
+			$ld = $this->data['lottery']->last_drawn['draw_date'];	// Return last draw date
+			$day = $this->lotteries_m->return_day($ld);				// Returns the day of draw, Saturday, Sunday, etc.
+			$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
 		// Load the view
+		unset($this->data['lottery']->highlights);
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/futures');
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();

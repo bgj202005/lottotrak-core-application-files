@@ -260,153 +260,166 @@
 						</div>
 						<div class="row">
 							<div class="col-md-12">
-								<div class="table-responsive">
-									<table class="table table-bordered text-center">
-										<thead>
-											<tr>
-												<th class="nowrap">H-W-C</th>
-												<th>Range</th>
-												<th>Extra Draws?</th>
-												<th>Includes Extra?</th>
-												<th class="nowrap">Followers</th>
-												<th>Range</th>
-												<th>Extra Draws?</th>
-												<th>Includes Extra?</th>
-												<th class="nowrap">Friends</th>
-												<th>Range</th>
-												<th>Extra Draws?</th>
-												<th>Includes Extra?</th>
-											</tr>
-										</thead>
-										<tbody>
-											<tr class="checkbox-row">
-												<!-- H-W-C -->
-												<td data-label="H-W-C">
-													<?php
-													$js = 'id="hwc-checkbox" class="preset-checkbox" disabled';
-													echo form_checkbox('hwc', '1', TRUE, $js);
-													?>
-												</td>
-												<td data-label="Range"><?php echo $h_w_c['range']; ?></td>
-												<td data-label="Extra Draws?"> <span class="preset-option disabled"><?php echo $h_w_c['extra_draws'] ? '✓' : ''; ?></span></td>
-												<td data-label="Includes Extra?"><span class="preset-option disabled"><?php echo $h_w_c['extra_included'] ? '✓' : ''; ?></span></td>
-												<!-- Followers -->
-												<td data-label="Followers">
-													<?php
-													$js = 'id="followers-checkbox" class="preset-checkbox" disabled';
-													echo form_checkbox('followers', '1', TRUE, $js);
-													?>
-												</td>
-												<td data-label="Range"><?php echo $followers['range']; ?></td>
-												<td data-label="Extra Draws?"><span class="preset-option disabled"><?php echo $followers['extra_draws'] ? '✓' : ''; ?></span></td>
-												<td data-label="Includes Extra?"><span class="preset-option disabled"><?php echo $followers['extra_included'] ? '✓' : ''; ?></span></td>
-												<!-- Friends -->
-												<td data-label="Friends">
-													<?php
-													$js = 'id="friends-checkbox" class="preset-checkbox" disabled';
-													echo form_checkbox('friends', '1', TRUE, $js);
-													?>
-												</td>
-												<td data-label="Range"><?php echo $friends['range']; ?></td>
-												<td data-label="Extra Draws?"><span class="preset-option disabled"><?php echo $friends['extra_draws'] ? '✓' : ''; ?></span></td>
-												<td data-label="Includes Extra?"><span class="preset-option disabled"><?php echo $friends['extra_included'] ? '✓' : ''; ?></span></td>
-											</tr>
-										</tbody>
-									</table>
-								</div>
+								<!-- First Table: Presets Control Panel -->
+								<div class="table-section" style="border:2px solid #007bff; border-radius:8px; margin-bottom:2em; padding:1em;">
+									<div class="table-title" style="font-weight:bold; font-size:1.2em; background:#f8f9fa; border-bottom:1px solid #007bff; padding:0.5em 1em; border-radius:6px 6px 0 0; margin:-1em -1em 1em -1em;">
+										LOTTERY PROFILE STATISTICS PRESETS CONTROL PANEL
+									</div>		
+										<div class="table-responsive">
+											<table class="table table-bordered text-center">
+												<thead>
+													<tr>
+														<th class="nowrap">H-W-C</th>
+														<th>Range</th>
+														<th>Extra Draws?</th>
+														<th>Includes Extra?</th>
+														<th class="nowrap">Followers</th>
+														<th>Range</th>
+														<th>Extra Draws?</th>
+														<th>Includes Extra?</th>
+														<th class="nowrap">Friends</th>
+														<th>Range</th>
+														<th>Extra Draws?</th>
+														<th>Includes Extra?</th>
+													</tr>
+												</thead>
+												<tbody>
+													<tr class="checkbox-row">
+														<!-- H-W-C -->
+														<td data-label="H-W-C">
+															<?php
+															$js = 'id="hwc-checkbox" class="preset-checkbox" disabled';
+															echo form_checkbox('hwc', '1', TRUE, $js);
+															?>
+														</td>
+														<td data-label="Range"><?php echo $h_w_c['range']; ?></td>
+														<td data-label="Extra Draws?"> <span class="preset-option disabled"><?php echo $h_w_c['extra_draws'] ? '✓' : ''; ?></span></td>
+														<td data-label="Includes Extra?"><span class="preset-option disabled"><?php echo $h_w_c['extra_included'] ? '✓' : ''; ?></span></td>
+														<!-- Followers -->
+														<td data-label="Followers">
+															<?php
+															$js = 'id="followers-checkbox" class="preset-checkbox" disabled';
+															echo form_checkbox('followers', '1', TRUE, $js);
+															?>
+														</td>
+														<td data-label="Range"><?php echo $followers['range']; ?></td>
+														<td data-label="Extra Draws?"><span class="preset-option disabled"><?php echo $followers['extra_draws'] ? '✓' : ''; ?></span></td>
+														<td data-label="Includes Extra?"><span class="preset-option disabled"><?php echo $followers['extra_included'] ? '✓' : ''; ?></span></td>
+														<!-- Friends -->
+														<td data-label="Friends">
+															<?php
+															$js = 'id="friends-checkbox" class="preset-checkbox" disabled';
+															echo form_checkbox('friends', '1', TRUE, $js);
+															?>
+														</td>
+														<td data-label="Range"><?php echo $friends['range']; ?></td>
+														<td data-label="Extra Draws?"><span class="preset-option disabled"><?php echo $friends['extra_draws'] ? '✓' : ''; ?></span></td>
+														<td data-label="Includes Extra?"><span class="preset-option disabled"><?php echo $friends['extra_included'] ? '✓' : ''; ?></span></td>
+													</tr>
+												</tbody>
+											</table>
+										</div>
+									</div>
+								</div>		
 							</div>
 						</div>
 						<div class="row">
 							<div class="col-md-12">
-								<!-- Move .table-responsive OUTSIDE the table for proper scrolling -->
-								<div class="table-responsive">
-									<table class="table table-bordered" id="futures-filter-table">
-										<thead>
-											<tr>
-												<th>H-W-C</th>
-												<th>After Ball</th>
-												<th>Position</th>
-												<th>Friends</th>
-												<th>Trends</th>
-												<th>Sums</th>
-												<th>Digit Sums</th>
-												<th>Repeaters</th>
-												<th>Consecutives</th>
-												<th>Odd/Even</th>
-												<th>Decades</th>
-												<th>Last</th>
-												<th>Range</th>
-												<th>Adjacent</th>
-											</tr>
-										</thead>
-										<tbody>
-											<tr>
-												<td data-label="H-W-C">
-													<?= form_dropdown('h_w_c_group', $h_w_c_group, '', 'class="form-control" id="h_w_c_group"') ?>
-												</td>
-												<td data-label="After Ball">
-													<div class="d-flex align-items-center" style="gap:0.3em;">
-														 <?= form_radio([
+								<!-- Second Table: Actual Win History Filtering -->
+								<div class="table-section" style="border:2px solid #28a745; border-radius:8px; margin-bottom:2em; padding:1em;">
+									<div class="table-title" style="font-weight:bold; font-size:1.2em; background:#f8f9fa; border-bottom:1px solid #28a745; padding:0.5em 1em; border-radius:6px 6px 0 0; margin:-1em -1em 1em -1em;">
+										Actual Win History Filtering for <?= htmlspecialchars($lottery->next_draw_date); ?>
+									</div>		
+									<!-- Move .table-responsive OUTSIDE the table for proper scrolling -->
+									<div class="table-responsive">
+										<table class="table table-bordered" id="futures-filter-table">
+											<thead>
+												<tr>
+													<th>H-W-C</th>
+													<th>After Ball</th>
+													<th>Position</th>
+													<th>Friends</th>
+													<th>Trends</th>
+													<th>Sums</th>
+													<th>Digit Sums</th>
+													<th>Repeaters</th>
+													<th>Consecutives</th>
+													<th>Odd/Even</th>
+													<th>Decades</th>
+													<th>Last</th>
+													<th>Range</th>
+													<th>Adjacent</th>
+												</tr>
+											</thead>
+											<tbody>
+												<tr>
+													<td data-label="H-W-C">
+														<?= form_dropdown('h_w_c_group', $h_w_c_group, '', 'class="form-control" id="h_w_c_group"') ?>
+													</td>
+													<td data-label="After Ball">
+														<div class="d-flex align-items-center" style="gap:0.3em;">
+															<?= form_radio([
+																	'name' => 'followers_type',
+																	'id' => 'after_ball_radio',
+																	'value' => 'after_ball',
+																	'checked' => TRUE
+																]); ?>
+															<?= form_dropdown('ball_points', $lottery->ball_points, '', 'class="form-control" id="ball_points"') ?>
+														</div>
+													</td>
+													<td data-label="Position">
+														<div class="d-flex align-items-center" style="gap:0.3em;">
+															<?= form_radio([
 																'name' => 'followers_type',
-																'id' => 'after_ball_radio',
-																'value' => 'after_ball',
-																'checked' => TRUE
+																'id' => 'position_radio',
+																'value' => 'position',
+																'checked' => FALSE
 															]); ?>
-														<?= form_dropdown('ball_points', $lottery->ball_points, '', 'class="form-control" id="ball_points"') ?>
-													</div>
-												</td>
-												<td data-label="Position">
-													<div class="d-flex align-items-center" style="gap:0.3em;">
-														<?= form_radio([
-															'name' => 'followers_type',
-															'id' => 'position_radio',
-															'value' => 'position',
-															'checked' => FALSE
-														]); ?>
-														<?= form_dropdown('position_points', $lottery->position_points, '', 'class="form-control" id="position_points"') ?>
-													</div>
-												</td>
-												<td data-label="Friends">
-													<?= form_dropdown('friends', [
-														'all' => 'ALL',
-														'0' => '0 Friends',
-														'1' => '1-Way',
-														'2' => '2-Way'
-													], '', 'class="form-control" id="friends"') ?>
-												</td>
-												<td data-label="Trends">
-													<?= form_dropdown('trends', $lottery->trends, '', 'class="form-control"') ?>
-												</td>
-												<td data-label="Sums">
-													<?= form_dropdown('winning_sums', $lottery->winning_sums, '', 'class="form-control"') ?>
-												</td>
-												<td data-label="Digit Sums">
-													<?= form_dropdown('winning_digits', $lottery->winning_digits, '', 'class="form-control"') ?>
-												</td>
-												<td data-label="Repeaters">
-													<?= form_dropdown('repeaters', $lottery->repeaters, '', 'class="form-control"') ?>
-												</td>
-												<td data-label="Consecutives">
-													<?= form_dropdown('consecutives', $lottery->consecutives, '', 'class="form-control"') ?>
-												</td>
-												<td data-label="Odd/Even">
-													<?= form_dropdown('parity', $lottery->parity, '', 'class="form-control"') ?>
-												</td>
-												<td data-label="Decades">
-													<?= form_dropdown('decades', $lottery->decades, '', 'class="form-control"') ?>
-												</td>
-												<td data-label="Last">
-													<?= form_dropdown('last_digits', $lottery->last_digits, '', 'class="form-control"') ?>
-												</td>
-												<td data-label="Range">
-													<?= form_dropdown('number_range', $lottery->number_range, '', 'class="form-control"') ?>
-												</td>
-												<td data-label="Adjacent">
-													<?= form_dropdown('adjacents', $lottery->adjacents, '', 'class="form-control"') ?>
-												</td>
-											</tr>
-										</tbody>
-									</table>
+															<?= form_dropdown('position_points', $lottery->position_points, '', 'class="form-control" id="position_points"') ?>
+														</div>
+													</td>
+													<td data-label="Friends">
+														<?= form_dropdown('friends', [
+															'all' => 'ALL',
+															'0' => '0 Friends',
+															'1' => '1-Way',
+															'2' => '2-Way'
+														], '', 'class="form-control" id="friends"') ?>
+													</td>
+													<td data-label="Trends">
+														<?= form_dropdown('trends', $lottery->trends, '', 'class="form-control"') ?>
+													</td>
+													<td data-label="Sums">
+														<?= form_dropdown('winning_sums', $lottery->winning_sums, '', 'class="form-control"') ?>
+													</td>
+													<td data-label="Digit Sums">
+														<?= form_dropdown('winning_digits', $lottery->winning_digits, '', 'class="form-control"') ?>
+													</td>
+													<td data-label="Repeaters">
+														<?= form_dropdown('repeaters', $lottery->repeaters, '', 'class="form-control"') ?>
+													</td>
+													<td data-label="Consecutives">
+														<?= form_dropdown('consecutives', $lottery->consecutives, '', 'class="form-control"') ?>
+													</td>
+													<td data-label="Odd/Even">
+														<?= form_dropdown('parity', $lottery->parity, '', 'class="form-control"') ?>
+													</td>
+													<td data-label="Decades">
+														<?= form_dropdown('decades', $lottery->decades, '', 'class="form-control"') ?>
+													</td>
+													<td data-label="Last">
+														<?= form_dropdown('last_digits', $lottery->last_digits, '', 'class="form-control"') ?>
+													</td>
+													<td data-label="Range">
+														<?= form_dropdown('number_range', $lottery->number_range, '', 'class="form-control"') ?>
+													</td>
+													<td data-label="Adjacent">
+														<?= form_dropdown('adjacents', $lottery->adjacents, '', 'class="form-control"') ?>
+													</td>
+												</tr>
+											</tbody>
+										</table>
+									</div>
 								</div>
 							</div>
 						</div>
