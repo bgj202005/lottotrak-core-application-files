@@ -411,11 +411,25 @@
 							</div>
 						</div>
 						<!-- Submit Button -->
-						<div class="form-group text-center">
+						<div class="form-group text-center mt-3">
 							<?php
 							$extra = ['class' => 'btn btn-primary btn-lg', 'id' => 'submit-btn', 'disabled' => 'disabled'];
 							echo form_submit('submit', 'Ganerate Tickets', $extra);
-							?>
+						// Both buttons are disabled by default
+							echo form_button([
+								'type' => 'button',
+								'class' => 'btn btn-success btn-lg mx-2',
+								'id' => 'save-filtered-btn',
+								'disabled' => 'disabled'
+							], 'Save Filtered Tickets');
+							echo form_button([
+								'type' => 'button',
+								'class' => 'btn btn-danger btn-lg mx-2',
+								'id' => 'delete-filtered-btn',
+								'disabled' => 'disabled'
+							], 'Delete Filtered Tickets');
+							?>	
+							<?= form_close(); ?>
 						</div>
 					</div>
 				</div>
@@ -451,7 +465,38 @@
 		const positionDropdown = document.getElementById('position_points');
 		const friendsCheckbox = document.getElementById('friends-checkbox');
 	    const friendsDropdown = document.getElementById('friends');
+		const generateBtn = document.getElementById('submit-btn');
+    	var saveBtn = document.getElementById('save-filtered-btn');
+    	var deleteBtn = document.getElementById('delete-filtered-btn');
 		
+		// Initial state
+		saveBtn.disabled = true;
+		deleteBtn.disabled = true;
+		generateBtn.disabled = true;
+		
+		// Enable Generate Tickets when a combination table is selected
+		combinationDropdown.addEventListener('change', function () {
+			if (combinationDropdown.value) {
+				generateBtn.disabled = false;
+				saveBtn.disabled = true;
+				deleteBtn.disabled = true;
+			} else {
+				generateBtn.disabled = true;
+				saveBtn.disabled = true;
+				deleteBtn.disabled = true;
+			}
+		});
+		generateBtn.addEventListener('click', function (e) {
+        // You may want to check if tickets are actually generated before enabling
+			setTimeout(function() {
+				saveBtn.disabled = false;
+			}, 500); // Adjust delay as needed for your ticket generation process
+		});
+
+		// After Save Filtered Tickets is clicked, enable Delete Filtered Tickets
+		saveBtn.addEventListener('click', function (e) {
+			deleteBtn.disabled = false;
+		});
 		function updateHwcDropdown() {
 			if (hwcCheckbox && hwcDropdown) {
 				if (hwcCheckbox.checked) {
