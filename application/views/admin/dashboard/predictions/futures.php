@@ -111,6 +111,13 @@
             font-weight: bold;
             text-align: left;
         }
+		.table-section {
+			max-width: 50vw !important;   /* 50% of the viewport width */
+			min-width: 220px;             /* Optional: prevent it from getting too small */
+			margin-left: auto;
+			margin-right: auto;
+			padding: 0.5em !important;
+		}
     }
     /* Style the row with checkboxes */
     .checkbox-row {
@@ -164,6 +171,11 @@
 			overflow-x: auto;
 			-webkit-overflow-scrolling: touch;
 		}
+		#futures-filter-table {
+			margin-left: auto !important;
+			margin-right: auto !important;
+			display: table;
+		}
 		#futures-filter-table th, #futures-filter-table td {
 			font-size: 0.7em;
 			padding: 0.12em;
@@ -172,6 +184,21 @@
 		#futures-filter-table select {
 			font-size: 0.7em;
 			padding: 0.08em 0.2em;
+		}
+	}
+	@media (max-width: 767px) {
+		.form-group.text-center.mt-3 button,
+		.form-group.text-center.mt-3 input[type="submit"] {
+			margin-bottom: 0.7em;
+			padding-left: 1.2em;
+			padding-right: 1.2em;
+			width: 100%;
+			max-width: 100%;
+			box-sizing: border-box;
+		}
+		.form-group.text-center.mt-3 {
+			padding-left: 0.5em;
+			padding-right: 0.5em;
 		}
 	}
 	/* Add this to your style section */
@@ -319,7 +346,6 @@
 												</tbody>
 											</table>
 										</div>
-									</div>
 								</div>		
 							</div>
 						</div>
