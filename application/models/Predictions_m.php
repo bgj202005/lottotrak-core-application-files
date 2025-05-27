@@ -554,7 +554,7 @@ class Predictions_m extends MY_Model
 		$this->db->from('lottery_h_w_c_stats');
 		$this->db->where('lottery_id', $lottery_id);
 		$row = $this->db->get()->row();
-		$result = [0 => 'ALL'];
+		$result = [];	// clear array
 		if ($row && !empty($row->h_w_c_range)) {
 			$hwc = [];
 			$items = explode(',', $row->h_w_c_range);

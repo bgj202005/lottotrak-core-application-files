@@ -112,7 +112,7 @@
             text-align: left;
         }
 		.table-section {
-			max-width: 50vw !important;   /* 50% of the viewport width */
+			max-width: 5 0vw !important;   /* 50% of the viewport width */
 			min-width: 220px;             /* Optional: prevent it from getting too small */
 			margin-left: auto;
 			margin-right: auto;
@@ -240,7 +240,7 @@
 						<h3 class="card-title text-center">Prediction Futures</h3>
 						<?php if (!empty($message)) ?> <h3 class="bg-warning" style = "text-align:center;"><?=$message; ?></h3>
 						<?php echo validation_errors('<H2><div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">','</div></H2>'); ?>
-						<?php echo form_open(base_url().'admin/predictions/futures/'.$lottery->id); ?>
+						<?php echo form_open(base_url().'admin/predictions/combination/'.$lottery->id); ?>
 						<hr>
 						<!-- Country -->
 						<div class="form-group row justify-content-center">

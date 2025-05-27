@@ -457,7 +457,7 @@ class Predictions extends Admin_Controller {
 	/**
 	 * Main Prediction Futures Selection 
 	 * 
-	 * @param       none	
+	 * @param       $id		Lottery id	
 	 * @return      none
 	 */
 	public function futures($id)
@@ -518,9 +518,54 @@ class Predictions extends Admin_Controller {
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 	/**
+     * Handles the Combination Table and filter validation and loading.
+     *
+     * This method validates that the form has posted values from the futures view.
+     * If the combination file (from the 'wheeling' POST value) does not exist in the combinations directory,
+     * it sets an error message. If the file exists, it loads the posted values for
+     * Combination Table, H-W-C group, Followers, and Friends for further processing.
+     *
+     * @param int $id The ID of the selected lottery.
+     * @return void Loads the appropriate view with error or success message and posted values.
+     */
+    public function combination($id)
+    {
+        $this->data['message'] = '';
+        $this->data['lottery'] = $this->lotteries_m->get($id);
+
+        if ($this->input->method() === 'post') {
+            // Get posted values
+            $combination_file = $this->input->post('wheeling', TRUE);
+            $h_w_cgroup = $this->input->post('h_w_c_group', TRUE);
+            $followers = $this->input->post('followers', TRUE);
+            $friends = $this->input->post('friends', TRUE);
+
+            // Validate Combination Table file
+            $combinations_dir = FCPATH . 'combinations/';
+            $filename = basename($combination_file);
+            $filepath = $combinations_dir . $filename;
+
+            if (empty($combination_file) || !file_exists($filepath)) {
+                $this->data['message'] = 'The selected Combination Table file does not exist.';
+            } else {
+                // Success: load posted values for further processing or display
+                $this->data['combination_file'] = $combination_file;
+                $this->data['h_w_cgroup'] = $h_w_cgroup;
+                $this->data['followers'] = $followers;
+                $this->data['friends'] = $friends;
+                $this->data['message'] = 'Combination Table and filters loaded successfully.';
+            }
+        } else {
+            $this->data['message'] = 'No form data submitted.';
+        }
+
+        $this->data['subview'] = 'admin/dashboard/predictions/futures'; // or your desired view
+        $this->load->view('admin/_layout_main', $this->data);
+    }
+	/**
 	 * Views all Combinations from this file, filtering and Draw Search Options
 	 *  being imported in the database
-	 * @param       $id		current id of draws		
+	 * @param       $id		current id of draws		 
 	 * @return      none
 	 */
 	public function combo_view($id)
@@ -628,6 +673,7 @@ class Predictions extends Admin_Controller {
 		$combinations = file($file_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 		// Total tickets in the file
 		$total_tickets = count($combinations);
+		
 		// Calculate statistics for each prize tier
 		$stats = [];
 		foreach ($prizes as $prize) {
