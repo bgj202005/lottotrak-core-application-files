@@ -472,6 +472,15 @@ class Predictions extends Admin_Controller {
 		$this->data['state_prov_code'] = $this->predictions_m->get_lottery_state_prov($id);
 		// Fetch combination files for the lottery
     	$this->data['combination_files'] = $this->predictions_m->get_combination_files($id);
+		// Before passing $combination_files to the view
+		if (!empty($this->data['combination_files'])) {
+			usort($this->data['combination_files'], function($a, $b) {
+				// Extract the number part from the file name (assuming format like "06120500.txt")
+				$numA = intval(preg_replace('/\D/', '', $a['file_name']));
+				$numB = intval(preg_replace('/\D/', '', $b['file_name']));
+				return $numA - $numB;
+			});
+		}
 		// Fetch H-W-C, Followers, and Friends data
 		$this->data['h_w_c'] = $this->predictions_m->get_h_w_c($id);
 		$this->data['h_w_c_group'] = $this->predictions_m->get_h_w_c_range($id);
