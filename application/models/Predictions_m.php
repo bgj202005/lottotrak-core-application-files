@@ -1040,4 +1040,119 @@ class Predictions_m extends MY_Model
 		}
 	return $adjacents_arr;
 	}
+	/**
+	 * Generate a set of numbers using the H-W-C (Hot-Warm-Cold) method for a given lottery.
+	 *
+	 * Retrieves the HWC group selection (e.g., "2-2-2"), parses the counts, and scales them to the desired
+	 * combination size. Loads the HWC and position data from the statistics model. Parses the position string
+	 * and the hots/warms/colds fields into associative arrays. Selects numbers by matching position counts
+	 * to the corresponding numbers in the hots, warms, and colds arrays, keeping the selection as balanced as possible.
+	 *
+	 * @param int    $lottery_id         The lottery ID.
+	 * @param int    $combination_size   The total number of numbers to select.
+	 * @param string $h_w_c			     The HWC group string (e.g., "2-2-2 (17)").
+	 * @return string                    Comma-separated string of selected numbers, or error message if data missing.
+	 */
+	public function hwc_only($lottery_id, $combination_size, $h_w_c)
+	{
+		// 1. Parse H-W-C group (e.g., "2-2-2 (17)")
+		preg_match('/(\d+)-(\d+)-(\d+)/', $h_w_c, $matches);
+		$h = (int)$matches[1];
+		$w = (int)$matches[2];
+		$c = (int)$matches[3];
+		// 2. Calculate scaled totals for combination size
+		$total = $h + $w + $c;
+		$h_total = round(($h / $total) * $combination_size);
+		$w_total = round(($w / $total) * $combination_size);
+		$c_total = $combination_size - $h_total - $w_total; // Ensure total matches
+		// 3. Get HWC data from DB
+		$hwc = $this->statistics_m->h_w_c_exists($lottery_id);
+		$position_row = $this->statistics_m->hwc_history_exists($lottery_id);
+		if (!$hwc) {
+			// Handle error: required hot, warm, cold missing
+			return show_error('Hots Wwarms and Colds data not found for this lottery.');
+		} elseif(!$position_row || empty($position_row['position'])) {
+			// Handle error: required position data missing
+			return show_error('Position data not found for this lottery.');
+		}
+		// 4. Parse position string
+		$parts = explode('|', $position_row['position']);
+		$h_positions = $this->parse_position_part($parts[0]); // returns [0=>21, 1=>16, ...]
+		$w_positions = $this->parse_position_part($parts[1]);
+		$c_positions = $this->parse_position_part($parts[2]);
+		// 5. Parse hots, warms, colds fields
+		$hots = $this->parse_number_counts($hwc['hots']); // ['42'=>18, ...]
+		$warms = $this->parse_number_counts($hwc['warms']);
+		$colds = $this->parse_number_counts($hwc['colds']);
+		// 6. Select numbers by position count
+		$selected = [];
+		$selected = array_merge($selected, $this->select_by_position($h_positions, $hots, $h_total));
+		$selected = array_merge($selected, $this->select_by_position($w_positions, $warms, $w_total));
+		$selected = array_merge($selected, $this->select_by_position($c_positions, $colds, $c_total));
+		return implode(',', $selected);
+	}
+	/**
+     * Parses a position part string (e.g., "H>0=21,1=16,...") into an associative array.
+     *
+     * The returned array maps position indices to their counts.
+     * Example: [0 => 21, 1 => 16, ...]
+     *
+     * @param string $str The position part string to parse.
+     * @return array Associative array of position => count.
+     */
+    private function parse_position_part($str) {
+        $str = preg_replace('/^[HWC]>/', '', $str);
+        $pairs = explode(',', $str);
+        $arr = [];
+        foreach ($pairs as $pair) {
+            list($pos, $count) = explode('=', $pair);
+            $arr[(int)$pos] = (int)$count;
+        }
+        return $arr;
+    }
+    /**
+     * Parses a number counts string (e.g., "42=18,45=17,...") into an associative array.
+     *
+     * The returned array maps numbers to their counts.
+     * Example: ['42' => 18, '45' => 17, ...]
+     *
+     * @param string $str The number counts string to parse.
+     * @return array Associative array of number => count.
+     */
+    private function parse_number_counts($str) {
+        $pairs = explode(',', $str);
+        $arr = [];
+        foreach ($pairs as $pair) {
+            list($num, $count) = explode('=', $pair);
+            $arr[(int)$num] = (int)$count;
+        }
+        return $arr;
+    }
+    /**
+     * Selects numbers by matching position counts to numbers in the group array.
+     *
+     * Iterates over the positions sorted by count descending, then by position ascending.
+     * For each count, finds the corresponding number in the group array and adds it to the selection.
+     * Stops when the required limit is reached.
+     *
+     * @param array $positions Array of positions and their counts.
+     * @param array $numbers Associative array of numbers and their counts.
+     * @param int $limit The number of selections to make.
+     * @return array Array of selected numbers.
+     */
+    private function select_by_position($positions, $numbers, $limit) {
+        $selected = [];
+        // Sort positions by count descending, then by position ascending
+        arsort($positions);
+        foreach ($positions as $pos => $count) {
+            // Find the number in $numbers with this count
+            foreach ($numbers as $num => $num_count) {
+                if ($num_count == $count && !in_array($num, $selected)) {
+                    $selected[] = $num;
+                    if (count($selected) >= $limit) break 2;
+                }
+            }
+        }
+        return $selected;
+    }
 }

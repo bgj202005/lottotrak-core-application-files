@@ -390,7 +390,7 @@
 																	'value' => 'after_ball',
 																	'checked' => TRUE
 																]); ?>
-															<?= form_dropdown('ball_points', $lottery->ball_points, '', 'class="form-control" id="ball_points"') ?>
+															<?= form_dropdown('ball_points', $ball_points_options, '', 'class="form-control" id="ball_points"') ?>
 														</div>
 													</td>
 													<td data-label="Position">
@@ -401,7 +401,7 @@
 																'value' => 'position',
 																'checked' => FALSE
 															]); ?>
-															<?= form_dropdown('position_points', $lottery->position_points, '', 'class="form-control" id="position_points"') ?>
+															<?= form_dropdown('position_points', $position_points_options, '', 'class="form-control" id="position_points"') ?>
 														</div>
 													</td>
 													<td data-label="Friends">

@@ -483,7 +483,15 @@ class Predictions extends Admin_Controller {
 		}
 		// Fetch H-W-C, Followers, and Friends data
 		$this->data['h_w_c'] = $this->predictions_m->get_h_w_c($id);
-		$this->data['h_w_c_group'] = $this->predictions_m->get_h_w_c_range($id);
+		$h_w_c_group = $this->predictions_m->get_h_w_c_range($id);
+		// before passing $h_w_c_group to the view
+		$h_w_c_group_options = [];
+		foreach ($h_w_c_group as $group) {
+			// $group is something like "2-2-2 (17)"
+			$value = substr($group, 0, 5); // "2-2-2"
+			$h_w_c_group_options[$value] = $group;
+		}
+		$this->data['h_w_c_group'] = $h_w_c_group_options;
 		$this->data['followers'] = $this->predictions_m->get_followers($id);
 			$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 			// 1. Check for a record for the current lottery in the followers table
@@ -496,8 +504,30 @@ class Predictions extends Admin_Controller {
 			// 3. Only populate the numbers with the win record that was actually drawn
 			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'],$p_group,$follower_wins,$follow_poswins);
 			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included']);
-			$this->data['lottery']->ball_points = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn);
-			$this->data['lottery']->position_points = $this->predictions_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
+			$ball_points = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn);
+			// Example $ball_points_labels = ['7 (142)', '+14 (62)', '12 (88)', ...];
+			$ball_points_options = [];
+			foreach ($ball_points as $label) {
+				// Extract value: if it starts with '+', keep '+', else just the number before space
+				if (strpos($label, '+') === 0) {
+					$value = substr($label, 0, strpos($label, ' ')); // '+14'
+				} else {
+					$value = strtok($label, ' '); // '7'
+				}
+				$ball_points_options[$value] = $label;
+			}
+			$this->data['ball_points_options'] = $ball_points_options;
+			$position_points = $this->predictions_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
+			$position_points_options = [];
+			foreach ($position_points as $label) {
+				if (strpos($label, '+') === 0) {
+					$value = substr($label, 0, strpos($label, ' ')); // '+14'
+				} else {
+					$value = strtok($label, ' '); // '7'
+				}
+				$position_points_options[$value] = $label;
+			}
+			$this->data['position_points_options'] = $position_points_options;
 			$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
 			$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);
 			$this->data['lottery']->winning_digits = $this->predictions_m->get_digit_sums($this->data['lottery']->highlights['winning_digits']);
@@ -543,9 +573,29 @@ class Predictions extends Admin_Controller {
         $this->data['lottery'] = $this->lotteries_m->get($id);
 
         if ($this->input->method() === 'post') {
-            // Get posted values
-            $combination_file = $this->input->post('wheeling', TRUE);
-            $h_w_cgroup = $this->input->post('h_w_c_group', TRUE);
+            $hwc_checked = $this->input->post('hwc') ? true : false;
+    		$followers_checked = $this->input->post('followers') ? true : false;
+    		$friends_checked = $this->input->post('friends') ? true : false;
+			$combination_file = $this->input->post('wheeling', TRUE);
+			// Extract number of selections from combination_file (3rd and 4th digits)
+    		$selections = (int)substr($combination_file, 2, 2);
+			$h_w_c_group = $this->input->post('h_w_c_group', TRUE);
+			// Logic for which method(s) to run
+			if ($hwc_checked && !$followers_checked) {
+				// Only HWC checked
+				$number_series = $this->predictions_m->hwc_only($id, $selections, $h_w_c_group);
+			} elseif (!$hwc_checked && $followers_checked) {
+				// Only Followers checked
+				$this->prediction_m->followers_only($lottery_id);
+			} elseif ($hwc_checked && $followers_checked) {
+				// Both checked
+				//$this->predictions_m->hwc($lottery_id);
+				//$this->predictions_m->followers($lottery_id);
+			} else {
+				// None checked (optional: handle error or default)
+				 $this->session->set_flashdata('message', 'Please select at least one option.');
+			}
+			// Get posted values
             $followers = $this->input->post('followers', TRUE);
             $friends = $this->input->post('friends', TRUE);
 
@@ -559,8 +609,8 @@ class Predictions extends Admin_Controller {
             } else {
                 // Success: load posted values for further processing or display
                 $this->data['combination_file'] = $combination_file;
-                $this->data['h_w_cgroup'] = $h_w_cgroup;
-                $this->data['followers'] = $followers;
+                $this->data['h_w_c_group'] = $h_w_c_group;
+                $this->data['followers'] = $followers ;
                 $this->data['friends'] = $friends;
                 $this->data['message'] = 'Combination Table and filters loaded successfully.';
             }
@@ -621,7 +671,6 @@ class Predictions extends Admin_Controller {
 		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	
 		$this->load->view('admin/_layout_main', $this->data);
 	}
-
 	/**
 	 * Displays the statistics for a selected combination file.
 	 *
