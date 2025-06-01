@@ -571,7 +571,6 @@ class Predictions extends Admin_Controller {
     {
         $this->data['message'] = '';
         $this->data['lottery'] = $this->lotteries_m->get($id);
-
         if ($this->input->method() === 'post') {
             $hwc_checked = $this->input->post('hwc') ? true : false;
     		$followers_checked = $this->input->post('followers') ? true : false;
@@ -584,9 +583,18 @@ class Predictions extends Admin_Controller {
 			if ($hwc_checked && !$followers_checked) {
 				// Only HWC checked
 				$number_series = $this->predictions_m->hwc_only($id, $selections, $h_w_c_group);
+				if($number_series === FALSE) {
+					$this->session->set_flashdata('message', 'No Hot, Warm and Cold Numbers found for the selected options.');
+					redirect('admin/predictions/futures/'.$id);
+				}
 			} elseif (!$hwc_checked && $followers_checked) {
-				// Only Followers checked
-				$this->prediction_m->followers_only($lottery_id);
+				$follower_type = $this->input->post('followers_type', TRUE); // e.g., 'after_ball' or 'position'
+				$follower_select =($this->input->post('ball_points', TRUE)!==NULL ? $this->input->post('ball_points', TRUE) : $this->input->post('position_points', TRUE));
+				$number_series = $this->predictions_m->followers_only($id, $selections, $follower_type, $follower_select);
+				if($number_series === FALSE) {
+					$this->session->set_flashdata('message', 'No followers found for the selected options.');
+					redirect('admin/predictions/futures/'.$id);
+				}
 			} elseif ($hwc_checked && $followers_checked) {
 				// Both checked
 				//$this->predictions_m->hwc($lottery_id);
