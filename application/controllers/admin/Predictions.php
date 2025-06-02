@@ -589,7 +589,7 @@ class Predictions extends Admin_Controller {
 				}
 			} elseif (!$hwc_checked && $followers_checked) {
 				$follower_type = $this->input->post('followers_type', TRUE); // e.g., 'after_ball' or 'position'
-				$follower_select =($this->input->post('ball_points', TRUE)!==NULL ? $this->input->post('ball_points', TRUE) : $this->input->post('position_points', TRUE));
+				$follower_select =($this->input->post('followers_type', TRUE)=='after_ball' ? $this->input->post('ball_points', TRUE) : $this->input->post('position_points', TRUE));
 				$number_series = $this->predictions_m->followers_only($id, $selections, $follower_type, $follower_select);
 				if($number_series === FALSE) {
 					$this->session->set_flashdata('message', 'No followers found for the selected options.');

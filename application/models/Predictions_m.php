@@ -1043,19 +1043,14 @@ class Predictions_m extends MY_Model
 	/**
 	 * Generate a set of numbers using the H-W-C (Hot-Warm-Cold) method for a given lottery.
 	 *
-	 * Retrieves the HWC group selection (e.g., "2-2-2"), parses the counts, and scales them to the desired
-	 * combination size. Loads the HWC and position data from the statistics model. Parses the position string
-	 * and the hots/warms/colds fields into associative arrays. Selects numbers by matching position counts
-	 * to the corresponding numbers in the hots, warms, and colds arrays, keeping the selection as balanced as possible.
-	 *
 	 * @param int    $lottery_id         The lottery ID.
 	 * @param int    $combination_size   The total number of numbers to select.
-	 * @param string $h_w_c			     The HWC group string (e.g., "2-2-2 (17)").
-	 * @return string                    Comma-separated string of selected numbers, or error message if data missing.
+	 * @param string $h_w_c			     The HWC group string (e.g., "3-3-3 (17)").
+	 * @return string                    Comma-separated string of selected numbers.
 	 */
 	public function hwc_only($lottery_id, $combination_size, $h_w_c)
 	{
-		// 1. Parse H-W-C group (e.g., "2-2-2 (17)")
+		// 1. Parse H-W-C group (e.g., "3-3-3 (17)")
 		preg_match('/(\d+)-(\d+)-(\d+)/', $h_w_c, $matches);
 		$h = (int)$matches[1];
 		$w = (int)$matches[2];
@@ -1069,104 +1064,78 @@ class Predictions_m extends MY_Model
 		$hwc = $this->statistics_m->h_w_c_exists($lottery_id);
 		$position_row = $this->statistics_m->hwc_history_exists($lottery_id);
 		if (!$hwc) {
-			// Handle error: required hot, warm, cold missing
-			return show_error('Hots Wwarms and Colds data not found for this lottery.');
+			return show_error('Hots Warms and Colds data not found for this lottery.');
 		} elseif(!$position_row || empty($position_row['position'])) {
-			// Handle error: required position data missing
 			return show_error('Position data not found for this lottery.');
 		}
-		// 4. Parse position string
+		// 4. Parse numbers for each group (discard counts, keep order)
+		$hots = array_map('intval', array_map(function($v){ return explode('=', $v)[0]; }, explode(',', $hwc['hots'])));
+		$warms = array_map('intval', array_map(function($v){ return explode('=', $v)[0]; }, explode(',', $hwc['warms'])));
+		$colds = array_map('intval', array_map(function($v){ return explode('=', $v)[0]; }, explode(',', $hwc['colds'])));
+		// 5. Parse positions for each group
 		$parts = explode('|', $position_row['position']);
-		$h_positions = $this->parse_position_part($parts[0]); // returns [0=>21, 1=>16, ...]
+		$h_positions = $this->parse_position_part($parts[0]); // [position => count]
 		$w_positions = $this->parse_position_part($parts[1]);
 		$c_positions = $this->parse_position_part($parts[2]);
-		// 5. Parse hots, warms, colds fields
-		$hots = $this->parse_number_counts($hwc['hots']); // ['42'=>18, ...]
-		$warms = $this->parse_number_counts($hwc['warms']);
-		$colds = $this->parse_number_counts($hwc['colds']);
-		// 6. Select numbers by position count
+		// 6. Select numbers for each group by top position counts
 		$selected = [];
-		$selected = array_merge($selected, $this->select_by_position($h_positions, $hots, $h_total));
-		$selected = array_merge($selected, $this->select_by_position($w_positions, $warms, $w_total));
-		$selected = array_merge($selected, $this->select_by_position($c_positions, $colds, $c_total));
-		return implode(',', $selected);
+		$selected = array_merge($selected, $this->select_by_position_index($h_positions, $hots, $h_total));
+		$selected = array_merge($selected, $this->select_by_position_index($w_positions, $warms, $w_total));
+		$selected = array_merge($selected, $this->select_by_position_index($c_positions, $colds, $c_total));
+
+	return implode(',', $selected);
 	}
 	/**
-     * Parses a position part string (e.g., "H>0=21,1=16,...") into an associative array.
-     *
-     * The returned array maps position indices to their counts.
-     * Example: [0 => 21, 1 => 16, ...]
-     *
-     * @param string $str The position part string to parse.
-     * @return array Associative array of position => count.
-     */
-    private function parse_position_part($str) {
-        $str = preg_replace('/^[HWC]>/', '', $str);
-        $pairs = explode(',', $str);
-        $arr = [];
-        foreach ($pairs as $pair) {
-            list($pos, $count) = explode('=', $pair);
-            $arr[(int)$pos] = (int)$count;
-        }
-        return $arr;
-    }
-    /**
-     * Parses a number counts string (e.g., "42=18,45=17,...") into an associative array.
-     *
-     * The returned array maps numbers to their counts.
-     * Example: ['42' => 18, '45' => 17, ...]
-     *
-     * @param string $str The number counts string to parse.
-     * @return array Associative array of number => count.
-     */
-    private function parse_number_counts($str) {
-        $pairs = explode(',', $str);
-        $arr = [];
-        foreach ($pairs as $pair) {
-            list($num, $count) = explode('=', $pair);
-            $arr[(int)$num] = (int)$count;
-        }
-        return $arr;
-    }
-    /**
-     * Selects numbers by matching position counts to numbers in the group array.
-     *
-     * Iterates over the positions sorted by count descending, then by position ascending.
-     * For each count, finds the corresponding number in the group array and adds it to the selection.
-     * Stops when the required limit is reached.
-     *
-     * @param array $positions Array of positions and their counts.
-     * @param array $numbers Associative array of numbers and their counts.
-     * @param int $limit The number of selections to make.
-     * @return array Array of selected numbers.
-     */
-    private function select_by_position($positions, $numbers, $limit) {
-        $selected = [];
-        // Sort positions by count descending, then by position ascending
-        arsort($positions);
-        foreach ($positions as $pos => $count) {
-            // Find the number in $numbers with this count
-            foreach ($numbers as $num => $num_count) {
-                if ($num_count == $count && !in_array($num, $selected)) {
-                    $selected[] = $num;
-                    if (count($selected) >= $limit) break 2;
-                }
-            }
-        }
-        return $selected;
-    }
+	 * Parses a position part string (e.g., "H>0=21,1=16,...") into an associative array.
+	 * The returned array maps position indices to their counts.
+	 * Example: [0 => 21, 1 => 16, ...]
+	 *
+	 * @param string $str The position part string to parse.
+	 * @return array Associative array of position => count.
+	 */
+	private function parse_position_part($str) {
+		$str = preg_replace('/^[HWC]>/', '', $str);
+		$pairs = explode(',', $str);
+		$arr = [];
+		foreach ($pairs as $pair) {
+			list($pos, $count) = explode('=', $pair);
+			$arr[(int)$pos] = (int)$count;
+		}
+	return $arr;
+	}
+	/**
+	 * Selects numbers by top position counts.
+	 * For each top position (by count), selects the number at that position in the $numbers array.
+	 * Skips duplicates. Stops when $limit is reached.
+	 *
+	 * @param array $positions [position => count]
+	 * @param array $numbers   [0 => num, 1 => num, ...] (order matters)
+	 * @param int   $limit     How many numbers to select
+	 * @return array           Selected numbers
+	 */
+	private function select_by_position_index($positions, $numbers, $limit) {
+		arsort($positions); // Sort positions by count descending
+		$selected = [];
+		foreach ($positions as $pos => $count) {
+			if (isset($numbers[$pos]) && !in_array($numbers[$pos], $selected)) {
+				$selected[] = $numbers[$pos];
+				if (count($selected) >= $limit) break;
+			}
+		}
+	return $selected;
+	}
 	/**
 	 * Generates a set of numbers using the Followers Only method for a given lottery.
 	 *
-	 * @param int    $lottery_id        The lottery ID.
-	 * @param int    $combination_size  The total number of numbers to select.
-	 * @param string $type              'ball_after' for actual ball, 'position' for draw order.
-	 * @param string $select            The selected ball (may have '+' for extra) or position.
-	 * @return array |false             Array of selected numbers, or FALSE if data not found or invalid.
+	 * @param 	int    $lottery_id        The lottery ID.
+	 * @param 	int    $combination_size  The total number of numbers to select.
+	 * @param 	string $type              'ball_after' for actual ball, 'position' for draw order.
+	 * @param 	string $select            The selected ball (may have '+' for extra) or position.
+	 * @return 	string $selected |false   String of selected numbers, or FALSE if data not found or invalid.
 	 */
 	public function followers_only($lottery_id, $combination_size, $type, $select)
 	{
-		// Get followers and non-followers data from statistics_m
+	// Get followers and non-followers data from statistics_m
 		$followers_row = $this->statistics_m->followers_exists($lottery_id);
 		$nonfollowers_row = $this->statistics_m->nonfollowers_exists($lottery_id);
 		if (!$followers_row) {
@@ -1178,25 +1147,39 @@ class Predictions_m extends MY_Model
 		if ($type === 'ball_after' && strpos($select, '+') === 0) {
 			$select = substr($select, 1);
 		}
-		// Find the group for the selected ball or position (e.g., "34>")
 		$followers_groups = explode(',', $followers_field);
 		$nonfollowers_groups = $nonfollowers_field ? explode(',', $nonfollowers_field) : [];
 		$selected_followers = '';
-		foreach ($followers_groups as $group) {
-			if (strpos($group, $select . '>') === 0) {
-				$selected_followers = substr($group, strlen($select) + 1); // Remove "34>"
-				break;
+		$selected_nonfollowers = '';
+		if ($type === 'position') {
+			// $select is the position (1-based)
+			$position = (int)$select;
+			// Use the Nth group (1-based) for position N
+			if (isset($followers_groups[$position - 1])) {
+				$group = $followers_groups[$position - 1];
+				$selected_followers = substr($group, strpos($group, '>') + 1);
+			}
+			if (isset($nonfollowers_groups[$position - 1])) {
+				$group = $nonfollowers_groups[$position - 1];
+				$selected_nonfollowers = substr($group, strpos($group, '>') + 1);
+			}
+		} else {
+			// Find the group for the selected ball (e.g., "34>")
+			foreach ($followers_groups as $group) {
+				if (strpos($group, $select . '>') === 0) {
+					$selected_followers = substr($group, strlen($select) + 1); // Remove "34>"
+					break;
+				}
+			}
+			foreach ($nonfollowers_groups as $group) {
+				if (strpos($group, $select . '>') === 0) {
+					$selected_nonfollowers = substr($group, strlen($select) + 1); // Remove "34>"
+					break;
+				}
 			}
 		}
 		if ($selected_followers === '') {
 			return FALSE;
-		}
-		$selected_nonfollowers = '';
-		foreach ($nonfollowers_groups as $group) {
-			if (strpos($group, $select . '>') === 0) {
-				$selected_nonfollowers = substr($group, strlen($select) + 1); // Remove "34>"
-				break;
-			}
 		}
 		// Parse followers into dynamic groups by weight
 		$follower_numbers = explode('|', $selected_followers);
@@ -1218,7 +1201,6 @@ class Predictions_m extends MY_Model
 		}
 		// Sort groups by weight descending (so highest group first)
 		krsort($groups);
-
 		// Count total numbers in all groups
 		$total_numbers = 0;
 		foreach ($groups as $nums) {
@@ -1256,6 +1238,6 @@ class Predictions_m extends MY_Model
 				}
 			}
 		}
-		return implode(',', $selected);
+	return implode(',', $selected);
 	}
 }
