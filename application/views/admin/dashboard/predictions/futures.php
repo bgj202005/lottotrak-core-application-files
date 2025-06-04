@@ -453,7 +453,7 @@
 						<div class="form-group text-center mt-3">
 							<?php
 							$extra = ['class' => 'btn btn-primary btn-lg', 'id' => 'submit-btn', 'disabled' => 'disabled'];
-							echo form_submit('submit', 'Ganerate Tickets', $extra);
+							echo form_submit('submit', 'Generate Tickets', $extra);
 						// Both buttons are disabled by default
 							echo form_button([
 								'type' => 'button',

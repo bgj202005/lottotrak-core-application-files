@@ -1098,10 +1098,12 @@ class Predictions_m extends MY_Model
 		$pairs = explode(',', $str);
 		$arr = [];
 		foreach ($pairs as $pair) {
-			list($pos, $count) = explode('=', $pair);
-			$arr[(int)$pos] = (int)$count;
+			$kv = explode('=', $pair);
+			if (count($kv) == 2) {
+				$arr[(int)$kv[0]] = (int)$kv[1];
+			}
 		}
-	return $arr;
+		return $arr;
 	}
 	/**
 	 * Selects numbers by top position counts.
@@ -1114,15 +1116,16 @@ class Predictions_m extends MY_Model
 	 * @return array           Selected numbers
 	 */
 	private function select_by_position_index($positions, $numbers, $limit) {
-		arsort($positions); // Sort positions by count descending
+		arsort($positions);
 		$selected = [];
+		if ($limit <= 0) return $selected;
 		foreach ($positions as $pos => $count) {
 			if (isset($numbers[$pos]) && !in_array($numbers[$pos], $selected)) {
 				$selected[] = $numbers[$pos];
 				if (count($selected) >= $limit) break;
 			}
 		}
-	return $selected;
+		return $selected;
 	}
 	/**
 	 * Generates a set of numbers using the Followers Only method for a given lottery.
@@ -1135,7 +1138,7 @@ class Predictions_m extends MY_Model
 	 */
 	public function followers_only($lottery_id, $combination_size, $type, $select)
 	{
-	// Get followers and non-followers data from statistics_m
+		// Get followers and non-followers data from statistics_m
 		$followers_row = $this->statistics_m->followers_exists($lottery_id);
 		$nonfollowers_row = $this->statistics_m->nonfollowers_exists($lottery_id);
 		if (!$followers_row) {
@@ -1144,7 +1147,8 @@ class Predictions_m extends MY_Model
 		$followers_field = $followers_row['lottery_followers'];
 		$nonfollowers_field = $nonfollowers_row ? $nonfollowers_row['lottery_nonfollowers'] : '';
 		// For ball_after, strip '+' if present (extra ball)
-		if ($type === 'ball_after' && strpos($select, '+') === 0) {
+		$select = trim($select);
+		if ($type === 'after_ball' && strpos($select, '+') === 0) {
 			$select = substr($select, 1);
 		}
 		$followers_groups = explode(',', $followers_field);
@@ -1209,17 +1213,34 @@ class Predictions_m extends MY_Model
 		if ($total_numbers == 0) {
 			return FALSE;
 		}
-		// Calculate how many to pick from each group (proportional)
+		// --- Improved: Ensure at least one pick from each group if possible ---
 		$picks = [];
 		$remaining = $combination_size;
 		foreach ($groups as $weight => $nums) {
-			// Last group gets the remainder to ensure total matches
-			if ($weight === array_key_last($groups)) {
-				$picks[$weight] = $remaining;
+			if ($remaining > 0 && count($nums) > 0) {
+				$picks[$weight] = 1;
+				$remaining--;
 			} else {
-				$count = round(count($nums) / $total_numbers * $combination_size);
-				$picks[$weight] = $count;
-				$remaining -= $count;
+				$picks[$weight] = 0;
+			}
+		}
+		// Distribute remaining picks proportionally
+		if ($remaining > 0) {
+			foreach ($groups as $weight => $nums) {
+				if ($remaining <= 0) break;
+				$extra = round((count($nums) / $total_numbers) * $remaining);
+				$to_add = min($extra, count($nums) - $picks[$weight]);
+				$picks[$weight] += $to_add;
+				$remaining -= $to_add;
+			}
+			// If still remaining, fill in order
+			while ($remaining > 0) {
+				foreach ($groups as $weight => $nums) {
+					if ($remaining > 0 && $picks[$weight] < count($nums)) {
+						$picks[$weight]++;
+						$remaining--;
+					}
+				}
 			}
 		}
 		// Select numbers from each group (first N)
@@ -1238,6 +1259,6 @@ class Predictions_m extends MY_Model
 				}
 			}
 		}
-	return implode(',', $selected);
+    return implode(',', $selected);
 	}
 }

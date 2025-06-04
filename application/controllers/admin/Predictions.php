@@ -92,9 +92,9 @@ class Predictions extends Admin_Controller {
 		$this->data['lottery']->predict = $this->input->post('ball_predict', TRUE);
 		$this->data['lottery']->pick = $this->input->post('lottery_balls_drawn', TRUE);
 		$this->data['combinations'] = $this->input->post('combinations', TRUE);
-		$file_name = (intval($this->data['lottery']->pick)<=9 ? '0'.$this->data['lottery']->pick : $this->data['lottery']->pick);
-		$file_name .= '0'.$this->data['lottery']->predict;
-		$file_name .= (intval($this->data['combinations'])<1000 ? '0'.$this->data['combinations'] : $this->data['combinations']);
+		$file_name = (intval($this->data['lottery']->pick) < 10 ? '0' : '') . intval($this->data['lottery']->pick);
+		$file_name .= (intval($this->data['lottery']->predict) < 10 ? '0' : '') . intval($this->data['lottery']->predict);
+		$file_name .= intval($this->data['combinations']); // No leading zero for tickets
 		
 		$path = $this->predictions_m->full_path($file_name);
 
