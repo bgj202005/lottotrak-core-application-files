@@ -597,8 +597,9 @@ class Predictions extends Admin_Controller {
 				}
 			} elseif ($hwc_checked && $followers_checked) {
 				// Both checked
-				//$this->predictions_m->hwc($lottery_id);
-				//$this->predictions_m->followers($lottery_id);
+				$follower_type = $this->input->post('followers_type', TRUE); // e.g., 'after_ball' or 'position'
+				$follower_select =($this->input->post('followers_type', TRUE)=='after_ball' ? $this->input->post('ball_points', TRUE) : $this->input->post('position_points', TRUE));
+				$number_series = $this->predictions_m->hwc_followers($id, $selections, $h_w_c_group, $follower_type, $follower_select);
 			} else {
 				// None checked (optional: handle error or default)
 				 $this->session->set_flashdata('message', 'Please select at least one option.');

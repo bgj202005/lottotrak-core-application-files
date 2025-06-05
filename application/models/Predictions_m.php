@@ -1261,4 +1261,119 @@ class Predictions_m extends MY_Model
 		}
     return implode(',', $selected);
 	}
+	/**
+	 * Generates a set of numbers using the combined H-W-C and Followers method for a given lottery.
+	 * 
+	 * This method first calculates the H-W-C split (e.g. 4 hots, 3 warms, 3 colds for 10 numbers).
+	 * For each group, it selects numbers by highest position count, but only includes numbers that are
+	 * present in the followers/non-followers list for the selected ball (e.g. after 34).
+	 * If a number from the H-W-C group is not found in the followers/non-followers, it is skipped.
+	 * The process continues for hots, warms, and colds until the required total is reached.
+	 * If not enough numbers are found, the remaining are filled from the followers/non-followers list.
+	 *
+	 * @param int    $lottery_id        The lottery ID.
+	 * @param int    $combination_size  The total number of numbers to select.
+	 * @param string $h_w_c             The HWC group string (e.g., "4-3-3").
+	 * @param string $follower_type     'after_ball' for actual ball, 'position' for draw order.
+	 * @param string $follower_select   The selected ball (may have '+' for extra) or position.
+	 * @return string|false             Comma-separated string of selected numbers, or FALSE if data not found or invalid.
+	 */
+	public function hwc_followers($lottery_id, $combination_size, $h_w_c, $follower_type, $follower_select)
+	{
+	// 1. Parse H-W-C group (e.g., "4-3-3")
+	preg_match('/(\d+)-(\d+)-(\d+)/', $h_w_c, $matches);
+	$h = (int)$matches[1];
+	$w = (int)$matches[2];
+	$c = (int)$matches[3];
+	// 2. Calculate scaled totals for combination size
+	$total = $h + $w + $c;
+	$h_total = round(($h / $total) * $combination_size);
+	$w_total = round(($w / $total) * $combination_size);
+	$c_total = $combination_size - $h_total - $w_total;
+	// 3. Get HWC data
+	$hwc = $this->statistics_m->h_w_c_exists($lottery_id);
+	$position_row = $this->statistics_m->hwc_history_exists($lottery_id);
+	if (!$hwc || !$position_row || empty($position_row['position'])) {
+		return FALSE;
+	}
+	// 4. Parse numbers for each group (discard counts, keep order)
+	$hots = array_map('intval', array_map(function($v){ return explode('=', $v)[0]; }, explode(',', $hwc['hots'])));
+	$warms = array_map('intval', array_map(function($v){ return explode('=', $v)[0]; }, explode(',', $hwc['warms'])));
+	$colds = array_map('intval', array_map(function($v){ return explode('=', $v)[0]; }, explode(',', $hwc['colds'])));
+	// 5. Parse positions for each group
+	$parts = explode('|', $position_row['position']);
+	$h_positions = $this->parse_position_part($parts[0]);
+	$w_positions = $this->parse_position_part($parts[1]);
+	$c_positions = $this->parse_position_part($parts[2]);
+	// 6. Get followers and non-followers for the selected ball
+	$followers_row = $this->statistics_m->followers_exists($lottery_id);
+	$nonfollowers_row = $this->statistics_m->nonfollowers_exists($lottery_id);
+	if (!$followers_row) return FALSE;
+	$followers_field = $followers_row['lottery_followers'];
+	$nonfollowers_field = $nonfollowers_row ? $nonfollowers_row['lottery_nonfollowers'] : '';
+	$follower_select = trim($follower_select);
+	if ($follower_type === 'after_ball' && isset($follower_select[0]) && $follower_select[0] === '+') {
+		$follower_select = substr($follower_select, 1);
+	}
+	$followers_groups = explode(',', $followers_field);
+	$nonfollowers_groups = $nonfollowers_field ? explode(',', $nonfollowers_field) : [];
+	$selected_followers = '';
+	$selected_nonfollowers = '';
+	foreach ($followers_groups as $group) {
+		if (strpos($group, $follower_select . '>') === 0) {
+			$selected_followers = substr($group, strlen($follower_select) + 1);
+			break;
+		}
+	}
+	foreach ($nonfollowers_groups as $group) {
+		if (strpos($group, $follower_select . '>') === 0) {
+			$selected_nonfollowers = substr($group, strlen($follower_select) + 1);
+			break;
+		}
+	}
+	if ($selected_followers === '') return FALSE;
+	// Parse followers/nonfollowers into arrays
+	$followers_list = [];
+	foreach (explode('|', $selected_followers) as $item) {
+		if (strpos($item, '=') !== false) {
+			list($num, $weight) = explode('=', $item);
+			$followers_list[] = trim($num);
+		}
+	}
+	$nonfollowers_list = $selected_nonfollowers ? explode('|', $selected_nonfollowers) : [];
+	// 7. Select HWC numbers by position, but only if in followers/nonfollowers
+	$select_from_group = function($positions, $numbers, $limit, $valid_list) {
+		arsort($positions);
+		$selected = [];
+		if ($limit <= 0) return $selected; // <-- Place this at the top!
+		foreach ($positions as $pos => $count) {
+			if (isset($numbers[$pos]) && in_array($numbers[$pos], $valid_list) && !in_array($numbers[$pos], $selected)) {
+				$selected[] = $numbers[$pos];
+				if (count($selected) >= $limit) break;
+			}
+		}
+		return $selected;
+	};
+	$selected = [];
+	if ($h_total > 0) {
+		$selected = array_merge($selected, $select_from_group($h_positions, $hots, $h_total, $followers_list));
+	}
+	if ($w_total > 0) {
+		$selected = array_merge($selected, $select_from_group($w_positions, $warms, $w_total, $followers_list));
+	}
+	if ($c_total > 0) {
+		$selected = array_merge($selected, $select_from_group($c_positions, $colds, $c_total, array_merge($followers_list, $nonfollowers_list)));
+	}
+	// If not enough numbers, fill from remaining followers/nonfollowers
+	$all_valid = array_merge($followers_list, $nonfollowers_list);
+	if (count($selected) < $combination_size) {
+		foreach ($all_valid as $num) {
+			if (!in_array($num, $selected)) {
+				$selected[] = $num;
+				if (count($selected) >= $combination_size) break;
+			}
+		}
+	}
+	return implode(',', $selected);
+	}
 }
