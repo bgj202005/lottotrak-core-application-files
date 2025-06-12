@@ -45,6 +45,14 @@
     width: auto;
     display: table;
 	}
+	.mt-4 .table,
+	.generated-tickets-table {
+		width: 95% !important;
+		max-width: 95% !important;
+		margin-left: auto;
+		margin-right: auto;
+		display: table;
+	}
 	.form-group label {
         font-weight: bold;
     }
@@ -279,7 +287,7 @@
 								}
 								// Dropdown attributes
 								$extra = ['class' => 'form-control', 'id' => 'wheeling','style' => 'width: 70%;'];
-								echo form_dropdown('wheeling', $wheeling_options, set_value('wheeling', ''), $extra);
+								echo form_dropdown('wheeling', $wheeling_options, isset($selected_wheeling) ? $selected_wheeling : set_value('wheeling', ''), $extra);
 								// Display form error if any
 								echo form_error('wheeling', '<div class="bg-warning mt-2 p-2 text-center text-white">', '</div>');
 								?>
@@ -316,7 +324,7 @@
 														<td data-label="H-W-C">
 															<?php
 															$js = 'id="hwc-checkbox" class="preset-checkbox" disabled';
-															echo form_checkbox('hwc', '1', TRUE, $js);
+															echo form_checkbox('hwc', '1', !empty($selected_hwc), $js);
 															?>
 														</td>
 														<td data-label="Range"><?php echo $h_w_c['range']; ?></td>
@@ -326,7 +334,7 @@
 														<td data-label="Followers">
 															<?php
 															$js = 'id="followers-checkbox" class="preset-checkbox" disabled';
-															echo form_checkbox('followers', '1', TRUE, $js);
+															echo form_checkbox('followers', '1', !empty($selected_followers), $js);
 															?>
 														</td>
 														<td data-label="Range"><?php echo $followers['range']; ?></td>
@@ -336,7 +344,7 @@
 														<td data-label="Friends">
 															<?php
 															$js = 'id="friends-checkbox" class="preset-checkbox" disabled';
-															echo form_checkbox('friends', '1', TRUE, $js);
+															echo form_checkbox('friends', '1', !empty($selected_friends_checkbox), $js);
 															?>
 														</td>
 														<td data-label="Range"><?php echo $friends['range']; ?></td>
@@ -380,7 +388,7 @@
 											<tbody>
 												<tr>
 													<td data-label="H-W-C">
-														<?= form_dropdown('h_w_c_group', $h_w_c_group, '', 'class="form-control" id="h_w_c_group"') ?>
+														<?= form_dropdown('h_w_c_group', $h_w_c_group, isset($selected_h_w_c_group) ? $selected_h_w_c_group : '', 'class="form-control" id="h_w_c_group"') ?>
 													</td>
 													<td data-label="After Ball">
 														<div class="d-flex align-items-center" style="gap:0.3em;">
@@ -388,9 +396,9 @@
 																	'name' => 'followers_type',
 																	'id' => 'after_ball_radio',
 																	'value' => 'after_ball',
-																	'checked' => TRUE
+																	'checked' => (isset($selected_followers_type) && $selected_followers_type == 'after_ball')
 																]); ?>
-															<?= form_dropdown('ball_points', $ball_points_options, '', 'class="form-control" id="ball_points"') ?>
+															<?= form_dropdown('ball_points', $ball_points_options, isset($selected_ball_points) ? $selected_ball_points : '', 'class="form-control" id="ball_points"') ?>
 														</div>
 													</td>
 													<td data-label="Position">
@@ -399,9 +407,9 @@
 																'name' => 'followers_type',
 																'id' => 'position_radio',
 																'value' => 'position',
-																'checked' => FALSE
+																'checked' => (isset($selected_followers_type) && $selected_followers_type == 'position')
 															]); ?>
-															<?= form_dropdown('position_points', $position_points_options, '', 'class="form-control" id="position_points"') ?>
+															<?= form_dropdown('position_points', $position_points_options, isset($selected_position_points) ? $selected_position_points : '', 'class="form-control" id="position_points"') ?>
 														</div>
 													</td>
 													<td data-label="Friends">
@@ -410,37 +418,37 @@
 															'0' => '0 Friends',
 															'1' => '1-Way',
 															'2' => '2-Way'
-														], '', 'class="form-control" id="friends"') ?>
+														], isset($selected_friends) ? $selected_friends : '', 'class="form-control" id="friends"') ?>
 													</td>
 													<td data-label="Trends">
-														<?= form_dropdown('trends', $lottery->trends, '', 'class="form-control"') ?>
+														<?= form_dropdown('trends', $lottery->trends, isset($selected_trends) ? $selected_trends : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Sums">
-														<?= form_dropdown('winning_sums', $lottery->winning_sums, '', 'class="form-control"') ?>
+														<?= form_dropdown('winning_sums', $lottery->winning_sums, isset($selected_winning_sums) ? $selected_winning_sums : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Digit Sums">
-														<?= form_dropdown('winning_digits', $lottery->winning_digits, '', 'class="form-control"') ?>
+														<?= form_dropdown('winning_digits', $lottery->winning_digits, isset($selected_winning_digits) ? $selected_winning_digits : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Repeaters">
-														<?= form_dropdown('repeaters', $lottery->repeaters, '', 'class="form-control"') ?>
+														<?= form_dropdown('repeaters', $lottery->repeaters,  isset($selected_repeaters) ? $selected_repeaters : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Consecutives">
-														<?= form_dropdown('consecutives', $lottery->consecutives, '', 'class="form-control"') ?>
+														<?= form_dropdown('consecutives', $lottery->consecutives, isset($selected_consecutives) ? $selected_consecutives : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Odd/Even">
-														<?= form_dropdown('parity', $lottery->parity, '', 'class="form-control"') ?>
+														<?= form_dropdown('parity', $lottery->parity, isset($selected_parity) ? $selected_parity : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Decades">
-														<?= form_dropdown('decades', $lottery->decades, '', 'class="form-control"') ?>
+														<?= form_dropdown('decades', $lottery->decades, isset($selected_decades) ? $selected_decades : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Last">
-														<?= form_dropdown('last_digits', $lottery->last_digits, '', 'class="form-control"') ?>
+														<?= form_dropdown('last_digits', $lottery->last_digits, isset($selected_last_digits) ? $selected_last_digits : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Range">
-														<?= form_dropdown('number_range', $lottery->number_range, '', 'class="form-control"') ?>
+														<?= form_dropdown('number_range', $lottery->number_range, isset($selected_number_range) ? $selected_number_range : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Adjacent">
-														<?= form_dropdown('adjacents', $lottery->adjacents, '', 'class="form-control"') ?>
+														<?= form_dropdown('adjacents', $lottery->adjacents, isset($selected_adjacents) ? $selected_adjacents : '', 'class="form-control"') ?>
 													</td>
 												</tr>
 											</tbody>
@@ -470,6 +478,134 @@
 							?>	
 							<?= form_close(); ?>
 						</div>
+						<?php if (!empty($number_array)): ?>
+							<div class="alert alert-info text-center mb-2" style="font-weight:bold;">
+								GENERATED NUMBERS ARE: <?= implode(', ', $number_array); ?>
+							</div>
+						<?php endif; ?>
+						<?php if (!empty($combos_paginated)): ?>
+							<form method="get" class="mb-3" id="pagination-size-form">
+								<label for="per_page" class="me-2">Combinations per page:</label>
+								<select name="per_page" id="per_page" class="form-select d-inline-block w-auto" onchange="document.getElementById('pagination-size-form').submit();">
+									<?php
+									$sizes = [10, 20, 50, 100, 200];
+									foreach ($sizes as $size): ?>
+										<option value="<?= $size ?>" <?= (isset($pagination['per_page']) && $pagination['per_page'] == $size) ? 'selected' : '' ?>>
+											<?= $size ?>
+										</option>
+									<?php endforeach; ?>
+								</select>
+								<noscript><button type="submit" class="btn btn-primary btn-sm">Go</button></noscript>
+								<!-- Keep other GET params (like page) -->
+								<?php if (isset($pagination['current'])): ?>
+									<input type="hidden" name="page" value="<?= $pagination['current'] ?>">
+								<?php endif; ?>
+							</form>
+							<div class="mb-4">
+								<h4>Generated Combination Tickets</h4>
+								<div class="table-responsive mb-4">
+									<table class="table table-bordered table-striped generated-tickets-table" style="width:95%; margin:0 auto;">
+										<thead class="table-dark">
+											<tr>
+												<th>#</th>
+												<th>Combination</th>
+												<th>Sum</th>
+												<th>Digit Sum</th>
+												<th>Repeaters</th>
+												<th>Consecutive</th>
+												<th>Even</th>
+												<th>Odd</th>
+												<th>Decade</th>
+												<th>Last</th>
+												<th>Range</th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php foreach ($combos_paginated as $idx => $item): ?>
+												<tr>
+													<td><?= (($pagination['current']-1)*$pagination['per_page'])+$idx+1 ?></td>
+													<td>
+														<?php
+															$ticket_numbers = array_values($item['combo']);
+															sort($ticket_numbers, SORT_NUMERIC);
+															echo implode(' ', $ticket_numbers);
+														?>
+													</td>
+													<td><?= $item['stats']['sum'] ?></td>
+													<td><?= $item['stats']['digit_sum'] ?></td>
+													<td><?= $item['stats']['repeater'] ?></td>
+													<td><?= $item['stats']['consecutive'] ?></td>
+													<td><?= $item['stats']['even'] ?></td>
+													<td><?= $item['stats']['odd'] ?></td>
+													<td><?= $item['stats']['decade'] ?></td>
+													<td><?= $item['stats']['last'] ?></td>
+													<td><?= $item['stats']['range'] ?></td>
+												</tr>
+											<?php endforeach; ?>
+										</tbody>
+									</table>
+								</div>
+								<!-- Bootstrap Pagination here -->
+								<nav>
+									<ul class="pagination justify-content-center">
+										<?php
+										$current = $pagination['current'];
+										$total = $pagination['total'];
+										$per_page = $pagination['per_page'];
+
+										// Previous arrow
+										$prev_disabled = ($current <= 1) ? 'disabled' : '';
+										$prev_page = max(1, $current - 1);
+										?>
+										<li class="page-item <?= $prev_disabled ?>">
+											<a class="page-link" href="?page=<?= $prev_page ?>&per_page=<?= $per_page ?>" aria-label="Previous">
+												<span aria-hidden="true">&laquo;</span>
+											</a>
+										</li>
+
+										<?php
+										// Dot notation logic
+										if ($total <= 10) {
+											// Show all pages
+											for ($i = 1; $i <= $total; $i++) {
+												$active = ($i == $current) ? 'active' : '';
+												echo '<li class="page-item '.$active.'"><a class="page-link" href="?page='.$i.'&per_page='.$per_page.'">'.$i.'</a></li>';
+											}
+										} else {
+											// Always show first page
+											$showed_dots = false;
+											for ($i = 1; $i <= $total; $i++) {
+												if (
+													$i == 1 || // first page
+													$i == $total || // last page
+													($i >= $current - 2 && $i <= $current + 2) || // near current
+													($i <= 3 && $current <= 5) || // first 3 if near start
+													($i >= $total - 2 && $current >= $total - 4) // last 3 if near end
+												) {
+													$active = ($i == $current) ? 'active' : '';
+													echo '<li class="page-item '.$active.'"><a class="page-link" href="?page='.$i.'&per_page='.$per_page.'">'.$i.'</a></li>';
+													$showed_dots = false;
+												} else {
+													if (!$showed_dots) {
+														echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+														$showed_dots = true;
+													}
+												}
+											}
+										}
+										// Next arrow
+										$next_disabled = ($current >= $total) ? 'disabled' : '';
+										$next_page = min($total, $current + 1);
+										?>
+										<li class="page-item <?= $next_disabled ?>">
+											<a class="page-link" href="?page=<?= $next_page ?>&per_page=<?= $per_page ?>" aria-label="Next">
+												<span aria-hidden="true">&raquo;</span>
+											</a>
+										</li>
+									</ul>
+								</nav>
+							</div>
+						<?php endif; ?>
 					</div>
 				</div>
 			</div>
