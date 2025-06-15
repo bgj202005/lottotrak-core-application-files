@@ -1319,16 +1319,31 @@ class Predictions_m extends MY_Model
 	$nonfollowers_groups = $nonfollowers_field ? explode(',', $nonfollowers_field) : [];
 	$selected_followers = '';
 	$selected_nonfollowers = '';
-	foreach ($followers_groups as $group) {
-		if (strpos($group, $follower_select . '>') === 0) {
-			$selected_followers = substr($group, strlen($follower_select) + 1);
-			break;
+	if ($follower_type === 'position') {
+		// $select is the position (1-based)
+		$position = (int)$follower_select;
+		// Use the Nth group (1-based) for position N
+		if (isset($followers_groups[$position - 1])) {
+			$group = $followers_groups[$position - 1];
+			$selected_followers = substr($group, strpos($group, '>') + 1);
 		}
-	}
-	foreach ($nonfollowers_groups as $group) {
-		if (strpos($group, $follower_select . '>') === 0) {
-			$selected_nonfollowers = substr($group, strlen($follower_select) + 1);
-			break;
+		if (isset($nonfollowers_groups[$position - 1])) {
+			$group = $nonfollowers_groups[$position - 1];
+			$selected_nonfollowers = substr($group, strpos($group, '>') + 1);
+		}
+	} else {
+		// Find the group for the selected ball (e.g., "34>")
+		foreach ($followers_groups as $group) {
+			if (strpos($group, $follower_select . '>') === 0) {
+				$selected_followers = substr($group, strlen($follower_select) + 1); // Remove "34>"
+				break;
+			}
+		}
+		foreach ($nonfollowers_groups as $group) {
+			if (strpos($group, $follower_select . '>') === 0) {
+				$selected_nonfollowers = substr($group, strlen($follower_select) + 1); // Remove "34>"
+				break;
+			}
 		}
 	}
 	if ($selected_followers === '') return FALSE;
@@ -1588,7 +1603,7 @@ class Predictions_m extends MY_Model
 		}
 		$followers_field = $followers_row ? $followers_row['lottery_followers'] : '';
 		$nonfollowers_field = $nonfollowers_row ? $nonfollowers_row['lottery_nonfollowers'] : '';
-		$follower_select = trim($follower_select); // e.g. '2', '10', etc.
+		$select = trim($select); // e.g. '2', '10', etc.
 		if ($type === 'after_ball' && strpos($select, '+') === 0) {
 				$select = substr($select, 1);
 			}

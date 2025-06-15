@@ -1,6 +1,6 @@
 <section>
 	<h2>Lottery Predictions for Listed Lotteries</h2>
-	
+	<?php if (isset($message)) : ?> <h4 class="bg-warning" id = "message" style = "margin-top: 20px; text-align:center;"><?=$message; endif; ?></h4>
 	<div class="table-responsive">
 	<table class="table-sm table-striped">
 		<thead>

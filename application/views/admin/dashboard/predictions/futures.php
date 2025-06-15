@@ -413,7 +413,7 @@
 														</div>
 													</td>
 													<td data-label="Friends">
-														<?= form_dropdown('friends', [
+														<?= form_dropdown('friends_select', [
 															'all' => 'ALL',
 															'0' => '0 Friends',
 															'1' => '1-Way',
@@ -483,7 +483,8 @@
 								GENERATED NUMBERS ARE: <?= implode(', ', $number_array); ?>
 							</div>
 						<?php endif; ?>
-						<?php if (!empty($combos_paginated)): ?>
+						<?php if (!empty($combos_paginated)): 
+							?>
 							<form method="get" class="mb-3" id="pagination-size-form">
 								<label for="per_page" class="me-2">Combinations per page:</label>
 								<select name="per_page" id="per_page" class="form-select d-inline-block w-auto" onchange="document.getElementById('pagination-size-form').submit();">
@@ -523,23 +524,23 @@
 										<tbody>
 											<?php foreach ($combos_paginated as $idx => $item): ?>
 												<tr>
-													<td><?= (($pagination['current']-1)*$pagination['per_page'])+$idx+1 ?></td>
-													<td>
+													<td data-label="Ticket" class="nowrap"><?= (($pagination['current']-1)*$pagination['per_page'])+$idx+1 ?></td>
+													<td data-label="Combination" class="nowrap">
 														<?php
 															$ticket_numbers = array_values($item['combo']);
 															sort($ticket_numbers, SORT_NUMERIC);
 															echo implode(' ', $ticket_numbers);
 														?>
 													</td>
-													<td><?= $item['stats']['sum'] ?></td>
-													<td><?= $item['stats']['digit_sum'] ?></td>
-													<td><?= $item['stats']['repeater'] ?></td>
-													<td><?= $item['stats']['consecutive'] ?></td>
-													<td><?= $item['stats']['even'] ?></td>
-													<td><?= $item['stats']['odd'] ?></td>
-													<td><?= $item['stats']['decade'] ?></td>
-													<td><?= $item['stats']['last'] ?></td>
-													<td><?= $item['stats']['range'] ?></td>
+													<td data-label="Total Sum"><?= $item['stats']['sum'] ?></td>
+													<td data-label="Digit Sum"><?= $item['stats']['digit_sum'] ?></td>
+													<td data-label="Repeaters"><?= $item['stats']['repeater'] ?></td>
+													<td data-label="Consecutives"><?= $item['stats']['consecutive'] ?></td>
+													<td data-label="Even"><?= $item['stats']['even'] ?></td>
+													<td data-label="Odd"><?= $item['stats']['odd'] ?></td>
+													<td data-label="Decade"><?= $item['stats']['decade'] ?></td>
+													<td data-label="Last"><?= $item['stats']['last'] ?></td>
+													<td data-label="Range"><?= $item['stats']['range'] ?></td>
 												</tr>
 											<?php endforeach; ?>
 										</tbody>
@@ -562,7 +563,6 @@
 												<span aria-hidden="true">&laquo;</span>
 											</a>
 										</li>
-
 										<?php
 										// Dot notation logic
 										if ($total <= 10) {
@@ -572,7 +572,6 @@
 												echo '<li class="page-item '.$active.'"><a class="page-link" href="?page='.$i.'&per_page='.$per_page.'">'.$i.'</a></li>';
 											}
 										} else {
-											// Always show first page
 											$showed_dots = false;
 											for ($i = 1; $i <= $total; $i++) {
 												if (

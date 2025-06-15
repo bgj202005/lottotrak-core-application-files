@@ -27,6 +27,18 @@ class Predictions extends Admin_Controller {
 		foreach ($this->data['lotteries'] as &$lottery) {
 			$lottery->has_generated_file = $this->predictions_m->has_generated_file($lottery->balls_drawn); // Check if a file exists
 		}
+		// If futures_form session exists, destroy it
+		if ($this->session->userdata('futures_form')) {
+			$this->session->unset_userdata('futures_form');
+		}
+		if ($this->session->userdata('futures_number_array')) {
+			$this->session->unset_userdata('futures_number_array');
+		}
+		if ($this->session->userdata('futures_combos_with_stats')) {
+			$this->session->unset_userdata('futures_combos_with_stats');
+		}
+		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
+		else $this->data['message'] = '';
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
@@ -571,184 +583,169 @@ class Predictions extends Admin_Controller {
      * @return void Loads the appropriate view with error or success message and posted values.
      */
     public function combination($id)
-    {
-        $this->data['message'] = '';
-        $this->data['lottery'] = $this->lotteries_m->get($id);
-        $tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
-		$drawn = $this->data['lottery']->balls_drawn; // Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
+	{
+		$this->data['message'] = '';
+		$this->data['disable_generate'] = false; // Used to disable the generate button in the view
+
+		// Fetch lottery and related data
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		$drawn = $this->data['lottery']->balls_drawn;
 		$this->data['country_code'] = $this->predictions_m->get_lottery_country($id);
 		$this->data['state_prov_code'] = $this->predictions_m->get_lottery_state_prov($id);
-		// Fetch combination files for the lottery
-    	$this->data['combination_files'] = $this->predictions_m->get_combination_files($id);
-		// Before passing $combination_files to the view
-		if (!empty($this->data['combination_files'])) {
- 			usort($this->data['combination_files'], function($a, $b) {
-				// Extract the number part from the file name (assuming format like "06120500.txt")
-				$numA = intval(preg_replace('/\D/', '', $a['file_name']));
-				$numB = intval(preg_replace('/\D/', '', $b['file_name']));
-				return $numA - $numB;
-			});
-		}
-		// Fetch H-W-C, Followers, and Friends data
+		$this->data['combination_files'] = $this->predictions_m->get_combination_files($id);
 		$this->data['h_w_c'] = $this->predictions_m->get_h_w_c($id);
 		$this->data['followers'] = $this->predictions_m->get_followers($id);
+		$this->data['friends'] = $this->predictions_m->get_friends($id);
+
+		// Prepare dropdown options
 		$h_w_c_group = $this->predictions_m->get_h_w_c_range($id);
-		// before passing $h_w_c_group to the view
 		$h_w_c_group_options = [];
 		foreach ($h_w_c_group as $group) {
-			// $group is something like "2-2-2 (17)"
-			$value = substr($group, 0, 5); // "2-2-2"
+			$value = substr($group, 0, 5);
 			$h_w_c_group_options[$value] = $group;
 		}
 		$this->data['h_w_c_group'] = $h_w_c_group_options;
-			$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
-			// 1. Check for a record for the current lottery in the followers table
-			$p_group = $this->statistics_m->prize_group_profile($id); // Prize Group Profile Only
-			$p_group = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_ball);
-			$this->data['lottery']->last_drawn = $this->history_m->last_draw_prizegroup($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_ball, $p_group); 
-			// 2. extract the win record for each number into an array
-			$follower_wins = explode(">",$this->data['followers']['wins']);
-			$follow_poswins = explode(">",$this->data['followers']['positions']);
-			// 3. Only populate the numbers with the win record that was actually drawn
-			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'],$p_group,$follower_wins,$follow_poswins);
-			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included']);
-			$ball_points = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn);
-			// Example $ball_points_labels = ['7 (142)', '+14 (62)', '12 (88)', ...];
-			$ball_points_options = [];
-			foreach ($ball_points as $label) {
-				// Extract value: if it starts with '+', keep '+', else just the number before space
-				if (strpos($label, '+') === 0) {
-					$value = substr($label, 0, strpos($label, ' ')); // '+14'
-				} else {
-					$value = strtok($label, ' '); // '7'
-				}
-				$ball_points_options[$value] = $label;
-			}
-			$this->data['ball_points_options'] = $ball_points_options;
-			$position_points = $this->predictions_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
-			$position_points_options = [];
-			foreach ($position_points as $label) {
-				if (strpos($label, '+') === 0) {
-					$value = substr($label, 0, strpos($label, ' ')); // '+14'
-				} else {
-					$value = strtok($label, ' '); // '7'
-				}
-				$position_points_options[$value] = $label;
-			}
-			$this->data['position_points_options'] = $position_points_options;
-			$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
-			$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);
-			$this->data['lottery']->winning_digits = $this->predictions_m->get_digit_sums($this->data['lottery']->highlights['winning_digits']);
-			$this->data['lottery']->winning_sums = $this->predictions_m->get_sums($this->data['lottery']->highlights['winning_sums']);
-			$this->data['lottery']->repeaters = $this->predictions_m->get_repeaters($this->data['lottery']->highlights['repeats']);
-			$this->data['lottery']->consecutives = $this->predictions_m->get_consecutives($this->data['lottery']->highlights['consecutives']);
-			$this->data['lottery']->parity = $this->predictions_m->get_parity($this->data['lottery']->highlights['parity']);
-			// Call get_decade and get_last from predictions_m
-			$this->data['lottery']->decades = $this->predictions_m->get_decade($tbl_name, $this->data['lottery']->highlights['range']);
-			$this->data['lottery']->last_digits = $this->predictions_m->get_last($tbl_name, $this->data['lottery']->highlights['range']);
-			$this->data['lottery']->number_range = $this->predictions_m->get_range($this->data['lottery']->highlights['number_range']);
-			$this->data['lottery']->adjacents = $this->predictions_m->get_adjacents($this->data['lottery']->highlights['adjacents']);
-			$this->data['friends'] = $this->predictions_m->get_friends($id);
-			// Grab the next draw date
-			$ld = $this->data['lottery']->last_drawn['draw_date'];	// Return last draw date
-			$day = $this->lotteries_m->return_day($ld);				// Returns the day of draw, Saturday, Sunday, etc.
-			$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
+
+		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);
+		$p_group = $this->statistics_m->prize_group_profile($id);
+		$p_group = $this->statistics_m->prizes_only($p_group, $this->data['lottery']->extra_ball);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_prizegroup($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_ball, $p_group);
+		$follower_wins = explode(">", $this->data['followers']['wins']);
+		$follow_poswins = explode(">", $this->data['followers']['positions']);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $p_group, $follower_wins, $follow_poswins);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included']);
+
+		// Ball points and position points
+		$ball_points = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn);
+		$ball_points_options = [];
+		foreach ($ball_points as $label) {
+			$value = (strpos($label, '+') === 0) ? substr($label, 0, strpos($label, ' ')) : strtok($label, ' ');
+			$ball_points_options[$value] = $label;
+		}
+		$this->data['ball_points_options'] = $ball_points_options;
+
+		$position_points = $this->predictions_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
+		$position_points_options = [];
+		foreach ($position_points as $label) {
+			$value = (strpos($label, '+') === 0) ? substr($label, 0, strpos($label, ' ')) : strtok($label, ' ');
+			$position_points_options[$value] = $label;
+		}
+		$this->data['position_points_options'] = $position_points_options;
+
+		// Pagination setup
+		$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
+		$per_page = $this->input->post('per_page') ?: $this->input->get('per_page');
+		if (!$per_page) $per_page = 10;
+
+		// --- POST: Generate and Save Everything to Session ---
 		if ($this->input->method() === 'post') {
-            // Previous dropdowns and checkboxe settings
-			$this->data['selected_h_w_c_group'] = $this->input->post('h_w_c_group', TRUE);
-			$this->data['selected_followers_type'] = $this->input->post('followers_type', TRUE);
-			$this->data['selected_ball_points'] = $this->input->post('ball_points', TRUE);
-			$this->data['selected_position_points'] = $this->input->post('position_points', TRUE);
-			$this->data['selected_friends'] = $this->input->post('friends', TRUE);
-			$this->data['selected_hwc'] = $this->input->post('hwc') ? true : false;
-			$this->data['selected_followers'] = $this->input->post('followers') ? true : false;
-			$this->data['selected_wheeling'] = $this->input->post('wheeling', TRUE);
+			// Get all POST values and save to session for future pagination
 			
-			$hwc_checked = $this->data['selected_hwc']; // true if HWC is checked
-    		$followers_checked = $this->data['selected_followers']; // true if Followers is checked
-    		$friends_checked = $this->data['selected_friends']; // true if Friends is checked
+			// Get checked values
+			$hwc_checked = $this->input->post('hwc') ? true : false;
+			$followers_checked = $this->input->post('followers') ? true : false;
+			$friends_checked = $this->input->post('friends', TRUE);
 			$combination_file = $this->input->post('wheeling', TRUE);
-			// Extract number of selections from combination_file (3rd and 4th digits)
-    		$selections = (int)substr($combination_file, 2, 2);
 			$h_w_c_group = $this->input->post('h_w_c_group', TRUE);
-			// Logic for which method(s) to run
+			$follower_type = $this->input->post('followers_type', TRUE);
+			$selected_ball_points = $this->input->post('ball_points', TRUE);
+			$selected_position_points = $this->input->post('position_points', TRUE);
+			$selected_friends = $this->input->post('friends_select', TRUE);
+
+			$session_data = [
+				'selected_h_w_c_group'      => $h_w_c_group,
+				'selected_followers_type'   => $follower_type,
+				'selected_ball_points'      => $selected_ball_points,
+				'selected_position_points'  => $selected_position_points,
+				'selected_friends'          => $selected_friends,
+				'selected_hwc'              => $hwc_checked,
+				'selected_followers'        => $followers_checked,
+				'selected_friends_checkbox' => $friends_checked,
+				'selected_wheeling'         => $combination_file,
+			];
+			$this->session->set_userdata('futures_form', $session_data);
+
+			// Disable generate button after POST
+			$this->data['disable_generate'] = true;
+			$this->data['selected_followers_type'] = $follower_type; 		// or 'position' as your default
+			$this->data['selected_hwc'] = $hwc_checked; 					// preset value for H-W-C
+			$this->data['selected_followers'] = $followers_checked; 		// preset value for Followers
+			$this->data['selected_friends_checkbox'] = $friends_checked; 	// preset value for Friends
+			$this->data['selected_friends'] = $selected_friends; 			// preset value for Friends choices
+			$this->data['selected_ball_points'] = $selected_ball_points;
+			$this->data['selected_position_points'] = $selected_position_points;
+			$this->data['selected_wheeling'] = $combination_file; 			// preset value for Wheeling
+			// Extract number of selections from combination_file (3rd and 4th digits)
+			$selections = (int)substr($combination_file, 2, 2);
+
+			// Generate number series based on selections
+			$number_series = '';
 			if ($hwc_checked && !$followers_checked) {
-				// Only HWC checked
 				$number_series = $this->predictions_m->hwc_only($id, $selections, $h_w_c_group);
-				if($number_series === FALSE) {
-					$this->session->set_flashdata('message', 'No Hot, Warm and Cold Numbers found for the selected options.');
-					redirect('admin/predictions/futures/'.$id);
+				if(!$number_series) { 
+					$this->session->set_flashdata('message', 'Could not return a series of numbers for inserting in the Combination Tickets File.');
+					redirect('admin/predictions');
 				}
 			} elseif (!$hwc_checked && $followers_checked) {
-				$follower_type = $this->input->post('followers_type', TRUE); // e.g., 'after_ball' or 'position'
-				$follower_select =($this->input->post('followers_type', TRUE)=='after_ball' ? $this->input->post('ball_points', TRUE) : $this->input->post('position_points', TRUE));
+				$follower_select = ($follower_type == 'after_ball') ? $session_data['selected_ball_points'] : $session_data['selected_position_points'];
 				$number_series = $this->predictions_m->followers_only($id, $selections, $follower_type, $follower_select);
-				if($number_series === FALSE) {
-					$this->session->set_flashdata('message', 'No followers found for the selected options.');
-					redirect('admin/predictions/futures/'.$id);
+				if(!$number_series) { 
+					$this->session->set_flashdata('message', 'Could not return a series of numbers for inserting in the Combination Tickets File.');
+					redirect('admin/predictions');
 				}
 			} elseif ($hwc_checked && $followers_checked) {
-				// Both checked
-				$follower_type = $this->input->post('followers_type', TRUE); // e.g., 'after_ball' or 'position'
-				$follower_select =($this->input->post('followers_type', TRUE)=='after_ball' ? $this->input->post('ball_points', TRUE) : $this->input->post('position_points', TRUE));
+				$follower_select = ($follower_type == 'after_ball') ? $session_data['selected_ball_points'] : $session_data['selected_position_points'];
 				$number_series = $this->predictions_m->hwc_followers($id, $selections, $h_w_c_group, $follower_type, $follower_select);
-			} else {
-				// None checked (optional: handle error or default)
-				 $this->session->set_flashdata('message', 'Please select at least one option.');
+				if(!$number_series) { 
+					$this->session->set_flashdata('message', 'Could not return a series of numbers for inserting in the Combination Tickets File.');
+					redirect('admin/predictions');
+				}
 			}
-			// Get friend values
-            if($friends_checked) {
-				$friends = $this->input->post('friends', TRUE); // 'all', '0', '1', or '2'
-				if ($friends !== 'all') { // do everying except 'all'
-					// Explode $number_series into a 1-based array
+			// Friends logic
+			if ($friends_checked) {
+				if ($selected_friends !== 'all') {
 					$numbers = array_values(array_filter(array_map('trim', explode(',', $number_series))));
-					array_unshift($numbers, null); // $numbers[1] is the first number
-					unset($numbers[0]); // Remove the null at index 0
-					// Prepare heat map and followers list if needed
-					$heat_map = [];
-					$followers_list = [];
-					// If H-W-C is used, build heat map arrays
-					if ($hwc_checked) {
-						$heat_map = $this->predictions_m->get_heat_map($id);
-					}
-					// If followers or HWC+followers is used, build followers list
-					if ($followers_checked) {
-						$followers_list = $this->predictions_m->get_followers_list($id, $follower_type, $follower_select);
-					}
-					// Call friend_search to update $numbers as needed
-					$numbers = $this->predictions_m->friend_search($id, $numbers, $friends, $heat_map, $followers_list);
-					// Remove the null at index 0 if needed for saving
-					array_shift($numbers);
-					$number_series = implode(',', $numbers); // Convert back to string for saving 
-				} 
+					array_unshift($numbers, null);
+					unset($numbers[0]);
+					$heat_map = $hwc_checked ? $this->predictions_m->get_heat_map($id) : [];
+					$followers_list = $followers_checked ? $this->predictions_m->get_followers_list($id, $follower_type, $follower_select) : [];
+					$numbers = $this->predictions_m->friend_search($id, $numbers, $selected_friends, $heat_map, $followers_list);
+					array_values($numbers); // Re-index the array from index 1 to index 0
+					$number_series = implode(',', $numbers);
+				}
 			}
-			// Validate Combination Table file
-            $combinations_dir = FCPATH . 'combinations/';
-            $filename = basename($combination_file);
-            $filepath = $combinations_dir . $filename.'.txt';
-            if (empty($combination_file) || !file_exists($filepath)) {
-                $this->data['message'] = 'The selected Combination Table file does not exist.';
-            } else {
-                $combinations = file($filepath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-				// Prepare number array
+			// Validate combination file
+			$combinations_dir = FCPATH . 'combinations/';
+			$filename = basename($combination_file);
+			$filepath = $combinations_dir . $filename . '.txt';
+			if (empty($combination_file) || !file_exists($filepath)) {
+				$this->data['message'] = 'The selected Combination Table file does not exist.';
+				$this->data['combos_paginated'] = [];
+				$this->data['pagination'] = [
+					'current' => 1,
+					'total' => 1,
+					'per_page' => $per_page
+				];
+			} else {
+				// Prepare number array and updated combinations
 				$number_array = array_map('intval', explode(',', $number_series));
-				$this->data['number_array'] = $number_array; // passed to the view
-				// Get updated combinations (array of arrays)
+				$this->session->set_userdata('futures_number_array', $number_array);
+
 				$updated_combinations = $this->predictions_m->insert_number_combination($filepath, $number_array);
+
 				// Calculate stats for each combination
 				$combos_with_stats = [];
 				foreach ($updated_combinations as $combo) {
-					$stats = $this->predictions_m->get_combo_stats($combo,$drawn, $this->data['lottery']->last_drawn); // Implement this method
+					$stats = $this->predictions_m->get_combo_stats($combo, $drawn, $this->data['lottery']->last_drawn);
 					$combos_with_stats[] = [
 						'combo' => $combo,
 						'stats' => $stats
 					];
 				}
-				// Pagination setup
-				$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
-				$per_page = $this->input->post('per_page') ?: $this->input->get('per_page');
-				if (!$per_page) $per_page = 10; // Default
+				$this->session->set_userdata('futures_combos_with_stats', $combos_with_stats);
 
+				// Paginate for display
 				$total = count($combos_with_stats);
 				$offset = ($page - 1) * $per_page;
 				$this->data['combos_paginated'] = array_slice($combos_with_stats, $offset, $per_page);
@@ -757,20 +754,70 @@ class Predictions extends Admin_Controller {
 					'total' => ceil($total / $per_page),
 					'per_page' => $per_page
 				];
-				// Success: load posted values for further processing or display
-                $this->data['message'] = 'Combination Table and filters loaded successfully.';
-            }
-        }
-        unset($this->data['lottery']->highlights);
-		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
+				$this->data['number_array'] = $number_array;
+				$this->data['message'] = 'Combination Table and filters loaded successfully.';
+			}
+		}
+		// --- GET: Restore from Session and Paginate ---
+		else {
+			// Restore form/filter values
+			if ($this->session->userdata('futures_form')) {
+				$form = $this->session->userdata('futures_form');
+				foreach ($form as $key => $value) {
+					$this->data[$key] = $value;
+				}
+			}
+			$number_array = $this->session->userdata('futures_number_array');
+			$combos_with_stats = $this->session->userdata('futures_combos_with_stats');
+
+			if (!empty($combos_with_stats)) {
+				$total = count($combos_with_stats);
+				$offset = ($page - 1) * $per_page;
+				$this->data['combos_paginated'] = array_slice($combos_with_stats, $offset, $per_page);
+				$this->data['pagination'] = [
+					'current' => $page,
+					'total' => ceil($total / $per_page),
+					'per_page' => $per_page
+				];
+				$this->data['number_array'] = $number_array;
+			} else {
+				$this->data['combos_paginated'] = [];
+				$this->data['pagination'] = [
+					'current' => 1,
+					'total' => 1,
+					'per_page' => $per_page
+				];
+			}
+			$this->data['disable_generate'] = false;
+		}
+		$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
+		$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);
+		$this->data['lottery']->winning_digits = $this->predictions_m->get_digit_sums($this->data['lottery']->highlights['winning_digits']);
+		$this->data['lottery']->winning_sums = $this->predictions_m->get_sums($this->data['lottery']->highlights['winning_sums']);
+		$this->data['lottery']->repeaters = $this->predictions_m->get_repeaters($this->data['lottery']->highlights['repeats']);
+		$this->data['lottery']->consecutives = $this->predictions_m->get_consecutives($this->data['lottery']->highlights['consecutives']);
+		$this->data['lottery']->parity = $this->predictions_m->get_parity($this->data['lottery']->highlights['parity']);
+		// Call get_decade and get_last from predictions_m
+		$this->data['lottery']->decades = $this->predictions_m->get_decade($tbl_name, $this->data['lottery']->highlights['range']);
+		$this->data['lottery']->last_digits = $this->predictions_m->get_last($tbl_name, $this->data['lottery']->highlights['range']);
+		$this->data['lottery']->number_range = $this->predictions_m->get_range($this->data['lottery']->highlights['number_range']);
+		$this->data['lottery']->adjacents = $this->predictions_m->get_adjacents($this->data['lottery']->highlights['adjacents']);
+		$this->data['friends'] = $this->predictions_m->get_friends($id);
+		// Grab the next draw date
+		$ld = $this->data['lottery']->last_drawn['draw_date'];	// Return last draw date
+		$day = $this->lotteries_m->return_day($ld);				// Returns the day of draw, Saturday, Sunday, etc.
+		$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
+		// Load the view
+		unset($this->data['lottery']->highlights);
+		$this->data['current'] = $this->uri->segment(2);
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/futures');
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
-		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
-		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
-		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	
-		$this->data['subview'] = 'admin/dashboard/predictions/futures'; // or your desired view
-        $this->load->view('admin/_layout_main', $this->data);
-    }
+		$this->data['users'] = $this->maintenance_m->logged_online(0);
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();
+		$this->data['subview'] = 'admin/dashboard/predictions/futures';
+		$this->load->view('admin/_layout_main', $this->data);
+	}
 	/**
 	 * Views all Combinations from this file, filtering and Draw Search Options
 	 *  being imported in the database
