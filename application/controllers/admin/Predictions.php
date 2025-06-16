@@ -653,7 +653,17 @@ class Predictions extends Admin_Controller {
 			$selected_ball_points = $this->input->post('ball_points', TRUE);
 			$selected_position_points = $this->input->post('position_points', TRUE);
 			$selected_friends = $this->input->post('friends_select', TRUE);
-		   // Validate inputs
+		   	// Actual Win Filtering History
+		  	$selected_trends = $this->input->post('trends', TRUE);
+			$selected_sums = $this->input->post('winning_sums', TRUE);
+			$selected_digit_sums = $this->input->post('winning_sums', TRUE);
+			$selected_repeaters = $this->input->post('repeaters', TRUE);
+			$selected_consecutives = $this->input->post('consecutives', TRUE);
+			$selected_parity = $this->input->post('parity', TRUE);
+			$selected_decades = $this->input->post('decades', TRUE);
+			$selected_last_digits = $this->input->post('last_digits', TRUE);
+			$selected_number_range = $this->input->post('number_range', TRUE);
+			$selected_adjacents = $this->input->post('adjacents', TRUE);
 
 			$session_data = [
 				'selected_h_w_c_group'      => $h_w_c_group,
@@ -664,12 +674,23 @@ class Predictions extends Admin_Controller {
 				'selected_hwc'              => $hwc_checked,
 				'selected_followers'        => $followers_checked,
 				'selected_friends_checkbox' => $friends_checked,
-				'selected_wheeling' 		=> $combination_file
+				'selected_wheeling' 		=> $combination_file,
+				'selected_trends'          	=> $selected_trends,
+				'selected_sums'             => $selected_sums,
+				'selected_digit_sums'       => $selected_digit_sums,
+				'selected_repeaters' 		=> $selected_repeaters,
+				'selected_consecutives' 	=> $selected_consecutives,
+				'selected_parity'          	=> $selected_parity,
+				'selected_decades'          => $selected_decades,
+				'selected_last_digits'      => $selected_last_digits,
+				'selected_number_range' 	=> $selected_number_range,
+				'selected_adjacents' 		=> $selected_adjacents
 			];
 			$this->session->set_userdata('futures_form', $session_data);
 	
 			// Disable generate button after POST
 			$this->data['disable_generate'] = true;
+			// LOTTERY PROFILE STATISTICS PRESETS Settings
 			$this->data['selected_followers_type'] = $follower_type; 		// or 'position' as your default
 			$this->data['selected_hwc'] = $hwc_checked; 					// preset value for H-W-C
 			$this->data['selected_followers'] = $followers_checked; 		// preset value for Followers
@@ -677,6 +698,17 @@ class Predictions extends Admin_Controller {
 			$this->data['selected_friends'] = $selected_friends; 			// preset value for Friends choices
 			$this->data['selected_ball_points'] = $selected_ball_points;
 			$this->data['selected_position_points'] = $selected_position_points;
+			//Actual Win History Filtering
+			$this->data['selected_trends'] = $selected_trends; 				// trends setting
+			$this->data['selected_sums'] = $selected_sums; 					// sums setting
+			$this->data['selected_digit_sums'] = $selected_digit_sums; 		// digit sums setting
+			$this->data['selected_repeaters'] = $selected_repeaters; 		// repeaters setting
+			$this->data['selected_consecutives'] = $selected_consecutives;  // consecutives setting
+			$this->data['selected_parity'] = $selected_parity;				// parity (odd / even) setting
+			$this->data['selected_decades'] = $selected_decades;			// decades setting
+			$this->data['selected_last_digits'] = $selected_last_digits; 	// last digits setting
+			$this->data['selected_number_range'] = $selected_number_range;	// number range setting
+			$this->data['selected_adjacents'] = $selected_adjacents;		// adjacents setting
 			// Extract number of selections from combination_file (3rd and 4th digits)
 			$selections = (int)substr($combination_file, 2, 2);
 
