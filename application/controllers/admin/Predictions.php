@@ -34,8 +34,8 @@ class Predictions extends Admin_Controller {
 		if ($this->session->userdata('futures_number_array')) {
 			$this->session->unset_userdata('futures_number_array');
 		}
-		if ($this->session->userdata('futures_combos_with_stats')) {
-			$this->session->unset_userdata('futures_combos_with_stats');
+		if ($this->session->userdata('combination_file')) {
+			$this->session->unset_userdata('combination_file');
 		}
 		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
 		else $this->data['message'] = '';
@@ -647,11 +647,13 @@ class Predictions extends Admin_Controller {
 			$followers_checked = $this->input->post('followers') ? true : false;
 			$friends_checked = $this->input->post('friends', TRUE);
 			$combination_file = $this->input->post('wheeling', TRUE);
+			$this->session->set_userdata('combination_file', $combination_file);
 			$h_w_c_group = $this->input->post('h_w_c_group', TRUE);
 			$follower_type = $this->input->post('followers_type', TRUE);
 			$selected_ball_points = $this->input->post('ball_points', TRUE);
 			$selected_position_points = $this->input->post('position_points', TRUE);
 			$selected_friends = $this->input->post('friends_select', TRUE);
+		   // Validate inputs
 
 			$session_data = [
 				'selected_h_w_c_group'      => $h_w_c_group,
@@ -662,10 +664,10 @@ class Predictions extends Admin_Controller {
 				'selected_hwc'              => $hwc_checked,
 				'selected_followers'        => $followers_checked,
 				'selected_friends_checkbox' => $friends_checked,
-				'selected_wheeling'         => $combination_file,
+				'selected_wheeling' 		=> $combination_file
 			];
 			$this->session->set_userdata('futures_form', $session_data);
-
+	
 			// Disable generate button after POST
 			$this->data['disable_generate'] = true;
 			$this->data['selected_followers_type'] = $follower_type; 		// or 'position' as your default
@@ -675,7 +677,6 @@ class Predictions extends Admin_Controller {
 			$this->data['selected_friends'] = $selected_friends; 			// preset value for Friends choices
 			$this->data['selected_ball_points'] = $selected_ball_points;
 			$this->data['selected_position_points'] = $selected_position_points;
-			$this->data['selected_wheeling'] = $combination_file; 			// preset value for Wheeling
 			// Extract number of selections from combination_file (3rd and 4th digits)
 			$selections = (int)substr($combination_file, 2, 2);
 
@@ -727,31 +728,29 @@ class Predictions extends Admin_Controller {
 					'total' => 1,
 					'per_page' => $per_page
 				];
+			
 			} else {
 				// Prepare number array and updated combinations
 				$number_array = array_map('intval', explode(',', $number_series));
 				$this->session->set_userdata('futures_number_array', $number_array);
 
-				$updated_combinations = $this->predictions_m->insert_number_combination($filepath, $number_array);
+				$updated_combinations = $this->predictions_m->insert_number_combination($filepath, $number_array, $page, $per_page);
 
-				// Calculate stats for each combination
-				$combos_with_stats = [];
+				$combos_paginated = [];
 				foreach ($updated_combinations as $combo) {
 					$stats = $this->predictions_m->get_combo_stats($combo, $drawn, $this->data['lottery']->last_drawn);
-					$combos_with_stats[] = [
+					$combos_paginated[] = [
 						'combo' => $combo,
 						'stats' => $stats
 					];
 				}
-				$this->session->set_userdata('futures_combos_with_stats', $combos_with_stats);
-
+				$this->data['combos_paginated'] = $combos_paginated;
 				// Paginate for display
-				$total = count($combos_with_stats);
-				$offset = ($page - 1) * $per_page;
-				$this->data['combos_paginated'] = array_slice($combos_with_stats, $offset, $per_page);
+				// For pagination controls, you still need the total number of lines in the file:
+				$total_lines = count(file($filepath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
 				$this->data['pagination'] = [
 					'current' => $page,
-					'total' => ceil($total / $per_page),
+					'total' => ceil($total_lines / $per_page),
 					'per_page' => $per_page
 				];
 				$this->data['number_array'] = $number_array;
@@ -768,18 +767,34 @@ class Predictions extends Admin_Controller {
 				}
 			}
 			$number_array = $this->session->userdata('futures_number_array');
-			$combos_with_stats = $this->session->userdata('futures_combos_with_stats');
+			$combination_file = $this->session->userdata('combination_file');
 
-			if (!empty($combos_with_stats)) {
-				$total = count($combos_with_stats);
-				$offset = ($page - 1) * $per_page;
-				$this->data['combos_paginated'] = array_slice($combos_with_stats, $offset, $per_page);
-				$this->data['pagination'] = [
-					'current' => $page,
-					'total' => ceil($total / $per_page),
-					'per_page' => $per_page
-				];
-				$this->data['number_array'] = $number_array;
+			$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
+			$per_page = $this->input->get('per_page') ? (int)$this->input->get('per_page') : 10;
+
+			if ($number_array && $combination_file) {
+				$filepath = FCPATH . 'combinations/' . basename($combination_file) . '.txt';
+				$updated_combinations = $this->predictions_m->insert_number_combination($filepath, $number_array, $page, $per_page);
+				// ... calculate stats and set $this->data['combos_paginated'] and $this->data['pagination'] ...
+				$combos_paginated = [];
+					foreach ($updated_combinations as $combo) {
+						$stats = $this->predictions_m->get_combo_stats($combo, $drawn, $this->data['lottery']->last_drawn);
+						$combos_paginated[] = [
+							'combo' => $combo,
+							'stats' => $stats
+						];
+					}
+					$this->data['combos_paginated'] = $combos_paginated;
+					// Paginate for display
+					// For pagination controls, you still need the total number of lines in the file:
+					$total_lines = count(file($filepath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
+					$this->data['pagination'] = [
+						'current' => $page,
+						'total' => ceil($total_lines / $per_page),
+						'per_page' => $per_page
+					];
+					$this->data['number_array'] = $number_array;
+					$this->data['message'] = 'Combination Table and filters loaded successfully.';
 			} else {
 				$this->data['combos_paginated'] = [];
 				$this->data['pagination'] = [

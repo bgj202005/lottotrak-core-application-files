@@ -1659,19 +1659,23 @@ class Predictions_m extends MY_Model
 	return array_merge($followers_list, $nonfollowers_list);
 	}
 	/**
-	 * Substitutes the provided number array into each combination line from the given file.
-	 *
-	 * Each line in the combination file contains positions (e.g., "1 2 3 4 5 6").
-	 * This method replaces each position with the corresponding value from $number_array,
-	 * sorts the resulting combination (optional), and returns all updated combinations as arrays.
+	 * Substitutes the provided number array into each combination line from the given file,
+	 * but only for the lines needed for the current page and per_page (pagination).
 	 *
 	 * @param string $filepath      Full path to the combination text file.
 	 * @param array  $number_array  Array of numbers to substitute (0-based index).
+	 * @param int    $page          Current page number (1-based).
+	 * @param int    $per_page      Number of combinations per page.
 	 * @return array $result        Array of updated combinations (each as an array of numbers).
 	 */
-	public function insert_number_combination($filepath, $number_array)
+	public function insert_number_combination($filepath, $number_array, $page = 1, $per_page = 10)
 	{
 		$lines = file($filepath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+
+		// Calculate offset and limit for pagination
+		$offset = ($page - 1) * $per_page;
+		$lines = array_slice($lines, $offset, $per_page);
+
 		$result = [];
 		foreach ($lines as $line) {
 			$positions = array_map('intval', explode(' ', trim($line)));
@@ -1688,7 +1692,7 @@ class Predictions_m extends MY_Model
 			}
 			$result[] = $combo;
 		}
-    return $result;
+		return $result;
 	}
 	/**
 	 * Calculates statistics for a given combination array.
