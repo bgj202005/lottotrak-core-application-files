@@ -655,8 +655,8 @@ class Predictions extends Admin_Controller {
 			$selected_friends = $this->input->post('friends_select', TRUE);
 		   	// Actual Win Filtering History
 		  	$selected_trends = $this->input->post('trends', TRUE);
-			$selected_sums = $this->input->post('winning_sums', TRUE);
-			$selected_digit_sums = $this->input->post('winning_sums', TRUE);
+			$selected_winning_sums = $this->input->post('winning_sums', TRUE);
+			$selected_winning_digits = $this->input->post('winning_digits', TRUE);
 			$selected_repeaters = $this->input->post('repeaters', TRUE);
 			$selected_consecutives = $this->input->post('consecutives', TRUE);
 			$selected_parity = $this->input->post('parity', TRUE);
@@ -676,8 +676,8 @@ class Predictions extends Admin_Controller {
 				'selected_friends_checkbox' => $friends_checked,
 				'selected_wheeling' 		=> $combination_file,
 				'selected_trends'          	=> $selected_trends,
-				'selected_sums'             => $selected_sums,
-				'selected_digit_sums'       => $selected_digit_sums,
+				'selected_winning_sums'     => $selected_winning_sums,
+				'selected_winning_digits' 	=> $selected_winning_digits,
 				'selected_repeaters' 		=> $selected_repeaters,
 				'selected_consecutives' 	=> $selected_consecutives,
 				'selected_parity'          	=> $selected_parity,
@@ -699,9 +699,9 @@ class Predictions extends Admin_Controller {
 			$this->data['selected_ball_points'] = $selected_ball_points;
 			$this->data['selected_position_points'] = $selected_position_points;
 			//Actual Win History Filtering
-			$this->data['selected_trends'] = $selected_trends; 				// trends setting
-			$this->data['selected_sums'] = $selected_sums; 					// sums setting
-			$this->data['selected_digit_sums'] = $selected_digit_sums; 		// digit sums setting
+			$this->data['selected_trends'] = $selected_trends; 					// trends setting
+			$this->data['selected_winning_sums'] = $selected_winning_sums;  	// sums setting
+			$this->data['selected_winning_digits'] = $selected_winning_digits; 	// digit sums setting
 			$this->data['selected_repeaters'] = $selected_repeaters; 		// repeaters setting
 			$this->data['selected_consecutives'] = $selected_consecutives;  // consecutives setting
 			$this->data['selected_parity'] = $selected_parity;				// parity (odd / even) setting
@@ -836,6 +836,8 @@ class Predictions extends Admin_Controller {
 				];
 			}
 			$this->data['disable_generate'] = false;
+			$this->data['disable_combination_dropdown'] = true; // or false
+			$this->data['enable_generate_button'] = true; 		// or false
 		}
 		$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
 		$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);
