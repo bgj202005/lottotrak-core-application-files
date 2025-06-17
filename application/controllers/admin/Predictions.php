@@ -474,8 +474,8 @@ class Predictions extends Admin_Controller {
 	 */
 	public function futures($id)
 	{
-		$this->data['message'] = '';			// Defaulted to No Error Messages
-		
+		$this->data['message'] = '';					// Defaulted to No Error Messages
+		$this->data['disable_generate_button'] = true; // Used to disable the generate button in the view
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$drawn = $this->data['lottery']->balls_drawn; // Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
@@ -585,7 +585,7 @@ class Predictions extends Admin_Controller {
     public function combination($id)
 	{
 		$this->data['message'] = '';
-		$this->data['disable_generate'] = false; // Used to disable the generate button in the view
+		$this->data['disable_generate_button'] = false; // Used to disable the generate button in the view
 
 		// Fetch lottery and related data
 		$this->data['lottery'] = $this->lotteries_m->get($id);
@@ -641,8 +641,6 @@ class Predictions extends Admin_Controller {
 		// --- POST: Generate and Save Everything to Session ---
 		if ($this->input->method() === 'post') {
 			// Get all POST values and save to session for future pagination
-			
-			// Get checked values
 			$hwc_checked = $this->input->post('hwc') ? true : false;
 			$followers_checked = $this->input->post('followers') ? true : false;
 			$friends_checked = $this->input->post('friends', TRUE);
@@ -664,7 +662,16 @@ class Predictions extends Admin_Controller {
 			$selected_last_digits = $this->input->post('last_digits', TRUE);
 			$selected_number_range = $this->input->post('number_range', TRUE);
 			$selected_adjacents = $this->input->post('adjacents', TRUE);
-
+		// If combination table is posted and not in session, set and lock it
+			if ($this->input->post('wheeling')) {
+				$futures_form['selected_wheeling'] = $this->input->post('wheeling');
+				$this->data['disable_combination_dropdown'] = true;
+			} else {
+				$this->data['disable_combination_dropdown'] = !empty($futures_form['selected_wheeling']);
+			}
+			// Always enable Generate and Save Filtered Tickets
+		    $this->data['enable_generate_button'] = true;
+    		$this->data['enable_save_filtered_button'] = true;
 			$session_data = [
 				'selected_h_w_c_group'      => $h_w_c_group,
 				'selected_followers_type'   => $follower_type,
@@ -687,9 +694,7 @@ class Predictions extends Admin_Controller {
 				'selected_adjacents' 		=> $selected_adjacents
 			];
 			$this->session->set_userdata('futures_form', $session_data);
-	
-			// Disable generate button after POST
-			$this->data['disable_generate'] = true;
+
 			// LOTTERY PROFILE STATISTICS PRESETS Settings
 			$this->data['selected_followers_type'] = $follower_type; 		// or 'position' as your default
 			$this->data['selected_hwc'] = $hwc_checked; 					// preset value for H-W-C
@@ -711,7 +716,7 @@ class Predictions extends Admin_Controller {
 			$this->data['selected_adjacents'] = $selected_adjacents;		// adjacents setting
 			// Extract number of selections from combination_file (3rd and 4th digits)
 			$selections = (int)substr($combination_file, 2, 2);
-
+			$this->data['enable_generate_button'] = true; 		// or false
 			// Generate number series based on selections
 			$number_series = '';
 			if ($hwc_checked && !$followers_checked) {
@@ -760,7 +765,9 @@ class Predictions extends Admin_Controller {
 					'total' => 1,
 					'per_page' => $per_page
 				];
-			
+			 	// Calculate filtered tickets count
+    			$filtered_tickets_count = 'Not Available'; // Your logic here
+    			$this->data['filtered_tickets_count'] = $filtered_tickets_count;
 			} else {
 				// Prepare number array and updated combinations
 				$number_array = array_map('intval', explode(',', $number_series));
@@ -835,9 +842,8 @@ class Predictions extends Admin_Controller {
 					'per_page' => $per_page
 				];
 			}
-			$this->data['disable_generate'] = false;
 			$this->data['disable_combination_dropdown'] = true; // or false
-			$this->data['enable_generate_button'] = true; 		// or false
+			$this->data['disable_generate_button'] = false; 	// or false
 		}
 		$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
 		$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);

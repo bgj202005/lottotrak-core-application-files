@@ -287,6 +287,9 @@
 								}
 								// Dropdown attributes
 								$extra = ['class' => 'form-control', 'id' => 'wheeling','style' => 'width: 70%;'];
+								if (!empty($disable_combination_dropdown)) {
+									$extra['disabled'] = 'disabled';
+								}
 								echo form_dropdown('wheeling', $wheeling_options, isset($selected_wheeling) ? $selected_wheeling : set_value('wheeling', ''), $extra);
 								// Display form error if any
 								echo form_error('wheeling', '<div class="bg-warning mt-2 p-2 text-center text-white">', '</div>');
@@ -460,7 +463,10 @@
 						<!-- Submit Button -->
 						<div class="form-group text-center mt-3">
 							<?php
-							$extra = ['class' => 'btn btn-primary btn-lg', 'id' => 'submit-btn', 'disabled' => 'disabled'];
+							$extra = ['class' => 'btn btn-primary btn-lg', 'id' => 'submit-btn'];
+							if ($disable_generate_button) {
+								$extra['disabled'] = 'disabled';
+							}
 							echo form_submit('submit', 'Generate Tickets', $extra);
 						// Both buttons are disabled by default
 							echo form_button([
@@ -646,7 +652,7 @@
 		// Initial state
 		saveBtn.disabled = true;
 		deleteBtn.disabled = true;
-		generateBtn.disabled = true;
+		//generateBtn.disabled = true;
 		
 		// Enable Generate Tickets when a combination table is selected
 		combinationDropdown.addEventListener('change', function () {

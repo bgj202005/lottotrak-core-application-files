@@ -695,12 +695,21 @@ class Predictions_m extends MY_Model
 				$down = (int)substr($part, 5);
 			}
 		}
-		$trends = [
-			0 => 'ALL',
-			1 => 'UP (' . $up . ')',
-			2 => 'DOWN (' . $down . ')'
-		];
-		return $trends;
+		// Build the trends array with 'ALL' first, then the largest trend, then the other
+		if ($up >= $down) {
+			$trends = [
+				0 => 'ALL',
+				1 => 'UP (' . $up . ')',
+				2 => 'DOWN (' . $down . ')'
+			];
+		} else {
+			$trends = [
+				0 => 'ALL',
+				1 => 'DOWN (' . $down . ')',
+				2 => 'UP (' . $up . ')'
+			];
+		}
+	return $trends;
 	}
 	/**
 	 * Parses the winning_digits string and returns an array for the top 10 digit sums.
