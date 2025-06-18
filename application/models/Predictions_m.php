@@ -1034,19 +1034,32 @@ class Predictions_m extends MY_Model
 		$main_part = isset($parts[0]) ? $parts[0] : '';
 		$adjacents_arr = [0 => 'ALL'];
 		if ($main_part) {
-			$pairs = explode(',', $main_part);
-			foreach ($pairs as $pair) {
-				$kv = explode('=', $pair);
-				if (count($kv) == 2) {
-					$adj_num = (int)trim($kv[0]);
-					$total = (int)trim($kv[1]);
-					if ($total > 0) {
-						$desc = "Ball {$adj_num} & Ball " . ($adj_num + 1) . " ({$total})";
-						$adjacents_arr[$adj_num] = $desc;
-					}
+		$temp = [];
+		$pairs = explode(',', $main_part);
+		foreach ($pairs as $pair) {
+			$kv = explode('=', $pair);
+			if (count($kv) == 2) {
+				$adj_num = (int)trim($kv[0]);
+				$total = (int)trim($kv[1]);
+				if ($total > 0) {
+					$desc = "Ball {$adj_num} & Ball " . ($adj_num + 1) . " ({$total})";
+					$temp[] = [
+						'adj_num' => $adj_num,
+						'desc'    => $desc,
+						'total'   => $total
+					];
 				}
 			}
 		}
+		// Sort by total descending
+		usort($temp, function($a, $b) {
+			return $b['total'] <=> $a['total'];
+		});
+		// Add to $adjacents_arr after 'ALL'
+		foreach ($temp as $item) {
+			$adjacents_arr[$item['adj_num']] = $item['desc'];
+		}
+	}
 	return $adjacents_arr;
 	}
 	/**
