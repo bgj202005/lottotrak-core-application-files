@@ -1414,271 +1414,310 @@ class Predictions_m extends MY_Model
 	return implode(',', $selected);
 	}
 	/**
-	 * Searches for a 1-way or 2-way friend in the combination and replaces if not found,
-	 * or removes friend relationships if found (for '0' - friends).
-	 * 
-	 * @param int    $lottery_id	 Lottery ID for foreign key
-	 * @param array  $current        1-based array of numbers (array[1] is first number)
-	 * @param string $friend_type    'all', '0', '1', or '2'
-	 * @param array  $heat_map       Optional: ['hot' => [...], 'warm' => [...], 'cold' => [...]]
-	 * @param array  $followers_list Optional: followers/non-followers list for cross-check
-	 * @return array $current        Updated Number Series or original if no replacement found
+	 * Filters the $numbers array based on friend relationships and selection rules.
+	 *
+	 * @param int    $lottery_id                Lottery/game id
+	 * @param string $follower_type     'after_ball' or 'position'
+	 * @param array  $nr	           Array of selected numbers
+	 * @param string $selected_friends  'ALL', 'none', '1', or '2'
+	 * @param array  $heat_map          ['H' => [...], 'W' => [...], 'C' => [...]]
+	 * @param array  $followers_list    Array of followers for fallback
+	 * @return array Filtered $selections
 	 */
-	public function friend_search($lottery_id, $current, $friend_type, $heat_map = [], $followers_list = [])
+	public function friend_search($lottery_id, $selections, $friendship, $heat, $follow_list)
 	{
-		// Early exit if both pools are empty or 'all'
-		if ($friend_type === 'all' || (empty($heat_map) && empty($followers_list))) {
-			return $current;
-		}
+		// Fetch wins field from DB
 		$row = $this->db->get_where('lottery_friends', ['lottery_id' => $lottery_id])->row_array();
 		if (!$row || empty($row['wins'])) {
-			return $current;
+			return $selections;
 		}
+		// Parse friendship string (after first '|')
 		$parts = explode('|', $row['wins']);
-		if (count($parts) < 2) return $current;
-		$friends_map = explode(',', $parts[1]); // 1-based
-		if ($friend_type === '0') {
-			// Remove all friends (1-way and 2-way)
-			foreach ($current as $i => $num) {
-				if ($i === 0) continue;
-				$friend_str = isset($friends_map[$num - 1]) ? $friends_map[$num - 1] : '';
-				$friend_nums = [];
-				if (strpos($friend_str, '<>') === 0) {
-					$friend_nums[] = (int)substr($friend_str, 2);
-				} elseif (strpos($friend_str, '>') === 0) {
-					$friend_nums[] = (int)substr($friend_str, 1);
+		$friend_str = isset($parts[1]) ? $parts[1] : '';
+		if (!$friend_str) {
+			return $selections;
+		}
+		// Parse friendships into 1-way and 2-way arrays
+		$oneway = [];
+		$twoway = [];
+		$friendships = array_filter(array_map('trim', explode(',', $friend_str)));
+		foreach ($friendships as $f) {
+			if (strpos($f, '<>') !== false) {
+				$nums = explode('<>', $f);
+				if (count($nums) == 2) {
+					$twoway[] = [(int)trim($nums[0]), (int)trim($nums[1])];
 				}
-				$has_friend = false;
-				foreach ($friend_nums as $fnum) {
-					if (in_array($fnum, $current, true)) {
-						$has_friend = true;
-						break;
-					}
-				}
-				if ($has_friend) {
-					$replacement = null;
-					$candidate_pools = [];
-					if (!empty($heat_map)) {
-						foreach (['hot', 'warm', 'cold'] as $heat) {
-							if (!empty($heat_map[$heat]) && in_array($num, $heat_map[$heat], true)) {
-								$candidate_pools = $heat_map[$heat];
-								break;
-							}
-						}
-					}
-					if (empty($candidate_pools) && !empty($followers_list)) {
-						$candidate_pools = $followers_list;
-					}
-					foreach ($candidate_pools as $candidate) {
-						if (!in_array($candidate, $current, true)) {
-							$candidate_friend_str = isset($friends_map[$candidate - 1]) ? $friends_map[$candidate - 1] : '';
-							$candidate_friends = [];
-							if (strpos($candidate_friend_str, '<>') === 0) {
-								$candidate_friends[] = (int)substr($candidate_friend_str, 2);
-							} elseif (strpos($candidate_friend_str, '>') === 0) {
-								$candidate_friends[] = (int)substr($candidate_friend_str, 1);
-							}
-							$is_friend_with_any = false;
-							foreach ($current as $other) {
-								if ($other == $candidate) continue;
-								if (in_array($other, $candidate_friends, true)) {
-									$is_friend_with_any = true;
-									break;
-								}
-							}
-							if (!$is_friend_with_any) {
-								$replacement = $candidate;
-								break;
-							}
-						}
-					}
-					if ($replacement !== null) {
-						$current[$i] = $replacement;
-					}
-				}
-			}
-		} elseif ($friend_type === '1') {
-			// Ensure at least one 1-way friend exists
-			$found = false;
-			foreach ($current as $i => $num) {
-				if ($i === 0) continue;
-				$friend_str = isset($friends_map[$num - 1]) ? $friends_map[$num - 1] : '';
-				if (strpos($friend_str, '>') === 0 && strpos($friend_str, '<>') !== 0) {
-					$friend_num = (int)substr($friend_str, 1);
-					if (in_array($friend_num, $current, true)) {
-						$found = true;
-						break;
-					}
-				}
-			}
-			if (!$found) {
-				foreach ($current as $i => $num) {
-					if ($i === 0) continue;
-					$friend_str = isset($friends_map[$num - 1]) ? $friends_map[$num - 1] : '';
-					if (strpos($friend_str, '>') === 0 && strpos($friend_str, '<>') !== 0) {
-						$friend_num = (int)substr($friend_str, 1);
-						if (!in_array($friend_num, $current, true)) {
-							$candidate_pools = [];
-							if (!empty($heat_map)) {
-								foreach (['hot', 'warm', 'cold'] as $heat) {
-									if (!empty($heat_map[$heat]) && in_array($num, $heat_map[$heat], true)) {
-										$candidate_pools = $heat_map[$heat];
-										break;
-									}
-								}
-							}
-							if (empty($candidate_pools) && !empty($followers_list)) {
-								$candidate_pools = $followers_list;
-							}
-							foreach ($candidate_pools as $candidate) {
-								if (!in_array($candidate, $current, true) && $candidate == $friend_num) {
-									$current[$i] = $candidate;
-									break 2;
-								}
-							}
-						}
-					}
-				}
-			}
-		} elseif ($friend_type === '2') {
-			// Ensure at least one 2-way friend exists
-			$found = false;
-			foreach ($current as $i => $num) {
-				if ($i === 0) continue;
-				$friend_str = isset($friends_map[$num - 1]) ? $friends_map[$num - 1] : '';
-				if (strpos($friend_str, '<>') === 0) {
-					$friend_num = (int)substr($friend_str, 2);
-					if (in_array($friend_num, $current, true)) {
-						$found = true;
-						break;
-					}
-				}
-			}
-			if (!$found) {
-				foreach ($current as $i => $num) {
-					if ($i === 0) continue;
-					$friend_str = isset($friends_map[$num - 1]) ? $friends_map[$num - 1] : '';
-					if (strpos($friend_str, '<>') === 0) {
-						$friend_num = (int)substr($friend_str, 2);
-						if (!in_array($friend_num, $current, true)) {
-							$candidate_pools = [];
-							if (!empty($heat_map)) {
-								foreach (['hot', 'warm', 'cold'] as $heat) {
-									if (!empty($heat_map[$heat]) && in_array($num, $heat_map[$heat], true)) {
-										$candidate_pools = $heat_map[$heat];
-										break;
-									}
-								}
-							}
-							if (empty($candidate_pools) && !empty($followers_list)) {
-								$candidate_pools = $followers_list;
-							}
-							foreach ($candidate_pools as $candidate) {
-								if (!in_array($candidate, $current, true) && $candidate == $friend_num) {
-									$current[$i] = $candidate;
-									break 2;
-								}
-							}
-						}
-					}
+			} elseif (strpos($f, '>') !== false) {
+				$nums = explode('>', $f);
+				if (count($nums) == 2) {
+					$oneway[] = [(int)trim($nums[0]), (int)trim($nums[1])];
 				}
 			}
 		}
-    	// Updated $number_series
-    	return $current;
+		// Helper: Find replacement in $heat with same value, not in $selections
+		$find_replacement = function($exclude, $heat_value, $heat) {
+			foreach ($heat as $num => $val) {
+				if ($val === $heat_value && !in_array($num, $exclude)) {
+					return $num;
+				}
+			}
+			return null;
+		};
+		$result = $selections;
+		// --- NONE: Remove all friendships, stop if run out of numbers in $heat ---
+		if ($friendship === 'none' || $friendship === 0) {
+			$changed = true;
+			while ($changed) {
+				$changed = false;
+				// Check and replace 2-way
+				foreach ($twoway as $pair) {
+					list($a, $b) = $pair;
+					if (in_array($a, $result) && in_array($b, $result)) {
+						$replace_idx = array_search($b, $result);
+						$heat_value = isset($heat[$b]) ? $heat[$b] : null;
+						if ($heat_value !== null) {
+							$replacement = $find_replacement($result, $heat_value, $heat);
+							if ($replacement !== null) {
+								$result[$replace_idx] = $replacement;
+								$changed = true;
+								break 2; // Restart loop after change
+							} else {
+								// No more replacements available, stop and return
+								return $result;
+							}
+						}
+					}
+				}
+				// Check and replace 1-way
+				foreach ($oneway as $pair) {
+					list($a, $b) = $pair;
+					if (in_array($a, $result) && in_array($b, $result)) {
+						$replace_idx = array_search($b, $result);
+						$heat_value = isset($heat[$b]) ? $heat[$b] : null;
+						if ($heat_value !== null) {
+							$replacement = $find_replacement($result, $heat_value, $heat);
+							if ($replacement !== null) {
+								$result[$replace_idx] = $replacement;
+								$changed = true;
+								break 2; // Restart loop after change
+							} else {
+								// No more replacements available, stop and return
+								return $result;
+							}
+						}
+					}
+				}
+			}
+			return $result;
+		}
+		// --- 1-WAY: Only allow 1-way friendships, remove 2-way, stop if 1-way found ---
+		if ($friendship === '1' || $friendship === 1) {
+			// Remove 2-way
+			foreach ($twoway as $pair) {
+				list($a, $b) = $pair;
+				if (in_array($a, $result) && in_array($b, $result)) {
+					$replace_idx = array_search($b, $result);
+					$heat_value = isset($heat[$b]) ? $heat[$b] : null;
+					if ($heat_value !== null) {
+						$replacement = $find_replacement($result, $heat_value, $heat);
+						if ($replacement !== null) {
+							$result[$replace_idx] = $replacement;
+						}
+					}
+				}
+			}
+			// If any 1-way friendship exists, stop and return
+			foreach ($oneway as $pair) {
+				list($a, $b) = $pair;
+				if (in_array($a, $result) && in_array($b, $result)) {
+					return $result;
+				}
+			}
+			return $result;
+		}
+		// --- 2-WAY: Only allow 2-way friendships, remove 1-way, stop if 2-way found ---
+		if ($friendship === '2' || $friendship === 2) {
+			// Remove 1-way
+			foreach ($oneway as $pair) {
+				list($a, $b) = $pair;
+				if (in_array($a, $result) && in_array($b, $result)) {
+					$replace_idx = array_search($b, $result);
+					$heat_value = isset($heat[$b]) ? $heat[$b] : null;
+					if ($heat_value !== null) {
+						$replacement = $find_replacement($result, $heat_value, $heat);
+						if ($replacement !== null) {
+							$result[$replace_idx] = $replacement;
+						}
+					}
+				}
+			}
+			// If any 2-way friendship exists, stop and return
+			foreach ($twoway as $pair) {
+				list($a, $b) = $pair;
+				if (in_array($a, $result) && in_array($b, $result)) {
+					return $result;
+				}
+			}
+			return $result;
+		}
+		// Default: return as is
+		return $selections;
 	}
 	/**
-	 * Converts the string heat level string to the heat_map array
+	 * Returns an associative array for hots, warms, and colds:
+	 * [
+	 *   'H' => [18 => 21, 42 => 15, 13 => 18, ...], // number => position count
+	 *   'W' => [...],
+	 *   'C' => [...]
+	 * ]
+	 * Uses numbers from lottery_h_w_c.hots/warms/colds and position counts from lottery_h_w_c_stats.position.
 	 *
-	 * @param 	int		$lottery_id	Lottery id foriegn key
-	 * @return 	array   $heat_array of numbers base on the each heat level
+	 * @param int 		$lottery_id
+	 * @return array 	$result
 	 */
 	public function get_heat_map($lottery_id)
 	{
-		// hwc heat data for hots, warms and colds
-		$hwc_data = $this->statistics_m->h_w_c_exists($lottery_id);
-		$hot_numbers = array_map('intval', array_map(function($v){ return explode('=', $v)[0]; }, explode(',', $hwc_data['hots'])));
-		$warm_numbers = array_map('intval', array_map(function($v){ return explode('=', $v)[0]; }, explode(',', $hwc_data['warms'])));
-		$cold_numbers = array_map('intval', array_map(function($v){ return explode('=', $v)[0]; }, explode(',', $hwc_data['colds'])));
-		$heat_array = [
-			'hot' => $hot_numbers,   // array of hot numbers
-			'warm' => $warm_numbers, // array of warm numbers
-			'cold' => $cold_numbers, // array of cold numbers
-		];
-	return $heat_array;
+		// Get numbers for hots, warms, colds
+		$row_hwc = $this->db->get_where('lottery_h_w_c', ['lottery_id' => $lottery_id])->row_array();
+		// Get position counts for hots, warms, colds
+		$row_stats = $this->db->get_where('lottery_h_w_c_stats', ['lottery_id' => $lottery_id])->row_array();
+
+		if (!$row_hwc || !$row_stats || empty($row_stats['position'])) {
+			return [];
+		}
+		// Parse numbers for each group (discard counts)
+		$groups = ['H' => [], 'W' => [], 'C' => []];
+		foreach (['H' => 'hots', 'W' => 'warms', 'C' => 'colds'] as $cat => $field) {
+			if (!empty($row_hwc[$field])) {
+				$pairs = explode(',', $row_hwc[$field]);
+				foreach ($pairs as $pair) {
+					$kv = explode('=', $pair);
+					if (count($kv) == 2) {
+						$num = (int)trim($kv[0]);
+						$groups[$cat][] = $num;
+					}
+				}
+			}
+		}
+		// Parse position counts for each group
+		$positions = ['H' => [], 'W' => [], 'C' => []];
+		$parts = explode('|', $row_stats['position']);
+		foreach ($parts as $part) {
+			$part = trim($part);
+			if (preg_match('/^(H|W|C)>(.+)$/', $part, $matches)) {
+				$cat = $matches[1];
+				$pairs = explode(',', $matches[2]);
+				foreach ($pairs as $pair) {
+					$kv = explode('=', $pair);
+					if (count($kv) == 2) {
+						$idx = (int)trim($kv[0]);
+						$count = (int)trim($kv[1]);
+						$positions[$cat][$idx] = $count;
+					}
+				}
+			}
+		}
+		// Combine: assign each number in group to its position count by index
+		$result = ['H' => [], 'W' => [], 'C' => []];
+		foreach (['H', 'W', 'C'] as $cat) {
+			foreach ($groups[$cat] as $i => $num) {
+				// Use the position count at the same index, if it exists
+				$count = isset($positions[$cat][$i]) ? $positions[$cat][$i] : null;
+				if ($count !== null) {
+					$result[$cat][$num] = $count;
+				}
+			}
+		}
+		return $result; // returns 
 	}
 	/**
-	 * Converts the string heat level string to the heat_map array
+	 * Returns an associative array of followers (number => count, sorted descending by count)
+	 * followed by non-followers (number => 0, in original order).
 	 *
-	 * @param 	int		$lottery_id	Lottery id foreign key
-	 * @param 	string	$type		Type of followers to get, 'after_ball' or 'position'
-	 * @param 	int		$select		posted value of ball that was selected
-	 * @return 	array   Combined array for followers + non followers
+	 * @param int $lottery_id
+	 * @param string $type 'after_ball' or 'position'
+	 * @param string|int $select
+	 * @return array
 	 */
 	public function get_followers_list($lottery_id, $type, $select)
 	{
-		// follower data for followers and non-followers
 		$followers_row = $this->statistics_m->followers_exists($lottery_id);
 		$nonfollowers_row = $this->statistics_m->nonfollowers_exists($lottery_id);
 		if (!$followers_row) {
-			return FALSE;
+			return [];
 		}
-		$followers_field = $followers_row ? $followers_row['lottery_followers'] : '';
+		$followers_field = $followers_row['lottery_followers'];
 		$nonfollowers_field = $nonfollowers_row ? $nonfollowers_row['lottery_nonfollowers'] : '';
-		$select = trim($select); // e.g. '2', '10', etc.
+		$select = trim($select);
 		if ($type === 'after_ball' && strpos($select, '+') === 0) {
-				$select = substr($select, 1);
-			}
-			$followers_groups = explode(',', $followers_field);
-			$nonfollowers_groups = $nonfollowers_field ? explode(',', $nonfollowers_field) : [];
-			$selected_followers = '';
-			$selected_nonfollowers = '';
-			if ($type === 'position') {
-				// $select is the position (1-based)
-				$position = (int)$select;
-				// Use the Nth group (1-based) for position N
-				if (isset($followers_groups[$position - 1])) {
-					$group = $followers_groups[$position - 1];
-					$selected_followers = substr($group, strpos($group, '>') + 1);
-				}
-				if (isset($nonfollowers_groups[$position - 1])) {
-					$group = $nonfollowers_groups[$position - 1];
-					$selected_nonfollowers = substr($group, strpos($group, '>') + 1);
-				}
-			} else {
-				// Find the group for the selected ball (e.g., "34>")
-				foreach ($followers_groups as $group) {
-					if (strpos($group, $select . '>') === 0) {
-						$selected_followers = substr($group, strlen($select) + 1); // Remove "34>"
-						break;
-					}
-				}
-				foreach ($nonfollowers_groups as $group) {
-					if (strpos($group, $select . '>') === 0) {
-						$selected_nonfollowers = substr($group, strlen($select) + 1); // Remove "34>"
-						break;
+			$select = substr($select, 1);
+		}
+		$followers_list = [];
+		$non_followers_list = [];
+		// Followers
+		if ($type === 'position') {
+			$position = (int)$select;
+			$groups = explode(',', $followers_field);
+			if (isset($groups[$position - 1])) {
+				$group = $groups[$position - 1];
+				$data = substr($group, strpos($group, '>') + 1);
+				$pairs = explode('|', $data);
+				foreach ($pairs as $pair) {
+					$kv = explode('=', $pair);
+					if (count($kv) == 2) {
+						$num = (int)trim($kv[0]);
+						$count = (int)trim($kv[1]);
+						if ($count >= 3) {
+							$followers_list[$num] = $count;
+						}
 					}
 				}
 			}
-			if ($selected_followers === '') {
-				return FALSE;
+			// Non-followers
+			$groups = $nonfollowers_field ? explode(',', $nonfollowers_field) : [];
+			if (isset($groups[$position - 1])) {
+				$group = $groups[$position - 1];
+				$data = substr($group, strpos($group, '>') + 1);
+				$pairs = explode('|', $data);
+				foreach ($pairs as $pair) {
+					$non_followers_list[$pair] = 0;					
+				}
 			}
-			$followers_list = [];
-			if (!empty($selected_followers)) {
-				// Followers are like: 30=6|35=3|39=5...
-				foreach (explode('|', $selected_followers) as $item) {
-					if (strpos($item, '=') !== false) {
-						list($num, $weight) = explode('=', $item);
-						$followers_list[] = trim($num);
+		} else {
+			// after_ball
+			$groups = explode(',', $followers_field);
+			foreach ($groups as $group) {
+				if (strpos($group, $select . '>') === 0) {
+					$data = substr($group, strlen($select) + 1);
+					$pairs = explode('|', $data);
+					foreach ($pairs as $pair) {
+						$kv = explode('=', $pair);
+						if (count($kv) == 2) {
+							$num = (int)trim($kv[0]);
+							$count = (int)trim($kv[1]);
+							if ($count >= 3) {
+								$followers_list[$num] = $count;
+							}
+						}
+					}
+					break;
+				}
+			}
+			$groups = $nonfollowers_field ? explode(',', $nonfollowers_field) : [];
+			foreach ($groups as $group) {
+				if (strpos($group, $select . '>') === 0) {
+					$data = substr($group, strlen($select) + 1);
+					$pairs = explode('|', $data);
+					foreach ($pairs as $pair) {
+						$non_followers_list[$pair] = 0;					
 					}
 				}
 			}
-			$nonfollowers_list = [];
-			if (!empty($selected_nonfollowers)) {
-				// Non-followers are like: 3|17|42|45...
-				$nonfollowers_list = array_map('trim', explode('|', $selected_nonfollowers));
-			}
-	return array_merge($followers_list, $nonfollowers_list);
+		}
+		// Sort followers by count descending, keep non-followers in original order
+		arsort($followers_list);
+		// Merge and return
+		return $followers_list + $non_followers_list;
 	}
 	/**
 	 * Substitutes the provided number array into each combination line from the given file,

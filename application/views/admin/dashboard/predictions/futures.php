@@ -418,7 +418,7 @@
 													<td data-label="Friends">
 														<?= form_dropdown('friends_select', [
 															'all' => 'ALL',
-															'0' => '0 Friends',
+															'none' => '0 Friends',
 															'1' => '1-Way',
 															'2' => '2-Way'
 														], isset($selected_friends) ? $selected_friends : '', 'class="form-control" id="friends"') ?>

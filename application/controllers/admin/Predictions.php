@@ -640,86 +640,115 @@ class Predictions extends Admin_Controller {
 
 		// --- POST: Generate and Save Everything to Session ---
 		if ($this->input->method() === 'post') {
-			// Get all POST values and save to session for future pagination
-			$hwc_checked = $this->input->post('hwc') ? true : false;
-			$followers_checked = $this->input->post('followers') ? true : false;
-			$friends_checked = $this->input->post('friends', TRUE);
-			$combination_file = $this->input->post('wheeling', TRUE);
-			$this->session->set_userdata('combination_file', $combination_file);
-			$h_w_c_group = $this->input->post('h_w_c_group', TRUE);
-			$follower_type = $this->input->post('followers_type', TRUE);
-			$selected_ball_points = $this->input->post('ball_points', TRUE);
-			$selected_position_points = $this->input->post('position_points', TRUE);
-			$selected_friends = $this->input->post('friends_select', TRUE);
-		   	// Actual Win Filtering History
-		  	$selected_trends = $this->input->post('trends', TRUE);
-			$selected_winning_sums = $this->input->post('winning_sums', TRUE);
-			$selected_winning_digits = $this->input->post('winning_digits', TRUE);
-			$selected_repeaters = $this->input->post('repeaters', TRUE);
-			$selected_consecutives = $this->input->post('consecutives', TRUE);
-			$selected_parity = $this->input->post('parity', TRUE);
-			$selected_decades = $this->input->post('decades', TRUE);
-			$selected_last_digits = $this->input->post('last_digits', TRUE);
-			$selected_number_range = $this->input->post('number_range', TRUE);
-			$selected_adjacents = $this->input->post('adjacents', TRUE);
-		// If combination table is posted and not in session, set and lock it
-			if ($this->input->post('wheeling')) {
-				$futures_form['selected_wheeling'] = $this->input->post('wheeling');
+			// Check if futures_form session is set
+			$session_data = $this->session->userdata('futures_form');
+			if ($session_data) {
+				$hwc_checked = $session_data['selected_hwc'];
+				$followers_checked = $session_data['selected_followers'];
+				$friends_checked = $session_data['selected_friends_checkbox'];
+   				$combination_file = $this->session->userdata('combination_file');
+				$h_w_c_group = ($this->input->post('h_w_c_group') ? $this->input->post('h_w_c_group') : $this->session->userdata('selected_h_w_c_group'));
+				$follower_type = ($this->input->post('followers_type') ? $this->input->post('followers_type') : $this->session->userdata('selected_followers_type'));
+				$selected_ball_points = ($this->input->post('ball_points') ? $this->input->post('ball_points') : $this->session->userdata('selected_ball_points'));
+				$selected_position_points = ($this->input->post('position_points') ? $this->input->post('position_points') : $this->session->userdata('selected_position_points'));
+				$selected_friends = ($this->input->post('friends_select') ? $this->input->post('friends_select') : $this->session->userdata('selected_friends'));
+				// Actual Win Filtering History
+				$selected_trends = $this->input->post('trends', TRUE);
+				$selected_winning_sums = $this->input->post('winning_sums', TRUE);
+				$selected_winning_digits = $this->input->post('winning_digits', TRUE);
+				$selected_repeaters = $this->input->post('repeaters', TRUE);
+				$selected_consecutives = $this->input->post('consecutives', TRUE);
+				$selected_parity = $this->input->post('parity', TRUE);
+				$selected_decades = $this->input->post('decades', TRUE);
+				$selected_last_digits = $this->input->post('last_digits', TRUE);
+				$selected_number_range = $this->input->post('number_range', TRUE);
+				$selected_adjacents = $this->input->post('adjacents', TRUE);
 				$this->data['disable_combination_dropdown'] = true;
 			} else {
-				$this->data['disable_combination_dropdown'] = !empty($futures_form['selected_wheeling']);
+				// Get all POST values and save to session for future pagination
+				$hwc_checked = $this->input->post('hwc') ? true : false;
+				$followers_checked = $this->input->post('followers') ? true : false;
+				$friends_checked = $this->input->post('friends') ? true : false;
+				$combination_file = $this->input->post('wheeling', TRUE);
+				$this->session->set_userdata('combination_file', $combination_file);
+				$h_w_c_group = $this->input->post('h_w_c_group', TRUE);
+				$follower_type = $this->input->post('followers_type', TRUE);
+				$selected_ball_points = $this->input->post('ball_points', TRUE);
+				$selected_position_points = $this->input->post('position_points', TRUE);
+				$selected_friends = $this->input->post('friends_select', TRUE);
+				// Actual Win Filtering History
+				$selected_trends = $this->input->post('trends', TRUE);
+				$selected_winning_sums = $this->input->post('winning_sums', TRUE);
+				$selected_winning_digits = $this->input->post('winning_digits', TRUE);
+				$selected_repeaters = $this->input->post('repeaters', TRUE);
+				$selected_consecutives = $this->input->post('consecutives', TRUE);
+				$selected_parity = $this->input->post('parity', TRUE);
+				$selected_decades = $this->input->post('decades', TRUE);
+				$selected_last_digits = $this->input->post('last_digits', TRUE);
+				$selected_number_range = $this->input->post('number_range', TRUE);
+				$selected_adjacents = $this->input->post('adjacents', TRUE);
+				// If combination table is posted and not in session, set and lock it
+				if ($this->input->post('wheeling')) {
+					$futures_form['selected_wheeling'] = $this->input->post('wheeling');
+					$this->data['disable_combination_dropdown'] = true;
+				} else {
+					$this->data['disable_combination_dropdown'] = !empty($futures_form['selected_wheeling']);
+				}
+				// Always enable Generate and Save Filtered Tickets
+				$this->data['enable_generate_button'] = true;
+				$this->data['enable_save_filtered_button'] = true;
+				$session_data = [
+					'selected_h_w_c_group'      => $h_w_c_group,
+					'selected_followers_type'   => $follower_type,
+					'selected_ball_points'      => $selected_ball_points,
+					'selected_position_points'  => $selected_position_points,
+					'selected_friends'          => $selected_friends,
+					'selected_hwc'              => $hwc_checked,
+					'selected_followers'        => $followers_checked,
+					'selected_friends_checkbox' => $friends_checked,
+					'selected_wheeling' 		=> $combination_file,
+					'selected_trends'          	=> $selected_trends,
+					'selected_winning_sums'     => $selected_winning_sums,
+					'selected_winning_digits' 	=> $selected_winning_digits,
+					'selected_repeaters' 		=> $selected_repeaters,
+					'selected_consecutives' 	=> $selected_consecutives,
+					'selected_parity'          	=> $selected_parity,
+					'selected_decades'          => $selected_decades,
+					'selected_last_digits'      => $selected_last_digits,
+					'selected_number_range' 	=> $selected_number_range,
+					'selected_adjacents' 		=> $selected_adjacents
+				];
+				$this->session->set_userdata('futures_form', $session_data);
 			}
-			// Always enable Generate and Save Filtered Tickets
-		    $this->data['enable_generate_button'] = true;
-    		$this->data['enable_save_filtered_button'] = true;
-			$session_data = [
-				'selected_h_w_c_group'      => $h_w_c_group,
-				'selected_followers_type'   => $follower_type,
-				'selected_ball_points'      => $selected_ball_points,
-				'selected_position_points'  => $selected_position_points,
-				'selected_friends'          => $selected_friends,
-				'selected_hwc'              => $hwc_checked,
-				'selected_followers'        => $followers_checked,
-				'selected_friends_checkbox' => $friends_checked,
-				'selected_wheeling' 		=> $combination_file,
-				'selected_trends'          	=> $selected_trends,
-				'selected_winning_sums'     => $selected_winning_sums,
-				'selected_winning_digits' 	=> $selected_winning_digits,
-				'selected_repeaters' 		=> $selected_repeaters,
-				'selected_consecutives' 	=> $selected_consecutives,
-				'selected_parity'          	=> $selected_parity,
-				'selected_decades'          => $selected_decades,
-				'selected_last_digits'      => $selected_last_digits,
-				'selected_number_range' 	=> $selected_number_range,
-				'selected_adjacents' 		=> $selected_adjacents
-			];
-			$this->session->set_userdata('futures_form', $session_data);
-
-			// LOTTERY PROFILE STATISTICS PRESETS Settings
-			$this->data['selected_followers_type'] = $follower_type; 		// or 'position' as your default
-			$this->data['selected_hwc'] = $hwc_checked; 					// preset value for H-W-C
-			$this->data['selected_followers'] = $followers_checked; 		// preset value for Followers
-			$this->data['selected_friends_checkbox'] = $friends_checked; 	// preset value for Friends
-			$this->data['selected_friends'] = $selected_friends; 			// preset value for Friends choices
-			$this->data['selected_ball_points'] = $selected_ball_points;
-			$this->data['selected_position_points'] = $selected_position_points;
-			//Actual Win History Filtering
-			$this->data['selected_trends'] = $selected_trends; 					// trends setting
-			$this->data['selected_winning_sums'] = $selected_winning_sums;  	// sums setting
-			$this->data['selected_winning_digits'] = $selected_winning_digits; 	// digit sums setting
-			$this->data['selected_repeaters'] = $selected_repeaters; 		// repeaters setting
-			$this->data['selected_consecutives'] = $selected_consecutives;  // consecutives setting
-			$this->data['selected_parity'] = $selected_parity;				// parity (odd / even) setting
-			$this->data['selected_decades'] = $selected_decades;			// decades setting
-			$this->data['selected_last_digits'] = $selected_last_digits; 	// last digits setting
-			$this->data['selected_number_range'] = $selected_number_range;	// number range setting
-			$this->data['selected_adjacents'] = $selected_adjacents;		// adjacents setting
+				// LOTTERY PROFILE STATISTICS PRESETS Settings
+				$this->data['selected_followers_type'] = $follower_type; 		// or 'position' as your default
+				$this->data['selected_hwc'] = $hwc_checked; 					// preset value for H-W-C
+				$this->data['selected_followers'] = $followers_checked; 		// preset value for Followers
+				$this->data['selected_friends_checkbox'] = $friends_checked; 	// preset value for Friends
+				$this->data['selected_friends'] = $selected_friends; 			// preset value for Friends choices
+				$this->data['selected_ball_points'] = $selected_ball_points;
+				$this->data['selected_position_points'] = $selected_position_points;
+				//Actual Win History Filtering
+				$this->data['selected_trends'] = $selected_trends; 					// trends setting
+				$this->data['selected_winning_sums'] = $selected_winning_sums;  	// sums setting
+				$this->data['selected_winning_digits'] = $selected_winning_digits; 	// digit sums setting
+				$this->data['selected_repeaters'] = $selected_repeaters; 		// repeaters setting
+				$this->data['selected_consecutives'] = $selected_consecutives;  // consecutives setting
+				$this->data['selected_parity'] = $selected_parity;				// parity (odd / even) setting
+				$this->data['selected_decades'] = $selected_decades;			// decades setting
+				$this->data['selected_last_digits'] = $selected_last_digits; 	// last digits setting
+				$this->data['selected_number_range'] = $selected_number_range;	// number range setting
+				$this->data['selected_adjacents'] = $selected_adjacents;		// adjacents setting
+			
 			// Extract number of selections from combination_file (3rd and 4th digits)
 			$selections = (int)substr($combination_file, 2, 2);
 			$this->data['enable_generate_button'] = true; 		// or false
 			// Generate number series based on selections
 			$number_series = '';
-			if ($hwc_checked && !$followers_checked) {
+			if (!$hwc_checked && !$followers_checked) {
+				$this->session->set_flashdata('message', 'Either the H-W-C or Followers must be checked, they both can not be unchecked.');
+				redirect('admin/predictions');
+			} elseif ($hwc_checked && !$followers_checked) {
 				$number_series = $this->predictions_m->hwc_only($id, $selections, $h_w_c_group);
 				if(!$number_series) { 
 					$this->session->set_flashdata('message', 'Could not return a series of numbers for inserting in the Combination Tickets File.');
@@ -739,7 +768,7 @@ class Predictions extends Admin_Controller {
 					$this->session->set_flashdata('message', 'Could not return a series of numbers for inserting in the Combination Tickets File.');
 					redirect('admin/predictions');
 				}
-			}
+			} 
 			// Friends logic
 			if ($friends_checked) {
 				if ($selected_friends !== 'all') {
