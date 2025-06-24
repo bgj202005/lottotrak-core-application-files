@@ -726,6 +726,7 @@ class Predictions extends Admin_Controller {
 				$this->data['selected_followers'] = $followers_checked; 		// preset value for Followers
 				$this->data['selected_friends_checkbox'] = $friends_checked; 	// preset value for Friends
 				$this->data['selected_friends'] = $selected_friends; 			// preset value for Friends choices
+				$this->data['selected_wheeling'] = $combination_file; 			// preset value for the Combination File (wheeling file)
 				$this->data['selected_ball_points'] = $selected_ball_points;
 				$this->data['selected_position_points'] = $selected_position_points;
 				//Actual Win History Filtering
@@ -775,9 +776,21 @@ class Predictions extends Admin_Controller {
 					$numbers = array_values(array_filter(array_map('trim', explode(',', $number_series))));
 					array_unshift($numbers, null);
 					unset($numbers[0]);
-					$heat_map = $hwc_checked ? $this->predictions_m->get_heat_map($id) : [];
-					$followers_list = $followers_checked ? $this->predictions_m->get_followers_list($id, $follower_type, $follower_select) : [];
-					$numbers = $this->predictions_m->friend_search($id, $numbers, $selected_friends, $heat_map, $followers_list);
+					if($hwc_checked) {
+						$heat_map = $hwc_checked ? $this->predictions_m->get_heat_map($id) : [];
+						if(empty($heat_map)) { 
+							$this->session->set_flashdata('message', 'Problem with the Heat Map, please try again.');
+							redirect('admin/predictions');
+						}
+						$numbers = $this->predictions_m->friend_search_hwc($id, $numbers, $selected_friends, $heat_map);
+					} elseif(!$hwc_checked&&$followers_checked) {
+						$followers_list = $followers_checked ? $this->predictions_m->get_followers_list($id, $follower_type, $follower_select) : [];
+						if(empty($followers_list)) { 
+							$this->session->set_flashdata('message', 'Problem with the Followers List, please try again.');
+							redirect('admin/predictions');
+						}
+						$numbers = $this->predictions_m->friend_search($id, $numbers, $selected_friends, $heat_map, $followers_list);
+					}
 					array_values($numbers); // Re-index the array from index 1 to index 0
 					$number_series = implode(',', $numbers);
 				}
@@ -825,7 +838,7 @@ class Predictions extends Admin_Controller {
 				$this->data['message'] = 'Combination Table and filters loaded successfully.';
 			}
 		}
-		// --- GET: Restore from Session and Paginate ---
+		// --- GET:   ---
 		else {
 			// Restore form/filter values
 			if ($this->session->userdata('futures_form')) {
