@@ -477,6 +477,12 @@
 							], 'Save Filtered Tickets');
 							echo form_button([
 								'type' => 'button',
+								'class' => 'btn btn-warning btn-lg mx-2',
+								'id' => 'reset-settings-btn',
+								'disabled' => 'disabled'
+							], 'Reset Settings');
+							echo form_button([
+								'type' => 'button',
 								'class' => 'btn btn-danger btn-lg mx-2',
 								'id' => 'delete-filtered-btn',
 								'disabled' => 'disabled'
@@ -647,35 +653,58 @@
 	    const friendsDropdown = document.getElementById('friends');
 		const generateBtn = document.getElementById('submit-btn');
     	var saveBtn = document.getElementById('save-filtered-btn');
+    	var resetBtn = document.getElementById('reset-settings-btn');
     	var deleteBtn = document.getElementById('delete-filtered-btn');
 		
 		// Initial state
 		saveBtn.disabled = true;
+		resetBtn.disabled = true;
 		deleteBtn.disabled = true;
+		
+		// Check if tickets have been generated (number_array exists)
+		<?php if (!empty($number_array)): ?>
+		// Tickets have been generated, enable Save and Reset buttons
+		saveBtn.disabled = false;
+		resetBtn.disabled = false;
+		<?php endif; ?>
 		//generateBtn.disabled = true;
 		
 		// Enable Generate Tickets when a combination table is selected
 		combinationDropdown.addEventListener('change', function () {
 			if (combinationDropdown.value) {
 				generateBtn.disabled = false;
+				// Only disable Save/Reset buttons if tickets haven't been generated yet
+				<?php if (empty($number_array)): ?>
 				saveBtn.disabled = true;
+				resetBtn.disabled = true;
+				<?php endif; ?>
 				deleteBtn.disabled = true;
 			} else {
 				generateBtn.disabled = true;
 				saveBtn.disabled = true;
+				resetBtn.disabled = true;
 				deleteBtn.disabled = true;
 			}
 		});
 		generateBtn.addEventListener('click', function (e) {
-        // You may want to check if tickets are actually generated before enabling
+        	// You may want to check if tickets are actually generated before enabling
 			setTimeout(function() {
 				saveBtn.disabled = false;
+				resetBtn.disabled = false;
 			}, 500); // Adjust delay as needed for your ticket generation process
 		});
 
 		// After Save Filtered Tickets is clicked, enable Delete Filtered Tickets
 		saveBtn.addEventListener('click', function (e) {
 			deleteBtn.disabled = false;
+		});
+
+		// Reset Settings button functionality
+		resetBtn.addEventListener('click', function (e) {
+			if (confirm('Are you sure you want to reset all settings? This will clear all form data and redirect to the main predictions page.')) {
+				// Clear session data by redirecting to a controller method that clears the session
+				window.location.href = '<?= base_url(); ?>admin/predictions/reset_settings/<?= $lottery->id; ?>';
+			}
 		});
 		function updateHwcDropdown() {
 			if (hwcCheckbox && hwcDropdown) {
