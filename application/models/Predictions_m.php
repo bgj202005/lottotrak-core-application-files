@@ -583,11 +583,12 @@ class Predictions_m extends MY_Model
 	 * mapped to their total points, sorted descending by points.
 	 * Any ball with 0 points is excluded.
 	 *
-	 * @param array $last_drawn The last_drawn array from the lottery object.
-	 * @param int $balls_drawn  The number of main balls drawn.
+	 * @param array 	$last_drawn The last_drawn array from the lottery object.
+	 * @param int 		$balls_drawn  The number of main balls drawn.
+	 * @param boolean	$duplicate    Whether to include duplicate extra balls.
 	 * @return array Sorted associative array: [ 'ball_number' => points, ... ]
 	 */
-	public function get_sorted_ball_points($last_drawn, $balls_drawn)
+	public function get_sorted_ball_points($last_drawn, $balls_drawn, $duplicate)
 	{
 		$ball_points = [];
 		// Main balls
@@ -603,8 +604,8 @@ class Predictions_m extends MY_Model
 				}
 			}
 		}
-		// Extra ball (if exists)
-		if (isset($last_drawn['extra_win']) && isset($last_drawn['extra'])) {
+		// Extra ball (if exists) and not duplicate
+		if (isset($last_drawn['extra_win']) && isset($last_drawn['extra']) && !$duplicate) {
 			$points = 0;
 			foreach ($last_drawn['extra_win'] as $k => $v) {
 				if (strpos($k, '_points') !== false) $points += intval($v);
