@@ -1414,11 +1414,11 @@ class Predictions_m extends MY_Model
 	return implode(',', $selected);
 	}
 	/**
-	 * Remove or allow friends in $selections based on $friendship and H-W-C heat map.
-	 * @param int $lottery_id
-	 * @param array $selections
-	 * @param string $friendship 'ALL', 'none', '1', or '2'
-	 * @param array $heat_map ['H' => [num => count,...], 'W' => [...], 'C' => [...]]
+	 * Remove or allow friends in $selections based on $friendship, selection rules, and H-W-C heat map.
+	 * @param int $lottery_id		Lottery/game id
+	 * @param array $selections  	Array of selected numbers as strings, e.g. ['1', '2', '3']
+	 * @param string $friendship 	'ALL', 'none', '1', or '2'
+	 * @param array $heat_map 		['H' => [num => count,...], 'W' => [...], 'C' => [...]]
 	 * @return array
 	 */
 	public function friend_search_hwc($lottery_id, $selections, $friendship, $heat_map)
@@ -1638,17 +1638,15 @@ class Predictions_m extends MY_Model
 		return array_values($unique);
 	}
 	/**
-	 * Filters the $numbers array based on friend relationships and selection rules.
+	 * Filters the $numbers array based on friend relationships, selection rules and followers.
 	 *
-	 * @param int    $lottery_id                Lottery/game id
-	 * @param string $follower_type     'after_ball' or 'position'
-	 * @param array  $nr	           Array of selected numbers
-	 * @param string $selected_friends  'ALL', 'none', '1', or '2'
-	 * @param array  $heat_map          ['H' => [...], 'W' => [...], 'C' => [...]]
-	 * @param array  $followers_list    Array of followers for fallback
+	 * @param int    $lottery_id            Lottery/game id
+	 * @param string $selections			Array of selected numbers as strings, e.g. ['1', '2', '3']
+	 * @param string $friendship			'ALL', 'none', '1', or '2'
+	 * @param array  $follow_list   	 	Array of followers for fallback
 	 * @return array Filtered $selections
 	 */
-	public function friend_search($lottery_id, $selections, $friendship, $heat_map, $follow_list)
+	public function friend_search_followers($lottery_id, $selections, $friendship, $follow_list)
 	{
 		// Fetch wins field from DB
 		$row = $this->db->get_where('lottery_friends', ['lottery_id' => $lottery_id])->row_array();
@@ -1665,142 +1663,134 @@ class Predictions_m extends MY_Model
 		$oneway = [];
 		$twoway = [];
 		$friendships = array_filter(array_map('trim', explode(',', $friend_str)));
-		foreach ($friendships as $f) {
+		foreach ($friendships as $idx => $f) {
+			$ball = $idx + 1; // Ball number (1-based)
 			if (strpos($f, '<>') !== false) {
-				$nums = explode('<>', $f);
-				if (count($nums) == 2) {
-					$twoway[] = [(int)trim($nums[0]), (int)trim($nums[1])];
-				}
+				$friend = (int)trim(str_replace('<>', '', $f));
+				$twoway[] = [$ball, $friend];
 			} elseif (strpos($f, '>') !== false) {
-				$nums = explode('>', $f);
-				if (count($nums) == 2) {
-					$oneway[] = [(int)trim($nums[0]), (int)trim($nums[1])];
-				}
+				$friend = (int)trim(str_replace('>', '', $f));
+				$oneway[] = [$ball, $friend];
 			}
 		}
-		// Helper: Find replacement in the same heat group, starting from the same count, then lower, skipping already selected
-		$find_heat_replacement = function($exclude, $target_num, $heat_map) {
-			foreach (['H', 'W', 'C'] as $cat) {
-				if (isset($heat_map[$cat][$target_num])) {
-					$target_heat = $cat;
-					$target_count = $heat_map[$cat][$target_num];
-					// Build a list of [num, count] for this heat group
-					$candidates = [];
-					foreach ($heat_map[$cat] as $num => $count) {
-						if (!in_array($num, $exclude)) {
-							$candidates[$num] = $count;
-						}
-					}
-					// Sort by count descending, then by number ascending
-					arsort($candidates);
-					// Try to find a replacement with the same count, then lower
-					$counts_tried = [];
-					$current_count = $target_count;
-					while (true) {
-						$found = false;
-						foreach ($candidates as $num => $count) {
-							if ($count == $current_count) {
-								$found = true;
-								return $num;
-							}
-						}
-						$counts_tried[] = $current_count;
-						// Find next lower count
-						$lower_counts = array_filter($candidates, function($c) use ($counts_tried) {
-							return !in_array($c, $counts_tried);
-						});
-						if (empty($lower_counts)) break;
-						$current_count = max($lower_counts);
+		$twoway = $this->predictions_m->twoway_unique($twoway);
+		    // Helper: Find a replacement from $follow_list not already in $exclude
+			$find_follower_replacement = function($exclude) use ($follow_list) {
+				foreach ($follow_list as $num) {
+					if (!in_array($num, $exclude)) {
+						return $num;
 					}
 				}
-			}
-			return null;
-		};
-		$result = $selections;
-		// --- NONE: Remove all friendships, stop if run out of numbers in $heat ---
-		if ($friendship === 'none' || $friendship === 0) {
-			$changed = true;
-			while ($changed) {
-				$changed = false;
-				// Check and replace 2-way
+				return null;
+			};
+			$result = $selections;
+			// --- NONE: Remove all friendships, one full pass only ---
+			if ($friendship === 'none') {
+				$replaced_in_twoway = [];
+				// 1. Check and replace all 2-way friendships in one pass
 				foreach ($twoway as $pair) {
 					list($a, $b) = $pair;
 					if (in_array($a, $result) && in_array($b, $result)) {
 						$replace_idx = array_search($b, $result);
-						$replacement = $find_heat_replacement($result, $b, $heat_map);
+						$replacement = $find_follower_replacement($result);
 						if ($replacement !== null) {
-							$result[$replace_idx] = $replacement;
-							$changed = true;
-							break 2; // Restart loop after change
-						} else {
-							// No more replacements available, stop and return
-							return $result;
+							$replaced_in_twoway[] = $b;
+							$result[$replace_idx] = (string) $replacement;
 						}
 					}
 				}
-				// Check and replace 1-way
+				// 2. Exclude numbers that were replaced in twoway or already in oneway
+				$replaced_in_oneway = [];
+				foreach ($oneway as $pair) {
+					list($a, $b) = $pair;
+					if (
+						in_array($a, $result) && in_array($b, $result) &&
+						!in_array($a, $replaced_in_twoway) && !in_array($b, $replaced_in_twoway) &&
+						!in_array($a, $replaced_in_oneway) && !in_array($b, $replaced_in_oneway)
+					) {
+						$replace_idx = array_search($b, $result);
+						$exclude = array_unique(array_merge($result, $replaced_in_twoway, $replaced_in_oneway));
+						$replacement = $find_follower_replacement($exclude);
+						if ($replacement !== null) {
+							$replaced_in_oneway[] = $b;
+							$result[$replace_idx] = (string) $replacement;
+						}
+					}
+				}
+				return $result;
+			}
+			// --- 1-WAY: Only allow 1-way friendships, remove 2-way, stop if at least one 1-way friendship exists ---
+			if ($friendship === '1') {
+				// Remove all 2-way friendships in one pass
+				foreach ($twoway as $pair) {
+					list($a, $b) = $pair;
+					if (in_array($a, $result) && in_array($b, $result)) {
+						$replace_idx = array_search($b, $result);
+						$replacement = $find_follower_replacement($result);
+						if ($replacement !== null) {
+							$result[$replace_idx] = (string) $replacement;
+						}
+					}
+				}
+				// If any 1-way friendship exists, stop and return immediately
+				foreach ($oneway as $pair) {
+					list($a, $b) = $pair;
+					if (in_array($a, $result) && in_array($b, $result)) {
+						return $result;
+					}
+				}
+				// If no 1-way friendship found, continue with replacements as before
 				foreach ($oneway as $pair) {
 					list($a, $b) = $pair;
 					if (in_array($a, $result) && in_array($b, $result)) {
 						$replace_idx = array_search($b, $result);
-						$replacement = $find_heat_replacement($result, $b, $heat_map);
+						$replacement = $find_follower_replacement($result);
 						if ($replacement !== null) {
-							$result[$replace_idx] = $replacement;
-							$changed = true;
-							break 2; // Restart loop after change
-						} else {
-							// No more replacements available, stop and return
+							$result[$replace_idx] = (string) $replacement;
+						}
+					}
+				}
+				return $result;
+			}
+			// --- 2-WAY: Only allow 2-way friendships, remove 1-way, stop if at least one 2-way friendship exists ---
+			if ($friendship === '2') {
+				// 1. Remove all 1-way friendships in one pass
+				foreach ($oneway as $pair) {
+					list($a, $b) = $pair;
+					if (in_array($a, $result) && in_array($b, $result)) {
+						$replace_idx = array_search($b, $result);
+						$replacement = $find_follower_replacement($result);
+						if ($replacement !== null) {
+							$result[$replace_idx] = (string) $replacement;
+						}
+					}
+				}
+				// 2. If any 2-way friendship exists, stop and return immediately
+				foreach ($twoway as $pair) {
+					list($a, $b) = $pair;
+					if (in_array($a, $result) && in_array($b, $result)) {
+						return $result;
+					}
+				}
+				// 3. If no 2-way, find the first 2-way that is available (a in result, b not in result)
+				foreach ($twoway as $pair) {
+					list($a, $b) = $pair;
+					if (in_array($a, $result) && !in_array($b, $result)) {
+						// Replace a number in $result (not $a) with $b
+						foreach ($result as $idx => $num) {
+							if ($num != $a && !in_array($b, $result) && in_array($b, $follow_list)) {
+								$result[$idx] = (string) $b;
+								break;
+							}
+						}
+						// After inserting $b, if both $a and $b are now in $result, return
+						if (in_array($a, $result) && in_array($b, $result)) {
 							return $result;
 						}
 					}
 				}
+				return $result;
 			}
-			return $result;
-		}
-		// --- 1-WAY: Only allow 1-way friendships, remove 2-way, stop if 1-way found ---
-		if ($friendship === '1' || $friendship === 1) {
-			// Remove 2-way
-			foreach ($twoway as $pair) {
-				list($a, $b) = $pair;
-				if (in_array($a, $result) && in_array($b, $result)) {
-					$replace_idx = array_search($b, $result);
-					$replacement = $find_heat_replacement($result, $b, $heat_map);
-					if ($replacement !== null) {
-						$result[$replace_idx] = $replacement;
-					}
-				}
-			}
-			// If any 1-way friendship exists, stop and return
-			foreach ($oneway as $pair) {
-				list($a, $b) = $pair;
-				if (in_array($a, $result) && in_array($b, $result)) {
-					return $result;
-				}
-			}
-			return $result;
-		}
-		// --- 2-WAY: Only allow 2-way friendships, remove 1-way, stop if 2-way found ---
-		if ($friendship === '2' || $friendship === 2) {
-			// Remove 1-way
-			foreach ($oneway as $pair) {
-				list($a, $b) = $pair;
-				if (in_array($a, $result) && in_array($b, $result)) {
-					$replace_idx = array_search($b, $result);
-					$replacement = $find_heat_replacement($result, $b, $heat_map);
-					if ($replacement !== null) {
-						$result[$replace_idx] = $replacement;
-					}
-				}
-			}
-			// If any 2-way friendship exists, stop and return
-			foreach ($twoway as $pair) {
-				list($a, $b) = $pair;
-				if (in_array($a, $result) && in_array($b, $result)) {
-					return $result;
-				}
-			}
-			return $result;
-		}
 		// Default: return as is
 		return $selections;
 	}

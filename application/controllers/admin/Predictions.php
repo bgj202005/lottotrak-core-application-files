@@ -727,20 +727,20 @@ class Predictions extends Admin_Controller {
 				$this->data['selected_followers'] = $followers_checked; 		// preset value for Followers
 				$this->data['selected_friends_checkbox'] = $friends_checked; 	// preset value for Friends
 				$this->data['selected_friends'] = $selected_friends; 			// preset value for Friends choices
-				$this->data['selected_wheeling'] = $this->session->userdata('combination_file'); // preset value for the Combination File (wheeling file)
-				$this->data['selected_ball_points'] = $this->session->userdata('selected_ball_points');
-				$this->data['selected_position_points'] = $this->session->userdata('selected_position_points');
+				$this->data['selected_wheeling'] = $combination_file; 			// preset value for the Combination File (wheeling file)
+				$this->data['selected_ball_points'] = $selected_ball_points;
+				$this->data['selected_position_points'] = $selected_position_points;
 				//Actual Win History Filtering
 				$this->data['selected_trends'] = $selected_trends; 					// trends setting
 				$this->data['selected_winning_sums'] = $selected_winning_sums;  	// sums setting
 				$this->data['selected_winning_digits'] = $selected_winning_digits; 	// digit sums setting
-				$this->data['selected_repeaters'] = $selected_repeaters; 		// repeaters setting
-				$this->data['selected_consecutives'] = $selected_consecutives;  // consecutives setting
-				$this->data['selected_parity'] = $selected_parity;				// parity (odd / even) setting
-				$this->data['selected_decades'] = $selected_decades;			// decades setting
-				$this->data['selected_last_digits'] = $selected_last_digits; 	// last digits setting
-				$this->data['selected_number_range'] = $selected_number_range;	// number range setting
-				$this->data['selected_adjacents'] = $selected_adjacents;		// adjacents setting
+				$this->data['selected_repeaters'] = $selected_repeaters; 			// repeaters setting
+				$this->data['selected_consecutives'] = $selected_consecutives;  	// consecutives setting
+				$this->data['selected_parity'] = $selected_parity;					// parity (odd / even) setting
+				$this->data['selected_decades'] = $selected_decades;				// decades setting
+				$this->data['selected_last_digits'] = $selected_last_digits; 		// last digits setting
+				$this->data['selected_number_range'] = $selected_number_range;		// number range setting
+				$this->data['selected_adjacents'] = $selected_adjacents;			// adjacents setting
 			
 			// Extract number of selections from combination_file (3rd and 4th digits)
 			$selections = (int)substr($combination_file, 2, 2);
@@ -757,14 +757,14 @@ class Predictions extends Admin_Controller {
 					redirect('admin/predictions');
 				}
 			} elseif (!$hwc_checked && $followers_checked) {
-				$follower_select = ($follower_type == 'after_ball') ? $session_data['selected_ball_points'] : $session_data['selected_position_points'];
-				$number_series = $this->predictions_m->followers_only($id, $selections, $follower_type, $follower_select);
+				$follower_select = ($followers_type === 'after_ball') ? $selected_ball_points : $selected_position_points;
+				$number_series = $this->predictions_m->followers_only($id, $selections, $followers_type, $follower_select);
 				if(!$number_series) { 
 					$this->session->set_flashdata('message', 'Could not return a series of numbers for inserting in the Combination Tickets File.');
 					redirect('admin/predictions');
 				}
 			} elseif ($hwc_checked && $followers_checked) {
-				$follower_select = ($followers_type == 'after_ball') ? $session_data['selected_ball_points'] : $session_data['selected_position_points'];
+				$follower_select = ($followers_type == 'after_ball') ?  $selected_ball_points : $selected_position_points;
 				$number_series = $this->predictions_m->hwc_followers($id, $selections, $h_w_c_group, $followers_type, $follower_select);
 				if(!$number_series) { 
 					$this->session->set_flashdata('message', 'Could not return a series of numbers for inserting in the Combination Tickets File.');
@@ -785,12 +785,12 @@ class Predictions extends Admin_Controller {
 						}
 						$numbers = $this->predictions_m->friend_search_hwc($id, $numbers, $selected_friends, $heat_map);
 					} elseif(!$hwc_checked&&$followers_checked) {
-						$followers_list = $followers_checked ? $this->predictions_m->get_followers_list($id, $follower_type, $follower_select) : [];
+						$followers_list = $followers_checked ? $this->predictions_m->get_followers_list($id, $followers_type, $follower_select) : [];
 						if(empty($followers_list)) { 
 							$this->session->set_flashdata('message', 'Problem with the Followers List, please try again.');
 							redirect('admin/predictions');
 						}
-						$numbers = $this->predictions_m->friend_search($id, $numbers, $selected_friends, $heat_map, $followers_list);
+						$numbers = $this->predictions_m->friend_search_followers($id, $numbers, $selected_friends, $followers_list);
 					}
 					array_values($numbers); // Re-index the array from index 1 to index 0
 					$number_series = implode(',', $numbers);
