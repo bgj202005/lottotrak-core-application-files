@@ -699,15 +699,15 @@ class Predictions_m extends MY_Model
 		// Build the trends array with 'ALL' first, then the largest trend, then the other
 		if ($up >= $down) {
 			$trends = [
-				0 => 'ALL',
-				1 => 'UP (' . $up . ')',
-				2 => 'DOWN (' . $down . ')'
+				'ALL' => 'ALL',
+				'UP' => 'UP (' . $up . ')',
+				'DOWN' => 'DOWN (' . $down . ')'
 			];
 		} else {
 			$trends = [
-				0 => 'ALL',
-				1 => 'DOWN (' . $down . ')',
-				2 => 'UP (' . $up . ')'
+				'ALL' => 'ALL',
+				'DOWN' => 'DOWN (' . $down . ')',
+				'UP' => 'UP (' . $up . ')'
 			];
 		}
 	return $trends;
