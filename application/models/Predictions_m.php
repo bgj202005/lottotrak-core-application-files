@@ -2054,4 +2054,186 @@ class Predictions_m extends MY_Model
 			}
 		return $consecutive_count;
 		}
+		/**
+		 * Filter combinations based on up/down trends compared to last drawn numbers
+		 *
+		 * @param array $combinations Array of combinations to filter
+		 * @param array $last_drawn Last drawn numbers including extra ball
+		 * @param int $drawn Number of balls drawn for this lottery
+		 * @param int $extra_ball Whether extra ball is included (1 or 0)
+		 * @param string $selected_trend 'UP', 'DOWN', or 'ALL'
+		 * @param int $page Current page number
+		 * @param int $per_page Number of combinations per page
+		 * @param string $filepath Path to the combination text file
+		 * @return array|false Filtered combinations or false if no matches found
+		 */
+		public function filtered_trends($combinations, $last_drawn, $drawn, $extra_ball, $selected_trend, $page, $per_page, $filepath)
+		{
+			if ($selected_trend === 'ALL') {
+				return $combinations;
+			}
+			
+			// Extract last drawn numbers for comparison
+			$last_drawn_numbers = [];
+			for ($i = 1; $i <= $drawn; $i++) {
+				if (isset($last_drawn['ball' . $i])) {
+					$last_drawn_numbers[] = (int)$last_drawn['ball' . $i];
+				}
+			}
+			// Include extra ball if enabled
+			if ($extra_ball && isset($last_drawn['extra'])) {
+				$last_drawn_numbers[] = (int)$last_drawn['extra'];
+			}
+			
+			$filtered_combinations = [];
+			$needed_combinations = $per_page;
+			$combinations_found = 0;
+			
+			// Start filtering from the provided combinations
+			foreach ($combinations as $combo) {
+				if ($this->check_trend_match($combo, $last_drawn_numbers, $selected_trend)) {
+					$filtered_combinations[] = $combo;
+					$combinations_found++;
+					
+					if ($combinations_found >= $needed_combinations) {
+						break;
+					}
+				}
+			}
+			
+			// If we don't have enough combinations, fetch more from the file
+			if ($combinations_found < $needed_combinations && file_exists($filepath)) {
+				// Get the number array from session for processing additional combinations
+				$CI =& get_instance();
+				$number_array = $CI->session->userdata('futures_number_array');
+				
+				if ($number_array) {
+					$additional_combinations = $this->fetch_additional_trend_combinations(
+						$filepath,
+						$number_array,
+						$last_drawn_numbers,
+						$selected_trend,
+						$needed_combinations - $combinations_found,
+						($page - 1) * $per_page + count($combinations) // Skip already processed lines
+					);
+					
+					if ($additional_combinations) {
+						$filtered_combinations = array_merge($filtered_combinations, $additional_combinations);
+					}
+				}
+			}
+			
+			// Return false if no combinations match the trend filter
+			if (empty($filtered_combinations)) {
+				return false;
+			}
+			
+			return $filtered_combinations;
+		}
+		/**
+		 * Check if a combination matches the selected trend
+		 *
+		 * @param array $combo Combination to check (with ball1, ball2, etc. keys)
+		 * @param array $last_drawn_numbers Last drawn numbers to compare against
+		 * @param string $trend 'UP' or 'DOWN'
+		 * @return bool True if combination matches trend, false otherwise
+		 */
+		private function check_trend_match($combo, $last_drawn_numbers, $trend)
+		{
+			// Extract combination numbers in order
+			$combo_numbers = [];
+			foreach ($combo as $key => $value) {
+				if (strpos($key, 'ball') === 0) {
+					$combo_numbers[] = (int)$value;
+				}
+			}
+			
+			// Sort both arrays for consistent comparison
+			sort($combo_numbers, SORT_NUMERIC);
+			sort($last_drawn_numbers, SORT_NUMERIC);
+			
+			if ($trend === 'UP') {
+				// All combination numbers must be greater than corresponding last drawn numbers
+				foreach ($combo_numbers as $index => $combo_number) {
+					if (isset($last_drawn_numbers[$index])) {
+						if ($combo_number <= $last_drawn_numbers[$index]) {
+							return false;
+						}
+					}
+				}
+				return true;
+			} elseif ($trend === 'DOWN') {
+				// All combination numbers must be less than corresponding last drawn numbers
+				foreach ($combo_numbers as $index => $combo_number) {
+					if (isset($last_drawn_numbers[$index])) {
+						if ($combo_number >= $last_drawn_numbers[$index]) {
+							return false;
+						}
+					}
+				}
+				return true;
+			}
+			
+			return false;
+		}
+		/**
+		 * Fetch additional combinations from file to meet pagination requirements
+		 *
+		 * @param string $filepath Path to combinations file
+		 * @param array $number_array Number array for position mapping
+		 * @param array $last_drawn_numbers Last drawn numbers for comparison
+		 * @param string $trend Trend type ('UP' or 'DOWN')
+		 * @param int $needed_count Number of additional combinations needed
+		 * @param int $skip_lines Number of lines to skip (already processed)
+		 * @return array Additional filtered combinations
+		 */
+		private function fetch_additional_trend_combinations($filepath, $number_array, $last_drawn_numbers, $trend, $needed_count, $skip_lines)
+		{
+			if (!file_exists($filepath)) {
+				return [];
+			}
+			
+			$additional_combinations = [];
+			$line_count = 0;
+			$found_count = 0;
+			
+			if (($handle = fopen($filepath, 'r')) !== false) {
+				// Skip already processed lines
+				while ($line_count < $skip_lines && ($line = fgets($handle)) !== false) {
+					$line_count++;
+				}
+				
+				// Continue reading and filtering until we have enough combinations
+				while (($line = fgets($handle)) !== false && $found_count < $needed_count) {
+					$line = trim($line);
+					if (empty($line)) continue;
+					
+					// Parse the combination line and convert to proper format
+					$positions = array_map('intval', explode(' ', $line));
+					$combo_numbers = [];
+					foreach ($positions as $pos) {
+						if (isset($number_array[$pos - 1])) {
+							$combo_numbers[] = $number_array[$pos - 1];
+						}
+					}
+					
+					// Sort and format as ball1, ball2, etc.
+					sort($combo_numbers, SORT_NUMERIC);
+					$combo = [];
+					foreach ($combo_numbers as $idx => $num) {
+						$combo['ball'.($idx+1)] = $num;
+					}
+					
+					if ($this->check_trend_match($combo, $last_drawn_numbers, $trend)) {
+						$additional_combinations[] = $combo;
+						$found_count++;
+					}
+					
+					$line_count++;
+				}
+				fclose($handle);
+			}
+			
+			return $additional_combinations;
+		}		
 }

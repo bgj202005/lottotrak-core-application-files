@@ -818,25 +818,54 @@ class Predictions extends Admin_Controller {
 
 				$updated_combinations = $this->predictions_m->insert_number_combination($filepath, $number_array, $page, $per_page);
 
-				$combos_paginated = [];
-				foreach ($updated_combinations as $combo) {
-					$stats = $this->predictions_m->get_combo_stats($combo, $drawn, $this->data['lottery']->last_drawn);
-					$combos_paginated[] = [
-						'combo' => $combo,
-						'stats' => $stats
-					];
+				$filter_error = FALSE;	// Initialize filter error flag, no encountered filtered errors
+				// Apply trend filtering after getting updated combinations
+				if (isset($selected_trends) && $selected_trends !== 'ALL') {
+					$filtered_combinations = $this->predictions_m->filtered_trends(
+						$updated_combinations,
+						$this->data['lottery']->last_drawn,
+						$drawn,
+						$this->data['lottery']->extra_ball,
+						$selected_trends,
+						$page,
+						$per_page,
+						$filepath  // Add filepath as parameter
+					);
+					
+					if ($filtered_combinations === false) {
+						$filter_error = TRUE; // Set filter error flag
+						$this->data['message'] = 'Filtering with the Up / Down Trend Filter resulted in No Combinations';
+						$this->data['combos_paginated'] = [];
+						$this->data['pagination'] = [
+							'current' => 1,
+							'total' => 1,
+							'per_page' => $per_page
+						];
+					} else {
+						$updated_combinations = $filtered_combinations;
+					}
 				}
-				$this->data['combos_paginated'] = $combos_paginated;
-				// Paginate for display
-				// For pagination controls, you still need the total number of lines in the file:
-				$total_lines = count(file($filepath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
-				$this->data['pagination'] = [
-					'current' => $page,
-					'total' => ceil($total_lines / $per_page),
-					'per_page' => $per_page
-				];
-				$this->data['number_array'] = $number_array;
-				$this->data['message'] = 'Combination Table and filters loaded successfully.';
+				if (!$filter_error) {
+					$combos_paginated = [];
+					foreach ($updated_combinations as $combo) {
+						$stats = $this->predictions_m->get_combo_stats($combo, $drawn, $this->data['lottery']->last_drawn);
+						$combos_paginated[] = [
+							'combo' => $combo,
+							'stats' => $stats
+						];
+					}
+					$this->data['combos_paginated'] = $combos_paginated;
+					// Paginate for display
+					// For pagination controls, you still need the total number of lines in the file:
+					$total_lines = count(file($filepath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
+					$this->data['pagination'] = [
+						'current' => $page,
+						'total' => ceil($total_lines / $per_page),
+						'per_page' => $per_page
+					];
+					$this->data['number_array'] = $number_array;
+					$this->data['message'] = 'Combination Table and filters loaded successfully.';
+					}
 			}
 		}
 		// --- GET:   ---
@@ -874,6 +903,32 @@ class Predictions extends Admin_Controller {
 			if ($number_array && $combination_file) {
 				$filepath = FCPATH . 'combinations/' . basename($combination_file) . '.txt';
 				$updated_combinations = $this->predictions_m->insert_number_combination($filepath, $number_array, $page, $per_page);
+				// Apply trend filtering for GET requests as well
+				$selected_trends = $future_form['selected_trends'] ?? 'ALL';
+				if ($selected_trends !== 'ALL') {
+					$filtered_combinations = $this->predictions_m->filtered_trends(
+						$updated_combinations,
+						$this->data['lottery']->last_drawn,
+						$drawn,
+						$this->data['lottery']->extra_ball,
+						$selected_trends,
+						$page,
+						$per_page,
+						$filepath  // Add filepath parameter
+					);
+					
+					if ($filtered_combinations === false) {
+						$this->data['message'] = 'No Combinations are available with the Up / Down Trend Filter';
+						$this->data['combos_paginated'] = [];
+						$this->data['pagination'] = [
+							'current' => 1,
+							'total' => 1,
+							'per_page' => $per_page
+						];
+					} else {
+						$updated_combinations = $filtered_combinations;
+					}
+				}
 				// ... calculate stats and set $this->data['combos_paginated'] and $this->data['pagination'] ...
 				$combos_paginated = [];
 					foreach ($updated_combinations as $combo) {
