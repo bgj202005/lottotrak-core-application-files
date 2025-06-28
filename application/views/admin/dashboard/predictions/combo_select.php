@@ -86,7 +86,12 @@
 											</tr>
 										</thead>
 										<tbody>
-										<?php $row = 1; 
+										<?php
+											// Sort the generate array by N column in ascending order (lowest first)
+                                            usort($lottery->generate, function($a, $b) {
+                                                return $a->N <=> $b->N;
+                                            }); 
+											$row = 1; 
 											foreach ($lottery->generate as $index => $file) { ?>
 												<tr>    
 													<th scope="row" style="text-align:center;"><?= $row; ?></th>
