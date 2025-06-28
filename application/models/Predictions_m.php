@@ -678,7 +678,7 @@ class Predictions_m extends MY_Model
 	}
 	/**
 	 * Parses a trends string and returns an associative array for dropdown:
-	 * 0 => 'ALL', 1 => 'UP (N)', 2 => 'DOWN (N)'
+	 * 'ALL' => 'ALL', 1 => 'UP (N)', 2 => 'DOWN (N)'
 	 *
 	 * @param string $trend_string The trends string, e.g. "up=2,down=6,2024-11-29,down,6,down"
 	 * @return array Dropdown array for trends.
@@ -721,7 +721,7 @@ class Predictions_m extends MY_Model
 	 */
 	public function get_digit_sums($digits)
 	{
-		$result = [0 => 'ALL'];
+		$result = ['All' => 'ALL'];
 		// Split by '|', take the first part
 		$parts = explode('|', $digits);
 		$main_part = isset($parts[0]) ? $parts[0] : '';
@@ -753,14 +753,14 @@ class Predictions_m extends MY_Model
 	 * Adds "ALL" (value: 0) as the top option.
 	 *
 	 * @param string $winning_sums The string, e.g. "163=4,147=3,178=3,173=3,190=3,149=3,151=3,221=2,200=2,153=2|15=13,INCREASE"
-	 * @return array Array for dropdown: [0 => 'ALL', sum => total, ...]
+	 * @return array Array for dropdown: ['ALL' => 'ALL', sum => total, ...]
 	 */
 	public function get_sums($winning_sums)
 	{
 		// Split by '|', take the first part
 		$parts = explode('|', $winning_sums);
 		$main_part = isset($parts[0]) ? $parts[0] : '';
-		$result = [0 => 'ALL'];
+		$result = ['ALL' => 'ALL'];
 		if ($winning_sums) {
 			// Split by '|' and use the first part
 			$parts = explode('|', $winning_sums);
@@ -794,12 +794,12 @@ class Predictions_m extends MY_Model
 	 * Any repeater with a total of 0 is removed.
 	 *
 	 * @param string $repeaters The string, e.g. "0=17,1=44,2=30,3=9,4=0,5=0,6=0,7=0|27=7,46=5,30=5,28=5,33=5"
-	 * @return array Array for dropdown: [0 => 'ALL', repeater_count => total, ...]
+	 * @return array Array for dropdown: ['ALL' => 'ALL', repeater_count => total, ...]
 	 */
 	public function get_repeaters($repeaters)
 	{
 		// Split by '|', take the first part
-		$result = [0 => 'ALL'];
+		$result = ['ALL' => 'ALL'];
 		// Split by '|', take the first part
 		$parts = explode('|', $repeaters);
 		$main_part = isset($parts[0]) ? $parts[0] : '';
@@ -831,7 +831,7 @@ class Predictions_m extends MY_Model
 	 * Any consecutive with a total of 0 is removed.
 	 *
 	 * @param string $c The string, e.g. "0=23,1=43,2=25,3=7,4=2,5=0,6=0,7=0|2=2025-01-31"
-	 * @return array $consecutives for dropdown: [0 => 'ALL', consecutive_count => total, ...]
+	 * @return array $consecutives for dropdown: ['ALL' => 'ALL', consecutive_count => total, ...]
 	 */
 	public function get_consecutives($c)
 	{
@@ -855,7 +855,7 @@ class Predictions_m extends MY_Model
 		// Sort by total descending, then by count descending
 		arsort($consecutives_arr);
 		// Build dropdown array: 0 => "ALL", 1 => "1 (43)", 2 => "2 (25)", ...
-		$result = [0 => 'ALL'];
+		$result = ['ALL' => 'ALL'];
 		foreach ($consecutives_arr as $count => $total) {
 			$result[] = $count . ' (' . $total . ')';
 		}
@@ -867,7 +867,7 @@ class Predictions_m extends MY_Model
 	 * Any parity with a total of 0 is removed.
 	 *
 	 * @param string $parity The string, e.g. "4-3=29,5-2=28,3-4=25,2-5=11,1-6=4,6-1=3|0-0"
-	 * @return array Array for dropdown: [0 => 'ALL', '4-3' => 29, ...]
+	 * @return array Array for dropdown: ['ALL' => 'ALL', '4-3' => 29, ...]
 	 */
 	public function get_parity($p)
 	{
@@ -891,7 +891,7 @@ class Predictions_m extends MY_Model
 		// Sort by total descending, then by odd-even descending
 		arsort($parity_arr);
 		// Build dropdown array: 0 => "ALL", 1 => "3 - 3 (28)", ...
-		$result = [0 => 'ALL'];
+		$result = ['ALL' => 'ALL'];
 		foreach ($parity_arr as $odd_even => $total) {
 			$result[] = str_replace('-', ' / ', $odd_even) . ' (' . $total . ')';
 		}
@@ -934,8 +934,8 @@ class Predictions_m extends MY_Model
 		}
 		// Sort by count descending
 		arsort($decade_counts);
-		// Build dropdown array: 0 => 'ALL', 1 => '3 (12)', 2 => '4 (10)', ...
-		$result = [0 => 'ALL'];
+		// Build dropdown array: 'ALL' => 'ALL', 1 => '3 (12)', 2 => '4 (10)', ...
+		$result = ['ALL' => 'ALL'];
 		foreach ($decade_counts as $decade => $count) {
 			$result[] = $decade . ' (' . $count . ')';
 		}
@@ -978,8 +978,8 @@ class Predictions_m extends MY_Model
 		}
 		// Sort by count descending
 		arsort($last_counts);
-		// Build dropdown array: 0 => 'ALL', 1 => '3 (12)', 2 => '7 (10)', ...
-		$result = [0 => 'ALL'];
+		// Build dropdown array: 'ALL' => 'ALL', 1 => '3 (12)', 2 => '7 (10)', ...
+		$result = ['ALL' => 'ALL'];
 		foreach ($last_counts as $digit => $count) {
 			$result[] = $digit . ' (' . $count . ')';
 		}
@@ -991,7 +991,7 @@ class Predictions_m extends MY_Model
 	 * Adds "ALL" as the first option in the array.
 	 *
 	 * @param string $number_range The string, e.g. "46=8,38=7,32=7,33=7,42=7"
-	 * @return array Array for dropdown: [0 => 'ALL', range => total, ...] (top 5 only, descending)
+	 * @return array Array for dropdown: ['ALL' => 'ALL', range => total, ...] (top 5 only, descending)
 	 */
 	public function get_range($number_range)
 	{
@@ -1013,8 +1013,8 @@ class Predictions_m extends MY_Model
     arsort($ranges);
     // Limit to top 5
     $ranges = array_slice($ranges, 0, 5, true);
-    // Build dropdown array: 0 => 'ALL', 1 => '46 (8)', ...
-    $result = [0 => 'ALL'];
+    // Build dropdown array: 'ALL' => 'ALL', 1 => '46 (8)', ...
+    $result = ['ALL' => 'ALL'];
     foreach ($ranges as $range => $total) {
         $result[] = $range . ' (' . $total . ')';
     }
@@ -1026,14 +1026,14 @@ class Predictions_m extends MY_Model
 	 * The description for each is "Between Ball X and Ball Y", e.g. 1 => "Between Ball 1 and Ball 2 (7)".
 	 *
 	 * @param string $adjacents The string, e.g. "1=6,2=7,3=7,4=6,5=6,6=7|4=27"
-	 * @return array Array for dropdown: [0 => 'ALL', 1 => 'Between Ball 1 and Ball 2 (6)', ...]
+	 * @return array Array for dropdown: ['ALL' => 'ALL', 1 => 'Between Ball 1 and Ball 2 (6)', ...]
 	 */
 	public function get_adjacents($adjacents)
 	{
 		// Split by '|', take the first part
 		$parts = explode('|', $adjacents);
 		$main_part = isset($parts[0]) ? $parts[0] : '';
-		$adjacents_arr = [0 => 'ALL'];
+		$adjacents_arr = ['ALL' => 'ALL'];
 		if ($main_part) {
 		$temp = [];
 		$pairs = explode(',', $main_part);

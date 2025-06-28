@@ -258,10 +258,38 @@
 	.generated-tickets-table thead th:nth-child(11)  /* Range */ {
 		text-align: center !important;
 	}
+	/* Bootstrap Table filter control styling */
+	.filter-control input,
+	.filter-control select {
+		font-size: 0.85em;
+		padding: 0.2em 0.5em;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		width: 100%;
+		box-sizing: border-box;
+	}
+	.filter-control {
+		padding: 0.3em !important;
+	}
+	/* Style for filter dropdowns */
+	.filter-control select {
+		background-color: #f8f9fa;
+		color: #333;
+		border: 1px solid #ced4da;
+	}
+	.filter-control select:focus,
+	.filter-control input:focus {
+		border-color: #007bff;
+		box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+		outline: 0;
+	}
 </style>
 	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
 	<script src="//code.jquery.com/jquery-1.12.4.js"></script>
   	<script src="//code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+	<!-- Bootstrap Table JS -->
+	<script src="https://unpkg.com/bootstrap-table@1.18.0/dist/bootstrap-table.min.js"></script>
+	<script src="https://unpkg.com/bootstrap-table@1.18.0/dist/extensions/filter-control/bootstrap-table-filter-control.min.js"></script>
 	<h2><?php echo 'Prediction Futures for: '.$lottery->lottery_name; ?></h2>
 	<h5 style = "text-align:left"><?php echo anchor('admin/predictions', 'Back to Predictions Dashboard', 'title="Back to Predictions"'); ?></h5>
 		<section>
@@ -541,42 +569,56 @@
 							<div class="mb-4">
 								<h4>Generated Combination Tickets</h4>
 								<div class="table-responsive mb-4">
-									<table class="table table-bordered table-striped generated-tickets-table" style="width:95%; margin:0 auto;">
+									<table 
+										id="generated-tickets-table"
+										class="table table-bordered table-striped generated-tickets-table" 
+										style="width:95%; margin:0 auto;"
+										data-toggle="table"
+										data-filter-control="true"
+										data-show-filter-control-switch="true"
+										data-filter-show-clear="true"
+										data-sort-name="ticket"
+										data-sort-order="asc"
+										data-pagination="false"
+										data-search="true"
+										data-show-refresh="true"
+										data-show-toggle="true"
+										data-show-columns="true">
 										<thead class="table-dark">
 											<tr>
-												<th>#</th>
-												<th>Combination</th>
-												<th>Sum</th>
-												<th>Digit Sum</th>
-												<th>Repeaters</th>
-												<th>Consecutive</th>
-												<th>Even</th>
-												<th>Odd</th>
-												<th>Decade</th>
-												<th>Last</th>
-												<th>Range</th>
+												<th data-field="ticket" data-sortable="true">#</th>
+												<th data-field="combination" data-sortable="false">Combination</th>
+												<th data-field="sum" data-sortable="true" data-filter-control="select" data-align="center">Sum</th>
+												<th data-field="digit_sum" data-sortable="true" data-filter-control="select" data-align="center">Digit Sum</th>
+												<th data-field="repeaters" data-sortable="true" data-filter-control="select" data-align="center">Repeaters</th>
+												<th data-field="consecutive" data-sortable="true" data-filter-control="select" data-align="center">Consecutive</th>
+												<th data-field="even" data-sortable="true" data-filter-control="select" data-align="center">Even</th>
+												<th data-field="odd" data-sortable="true" data-filter-control="select" data-align="center">Odd</th>
+												<th data-field="decade" data-sortable="true" data-filter-control="select" data-align="center">Decade</th>
+												<th data-field="last" data-sortable="true" data-filter-control="select" data-align="center">Last</th>
+												<th data-field="range" data-sortable="true" data-filter-control="select" data-align="center">Range</th>
 											</tr>
 										</thead>
 										<tbody>
 											<?php foreach ($combos_paginated as $idx => $item): ?>
 												<tr>
-													<td data-label="Ticket" class="nowrap"><?= (($pagination['current']-1)*$pagination['per_page'])+$idx+1 ?></td>
-													<td data-label="Combination" class="nowrap">
+													<td class="nowrap"><?= (($pagination['current']-1)*$pagination['per_page'])+$idx+1 ?></td>
+													<td class="nowrap">
 														<?php
 															$ticket_numbers = array_values($item['combo']);
 															sort($ticket_numbers, SORT_NUMERIC);
 															echo implode(' ', $ticket_numbers);
 														?>
 													</td>
-													<td data-label="Total Sum"><?= $item['stats']['sum'] ?></td>
-													<td data-label="Digit Sum"><?= $item['stats']['digit_sum'] ?></td>
-													<td data-label="Repeaters"><?= $item['stats']['repeater'] ?></td>
-													<td data-label="Consecutives"><?= $item['stats']['consecutive'] ?></td>
-													<td data-label="Even"><?= $item['stats']['even'] ?></td>
-													<td data-label="Odd"><?= $item['stats']['odd'] ?></td>
-													<td data-label="Decade"><?= $item['stats']['decade'] ?></td>
-													<td data-label="Last"><?= $item['stats']['last'] ?></td>
-													<td data-label="Range"><?= $item['stats']['range'] ?></td>
+													<td><?= $item['stats']['sum'] ?></td>
+													<td><?= $item['stats']['digit_sum'] ?></td>
+													<td><?= $item['stats']['repeater'] ?></td>
+													<td><?= $item['stats']['consecutive'] ?></td>
+													<td><?= $item['stats']['even'] ?></td>
+													<td><?= $item['stats']['odd'] ?></td>
+													<td><?= $item['stats']['decade'] ?></td>
+													<td><?= $item['stats']['last'] ?></td>
+													<td><?= $item['stats']['range'] ?></td>
 												</tr>
 											<?php endforeach; ?>
 										</tbody>
@@ -804,5 +846,56 @@
                 });
             }
         });
+		
+		// Initialize Bootstrap Table for Generated Combination Tickets
+		<?php if (!empty($combos_paginated)): ?>
+		$(document).ready(function() {
+			$('#generated-tickets-table').bootstrapTable({
+				filterControl: true,
+				filterShowClear: true,
+				pagination: false,
+				search: true,
+				showRefresh: true,
+				showToggle: true,
+				showColumns: true,
+				sortName: 'ticket',
+				sortOrder: 'asc',
+				classes: 'table table-bordered table-striped',
+				filterControlVisible: false, // Start with filters hidden
+				onRefresh: function() {
+					// Custom refresh logic if needed
+					console.log('Table refreshed');
+				},
+				onToggle: function() {
+					// Handle table view toggle
+					console.log('Table view toggled');
+				},
+				onPostBody: function() {
+					// Ensure all filters are blank after table is rendered
+					$('.filter-control select').val('');
+				}
+			});
+			
+			// Custom styling for filter controls
+			setTimeout(function() {
+				// Customize filter dropdown options
+				$('.filter-control select').each(function() {
+					// Remove any existing empty options and add a completely blank one
+					$(this).find('option[value=""]').remove();
+					$(this).prepend('<option value=""></option>');
+					// Set the dropdown to blank value
+					$(this).val('');
+				});
+				
+				// Style filter selects
+				$('.filter-control select').each(function() {
+					$(this).addClass('form-select');
+				});
+				
+				// Clear any existing filters to show all data
+				$('#generated-tickets-table').bootstrapTable('clearFilterControl');
+			}, 100);
+		});
+		<?php endif; ?>
     });
 </script>
