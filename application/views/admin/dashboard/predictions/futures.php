@@ -234,6 +234,30 @@
 		cursor: not-allowed;
 		opacity: 0.7;
 	}
+	/* Center text for specific columns in Generated Combination Tickets Table */
+	.generated-tickets-table tbody td[data-label="Total Sum"],
+	.generated-tickets-table tbody td[data-label="Digit Sum"],
+	.generated-tickets-table tbody td[data-label="Repeaters"],
+	.generated-tickets-table tbody td[data-label="Consecutives"],
+	.generated-tickets-table tbody td[data-label="Even"],
+	.generated-tickets-table tbody td[data-label="Odd"],
+	.generated-tickets-table tbody td[data-label="Decade"],
+	.generated-tickets-table tbody td[data-label="Last"],
+	.generated-tickets-table tbody td[data-label="Range"] {
+		text-align: center !important;
+	}
+	/* Also center the corresponding header columns */
+	.generated-tickets-table thead th:nth-child(3),  /* Sum */
+	.generated-tickets-table thead th:nth-child(4),  /* Digit Sum */
+	.generated-tickets-table thead th:nth-child(5),  /* Repeaters */
+	.generated-tickets-table thead th:nth-child(6),  /* Consecutive */
+	.generated-tickets-table thead th:nth-child(7),  /* Even */
+	.generated-tickets-table thead th:nth-child(8),  /* Odd */
+	.generated-tickets-table thead th:nth-child(9),  /* Decade */
+	.generated-tickets-table thead th:nth-child(10), /* Last */
+	.generated-tickets-table thead th:nth-child(11)  /* Range */ {
+		text-align: center !important;
+	}
 </style>
 	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
 	<script src="//code.jquery.com/jquery-1.12.4.js"></script>
