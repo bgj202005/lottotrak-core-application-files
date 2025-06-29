@@ -816,7 +816,23 @@ class Predictions extends Admin_Controller {
 				$number_array = array_map('intval', explode(',', $number_series));
 				$this->session->set_userdata('futures_number_array', $number_array);
 
-				$updated_combinations = $this->predictions_m->insert_number_combination($filepath, $number_array, $page, $per_page);
+				// Prepare filter array
+				$filters = [
+					'selected_trends' => $selected_trends,
+					'selected_winning_sums' => $selected_winning_sums,
+					'selected_winning_digits' => $selected_winning_digits,
+					'selected_repeaters' => $selected_repeaters,
+					'selected_consecutives' => $selected_consecutives,
+					'selected_parity' => $selected_parity,
+					'selected_decades' => $selected_decades,
+					'selected_last_digits' => $selected_last_digits,
+					'selected_number_range' => $selected_number_range,
+					'selected_adjacents' => $selected_adjacents,
+					'drawn' => $drawn,
+					'lottery_last_drawn' => $this->data['lottery']->last_drawn,
+					'extra_ball' => $this->data['lottery']->extra_ball
+				];
+				$updated_combinations = $this->predictions_m->insert_number_combination($filepath, $number_array, $page, $per_page, $filters);
 
 				$filter_error = FALSE;	// Initialize filter error flag, no encountered filtered errors
 				// Apply trend filtering after getting updated combinations

@@ -742,7 +742,7 @@ class Predictions_m extends MY_Model
 			arsort($digit_sums_arr);
 			// Build dropdown array: 1 => "50 (10)", 2 => "46 (10)", ...
 			foreach ($digit_sums_arr as $digit_sum => $total) {
-				$result[] = $digit_sum . ' (' . $total . ')';
+				$result[$digit_sum] = $digit_sum . ' (' . $total . ')';
 			}
 		}
 		return $result;
@@ -782,7 +782,7 @@ class Predictions_m extends MY_Model
 				arsort($sums_arr);
 				// Build dropdown array: 1 => "145 (3)", 2 => "156 (3)", ...
 				foreach ($sums_arr as $sum => $count) {
-					$result[] = $sum . ' (' . $count . ')';
+					$result[$sum] = $sum . ' (' . $count . ')';
 				}
 			}
 		}
@@ -820,7 +820,7 @@ class Predictions_m extends MY_Model
 			arsort($repeaters_arr);
 			// Build dropdown array: 1 => "1 (44)", 2 => "2 (30)", ...
 			foreach ($repeaters_arr as $repeater => $total) {
-				$result[] = $repeater . ' (' . $total . ')';
+				$result[$repeater] = $repeater . ' (' . $total . ')';
 			}
 		}
 		return $result;
@@ -857,7 +857,7 @@ class Predictions_m extends MY_Model
 		// Build dropdown array: 0 => "ALL", 1 => "1 (43)", 2 => "2 (25)", ...
 		$result = ['ALL' => 'ALL'];
 		foreach ($consecutives_arr as $count => $total) {
-			$result[] = $count . ' (' . $total . ')';
+			$result[$count] = $count . ' (' . $total . ')';
 		}
     return $result;
 	}
@@ -893,7 +893,7 @@ class Predictions_m extends MY_Model
 		// Build dropdown array: 0 => "ALL", 1 => "3 - 3 (28)", ...
 		$result = ['ALL' => 'ALL'];
 		foreach ($parity_arr as $odd_even => $total) {
-			$result[] = str_replace('-', ' / ', $odd_even) . ' (' . $total . ')';
+			$result[$odd_even] = str_replace('-', ' / ', $odd_even) . ' (' . $total . ')';
 		}
 		return $result;
 	}
@@ -937,7 +937,7 @@ class Predictions_m extends MY_Model
 		// Build dropdown array: 'ALL' => 'ALL', 1 => '3 (12)', 2 => '4 (10)', ...
 		$result = ['ALL' => 'ALL'];
 		foreach ($decade_counts as $decade => $count) {
-			$result[] = $decade . ' (' . $count . ')';
+			$result[$decade] = $decade . ' (' . $count . ')';
 		}
     return $result;
 	}
@@ -981,7 +981,7 @@ class Predictions_m extends MY_Model
 		// Build dropdown array: 'ALL' => 'ALL', 1 => '3 (12)', 2 => '7 (10)', ...
 		$result = ['ALL' => 'ALL'];
 		foreach ($last_counts as $digit => $count) {
-			$result[] = $digit . ' (' . $count . ')';
+			$result[$digit] = $digit . ' (' . $count . ')';
 		}
 		return $result;
 	}
@@ -1016,7 +1016,7 @@ class Predictions_m extends MY_Model
     // Build dropdown array: 'ALL' => 'ALL', 1 => '46 (8)', ...
     $result = ['ALL' => 'ALL'];
     foreach ($ranges as $range => $total) {
-        $result[] = $range . ' (' . $total . ')';
+        $result[$range] = $range . ' (' . $total . ')';
     }
     return $result;
 	}
@@ -1961,8 +1961,20 @@ class Predictions_m extends MY_Model
 	 * @param int    $per_page      Number of combinations per page.
 	 * @return array $result        Array of updated combinations (each as an array of numbers).
 	 */
-	public function insert_number_combination($filepath, $number_array, $page = 1, $per_page = 10)
+	public function insert_number_combination($filepath, $number_array, $page = 1, $per_page = 10, $filter_select = [])
 	{
+		// - lottery_data (for stats calculations)
+		// $filters array could contain:
+    	// - selected_trends
+    	// - selected_winning_sums
+    	// - selected_winning_digits
+    	// - selected_repeaters
+    	// - selected_consecutives
+		// - selected_parity
+		// - selected_decades
+		// - selected_last_digits
+		// - selected_number_range
+		// - selected_adjacents
 		$lines = file($filepath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 
 		// Calculate offset and limit for pagination
