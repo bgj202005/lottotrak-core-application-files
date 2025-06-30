@@ -2008,8 +2008,18 @@ class Predictions_m extends MY_Model
 			}
 		}
 		
+		// Filter by last digits (selected_last_digits)
+		if (!empty($filter_select['selected_last_digits']) && $filter_select['selected_last_digits'] !== 'ALL') {
+			$drawn = $filter_select['drawn'] ?? 0;
+			$last_digit_count = $this->count_last_digit_numbers($combo, $drawn);
+			
+			$expected_last_digits = (int)$filter_select['selected_last_digits'];
+			if ($last_digit_count !== $expected_last_digits) {
+				return false;
+			}
+		}
+		
 		// Add more filter implementations here:
-		// - selected_last_digits
 		// - selected_number_range
 		// - selected_adjacents
 		
@@ -2136,6 +2146,39 @@ class Predictions_m extends MY_Model
 		}
 		
 		return $total_decade_numbers;
+	}
+	
+	/**
+	 * Counts the total number of numbers that have the same last digit as at least one other number.
+	 * Returns the count of numbers that share a last digit with another number in the combination.
+	 *
+	 * @param array $combo     Associative array of balls (e.g., ['ball1'=>12, 'ball2'=>22, ...])
+	 * @param int   $max       Number of balls in the combination
+	 * @return int             Count of numbers that share a last digit with at least one other number
+	 */
+	public function count_last_digit_numbers($combo, $max)
+	{
+		$numbers = array_values($combo);
+		$last_digit_counts = [];
+		
+		// Count numbers by their last digit
+		foreach ($numbers as $number) {
+			$last_digit = $number % 10; // 12 -> 2, 22 -> 2, 35 -> 5, etc.
+			if (!isset($last_digit_counts[$last_digit])) {
+				$last_digit_counts[$last_digit] = 0;
+			}
+			$last_digit_counts[$last_digit]++;
+		}
+		
+		// Count total numbers that are in last digit groups with more than 1 number
+		$total_last_digit_numbers = 0;
+		foreach ($last_digit_counts as $count) {
+			if ($count > 1) {
+				$total_last_digit_numbers += $count;
+			}
+		}
+		
+		return $total_last_digit_numbers;
 	}
 	
 	/**
