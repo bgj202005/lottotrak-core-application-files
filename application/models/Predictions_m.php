@@ -15,6 +15,12 @@ class Predictions_m extends MY_Model
 
 	const DIR = 'combinations';
 
+	public function __construct()
+	{
+		parent::__construct();
+		$this->load->model('statistics_m');
+	}
+
 /** This function returns the total count of the number of possible unique
  * 	combinations there are of N distinct items selected R at a time. The
  * 	sequential order of the items in each group is NOT important.
@@ -721,7 +727,7 @@ class Predictions_m extends MY_Model
 	 */
 	public function get_digit_sums($digits)
 	{
-		$result = ['All' => 'ALL'];
+		$result = ['ALL' => 'ALL'];
 		// Split by '|', take the first part
 		$parts = explode('|', $digits);
 		$main_part = isset($parts[0]) ? $parts[0] : '';
@@ -1784,221 +1790,234 @@ class Predictions_m extends MY_Model
 								break;
 							}
 						}
-						// After inserting $b, if both $a and $b are now in $result, return
+						// After inserting $b, check if both $a and $b are now in $result
 						if (in_array($a, $result) && in_array($b, $result)) {
 							return $result;
 						}
 					}
 				}
-				return $result;
 			}
-		// Default: return as is
-		return $selections;
-	}
+		}
 	/**
-	 * Returns an associative array for hots, warms, and colds:
-	 * [
-	 *   'H' => [18 => 21, 42 => 15, 13 => 18, ...], // number => position count
-	 *   'W' => [...],
-	 *   'C' => [...]
-	 * ]
-	 * Uses numbers from lottery_h_w_c.hots/warms/colds and position counts from lottery_h_w_c_stats.position.
+	 * Insert and filter number combinations with integrated filtering and pagination
 	 *
-	 * @param int 		$lottery_id
-	 * @return array 	$result
-	 */
-	public function get_heat_map($lottery_id)
-	{
-		// Get numbers for hots, warms, colds
-		$row_hwc = $this->db->get_where('lottery_h_w_c', ['lottery_id' => $lottery_id])->row_array();
-		// Get position counts for hots, warms, colds
-		$row_stats = $this->db->get_where('lottery_h_w_c_stats', ['lottery_id' => $lottery_id])->row_array();
-
-		if (!$row_hwc || !$row_stats || empty($row_stats['position'])) {
-			return [];
-		}
-		// Parse numbers for each group (discard counts)
-		$groups = ['H' => [], 'W' => [], 'C' => []];
-		foreach (['H' => 'hots', 'W' => 'warms', 'C' => 'colds'] as $cat => $field) {
-			if (!empty($row_hwc[$field])) {
-				$pairs = explode(',', $row_hwc[$field]);
-				foreach ($pairs as $pair) {
-					$kv = explode('=', $pair);
-					if (count($kv) == 2) {
-						$num = (int)trim($kv[0]);
-						$groups[$cat][] = $num;
-					}
-				}
-			}
-		}
-		// Parse position counts for each group
-		$positions = ['H' => [], 'W' => [], 'C' => []];
-		$parts = explode('|', $row_stats['position']);
-		foreach ($parts as $part) {
-			$part = trim($part);
-			if (preg_match('/^(H|W|C)>(.+)$/', $part, $matches)) {
-				$cat = $matches[1];
-				$pairs = explode(',', $matches[2]);
-				foreach ($pairs as $pair) {
-					$kv = explode('=', $pair);
-					if (count($kv) == 2) {
-						$idx = (int)trim($kv[0]);
-						$count = (int)trim($kv[1]);
-						$positions[$cat][$idx] = $count;
-					}
-				}
-			}
-		}
-		// Combine: assign each number in group to its position count by index
-		$result = ['H' => [], 'W' => [], 'C' => []];
-		foreach (['H', 'W', 'C'] as $cat) {
-			foreach ($groups[$cat] as $i => $num) {
-				// Use the position count at the same index, if it exists
-				$count = isset($positions[$cat][$i]) ? $positions[$cat][$i] : null;
-				if ($count !== null) {
-					$result[$cat][$num] = $count;
-				}
-			}
-		}
-		return $result; // returns 
-	}
-	/**
-	 * Returns an associative array of followers (number => count, sorted descending by count)
-	 * followed by non-followers (number => 0, in original order).
-	 *
-	 * @param int $lottery_id
-	 * @param string $type 'after_ball' or 'position'
-	 * @param string|int $select
-	 * @return array
-	 */
-	public function get_followers_list($lottery_id, $type, $select)
-	{
-		$followers_row = $this->statistics_m->followers_exists($lottery_id);
-		$nonfollowers_row = $this->statistics_m->nonfollowers_exists($lottery_id);
-		if (!$followers_row) {
-			return [];
-		}
-		$followers_field = $followers_row['lottery_followers'];
-		$nonfollowers_field = $nonfollowers_row ? $nonfollowers_row['lottery_nonfollowers'] : '';
-		$select = trim($select);
-		if ($type === 'after_ball' && strpos($select, '+') === 0) {
-			$select = substr($select, 1);
-		}
-		$followers_list = [];
-		$non_followers_list = [];
-		// Followers
-		if ($type === 'position') {
-			$position = (int)$select;
-			$groups = explode(',', $followers_field);
-			if (isset($groups[$position - 1])) {
-				$group = $groups[$position - 1];
-				$data = substr($group, strpos($group, '>') + 1);
-				$pairs = explode('|', $data);
-				foreach ($pairs as $pair) {
-					$kv = explode('=', $pair);
-					if (count($kv) == 2) {
-						$num = (int)trim($kv[0]);
-						$count = (int)trim($kv[1]);
-						if ($count >= 3) {
-							$followers_list[$num] = $count;
-						}
-					}
-				}
-			}
-			// Non-followers
-			$groups = $nonfollowers_field ? explode(',', $nonfollowers_field) : [];
-			if (isset($groups[$position - 1])) {
-				$group = $groups[$position - 1];
-				$data = substr($group, strpos($group, '>') + 1);
-				$pairs = explode('|', $data);
-				foreach ($pairs as $pair) {
-					$non_followers_list[$pair] = 0;					
-				}
-			}
-		} else {
-			// after_ball
-			$groups = explode(',', $followers_field);
-			foreach ($groups as $group) {
-				if (strpos($group, $select . '>') === 0) {
-					$data = substr($group, strlen($select) + 1);
-					$pairs = explode('|', $data);
-					foreach ($pairs as $pair) {
-						$kv = explode('=', $pair);
-						if (count($kv) == 2) {
-							$num = (int)trim($kv[0]);
-							$count = (int)trim($kv[1]);
-							if ($count >= 3) {
-								$followers_list[$num] = $count;
-							}
-						}
-					}
-					break;
-				}
-			}
-			$groups = $nonfollowers_field ? explode(',', $nonfollowers_field) : [];
-			foreach ($groups as $group) {
-				if (strpos($group, $select . '>') === 0) {
-					$data = substr($group, strlen($select) + 1);
-					$pairs = explode('|', $data);
-					foreach ($pairs as $pair) {
-						$non_followers_list[$pair] = 0;					
-					}
-				}
-			}
-		}
-		// Sort followers by count descending, keep non-followers in original order
-		arsort($followers_list);
-		// Merge and return
-		return $followers_list + $non_followers_list;
-	}
-	/**
-	 * Substitutes the provided number array into each combination line from the given file,
-	 * but only for the lines needed for the current page and per_page (pagination).
-	 *
-	 * @param string $filepath      Full path to the combination text file.
+	 * @param string $filepath Path to the combination file
 	 * @param array  $number_array  Array of numbers to substitute (0-based index).
 	 * @param int    $page          Current page number (1-based).
 	 * @param int    $per_page      Number of combinations per page.
+	 * @param array  $filter_select Array of filters to apply (e.g., trends, winning sums, etc.).
 	 * @return array $result        Array of updated combinations (each as an array of numbers).
 	 */
 	public function insert_number_combination($filepath, $number_array, $page = 1, $per_page = 10, $filter_select = [])
 	{
 		// - lottery_data (for stats calculations)
-		// $filters array could contain:
-    	// - selected_trends
-    	// - selected_winning_sums
-    	// - selected_winning_digits
-    	// - selected_repeaters
-    	// - selected_consecutives
-		// - selected_parity
-		// - selected_decades
+		// $filter_select array contains:
+    	// 1 - selected_trends
+    	// 2 - selected_winning_sums
+    	// 3 - selected_winning_digits
+    	// 4 - selected_repeaters
+    	// 5 - selected_consecutives
+		// 6 - selected_parity (odd/even distribution)
+		// 7 - selected_decades
+		// 8  selected_last_digits
+		// 9 - selected_number_range
+		// 10 - selected_adjacents
+		$result = [];
+		$combinations_found = 0;
+		$line_count = 0;
+		$skip_count = 0;
+		
+		// Extract filter values
+		$selected_trends = (!empty($filter_select['selected_trends']) && $filter_select['selected_trends'] !== '') 
+			? $filter_select['selected_trends'] 
+			: 'ALL';
+		$drawn = $filter_select['drawn'] ?? 0;
+		$last_drawn = $filter_select['lottery_last_drawn'] ?? [];
+		$extra_ball = $filter_select['extra_ball'] ?? 0;
+		
+		// Prepare last drawn numbers for trend filtering
+		$last_drawn_numbers = [];
+		if ($selected_trends !== 'ALL' && !empty($last_drawn)) {
+			for ($i = 1; $i <= $drawn; $i++) {
+				if (isset($last_drawn['ball' . $i])) {
+					$last_drawn_numbers[] = (int)$last_drawn['ball' . $i];
+				}
+			}
+			if ($extra_ball && isset($last_drawn['extra'])) {
+				$last_drawn_numbers[] = (int)$last_drawn['extra'];
+			}
+		}
+		
+		// Read file line by line and apply filters
+		if (($handle = fopen($filepath, 'r')) !== false) {
+			while (($line = fgets($handle)) !== false && $combinations_found < $per_page) {
+				$line = trim($line);
+				if (empty($line)) continue;
+				
+				$line_count++;
+				
+				// Skip lines for pagination (only if no filtering is applied)
+				if ($selected_trends === 'ALL' && $line_count <= ($page - 1) * $per_page) {
+					continue;
+				}
+				
+				// Parse combination
+				$positions = array_map('intval', explode(' ', $line));
+				$combo_numbers = [];
+				foreach ($positions as $pos) {
+					// Validate position index
+					if ($pos > 0 && isset($number_array[$pos - 1])) {
+						$combo_numbers[] = $number_array[$pos - 1];
+					}
+				}
+				
+				// Skip if we don't have valid numbers
+				if (empty($combo_numbers)) continue;
+				
+				sort($combo_numbers, SORT_NUMERIC); // Sort numbers from lowest to highest
+
+				// Re-index as ball1, ball2, ...
+				$combo = [];
+				foreach ($combo_numbers as $idx => $num) {
+					$combo['ball'.($idx+1)] = $num;
+				}
+				
+				// Apply trend filter if specified
+				if ($selected_trends !== 'ALL') {
+					if (!$this->check_trend_match($combo, $last_drawn_numbers, $selected_trends)) {
+						continue; // Skip this combination if it doesn't match trend
+					}
+					
+					// For filtered results, we need to skip already collected combinations for pagination
+					if ($skip_count < ($page - 1) * $per_page) {
+						$skip_count++;
+						continue;
+					}
+				}
+				
+				// Apply other filters
+				if (!$this->apply_other_filters($combo, $filter_select)) {
+					continue; // Skip this combination if it doesn't pass other filters
+				}
+				
+				// Create a separate combo array for the combination display
+				$combo_data = ['combo' => $combo];
+				
+				// Get stats if filter_select is provided and has the required keys
+				if (!empty($filter_select) && isset($filter_select['drawn']) && isset($filter_select['lottery_last_drawn'])) {
+					$stats = $this->get_combo_stats($combo, $filter_select['drawn'], $filter_select['lottery_last_drawn']);
+					// Merge combo data with stats - flattens into one array
+					$combo_data = array_merge($combo_data, $stats);
+				} else {
+					// If no filter data, just add the combo
+					$combo_data = ['combo' => $combo];
+				}
+				
+				$result[] = $combo_data;
+				$combinations_found++;
+			}
+			fclose($handle);
+		}
+		
+		return $result;
+	}
+	
+	/**
+	 * Apply additional filters to a combination
+	 *
+	 * @param array $combo The combination to check
+	 * @param array $filter_select Array of filter criteria
+	 * @return bool True if combination passes all filters, false otherwise
+	 */
+	private function apply_other_filters($combo, $filter_select)
+	{
+		// Example filter implementations - expand as needed
+		
+		// Filter by winning sums
+		if (!empty($filter_select['selected_winning_sums']) && $filter_select['selected_winning_sums'] !== 'ALL') {
+			$combo_sum = array_sum(array_values($combo));
+			$winning_sums = is_array($filter_select['selected_winning_sums']) 
+				? $filter_select['selected_winning_sums'] 
+				: [$filter_select['selected_winning_sums']];
+			
+			if (!in_array($combo_sum, $winning_sums)) {
+				return false;
+			}
+		}
+		
+		// Filter by repeaters
+		if (!empty($filter_select['selected_repeaters']) && $filter_select['selected_repeaters'] !== 'ALL') {
+			$drawn = $filter_select['drawn'] ?? 0;
+			$last_drawn = $filter_select['lottery_last_drawn'] ?? [];
+			$repeater_count = $this->is_repeater($combo, $drawn, $last_drawn);
+			
+			$expected_repeaters = (int)$filter_select['selected_repeaters'];
+			if ($repeater_count !== $expected_repeaters) {
+				return false;
+			}
+		}
+		
+		// Filter by consecutive numbers
+		if (!empty($filter_select['selected_consecutives']) && $filter_select['selected_consecutives'] !== 'ALL') {
+			$drawn = $filter_select['drawn'] ?? 0;
+			$consecutive_count = $this->has_consecutive($combo, $drawn);
+			
+			$expected_consecutives = (int)$filter_select['selected_consecutives'];
+			if ($consecutive_count !== $expected_consecutives) {
+				return false;
+			}
+		}
+		
+		// Filter by digit sums (selected_winning_digits)
+		if (!empty($filter_select['selected_winning_digits']) && $filter_select['selected_winning_digits'] !== 'ALL') {
+			$drawn = $filter_select['drawn'] ?? 0;
+			$combo_digit_sum = $this->statistics_m->lottery_draw_sumdigits($combo, $drawn);
+			
+			$selected_digit_sum = (int)$filter_select['selected_winning_digits'];
+			if ($combo_digit_sum !== $selected_digit_sum) {
+				return false;
+			}
+		}
+		
+		// Filter by odd/even distribution (selected_parity)
+		if (!empty($filter_select['selected_parity']) && $filter_select['selected_parity'] !== 'ALL') {
+			$drawn = $filter_select['drawn'] ?? 0;
+			$odd_count = $this->statistics_m->lottery_draw_odd($combo, $drawn);
+			$even_count = $this->statistics_m->lottery_draw_even($combo, $drawn);
+			
+			// Parse the selected parity format (e.g., "4-3" for 4 odd, 3 even)
+			$parity_parts = explode('-', $filter_select['selected_parity']);
+			if (count($parity_parts) === 2) {
+				$expected_odd = (int)$parity_parts[0];
+				$expected_even = (int)$parity_parts[1];
+				
+				if ($odd_count !== $expected_odd || $even_count !== $expected_even) {
+					return false;
+				}
+			}
+		}
+		
+		// Filter by decades (selected_decades)
+		if (!empty($filter_select['selected_decades']) && $filter_select['selected_decades'] !== 'ALL') {
+			$drawn = $filter_select['drawn'] ?? 0;
+			$decade_count = $this->count_decade_numbers($combo, $drawn);
+			
+			$expected_decades = (int)$filter_select['selected_decades'];
+			if ($decade_count !== $expected_decades) {
+				return false;
+			}
+		}
+		
+		// Add more filter implementations here:
 		// - selected_last_digits
 		// - selected_number_range
 		// - selected_adjacents
-		$lines = file($filepath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-
-		// Calculate offset and limit for pagination
-		$offset = ($page - 1) * $per_page;
-		$lines = array_slice($lines, $offset, $per_page);
-
-		$result = [];
-		foreach ($lines as $line) {
-			$positions = array_map('intval', explode(' ', trim($line)));
-			$combo_numbers = [];
-			foreach ($positions as $pos) {
-				$combo_numbers[] = $number_array[$pos - 1];
-			}
-			sort($combo_numbers, SORT_NUMERIC); // Sort numbers from lowest to highest
-
-			// Re-index as ball1, ball2, ...
-			$combo = [];
-			foreach ($combo_numbers as $idx => $num) {
-				$combo['ball'.($idx+1)] = $num;
-			}
-			$result[] = $combo;
-		}
-		return $result;
+		
+		return true;
 	}
+
+	// ...existing code...
+	
 	/**
 	 * Calculates statistics for a given combination array.
 	 *
@@ -2011,6 +2030,24 @@ class Predictions_m extends MY_Model
 	 */
 	public function get_combo_stats($combo,$max,$last_draw)
 	{
+		// Validate that combo has the expected keys
+		if (empty($combo) || !is_array($combo)) {
+			return [
+				'sum' => 0,
+				'digit_sum' => 0,
+				'repeater' => 0,
+				'consecutive' => 0,
+				'even' => 0,
+				'odd' => 0,
+				'decade' => 0,
+				'last' => 0,
+				'range' => 0,
+			];
+		}
+		
+		// Get the numeric values from the combo array
+		$combo_values = array_values($combo);
+		
 		return [
 			'sum' => $this->statistics_m->lottery_draw_sum($combo,$max),
 			'digit_sum' => $this->statistics_m->lottery_draw_sumdigits($combo,$max),
@@ -2020,9 +2057,10 @@ class Predictions_m extends MY_Model
 			'odd' => $this->statistics_m->lottery_draw_odd($combo,$max), // Implement as needed
 			'decade' => $this->statistics_m->lottery_draw_decade($combo,$max), // Implement as needed
 			'last' => $this->statistics_m->lottery_draw_last($combo,$max), // Implement as needed
-			'range' => max($combo) - min($combo),
+			'range' => !empty($combo_values) ? max($combo_values) - min($combo_values) : 0,
 		];
 	}
+	
 	/**
 	 * Counts how many numbers in $combo are also in $last_draw (repeaters).
 	 * Returns the number of repeaters (0, 1, ...).
@@ -2032,220 +2070,362 @@ class Predictions_m extends MY_Model
 	 * @param array $last_draw Array of last drawn numbers (e.g., ['ball1'=>2, ...])
 	 * @return int             Number of repeaters
 	 */
-		public function is_repeater($combo, $max, $last_draw)
-		{
-			// Extract just the numbers from both arrays
-			$combo_numbers = array_values($combo);
-			$last_numbers = [];
-			for ($i = 1; $i <= $max; $i++) {
-				if (isset($last_draw['ball'.$i])) {
-					$last_numbers[] = $last_draw['ball'.$i];
-				}
+	public function is_repeater($combo, $max, $last_draw)
+	{
+		// Extract just the numbers from both arrays
+		$combo_numbers = array_values($combo);
+		$last_numbers = [];
+		for ($i = 1; $i <= $max; $i++) {
+			if (isset($last_draw['ball'.$i])) {
+				$last_numbers[] = $last_draw['ball'.$i];
 			}
-			// Count how many numbers are repeated
-		return count(array_intersect($combo_numbers, $last_numbers));
 		}
+		// Count how many numbers are repeated
+	return count(array_intersect($combo_numbers, $last_numbers));
+	}
 
-		/**
-		 * Counts the number of consecutive pairs in the combination.
-		 * Returns 0 if no consecutive numbers, 1 for one pair, etc.
-		 *
-		 * @param array $combo Associative array of balls (e.g., ['ball1'=>2, ...])
-		 * @param int   $max   Number of balls in the combination
-		 * @return int         Number of consecutive pairs
-		 */
-		public function has_consecutive($combo, $max)
-		{
-			$numbers = array_values($combo);
-			sort($numbers, SORT_NUMERIC);
-			$consecutive_count = 0;
-			for ($i = 1; $i < $max; $i++) {
-				if ($numbers[$i] - $numbers[$i-1] == 1) {
-					$consecutive_count++;
+	/**
+	 * Counts the number of consecutive pairs in the combination.
+	 * Returns 0 if no consecutive numbers, 1 for one pair, etc.
+	 *
+	 * @param array $combo Associative array of balls (e.g., ['ball1'=>2, ...])
+	 * @param int   $max   Number of balls in the combination
+	 * @return int         Number of consecutive pairs
+	 */
+	public function has_consecutive($combo, $max)
+	{
+		$numbers = array_values($combo);
+		sort($numbers, SORT_NUMERIC);
+		$consecutive_count = 0;
+		for ($i = 1; $i < $max; $i++) {
+			if ($numbers[$i] - $numbers[$i-1] == 1) {
+				$consecutive_count++;
+			}
+		}
+	return $consecutive_count;
+	}
+	
+	/**
+	 * Counts the total number of numbers that fall within the same decade as at least one other number.
+	 * Returns the count of numbers that share a decade with another number in the combination.
+	 *
+	 * @param array $combo     Associative array of balls (e.g., ['ball1'=>22, 'ball2'=>23, ...])
+	 * @param int   $max       Number of balls in the combination
+	 * @return int             Count of numbers that share a decade with at least one other number
+	 */
+	public function count_decade_numbers($combo, $max)
+	{
+		$numbers = array_values($combo);
+		$decade_counts = [];
+		
+		// Count numbers in each decade
+		foreach ($numbers as $number) {
+			$decade = intval($number / 10); // 22 -> 2, 23 -> 2, 35 -> 3, etc.
+			if (!isset($decade_counts[$decade])) {
+				$decade_counts[$decade] = 0;
+			}
+			$decade_counts[$decade]++;
+		}
+		
+		// Count total numbers that are in decades with more than 1 number
+		$total_decade_numbers = 0;
+		foreach ($decade_counts as $count) {
+			if ($count > 1) {
+				$total_decade_numbers += $count;
+			}
+		}
+		
+		return $total_decade_numbers;
+	}
+	
+	/**
+	 * Filter combinations based on up/down trends compared to last drawn numbers
+	 *
+	 * @param array $combinations Array of combinations to filter
+	 * @param array $last_drawn Last drawn numbers including extra ball
+	 * @param int $drawn Number of balls drawn for this lottery
+	 * @param int $extra_ball Whether extra ball is included (1 or 0)
+	 * @param string $selected_trend 'UP', 'DOWN', or 'ALL'
+	 * @param int $page Current page number
+	 * @param int $per_page Number of combinations per page
+	 * @param string $filepath Path to the combination text file
+	 * @return array|false Filtered combinations or false if no matches found
+	 */
+	public function filtered_trends($combinations, $last_drawn, $drawn, $extra_ball, $selected_trend, $page, $per_page, $filepath)
+	{
+		if ($selected_trend === 'ALL') {
+			return $combinations;
+		}
+		
+		// Extract last drawn numbers for comparison
+		$last_drawn_numbers = [];
+		for ($i = 1; $i <= $drawn; $i++) {
+			if (isset($last_drawn['ball' . $i])) {
+				$last_drawn_numbers[] = (int)$last_drawn['ball' . $i];
+			}
+		}
+		// Include extra ball if enabled
+		if ($extra_ball && isset($last_drawn['extra'])) {
+			$last_drawn_numbers[] = (int)$last_drawn['extra'];
+		}
+		
+		$filtered_combinations = [];
+		$needed_combinations = $per_page;
+		$combinations_found = 0;
+		
+		// Start filtering from the provided combinations
+		foreach ($combinations as $combo) {
+			if ($this->check_trend_match($combo, $last_drawn_numbers, $selected_trend)) {
+				$filtered_combinations[] = $combo;
+				$combinations_found++;
+				
+				if ($combinations_found >= $needed_combinations) {
+					break;
 				}
 			}
-		return $consecutive_count;
 		}
-		/**
-		 * Filter combinations based on up/down trends compared to last drawn numbers
-		 *
-		 * @param array $combinations Array of combinations to filter
-		 * @param array $last_drawn Last drawn numbers including extra ball
-		 * @param int $drawn Number of balls drawn for this lottery
-		 * @param int $extra_ball Whether extra ball is included (1 or 0)
-		 * @param string $selected_trend 'UP', 'DOWN', or 'ALL'
-		 * @param int $page Current page number
-		 * @param int $per_page Number of combinations per page
-		 * @param string $filepath Path to the combination text file
-		 * @return array|false Filtered combinations or false if no matches found
-		 */
-		public function filtered_trends($combinations, $last_drawn, $drawn, $extra_ball, $selected_trend, $page, $per_page, $filepath)
-		{
-			if ($selected_trend === 'ALL') {
-				return $combinations;
+		
+		// If we don't have enough combinations, fetch more from the file
+		if ($combinations_found < $needed_combinations && file_exists($filepath)) {
+			// Get the number array from session for processing additional combinations
+			$CI =& get_instance();
+			$number_array = $CI->session->userdata('futures_number_array');
+			
+			if ($number_array) {
+				$additional_combinations = $this->fetch_additional_trend_combinations(
+					$filepath,
+					$number_array,
+					$last_drawn_numbers,
+					$selected_trend,
+					$needed_combinations - $combinations_found,
+					($page - 1) * $per_page + count($combinations) // Skip already processed lines
+				);
+				
+				if ($additional_combinations) {
+					$filtered_combinations = array_merge($filtered_combinations, $additional_combinations);
+				}
+			}
+		}
+		
+		// Return false if no combinations match the trend filter
+		if (empty($filtered_combinations)) {
+			return false;
+		}
+		
+		return $filtered_combinations;
+	}
+	
+	/**
+	 * Check if a combination matches the selected trend
+	 *
+	 * @param array $combo Combination to check (with ball1, ball2, etc. keys)
+	 * @param array $last_drawn_numbers Last drawn numbers to compare against
+	 * @param string $trend 'UP' or 'DOWN'
+	 * @return bool True if combination matches trend, false otherwise
+	 */
+	private function check_trend_match($combo, $last_drawn_numbers, $trend)
+	{
+		// Extract combination numbers in order
+		$combo_numbers = [];
+		foreach ($combo as $key => $value) {
+			if (strpos($key, 'ball') === 0) {
+				$combo_numbers[] = (int)$value;
+			}
+		}
+		
+		// Sort both arrays for consistent comparison
+		sort($combo_numbers, SORT_NUMERIC);
+		sort($last_drawn_numbers, SORT_NUMERIC);
+		
+		if ($trend === 'UP') {
+			// All combination numbers must be greater than corresponding last drawn numbers
+			foreach ($combo_numbers as $index => $combo_number) {
+				if (isset($last_drawn_numbers[$index])) {
+					if ($combo_number <= $last_drawn_numbers[$index]) {
+						return false;
+					}
+				}
+			}
+			return true;
+		} elseif ($trend === 'DOWN') {
+			// All combination numbers must be less than corresponding last drawn numbers
+			foreach ($combo_numbers as $index => $combo_number) {
+				if (isset($last_drawn_numbers[$index])) {
+					if ($combo_number >= $last_drawn_numbers[$index]) {
+						return false;
+					}
+				}
+			}
+			return true;
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Fetch additional combinations from file to meet pagination requirements
+	 *
+	 * @param string $filepath Path to combinations file
+	 * @param array $number_array Number array for position mapping
+	 * @param array $last_drawn_numbers Last drawn numbers for comparison
+	 * @param string $trend Trend type ('UP' or 'DOWN')
+	 * @param int $needed_count Number of additional combinations needed
+	 * @param int $skip_lines Number of lines to skip (already processed)
+	 * @return array Additional filtered combinations
+	 */
+	private function fetch_additional_trend_combinations($filepath, $number_array, $last_drawn_numbers, $trend, $needed_count, $skip_lines)
+	{
+		if (!file_exists($filepath)) {
+			return [];
+		}
+		
+		$additional_combinations = [];
+		$line_count = 0;
+		$found_count = 0;
+		
+		if (($handle = fopen($filepath, 'r')) !== false) {
+			// Skip already processed lines
+			while ($line_count < $skip_lines && ($line = fgets($handle)) !== false) {
+				$line_count++;
 			}
 			
-			// Extract last drawn numbers for comparison
-			$last_drawn_numbers = [];
+			// Continue reading and filtering until we have enough combinations
+			while (($line = fgets($handle)) !== false && $found_count < $needed_count) {
+				$line = trim($line);
+				if (empty($line)) continue;
+				
+				// Parse the combination line and convert to proper format
+				$positions = array_map('intval', explode(' ', $line));
+				$combo_numbers = [];
+				foreach ($positions as $pos) {
+					if (isset($number_array[$pos - 1])) {
+						$combo_numbers[] = $number_array[$pos - 1];
+					}
+				}
+				
+				// Sort and format as ball1, ball2, etc.
+				sort($combo_numbers, SORT_NUMERIC);
+				$combo = [];
+				foreach ($combo_numbers as $idx => $num) {
+					$combo['ball'.($idx+1)] = $num;
+				}
+				
+				if ($this->check_trend_match($combo, $last_drawn_numbers, $trend)) {
+					$additional_combinations[] = $combo;
+					$found_count++;
+				}
+				
+				$line_count++;
+			}
+			fclose($handle);
+		}
+		
+		return $additional_combinations;
+	}
+	
+	/**
+	 * Get total count of combinations that pass all filters
+	 *
+	 * @param string $filepath Path to the combination file
+	 * @param array  $number_array  Array of numbers to substitute
+	 * @param array  $filter_select Array of filters to apply
+	 * @return int Total count of filtered combinations
+	 */
+	public function get_filtered_combinations_count($filepath, $number_array, $filter_select = [])
+	{
+		if (!file_exists($filepath)) {
+			return 0;
+		}
+		
+		// If no filters are applied, return total file lines
+		$selected_trends = $filter_select['selected_trends'] ?? 'ALL';
+		$has_other_filters = $this->has_active_filters($filter_select);
+		
+		if ($selected_trends === 'ALL' && !$has_other_filters) {
+			return count(file($filepath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
+		}
+		
+		// Count filtered combinations
+		$count = 0;
+		$drawn = $filter_select['drawn'] ?? 0;
+		$last_drawn = $filter_select['lottery_last_drawn'] ?? [];
+		$extra_ball = $filter_select['extra_ball'] ?? 0;
+		
+		// Prepare last drawn numbers for trend filtering
+		$last_drawn_numbers = [];
+		if ($selected_trends !== 'ALL' && !empty($last_drawn)) {
 			for ($i = 1; $i <= $drawn; $i++) {
 				if (isset($last_drawn['ball' . $i])) {
 					$last_drawn_numbers[] = (int)$last_drawn['ball' . $i];
 				}
 			}
-			// Include extra ball if enabled
 			if ($extra_ball && isset($last_drawn['extra'])) {
 				$last_drawn_numbers[] = (int)$last_drawn['extra'];
 			}
-			
-			$filtered_combinations = [];
-			$needed_combinations = $per_page;
-			$combinations_found = 0;
-			
-			// Start filtering from the provided combinations
-			foreach ($combinations as $combo) {
-				if ($this->check_trend_match($combo, $last_drawn_numbers, $selected_trend)) {
-					$filtered_combinations[] = $combo;
-					$combinations_found++;
-					
-					if ($combinations_found >= $needed_combinations) {
-						break;
-					}
-				}
-			}
-			
-			// If we don't have enough combinations, fetch more from the file
-			if ($combinations_found < $needed_combinations && file_exists($filepath)) {
-				// Get the number array from session for processing additional combinations
-				$CI =& get_instance();
-				$number_array = $CI->session->userdata('futures_number_array');
+		}
+		
+		// Count combinations that pass filters
+		if (($handle = fopen($filepath, 'r')) !== false) {
+			while (($line = fgets($handle)) !== false) {
+				$line = trim($line);
+				if (empty($line)) continue;
 				
-				if ($number_array) {
-					$additional_combinations = $this->fetch_additional_trend_combinations(
-						$filepath,
-						$number_array,
-						$last_drawn_numbers,
-						$selected_trend,
-						$needed_combinations - $combinations_found,
-						($page - 1) * $per_page + count($combinations) // Skip already processed lines
-					);
-					
-					if ($additional_combinations) {
-						$filtered_combinations = array_merge($filtered_combinations, $additional_combinations);
+				// Parse combination
+				$positions = array_map('intval', explode(' ', $line));
+				$combo_numbers = [];
+				foreach ($positions as $pos) {
+					if ($pos > 0 && isset($number_array[$pos - 1])) {
+						$combo_numbers[] = $number_array[$pos - 1];
 					}
-				}
-			}
-			
-			// Return false if no combinations match the trend filter
-			if (empty($filtered_combinations)) {
-				return false;
-			}
-			
-			return $filtered_combinations;
-		}
-		/**
-		 * Check if a combination matches the selected trend
-		 *
-		 * @param array $combo Combination to check (with ball1, ball2, etc. keys)
-		 * @param array $last_drawn_numbers Last drawn numbers to compare against
-		 * @param string $trend 'UP' or 'DOWN'
-		 * @return bool True if combination matches trend, false otherwise
-		 */
-		private function check_trend_match($combo, $last_drawn_numbers, $trend)
-		{
-			// Extract combination numbers in order
-			$combo_numbers = [];
-			foreach ($combo as $key => $value) {
-				if (strpos($key, 'ball') === 0) {
-					$combo_numbers[] = (int)$value;
-				}
-			}
-			
-			// Sort both arrays for consistent comparison
-			sort($combo_numbers, SORT_NUMERIC);
-			sort($last_drawn_numbers, SORT_NUMERIC);
-			
-			if ($trend === 'UP') {
-				// All combination numbers must be greater than corresponding last drawn numbers
-				foreach ($combo_numbers as $index => $combo_number) {
-					if (isset($last_drawn_numbers[$index])) {
-						if ($combo_number <= $last_drawn_numbers[$index]) {
-							return false;
-						}
-					}
-				}
-				return true;
-			} elseif ($trend === 'DOWN') {
-				// All combination numbers must be less than corresponding last drawn numbers
-				foreach ($combo_numbers as $index => $combo_number) {
-					if (isset($last_drawn_numbers[$index])) {
-						if ($combo_number >= $last_drawn_numbers[$index]) {
-							return false;
-						}
-					}
-				}
-				return true;
-			}
-			
-			return false;
-		}
-		/**
-		 * Fetch additional combinations from file to meet pagination requirements
-		 *
-		 * @param string $filepath Path to combinations file
-		 * @param array $number_array Number array for position mapping
-		 * @param array $last_drawn_numbers Last drawn numbers for comparison
-		 * @param string $trend Trend type ('UP' or 'DOWN')
-		 * @param int $needed_count Number of additional combinations needed
-		 * @param int $skip_lines Number of lines to skip (already processed)
-		 * @return array Additional filtered combinations
-		 */
-		private function fetch_additional_trend_combinations($filepath, $number_array, $last_drawn_numbers, $trend, $needed_count, $skip_lines)
-		{
-			if (!file_exists($filepath)) {
-				return [];
-			}
-			
-			$additional_combinations = [];
-			$line_count = 0;
-			$found_count = 0;
-			
-			if (($handle = fopen($filepath, 'r')) !== false) {
-				// Skip already processed lines
-				while ($line_count < $skip_lines && ($line = fgets($handle)) !== false) {
-					$line_count++;
 				}
 				
-				// Continue reading and filtering until we have enough combinations
-				while (($line = fgets($handle)) !== false && $found_count < $needed_count) {
-					$line = trim($line);
-					if (empty($line)) continue;
-					
-					// Parse the combination line and convert to proper format
-					$positions = array_map('intval', explode(' ', $line));
-					$combo_numbers = [];
-					foreach ($positions as $pos) {
-						if (isset($number_array[$pos - 1])) {
-							$combo_numbers[] = $number_array[$pos - 1];
-						}
-					}
-					
-					// Sort and format as ball1, ball2, etc.
-					sort($combo_numbers, SORT_NUMERIC);
-					$combo = [];
-					foreach ($combo_numbers as $idx => $num) {
-						$combo['ball'.($idx+1)] = $num;
-					}
-					
-					if ($this->check_trend_match($combo, $last_drawn_numbers, $trend)) {
-						$additional_combinations[] = $combo;
-						$found_count++;
-					}
-					
-					$line_count++;
+				if (empty($combo_numbers)) continue;
+				
+				sort($combo_numbers, SORT_NUMERIC);
+				$combo = [];
+				foreach ($combo_numbers as $idx => $num) {
+					$combo['ball'.($idx+1)] = $num;
 				}
-				fclose($handle);
+				
+				// Check if combination passes all filters
+				if ($selected_trends !== 'ALL') {
+					if (!$this->check_trend_match($combo, $last_drawn_numbers, $selected_trends)) {
+						continue;
+					}
+				}
+				
+				if (!$this->apply_other_filters($combo, $filter_select)) {
+					continue;
+				}
+				
+				$count++;
 			}
-			
-			return $additional_combinations;
-		}		
+			fclose($handle);
+		}
+		
+		return $count;
+	}
+	
+	/**
+	 * Check if any filters other than trends are active
+	 *
+	 * @param array $filter_select Array of filter criteria
+	 * @return bool True if other filters are active
+	 */
+	private function has_active_filters($filter_select)
+	{
+		$filter_keys = [
+			'selected_winning_sums', 'selected_winning_digits', 'selected_repeaters',
+			'selected_consecutives', 'selected_parity', 'selected_decades',
+			'selected_last_digits', 'selected_number_range', 'selected_adjacents'
+		];
+		
+		foreach ($filter_keys as $key) {
+			if (!empty($filter_select[$key]) && $filter_select[$key] !== 'ALL') {
+				return true;
+			}
+		}
+		
+		return false;
+	}
 }

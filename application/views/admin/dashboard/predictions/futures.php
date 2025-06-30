@@ -592,8 +592,8 @@
 												<th data-field="digit_sum" data-sortable="true" data-filter-control="select" data-align="center">Digit Sum</th>
 												<th data-field="repeaters" data-sortable="true" data-filter-control="select" data-align="center">Repeaters</th>
 												<th data-field="consecutive" data-sortable="true" data-filter-control="select" data-align="center">Consecutive</th>
-												<th data-field="even" data-sortable="true" data-filter-control="select" data-align="center">Even</th>
 												<th data-field="odd" data-sortable="true" data-filter-control="select" data-align="center">Odd</th>
+												<th data-field="even" data-sortable="true" data-filter-control="select" data-align="center">Even</th>
 												<th data-field="decade" data-sortable="true" data-filter-control="select" data-align="center">Decade</th>
 												<th data-field="last" data-sortable="true" data-filter-control="select" data-align="center">Last</th>
 												<th data-field="range" data-sortable="true" data-filter-control="select" data-align="center">Range</th>
@@ -610,15 +610,15 @@
 															echo implode(' ', $ticket_numbers);
 														?>
 													</td>
-													<td><?= $item['stats']['sum'] ?></td>
-													<td><?= $item['stats']['digit_sum'] ?></td>
-													<td><?= $item['stats']['repeater'] ?></td>
-													<td><?= $item['stats']['consecutive'] ?></td>
-													<td><?= $item['stats']['even'] ?></td>
-													<td><?= $item['stats']['odd'] ?></td>
-													<td><?= $item['stats']['decade'] ?></td>
-													<td><?= $item['stats']['last'] ?></td>
-													<td><?= $item['stats']['range'] ?></td>
+													<td><?= $item['sum'] ?></td>
+													<td><?= $item['digit_sum'] ?></td>
+													<td><?= $item['repeater'] ?></td>
+													<td><?= $item['consecutive'] ?></td>
+													<td><?= $item['odd'] ?></td>
+													<td><?= $item['even'] ?></td>
+													<td><?= $item['decade'] ?></td>
+													<td><?= $item['last'] ?></td>
+													<td><?= $item['range'] ?></td>
 												</tr>
 											<?php endforeach; ?>
 										</tbody>
