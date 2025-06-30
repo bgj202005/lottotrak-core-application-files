@@ -2019,8 +2019,18 @@ class Predictions_m extends MY_Model
 			}
 		}
 		
+		// Filter by number range (selected_number_range)
+		if (!empty($filter_select['selected_number_range']) && $filter_select['selected_number_range'] !== 'ALL') {
+			$combo_numbers = array_values($combo);
+			$combo_range = !empty($combo_numbers) ? max($combo_numbers) - min($combo_numbers) : 0;
+			
+			$expected_range = (int)$filter_select['selected_number_range'];
+			if ($combo_range !== $expected_range) {
+				return false;
+			}
+		}
+		
 		// Add more filter implementations here:
-		// - selected_number_range
 		// - selected_adjacents
 		
 		return true;
