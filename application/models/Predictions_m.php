@@ -12,15 +12,7 @@ class Predictions_m extends MY_Model
             'rules' => 'trim|required|callback__range_ball_values|callback__validate_picks'
 		)
 	);
-
 	const DIR = 'combinations';
-
-	public function __construct()
-	{
-		parent::__construct();
-		$this->load->model('statistics_m');
-	}
-
 /** This function returns the total count of the number of possible unique
  * 	combinations there are of N distinct items selected R at a time. The
  * 	sequential order of the items in each group is NOT important.
@@ -34,7 +26,6 @@ class Predictions_m extends MY_Model
  	public function bcComb_N_R ($N, $R)
 	{
 	$C = 1;
-
 	for ($i=0;   $i < $N-$R;   $i++)
 		{
 		$C = bcdiv(bcmul($C, $N-$i), $i+1);
@@ -1798,6 +1789,162 @@ class Predictions_m extends MY_Model
 				}
 			}
 		}
+		/**
+		 * Returns an associative array for hots, warms, and colds:
+		 * [
+		 *   'H' => [18 => 21, 42 => 15, 13 => 18, ...], // number => position count
+		 *   'W' => [...],
+		 *   'C' => [...]
+		 * ]
+		 * Uses numbers from lottery_h_w_c.hots/warms/colds and position counts from lottery_h_w_c_stats.position.
+		 *
+		 * @param int 		$lottery_id
+		 * @return array 	$result
+		 */
+		public function get_heat_map($lottery_id)
+		{
+			// Get numbers for hots, warms, colds
+			$row_hwc = $this->db->get_where('lottery_h_w_c', ['lottery_id' => $lottery_id])->row_array();
+			// Get position counts for hots, warms, colds
+			$row_stats = $this->db->get_where('lottery_h_w_c_stats', ['lottery_id' => $lottery_id])->row_array();
+
+			if (!$row_hwc || !$row_stats || empty($row_stats['position'])) {
+				return [];
+			}
+			// Parse numbers for each group (discard counts)
+			$groups = ['H' => [], 'W' => [], 'C' => []];
+			foreach (['H' => 'hots', 'W' => 'warms', 'C' => 'colds'] as $cat => $field) {
+				if (!empty($row_hwc[$field])) {
+					$pairs = explode(',', $row_hwc[$field]);
+					foreach ($pairs as $pair) {
+						$kv = explode('=', $pair);
+						if (count($kv) == 2) {
+							$num = (int)trim($kv[0]);
+							$groups[$cat][] = $num;
+						}
+					}
+				}
+			}
+			// Parse position counts for each group
+			$positions = ['H' => [], 'W' => [], 'C' => []];
+			$parts = explode('|', $row_stats['position']);
+			foreach ($parts as $part) {
+				$part = trim($part);
+				if (preg_match('/^(H|W|C)>(.+)$/', $part, $matches)) {
+					$cat = $matches[1];
+					$pairs = explode(',', $matches[2]);
+					foreach ($pairs as $pair) {
+						$kv = explode('=', $pair);
+						if (count($kv) == 2) {
+							$idx = (int)trim($kv[0]);
+							$count = (int)trim($kv[1]);
+							$positions[$cat][$idx] = $count;
+						}
+					}
+				}
+			}
+			// Combine: assign each number in group to its position count by index
+			$result = ['H' => [], 'W' => [], 'C' => []];
+			foreach (['H', 'W', 'C'] as $cat) {
+				foreach ($groups[$cat] as $i => $num) {
+					// Use the position count at the same index, if it exists
+					$count = isset($positions[$cat][$i]) ? $positions[$cat][$i] : null;
+					if ($count !== null) {
+						$result[$cat][$num] = $count;
+					}
+				}
+			}
+		return $result; // returns 
+		}
+		/**
+		 * Returns an associative array of followers (number => count, sorted descending by count)
+		 * followed by non-followers (number => 0, in original order).
+		 *
+		 * @param int $lottery_id
+		 * @param string $type 'after_ball' or 'position'
+		 * @param string|int $select
+		 * @return array
+		 */
+		public function get_followers_list($lottery_id, $type, $select)
+		{
+			$followers_row = $this->statistics_m->followers_exists($lottery_id);
+			$nonfollowers_row = $this->statistics_m->nonfollowers_exists($lottery_id);
+			if (!$followers_row) {
+				return [];
+			}
+			$followers_field = $followers_row['lottery_followers'];
+			$nonfollowers_field = $nonfollowers_row ? $nonfollowers_row['lottery_nonfollowers'] : '';
+			$select = trim($select);
+			if ($type === 'after_ball' && strpos($select, '+') === 0) {
+				$select = substr($select, 1);
+			}
+			$followers_list = [];
+			$non_followers_list = [];
+			// Followers
+			if ($type === 'position') {
+				$position = (int)$select;
+				$groups = explode(',', $followers_field);
+				if (isset($groups[$position - 1])) {
+					$group = $groups[$position - 1];
+					$data = substr($group, strpos($group, '>') + 1);
+					$pairs = explode('|', $data);
+					foreach ($pairs as $pair) {
+						$kv = explode('=', $pair);
+						if (count($kv) == 2) {
+							$num = (int)trim($kv[0]);
+							$count = (int)trim($kv[1]);
+							if ($count >= 3) {
+								$followers_list[$num] = $count;
+							}
+						}
+					}
+				}
+				// Non-followers
+				$groups = $nonfollowers_field ? explode(',', $nonfollowers_field) : [];
+				if (isset($groups[$position - 1])) {
+					$group = $groups[$position - 1];
+					$data = substr($group, strpos($group, '>') + 1);
+					$pairs = explode('|', $data);
+					foreach ($pairs as $pair) {
+						$non_followers_list[$pair] = 0;					
+					}
+				}
+			} else {
+				// after_ball
+				$groups = explode(',', $followers_field);
+				foreach ($groups as $group) {
+					if (strpos($group, $select . '>') === 0) {
+						$data = substr($group, strlen($select) + 1);
+						$pairs = explode('|', $data);
+						foreach ($pairs as $pair) {
+							$kv = explode('=', $pair);
+							if (count($kv) == 2) {
+								$num = (int)trim($kv[0]);
+								$count = (int)trim($kv[1]);
+								if ($count >= 3) {
+									$followers_list[$num] = $count;
+								}
+							}
+						}
+						break;
+					}
+				}
+				$groups = $nonfollowers_field ? explode(',', $nonfollowers_field) : [];
+				foreach ($groups as $group) {
+					if (strpos($group, $select . '>') === 0) {
+						$data = substr($group, strlen($select) + 1);
+						$pairs = explode('|', $data);
+						foreach ($pairs as $pair) {
+							$non_followers_list[$pair] = 0;					
+						}
+					}
+				}
+			}
+			// Sort followers by count descending, keep non-followers in original order
+			arsort($followers_list);
+			// Merge and return
+		return $followers_list + $non_followers_list;
+	}
 	/**
 	 * Insert and filter number combinations with integrated filtering and pagination
 	 *
