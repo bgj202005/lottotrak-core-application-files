@@ -816,6 +816,11 @@ class Predictions extends Admin_Controller {
 				$number_array = array_map('intval', explode(',', $number_series));
 				$this->session->set_userdata('futures_number_array', $number_array);
 
+				// Load lottery highlights for filtering
+				if (!isset($this->data['lottery']->highlights)) {
+					$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
+				}
+
 				// Prepare filter array
 				$filters = [
 					'selected_trends' => $selected_trends,
@@ -830,7 +835,8 @@ class Predictions extends Admin_Controller {
 					'selected_adjacents' => $selected_adjacents,
 					'drawn' => $drawn,
 					'lottery_last_drawn' => $this->data['lottery']->last_drawn,
-					'extra_ball' => $this->data['lottery']->extra_ball
+					'extra_ball' => $this->data['lottery']->extra_ball,
+					'lottery_highlights' => $this->data['lottery']->highlights
 				];
 				$combos_paginated = $this->predictions_m->insert_number_combination($filepath, $number_array, $page, $per_page, $filters);
 
@@ -892,6 +898,11 @@ class Predictions extends Admin_Controller {
 			if ($number_array && $combination_file) {
 				$filepath = FCPATH . 'combinations/' . basename($combination_file) . '.txt';
 				
+				// Load lottery highlights for filtering
+				if (!isset($this->data['lottery']->highlights)) {
+					$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
+				}
+				
 				// Prepare filter array for GET requests
 				$filters = [
 					'selected_trends' => $future_form['selected_trends'] ?? 'ALL',
@@ -906,7 +917,8 @@ class Predictions extends Admin_Controller {
 					'selected_adjacents' => $future_form['selected_adjacents'] ?? 'ALL',
 					'drawn' => $drawn,
 					'lottery_last_drawn' => $this->data['lottery']->last_drawn,
-					'extra_ball' => $this->data['lottery']->extra_ball
+					'extra_ball' => $this->data['lottery']->extra_ball,
+					'lottery_highlights' => $this->data['lottery']->highlights
 				];
 				
 				$updated_combinations = $this->predictions_m->insert_number_combination($filepath, $number_array, $page, $per_page, $filters);

@@ -2030,8 +2030,25 @@ class Predictions_m extends MY_Model
 			}
 		}
 		
-		// Add more filter implementations here:
-		// - selected_adjacents
+		// Filter by adjacents (selected_adjacents)
+		if (!empty($filter_select['selected_adjacents']) && $filter_select['selected_adjacents'] !== 'ALL') {
+			$ball_position = (int)$filter_select['selected_adjacents'];
+			
+			// Calculate the actual difference between the specified adjacent balls
+			$actual_difference = $this->calculate_adjacent_difference($combo, $ball_position);
+			
+			// For now, we'll get the expected difference from the adjacents data if available
+			// This will need to be enhanced to get the expected difference from the lottery highlights
+			if ($actual_difference !== null) {
+				// The expected difference should come from the adjacents dropdown selection
+				// For now, we'll implement a basic version and enhance it as needed
+				$expected_difference = $this->get_expected_adjacent_difference($filter_select, $ball_position);
+				
+				if ($expected_difference !== null && $actual_difference !== $expected_difference) {
+					return false;
+				}
+			}
+		}
 		
 		return true;
 	}
@@ -2189,6 +2206,68 @@ class Predictions_m extends MY_Model
 		}
 		
 		return $total_last_digit_numbers;
+	}
+	
+	/**
+	 * Gets the expected difference for a specific adjacent ball position.
+	 * 
+	 * @param array $filter_select The filter selection array
+	 * @param int $ball_position The ball position (1 for Ball 1 & Ball 2, 2 for Ball 2 & Ball 3, etc.)
+	 * @return int|null The expected difference or null if filtering should be skipped
+	 */
+	private function get_expected_adjacent_difference($filter_select, $ball_position)
+	{
+		// Check if lottery highlights are available
+		if (!isset($filter_select['lottery_highlights']) || !is_array($filter_select['lottery_highlights'])) {
+			return null; // Skip filtering if highlights not available
+		}
+		
+		// Get the adjacents string from lottery highlights
+		if (!isset($filter_select['lottery_highlights']['adjacents'])) {
+			return null;
+		}
+		
+		$adjacents_string = $filter_select['lottery_highlights']['adjacents'];
+		
+		// Parse the adjacents string (e.g., "1=6,2=7,3=7,4=6,5=6,6=7|4=27")
+		$parts = explode('|', $adjacents_string);
+		$main_part = isset($parts[0]) ? $parts[0] : '';
+		
+		if ($main_part) {
+			$pairs = explode(',', $main_part);
+			foreach ($pairs as $pair) {
+				$kv = explode('=', $pair);
+				if (count($kv) == 2) {
+					$adj_num = (int)trim($kv[0]);
+					$difference = (int)trim($kv[1]);
+					
+					if ($adj_num === $ball_position) {
+						return $difference;
+					}
+				}
+			}
+		}
+		
+		return null;
+	}
+	
+	/**
+	 * Calculates the actual difference between adjacent balls in a combination.
+	 * 
+	 * @param array $combo The combination array (e.g., ['ball1'=>4, 'ball2'=>12, ...])
+	 * @param int $ball_position The ball position (1 for Ball 1 & Ball 2, 2 for Ball 2 & Ball 3, etc.)
+	 * @return int|null The actual difference or null if balls don't exist
+	 */
+	private function calculate_adjacent_difference($combo, $ball_position)
+	{
+		$ball1_key = 'ball' . $ball_position;
+		$ball2_key = 'ball' . ($ball_position + 1);
+		
+		if (isset($combo[$ball1_key]) && isset($combo[$ball2_key])) {
+			return $combo[$ball2_key] - $combo[$ball1_key];
+		}
+		
+		return null;
 	}
 	
 	/**
