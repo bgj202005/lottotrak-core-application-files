@@ -2311,15 +2311,8 @@ class Predictions_m extends MY_Model
 			$decade_counts[$decade]++;
 		}
 		
-		// Count total numbers that are in decades with more than 1 number
-		$total_decade_numbers = 0;
-		foreach ($decade_counts as $count) {
-			if ($count > 1) {
-				$total_decade_numbers += $count;
-			}
-		}
-		
-		return $total_decade_numbers;
+		// Return the maximum count of numbers in any single decade
+		return max($decade_counts);
 	}
 	
 	/**
