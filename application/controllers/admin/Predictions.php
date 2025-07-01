@@ -586,7 +586,6 @@ class Predictions extends Admin_Controller {
 	{
 		$this->data['message'] = '';
 		$this->data['disable_generate_button'] = false; // Used to disable the generate button in the view
-
 		// Fetch lottery and related data
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
@@ -663,6 +662,28 @@ class Predictions extends Admin_Controller {
 				$selected_last_digits = $this->input->post('last_digits', TRUE);
 				$selected_number_range = $this->input->post('number_range', TRUE);
 				$selected_adjacents = $this->input->post('adjacents', TRUE);
+				$session_data = [
+					'selected_h_w_c_group'      => $h_w_c_group,
+					'selected_followers_type'   => $followers_type,
+					'selected_ball_points'      => $selected_ball_points,
+					'selected_position_points'  => $selected_position_points,
+					'selected_friends'          => $selected_friends,
+					'selected_hwc'              => $hwc_checked,
+					'selected_followers'        => $followers_checked,
+					'selected_friends_checkbox' => $friends_checked,
+					'selected_wheeling' 		=> $combination_file,
+					'selected_trends'          	=> $selected_trends,
+					'selected_winning_sums'     => $selected_winning_sums,
+					'selected_winning_digits' 	=> $selected_winning_digits,
+					'selected_repeaters' 		=> $selected_repeaters,
+					'selected_consecutives' 	=> $selected_consecutives,
+					'selected_parity'          	=> $selected_parity,
+					'selected_decades'          => $selected_decades,
+					'selected_last_digits'      => $selected_last_digits,
+					'selected_number_range' 	=> $selected_number_range,
+					'selected_adjacents' 		=> $selected_adjacents
+				];
+				$this->session->set_userdata('futures_form', $session_data);
 				$this->data['disable_combination_dropdown'] = true;
 			} else {
 				// Get all POST values and save to session for future pagination
@@ -820,7 +841,6 @@ class Predictions extends Admin_Controller {
 				if (!isset($this->data['lottery']->highlights)) {
 					$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
 				}
-
 				// Prepare filter array
 				$filters = [
 					'selected_trends' => $selected_trends,
@@ -839,7 +859,6 @@ class Predictions extends Admin_Controller {
 					'lottery_highlights' => $this->data['lottery']->highlights
 				];
 				$combos_paginated = $this->predictions_m->insert_number_combination($filepath, $number_array, $page, $per_page, $filters);
-
 				// Check if any combinations were found
 				if (empty($combos_paginated)) {
 					$this->data['message'] = 'No Combinations are available with the applied filters';
@@ -866,29 +885,29 @@ class Predictions extends Admin_Controller {
 		// --- GET:   ---
 		else {
 			// Restore form/filter values
-			$future_form = $this->session->userdata('futures_form');
-				foreach ($future_form as $key => $value) {
+			$futures_form = $this->session->userdata('futures_form');
+				foreach ($futures_form as $key => $value) {
 					$this->data[$key] = $value;
 				}
 			// LOTTERY PROFILE STATISTICS PRESETS Settings
-				$this->data['selected_h_w_c_group'] = $future_form['selected_h_w_c_group'];
-				$this->data['selected_hwc'] = $future_form['selected_hwc']; 
-				$this->data['selected_followers'] = $future_form['selected_followers']; 
-				$this->data['selected_friends_checkbox'] = $future_form['selected_friends_checkbox']; 
-				$this->data['selected_followers_type'] = $future_form['selected_followers_type']; 	// or 'position' as your default
-				$this->data['selected_friends'] = $future_form['selected_friends']; 				// preset value for Friends choices
-				$this->data['selected_position_points'] = $future_form['selected_position_points'];
+				$this->data['selected_h_w_c_group'] = $futures_form['selected_h_w_c_group'];
+				$this->data['selected_hwc'] = $futures_form['selected_hwc']; 
+				$this->data['selected_followers'] = $futures_form['selected_followers']; 
+				$this->data['selected_friends_checkbox'] = $futures_form['selected_friends_checkbox']; 
+				$this->data['selected_followers_type'] = $futures_form['selected_followers_type']; 	// or 'position' as your default
+				$this->data['selected_friends'] = $futures_form['selected_friends']; 				// preset value for Friends choices
+				$this->data['selected_position_points'] = $futures_form['selected_position_points'];
 				//Actual Win History Filtering
-				$this->data['selected_trends'] = $future_form['selected_trends']; 				    // trends setting
-				$this->data['selected_winning_sums'] = $future_form['selected_winning_sums'];  	    // sums setting
-				$this->data['selected_winning_digits'] = $future_form['selected_winning_digits']; 	// digit sums setting
-				$this->data['selected_repeaters'] = $future_form['selected_repeaters']; 			// repeaters setting
-				$this->data['selected_consecutives'] = $future_form['selected_consecutives'];  		// consecutives setting
-				$this->data['selected_parity'] = $future_form['selected_parity'];					// parity (odd / even) setting
-				$this->data['selected_decades'] = $future_form['selected_decades'];					// decades setting
-				$this->data['selected_last_digits'] = $future_form['selected_last_digits']; 		// last digits setting
-				$this->data['selected_number_range'] = $future_form['selected_number_range'];		// number range setting
-				$this->data['selected_adjacents'] = $future_form['selected_adjacents'];				// adjacents setting
+				$this->data['selected_trends'] = $futures_form['selected_trends']; 				    // trends setting
+				$this->data['selected_winning_sums'] = $futures_form['selected_winning_sums'];  	    // sums setting
+				$this->data['selected_winning_digits'] = $futures_form['selected_winning_digits']; 	// digit sums setting
+				$this->data['selected_repeaters'] = $futures_form['selected_repeaters']; 			// repeaters setting
+				$this->data['selected_consecutives'] = $futures_form['selected_consecutives'];  		// consecutives setting
+				$this->data['selected_parity'] = $futures_form['selected_parity'];					// parity (odd / even) setting
+				$this->data['selected_decades'] = $futures_form['selected_decades'];					// decades setting
+				$this->data['selected_last_digits'] = $futures_form['selected_last_digits']; 		// last digits setting
+				$this->data['selected_number_range'] = $futures_form['selected_number_range'];		// number range setting
+				$this->data['selected_adjacents'] = $futures_form['selected_adjacents'];				// adjacents setting
 			$number_array = $this->session->userdata('futures_number_array');
 			$combination_file = $this->session->userdata('combination_file');
 			$this->data['selected_wheeling'] = $combination_file; 	
@@ -905,16 +924,16 @@ class Predictions extends Admin_Controller {
 				
 				// Prepare filter array for GET requests
 				$filters = [
-					'selected_trends' => $future_form['selected_trends'] ?? 'ALL',
-					'selected_winning_sums' => $future_form['selected_winning_sums'] ?? [],
-					'selected_winning_digits' => $future_form['selected_winning_digits'] ?? [],
-					'selected_repeaters' => $future_form['selected_repeaters'] ?? 'ALL',
-					'selected_consecutives' => $future_form['selected_consecutives'] ?? 'ALL',
-					'selected_parity' => $future_form['selected_parity'] ?? 'ALL',
-					'selected_decades' => $future_form['selected_decades'] ?? 'ALL',
-					'selected_last_digits' => $future_form['selected_last_digits'] ?? 'ALL',
-					'selected_number_range' => $future_form['selected_number_range'] ?? 'ALL',
-					'selected_adjacents' => $future_form['selected_adjacents'] ?? 'ALL',
+					'selected_trends' => $futures_form['selected_trends'],
+					'selected_winning_sums' => $futures_form['selected_winning_sums'],
+					'selected_winning_digits' => $futures_form['selected_winning_digits'],
+					'selected_repeaters' => $futures_form['selected_repeaters'],
+					'selected_consecutives' => $futures_form['selected_consecutives'],
+					'selected_parity' => $futures_form['selected_parity'],
+					'selected_decades' => $futures_form['selected_decades'],
+					'selected_last_digits' => $futures_form['selected_last_digits'],
+					'selected_number_range' => $futures_form['selected_number_range'],
+					'selected_adjacents' => $futures_form['selected_adjacents'],
 					'drawn' => $drawn,
 					'lottery_last_drawn' => $this->data['lottery']->last_drawn,
 					'extra_ball' => $this->data['lottery']->extra_ball,
