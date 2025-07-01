@@ -69,14 +69,14 @@
 		    <!--  Sidebar -->
 		    	<div class = "col-md-4">
 		    	<section style = "padding: 20px; white-space: nowrap;">
-   	    		<?php echo anchor('admin/user/logout', '<i class="fa fa-power-off" style="margin-right:15px; color: #4183C4; text-decoration: none; background-color: transparent;"></i> logout')?>
+   	    		<?php echo anchor('admin/user/logout', '<i class="fa fa-power-off" style="margin-right:15px; color: #4183C4; text-decoration: none; background-color: transparent;"></i> logout', 'style="font-weight: normal;"')?>
             <br />
-            <?php echo anchor('admin/user/edit/'.$this->session->userdata['id'], '<i class="fa fa-user" style="margin-right:15px; color: #4183C4; text-decoration: none; background-color: transparent;"></i> '.$this->session->userdata['email']);?>
+            <?php echo anchor('admin/user/edit/'.$this->session->userdata['id'], '<i class="fa fa-user" style="margin-right:15px; color: #4183C4; text-decoration: none; background-color: transparent;"></i> '.$this->session->userdata['email'], 'style="font-weight: normal;"');?>
             <br />
             <?php if($maintenance):
-                echo anchor('admin/maintenance/', '<i class="fa fa-toggle-off" style="margin-right:10px; color: #4183C4; text-decoration: none; background-color: transparent;"></i> frontend offline');
+                echo anchor('admin/maintenance/', '<i class="fa fa-toggle-off" style="margin-right:10px; color: #4183C4; text-decoration: none; background-color: transparent;"></i> frontend offline', 'style="font-weight: normal;"');
                 else: 
-                echo anchor('admin/maintenance/', '<i class="fa fa-toggle-on" style="margin-right:10px; color: #4183C4; text-decoration: none; background-color: transparent;"></i> frontend online');
+                echo anchor('admin/maintenance/', '<i class="fa fa-toggle-on" style="margin-right:10px; color: #4183C4; text-decoration: none; background-color: transparent;"></i> frontend online', 'style="font-weight: normal;"');
                 endif;?><br />
             <i class="fa fa-user-circle-o" aria-hidden="true" style="margin-right:10px; color: #4183C4; text-decoration: none; background-color: transparent;">
             <span style = "margin-left:10px;"><span id = "admins"><?php echo sprintf("%02d", $admins); ?></span> Admins Online</span></i> <br />

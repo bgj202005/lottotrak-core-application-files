@@ -166,12 +166,12 @@ $b = 1;
 													$trend_arr = explode(",", $trends);
 													echo "<br /><br />";
 													foreach ($trend_arr as $c => $t) :
-														if (substr($t, 0, 3) == 'up=') echo "<style='display: inline'>UP Trends: <strong>" . (int) filter_var($t, FILTER_SANITIZE_NUMBER_INT) . "</strong></style><br />";
-														if (substr($t, 0, 5) == 'down=') echo "<style='display: inline'> DOWN Trends: <strong>" . (int) filter_var($t, FILTER_SANITIZE_NUMBER_INT) . "</strong></style><br />";
-														if (strtotime($t)) echo "<style='display: inline'> Last Occurrence: <strong>" . date("l, F j, Y", strtotime(str_replace('/', '-', $t))) . "</strong><br />";
+														if (substr($t, 0, 3) == 'up=') echo "<span style='display: inline'>UP Trends: <strong>" . (int) filter_var($t, FILTER_SANITIZE_NUMBER_INT) . "</strong></span><br />";
+														if (substr($t, 0, 5) == 'down=') echo "<span style='display: inline'> DOWN Trends: <strong>" . (int) filter_var($t, FILTER_SANITIZE_NUMBER_INT) . "</strong></span><br />";
+														if (strtotime($t)) echo "<span style='display: inline'> Last Occurrence: <strong>" . date("l, F j, Y", strtotime(str_replace('/', '-', $t))) . "</strong><br />";
 													endforeach;
-													if ($trend_arr[3] == 'up') echo "<style='display: inline'><strong>Last Trend</strong> was: <strong>UP TREND.</strong><br />";
-													if ($trend_arr[3] == 'down') echo "<style='display: inline'><strong>Last Trend</strong> was: <strong>DOWN TREND.</strong></br>";
+													if ($trend_arr[3] == 'up') echo "<span style='display: inline'><strong>Last Trend</strong> was: <strong>UP TREND.</strong><br />";
+													if ($trend_arr[3] == 'down') echo "<span style='display: inline'><strong>Last Trend</strong> was: <strong>DOWN TREND.</strong></br>";
 													if ($trend_arr[5] == 'up') echo "<br /><br />The current Trend over this range is: <strong>UP</strong><br />The number of <strong>UP</strong> trends are: <strong>" . $trend_arr[4] . "</strong>";
 													if ($trend_arr[5] == 'down') echo "<br /><br />The current Trend over this range is: <strong>DOWN</strong><br /> The number of <strong>DOWN</strong> trends are: <strong>" . $trend_arr[4] . "</strong>";
 													?>
@@ -214,7 +214,7 @@ $b = 1;
 														if (($sums[0] != '0') && ($sums[1] != '0')) $s .= 'Sum: <strong>' . $sums[0] . '</strong> has occurred <strong>' . $sums[1] . "</strong> times.<br />";
 													endforeach;
 													$s = (!empty($s) ? substr($s, 0, -2) . '.' : 'There are no sums for this lottery.<br />');
-													echo "<style='display: inline'>" . $s . "</style>";
+													echo "<span style='display: inline'>" . $s . "</span>";
 													$s = '';
 													$top = explode('=', $sums_range[0]);
 													foreach ($percents as $k => $v) :
@@ -224,7 +224,7 @@ $b = 1;
 														endif;
 													endforeach;
 													echo "<br />";
-													echo "<style='display: inline'>" . $s . "</style><br />"; ?>
+													echo "<span style='display: inline'>" . $s . "</span><br />"; ?>
 													<div class="d-flex justify-content-between align-items-center border-bottom mb-3">
 														<p class="text-success text-xl">
 															<i class="ion ion-ios-refresh-empty"></i>
@@ -246,7 +246,7 @@ $b = 1;
 													endforeach;
 													$s = (!empty($s) ? substr($s, 0, -2) . '.' : 'There are no digit sums for this lottery.<br />');
 													echo "<br />";
-													echo "<style='display: inline'>" . $s . "</style>";
+													echo "<span style='display: inline'>" . $s . "</span>";
 													$s = '';
 													$top = explode('=', $digits_range[0]);
 													foreach ($percents as $k => $v) :
@@ -256,7 +256,7 @@ $b = 1;
 														endif;
 													endforeach;
 													echo "<br />";
-													echo "<style='display: inline'>" . $s . "</style><br />";
+													echo "<span style='display: inline'>" . $s . "</span><br />";
 													?>
 												</h5>
 											</div>
@@ -297,7 +297,7 @@ $b = 1;
 																. intval((($repeaters[1] / $lottery->last_drawn['range']) * 100)) . "% of the time).<br />";
 														endif;
 													endforeach;
-													echo "<style='display: inline'>" . $s . "</style>";
+													echo "<span style='display: inline'>" . $s . "</span>";
 													$s = '';
 													foreach ($repeat_tops as $c => $t) :
 														$tops = explode('=', $t);
@@ -305,7 +305,7 @@ $b = 1;
 													endforeach;
 													$s = (!empty($s) ? substr($s, 0, -2) . '.' : 'There are no top repeating numbers.<br />');
 													echo "<br />";
-													echo "<style='display: inline'>" . $s . "</style>"; ?>
+													echo "<span style='display: inline'>" . $s . "</span>"; ?>
 													<div class="d-flex justify-content-between align-items-center border-bottom mb-3">
 														<p class="text-success text-xl">
 															<i class="ion ion-ios-refresh-empty"></i>
@@ -328,11 +328,11 @@ $b = 1;
 																. intval((($consecutives[1] / $lottery->last_drawn['range']) * 100)) . "% of the time).<br />";
 														endif;
 													endforeach;
-													echo "<style='display: inline'>" . $s . "</style>";
+													echo "<span style='display: inline'>" . $s . "</span>";
 													$s = '';
 													if (($consecs_last[0] != '0') && ($consecs_last[1] != '0')) $s .= '<strong>' . $consecs_last[0] . '</strong> consecutive number(s) were last drawn on: <br /><strong>' . date("l, F j, Y", strtotime(str_replace('/', '-', $consecs_last[1]))) . ".";
 													echo "<br />";
-													echo "<style='display: inline'>" . $s . "</style>"; ?>
+													echo "<span style='display: inline'>" . $s . "</span>"; ?>
 												</h5>
 											</div>
 											<!-- /.d-flex -->
@@ -366,7 +366,7 @@ $b = 1;
 														$oe = explode('=', $p);
 														$s .= 'Odd / Even: <strong>' . $oe[0] . '</strong> has occurred <strong>' . $oe[1] . "</strong> times.<br />";
 													endforeach;
-													echo "<style='display: inline'>" . $s . "</style>";
+													echo "<span style='display: inline'>" . $s . "</span>";
 													$s = '';
 													if ($parity_string[1] == "0-0") : $s .= "There is currently <strong>NO</strong> low Odd - Even Combinations that 
 														has occurred over this range.<br />";
@@ -392,7 +392,7 @@ $b = 1;
 														endforeach;
 													endif;
 													echo "<br />";
-													echo "<style='display: inline'>" . $s . "</style><br />"; ?>
+													echo "<span style='display: inline'>" . $s . "</span><br />"; ?>
 													<!-- /.d-flex -->
 													<div class="d-flex justify-content-between align-items-center border-bottom mb-3">
 														<i class="ion ion-ios-cart-outline"></i>
