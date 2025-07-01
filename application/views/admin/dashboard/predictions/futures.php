@@ -47,8 +47,8 @@
 	}
 	.mt-4 .table,
 	.generated-tickets-table {
-		width: 95% !important;
-		max-width: 95% !important;
+		width: 90% !important;
+		max-width: 90% !important;
 		margin-left: auto;
 		margin-right: auto;
 		display: table;
@@ -572,7 +572,7 @@
 									<table 
 										id="generated-tickets-table"
 										class="table table-bordered table-striped generated-tickets-table" 
-										style="width:95%; margin:0 auto;"
+										style="width:90%; margin:0 auto;"
 										data-toggle="table"
 										data-filter-control="true"
 										data-show-filter-control-switch="true"
