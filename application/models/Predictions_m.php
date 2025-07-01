@@ -2337,15 +2337,8 @@ class Predictions_m extends MY_Model
 			$last_digit_counts[$last_digit]++;
 		}
 		
-		// Count total numbers that are in last digit groups with more than 1 number
-		$total_last_digit_numbers = 0;
-		foreach ($last_digit_counts as $count) {
-			if ($count > 1) {
-				$total_last_digit_numbers += $count;
-			}
-		}
-		
-		return $total_last_digit_numbers;
+		// Return the maximum count of numbers with the same last digit
+		return max($last_digit_counts);
 	}
 	
 	/**
