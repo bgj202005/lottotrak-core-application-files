@@ -553,7 +553,7 @@
 								<label for="per_page" class="me-2">Combinations per page:</label>
 								<select name="per_page" id="per_page" class="form-select d-inline-block w-auto" onchange="document.getElementById('pagination-size-form').submit();">
 									<?php
-									$sizes = [10, 20, 50, 100, 200];
+									$sizes = [10, 20, 50, 100, 200, 300, 500, 1000];
 									foreach ($sizes as $size): ?>
 										<option value="<?= $size ?>" <?= (isset($pagination['per_page']) && $pagination['per_page'] == $size) ? 'selected' : '' ?>>
 											<?= $size ?>
