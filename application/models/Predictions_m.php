@@ -1213,15 +1213,21 @@ class Predictions_m extends MY_Model
 				list($num, $weight) = explode('=', $item);
 				$num = trim($num);
 				$weight = (int)trim($weight);
-				if (!isset($groups[$weight])) {
-					$groups[$weight] = [];
+				// Only add valid numbers (not empty, not 0, and numeric)
+				if ($num !== '' && $num !== '0' && is_numeric($num) && intval($num) > 0) {
+					if (!isset($groups[$weight])) {
+						$groups[$weight] = [];
+					}
+					$groups[$weight][] = $num;
 				}
-				$groups[$weight][] = $num;
 			}
 		}
 		// Parse non-followers group (0 group)
 		if (!empty($selected_nonfollowers)) {
-			$groups[0] = explode('|', $selected_nonfollowers);
+			$nonfollower_numbers = array_filter(array_map('trim', explode('|', $selected_nonfollowers)));
+			$groups[0] = array_filter($nonfollower_numbers, function($num) {
+				return $num !== '' && $num !== '0' && is_numeric($num) && intval($num) > 0;
+			});
 		}
 		// Sort groups by weight descending (so highest group first)
 		krsort($groups);
@@ -1675,7 +1681,8 @@ class Predictions_m extends MY_Model
 		    // Helper: Find a replacement from $follow_list not already in $exclude
 			$find_follower_replacement = function($exclude) use ($follow_list) {
 				foreach ($follow_list as $num) {
-					if (!in_array($num, $exclude)) {
+					// Ensure the number is valid (not 0, not empty, and numeric)
+					if ($num !== '0' && $num !== 0 && $num !== '' && is_numeric($num) && intval($num) > 0 && !in_array($num, $exclude)) {
 						return $num;
 					}
 				}
@@ -1887,13 +1894,13 @@ class Predictions_m extends MY_Model
 				if (isset($groups[$position - 1])) {
 					$group = $groups[$position - 1];
 					$data = substr($group, strpos($group, '>') + 1);
-					$pairs = explode('|', $data);
+					$pairs = array_filter(array_map('trim', explode('|', $data)));
 					foreach ($pairs as $pair) {
 						$kv = explode('=', $pair);
 						if (count($kv) == 2) {
 							$num = (int)trim($kv[0]);
 							$count = (int)trim($kv[1]);
-							if ($count >= 3) {
+							if ($num > 0 && $count >= 3) { // Ensure num is valid
 								$followers_list[$num] = $count;
 							}
 						}
@@ -1904,9 +1911,12 @@ class Predictions_m extends MY_Model
 				if (isset($groups[$position - 1])) {
 					$group = $groups[$position - 1];
 					$data = substr($group, strpos($group, '>') + 1);
-					$pairs = explode('|', $data);
+					$pairs = array_filter(array_map('trim', explode('|', $data)));
 					foreach ($pairs as $pair) {
-						$non_followers_list[$pair] = 0;					
+						$num = (int)trim($pair);
+						if ($num > 0) { // Only add valid numbers > 0
+							$non_followers_list[$num] = 0;
+						}
 					}
 				}
 			} else {
@@ -1915,13 +1925,13 @@ class Predictions_m extends MY_Model
 				foreach ($groups as $group) {
 					if (strpos($group, $select . '>') === 0) {
 						$data = substr($group, strlen($select) + 1);
-						$pairs = explode('|', $data);
+						$pairs = array_filter(array_map('trim', explode('|', $data)));
 						foreach ($pairs as $pair) {
 							$kv = explode('=', $pair);
 							if (count($kv) == 2) {
 								$num = (int)trim($kv[0]);
 								$count = (int)trim($kv[1]);
-								if ($count >= 3) {
+								if ($num > 0 && $count >= 3) { // Ensure num is valid
 									$followers_list[$num] = $count;
 								}
 							}
@@ -1933,9 +1943,12 @@ class Predictions_m extends MY_Model
 				foreach ($groups as $group) {
 					if (strpos($group, $select . '>') === 0) {
 						$data = substr($group, strlen($select) + 1);
-						$pairs = explode('|', $data);
+						$pairs = array_filter(array_map('trim', explode('|', $data)));
 						foreach ($pairs as $pair) {
-							$non_followers_list[$pair] = 0;					
+							$num = (int)trim($pair);
+							if ($num > 0) { // Only add valid numbers > 0
+								$non_followers_list[$num] = 0;
+							}
 						}
 					}
 				}
