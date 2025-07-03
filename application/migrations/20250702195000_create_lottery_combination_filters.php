@@ -72,7 +72,7 @@ class Migration_Create_Lottery_Combination_Filters extends CI_Migration {
                         'ball_points' => array(
                             'type' => 'VARCHAR',
                             'constraint' => '11',
-                            'unsigned' => TRUE
+                            'null' => TRUE
                         ),
                         'position_points' => array(
                             'type' => 'VARCHAR',
@@ -285,6 +285,6 @@ class Migration_Create_Lottery_Combination_Filters extends CI_Migration {
         }
         public function down()
         {
-                $this->dbforge->drop_table('lottery_combination_filteredy_Combination_Filters');
+                $this->dbforge->drop_table('lottery_combination_filters');
         }
 }
