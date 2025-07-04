@@ -1468,7 +1468,8 @@ class Predictions extends Admin_Controller {
 		$session_data = $this->session->userdata('futures_form');
 		$number_array = $this->session->userdata('futures_number_array');
 		$combination_file = $this->session->userdata('combination_file');
-		
+		$combo_id = $this->predictions_m->get_combination_id($combination_file);
+
 		if (!$session_data || !$number_array || !$combination_file) {
 			$message = 'Session data not found. Please generate tickets first.';
 			
@@ -1590,6 +1591,7 @@ class Predictions extends Admin_Controller {
 			'9_win' => 0,
 			'9_win_extra' => 0,
 			'active' => 1,
+			'combo_id' => $combo_id, // Store the id from the combination_table_files table
 			'lottery_id' => $id
 		];
 		

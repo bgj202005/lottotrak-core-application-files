@@ -2792,14 +2792,14 @@ class Predictions_m extends MY_Model
 		return $saved_count > 0;
 	}
 
-	/**
-	 * Check if a combination passes all filters
-	 *
-	 * @param array $combo The combination to check (as ball1, ball2, etc.)
-	 * @param array $filters Array of filter criteria
-	 * @return bool True if combination passes all filters
-	 */
-	private function passes_all_filters($combo, $filters)
+		/**
+		 * Check if a combination passes all filters
+		 *
+		 * @param array $combo The combination to check (as ball1, ball2, etc.)
+		 * @param array $filters Array of filter criteria
+		 * @return bool True if combination passes all filters
+		 */
+		private function passes_all_filters($combo, $filters)
 	{
 		// Apply trend filter if specified
 		if (!empty($filters['selected_trends']) && $filters['selected_trends'] !== 'ALL') {
@@ -2822,8 +2822,28 @@ class Predictions_m extends MY_Model
 				return false;
 			}
 		}
-		
 		// Apply other filters using existing method
 		return $this->apply_other_filters($combo, $filters);
+	}
+/**
+	 * Check if a combination passes all filters
+	 *
+	 * @param string 	$name 	The combination to check (as ball1, ball2, etc.)
+	 * @return integer 	id	 	Unique ID for the combination 
+	 */
+	public function get_combination_id($name)
+	{
+		// Trim the input to remove any leading/trailing whitespace
+    	$name = trim($name);
+		// Check if the combination already exists in the database
+		$this->db->select('id');
+		$this->db->from('lottery_combination_files');
+		$this->db->where('file_name', $name);
+		$query = $this->db->get();
+		if ($query->num_rows() > 0) {
+			return $query->row()->id; // Return existing ID
+		} else {
+			return NULL; // return NULL if not found, or error
+		}
 	}
 }
