@@ -283,6 +283,36 @@
 		box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 		outline: 0;
 	}
+	
+	/* Button state styling */
+	.btn:disabled {
+		opacity: 0.5 !important;
+		cursor: not-allowed !important;
+	}
+	
+	.btn:not(:disabled) {
+		opacity: 1 !important;
+		cursor: pointer !important;
+	}
+	
+	/* Progress bar styling */
+	.progress {
+		height: 25px;
+		background-color: #e9ecef;
+		border-radius: 0.375rem;
+		overflow: hidden;
+	}
+	
+	.progress-bar {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		color: #fff;
+		text-align: center;
+		white-space: nowrap;
+		background-color: #007bff;
+		transition: width 0.3s ease;
+	}
 </style>
 	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
 	<script src="//code.jquery.com/jquery-1.12.4.js"></script>
@@ -762,7 +792,126 @@
 
 		// After Save Filtered Tickets is clicked, enable Delete Filtered Tickets
 		saveBtn.addEventListener('click', function (e) {
-			deleteBtn.disabled = false;
+			e.preventDefault();
+			
+			// Show progress indicator
+			const originalText = saveBtn.textContent;
+			saveBtn.textContent = 'Saving...';
+			saveBtn.disabled = true;
+			
+			// Create and show progress bar
+			const progressContainer = document.createElement('div');
+			progressContainer.className = 'progress mb-3';
+			progressContainer.innerHTML = `
+				<div class="progress-bar progress-bar-striped progress-bar-animated" 
+					 role="progressbar" 
+					 style="width: 0%" 
+					 aria-valuenow="0" 
+					 aria-valuemin="0" 
+					 aria-valuemax="100">
+					Saving filtered tickets...
+				</div>
+			`;
+			
+			// Insert progress bar before the form
+			const form = document.querySelector('form');
+			form.insertBefore(progressContainer, form.firstChild);
+			
+			// Animate progress bar
+			const progressBar = progressContainer.querySelector('.progress-bar');
+			let progress = 0;
+			const progressInterval = setInterval(() => {
+				progress += 10;
+				progressBar.style.width = progress + '%';
+				progressBar.setAttribute('aria-valuenow', progress);
+				
+				if (progress >= 90) {
+					clearInterval(progressInterval);
+				}
+			}, 200);
+			
+			// Make AJAX request to save filtered tickets
+			fetch('<?= base_url(); ?>admin/predictions/combination_save/<?= $lottery->id; ?>', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Requested-With': 'XMLHttpRequest'
+				},
+				body: JSON.stringify({
+					lottery_id: <?= $lottery->id; ?>
+				})
+			})
+			.then(response => response.json())
+			.then(data => {
+				// Complete progress bar
+				clearInterval(progressInterval);
+				progressBar.style.width = '100%';
+				progressBar.setAttribute('aria-valuenow', '100');
+				progressBar.textContent = 'Complete!';
+				
+				// Remove progress bar after a short delay
+				setTimeout(() => {
+					progressContainer.remove();
+				}, 1000);
+				
+				// Reset button state but keep it disabled after successful save
+				saveBtn.textContent = originalText;
+				
+				if (data.success) {
+					// Show success message
+					const messageDiv = document.createElement('div');
+					messageDiv.className = 'alert alert-success alert-dismissible fade show';
+					messageDiv.innerHTML = data.message + '<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>';
+					
+					// Insert message at the top of the form
+					form.insertBefore(messageDiv, form.firstChild);
+					
+					// Grey out and disable Save Filtered Tickets button (requirement 6)
+					saveBtn.disabled = true;
+					saveBtn.style.opacity = '0.5';
+					saveBtn.style.cursor = 'not-allowed';
+					
+					// Enable and not greyed out Delete Filtered Tickets button (requirement 7)
+					deleteBtn.disabled = false;
+					deleteBtn.style.opacity = '1';
+					deleteBtn.style.cursor = 'pointer';
+				} else {
+					// Show error message and re-enable save button
+					const messageDiv = document.createElement('div');
+					messageDiv.className = 'alert alert-danger alert-dismissible fade show';
+					messageDiv.innerHTML = data.message + '<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>';
+					
+					// Insert message at the top of the form
+					form.insertBefore(messageDiv, form.firstChild);
+					
+					// Re-enable save button on error
+					saveBtn.disabled = false;
+					saveBtn.style.opacity = '1';
+					saveBtn.style.cursor = 'pointer';
+				}
+			})
+			.catch(error => {
+				// Clear progress interval and remove progress bar
+				clearInterval(progressInterval);
+				progressContainer.remove();
+				
+				// Reset button state
+				saveBtn.textContent = originalText;
+				saveBtn.disabled = false;
+				saveBtn.style.opacity = '1';
+				saveBtn.style.cursor = 'pointer';
+				
+				// Show error message
+				const messageDiv = document.createElement('div');
+				messageDiv.className = 'alert alert-danger alert-dismissible fade show';
+				messageDiv.innerHTML = 'An error occurred while saving filtered tickets. Please try again. <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>';
+				
+				// Insert message at the top of the form
+				const form = document.querySelector('form');
+				form.insertBefore(messageDiv, form.firstChild);
+				
+				console.error('Error:', error);
+			});
 		});
 
 		// Reset Settings button functionality

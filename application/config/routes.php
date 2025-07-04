@@ -51,6 +51,8 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 */
 $route['default_controller'] = 'page';
 $route['translate_uri_dashes'] = FALSE;
+// Add route for combination save
+$route['admin/predictions/combination_save/(:num)'] = 'admin/predictions/combination_save/$1';
 // $route[':any'] = 'page/index/$1';
 $route['article/(:num)/(:any)'] = 'article/index/$1/$2';
-$route['404_override'] = 'page'; 
+$route['404_override'] = 'page';

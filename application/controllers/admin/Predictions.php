@@ -1449,4 +1449,213 @@ class Predictions extends Admin_Controller {
 		$this->data['subview'] = 'admin/dashboard/predictions/futures';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
+
+	/**
+	 * Saves filtered combination tickets to the lottery_combination_filters table
+	 * 
+	 * @param       integer	$id		Lottery id
+	 * @return      void
+	 */
+	public function combination_save($id)
+	{
+		// Check if this is an AJAX request
+		$is_ajax = $this->input->is_ajax_request();
+		
+		$this->data['message'] = '';
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		
+		// Get session data
+		$session_data = $this->session->userdata('futures_form');
+		$number_array = $this->session->userdata('futures_number_array');
+		$combination_file = $this->session->userdata('combination_file');
+		
+		if (!$session_data || !$number_array || !$combination_file) {
+			$message = 'Session data not found. Please generate tickets first.';
+			
+			if ($is_ajax) {
+				$this->output
+					->set_content_type('application/json')
+					->set_output(json_encode([
+						'success' => false,
+						'message' => $message
+					]));
+				return;
+			}
+			
+			$this->session->set_flashdata('message', '<div class="alert alert-danger">' . $message . '</div>');
+			redirect('admin/predictions/futures/' . $id);
+			return;
+		}
+		
+		// Get the filtered combinations count
+		$drawn = $this->data['lottery']->balls_drawn;
+		$filepath = FCPATH . 'combinations/' . basename($combination_file) . '.txt';
+		
+		// Load required data for filtering
+		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);
+		$p_group = $this->statistics_m->prize_group_profile($id);
+		$p_group = $this->statistics_m->prizes_only($p_group, $this->data['lottery']->extra_ball);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_prizegroup($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_ball, $p_group);
+		
+		// Get followers data for last_drawn processing
+		$followers = $this->predictions_m->get_followers($id);
+		$follower_wins = explode(">", $followers['wins']);
+		$follow_poswins = explode(">", $followers['positions']);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $followers['extra_included'], $p_group, $follower_wins, $follow_poswins);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $followers['extra_included']);
+		
+		// Load lottery highlights for filtering
+		$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
+		
+		// Prepare filter array
+		$filters = [
+			'selected_trends' => $session_data['selected_trends'],
+			'selected_winning_sums' => $session_data['selected_winning_sums'],
+			'selected_winning_digits' => $session_data['selected_winning_digits'],
+			'selected_repeaters' => $session_data['selected_repeaters'],
+			'selected_consecutives' => $session_data['selected_consecutives'],
+			'selected_parity' => $session_data['selected_parity'],
+			'selected_decades' => $session_data['selected_decades'],
+			'selected_last_digits' => $session_data['selected_last_digits'],
+			'selected_number_range' => $session_data['selected_number_range'],
+			'selected_adjacents' => $session_data['selected_adjacents'],
+			'drawn' => $drawn,
+			'lottery_last_drawn' => $this->data['lottery']->last_drawn,
+			'extra_ball' => $this->data['lottery']->extra_ball,
+			'lottery_highlights' => $this->data['lottery']->highlights
+		];
+		
+		$filtered_count = $this->predictions_m->get_filtered_combinations_count($filepath, $number_array, $filters);
+		
+		// Get current user ID and format it with leading zero if needed
+		$current_user_id = $this->session->userdata('id');
+		$formatted_user_id = str_pad($current_user_id, 2, '0', STR_PAD_LEFT);
+		
+		// Create filename: 060828ADMIN01 format (MMDDYY + ADMIN + user_id)
+		$current_date = date('mdy'); // Get current date in MMDDYY format
+		$file_name = $current_date . 'ADMIN' . $formatted_user_id;
+		
+		// Set N to 12 (balls predicted/generated) and R from lottery data (balls_drawn)
+		$N = 12; // Number of balls predicted/generated
+		$R = $this->data['lottery']->balls_drawn; // Pick number from lottery data (Pick 5, Pick 6, etc.)
+		
+		// CCCC is the actual filtered count from get_filtered_combinations_count() method
+		// This will be the actual number of tickets after filtering (e.g., 5 tickets after sum filtering)
+		
+		// Prepare data for saving
+		$save_data = [
+			'file_name' => $file_name,
+			'N' => $N,
+			'R' => $R,
+			'CCCC' => $filtered_count, // Use actual filtered count
+			'hwc' => $session_data['selected_hwc'] ? 1 : 0,
+			'followers' => $session_data['selected_followers'] ? 1 : 0,
+			'friends' => $session_data['selected_friends_checkbox'] ? 1 : 0,
+			'h_w_c_group' => $session_data['selected_h_w_c_group'],
+			'follower_type' => $session_data['selected_followers_type'],
+			'ball_points' => $session_data['selected_ball_points'],
+			'position_points' => $session_data['selected_position_points'],
+			'selected_friends' => $session_data['selected_friends'], // Use actual friends dropdown value (all, none, 1, 2)
+			'trends' => $session_data['selected_trends'],
+			'winning_sums' => $session_data['selected_winning_sums'],
+			'winning_digits' => $session_data['selected_winning_digits'],
+			'repeaters' => $session_data['selected_repeaters'],
+			'consecutives' => $session_data['selected_consecutives'],
+			'parity' => $session_data['selected_parity'],
+			'decades' => $session_data['selected_decades'],
+			'last_digits' => $session_data['selected_last_digits'],
+			'number_range' => $session_data['selected_number_range'],
+			'adjacents' => $session_data['selected_adjacents'],
+			'user' => 1, // Admin user
+			'user_id' => $current_user_id,
+			'member_id' => 0, // Default for admin
+			'extra' => 0,
+			'1_win' => 0,
+			'1_win_extra' => 0,
+			'2_win' => 0,
+			'2_win_extra' => 0,
+			'3_win' => 0,
+			'3_win_extra' => 0,
+			'4_win' => 0,
+			'4_win_extra' => 0,
+			'5_win' => 0,
+			'5_win_extra' => 0,
+			'6_win' => 0,
+			'6_win_extra' => 0,
+			'7_win' => 0,
+			'7_win_extra' => 0,
+			'8_win' => 0,
+			'8_win_extra' => 0,
+			'9_win' => 0,
+			'9_win_extra' => 0,
+			'active' => 1,
+			'lottery_id' => $id
+		];
+		
+		// Save to database
+		$saved = $this->predictions_m->save_combination_filter($save_data);
+		
+		if ($saved) {
+			// Create Pick subdirectory in combinations directory if it doesn't exist
+			$pick_dir = FCPATH . 'combinations/pick' . $R . '/';
+			if (!is_dir($pick_dir)) {
+				mkdir($pick_dir, 0755, true);
+			}
+			
+			// Debug: Log the directory path and R value
+			log_message('info', 'Pick directory: ' . $pick_dir . ' (R=' . $R . ')');
+			
+			// Save filtered combinations to file
+			$pick_file_path = $pick_dir . $file_name . '.txt';
+			$success = $this->predictions_m->save_filtered_combinations_to_file($filepath, $number_array, $filters, $pick_file_path);
+			
+			if ($success) {
+				$message = 'Combination Ticket File ' . $file_name . ' is Successfully Saved to the combinations/pick' . $R . ' Directory.';
+				
+				if ($is_ajax) {
+					$this->output
+						->set_content_type('application/json')
+						->set_output(json_encode([
+							'success' => true,
+							'message' => $message
+						]));
+					return;
+				}
+				
+				$this->session->set_flashdata('message', '<div class="alert alert-success">' . $message . '</div>');
+			} else {
+				$message = 'Combination Ticket File ' . $file_name . ' has not been Saved to the combinations/pick' . $R . ' Directory.';
+				
+				if ($is_ajax) {
+					$this->output
+						->set_content_type('application/json')
+						->set_output(json_encode([
+							'success' => false,
+							'message' => $message
+						]));
+					return;
+				}
+				
+				$this->session->set_flashdata('message', '<div class="alert alert-danger">' . $message . '</div>');
+			}
+		} else {
+			$message = 'Failed to save combination filter data to database.';
+			
+			if ($is_ajax) {
+				$this->output
+					->set_content_type('application/json')
+					->set_output(json_encode([
+						'success' => false,
+						'message' => $message
+					]));
+				return;
+			}
+			
+			$this->session->set_flashdata('message', '<div class="alert alert-danger">' . $message . '</div>');
+		}
+		
+		// For non-AJAX requests, redirect back to futures page with message
+		redirect('admin/predictions/futures/' . $id);
+	}
 }

@@ -2706,4 +2706,124 @@ class Predictions_m extends MY_Model
 		
 		return false;
 	}
+
+	/**
+	 * Save combination filter data to lottery_combination_filters table
+	 *
+	 * @param array $data Data to save
+	 * @return bool True on success, false on failure
+	 */
+	public function save_combination_filter($data)
+	{
+		return $this->db->insert('lottery_combination_filters', $data);
+	}
+
+	/**
+	 * Save filtered combinations to a file
+	 *
+	 * @param string $filepath Path to the source combination file
+	 * @param array $number_array Array of numbers to filter with
+	 * @param array $filters Array of filter criteria
+	 * @param string $output_file_path Path to save the filtered combinations
+	 * @return bool True on success, false on failure
+	 */
+	public function save_filtered_combinations_to_file($filepath, $number_array, $filters, $output_file_path)
+	{
+		if (!file_exists($filepath)) {
+			return false;
+		}
+
+		$handle = fopen($filepath, 'r');
+		$output_handle = fopen($output_file_path, 'w');
+		
+		if (!$handle || !$output_handle) {
+			if ($handle) fclose($handle);
+			if ($output_handle) fclose($output_handle);
+			return false;
+		}
+
+		$line_count = 0;
+		$saved_count = 0;
+
+		while (($line = fgets($handle)) !== false) {
+			$line_count++;
+			$line = trim($line);
+			
+			if (empty($line)) {
+				continue;
+			}
+
+			// Parse the combination line
+			$positions = array_map('intval', explode(' ', $line));
+			$combo_numbers = [];
+			foreach ($positions as $pos) {
+				// Validate position index
+				if ($pos > 0 && isset($number_array[$pos - 1])) {
+					$combo_numbers[] = $number_array[$pos - 1];
+				}
+			}
+			
+			// Skip if we don't have valid numbers
+			if (empty($combo_numbers)) continue;
+			
+			sort($combo_numbers, SORT_NUMERIC); // Sort numbers from lowest to highest
+
+			// Re-index as ball1, ball2, ...
+			$combo = [];
+			foreach ($combo_numbers as $idx => $num) {
+				$combo['ball'.($idx+1)] = $num;
+			}
+			
+			// Check if this combination contains any of our selected numbers
+			$intersection = array_intersect($combo_numbers, $number_array);
+			
+			if (!empty($intersection)) {
+				// Apply additional filters
+				if ($this->passes_all_filters($combo, $filters)) {
+					fwrite($output_handle, $line . "\n");
+					$saved_count++;
+				}
+			}
+		}
+
+		fclose($handle);
+		fclose($output_handle);
+
+		return $saved_count > 0;
+	}
+
+	/**
+	 * Check if a combination passes all filters
+	 *
+	 * @param array $combo The combination to check (as ball1, ball2, etc.)
+	 * @param array $filters Array of filter criteria
+	 * @return bool True if combination passes all filters
+	 */
+	private function passes_all_filters($combo, $filters)
+	{
+		// Apply trend filter if specified
+		if (!empty($filters['selected_trends']) && $filters['selected_trends'] !== 'ALL') {
+			$drawn = $filters['drawn'] ?? 0;
+			$last_drawn = $filters['lottery_last_drawn'] ?? [];
+			$extra_ball = $filters['extra_ball'] ?? 0;
+			
+			// Prepare last drawn numbers for trend filtering
+			$last_drawn_numbers = [];
+			for ($i = 1; $i <= $drawn; $i++) {
+				if (isset($last_drawn['ball' . $i])) {
+					$last_drawn_numbers[] = (int)$last_drawn['ball' . $i];
+				}
+			}
+			if ($extra_ball && isset($last_drawn['extra'])) {
+				$last_drawn_numbers[] = (int)$last_drawn['extra'];
+			}
+			
+			if (!$this->check_trend_match($combo, $last_drawn_numbers, $filters['selected_trends'])) {
+				return false;
+			}
+		}
+		
+		// Apply other filters using existing method
+		return $this->apply_other_filters($combo, $filters);
+	}
 }
