@@ -96,8 +96,8 @@ usort($lottery->generate, function ($a, $b) {
 										<?php 
 										$row = 1; 
 										foreach ($lottery->generate as $index => $file) { 
-										// Call the is_combination_generated method from the predictions_m model
-            								$is_generated = $this->predictions_m->is_combination_generated($file->file_name); ?>
+										// Call the is_combination_generated method from the combination_files_m model
+            								$is_generated = $predictions->combination_files_m->is_combination_generated($file->file_name); ?>
 											<tr>    
 												<th scope="row" style="text-align:center;"><?= $row; ?></th>
 												<div class="form-check">

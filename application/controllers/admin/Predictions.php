@@ -8,7 +8,16 @@ class Predictions extends Admin_Controller {
 		 $this->load->model('lotteries_m'); // Lottery Model
 		 $this->load->model('statistics_m'); // Statistics Model
 		 $this->load->model('history_m'); // History Model
-		 $this->load->model('predictions_m'); // Predictions Model	
+		 $this->load->model('predictions_m'); // Predictions Model (main interface)
+		 
+		 // Load new specialized models
+		 $this->load->model('combination_files_m'); // Combination file operations
+		 $this->load->model('lottery_data_m'); // Lottery profile data
+		 $this->load->model('lottery_statistics_m'); // Statistical analysis
+		 $this->load->model('number_generation_m'); // Number generation
+		 $this->load->model('combination_filters_m'); // Filtering logic
+		 $this->load->model('math_utilities_m'); // Math utilities
+		 
 		 $this->load->library('Math_Combinatorics'); // * Originally from the Pear Libraries *
 		 $this->load->model('maintenance_m'); 
 	}
@@ -70,13 +79,12 @@ class Predictions extends Admin_Controller {
 		{
 			$combo_rules = $this->predictions_m->rules;
 			$this->form_validation->set_rules($combo_rules);
-		
-			if ($this->form_validation->run() == TRUE) 
-			{
-				$this->data['combinations'] = $this->predictions_m->bcComb_N_R($this->data['lottery']->predict, $this->data['lottery']->pick);
-				$this->data['save'] = TRUE;
-				$this->data['message'] = "Combination Calculation is complete.";
-			}
+				if ($this->form_validation->run() == TRUE) 
+		{
+			$this->data['combinations'] = $this->math_utilities_m->bcComb_N_R($this->data['lottery']->predict, $this->data['lottery']->pick);
+			$this->data['save'] = TRUE;
+			$this->data['message'] = "Combination Calculation is complete.";
+		}
 		}
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
@@ -107,12 +115,12 @@ class Predictions extends Admin_Controller {
 		$file_name .= (intval($this->data['lottery']->predict) < 10 ? '0' : '') . intval($this->data['lottery']->predict);
 		$file_name .= intval($this->data['combinations']); // No leading zero for tickets
 		
-		$path = $this->predictions_m->full_path($file_name);
+	$path = $this->combination_files_m->full_path($file_name);
 
-		if((file_exists($path))&&($this->predictions_m->lottery_combination_record($file_name))) 
-		{
-			$this->data['message'] = $file_name.'.txt currently exists in the '.predictions_m::DIR.' directory.<br />Please delete this File first.';
-		}
+	if((file_exists($path))&&($this->combination_files_m->lottery_combination_record($file_name))) 
+	{
+		$this->data['message'] = $file_name.'.txt currently exists in the '.Combination_files_m::DIR.' directory.<br />Please delete this File first.';
+	}
 		else
 		{
 			$combo_data = [
@@ -123,7 +131,7 @@ class Predictions extends Admin_Controller {
             'pick_id' => $this->data['lottery']->pick, // Use pick_id instead of lottery_id
         	];
 
-			if(!$this->predictions_m->lottery_combo_save($combo_data))
+			if(!$this->combination_files_m->lottery_combo_save($combo_data))
 			{
 				$this->data['message'] = 'There is a problem with adding a record to the lottery_combination_files table.';
 			}
@@ -162,18 +170,17 @@ class Predictions extends Admin_Controller {
 	 */
 	public function generate($id)
 	{
-		$this->data['message'] = '';			// Defaulted to No Error Messages
-		$this->data['lottery'] = $this->lotteries_m->get($id);
-		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_files($this->data['lottery']->balls_drawn);
-		if(count($this->data['lottery']->generate)>1) 
+	$this->data['message'] = '';			// Defaulted to No Error Messages
+	$this->data['lottery'] = $this->lotteries_m->get($id);
+	$this->data['lottery']->generate = $this->combination_files_m->lottery_combination_files($this->data['lottery']->balls_drawn);
+	if(count($this->data['lottery']->generate)>1)
 		{
 			$this->data['predictions'] = $this;		// Access the methods in the view
 			$this->data['subview'] = 'admin/dashboard/predictions/file_select';
 		}
 		else
-		{
-			$file_name = $this->data['lottery']->generate[0]->file_name; // Get the single file name
-			$file_path = $this->predictions_m->full_path($file_name);
+		{		$file_name = $this->data['lottery']->generate[0]->file_name; // Get the single file name
+		$file_path = $this->combination_files_m->full_path($file_name);
 			if (file_exists($file_path)) {
 				$file_content = file_get_contents($file_path); // Read file content
 				$is_generated = !empty(trim($file_content)); // Check if file content is not empty
@@ -210,15 +217,15 @@ class Predictions extends Admin_Controller {
 	{
 		$this->data['message'] = '';	// Defaulted to No Error Messages
 		$this->data['lottery'] = $this->lotteries_m->get($id);
-		$file_name = $this->input->post('file', TRUE);  // POST value from radio selection
-		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_record($file_name);
-		
-		$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; 		//Calculated Combinations
+	$file_name = $this->input->post('file', TRUE);  // POST value from radio selection
+	$this->data['lottery']->generate = $this->combination_files_m->lottery_combination_record($file_name);
+	
+	$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; 		//Calculated Combinations
 		$this->data['predict']=$this->data['lottery']->generate[0]->N;				//Number of Predictions
 		$this->data['pick']=$this->data['lottery']->generate[0]->R;					// Pick Game
 		$this->data['filename']=$this->data['lottery']->generate[0]->file_name;		// File name of text file
 		// Read the content of the file
-    	$file_path = $this->predictions_m->full_path($file_name);
+    	$file_path = $this->combination_files_m->full_path($file_name);
 		if (file_exists($file_path)) {
 			$file_content = file_get_contents($file_path); // Read file content
 			$is_generated = !empty(trim($file_content)); // Check if file content is not empty
@@ -253,7 +260,7 @@ class Predictions extends Admin_Controller {
 		$error = FALSE;
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		$file_name = $this->input->post('filename', TRUE);  // POST value from radio selection
-		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_record($file_name);
+		$this->data['lottery']->generate = $this->combination_files_m->lottery_combination_record($file_name);
 		$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; 	//Calculated Combinations
 		$this->data['predict']=$this->data['lottery']->generate[0]->N;			//Number of Predictions
 		$this->data['pick']=$this->data['lottery']->generate[0]->R;				// Pick Game
@@ -262,12 +269,12 @@ class Predictions extends Admin_Controller {
 		//$this->data['subview'] = 'admin/dashboard/predictions/generate';
 		$predict[] = array();	// declare a blank number prediction array
 		$combinations[] = array();
-		$predict = $this->predictions_m->wheeled($this->data['predict']);
+		$predict = $this->number_generation_m->wheeled($this->data['predict']);
 		$combinations = $this->math_combinatorics->combinations($predict, $this->data['pick']); // Based on the pick game 
 		$this->data['combinations'] = count($combinations);
-		if(!$this->predictions_m->combs_already($this->data['filename'], $this->data['combinations']))
-		{
-			if(!$this->predictions_m->text_combs_save($this->data['filename'],$combinations)) //Separate into the proper format and save to the text file
+	if(!$this->combination_files_m->combs_already($this->data['filename'], $this->data['combinations']))
+	{
+		if(!$this->combination_files_m->text_combs_save($this->data['filename'],$combinations)) //Separate into the proper format and save to the text file
 			{
 			//$this->data['message'] = "An error has occurred to convert the combinations to a text file.";
 				$message = "An error has occurred to convert the combinations to a text file.";
@@ -310,7 +317,7 @@ class Predictions extends Admin_Controller {
 	 */
 	public function combo_counter($name, $combs)
 	{
-		$fp = fopen($this->predictions_m->full_path($name), "r");
+		$fp = fopen($this->combination_files_m->full_path($name), "r");
 		$combotext = '';
 		$processed_combinations = 20; // Process 20 combinations at a time
 		// Initialize session variables if not already set
@@ -385,15 +392,15 @@ class Predictions extends Admin_Controller {
 		{
 			$this->data['message'] = 'There is no Filename avaiable to delete the database record and file.';
 		}
-		if(!is_null($name)&&!$this->predictions_m->delete_combination_record($name))
-		{
-			$this->data['message'] = 'The record for the filename '.$name.'.txt could not be found.';
-		}
-		if(!is_null($name)&&!$this->predictions_m->delete_combination_file($name))
-		{
-			$this->data['message'] = 'The file with the filename '.$name.'.txt could not be found in the combinations directory.';
-		}
-		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_files($id);
+	if(!is_null($name)&&!$this->combination_files_m->delete_combination_record($name))
+	{
+		$this->data['message'] = 'The record for the filename '.$name.'.txt could not be found.';
+	}
+	if(!is_null($name)&&!$this->combination_files_m->delete_combination_file($name))
+	{
+		$this->data['message'] = 'The file with the filename '.$name.'.txt could not be found in the combinations directory.';
+	}
+	$this->data['lottery']->generate = $this->combination_files_m->lottery_combination_files($id);
 		if(count($this->data['lottery']->generate)>1) 
 		{
 			$this->data['predictions'] = $this;		// Access the methods in the view
@@ -469,26 +476,27 @@ class Predictions extends Admin_Controller {
     	$this->data['combination_files'] = $this->predictions_m->get_combination_files($id);
 		// Before passing $combination_files to the view
 		if (!empty($this->data['combination_files'])) {
+
 			usort($this->data['combination_files'], function($a, $b) {
 				// Extract the number part from the file name (assuming format like "06120500.txt")
 				$numA = intval(preg_replace('/\D/', '', $a['file_name']));
 				$numB = intval(preg_replace('/\D/', '', $b['file_name']));
 				return $numA - $numB;
 			});
-		}
-		// Fetch H-W-C, Followers, and Friends data
-		$this->data['h_w_c'] = $this->predictions_m->get_h_w_c($id);
-		$h_w_c_group = $this->predictions_m->get_h_w_c_range($id);
-		// before passing $h_w_c_group to the view
+	}
+	// Fetch H-W-C, Followers, and Friends data
+	$this->data['h_w_c'] = $this->lottery_data_m->get_h_w_c($id);
+	$h_w_c_group = $this->lottery_statistics_m->get_h_w_c_range($id);
+	// before passing $h_w_c_group to the view
 		$h_w_c_group_options = [];
 		foreach ($h_w_c_group as $group) {
 			// $group is something like "2-2-2 (17)"
 			$value = substr($group, 0, 5); // "2-2-2"
 			$h_w_c_group_options[$value] = $group;
 		}
-		$this->data['h_w_c_group'] = $h_w_c_group_options;
-		$this->data['followers'] = $this->predictions_m->get_followers($id);
-			$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
+	$this->data['h_w_c_group'] = $h_w_c_group_options;
+	$this->data['followers'] = $this->lottery_data_m->get_followers($id);
+		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 			// 1. Check for a record for the current lottery in the followers table
 			$p_group = $this->statistics_m->prize_group_profile($id); // Prize Group Profile Only
 			$p_group = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_ball);
@@ -498,24 +506,23 @@ class Predictions extends Admin_Controller {
 			$follow_poswins = explode(">",$this->data['followers']['positions']);
 			// 3. Only populate the numbers with the win record that was actually drawn
 			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'],$p_group,$follower_wins,$follow_poswins);
-			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included']);
-			$ball_points = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
-			// Example $ball_points_labels = ['7 (142)', '+14 (62)', '12 (88)', ...];
-			$ball_points_options = [];
-			foreach ($ball_points as $label) {
+			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included']);		$ball_points = $this->lottery_statistics_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
+		// Example $ball_points_labels = ['7 (142)', '+14 (62)', '12 (88)', ...];
+		$ball_points_options = [];
+		foreach ($ball_points as $label) {
 				// Extract value: if it starts with '+', keep '+', else just the number before space
 				if (strpos($label, '+') === 0) {
 					$value = substr($label, 0, strpos($label, ' ')); // '+14'
 				} else {
 					$value = strtok($label, ' '); // '7'
 				}
-				$ball_points_options[$value] = $label;
-			}
-			$this->data['ball_points_options'] = $ball_points_options;
-			$position_points = $this->predictions_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
-			$position_points_options = [];
-			foreach ($position_points as $label) {
-				if (strpos($label, '+') === 0) {
+		$ball_points_options[$value] = $label;
+		}
+		$this->data['ball_points_options'] = $ball_points_options;
+		$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
+		$position_points_options = [];
+		foreach ($position_points as $label) {
+			if (strpos($label, '+') === 0) {
 					$value = substr($label, 0, strpos($label, ' ')); // '+14'
 				} else {
 					$value = strtok($label, ' '); // '7'
@@ -911,10 +918,10 @@ class Predictions extends Admin_Controller {
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$drawn = $this->data['lottery']->balls_drawn;
-		$this->data['country_code'] = $this->predictions_m->get_lottery_country($id);
-		$this->data['state_prov_code'] = $this->predictions_m->get_lottery_state_prov($id);
-		// Fetch combination files for the lottery
-		$this->data['combination_files'] = $this->predictions_m->get_combination_files($id);
+	$this->data['country_code'] = $this->lottery_data_m->get_lottery_country($id);
+	$this->data['state_prov_code'] = $this->lottery_data_m->get_lottery_state_prov($id);
+	// Fetch combination files for the lottery
+	$this->data['combination_files'] = $this->lottery_data_m->get_combination_files($id);
 		if (!empty($this->data['combination_files'])) {
 			usort($this->data['combination_files'], function($a, $b) {
 				$numA = intval(preg_replace('/\D/', '', $a['file_name']));
@@ -941,21 +948,21 @@ class Predictions extends Admin_Controller {
 		$follow_poswins = explode(">", $this->data['followers']['positions']);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $p_group, $follower_wins, $follow_poswins);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included']);
-		// Ball points and position points setup
-		$ball_points = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
-		$ball_points_options = [];
-		foreach ($ball_points as $label) {
-			if (strpos($label, '+') === 0) {
-				$value = substr($label, 0, strpos($label, ' '));
-			} else {
-				$value = strtok($label, ' ');
-			}
-			$ball_points_options[$value] = $label;
+	// Ball points and position points setup
+	$ball_points = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
+	$ball_points_options = [];
+	foreach ($ball_points as $label) {
+		if (strpos($label, '+') === 0) {
+			$value = substr($label, 0, strpos($label, ' '));
+		} else {
+			$value = strtok($label, ' ');
 		}
-		$this->data['ball_points_options'] = $ball_points_options;
-		
-		$position_points = $this->predictions_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
-		$position_points_options = [];
+		$ball_points_options[$value] = $label;
+	}
+	$this->data['ball_points_options'] = $ball_points_options;
+	
+	$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
+	$position_points_options = [];
 		foreach ($position_points as $label) {
 			if (strpos($label, '+') === 0) {
 				$value = substr($label, 0, strpos($label, ' '));
@@ -1070,7 +1077,7 @@ class Predictions extends Admin_Controller {
 		}
 		$this->data['ball_points_options'] = $ball_points_options;
 
-		$position_points = $this->predictions_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
+		$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
 		$position_points_options = [];
 		foreach ($position_points as $label) {
 			$value = (strpos($label, '+') === 0) ? substr($label, 0, strpos($label, ' ')) : strtok($label, ' ');

@@ -13,141 +13,55 @@ class Predictions_m extends MY_Model
 		)
 	);
 	const DIR = 'combinations';
-/** This function returns the total count of the number of possible unique
- * 	combinations there are of N distinct items selected R at a time. The
- * 	sequential order of the items in each group is NOT important.
- * 	Only the collective content matters, regardless of order. 
- *	 Author   : Jay Tanner - 2014
- *   Language : PHP v5.x
- * 	 @param		integer	$N	distinct items (3 - 9 Numbers Drawn)
- *   @param 	integer $R  Number of Predicted Numbers (3 - 50)
- *	 @return	integer	$C	Number of Distinct Combinations
-*/
- 	public function bcComb_N_R ($N, $R)
+	// Mathematical functions moved to Math_utilities_m model
+	// Load the math utilities model for calculations
+	public function bcComb_N_R($N, $R)
 	{
-	$C = 1;
-	for ($i=0;   $i < $N-$R;   $i++)
-		{
-		$C = bcdiv(bcmul($C, $N-$i), $i+1);
-		}
-	return $C;
+		$this->load->model('math_utilities_m');
+		return $this->math_utilities_m->bcComb_N_R($N, $R);
 	}
-	/**
-	 * Returns the Lottery Combination File(s), if does not exist return FALSE
-	 * 
-	 * @param       integer	$pick_id	Related to the number of picks in a lottery. eg. 3, 4, 5, 6, 7, 8, 9
-	 * @return     	object 	$result		Return row, if lottery combination file(s) previously exists for the given lottery, else no record found and return false			
-	 */
+	// Combination file functions moved to Combination_files_m model
+	// Load the combination files model for file operations
 	public function lottery_combination_files($R)
 	{
-
-		// Fetch combination files based on pick_id
-    	return $this->db->where('R', $R)
-                    ->get('lottery_combination_files')
-                    ->result();
+		$this->load->model('combination_files_m');
+		return $this->combination_files_m->lottery_combination_files($R);
 	}
 
-	/**
-	 * Returns the Lottery Combination File(s), if does not exist return FALSE
-	 * 
-	 * @param       none
-	 * @return     	object 	$result		Return row, if lottery combination file(s) previously exists for the given lottery, else no record found and return false			
-	 */
 	public function all_combination_files()
 	{
-		$sql = "SELECT * FROM `lottery_combination_files`";
-		$result = $this->db->query($sql);
-			
-		if (empty($result->row())) return FALSE;
-	return $result->result_object;
+		$this->load->model('combination_files_m');
+		return $this->combination_files_m->all_combination_files();
 	}
 
-	/**
-	 * Returns a Lottery Combination Record (only one), if does not exist return FALSE
-	 * 
-	 * @param       string	$name		The name of the file_name of the combination file without the .txt extention
-	 * @return     	object 	$result		Return row, if lottery combination file(s) previously exists for the given lottery, else no record found and return false			
-	 */
 	public function lottery_combination_record($name)
 	{
-			$sql = "SELECT * FROM `lottery_combination_files` WHERE `file_name`=".$name." LIMIT 1";
-			$result = $this->db->query($sql);
-			
-			if (empty($result->row())) return FALSE;
-	return $result->result_object;
+		$this->load->model('combination_files_m');
+		return $this->combination_files_m->lottery_combination_record($name);
 	}
-	/** 
-	* Insert Lottery Combination File data of current lottery
-	* 
-	* @param 	array	$data		key / value pairs of new Lottery Combination File to be inserted / updated
-	* @return   none	
-	*/
+
 	public function lottery_combo_save($data)
 	{
-		// Ensure the data includes pick_id instead of lottery_id
-    	$combo_data = [
-			'file_name' => $data['file_name'],
-			'N' => $data['N'], // Number of predictions
-			'R' => $data['R'], // Pick game (e.g., 3, 4, 5, 6, etc.)
-			'CCCC' => $data['CCCC'], // Calculated combinations
-    	];
-		return $this->db->insert('lottery_combination_files', $combo_data);
+		$this->load->model('combination_files_m');
+		return $this->combination_files_m->lottery_combo_save($data);
 	}
 
-	/**
-	 * Returns the complete full path of the combination file including .txt file extension
-	 * 
-	 * @param       string	$name			Filename of the combination file without the .txt extention
-	 * @return     	string	$full_path		The complete path of the filename. Different depending on Windows or Linux machines
-	 */
 	public function full_path($name)
 	{
-		if(DIRECTORY_SEPARATOR=='\\')
-		{
-		// Windows	
-			$full_path = 'd:\\wamp64\\www\\lottotrak\\'.self::DIR.'\\'.$name.'.txt';
-		}
-		else 
-		// Linux 
-		{
-			// This is a Linux server, so the path must be changed to reflect the server
-			$full_path = '/home/metad231/lottotrak.com/'.self::DIR.'/'.$name.'.txt';
-		}
-		if(!file_exists($full_path))
-		{
-			// If the file does not exist, create it
-			$fp = fopen($full_path, 'w');
-			fclose($fp);
-		}
-		else //This is a Linux server, so the path must be changed to reflect the server
-		{
-			$full_path = self::DIR.DIRECTORY_SEPARATOR.$name.'.txt';
-		}
-	return $full_path; // Full Path of Filename
+		$this->load->model('combination_files_m');
+		return $this->combination_files_m->full_path($name);
 	}
 
-	/**
-	 * Removes the record in the database from the filename (excluding the .txt extension)
-	 * 
-	 * @param       string	$name			The name of the file_name of the combination file without the .txt extention
-	 * @return     	boolean	TRUE/FALSE		Returns TRUE on successful removal of the record, FALSE if the record could not be deleted
-	 */
 	public function delete_combination_record($name)
 	{
-		$this -> db -> where('file_name', $name);
-    return $this -> db -> delete('lottery_combination_files');
+		$this->load->model('combination_files_m');
+		return $this->combination_files_m->delete_combination_record($name);
 	}
-	/**
-	 * Returns a Lottery Combination Record (only one), if does not exist return FALSE
-	 * 
-	 * @param       string	$name			The name of the file_name of the combination file without the .txt extention
-	 * @return     	boolean	TRUE/FALSE		Returns TRUE on successful removal of the file in the /combinations/ directory, FALSE if the file could not be deleted
-	 */
+
 	public function delete_combination_file($name)
 	{
-		$full_path = $this->full_path($name);
-
-	return unlink($full_path); // Remove File, TRUE successful, FALSE on error
+		$this->load->model('combination_files_m');
+		return $this->combination_files_m->delete_combination_file($name);
 	}
 	/** Iterates the number of predictions and returns them in an array to
 	 * be used in the Math Combinatorics combination methods
@@ -156,14 +70,8 @@ class Predictions_m extends MY_Model
 	*/
  	public function wheeled($Pr)
 	{
-		$c = 1;
-		$combs = array();
-		for ($i=0;   $i < $Pr;   $i++)
-			{
-				$combs[] = $c; // Add next predicted element onto the array
-				$c++;
-			}
-	return $combs;
+		$this->load->model('number_generation_m');
+		return $this->number_generation_m->wheeled($Pr);
 	}
 	/** 
 	* Sort the array into a text line and save to the provided text file after complete
@@ -174,24 +82,8 @@ class Predictions_m extends MY_Model
 	*/
 	public function text_combs_save($name, $combs_array)
 	{
-		$success = TRUE;
-		$returned_path = $this->full_path($name); 
-		$fp = fopen($returned_path, 'a');
-		if($fp)	
-		{
-			foreach($combs_array as $combo => $key)
-			{
-				$str = implode(' ', $key);
-				fwrite($fp, $str);
-				fwrite($fp, "\n"); // NB double quotes must be used here
-			}
-		}
-		else	// Can't Open the File?
-		{
-			$success = FALSE;
-		}
-		fclose($fp);
-	return $success;
+		$this->load->model('combination_files_m');
+		return $this->combination_files_m->text_combs_save($name, $combs_array);
 	}
 
 	/** 
@@ -203,23 +95,8 @@ class Predictions_m extends MY_Model
 	*/
 	public function combs_already($name, $combs_count)
 	{
-		$saved = FALSE;
-		$returned_path = $this->full_path($name); 
-		$combs = 0;
-		$fp = fopen($returned_path, 'r');
-		while (!feof($fp)) 
-		{
-			$combs++;
-			if($combs>=$combs_count)
-			{
-				$saved = TRUE;
-				break; // Abruptly leave the loop
-			}
-			if(!fgets($fp)) break; // No Return of anything, indicated no combinations have been previously saved.
-		}
-		fclose($fp);	
-		
-	return $saved; // Returns TRUE or False based on the actual count of the combinations in the text file.
+		$this->load->model('combination_files_m');
+		return $this->combination_files_m->combs_already($name, $combs_count);
 	}
 
 	/**
@@ -631,28 +508,8 @@ class Predictions_m extends MY_Model
 	 */
 	public function get_sorted_position_points($last_drawn, $balls_drawn)
 	{
-			$position_points = [];
-		// Loop through each position
-		for ($i = 1; $i <= $balls_drawn; $i++) {
-			$points = 0;
-			if (isset($last_drawn['position'.$i.'_win'])) {
-				foreach ($last_drawn['position'.$i.'_win'] as $k => $v) {
-					if (strpos($k, '_points') !== false) $points += intval($v);
-				}
-				$position_number = $i;
-				if ($points > 0) {
-					$position_points[$position_number] = $points;
-				}
-			}
-		}
-		// Sort by points descending
-		arsort($position_points);
-		// Build dropdown array: 0 => '1 (115)', 1 => '2 (83)', ...
-		$result = [];
-		foreach ($position_points as $position => $points) {
-			$result[] = $position . ' (' . $points . ')';
-		}
-		return $result;
+		$this->load->model('lottery_statistics_m');
+		return $this->lottery_statistics_m->get_sorted_position_points($last_drawn, $balls_drawn);
 	}
 	/**
 	 * Retrieves lottery highlights for a given lottery_id.

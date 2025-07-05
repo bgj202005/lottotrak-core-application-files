@@ -7,12 +7,20 @@ class History extends Admin_Controller {
     {
 		 parent::__construct();
 
-		 $this->load->dbforge();
-		 $this->load->model('lotteries_m');
-		 $this->load->model('statistics_m');
-		 $this->load->model('history_m');
-		 $this->load->model('predictions_m');
-		 $this->load->model('maintenance_m');
+		 $this->load->dbforge();	 $this->load->model('lotteries_m');
+	 $this->load->model('statistics_m');
+	 $this->load->model('history_m');
+	 $this->load->model('predictions_m');
+	 
+	 // Load new specialized models
+	 $this->load->model('combination_files_m');
+	 $this->load->model('lottery_data_m');
+	 $this->load->model('lottery_statistics_m');
+	 $this->load->model('number_generation_m');
+	 $this->load->model('combination_filters_m');
+	 $this->load->model('math_utilities_m');
+	 
+	 $this->load->model('maintenance_m');
 		 $this->load->helper('file');
 		 $this->load->helper('html');
 		 //$this->output->enable_profiler(TRUE);
@@ -741,7 +749,7 @@ class History extends Admin_Controller {
 	{
 		$this->data['message'] = ''; // Defaulted to No Messagesa
 		$this->data['lottery'] = $this->lotteries_m->get($id);
-		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_files($id); //$this->predictions_m->all_combination_files();
+		$this->data['lottery']->generate = $this->combination_files_m->lottery_combination_files($id); //$this->combination_files_m->all_combination_files();
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
