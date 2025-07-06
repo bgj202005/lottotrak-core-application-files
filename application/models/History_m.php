@@ -830,17 +830,21 @@ class History_m extends MY_Model
         // For extra ball if $ex is true
         if ($ex) {
             if (isset($last_draw['extra_win']) && is_array($last_draw['extra_win'])) {
+                $last_draw['extra_total'] = 0;
                 $win_counter = 1;
                 foreach ($last_draw['extra_win'] as $cat => $val) {
                     $points = $win_counter * intval($val);
+                    $last_draw['extra_total'] += $points;
                     $last_draw['extra_win'][$cat . '_points'] = $points;
                     $win_counter++;
                 }
             }
             if (isset($last_draw['position_extra_win']) && is_array($last_draw['position_extra_win'])) {
+                $last_draw['position_extra_total'] = 0;
                 $win_counter = 1;
                 foreach ($last_draw['position_extra_win'] as $cat => $val) {
                     $points = $win_counter * intval($val);
+                    $last_draw['position_extra_total'] += $points;
                     $last_draw['position_extra_win'][$cat . '_points'] = $points;
                     $win_counter++;
                 }

@@ -66,8 +66,8 @@ class Lottery_statistics_m extends MY_Model
             $ball_key = 'ball' . $i;
             if (isset($last_drawn[$ball_key])) {
                 $number = $last_drawn[$ball_key];
-                $points_key = 'ball' . $i . '_points';
-                $points = isset($last_drawn[$points_key]) ? $last_drawn[$points_key] : 0;
+                $total_key = 'ball' . $i . '_total';
+                $points = isset($last_drawn[$total_key]) ? $last_drawn[$total_key] : 0;
                 $ball_points[$number] = $points;
             }
         }
@@ -75,7 +75,7 @@ class Lottery_statistics_m extends MY_Model
         // Process extra ball if present
         if (isset($last_drawn['extra']) && !empty($last_drawn['extra'])) {
             $extra_number = $last_drawn['extra'];
-            $extra_points = isset($last_drawn['extra_points']) ? $last_drawn['extra_points'] : 0;
+            $extra_points = isset($last_drawn['extra_total']) ? $last_drawn['extra_total'] : 0;
             $ball_points['+' . $extra_number] = $extra_points;
         }
         

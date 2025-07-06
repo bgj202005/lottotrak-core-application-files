@@ -467,29 +467,33 @@ class Predictions_m extends MY_Model
 		$ball_points = [];
 		// Main balls
 		for ($i = 1; $i <= $balls_drawn; $i++) {
-			$points = 0;
-			if (isset($last_drawn['ball'.$i.'_win'])) {
-				foreach ($last_drawn['ball'.$i.'_win'] as $k => $v) {
-					if (strpos($k, '_points') !== false) $points += intval($v);
-				}
-				$ball_number = $last_drawn['ball'.$i];
-				if ($points > 0) {
-					$ball_points[$ball_number] = $points;
-				}
+			$ball_key = 'ball' . $i;
+			if (isset($last_drawn[$ball_key])) {
+				$ball_number = $last_drawn[$ball_key];
+				$total_key = 'ball' . $i . '_total';
+				$points = isset($last_drawn[$total_key]) ? $last_drawn[$total_key] : 0;
+				$ball_points[$ball_number] = $points;
 			}
 		}
 		// Extra ball (if exists) and not duplicate
-		if (isset($last_drawn['extra_win']) && isset($last_drawn['extra']) && !$duplicate) {
-			$points = 0;
-			foreach ($last_drawn['extra_win'] as $k => $v) {
-				if (strpos($k, '_points') !== false) $points += intval($v);
-			}
-			if ($points > 0) {
-				$ball_points['+'.$last_drawn['extra']] = $points;
-			}
+		if (isset($last_drawn['extra']) && !empty($last_drawn['extra']) && !$duplicate) {
+			$extra_number = $last_drawn['extra'];
+			$extra_points = isset($last_drawn['extra_total']) ? $last_drawn['extra_total'] : 0;
+			$ball_points['+' . $extra_number] = $extra_points;
 		}
-		// Sort by points descending
-		arsort($ball_points);
+		// Sort by points descending, then by number ascending for same points
+		uksort($ball_points, function($a, $b) use ($ball_points) {
+			// First compare by points (descending)
+			$points_diff = $ball_points[$b] - $ball_points[$a];
+			if ($points_diff != 0) {
+				return $points_diff;
+			}
+			// If points are equal, sort by number (ascending)
+			// Handle extra ball format (+number)
+			$num_a = (strpos($a, '+') === 0) ? intval(substr($a, 1)) : intval($a);
+			$num_b = (strpos($b, '+') === 0) ? intval(substr($b, 1)) : intval($b);
+			return $num_a - $num_b;
+		});
 		// Build dropdown array: 0 => '7 (115)', 1 => '34 (83)', ...
 		$result = [];
 		foreach ($ball_points as $number => $points) {
