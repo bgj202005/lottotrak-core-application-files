@@ -17,13 +17,13 @@ class Lottery_data_m extends MY_Model
      */
     public function get_lottery_country($lottery_id)
     {
-        $this->db->select('lottery_country');
+        $this->db->select('lottery_country_id');
         $this->db->from('lottery_profiles');
         $this->db->where('id', $lottery_id);
         $query = $this->db->get();
 
         if ($query->num_rows() > 0) {
-            return $query->row()->lottery_country;
+            return $query->row()->lottery_country_id;
         }
         return null; // Return null if no record is found
     }

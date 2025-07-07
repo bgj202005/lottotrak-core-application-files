@@ -356,7 +356,7 @@
 							<?php
 							// Label for the dropdown
 							$extra = ['class' => 'col-4 col-form-label col-form-label-md text-right'];
-							echo form_label('Combination Table', 'wheeling', $extra);
+							echo form_label('Combination Table:', 'wheeling', $extra);
 							?>
 							<div class="col-6">
 								<?php
@@ -364,15 +364,41 @@
 								$wheeling_options = ['' => 'Select Combination Table']; // Default option
 								if (!empty($combination_files)) {
 									foreach ($combination_files as $file) {
-										$wheeling_options[$file['file_name']] = '(' . $file['file_name'] . ')     ' . $file['N'] . ' Numbers - ' . $file['CCCC'] . ' Tickets';
+										// Use the id|filename format for the value, display filename with details
+										$value = $file['id'] . '|' . $file['file_name']; // e.g., "246|060828"
+										$display = '(' . $file['file_name'] . ')     ' . $file['N'] . ' Numbers - ' . number_format($file['CCCC']) . ' Tickets';
+										$wheeling_options[$value] = $display;
 									}
 								}
+								
 								// Dropdown attributes
 								$extra = ['class' => 'form-control', 'id' => 'wheeling','style' => 'width: 70%;'];
 								if (!empty($disable_combination_dropdown)) {
 									$extra['disabled'] = 'disabled';
 								}
-								echo form_dropdown('wheeling', $wheeling_options, isset($selected_wheeling) ? $selected_wheeling : set_value('wheeling', ''), $extra);
+								
+								// For the selected value, we need to check if it matches the filename part
+								$selected_value = '';
+								if (isset($selected_wheeling)) {
+									// If selected_wheeling is just a filename, find the matching id|filename value
+									foreach ($wheeling_options as $option_value => $option_display) {
+										if (strpos($option_value, '|') !== false) {
+											list($option_id, $option_filename) = explode('|', $option_value, 2);
+											if ($option_filename === $selected_wheeling) {
+												$selected_value = $option_value;
+												break;
+											}
+										}
+									}
+									// If no match found, use the original selected_wheeling value
+									if (empty($selected_value)) {
+										$selected_value = $selected_wheeling;
+									}
+								} else {
+									$selected_value = set_value('wheeling', '');
+								}
+								
+								echo form_dropdown('wheeling', $wheeling_options, $selected_value, $extra);
 								// Display form error if any
 								echo form_error('wheeling', '<div class="bg-warning mt-2 p-2 text-center text-white">', '</div>');
 								?>

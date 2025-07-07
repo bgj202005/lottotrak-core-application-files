@@ -370,10 +370,11 @@ class Predictions_m extends MY_Model
         }
         $balls_drawn = $lottery->balls_drawn;
         // Fetch combination files that match the balls_drawn value
-        $this->db->select('file_name, N, CCCC');
+        $this->db->select('id, file_name, N, R, CCCC');
         $this->db->from('lottery_combination_files');
         $this->db->where('R', $balls_drawn); // Match the balls_drawn value
-        $query = $this->db->get();
+        $this->db->order_by('file_name', 'ASC');
+		$query = $this->db->get();
         return $query->result_array(); // Return the result as an array
     }
 	/**
