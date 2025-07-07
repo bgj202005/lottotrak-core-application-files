@@ -541,6 +541,7 @@ class Predictions extends Admin_Controller {
 		    $this->data['selected_followers'] = true; // preset value for Followers
 		    $this->data['selected_friends_checkbox'] = true; // preset value for Friends
 			$this->data['position_points_options'] = $position_points_options;
+			$this->data['combo_id'] = NULL; // Initialize combo_id to NULL
 			$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
 			$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);
 			$this->data['lottery']->winning_digits = $this->predictions_m->get_digit_sums($this->data['lottery']->highlights['winning_digits']);
@@ -1076,7 +1077,6 @@ class Predictions extends Admin_Controller {
 		$follow_poswins = explode(">", $this->data['followers']['positions']);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $p_group, $follower_wins, $follow_poswins);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included']);
-
 		// Ball points and position points
 		$ball_points = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
 		$ball_points_options = [];
@@ -1085,7 +1085,6 @@ class Predictions extends Admin_Controller {
 			$ball_points_options[$value] = $label;
 		}
 		$this->data['ball_points_options'] = $ball_points_options;
-
 		$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
 		$position_points_options = [];
 		foreach ($position_points as $label) {
@@ -1093,7 +1092,6 @@ class Predictions extends Admin_Controller {
 			$position_points_options[$value] = $label;
 		}
 		$this->data['position_points_options'] = $position_points_options;
-
 		// Pagination setup
 		$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
 		$per_page = $this->input->post('per_page') ?: $this->input->get('per_page');
@@ -1223,6 +1221,7 @@ class Predictions extends Admin_Controller {
 				$this->data['selected_friends_checkbox'] = $friends_checked; 	// preset value for Friends
 				$this->data['selected_friends'] = $selected_friends; 			// preset value for Friends choices
 				$this->data['selected_wheeling'] = $combination_file; 			// preset value for the Combination File (wheeling file)
+				$this->data['combo_id'] = ($this->lottery_data_m->validate_combo_id($combo_id) ? $combo_id : NULL);
 				$this->data['selected_ball_points'] = $selected_ball_points;
 				$this->data['selected_position_points'] = $selected_position_points;
 				//Actual Win History Filtering
@@ -1236,7 +1235,6 @@ class Predictions extends Admin_Controller {
 				$this->data['selected_last_digits'] = $selected_last_digits; 		// last digits setting
 				$this->data['selected_number_range'] = $selected_number_range;		// number range setting
 				$this->data['selected_adjacents'] = $selected_adjacents;			// adjacents setting
-			
 			// Extract number of selections from combination_file (3rd and 4th digits)
 			$selections = (int)substr($combination_file, 2, 2);
 			$this->data['enable_generate_button'] = true; 		// or false
@@ -1310,7 +1308,6 @@ class Predictions extends Admin_Controller {
 				// Prepare number array and updated combinations
 				$number_array = array_map('intval', explode(',', $number_series));
 				$this->session->set_userdata('futures_number_array', $number_array);
-
 				// Load lottery highlights for filtering
 				if (!isset($this->data['lottery']->highlights)) {
 					$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
@@ -1385,19 +1382,17 @@ class Predictions extends Admin_Controller {
 			$number_array = $this->session->userdata('futures_number_array');
 			$combination_file = $this->session->userdata('combination_file_name'); // Use parsed filename
     		$combo_id = $this->session->userdata('combination_file_id'); // Get combo_id
+			$this->data['combo_id'] = ($this->lottery_data_m->validate_combo_id($combo_id) ? $combo_id : NULL); 
 			 $this->data['selected_wheeling'] = $combination_file;
-    		 $this->data['selected_combo_id'] = $combo_id;	
+    		 //$this->data['selected_combo_id'] = $combo_id; Query the database to see if has an existing combo_id	
 			$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
 			$per_page = $this->input->get('per_page') ? (int)$this->input->get('per_page') : 10;
-
 			if ($number_array && $combination_file) {
 				$filepath = FCPATH . 'combinations/' . basename($combination_file) . '.txt';
-				
 				// Load lottery highlights for filtering
 				if (!isset($this->data['lottery']->highlights)) {
 					$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
 				}
-				
 				// Prepare filter array for GET requests
 				$filters = [
 					'selected_trends' => $futures_form['selected_trends'],
@@ -1415,9 +1410,7 @@ class Predictions extends Admin_Controller {
 					'extra_ball' => $this->data['lottery']->extra_ball,
 					'lottery_highlights' => $this->data['lottery']->highlights
 				];
-				
 				$updated_combinations = $this->predictions_m->insert_number_combination($filepath, $number_array, $page, $per_page, $filters);
-				
 				// Check if any combinations were found
 				if (empty($updated_combinations)) {
 					$this->data['message'] = 'No Combinations are available with the applied filters';
@@ -1449,7 +1442,6 @@ class Predictions extends Admin_Controller {
 			}
 			$this->data['disable_combination_dropdown'] = true; // or false
 			$this->data['disable_generate_button'] = false; 	// or false
-			
 		}
 		$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
 		$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);
@@ -1476,6 +1468,7 @@ class Predictions extends Admin_Controller {
 		$this->data['users'] = $this->maintenance_m->logged_online(0);
 		$this->data['admins'] = $this->maintenance_m->logged_online(1);
 		$this->data['visitors'] = $this->maintenance_m->active_visitors();
+		$this->data['predictions'] = $this;	 // Access the methods in the view
 		$this->data['subview'] = 'admin/dashboard/predictions/futures';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -1557,16 +1550,16 @@ class Predictions extends Admin_Controller {
 		$current_user_id = $this->session->userdata('id');
 		$formatted_user_id = str_pad($current_user_id, 2, '0', STR_PAD_LEFT);
 		// Create filename: 060828ADMIN01 format (MMDDYY + ADMIN + user_id)
-		$current_date = date('mdy'); // Get current date in MMDDYY format
-		$file_name = $current_date . 'ADMIN' . $formatted_user_id;
-		// Set N to 12 (balls predicted/generated) and R from lottery data (balls_drawn)
-		$N = 12; // Number of balls predicted/generated
+		//$current_date = date('mdy'); // Get current date in MMDDYY format
+		$file_name = $combination_file . 'ADMIN' . $formatted_user_id;
+		// Get N from the 2 digits of the combination file name instead of the database
+		$N = substr($combination_file, 2, 2); // eg 060828 is R = 06, N = 8 and 28 is the number of ticket combinations
 		$R = $this->data['lottery']->balls_drawn; // Pick number from lottery data (Pick 5, Pick 6, etc.)
 		// CCCC is the actual filtered count from get_filtered_combinations_count() method
 		// This will be the actual number of tickets after filtering (e.g., 5 tickets after sum filtering)
 		// Prepare data for saving
 		$save_data = [
-			'file_name' => $file_name,
+  			'file_name' => $file_name,
 			'N' => $N,
 			'R' => $R,
 			'CCCC' => $filtered_count, // Use actual filtered count
@@ -1622,8 +1615,6 @@ class Predictions extends Admin_Controller {
 			if (!is_dir($pick_dir)) {
 				mkdir($pick_dir, 0755, true);
 			}
-			// Debug: Log the directory path and R value
-			log_message('info', 'Pick directory: ' . $pick_dir . ' (R=' . $R . ')');
 			// Save filtered combinations to file
 			$pick_file_path = $pick_dir . $file_name . '.txt';
 			$success = $this->predictions_m->save_filtered_combinations_to_file($filepath, $number_array, $filters, $pick_file_path);

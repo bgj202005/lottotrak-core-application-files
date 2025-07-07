@@ -203,4 +203,36 @@ class Lottery_data_m extends MY_Model
         $query = $this->db->get();
         return $query->result_array();
     }
+    /**
+     * Validate the combo_id and the administrator is the owner of the combination table file
+     * @param int $combo_id   Combination ID
+     * @return TRUE|NULL      Returns Exists or NULL if does not exist
+     */
+    public function validate_combo_id($combo_id)
+    {
+        $this->db->select('combo_id, file_name');
+        $this->db->from('lottery_combination_filters');
+        $this->db->where('combo_id', $combo_id);
+        $query = $this->db->get();
+        if ($query->num_rows() > 0) {
+            $result = $query->row_array();
+            $file_name = $result['file_name'];
+            // If user_id is provided, validate ownership
+            $user_id = (int) $this->session->userdata('id'); // check with the current administrator logged in
+            if ($user_id !== null) {
+                // Check if filename contains 'ADMIN' keyword
+                if (strpos($file_name, 'ADMIN') === false) {
+                    return null; // File doesn't contain ADMIN keyword
+                }
+                // Extract user ID from end of filename (e.g., 0612924ADMIN01 -> 01)
+                $admin_id = (int)substr($file_name, -2, 2);
+                // Check if the user IDs match
+                if ($user_id !== $admin_id) {
+                    return null; // User doesn't own this filter
+                }
+            }
+            return TRUE; // TRUE that the combo_id exists and is held by the current admin
+        }
+        return null; // Return null if no record is found
+    }
 }
