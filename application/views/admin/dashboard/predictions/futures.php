@@ -412,8 +412,8 @@
 										LOTTERY PROFILE STATISTICS PRESETS CONTROL PANEL
 										<?php if (!is_NULL($combo_id)): ?>
 											| <i class="fa fa-eye fa-2x" title="Restore previous Combination Filter Settings" style="color:#007bff; cursor:pointer; margin:0 5px;" onclick="refreshFilter(<?= $combo_id ?>)"></i>
-											<i class="fa fa-trash-o fa-2x" title="Delete this file and Combination Table Filtered Tickets" style="color:#dc3545; cursor:pointer; margin:0 5px;" onclick="deleteFilter(<?= $combo_id ?>, '<?= $selected_wheeling ?>')"></i>
-											<span style="color:#28a745; font-weight:bold;">Filtered Tickets: Not Available</span>
+											<i class="fa fa-trash-o fa-2x" title="Delete this file and Combination Table Filtered Tickets" style="color:#dc3545; cursor:pointer; margin:0 5px;" onclick="deleteFilter(<?= $combo_id ?>, '<?= $file_name ?>')"></i>
+											<span style="color:#28a745; font-weight:bold;">Filtered Tickets: <?=$CCCC ?></span>
 										<?php endif; ?>
 									</div>		
 										<div class="table-responsive">
@@ -1081,12 +1081,12 @@
     
     // Function to refresh filter settings
     function refreshFilter(comboId) {
-        if (confirm('Settings will change. Do you want to continue? (Y/N)')) {
+        if (confirm('Loading the Previous Saved Settings. Do you want to continue? (Y/N)')) {
             window.location.href = '<?= base_url() ?>admin/predictions/refresh/' + comboId;
         }
     }
     function deleteFilter(comboId, fileName) {
-        if (confirm('You are about to delete ' + fileName + '. Do You want to Continue? (Y/N)')) {
+        if (confirm('You are about to delete the Combination Ticket file: <strong>' + fileName + '</strong>. Do You want to Continue? (Y/N)')) {
             // Future implementation for delete functionality
              window.location.href = '<?= base_url() ?>admin/predictions/delete_combo/' + comboId;
         }

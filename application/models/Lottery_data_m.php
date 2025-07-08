@@ -235,4 +235,23 @@ class Lottery_data_m extends MY_Model
         }
         return null; // Return null if no record is found
     }
+
+    /**
+     * Get combination filename and CCCC by combo_id
+     * @param int $combo_id The combination ID
+     * @return array|null Array containing file_name and CCCC, or null if not found
+     */
+    public function get_combination_filename_cccc($combo_id)
+    {
+        $this->db->select('file_name, CCCC');
+        $this->db->from('lottery_combination_filters');
+        $this->db->where('combo_id', $combo_id);
+        $query = $this->db->get();
+        
+        if ($query->num_rows() > 0) {
+            return $query->row_array();
+        }
+        
+        return null; // Return null if no record is found
+    }
 }
