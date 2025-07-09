@@ -929,6 +929,19 @@
 					deleteBtn.disabled = false;
 					deleteBtn.style.opacity = '1';
 					deleteBtn.style.cursor = 'pointer';
+					
+					// Store combo data for delete functionality
+					// Extract combo_id from the selected wheeling dropdown
+					const wheelingDropdown = document.getElementById('wheeling');
+					if (wheelingDropdown && wheelingDropdown.value) {
+						const selectedValue = wheelingDropdown.value;
+						if (selectedValue.includes('|')) {
+							const parts = selectedValue.split('|');
+							// Store in global variables for delete function
+							window.savedComboId = parseInt(parts[0]);
+							window.savedFileName = parts[1];
+						}
+					}
 				} else {
 					// Show error message and re-enable save button
 					const messageDiv = document.createElement('div');
@@ -966,6 +979,73 @@
 				
 				console.error('Error:', error);
 			});
+		});
+
+		// Delete Filtered Tickets button functionality
+		deleteBtn.addEventListener('click', function (e) {
+			e.preventDefault();
+			
+			// Try to get combo data from multiple sources
+			let comboId = null;
+			let fileName = null;
+			
+			// First, check if we have stored data from the save operation
+			if (window.savedComboId && window.savedFileName) {
+				comboId = window.savedComboId;
+				fileName = window.savedFileName;
+			}
+			// Second, try to get from PHP variables if they exist
+			else {
+				<?php if (!is_null($combo_id) && !empty($file_name)): ?>
+					comboId = <?= $combo_id ?>;
+					fileName = '<?= $file_name ?>';
+				<?php endif; ?>
+			}
+			
+			// If no stored data, try to extract from the combination dropdown selection
+			if (!comboId || !fileName) {
+				const wheelingDropdown = document.getElementById('wheeling');
+				if (wheelingDropdown && wheelingDropdown.value) {
+					const selectedValue = wheelingDropdown.value;
+					if (selectedValue.includes('|')) {
+						const parts = selectedValue.split('|');
+						comboId = parseInt(parts[0]);
+						fileName = parts[1];
+					}
+				}
+			}
+			
+			// If we still don't have the data, check if there's a restore icon (which means there's saved data)
+			if (!comboId || !fileName) {
+				// Look for the eye icon in the control panel which indicates saved filter data
+				const eyeIcon = document.querySelector('i[onclick*="refreshFilter"]');
+				if (eyeIcon) {
+					// Extract combo_id from the onclick attribute
+					const onclickAttr = eyeIcon.getAttribute('onclick');
+					const match = onclickAttr.match(/refreshFilter\((\d+)\)/);
+					if (match) {
+						comboId = parseInt(match[1]);
+						// For fileName, we can use the selected combination table name
+						const wheelingDropdown = document.getElementById('wheeling');
+						if (wheelingDropdown && wheelingDropdown.value) {
+							const selectedValue = wheelingDropdown.value;
+							if (selectedValue.includes('|')) {
+								fileName = selectedValue.split('|')[1];
+							}
+						}
+					}
+				}
+			}
+			
+			// Check if we have the required data
+			if (comboId && fileName) {
+				// Use the same confirmation message as the trash can icon
+				if (confirm('You are about to delete the Combination Ticket file: ' + fileName + '. Do You want to Continue? (Y/N)')) {
+					window.location.href = '<?= base_url() ?>admin/predictions/delete_combo/' + comboId;
+				}
+			} else {
+				alert('No combination filter data available to delete. Please save filtered tickets first.');
+			}
 		});
 
 		// Reset Settings button functionality
@@ -1109,7 +1189,7 @@
         }
     }
     function deleteFilter(comboId, fileName) {
-        if (confirm('You are about to delete the Combination Ticket file: <strong>' + fileName + '</strong>. Do You want to Continue? (Y/N)')) {
+        if (confirm('You are about to delete the Combination Ticket file: ' + fileName + '. Do You want to Continue? (Y/N)')) {
             // Future implementation for delete functionality
              window.location.href = '<?= base_url() ?>admin/predictions/delete_combo/' + comboId;
         }
