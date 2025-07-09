@@ -2006,4 +2006,90 @@ class Predictions extends Admin_Controller {
 		$this->data['subview'] = 'admin/dashboard/predictions/futures';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
+	/**
+	 * Delete combination filter record and associated file
+	 * 
+	 * Deletes a combination filter from the lottery_combination_filters table
+	 * and removes the associated .txt file from the filesystem. The file location
+	 * is determined by the lottery's balls_drawn value (pick{balls_drawn} directory).
+	 * Only allows deletion if the current admin user owns the combination filter.
+	 * 
+	 * @param int $combo_id The combination ID to delete
+	 * @return void Redirects to predictions page with success/error message
+	 * @throws Exception If database transaction fails or file deletion fails
+	 */
+	public function delete_combo($combo_id) {
+		// Load the correct model
+		$this->load->model('Lottery_data_m');
+		try {
+			// Validate ownership using existing model method
+			if (!$this->Lottery_data_m->validate_combo_id($combo_id)) {
+				$this->session->set_flashdata('error_message', 'You do not have permission to delete this combination filter or it does not exist.');
+				redirect('admin/predictions');
+				return;
+			}
+			// Get the combination filter record
+			$this->db->select('combo_id, file_name, lottery_id, CCCC');
+			$this->db->from('lottery_combination_filters');
+			$this->db->where('combo_id', $combo_id);
+			$combination_filter = $this->db->get()->row();
+			// Get lottery details using direct database query
+			$this->db->select('id, balls_drawn, lottery_name');
+			$this->db->from('lottery_profiles');
+			$this->db->where('id', $combination_filter->lottery_id);
+			$lottery = $this->db->get()->row();
+			if (!$lottery) {
+				$this->session->set_flashdata('error_message', 'Lottery not found.');
+				redirect('admin/predictions');
+				return;
+			}
+			// Construct the directory path: pick + balls_drawn
+			$directory = FCPATH . 'data/combinations/pick' . $lottery->balls_drawn . '/';
+			// Get the filename from the combination filter record
+			$filename = $combination_filter->file_name . '.txt';
+			$full_file_path = $directory . $filename;
+			// Begin transaction
+			$this->db->trans_start();
+			// Delete the database record
+			$this->db->where('combo_id', $combo_id);
+			$delete_result = $this->db->delete('lottery_combination_filters');
+			if (!$delete_result) {
+				throw new Exception('Failed to delete combination filter from database.');
+			}
+			// Complete transaction
+			$this->db->trans_complete();
+			if ($this->db->trans_status() === FALSE) {
+				throw new Exception('Database transaction failed.');
+			}
+			// Delete the physical file if it exists (after successful DB transaction)
+			$file_deleted = false;
+			if (file_exists($full_file_path)) {
+				$file_deleted = unlink($full_file_path);
+				if (!$file_deleted) {
+					// Log the error but don't fail the operation since DB record is already deleted
+					log_message('error', 'Failed to delete combination file: ' . $full_file_path);
+				}
+			}
+			// Set success message
+			$message = 'Combination filter "' . $combination_filter->file_name . '" has been successfully deleted';
+			if ($file_deleted) {
+				$message .= ' along with its associated file';
+			} else if (file_exists($full_file_path)) {
+				$message .= ' (Note: Associated file could not be deleted)';
+			}
+			$message .= '.';
+			$this->session->set_flashdata('success_message', $message);
+			// Clear any related session data
+			$this->session->unset_userdata('combination_session_data');
+			$this->session->unset_userdata('generated_combos');
+			$this->session->unset_userdata('selected_wheeling');
+		} catch (Exception $e) {
+			// Set error message
+			$this->session->set_flashdata('error_message', 'Error deleting combination filter: ' . $e->getMessage());
+			// Log the error
+			log_message('error', 'Delete combo error: ' . $e->getMessage());
+		}
+		// Redirect back to the lottery's prediction futures page
+		redirect('admin/predictions/combination/' . $combination_filter->lottery_id);
+	}
 }
