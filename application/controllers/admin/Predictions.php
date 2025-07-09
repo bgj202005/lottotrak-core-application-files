@@ -469,6 +469,14 @@ class Predictions extends Admin_Controller {
 		$this->data['message'] = '';					// Defaulted to No Error Messages
 		$this->data['disable_generate_button'] = true; // Used to disable the generate button in the view
 		$this->data['lottery'] = $this->lotteries_m->get($id);
+		
+		// Check if lottery exists
+		if (!$this->data['lottery']) {
+			$this->session->set_flashdata('message', 'Lottery not found.');
+			redirect('admin/predictions');
+			return;
+		}
+		
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$drawn = $this->data['lottery']->balls_drawn; // Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$this->data['country_code'] = $this->predictions_m->get_lottery_country($id);
@@ -1013,6 +1021,7 @@ class Predictions extends Admin_Controller {
 		$this->data['lottery']->repeaters = $this->predictions_m->get_repeaters($this->data['lottery']->highlights['repeats']);
 		$this->data['lottery']->consecutives = $this->predictions_m->get_consecutives($this->data['lottery']->highlights['consecutives']);
 		$this->data['lottery']->parity = $this->predictions_m->get_parity($this->data['lottery']->highlights['parity']);
+		// Call get_decade and get_last from predictions_m
 		$this->data['lottery']->decades = $this->predictions_m->get_decade($tbl_name, $this->data['lottery']->highlights['range']);
 		$this->data['lottery']->last_digits = $this->predictions_m->get_last($tbl_name, $this->data['lottery']->highlights['range']);
 		$this->data['lottery']->number_range = $this->predictions_m->get_range($this->data['lottery']->highlights['number_range']);
@@ -1496,7 +1505,6 @@ class Predictions extends Admin_Controller {
 		$this->data['users'] = $this->maintenance_m->logged_online(0);
 		$this->data['admins'] = $this->maintenance_m->logged_online(1);
 		$this->data['visitors'] = $this->maintenance_m->active_visitors();
-		$this->data['predictions'] = $this;	 // Access the methods in the view
 		$this->data['subview'] = 'admin/dashboard/predictions/futures';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -1682,6 +1690,61 @@ class Predictions extends Admin_Controller {
 			$this->session->set_flashdata('message', '<div class="alert alert-danger">' . $message . '</div>');
 		}
 		// For non-AJAX requests, redirect back to futures page with message
+		redirect('admin/predictions/futures/' . $id);
+	}
+	/**
+	 * Refresh method to load previously saved combination filter settings
+	 * Loads settings from database and redirects to futures view with restored settings
+	 * 
+	 * @param int $id Lottery id
+	 * @return void
+	 */
+	public function refresh($id)
+	{
+		$this->data['message'] = '';
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		
+		// Check if lottery exists
+		if (!$this->data['lottery']) {
+			$this->session->set_flashdata('message', 'Lottery not found.');
+			redirect('admin/predictions');
+			return;
+		}
+		
+		// Get combo_id from POST or URI segment
+		$combo_id = $this->input->post('combo_id', TRUE) ?: $this->uri->segment(5, NULL);
+		
+		if (is_null($combo_id)) {
+			$this->session->set_flashdata('message', 'No combination ID available to refresh settings.');
+			redirect('admin/predictions/futures/' . $id);
+			return;
+		}
+		
+		// Load previous settings from database
+		$filter_data = $this->combination_filters_m->get_combination_filter($combo_id);
+		
+		if (!$filter_data) {
+			$this->session->set_flashdata('message', 'No saved settings found for the specified combination.');
+			redirect('admin/predictions/futures/' . $id);
+			return;
+		}
+		
+		// Extract filename and truncate ADMIN01 suffix if present
+		$filename = $filter_data['filename'] ?? '';
+		$truncated_filename = $this->combination_filters_m->truncate_admin_suffix($filename);
+		
+		// Restore all settings to session for the futures view
+		$restored_settings = $this->combination_filters_m->prepare_restored_settings($filter_data, $truncated_filename);
+		
+		// Set session data for restored settings
+		foreach ($restored_settings as $key => $value) {
+			$this->session->set_userdata($key, $value);
+		}
+		
+		// Set success message
+		$this->session->set_flashdata('message', 'Previous settings have been successfully restored.');
+		
+		// Redirect to futures view with restored settings
 		redirect('admin/predictions/futures/' . $id);
 	}
 }
