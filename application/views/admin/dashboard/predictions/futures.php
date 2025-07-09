@@ -610,7 +610,7 @@
 						<?php endif; ?>
 						<?php if (!empty($combos_paginated)): 
 							?>
-							<form method="get" class="mb-3" id="pagination-size-form">
+							<form method="get" class="mb-3" id="pagination-size-form" action="<?= base_url('admin/predictions/combination/' . $lottery->id) ?>">
 								<label for="per_page" class="me-2">Combinations per page:</label>
 								<select name="per_page" id="per_page" class="form-select d-inline-block w-auto" onchange="document.getElementById('pagination-size-form').submit();">
 									<?php
@@ -692,13 +692,16 @@
 										$current = $pagination['current'];
 										$total = $pagination['total'];
 										$per_page = $pagination['per_page'];
+										
+										// Base URL for pagination - use combination method for proper session handling
+										$base_url = base_url('admin/predictions/combination/' . $lottery->id);
 
 										// Previous arrow
 										$prev_disabled = ($current <= 1) ? 'disabled' : '';
 										$prev_page = max(1, $current - 1);
 										?>
 										<li class="page-item <?= $prev_disabled ?>">
-											<a class="page-link" href="?page=<?= $prev_page ?>&per_page=<?= $per_page ?>" aria-label="Previous">
+											<a class="page-link" href="<?= $base_url ?>?page=<?= $prev_page ?>&per_page=<?= $per_page ?>" aria-label="Previous">
 												<span aria-hidden="true">&laquo;</span>
 											</a>
 										</li>
@@ -708,7 +711,7 @@
 											// Show all pages
 											for ($i = 1; $i <= $total; $i++) {
 												$active = ($i == $current) ? 'active' : '';
-												echo '<li class="page-item '.$active.'"><a class="page-link" href="?page='.$i.'&per_page='.$per_page.'">'.$i.'</a></li>';
+												echo '<li class="page-item '.$active.'"><a class="page-link" href="'.$base_url.'?page='.$i.'&per_page='.$per_page.'">'.$i.'</a></li>';
 											}
 										} else {
 											$showed_dots = false;
@@ -721,7 +724,7 @@
 													($i >= $total - 2 && $current >= $total - 4) // last 3 if near end
 												) {
 													$active = ($i == $current) ? 'active' : '';
-													echo '<li class="page-item '.$active.'"><a class="page-link" href="?page='.$i.'&per_page='.$per_page.'">'.$i.'</a></li>';
+													echo '<li class="page-item '.$active.'"><a class="page-link" href="'.$base_url.'?page='.$i.'&per_page='.$per_page.'">'.$i.'</a></li>';
 													$showed_dots = false;
 												} else {
 													if (!$showed_dots) {
@@ -736,7 +739,7 @@
 										$next_page = min($total, $current + 1);
 										?>
 										<li class="page-item <?= $next_disabled ?>">
-											<a class="page-link" href="?page=<?= $next_page ?>&per_page=<?= $per_page ?>" aria-label="Next">
+											<a class="page-link" href="<?= $base_url ?>?page=<?= $next_page ?>&per_page=<?= $per_page ?>" aria-label="Next">
 												<span aria-hidden="true">&raquo;</span>
 											</a>
 										</li>
@@ -1082,7 +1085,7 @@
     // Function to refresh filter settings
     function refreshFilter(comboId) {
         if (confirm('Loading the Previous Saved Settings. Do you want to continue? (Y/N)')) {
-            window.location.href = '<?= base_url() ?>admin/predictions/refresh/' + comboId;
+            window.location.href = '<?= base_url() ?>admin/predictions/refresh/<?= $lottery->id ?>?combo_id=' + comboId;
         }
     }
     function deleteFilter(comboId, fileName) {

@@ -623,109 +623,70 @@ class Combination_filters_m extends MY_Model
         return $last_digits;
     }
     /**
-     * Truncate ADMIN01 suffix from filename
-     * Example: 0612924ADMIN01 becomes 0612924
+     * Get saved settings from lottery_combination_filters table by combo_id
      * 
-     * @param string $filename Original filename
-     * @return string Truncated filename
+     * @param int $combo_id The combination ID to retrieve settings for
+     * @return array|false The saved settings array or false if not found
      */
-    public function truncate_admin_suffix($filename)
+    public function get_saved_settings($combo_id)
     {
-        // Remove ADMIN and any following digits/characters
-        $pattern = '/ADMIN\d*/i';
-        $truncated = preg_replace($pattern, '', $filename);
+        $this->db->where('combo_id', $combo_id);
+        $this->db->where('active', 1);
+        $this->db->order_by('id', 'DESC'); // Get the most recent record if multiple exist
+        $this->db->limit(1);
         
-        return $truncated;
+        $query = $this->db->get('lottery_combination_filters');
+        
+        if ($query->num_rows() > 0) {
+            return $query->row_array();
+        }
+        
+        return false;
     }
 
     /**
-     * Prepare restored settings array from database filter data
+     * Extract original filename by removing ADMIN## suffix
      * 
-     * @param array $filter_data Filter data from database
-     * @param string $truncated_filename Filename with ADMIN suffix removed
-     * @return array Restored settings for session
+     * @param string $filename The filename with ADMIN suffix (e.g., "0612924ADMIN01")
+     * @return string The original filename (e.g., "0612924")
      */
-    public function prepare_restored_settings($filter_data, $truncated_filename)
+    public function extract_original_filename($filename)
     {
-        $restored_settings = [];
-        // Basic settings
-        $restored_settings['combination_file_name'] = $truncated_filename;
-        $restored_settings['combination_file_id'] = $filter_data['combo_id'] ?? null;
-        // Filter settings - map database fields to session keys
-        $filter_mappings = [
-            'selected_hwc' => 'selected_hwc',
-            'selected_hwc_group' => 'selected_hwc_group',
-            'selected_followers' => 'selected_followers',
-            'selected_followers_type' => 'selected_followers_type',
-            'selected_ball_points' => 'selected_ball_points',
-            'selected_position_points' => 'selected_position_points',
-            'selected_friends_checkbox' => 'selected_friends_checkbox',
-            'selected_trends' => 'selected_trends',
-            'selected_winning_sums' => 'selected_winning_sums',
-            'selected_winning_digits' => 'selected_winning_digits',
-            'selected_repeaters' => 'selected_repeaters',
-            'selected_consecutives' => 'selected_consecutives',
-            'selected_parity' => 'selected_parity',
-            'selected_decades' => 'selected_decades',
-            'selected_last_digits' => 'selected_last_digits',
-            'selected_number_range' => 'selected_number_range',
-            'selected_adjacents' => 'selected_adjacents'
-        ];
-        foreach ($filter_mappings as $db_field => $session_key) {
-            if (isset($filter_data[$db_field])) {
-                $value = $filter_data[$db_field];
-                
-                // Convert boolean fields
-                if (in_array($session_key, ['selected_hwc', 'selected_followers', 'selected_friends_checkbox'])) {
-                    $restored_settings[$session_key] = (bool)$value;
-                } else {
-                    $restored_settings[$session_key] = $value;
-                }
-            }
-        }
-        // Additional settings that might be stored as JSON
-        if (isset($filter_data['futures_form'])) {
-            $restored_settings['futures_form'] = json_decode($filter_data['futures_form'], true);
-        }
-        if (isset($filter_data['futures_number_array'])) {
-            $restored_settings['futures_number_array'] = json_decode($filter_data['futures_number_array'], true);
-        }
-        return $restored_settings;
+        // Remove ADMIN## pattern from the end of filename
+        $pattern = '/ADMIN\d+$/';
+        return preg_replace($pattern, '', $filename);
     }
+
     /**
-     * Check if combination filter exists for given combo_id
+     * Check if saved settings exist for a combo_id
      * 
-     * @param int $combo_id Combination ID
-     * @return bool True if filter exists, false otherwise
+     * @param int $combo_id The combination ID to check
+     * @return bool True if settings exist, false otherwise
      */
-    public function filter_exists($combo_id)
+    public function has_saved_settings($combo_id)
     {
         $this->db->where('combo_id', $combo_id);
+        $this->db->where('active', 1);
+        
         $query = $this->db->get('lottery_combination_filters');
         
         return $query->num_rows() > 0;
     }
+
     /**
-     * Update existing combination filter data
+     * Get all saved filter records for a specific combo_id
      * 
-     * @param int $combo_id Combination ID
-     * @param array $data Data to update
-     * @return bool True on success, false on failure
+     * @param int $combo_id The combination ID
+     * @return array Array of saved filter records
      */
-    public function update_combination_filter($combo_id, $data)
+    public function get_all_saved_settings($combo_id)
     {
         $this->db->where('combo_id', $combo_id);
-        return $this->db->update('lottery_combination_filters', $data);
-    }
-    /**
-     * Delete combination filter by combo_id
-     * 
-     * @param int $combo_id Combination ID
-     * @return bool True on success, false on failure
-     */
-    public function delete_combination_filter($combo_id)
-    {
-        $this->db->where('combo_id', $combo_id);
-        return $this->db->delete('lottery_combination_filters');
+        $this->db->where('active', 1);
+        $this->db->order_by('id', 'DESC');
+        
+        $query = $this->db->get('lottery_combination_filters');
+        
+        return $query->result_array();
     }
 }
