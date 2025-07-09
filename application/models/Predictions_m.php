@@ -2568,7 +2568,6 @@ class Predictions_m extends MY_Model
 		
 		return false;
 	}
-
 	/**
 	 * Save combination filter data to lottery_combination_filters table
 	 * Updates existing record if combo_id exists, otherwise inserts new record

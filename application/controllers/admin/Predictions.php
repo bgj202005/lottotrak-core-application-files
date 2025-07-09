@@ -2043,11 +2043,15 @@ class Predictions extends Admin_Controller {
 				redirect('admin/predictions');
 				return;
 			}
-			// Construct the directory path: pick + balls_drawn
-			$directory = FCPATH . 'data/combinations/pick' . $lottery->balls_drawn . '/';
+			// Construct the directory path: pick + balls_drawn (same as combination_save method)
+			$directory = FCPATH . 'combinations/pick' . $lottery->balls_drawn . '/';
 			// Get the filename from the combination filter record
 			$filename = $combination_filter->file_name . '.txt';
 			$full_file_path = $directory . $filename;
+			
+			// Check if file exists before starting transaction
+			$file_exists_before = file_exists($full_file_path);
+			
 			// Begin transaction
 			$this->db->trans_start();
 			// Delete the database record
@@ -2061,26 +2065,36 @@ class Predictions extends Admin_Controller {
 			if ($this->db->trans_status() === FALSE) {
 				throw new Exception('Database transaction failed.');
 			}
+			
 			// Delete the physical file if it exists (after successful DB transaction)
 			$file_deleted = false;
-			if (file_exists($full_file_path)) {
+			if ($file_exists_before) {
 				$file_deleted = unlink($full_file_path);
 				if (!$file_deleted) {
-					// Log the error but don't fail the operation since DB record is already deleted
 					log_message('error', 'Failed to delete combination file: ' . $full_file_path);
 				}
 			}
-			// Set success message
-			$message = 'Combination filter "' . $combination_filter->file_name . '" has been successfully deleted';
-			if ($file_deleted) {
-				$message .= ' along with its associated file';
-			} else if (file_exists($full_file_path)) {
-				$message .= ' (Note: Associated file could not be deleted)';
+			
+			// Set detailed success message
+			$message = 'Combination Table previously saved settings for "' . $combination_filter->file_name . '" have been successfully deleted from the database';
+			if ($file_exists_before) {
+				if ($file_deleted) {
+					$message .= ' and the associated text file has been removed from the pick' . $lottery->balls_drawn . ' directory';
+				} else {
+					$message .= ' but the associated text file could not be deleted from the pick' . $lottery->balls_drawn . ' directory';
+				}
+			} else {
+				$message .= ' (no associated text file was found)';
 			}
 			$message .= '.';
+			
 			$this->session->set_flashdata('success_message', $message);
-			// Clear any related session data
-			$this->session->unset_userdata('combination_session_data');
+			
+			// Clear any related session data for the deleted combination
+			$this->session->unset_userdata('futures_form');
+			$this->session->unset_userdata('futures_number_array');
+			$this->session->unset_userdata('combination_file_name');
+			$this->session->unset_userdata('combination_file_id');
 			$this->session->unset_userdata('generated_combos');
 			$this->session->unset_userdata('selected_wheeling');
 		} catch (Exception $e) {
