@@ -2656,7 +2656,8 @@ class Predictions_m extends MY_Model
 			if (!empty($intersection)) {
 				// Apply additional filters
 				if ($this->passes_all_filters($combo, $filters)) {
-					fwrite($output_handle, $line . "\n");
+					// Write the actual sorted numbers to the file, not the template positions
+					fwrite($output_handle, implode(' ', $combo_numbers) . "\n");
 					$saved_count++;
 				}
 			}
