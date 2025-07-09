@@ -2090,6 +2090,6 @@ class Predictions extends Admin_Controller {
 			log_message('error', 'Delete combo error: ' . $e->getMessage());
 		}
 		// Redirect back to the lottery's prediction futures page
-		redirect('admin/predictions/combination/' . $combination_filter->lottery_id);
+		redirect('admin/predictions/futures/' . $combination_filter->lottery_id);
 	}
 }

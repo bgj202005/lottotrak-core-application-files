@@ -2571,12 +2571,26 @@ class Predictions_m extends MY_Model
 
 	/**
 	 * Save combination filter data to lottery_combination_filters table
+	 * Updates existing record if combo_id exists, otherwise inserts new record
 	 *
 	 * @param array $data Data to save
 	 * @return bool True on success, false on failure
 	 */
 	public function save_combination_filter($data)
 	{
+		// Check if a record with this combo_id already exists
+		if (isset($data['combo_id'])) {
+			$this->db->where('combo_id', $data['combo_id']);
+			$existing = $this->db->get('lottery_combination_filters')->row();
+			
+			if ($existing) {
+				// Update existing record
+				$this->db->where('combo_id', $data['combo_id']);
+				return $this->db->update('lottery_combination_filters', $data);
+			}
+		}
+		
+		// Insert new record if no existing record found
 		return $this->db->insert('lottery_combination_filters', $data);
 	}
 
