@@ -1702,7 +1702,7 @@ class Predictions extends Admin_Controller {
 	{
 		$this->data['message'] = '';
 		$this->data['disable_generate_button'] = false;
-		
+		$this->data['disable_combination_dropdown'] = true;
 		// Get the combo_id from the URL parameter or POST data
 		$combo_id = $this->input->get('combo_id') ?: $this->input->post('combo_id');
 		
