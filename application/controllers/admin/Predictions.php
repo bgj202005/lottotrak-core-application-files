@@ -554,6 +554,7 @@ class Predictions extends Admin_Controller {
 		    $this->data['selected_friends_checkbox'] = true; // preset value for Friends
 			$this->data['position_points_options'] = $position_points_options;
 			$this->data['combo_id'] = NULL; // Initialize combo_id to NULL
+			$this->data['active'] = false; // Initialize active flag to false
 			$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
 			$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);
 			$this->data['lottery']->winning_digits = $this->predictions_m->get_digit_sums($this->data['lottery']->highlights['winning_digits']);
@@ -1251,7 +1252,6 @@ class Predictions extends Admin_Controller {
 						$this->data['CCCC'] = $filename_cccc_data['CCCC'];
 					}
 				}
-				
 				$this->data['selected_ball_points'] = $selected_ball_points;
 				$this->data['selected_position_points'] = $selected_position_points;
 				//Actual Win History Filtering
@@ -1410,6 +1410,7 @@ class Predictions extends Admin_Controller {
 			$combination_file = $this->session->userdata('combination_file_name'); // Use parsed filename
     		$combo_id = $this->session->userdata('combination_file_id'); // Get combo_id
 			$this->data['combo_id'] = ($this->lottery_data_m->validate_combo_id($combo_id) ? $combo_id : NULL); 
+			$this->data['active'] = $this->combination_filters_m->get_active_flag($combo_id);
 			// Get filename and CCCC data for futures view
 			if ($combo_id && $this->data['combo_id']) {
 				$filename_cccc_data = $this->lottery_data_m->get_combination_filename_cccc($combo_id);
