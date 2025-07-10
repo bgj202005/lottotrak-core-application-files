@@ -254,4 +254,28 @@ class Lottery_data_m extends MY_Model
         
         return null; // Return null if no record is found
     }
+    /**
+     * Format date string to MySQL date format
+     * 
+     * Converts various date formats to MySQL-compatible YYYY-MM-DD format.
+     * Handles formats like "Wed Jul 9, 2025", "July 9, 2025", "07/09/2025", etc.
+     * 
+     * @param string $date_string The date string to format (e.g., "Wed Jul 9, 2025")
+     * @return string|false MySQL-formatted date string (YYYY-MM-DD) or FALSE on failure
+     * 
+     * @example
+     * $mysql_date = $this->format_date_to_mysql("Wed Jul 9, 2025");
+     * // Returns: "2025-07-09"
+     */
+    public function format_date_to_mysql($date_string)
+    {
+        // Function implementation would go here
+        // Convert the date string to MySQL format YYYY-MM-DD
+        $timestamp = strtotime($date_string);
+        if ($timestamp === false) {
+            return false; // Invalid date string
+        }
+        return date('Y-m-d', $timestamp);
+    }
+    
 }

@@ -1591,6 +1591,9 @@ class Predictions extends Admin_Controller {
 		// CCCC is the actual filtered count from get_filtered_combinations_count() method
 		// This will be the actual number of tickets after filtering (e.g., 5 tickets after sum filtering)
 		// Prepare data for saving
+		// Grab the next draw date
+		$ld = $this->data['lottery']->last_drawn['draw_date'];
+		$mysql_date = $this->lottery_data_m->format_date_to_mysql($this->lotteries_m->next_date($this->data['lottery'], $this->lotteries_m->return_day($ld), $ld));
 		$save_data = [
   			'file_name' => $file_name,
 			'N' => $N,
@@ -1637,7 +1640,8 @@ class Predictions extends Admin_Controller {
 			'9_win' => 0,
 			'9_win_extra' => 0,
 			'active' => 1,
-			'combo_id' => $combo_id, // Store the id from the combination_table_files table
+			'combo_id' => $combo_id, 		// Store the id from the combination_table_files table
+			'lastdate' => $mysql_date,		// Next draw date 
 			'lottery_id' => $id
 		];
 		// Save to database
@@ -1705,7 +1709,6 @@ class Predictions extends Admin_Controller {
 		$this->data['disable_combination_dropdown'] = true;
 		// Get the combo_id from the URL parameter or POST data
 		$combo_id = $this->input->get('combo_id') ?: $this->input->post('combo_id');
-		
 		// If combo_id comes from dropdown value format (253|06077), extract just the ID
 		if ($combo_id && strpos($combo_id, '|') !== false) {
 			list($combo_id, $filename) = explode('|', $combo_id, 2);
@@ -1713,44 +1716,35 @@ class Predictions extends Admin_Controller {
 		} else {
 			$combo_id = (int)$combo_id;
 		}
-		
 		if (!$combo_id) {
 			$this->session->set_flashdata('message', '<div class="alert alert-danger">No combination ID found for refresh.</div>');
 			redirect('admin/predictions/futures/' . $id);
 			return;
 		}
-		
 		// Load the combination_filters_m model to get saved settings
 		$this->load->model('combination_filters_m');
 		$saved_settings = $this->combination_filters_m->get_saved_settings($combo_id);
-		
 		if (!$saved_settings) {
 			$this->session->set_flashdata('message', '<div class="alert alert-danger">No saved settings found for combination ID: ' . $combo_id . '</div>');
 			redirect('admin/predictions/futures/' . $id);
 			return;
 		}
-		
 		// User confirmed, proceed with loading settings
 		$this->data['lottery'] = $this->lotteries_m->get($id);
-		
 		// Check if lottery was found
 		if (!$this->data['lottery']) {
 			$this->session->set_flashdata('message', '<div class="alert alert-danger">Lottery not found with ID: ' . $id . '</div>');
 			redirect('admin/predictions');
 			return;
 		}
-		
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$drawn = $this->data['lottery']->balls_drawn;
-		
 		// Extract original combination file name (remove ADMIN## suffix)
 		$original_filename = $this->combination_filters_m->extract_original_filename($saved_settings['file_name']);
-		
 		// Set up all the basic lottery data
 		$this->data['country_code'] = $this->predictions_m->get_lottery_country($id);
 		$this->data['state_prov_code'] = $this->predictions_m->get_lottery_state_prov($id);
 		$this->data['combination_files'] = $this->predictions_m->get_combination_files($id);
-		
 		// Sort combination files numerically and set up the dropdown value format
 		if (!empty($this->data['combination_files'])) {
 			foreach ($this->data['combination_files'] as &$file) {
@@ -1763,7 +1757,6 @@ class Predictions extends Admin_Controller {
 				return $numA - $numB;
 			});
 		}
-		
 		// Set up H-W-C, Followers, and Friends data
 		$this->data['h_w_c'] = $this->lottery_data_m->get_h_w_c($id);
 		$h_w_c_group = $this->lottery_statistics_m->get_h_w_c_range($id);
@@ -1774,7 +1767,6 @@ class Predictions extends Admin_Controller {
 		}
 		$this->data['h_w_c_group'] = $h_w_c_group_options;
 		$this->data['followers'] = $this->lottery_data_m->get_followers($id);
-		
 		// Set up lottery data for points calculations
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);
 		$p_group = $this->statistics_m->prize_group_profile($id);
@@ -1784,7 +1776,6 @@ class Predictions extends Admin_Controller {
 		$follow_poswins = explode(">", $this->data['followers']['positions']);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $p_group, $follower_wins, $follow_poswins);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included']);
-		
 		// Ball points and position points setup
 		$ball_points = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
 		$ball_points_options = [];
@@ -1797,7 +1788,6 @@ class Predictions extends Admin_Controller {
 			$ball_points_options[$value] = $label;
 		}
 		$this->data['ball_points_options'] = $ball_points_options;
-		
 		$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
 		$position_points_options = [];
 		foreach ($position_points as $label) {
@@ -1809,7 +1799,6 @@ class Predictions extends Admin_Controller {
 			$position_points_options[$value] = $label;
 		}
 		$this->data['position_points_options'] = $position_points_options;
-		
 		// Restore all saved settings
 		$this->data['selected_followers_type'] = $saved_settings['follower_type'];
 		$this->data['selected_hwc'] = (bool)$saved_settings['hwc'];
@@ -1821,7 +1810,6 @@ class Predictions extends Admin_Controller {
 		$this->data['selected_friends'] = $saved_settings['selected_friends'];
 		$this->data['selected_wheeling'] = $combo_id . '|' . $original_filename; // Set dropdown value format
 		$this->data['combo_id'] = $combo_id;
-		
 		// Restore filter selections
 		$this->data['selected_trends'] = $saved_settings['trends'];
 		$this->data['selected_winning_sums'] = $saved_settings['winning_sums'];
@@ -1833,7 +1821,6 @@ class Predictions extends Admin_Controller {
 		$this->data['selected_last_digits'] = $saved_settings['last_digits'];
 		$this->data['selected_number_range'] = $saved_settings['number_range'];
 		$this->data['selected_adjacents'] = $saved_settings['adjacents'];
-		
 		// Get filename and CCCC data for display
 		if ($combo_id) {
 			$filename_cccc_data = $this->lottery_data_m->get_combination_filename_cccc($combo_id);
@@ -1842,7 +1829,6 @@ class Predictions extends Admin_Controller {
 				$this->data['CCCC'] = $filename_cccc_data['CCCC'];
 			}
 		}
-		
 		// Store restored settings in session
 		$session_data = [
 			'selected_h_w_c_group' => $saved_settings['h_w_c_group'],
@@ -1869,7 +1855,6 @@ class Predictions extends Admin_Controller {
 		$this->session->set_userdata('futures_form', $session_data);
 		$this->session->set_userdata('combination_file_id', $combo_id);
 		$this->session->set_userdata('combination_file_name', $original_filename);
-		
 		// Get lottery highlights and historical data for filters
 		$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
 		$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);
@@ -1883,17 +1868,13 @@ class Predictions extends Admin_Controller {
 		$this->data['lottery']->number_range = $this->predictions_m->get_range($this->data['lottery']->highlights['number_range']);
 		$this->data['lottery']->adjacents = $this->predictions_m->get_adjacents($this->data['lottery']->highlights['adjacents']);
 		$this->data['friends'] = $this->predictions_m->get_friends($id);
-		
 		// Get next draw date
 		$ld = $this->data['lottery']->last_drawn['draw_date'];
 		$day = $this->lotteries_m->return_day($ld);
 		$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
-		
 		// **AUTOMATICALLY GENERATE TICKETS AFTER RESTORING SETTINGS**
-		
 		// Extract number of selections from combination_file (3rd and 4th digits)
 		$selections = (int)substr($original_filename, 2, 2);
-		
 		// Generate number series based on restored settings
 		$number_series = '';
 		$hwc_checked = (bool)$saved_settings['hwc'];
@@ -1904,7 +1885,6 @@ class Predictions extends Admin_Controller {
 		$selected_position_points = $saved_settings['position_points'];
 		$selected_friends = $saved_settings['selected_friends'];
 		$friends_checked = (bool)$saved_settings['friends'];
-		
 		if (!$hwc_checked && !$followers_checked) {
 			$this->data['message'] = 'Error: Either H-W-C or Followers must be checked in the saved settings.';
 		} elseif ($hwc_checked && !$followers_checked) {
@@ -1916,7 +1896,6 @@ class Predictions extends Admin_Controller {
 			$follower_select = ($followers_type == 'after_ball') ? $selected_ball_points : $selected_position_points;
 			$number_series = $this->predictions_m->hwc_followers($id, $selections, $h_w_c_group, $followers_type, $follower_select);
 		}
-		
 		if (!$number_series) {
 			$this->data['message'] = 'Could not generate numbers with the restored settings.';
 		} else {
@@ -1925,7 +1904,6 @@ class Predictions extends Admin_Controller {
 				$numbers = array_values(array_filter(array_map('trim', explode(',', $number_series))));
 				array_unshift($numbers, null);
 				unset($numbers[0]);
-				
 				if ($hwc_checked) {
 					$heat_map = $this->predictions_m->get_heat_map($id);
 					if (!empty($heat_map)) {
@@ -1940,12 +1918,10 @@ class Predictions extends Admin_Controller {
 				array_values($numbers);
 				$number_series = implode(',', $numbers);
 			}
-			
 			// Prepare combination file path
 			$combinations_dir = FCPATH . 'combinations/';
 			$filename = basename($original_filename);
 			$filepath = $combinations_dir . $filename . '.txt';
-			
 			if (file_exists($filepath)) {
 				// Prepare number array and generate combinations
 				$number_array = array_map('intval', explode(',', $number_series));
@@ -1968,12 +1944,10 @@ class Predictions extends Admin_Controller {
 					'extra_ball' => $this->data['lottery']->extra_ball,
 					'lottery_highlights' => $this->data['lottery']->highlights
 				];
-				
 				// Generate combinations with pagination (default to first page)
 				$page = 1;
 				$per_page = 10;
 				$combos_paginated = $this->predictions_m->insert_number_combination($filepath, $number_array, $page, $per_page, $filters);
-				
 				if (!empty($combos_paginated)) {
 					$this->data['combos_paginated'] = $combos_paginated;
 					$total_filtered = $this->predictions_m->get_filtered_combinations_count($filepath, $number_array, $filters);
@@ -1991,9 +1965,7 @@ class Predictions extends Admin_Controller {
 				$this->data['message'] = 'Settings restored but combination file not found: ' . $original_filename;
 			}
 		}
-		
 		// **END OF AUTOMATIC TICKET GENERATION**
-		
 		// Load the view with restored settings and generated tickets
 		unset($this->data['lottery']->highlights);
 		$this->data['current'] = $this->uri->segment(2);
