@@ -431,7 +431,11 @@
 									<div class="table-title" style="font-weight:bold; font-size:1.2em; background:#f8f9fa; border-bottom:1px solid #007bff; padding:0.5em 1em; border-radius:6px 6px 0 0; margin:-1em -1em 1em -1em;">
 										LOTTERY PROFILE STATISTICS PRESETS CONTROL PANEL
 										<?php if (!is_NULL($combo_id)): ?>
-											| <i class="fa fa-eye fa-2x" title="Restore previous Combination Filter Settings" style="color:#007bff; cursor:pointer; margin:0 5px;" onclick="refreshFilter(<?= $combo_id ?>)"></i>
+											| 
+											<?=$active 
+														? '<span class="badge badge-success">Active</span>' 
+														: '<span class="badge badge-danger">Expired</span>'; ?>
+											<i class="fa fa-eye fa-2x" title="Restore previous Combination Filter Settings" style="color:#007bff; cursor:pointer; margin:0 5px;" onclick="refreshFilter(<?= $combo_id ?>)"></i>
 											<i class="fa fa-trash-o fa-2x" title="Delete this file and Combination Table Filtered Tickets" style="color:#dc3545; cursor:pointer; margin:0 5px;" onclick="deleteFilter(<?= $combo_id ?>, '<?= $file_name ?>')"></i>
 											<span style="color:#28a745; font-weight:bold;">Filtered Tickets: <?=$CCCC ?></span>
 										<?php endif; ?>

@@ -689,4 +689,22 @@ class Combination_filters_m extends MY_Model
         
         return $query->result_array();
     }
+    /**
+     * Get active flag from combo_id
+     *
+     * @param   int         $combo_id Combination ID
+     * @return  boolean     TRUE on active flag, FALSE on expired
+     */
+    public function get_active_flag($combo_id)
+    {
+        $this->db->select('active');
+        $this->db->where('combo_id', $combo_id);
+        $query = $this->db->get('lottery_combination_filters');
+        
+        if ($query->num_rows() > 0) {
+            $row = $query->row();
+            return $row->active == 1;
+        }
+        return FALSE;
+    }
 }

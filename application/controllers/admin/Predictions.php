@@ -1086,7 +1086,6 @@ class Predictions extends Admin_Controller {
 			$h_w_c_group_options[$value] = $group;
 		}
 		$this->data['h_w_c_group'] = $h_w_c_group_options;
-
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);
 		$p_group = $this->statistics_m->prize_group_profile($id);
 		$p_group = $this->statistics_m->prizes_only($p_group, $this->data['lottery']->extra_ball);
@@ -1114,7 +1113,6 @@ class Predictions extends Admin_Controller {
 		$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
 		$per_page = $this->input->post('per_page') ?: $this->input->get('per_page');
 		if (!$per_page) $per_page = 10;
-
 		// --- POST: Generate and Save Everything to Session ---
 		if ($this->input->method() === 'post') {
 			// Check if futures_form session is set
@@ -1240,7 +1238,7 @@ class Predictions extends Admin_Controller {
 				$this->data['selected_friends'] = $selected_friends; 			// preset value for Friends choices
 				$this->data['selected_wheeling'] = $combination_file; 			// preset value for the Combination File (wheeling file)
 				$this->data['combo_id'] = ($this->lottery_data_m->validate_combo_id($combo_id) ? $combo_id : NULL);
-				
+				$this->data['active'] = $this->combination_filters_m->get_active_flag($combo_id);	
 				// Get filename and CCCC data for futures view
 				if ($combo_id && $this->data['combo_id']) {
 					$filename_cccc_data = $this->lottery_data_m->get_combination_filename_cccc($combo_id);
@@ -1329,9 +1327,6 @@ class Predictions extends Admin_Controller {
 					'total' => 1,
 					'per_page' => $per_page
 				];
-			 	// Calculate filtered tickets count
-    			$filtered_tickets_count = 'Not Available'; // Your logic here
-    			$this->data['filtered_tickets_count'] = $filtered_tickets_count;
 			} else {
 				// Prepare number array and updated combinations
 				$number_array = array_map('intval', explode(',', $number_series));
@@ -1810,6 +1805,7 @@ class Predictions extends Admin_Controller {
 		$this->data['selected_friends'] = $saved_settings['selected_friends'];
 		$this->data['selected_wheeling'] = $combo_id . '|' . $original_filename; // Set dropdown value format
 		$this->data['combo_id'] = $combo_id;
+		$this->data['active'] = $this->combination_filters_m->get_active_flag($combo_id);	
 		// Restore filter selections
 		$this->data['selected_trends'] = $saved_settings['trends'];
 		$this->data['selected_winning_sums'] = $saved_settings['winning_sums'];
