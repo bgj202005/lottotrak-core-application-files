@@ -281,42 +281,48 @@ class Lottery_data_m extends MY_Model
      * Verify active date for lottery combination filters
      * 
      * Validates all records in lottery_combination_filters table for a given lottery ID
-     * and compares the current date with the lastdate field. Updates expired records
-     * to active = 0 when the current date is greater than the lastdate.
-     * Records with lastdate equal to current date remain active until the next day.
+     * and compares the lottery's last draw date with the lastdate field. Updates expired records
+     * to active = 0 when the lottery's last draw date is greater than the lastdate.
+     * Records with lastdate equal to lottery's last draw date remain active until the next draw.
      * 
-     * @param int $lottery_id The lottery ID to check filters for
-     * @return bool Returns TRUE on success, FALSE if there's an error updating the table
+     * @param int       $lottery_id The lottery ID to reference combo_id
+     * @param string    $tble       Formatted table name
+     * @return bool     Returns TRUE on success, FALSE if there's an error updating the table
      */
-    public function verify_active_date($lottery_id)
+    public function verify_active_date($lottery_id, $tbl)
     {
         try {
-            // Get current date in MySQL format
-            $current_date = date('Y-m-d');
+            // Get the last draw date from the lottery's table
+            $last_draw = $this->lotteries_m->last_draw_db($tbl);
             
+            if (!$last_draw || empty($last_draw->draw_date)) {
+                return false; // No last draw date found
+            }
+            // Convert the lottery's last draw date to MySQL format
+            $lottery_last_date = $this->format_date_to_mysql($last_draw->draw_date);
+            
+            if ($lottery_last_date === false) {
+                return false; // Invalid date format
+            }
             // Get all active records for the given lottery that are expired
-            // Only expire records where lastdate < current_date (not equal)
+            // Only expire records where lastdate < lottery's last draw date (not equal)
             $this->db->select('combo_id');
             $this->db->from('lottery_combination_filters');
             $this->db->where('lottery_id', $lottery_id);
             $this->db->where('active', 1);
-            $this->db->where('lastdate <', $current_date);
+            $this->db->where('lastdate <', $lottery_last_date);
             $query = $this->db->get();
-            
             // If there are expired records, update them to inactive
             if ($query->num_rows() > 0) {
                 $this->db->where('lottery_id', $lottery_id);
                 $this->db->where('active', 1);
-                $this->db->where('lastdate <', $current_date);
+                $this->db->where('lastdate <', $lottery_last_date);
                 $update_result = $this->db->update('lottery_combination_filters', ['active' => 0]);
-                
                 if (!$update_result) {
                     return false; // Error updating the table
                 }
             }
-            
             return true; // Success - either no expired records or successfully updated
-            
         } catch (Exception $e) {
             // Log the error if needed
             log_message('error', 'Error in verify_active_date: ' . $e->getMessage());

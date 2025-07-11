@@ -631,7 +631,7 @@ class Combination_filters_m extends MY_Model
     public function get_saved_settings($combo_id)
     {
         $this->db->where('combo_id', $combo_id);
-        $this->db->where('active', 1);
+        //$this->db->where('active', 1);
         $this->db->order_by('id', 'DESC'); // Get the most recent record if multiple exist
         $this->db->limit(1);
         

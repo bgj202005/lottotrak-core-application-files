@@ -476,12 +476,12 @@ class Predictions extends Admin_Controller {
 			redirect('admin/predictions');
 			return;
 		}
-		// Verify and update expired combination filters
-		$expired_check = $this->lottery_data_m->verify_active_date($id);
+		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		// Verify and update expired combination ticket filters
+		$expired_check = $this->lottery_data_m->verify_active_date($id, $tbl_name);
 		if (!$expired_check) {
 			$this->session->set_flashdata('message', '<div class="alert alert-danger">Unable to update expired combination tables before entering the prediction futures view.</div>');
 		}
-		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$drawn = $this->data['lottery']->balls_drawn; // Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$this->data['country_code'] = $this->predictions_m->get_lottery_country($id);
 		$this->data['state_prov_code'] = $this->predictions_m->get_lottery_state_prov($id);

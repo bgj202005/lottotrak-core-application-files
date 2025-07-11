@@ -457,7 +457,6 @@ class Lotteries_m extends MY_Model
 			}
 		}
 	}
-
 	/**
 	 * Returns Last Drawn Numbers from the Lottery Name
 	 * 
@@ -472,7 +471,6 @@ class Lotteries_m extends MY_Model
 		{
 			$sql = "SELECT * FROM `".$lottery_name."` WHERE `draw_date` IN (SELECT MAX(`draw_date`) FROM `".$lottery_name."`) LIMIT 1";
 			$result = $this->db->query($sql);
-			
 			$row = $result->row();
 			return ($result->num_rows() === 1) ? $row : 'nodraws';
 		}
