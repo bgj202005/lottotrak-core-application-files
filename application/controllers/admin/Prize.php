@@ -15,10 +15,21 @@ class Prize extends CI_Controller
         $this->load->model('maintenance_m');
     }
         
-    public function index() 
+    public function index($lottery_id = null) 
     {
         
         // Original code commented out for testing
+        
+        // Validate lottery_id parameter
+        if (!$lottery_id || !is_numeric($lottery_id)) {
+            show_error('Invalid lottery ID provided', 400);
+        }
+        
+        // Get lottery information
+        $lottery = $this->lotteries_m->get($lottery_id);
+        if (!$lottery) {
+            show_error('Lottery not found', 404);
+        }
         
         // Get pagination settings
         $per_page = $this->input->get('per_page') ? (int)$this->input->get('per_page') : 10;
@@ -31,12 +42,13 @@ class Prize extends CI_Controller
             show_error('Administrator must be logged in to view Prize History', 403);
         }
         
-        // Get prize history data for the logged in administrator
-        $this->data['prize_records'] = $this->prize_m->get_admin_prize_history($admin_id, $per_page, $offset);
-        $this->data['total_records'] = $this->prize_m->count_admin_prize_records($admin_id);
+        // Get prize history data for the specific lottery and admin
+        $this->data['prize_records'] = $this->prize_m->get_admin_prize_history($admin_id, $per_page, $offset, $lottery_id);
+        $this->data['total_records'] = $this->prize_m->count_admin_prize_records($admin_id, $lottery_id);
+        $this->data['lottery'] = $lottery;
         
-        // Get dynamic prize columns for all lotteries used by this admin
-        $this->data['prize_columns'] = $this->get_admin_prize_columns($admin_id);
+        // Get dynamic prize columns for this specific lottery
+        $this->data['prize_columns'] = $this->prize_m->get_prize_columns($lottery_id);
         
         // Pagination data
         $this->data['per_page'] = $per_page;

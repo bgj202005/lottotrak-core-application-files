@@ -42,11 +42,11 @@
     /* Specific column widths for better fit */
     #prizeHistoryTable th:nth-child(1) { width: 30px; }     /* # */
     #prizeHistoryTable th:nth-child(2) { width: 100px; }    /* Original */
-    #prizeHistoryTable th:nth-child(3) { width: 80px; }     /* Lotto */
-    #prizeHistoryTable th:nth-child(4) { width: 40px; }     /* N */
-    #prizeHistoryTable th:nth-child(5) { width: 40px; }     /* R */
+    #prizeHistoryTable th:nth-child(3) { width: 50px; }     /* Picks */
+    #prizeHistoryTable th:nth-child(4) { width: 60px; }     /* Drawn */
+    #prizeHistoryTable th:nth-child(5) { width: 120px; }    /* Original Filtered Combinations */
     #prizeHistoryTable th:nth-child(6) { width: 100px; }    /* Saved */
-    #prizeHistoryTable th:nth-child(7) { width: 60px; }     /* R (Actual) */
+    #prizeHistoryTable th:nth-child(7) { width: 80px; }     /* Filtered Combinations */
     #prizeHistoryTable th:nth-child(8) { width: 60px; }     /* Active */
     #prizeHistoryTable th:nth-child(9) { width: 90px; }     /* Next Date */
     /* Win record columns */
@@ -72,23 +72,13 @@
 <div class="content-wrapper">
     <section class="content-header">
         <h1>
-            <i class="fa fa-dollar"></i> Prize History Win Records
+            <i class="fa fa-dollar"></i> Prize History Win Records for: <?php echo isset($lottery) ? $lottery->lottery_name : 'Unknown Lottery'; ?>
         </h1>
-        <ol class="breadcrumb">
-            <li><a href="<?php echo site_url('admin/dashboard'); ?>"><i class="fa fa-dashboard"></i> Dashboard</a></li>
-            <li class="active">Prize History</li>
-        </ol>
+        <h5 style="text-align:left"><?php echo anchor('admin/predictions', 'Back to Predictions Dashboard', 'title="Back to Predictions"'); ?></h5>
     </section>
 
     <section class="content">
         <div class="container mt-4">
-            <!-- Back to Predictions Link -->
-            <div style="margin-bottom: 15px;">
-                <a href="<?php echo site_url('admin/predictions'); ?>" class="btn btn-default">
-                    <i class="fa fa-arrow-left"></i> Back to Predictions
-                </a>
-            </div>
-            
             <!-- White Card -->
             <div class="card shadow-sm">
                 <div class="card-body">
@@ -127,11 +117,11 @@
                                 <tr>
                                     <th>#</th>
                                     <th>Original</th>
-                                    <th>Lotto</th>
-                                    <th>N</th>
-                                    <th>R</th>
+                                    <th>Picks</th>
+                                    <th>Drawn</th>
+                                    <th>Original Combinations</th>
                                     <th>Saved</th>
-                                    <th>R (Act)</th>
+                                    <th>Actual Filtered Combinations</th>
                                     <th>Active</th>
                                     <th>Next Date</th>
                                     <?php $prize_columns = isset($prize_columns) ? $prize_columns : array(); ?>
@@ -169,11 +159,11 @@
                                             <tr>
                                                 <td><?php echo sprintf('%02d', $record->row_number); ?></td>
                                                 <td><?php echo htmlspecialchars($record->original_filename); ?></td>
-                                                <td><?php echo htmlspecialchars($record->lotto_name); ?></td>
                                                 <td class="text-center"><?php echo sprintf('%02d', $record->N); ?></td>
                                                 <td class="text-center"><?php echo number_format($record->R); ?></td>
+                                                <td class="text-center"><?php echo number_format($record->original_cccc); ?></td>
                                                 <td><?php echo htmlspecialchars($record->saved_filename); ?></td>
-                                                <td class="text-center"><?php echo number_format($record->CCCC); ?></td>
+                                                <td class="text-center"><?php echo number_format($record->actual_cccc); ?></td>
                                                 <td class="text-center">
                                                     <?php if($record->is_active == 'YES'): ?>
                                                         <span class="label label-success">YES</span>

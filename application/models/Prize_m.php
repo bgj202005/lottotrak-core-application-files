@@ -23,24 +23,27 @@ class Prize_m extends MY_Model
     protected $_order_by = 'created_date DESC';
     
     /**
-     * Get prize history for a specific administrator
+     * Get prize history for a specific administrator and lottery
      * @param int $admin_id Administrator user ID
      * @param int $limit Number of records per page
      * @param int $offset Starting offset for pagination
+     * @param int $lottery_id Lottery ID to filter by
      * @return array Prize history records
      */
-    public function get_admin_prize_history($admin_id, $limit = 10, $offset = 0)
+    public function get_admin_prize_history($admin_id, $limit = 10, $offset = 0, $lottery_id = null)
     {
         // Load lotteries model for table name conversion
         $this->load->model('lotteries_m');
         
-        // Query lottery_combination_filters for this administrator
+        // Query lottery_combination_filters for this administrator and specific lottery
         $this->db->select('
             lcf.*,
             lp.lottery_name as lotto_name,
             lcfiles.file_name as original_filename,
             lcfiles.N,
-            lcfiles.R
+            lcfiles.R,
+            lcfiles.CCCC as original_cccc,
+            lcf.CCCC as actual_cccc
         ');
         $this->db->from('lottery_combination_filters lcf');
         $this->db->join('lottery_profiles lp', 'lp.id = lcf.lottery_id', 'left');
@@ -49,6 +52,11 @@ class Prize_m extends MY_Model
         // Filter by administrator (user = 1 and user_id = admin_id)
         $this->db->where('lcf.user', 1);
         $this->db->where('lcf.user_id', $admin_id);
+        
+        // Filter by specific lottery if provided
+        if ($lottery_id) {
+            $this->db->where('lcf.lottery_id', $lottery_id);
+        }
         
         $this->db->limit($limit, $offset);
         $this->db->order_by('lcf.id', 'DESC');
@@ -70,23 +78,30 @@ class Prize_m extends MY_Model
             // Add row number
             $record->row_number = $offset + $key + 1;
             
-            // Format saved filename
-            $record->saved_filename = $record->file_name . 'ADMIN' . sprintf('%02d', $admin_id);
+            // Format saved filename using original filename to avoid duplication
+            $record->saved_filename = $record->original_filename . 'ADMIN' . sprintf('%02d', $admin_id);
         }
         
         return $results;
     }
     
     /**
-     * Count total prize records for an administrator
+     * Count total prize records for an administrator and specific lottery
      * @param int $admin_id Administrator user ID
+     * @param int $lottery_id Lottery ID to filter by (optional)
      * @return int Total count
      */
-    public function count_admin_prize_records($admin_id)
+    public function count_admin_prize_records($admin_id, $lottery_id = null)
     {
         $this->db->from('lottery_combination_filters');
         $this->db->where('user', 1);
         $this->db->where('user_id', $admin_id);
+        
+        // Filter by specific lottery if provided
+        if ($lottery_id) {
+            $this->db->where('lottery_id', $lottery_id);
+        }
+        
         return $this->db->count_all_results();
     }
     
@@ -386,7 +401,7 @@ class Prize_m extends MY_Model
             if (property_exists($prize_profile, $extra_field) && !is_null($prize_profile->$extra_field)) {
                 $columns[] = array(
                     'key' => 'win_' . $category . '_extra',
-                    'label' => $category . 'E',
+                    'label' => $category . '+',
                     'tooltip' => $category . ' numbers matched with extra ball'
                 );
             }
@@ -396,7 +411,7 @@ class Prize_m extends MY_Model
         if (property_exists($prize_profile, 'extra') && !is_null($prize_profile->extra)) {
             $columns[] = array(
                 'key' => 'win_extra',
-                'label' => 'E',
+                'label' => '+',
                 'tooltip' => 'Extra ball only'
             );
         }
@@ -452,7 +467,7 @@ class Prize_m extends MY_Model
             if (property_exists($prize_profile, $extra_field) && !is_null($prize_profile->$extra_field)) {
                 $categories[] = array(
                     'key' => 'win_' . $number . '_extra',
-                    'label' => $number . 'E',
+                    'label' => $number . '+',
                     'type' => 'extra',
                     'matches' => $number,
                     'tooltip' => $number . ' numbers matched with extra ball'
@@ -464,7 +479,7 @@ class Prize_m extends MY_Model
         if (property_exists($prize_profile, 'extra') && !is_null($prize_profile->extra)) {
             $categories[] = array(
                 'key' => 'win_extra',
-                'label' => 'E',
+                'label' => '+',
                 'type' => 'extra_only',
                 'matches' => 0,
                 'tooltip' => 'Extra ball only'

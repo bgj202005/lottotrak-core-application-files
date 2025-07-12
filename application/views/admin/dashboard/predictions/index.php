@@ -50,7 +50,7 @@
 		<td style = "text-align:center;"><?php echo $predictions->btn_generate('admin/predictions/generate/'.$lottery->id, $predictions->active($lottery->has_generated_file)); ?></td>
 		<td style = "text-align:center;"><?php echo $predictions->btn_table_of_wins('admin/predictions/files/'.$lottery->id, $predictions->active($lottery->has_generated_file)); ?></td>
 		<td style = "text-align:center;"><?php echo $predictions->btn_predicts('admin/predictions/futures/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><?php echo $predictions->btn_wins('admin/prize/'); ?></td>
+		<td style = "text-align:center;"><?php echo $predictions->btn_wins('admin/prize/index/'.$lottery->id); ?></td>
 	</tr>
 	<?php endforeach; ?> 
 	
