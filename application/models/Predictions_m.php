@@ -263,40 +263,6 @@ class Predictions_m extends MY_Model
 		return $result->row_array(); // Return the result as an associative array
 	}
 	/**
-     * Retrieves the list of all countries.
-     * @param $lottery_id	
-     * @return array An array of country objects with `id` and `name` fields.
-     */
-    public function get_countries($lottery_id)
-    {
-        return $this->db->select('lottery_country_id')->from('lottery_profiles')->where('lottery_id', $lottery_id)->get()->result();
-    }
-	/**
-     * Retrieves the list of provinces/states for a specific country.
-     *
-     * @param int $country_id The ID of the country.
-     * @return array An array of province/state objects with `id` and `name` fields.
-     */
-    public function get_prov_states($country_id)
-    {
-        return $this->db->select('lottery_state_prov')->from('lottery_profiles')->where('country_id', $country_id)->get()->result();
-    }
-	/**
-     * Retrieves the list of lottery games for a specific country and province/state.
-     *
-     * @param int $country_id The ID of the country.
-     * @param string $province_id The ID of the province/state or "ALL" for country-wide lotteries.
-     * @return array An array of lottery game objects with `id` and `name` fields.
-     */
-    public function get_lottery_games($country_id, $province_id)
-    {
-        $this->db->select('id, name')->from('lottery_games')->where('country_id', $country_id);
-        if ($province_id !== 'ALL') {
-            $this->db->where('province_id', $province_id);
-        }
-        return $this->db->get()->result();
-    }
-	/**
      * Retrieves the list of wheeling tables for a specific lottery game.
      *
      * @param int $lottery_id The ID of the lottery game.
@@ -318,41 +284,6 @@ class Predictions_m extends MY_Model
 						->count_all_results('lottery_combination_files');
 		return $result > 0;
 	}
-	/**
-     * Get the country code for a lottery
-     * @param int $id Lottery ID
-     * @return string|null Country code
-     */
-    public function get_lottery_country($lottery_id)
-    {
-        $this->db->select('lottery_country_id');
-        $this->db->from('lottery_profiles');
-        $this->db->where('id', $lottery_id);
-        $query = $this->db->get();
-
-        if ($query->num_rows() > 0) {
-            return $query->row()->lottery_country_id;
-        }
-        return null; // Return null if no record is found
-    }
-	/**
-     * Get the state/province code for a lottery
-     * @param int $lottery_id Lottery ID
-     * @return string|null State/Province code or NULL if blank
-     */
-    public function get_lottery_state_prov($lottery_id)
-    {
-        $this->db->select('lottery_state_prov');
-        $this->db->from('lottery_profiles');
-        $this->db->where('id', $lottery_id);
-        $query = $this->db->get();
-
-        if ($query->num_rows() > 0) {
-            $state_prov = $query->row()->lottery_state_prov;
-            return !empty($state_prov) ? $state_prov : null; // Return NULL if blank
-        }
-        return null; // Return null if no record is found
-    }
 	/**
      * Get combination files for a lottery
      * @param int $lottery_id

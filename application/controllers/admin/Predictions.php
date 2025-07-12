@@ -483,8 +483,8 @@ class Predictions extends Admin_Controller {
 			$this->session->set_flashdata('message', '<div class="alert alert-danger">Unable to update expired combination tables before entering the prediction futures view.</div>');
 		}
 		$drawn = $this->data['lottery']->balls_drawn; // Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
-		$this->data['country_code'] = $this->predictions_m->get_lottery_country($id);
-		$this->data['state_prov_code'] = $this->predictions_m->get_lottery_state_prov($id);
+		$this->data['country_code'] = $this->lottery_data_m->get_lottery_country($id);
+		$this->data['state_prov_code'] = $this->lottery_data_m->get_lottery_state_prov($id);
 		// Fetch combination files for the lottery
     	$this->data['combination_files'] = $this->predictions_m->get_combination_files($id);
 		// Before passing $combination_files to the view
@@ -878,7 +878,7 @@ class Predictions extends Admin_Controller {
      */
     public function get_countries($id)
     {
-        $countries = $this->predictions_m->get_countries($id);
+        $countries = $this->lottery_data_m->get_countries($id);
 	return $countries;
     }
 	 /**
@@ -889,7 +889,7 @@ class Predictions extends Admin_Controller {
      */
     public function get_prov_states($country_id)
     {
-        $prov_state = $this->predictions_m->get_prov_states($country_id);
+        $prov_state = $this->lottery_data_m->get_prov_states($country_id);
  	return $prov_state;
 	}
 	/**
@@ -901,7 +901,7 @@ class Predictions extends Admin_Controller {
      */
     public function get_lottery_games($country_id, $province_id)
     {
-        $lottery_games = $this->predictions_m->get_lottery_games($country_id, $province_id);
+        $lottery_games = $this->lottery_data_m->get_lottery_games($country_id, $province_id);
         echo json_encode($lottery_games);
     }
 	/**
@@ -1066,8 +1066,8 @@ class Predictions extends Admin_Controller {
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$drawn = $this->data['lottery']->balls_drawn;
-		$this->data['country_code'] = $this->predictions_m->get_lottery_country($id);
-		$this->data['state_prov_code'] = $this->predictions_m->get_lottery_state_prov($id);
+		$this->data['country_code'] = $this->lottery_data_m->get_lottery_country($id);
+		$this->data['state_prov_code'] = $this->lottery_data_m->get_lottery_state_prov($id);
 		$this->data['combination_files'] = $this->predictions_m->get_combination_files($id);
 		
 		// Sort combination files numerically
@@ -1742,9 +1742,9 @@ class Predictions extends Admin_Controller {
 		// Extract original combination file name (remove ADMIN## suffix)
 		$original_filename = $this->combination_filters_m->extract_original_filename($saved_settings['file_name']);
 		// Set up all the basic lottery data
-		$this->data['country_code'] = $this->predictions_m->get_lottery_country($id);
-		$this->data['state_prov_code'] = $this->predictions_m->get_lottery_state_prov($id);
-		$this->data['combination_files'] = $this->predictions_m->get_combination_files($id);
+		$this->data['country_code'] = $this->lottery_data_m->get_lottery_country($id);
+		$this->data['state_prov_code'] = $this->lottery_data_m->get_lottery_state_prov($id);
+		$this->data['combination_files'] = $this->lottery_data_m->get_combination_files($id);
 		// Sort combination files numerically and set up the dropdown value format
 		if (!empty($this->data['combination_files'])) {
 			foreach ($this->data['combination_files'] as &$file) {
