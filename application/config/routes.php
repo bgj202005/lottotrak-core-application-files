@@ -51,8 +51,14 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 */
 $route['default_controller'] = 'page';
 $route['translate_uri_dashes'] = FALSE;
+
+// Admin routes - MUST be before 404 override
+$route['admin/prize_test2'] = 'admin/prize_test2/index';
+$route['admin/prize'] = 'admin/prize/index';
+$route['admin/prize/(:any)'] = 'admin/prize/$1';
 // Add route for combination save
 $route['admin/predictions/combination_save/(:num)'] = 'admin/predictions/combination_save/$1';
-// $route[':any'] = 'page/index/$1';
+// Article route
 $route['article/(:num)/(:any)'] = 'article/index/$1/$2';
+// 404 to page controller (if not found controller routing) 
 $route['404_override'] = 'page';
