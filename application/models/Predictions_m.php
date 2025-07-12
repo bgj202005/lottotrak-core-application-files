@@ -434,20 +434,6 @@ class Predictions_m extends MY_Model
     return $result;
 	}
 	/**
-	 * Returns an associative array of actual ball numbers (including extra as +N)
-	 * mapped to their total position points, sorted descending by points.
-	 * Any position with 0 points is excluded.
-	 *
-	 * @param array $last_drawn The last_drawn array from the lottery object.
-	 * @param int $balls_drawn  The number of main balls drawn.
-	 * @return array Sorted associative array: [ 'ball_number' => points, ... ]
-	 */
-	public function get_sorted_position_points($last_drawn, $balls_drawn)
-	{
-		$this->load->model('lottery_statistics_m');
-		return $this->lottery_statistics_m->get_sorted_position_points($last_drawn, $balls_drawn);
-	}
-	/**
 	 * Retrieves lottery highlights for a given lottery_id.
 	 * Returns an associative array with keys: trends, repeats, consecutives, adjacents, winning_sums, winning_digits, number_range, parity.
 	 *
