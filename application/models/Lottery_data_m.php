@@ -310,13 +310,13 @@ class Lottery_data_m extends MY_Model
             $this->db->from('lottery_combination_filters');
             $this->db->where('lottery_id', $lottery_id);
             $this->db->where('active', 1);
-            $this->db->where('lastdate <', $lottery_last_date);
+            $this->db->where('lastdate <=', $lottery_last_date);
             $query = $this->db->get();
             // If there are expired records, update them to inactive
             if ($query->num_rows() > 0) {
                 $this->db->where('lottery_id', $lottery_id);
                 $this->db->where('active', 1);
-                $this->db->where('lastdate <', $lottery_last_date);
+                $this->db->where('lastdate <=', $lottery_last_date);
                 $update_result = $this->db->update('lottery_combination_filters', ['active' => 0]);
                 if (!$update_result) {
                     return false; // Error updating the table
