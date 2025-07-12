@@ -2,11 +2,77 @@
 
 <link rel="stylesheet" href="<?php echo base_url('application/views/admin/prize/prize_history.css'); ?>">
 
+<style>
+    .card {
+        background-color: #ffffff;
+        border: 1px solid rgba(0, 34, 51, 0.1);
+        box-shadow: 2px 4px 10px 0 rgba(0, 34, 51, 0.05), 2px 4px 10px 0 rgba(0, 34, 51, 0.05);
+        border-radius: 0.25rem;
+        padding: 0px;
+        max-width: 100%;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .card-title {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #333333;
+    }
+    .card-body {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 1.5rem;
+    }
+    /* Reduce table width and font size to fit in card */
+    #prizeHistoryTable {
+        font-size: 0.85em;
+        margin: 0 auto;
+        max-width: 100%;
+    }
+    #prizeHistoryTable th,
+    #prizeHistoryTable td {
+        padding: 0.4rem 0.3rem;
+        text-align: center;
+        white-space: nowrap;
+    }
+    #prizeHistoryTable th {
+        font-size: 0.8em;
+        font-weight: bold;
+    }
+    /* Specific column widths for better fit */
+    #prizeHistoryTable th:nth-child(1) { width: 30px; }     /* # */
+    #prizeHistoryTable th:nth-child(2) { width: 100px; }    /* Original */
+    #prizeHistoryTable th:nth-child(3) { width: 80px; }     /* Lotto */
+    #prizeHistoryTable th:nth-child(4) { width: 40px; }     /* N */
+    #prizeHistoryTable th:nth-child(5) { width: 40px; }     /* R */
+    #prizeHistoryTable th:nth-child(6) { width: 100px; }    /* Saved */
+    #prizeHistoryTable th:nth-child(7) { width: 60px; }     /* R (Actual) */
+    #prizeHistoryTable th:nth-child(8) { width: 60px; }     /* Active */
+    #prizeHistoryTable th:nth-child(9) { width: 90px; }     /* Next Date */
+    /* Win record columns */
+    .win-record-col {
+        width: 30px !important;
+        min-width: 30px;
+        font-size: 0.75em;
+    }
+    .table-responsive {
+        overflow-x: auto;
+        margin: 0;
+    }
+    /* Pagination controls styling */
+    .pagination-controls {
+        margin-bottom: 1rem;
+    }
+    .pagination-info {
+        font-size: 0.9rem;
+        color: #666;
+    }
+</style>
+
 <div class="content-wrapper">
     <section class="content-header">
         <h1>
-            <i class="fa fa-dollar"></i> Prize History
-            <small>Administrator Combination Tables Win Records</small>
+            <i class="fa fa-dollar"></i> Prize History Win Records
         </h1>
         <ol class="breadcrumb">
             <li><a href="<?php echo site_url('admin/dashboard'); ?>"><i class="fa fa-dashboard"></i> Dashboard</a></li>
@@ -15,26 +81,27 @@
     </section>
 
     <section class="content">
-        <div class="row">
-            <div class="col-md-12">
-                <div class="box">
-                    <div class="box-header with-border">
-                        <h3 class="box-title">
-                            <i class="fa fa-table"></i> Prize History Records
-                        </h3>
-                        <div class="box-tools pull-right">
-                            <a href="<?php echo site_url('admin/dashboard'); ?>" class="btn btn-default btn-sm">
-                                <i class="fa fa-arrow-left"></i> Back to Prediction Dashboard
-                            </a>
-                        </div>
-                    </div>
+        <div class="container mt-4">
+            <!-- Back to Predictions Link -->
+            <div style="margin-bottom: 15px;">
+                <a href="<?php echo site_url('admin/predictions'); ?>" class="btn btn-default">
+                    <i class="fa fa-arrow-left"></i> Back to Predictions
+                </a>
+            </div>
+            
+            <!-- White Card -->
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h3 class="card-title text-center">
+                        <i class="fa fa-table"></i> Prize History
+                    </h3>
                     
-                    <div class="box-body">
-                        <!-- Pagination Controls -->
+                    <!-- Pagination Controls -->
+                    <div class="pagination-controls">
                         <div class="row">
                             <div class="col-sm-6">
                                 <div class="form-group">
-                                    <label for="per_page_select">File Win Records per page:</label>
+                                    <label for="per_page_select">Records per page:</label>
                                     <select id="per_page_select" class="form-control" style="width: auto; display: inline-block;">
                                         <?php foreach($pagination_options as $option): ?>
                                             <option value="<?php echo $option; ?>" <?php echo ($per_page == $option) ? 'selected' : ''; ?>>
@@ -51,43 +118,45 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Prize History Table -->
-                        <div class="table-responsive">
-                            <table class="table table-bordered table-striped" id="prizeHistoryTable">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 40px;">#</th>
-                                        <th>Original</th>
-                                        <th>Lotto</th>
-                                        <th style="width: 50px;">N</th>
-                                        <th style="width: 60px;">R</th>
-                                        <th>Saved</th>
-                                        <th style="width: 80px;">R (Actual)</th>
-                                        <th style="width: 80px;">Active</th>
-                                        <th>Next Date</th>
-                                        <?php $prize_columns = isset($prize_columns) ? $prize_columns : array(); ?>
-                                        <th colspan="<?php echo max(1, count($prize_columns)); ?>" class="text-center" style="background-color: #f4f4f4;">
-                                            <strong>Win Record</strong>
-                                        </th>
-                                    </tr>
-                                    <tr>
-                                        <th colspan="9"></th>
-                                        <!-- Dynamic Win Record Sub-headers -->
-                                        <?php if(!empty($prize_columns)): ?>
-                                            <?php foreach($prize_columns as $column): ?>
-                                                <th class="text-center" style="width: 35px; background-color: #e8f5e8;" 
-                                                    title="<?php echo htmlspecialchars($column['tooltip']); ?>">
-                                                    <?php echo htmlspecialchars($column['label']); ?>
-                                                </th>
-                                            <?php endforeach; ?>
-                                        <?php else: ?>
-                                            <th class="text-center" style="background-color: #e8f5e8;">
-                                                No Prize Categories
+                    <!-- Prize History Table -->
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped" id="prizeHistoryTable">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Original</th>
+                                    <th>Lotto</th>
+                                    <th>N</th>
+                                    <th>R</th>
+                                    <th>Saved</th>
+                                    <th>R (Act)</th>
+                                    <th>Active</th>
+                                    <th>Next Date</th>
+                                    <?php $prize_columns = isset($prize_columns) ? $prize_columns : array(); ?>
+                                    <th colspan="<?php echo max(1, count($prize_columns)); ?>" class="text-center" style="background-color: #f4f4f4;">
+                                        <strong>Win Record</strong>
+                                    </th>
+                                </tr>
+                                <tr>
+                                    <th colspan="9"></th>
+                                    <!-- Dynamic Win Record Sub-headers -->
+                                    <?php if(!empty($prize_columns)): ?>
+                                        <?php foreach($prize_columns as $column): ?>
+                                            <th class="text-center win-record-col" 
+                                                style="background-color: #e8f5e8;" 
+                                                title="<?php echo htmlspecialchars($column['tooltip']); ?>">
+                                                <?php echo htmlspecialchars($column['label']); ?>
                                             </th>
-                                        <?php endif; ?>
-                                    </tr>
-                                </thead>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <th class="text-center" style="background-color: #e8f5e8;">
+                                            No Prize Categories
+                                        </th>
+                                    <?php endif; ?>
+                                </tr>
+                            </thead>
                                 <tbody>
                                     <?php if(empty($prize_records)): ?>
                                         <tr>
@@ -99,11 +168,11 @@
                                         <?php foreach($prize_records as $record): ?>
                                             <tr>
                                                 <td><?php echo sprintf('%02d', $record->row_number); ?></td>
-                                                <td><?php echo htmlspecialchars($record->file_name); ?></td>
+                                                <td><?php echo htmlspecialchars($record->original_filename); ?></td>
                                                 <td><?php echo htmlspecialchars($record->lotto_name); ?></td>
                                                 <td class="text-center"><?php echo sprintf('%02d', $record->N); ?></td>
                                                 <td class="text-center"><?php echo number_format($record->R); ?></td>
-                                                <td><?php echo htmlspecialchars($record->file_name . 'ADMIN' . sprintf('%02d', $this->session->userdata('id'))); ?></td>
+                                                <td><?php echo htmlspecialchars($record->saved_filename); ?></td>
                                                 <td class="text-center"><?php echo number_format($record->CCCC); ?></td>
                                                 <td class="text-center">
                                                     <?php if($record->is_active == 'YES'): ?>
@@ -112,7 +181,7 @@
                                                         <span class="label label-danger">EXPIRED</span>
                                                     <?php endif; ?>
                                                 </td>
-                                                <td><?php echo date('M j, Y', strtotime($record->lastdate)); ?></td>
+                                                <td><?php echo date('D M j, Y', strtotime($record->lastdate)); ?></td>
                                                 
                                                 <!-- Dynamic Win Record Columns -->
                                                 <?php if(!empty($prize_columns)): ?>
@@ -177,7 +246,6 @@
                                 </div>
                             </div>
                         <?php endif; ?>
-                    </div>
                 </div>
             </div>
         </div>

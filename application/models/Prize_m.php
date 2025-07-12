@@ -1,6 +1,22 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
+/**
+ * Prize_m Model - Prize History Management
+ * 
+ * Handles lottery combination filters and calculates win records by comparing
+ * combination tickets against drawn numbers from lottery tables.
+ * 
+ * File Structure for Combination Files:
+ * combinations/
+ * ├── pick3/{filename}    (for 3-pick lotteries)
+ * ├── pick4/{filename}    (for 4-pick lotteries)
+ * ├── pick5/{filename}    (for 5-pick lotteries)
+ * ├── pick6/{filename}    (for 6-pick lotteries)
+ * ├── pick7/{filename}    (for 7-pick lotteries)
+ * ├── pick8/{filename}    (for 8-pick lotteries)
+ * └── pick9/{filename}    (for 9-pick lotteries)
+ */
 class Prize_m extends MY_Model
 {
     protected $_table_name = 'lottery_combination_files'; // Assuming this table stores combination files
@@ -15,15 +31,24 @@ class Prize_m extends MY_Model
      */
     public function get_admin_prize_history($admin_id, $limit = 10, $offset = 0)
     {
+        // Load lotteries model for table name conversion
+        $this->load->model('lotteries_m');
+        
+        // Query lottery_combination_filters for this administrator
         $this->db->select('
             lcf.*,
-            lp.lottery_name as lotto_name
+            lp.lottery_name as lotto_name,
+            lcfiles.file_name as original_filename,
+            lcfiles.N,
+            lcfiles.R
         ');
-        $this->db->from('lottery_combination_files lcf');
+        $this->db->from('lottery_combination_filters lcf');
         $this->db->join('lottery_profiles lp', 'lp.id = lcf.lottery_id', 'left');
+        $this->db->join('lottery_combination_files lcfiles', 'lcfiles.id = lcf.combo_id', 'left');
         
-        // Filter by admin ID in filename (files containing ADMIN + user_id)
-        $this->db->like('lcf.file_name', 'ADMIN' . sprintf('%02d', $admin_id));
+        // Filter by administrator (user = 1 and user_id = admin_id)
+        $this->db->where('lcf.user', 1);
+        $this->db->where('lcf.user_id', $admin_id);
         
         $this->db->limit($limit, $offset);
         $this->db->order_by('lcf.id', 'DESC');
@@ -33,14 +58,20 @@ class Prize_m extends MY_Model
         
         // Process results to add calculated fields and win records
         foreach ($results as $key => $record) {
-            // Determine if record is active or expired based on active field
+            // Check if record should be expired and update if necessary
+            $this->check_and_update_active_status($record);
+            
+            // Determine if record is active or expired
             $record->is_active = ($record->active == 1) ? 'YES' : 'EXPIRED';
             
-            // Get win records for this combination file
-            $record->win_records = $this->calculate_win_records($record->id, $record->lottery_id, $record->active, $record->lastdate);
+            // Calculate actual win records by comparing tickets to drawn numbers
+            $record->win_records = $this->calculate_actual_win_records($record);
             
             // Add row number
             $record->row_number = $offset + $key + 1;
+            
+            // Format saved filename
+            $record->saved_filename = $record->file_name . 'ADMIN' . sprintf('%02d', $admin_id);
         }
         
         return $results;
@@ -53,8 +84,9 @@ class Prize_m extends MY_Model
      */
     public function count_admin_prize_records($admin_id)
     {
-        $this->db->from('lottery_combination_files');
-        $this->db->like('file_name', 'ADMIN' . sprintf('%02d', $admin_id));
+        $this->db->from('lottery_combination_filters');
+        $this->db->where('user', 1);
+        $this->db->where('user_id', $admin_id);
         return $this->db->count_all_results();
     }
     
@@ -440,5 +472,341 @@ class Prize_m extends MY_Model
         }
         
         return $categories;
+    }
+    
+    /**
+     * Check if a record should be expired and update its status
+     * @param object $record Lottery combination filter record
+     */
+    private function check_and_update_active_status($record)
+    {
+        if ($record->active == 1) {
+            // Get lottery table name using lotteries_m model
+            $table_name = $this->lotteries_m->lotto_table_convert($record->lottery_id);
+            
+            // Validate table name - should be a string, not a number
+            if ($table_name && is_string($table_name) && $table_name !== '1') {
+                // Check if there are draws after or on the last date (>= instead of >)
+                $this->db->select('COUNT(*) as count');
+                $this->db->from($table_name);
+                $this->db->where('draw_date >=', $record->lastdate);
+                $result = $this->db->get()->row();
+                
+                // If no draws from lastdate onwards, mark as expired
+                if ($result && $result->count == 0) {
+                    $this->db->where('id', $record->id);
+                    $this->db->update('lottery_combination_filters', array('active' => 0));
+                    $record->active = 0; // Update local object
+                }
+            } else {
+                // Log error if table name is invalid
+                log_message('error', "Prize History: Invalid table name returned for lottery_id {$record->lottery_id}: " . var_export($table_name, true));
+            }
+        }
+    }
+    
+    /**
+     * Calculate actual win records by comparing combination tickets to drawn numbers
+     * @param object $record Lottery combination filter record
+     * @return object Win record counts
+     */
+    private function calculate_actual_win_records($record)
+    {
+        // Get prize profile for dynamic win structure
+        $prize_profile = $this->get_lottery_prize_profile($record->lottery_id);
+        if (!$prize_profile) {
+            return (object) array();
+        }
+        
+        // Initialize win records
+        $win_records = $this->initialize_win_records($prize_profile);
+        
+        // If not active, return zeros
+        if ($record->active != 1) {
+            return $win_records;
+        }
+        
+        // Get lottery table name
+        $table_name = $this->lotteries_m->lotto_table_convert($record->lottery_id);
+        
+        // Validate table name - should be a string, not a number
+        if (!$table_name || !is_string($table_name) || $table_name === '1') {
+            log_message('error', "Prize History: Invalid table name for lottery_id {$record->lottery_id}: " . var_export($table_name, true));
+            return $win_records;
+        }
+        
+        // Get all draws from last date onwards
+        $draws = $this->get_draws_from_date($table_name, $record->lastdate);
+        if (empty($draws)) {
+            return $win_records;
+        }
+        
+        // Get combination tickets from file
+        $combination_tickets = $this->get_combination_tickets($record);
+        if (empty($combination_tickets)) {
+            return $win_records;
+        }
+        
+        // Process each draw
+        foreach ($draws as $draw) {
+            // Process each combination ticket
+            foreach ($combination_tickets as $ticket) {
+                $matches = $this->count_matching_numbers($ticket, $draw);
+                $bonus_match = $this->check_extra_number_match($ticket, $draw);
+                
+                // Check prize categories and increment counters
+                $this->check_prize_category($matches, $bonus_match, $prize_profile, $win_records);
+            }
+        }
+        
+        return $win_records;
+    }
+    
+    /**
+     * Get draws from a specific date onwards
+     * @param string $table_name Lottery table name
+     * @param string $from_date Starting date
+     * @return array Draw results
+     */
+    private function get_draws_from_date($table_name, $from_date)
+    {
+        // Validate table name
+        if (!$table_name || !is_string($table_name) || $table_name === '1') {
+            log_message('error', "Prize History: Invalid table name for get_draws_from_date: " . var_export($table_name, true));
+            return array();
+        }
+        
+        $this->db->select('*');
+        $this->db->from($table_name);
+        $this->db->where('draw_date >=', $from_date); // Use >= instead of >
+        $this->db->order_by('draw_date', 'ASC');
+        return $this->db->get()->result();
+    }
+    
+    /**
+     * Get combination tickets from file
+     * @param object $record Lottery combination filter record
+     * @return array Combination tickets
+     */
+    private function get_combination_tickets($record)
+    {
+        // Get validated file path
+        $file_path = $this->get_combination_file_path($record);
+        if (!$file_path) {
+            return array();
+        }
+        
+        // Get expected number of picks for validation
+        $lottery_info = $this->get_lottery_info($record->lottery_id);
+        $expected_picks = intval($lottery_info->picks);
+        
+        // Read and parse the combination file
+        $tickets = array();
+        $file_content = file_get_contents($file_path);
+        
+        if ($file_content) {
+            $lines = explode("\n", $file_content);
+            foreach ($lines as $line_num => $line) {
+                $line = trim($line);
+                if (!empty($line)) {
+                    // Parse combination numbers (assuming space or comma separated)
+                    $numbers = preg_split('/[\s,]+/', $line);
+                    $numbers = array_map('intval', array_filter($numbers, 'is_numeric'));
+                    
+                    // Validate that we have the expected number of picks
+                    if (count($numbers) == $expected_picks) {
+                        $tickets[] = $numbers;
+                    } else {
+                        // Log validation warnings for debugging
+                        log_message('debug', "Prize History: Line " . ($line_num + 1) . " in {$record->file_name} has " . count($numbers) . " numbers, expected {$expected_picks}");
+                    }
+                }
+            }
+        }
+        
+        return $tickets;
+    }
+    
+    /**
+     * Get lottery information
+     * @param int $lottery_id Lottery ID
+     * @return object Lottery info
+     */
+    private function get_lottery_info($lottery_id)
+    {
+        $this->db->select('picks, bonus_ball');
+        $this->db->from('lottery_profiles');
+        $this->db->where('id', $lottery_id);
+        return $this->db->get()->row();
+    }
+    
+    /**
+     * Count matching numbers between ticket and draw
+     * @param array $ticket Combination ticket numbers
+     * @param object $draw Draw result
+     * @return int Number of matches
+     */
+    private function count_matching_numbers($ticket, $draw)
+    {
+        // Get drawn numbers from draw object
+        $drawn_numbers = $this->extract_drawn_numbers($draw);
+        
+        if (empty($drawn_numbers) || empty($ticket)) {
+            return 0;
+        }
+        
+        // Count matches
+        $matches = 0;
+        foreach ($ticket as $number) {
+            if (in_array($number, $drawn_numbers)) {
+                $matches++;
+            }
+        }
+        
+        return $matches;
+    }
+    
+    /**
+     * Check if extra/bonus number matches
+     * @param array $ticket Combination ticket numbers
+     * @param object $draw Draw result
+     * @return bool True if extra number matches
+     */
+    private function check_extra_number_match($ticket, $draw)
+    {
+        // Get extra/bonus number from draw
+        $extra_number = $this->extract_extra_number($draw);
+        
+        if (is_null($extra_number)) {
+            return false;
+        }
+        
+        // Check if any ticket number matches extra number
+        return in_array($extra_number, $ticket);
+    }
+    
+    /**
+     * Extract drawn numbers from draw object
+     * @param object $draw Draw result
+     * @return array Drawn numbers
+     */
+    private function extract_drawn_numbers($draw)
+    {
+        // Try common field names for drawn numbers
+        $number_fields = array('numbers', 'drawn_numbers', 'winning_numbers', 'balls');
+        
+        foreach ($number_fields as $field) {
+            if (property_exists($draw, $field) && !empty($draw->$field)) {
+                // Handle different formats (comma-separated, space-separated, etc.)
+                $numbers_str = $draw->$field;
+                $numbers = preg_split('/[\s,\-]+/', $numbers_str);
+                return array_map('intval', array_filter($numbers, 'is_numeric'));
+            }
+        }
+        
+        // Try individual number fields (ball1, ball2, etc.) - support up to 9 balls
+        $numbers = array();
+        for ($i = 1; $i <= 9; $i++) {
+            $ball_field = 'ball' . $i;
+            if (property_exists($draw, $ball_field) && !is_null($draw->$ball_field)) {
+                $numbers[] = intval($draw->$ball_field);
+            }
+        }
+        
+        return $numbers;
+    }
+    
+    /**
+     * Extract extra/bonus number from draw object
+     * @param object $draw Draw result
+     * @return int|null Extra number or null if not found
+     */
+    private function extract_extra_number($draw)
+    {
+        // Try common field names for extra/bonus numbers
+        $extra_fields = array('extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number');
+        
+        foreach ($extra_fields as $field) {
+            if (property_exists($draw, $field) && !is_null($draw->$field)) {
+                return intval($draw->$field);
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Validate and get combination file path
+     * @param object $record Lottery combination filter record
+     * @return string|false File path if valid, false if not found
+     */
+    private function get_combination_file_path($record)
+    {
+        // Get lottery info to determine pick directory
+        $lottery_info = $this->get_lottery_info($record->lottery_id);
+        if (!$lottery_info) {
+            return false;
+        }
+        
+        // Validate pick range (3 to 9)
+        $picks = intval($lottery_info->picks);
+        if ($picks < 3 || $picks > 9) {
+            return false;
+        }
+        
+        // Build file path
+        $pick_dir = 'pick' . $picks;
+        $file_path = APPPATH . '../combinations/' . $pick_dir . '/' . $record->file_name;
+        
+        // Check if file exists
+        if (!file_exists($file_path)) {
+            // Log missing file for debugging
+            log_message('error', "Prize History: Combination file not found: {$file_path}");
+            return false;
+        }
+        
+        return $file_path;
+    }
+    
+    /**
+     * Get supported pick range for validation
+     * @return array Supported pick numbers
+     */
+    public function get_supported_pick_range()
+    {
+        return array(3, 4, 5, 6, 7, 8, 9);
+    }
+    
+    /**
+     * Debug helper to check lottery table conversion
+     * @param int $lottery_id Lottery ID
+     * @return string Debug information
+     */
+    public function debug_lottery_table($lottery_id)
+    {
+        $table_name = $this->lotteries_m->lotto_table_convert($lottery_id);
+        
+        $debug_info = array(
+            'lottery_id' => $lottery_id,
+            'table_name' => $table_name,
+            'table_name_type' => gettype($table_name),
+            'is_string' => is_string($table_name),
+            'is_valid' => ($table_name && is_string($table_name) && $table_name !== '1')
+        );
+        
+        // Check if lottery profile exists
+        $this->db->select('lottery_name, picks');
+        $this->db->from('lottery_profiles');
+        $this->db->where('id', $lottery_id);
+        $lottery_profile = $this->db->get()->row();
+        
+        if ($lottery_profile) {
+            $debug_info['lottery_name'] = $lottery_profile->lottery_name;
+            $debug_info['picks'] = $lottery_profile->picks;
+        } else {
+            $debug_info['error'] = 'Lottery profile not found';
+        }
+        
+        return $debug_info;
     }
 }

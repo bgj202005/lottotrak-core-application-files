@@ -12,6 +12,7 @@ class Prize extends CI_Controller
         $this->load->model('prize_m');
         $this->load->model('user_m');
         $this->load->model('lotteries_m'); 
+        $this->load->model('maintenance_m');
     }
         
     public function index() 
@@ -26,18 +27,9 @@ class Prize extends CI_Controller
         // Get logged in admin user ID
         $admin_id = $this->session->userdata('id');
         
-        // Temporary bypass for testing - comment out after testing
-        if (!$admin_id) {
-            $admin_id = 1; // Use admin ID 1 for testing
-            $this->session->set_userdata('id', 1);
-        }
-        
-        // Original admin check - uncomment after testing
-        /*
         if (!$admin_id) {
             show_error('Administrator must be logged in to view Prize History', 403);
         }
-        */
         
         // Get prize history data for the logged in administrator
         $this->data['prize_records'] = $this->prize_m->get_admin_prize_history($admin_id, $per_page, $offset);
@@ -55,6 +47,14 @@ class Prize extends CI_Controller
         // Pagination options
         $this->data['pagination_options'] = array(10, 20, 50, 100, 200, 300, 500, 1000);
         
+        // Add maintenance check for layout
+        $this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+        
+        // Add online user counts for layout
+        $this->data['users'] = $this->maintenance_m->logged_online(0);      // Members
+        $this->data['admins'] = $this->maintenance_m->logged_online(1);     // Admins
+        $this->data['visitors'] = $this->maintenance_m->active_visitors();  // Active Visitors
+        
         $this->data['current'] = $this->uri->segment(2);
         $this->session->set_userdata('uri', 'admin/'.$this->data['current']);
         $this->data['subview'] = 'admin/prize/index';
@@ -69,11 +69,6 @@ class Prize extends CI_Controller
         $per_page = $this->input->post('per_page') ? (int)$this->input->post('per_page') : 10;
         $offset = $this->input->post('offset') ? (int)$this->input->post('offset') : 0;
         $admin_id = $this->session->userdata('id');
-        
-        // Temporary bypass for testing
-        if (!$admin_id) {
-            $admin_id = 1;
-        }
         
         if (!$admin_id) {
             echo json_encode(['error' => 'Not authorized']);
@@ -100,10 +95,12 @@ class Prize extends CI_Controller
      */
     private function get_admin_prize_columns($admin_id)
     {
-        // Get all unique lottery IDs for this admin's files
-        $this->db->select('DISTINCT lottery_id');
-        $this->db->from('lottery_combination_files');
-        $this->db->like('file_name', 'ADMIN' . sprintf('%02d', $admin_id));
+        // Get all unique lottery IDs for this admin's filters
+        $this->db->distinct();
+        $this->db->select('lottery_id');
+        $this->db->from('lottery_combination_filters');
+        $this->db->where('user', 1);
+        $this->db->where('user_id', $admin_id);
         $query = $this->db->get();
         $lottery_ids = $query->result();
         
@@ -136,5 +133,27 @@ class Prize extends CI_Controller
         });
         
         return $all_columns;
+    }
+    
+    /**
+     * Debug method to check lottery table conversion
+     */
+    public function debug_table($lottery_id = 1)
+    {
+        $debug_info = $this->prize_m->debug_lottery_table($lottery_id);
+        
+        echo "<h3>Lottery Table Debug Info</h3>";
+        echo "<pre>";
+        print_r($debug_info);
+        echo "</pre>";
+        
+        // Also test with different lottery IDs
+        echo "<h3>Testing Multiple Lottery IDs</h3>";
+        for ($i = 1; $i <= 5; $i++) {
+            echo "<h4>Lottery ID: $i</h4>";
+            echo "<pre>";
+            print_r($this->prize_m->debug_lottery_table($i));
+            echo "</pre>";
+        }
     }
 }
