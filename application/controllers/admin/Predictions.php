@@ -1455,7 +1455,8 @@ class Predictions extends Admin_Controller {
 					$this->data['pagination'] = [
 						'current' => $page,
 						'total' => ceil($total_filtered / $per_page),
-						'per_page' => $per_page
+						'per_page' => $per_page,
+						'total_filtered' => $total_filtered  // Add total filtered count
 					];
 					$this->data['number_array'] = $number_array;
 					$this->data['message'] = 'Combination Table and filters loaded successfully.';

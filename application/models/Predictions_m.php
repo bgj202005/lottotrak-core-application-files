@@ -1787,75 +1787,113 @@ class Predictions_m extends MY_Model
 			}
 		}
 		
-		// Read file line by line and apply filters
-		if (($handle = fopen($filepath, 'r')) !== false) {
-			while (($line = fgets($handle)) !== false && $combinations_found < $per_page) {
-				$line = trim($line);
-				if (empty($line)) continue;
-				
-				$line_count++;
-				
-				// Skip lines for pagination (only if no filtering is applied)
-				if ($selected_trends === 'ALL' && $line_count <= ($page - 1) * $per_page) {
-					continue;
-				}
-				
-				// Parse combination
-				$positions = array_map('intval', explode(' ', $line));
-				$combo_numbers = [];
-				foreach ($positions as $pos) {
-					// Validate position index
-					if ($pos > 0 && isset($number_array[$pos - 1])) {
-						$combo_numbers[] = $number_array[$pos - 1];
-					}
-				}
-				
-				// Skip if we don't have valid numbers
-				if (empty($combo_numbers)) continue;
-				
-				sort($combo_numbers, SORT_NUMERIC); // Sort numbers from lowest to highest
-
-				// Re-index as ball1, ball2, ...
-				$combo = [];
-				foreach ($combo_numbers as $idx => $num) {
-					$combo['ball'.($idx+1)] = $num;
-				}
-				
-				// Apply trend filter if specified
-				if ($selected_trends !== 'ALL') {
-					if (!$this->check_trend_match($combo, $last_drawn_numbers, $selected_trends)) {
-						continue; // Skip this combination if it doesn't match trend
-					}
+		// For efficiency, if no filters are applied, use simple file line pagination
+		if ($selected_trends === 'ALL' && !$this->has_active_filters($filter_select)) {
+			// Simple pagination for unfiltered results
+			if (($handle = fopen($filepath, 'r')) !== false) {
+				while (($line = fgets($handle)) !== false) {
+					$line = trim($line);
+					if (empty($line)) continue;
 					
-					// For filtered results, we need to skip already collected combinations for pagination
-					if ($skip_count < ($page - 1) * $per_page) {
-						$skip_count++;
+					$line_count++;
+					
+					// Skip lines for pagination
+					if ($line_count <= ($page - 1) * $per_page) {
 						continue;
 					}
-				}
-				
-				// Apply other filters
-				if (!$this->apply_other_filters($combo, $filter_select)) {
-					continue; // Skip this combination if it doesn't pass other filters
-				}
-				
-				// Create a separate combo array for the combination display
-				$combo_data = ['combo' => $combo];
-				
-				// Get stats if filter_select is provided and has the required keys
-				if (!empty($filter_select) && isset($filter_select['drawn']) && isset($filter_select['lottery_last_drawn'])) {
-					$stats = $this->get_combo_stats($combo, $filter_select['drawn'], $filter_select['lottery_last_drawn']);
-					// Merge combo data with stats - flattens into one array
-					$combo_data = array_merge($combo_data, $stats);
-				} else {
-					// If no filter data, just add the combo
+					
+					// Stop when we have enough items for this page
+					if ($combinations_found >= $per_page) {
+						break;
+					}
+					
+					// Parse and process combination
+					$positions = array_map('intval', explode(' ', $line));
+					$combo_numbers = [];
+					foreach ($positions as $pos) {
+						if ($pos > 0 && isset($number_array[$pos - 1])) {
+							$combo_numbers[] = $number_array[$pos - 1];
+						}
+					}
+					
+					if (empty($combo_numbers)) continue;
+					
+					sort($combo_numbers, SORT_NUMERIC);
+					$combo = [];
+					foreach ($combo_numbers as $idx => $num) {
+						$combo['ball'.($idx+1)] = $num;
+					}
+					
+					// Create combo data with stats if available
 					$combo_data = ['combo' => $combo];
+					if (!empty($filter_select) && isset($filter_select['drawn']) && isset($filter_select['lottery_last_drawn'])) {
+						$stats = $this->get_combo_stats($combo, $filter_select['drawn'], $filter_select['lottery_last_drawn']);
+						$combo_data = array_merge($combo_data, $stats);
+					}
+					
+					$result[] = $combo_data;
+					$combinations_found++;
 				}
-				
-				$result[] = $combo_data;
-				$combinations_found++;
+				fclose($handle);
 			}
-			fclose($handle);
+		} else {
+			// For filtered results, collect all valid combinations first, then apply pagination
+			$filtered_combinations = [];
+			
+			// Read file line by line and apply filters
+			if (($handle = fopen($filepath, 'r')) !== false) {
+				while (($line = fgets($handle)) !== false) {
+					$line = trim($line);
+					if (empty($line)) continue;
+					
+					// Parse combination
+					$positions = array_map('intval', explode(' ', $line));
+					$combo_numbers = [];
+					foreach ($positions as $pos) {
+						// Validate position index
+						if ($pos > 0 && isset($number_array[$pos - 1])) {
+							$combo_numbers[] = $number_array[$pos - 1];
+						}
+					}
+					
+					// Skip if we don't have valid numbers
+					if (empty($combo_numbers)) continue;
+					
+					sort($combo_numbers, SORT_NUMERIC); // Sort numbers from lowest to highest
+
+					// Re-index as ball1, ball2, ...
+					$combo = [];
+					foreach ($combo_numbers as $idx => $num) {
+						$combo['ball'.($idx+1)] = $num;
+					}
+					
+					// Apply trend filter if specified
+					if ($selected_trends !== 'ALL') {
+						if (!$this->check_trend_match($combo, $last_drawn_numbers, $selected_trends)) {
+							continue; // Skip this combination if it doesn't match trend
+						}
+					}
+					
+					// Apply other filters
+					if (!$this->apply_other_filters($combo, $filter_select)) {
+						continue; // Skip this combination if it doesn't pass other filters
+					}
+					
+					// Create combo data with stats if available
+					$combo_data = ['combo' => $combo];
+					if (!empty($filter_select) && isset($filter_select['drawn']) && isset($filter_select['lottery_last_drawn'])) {
+						$stats = $this->get_combo_stats($combo, $filter_select['drawn'], $filter_select['lottery_last_drawn']);
+						$combo_data = array_merge($combo_data, $stats);
+					}
+					
+					$filtered_combinations[] = $combo_data;
+				}
+				fclose($handle);
+			}
+			
+			// Apply pagination to filtered results
+			$start_index = ($page - 1) * $per_page;
+			$result = array_slice($filtered_combinations, $start_index, $per_page);
 		}
 		
 		return $result;

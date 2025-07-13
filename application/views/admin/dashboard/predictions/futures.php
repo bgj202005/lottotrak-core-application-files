@@ -716,6 +716,26 @@
 										</tbody>
 									</table>
 								</div>
+								
+								<!-- Pagination Info Display -->
+								<div class="row mt-3 mb-2">
+									<div class="col-sm-6">
+										<div class="pagination-info">
+											<?php 
+											$total_filtered = $pagination['total_filtered'] ?? 0;
+											$start = (($pagination['current']-1) * $pagination['per_page']) + 1;
+											$end = min($pagination['current'] * $pagination['per_page'], $total_filtered);
+											?>
+											Showing <?= $start ?> to <?= $end ?> of <?= $total_filtered ?> entries
+										</div>
+									</div>
+									<div class="col-sm-6 text-right">
+										<div class="pagination-info">
+											Page <?= $pagination['current'] ?> of <?= $pagination['total'] ?>
+										</div>
+									</div>
+								</div>
+								
 								<!-- Bootstrap Pagination here -->
 								<nav>
 									<ul class="pagination justify-content-center">
