@@ -79,11 +79,10 @@ class Prize extends CI_Controller
         $this->data['visitors'] = $this->maintenance_m->active_visitors();  // Active Visitors
         
         $this->data['current'] = $this->uri->segment(2);
-        $this->session->set_userdata('uri', 'admin/'.$this->data['current']);
+        $this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/index/'.$lottery_id);
         $this->data['subview'] = 'admin/prize/index';
         $this->load->view('admin/_layout_main', $this->data);
     }
-    
     /**
      * AJAX endpoint for getting updated table data
      */

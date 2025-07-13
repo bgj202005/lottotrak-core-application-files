@@ -603,7 +603,7 @@ class Predictions extends Admin_Controller {
 		// Load the view
 		unset($this->data['lottery']->highlights);
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
-		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/futures');
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/futures'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
 		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
@@ -1559,7 +1559,7 @@ class Predictions extends Admin_Controller {
 		// Load the view
 		unset($this->data['lottery']->highlights);
 		$this->data['current'] = $this->uri->segment(2);
-		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/futures');
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/futures'.'/'.$id);
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);
 		$this->data['admins'] = $this->maintenance_m->logged_online(1);
@@ -2030,7 +2030,7 @@ class Predictions extends Admin_Controller {
 		// Load the view with restored settings and generated tickets
 		unset($this->data['lottery']->highlights);
 		$this->data['current'] = $this->uri->segment(2);
-		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/futures');
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/futures'.'/'.$id);
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);
 		$this->data['admins'] = $this->maintenance_m->logged_online(1);
