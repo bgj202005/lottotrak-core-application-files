@@ -1593,7 +1593,7 @@ class Predictions extends Admin_Controller {
 		// Prepare data for saving
 		// Grab the next draw date
 		$ld = $this->data['lottery']->last_drawn['draw_date'];
-		$mysql_date = $this->lottery_data_m->format_date_to_mysql($this->lotteries_m->next_date($this->data['lottery'], $this->lotteries_m->return_day($ld), $ld));
+		$mysql_date = $this->lottery_data_m->format_date_to_mysql($ld);
 		$save_data = [
   			'file_name' => $file_name,
 			'N' => $N,

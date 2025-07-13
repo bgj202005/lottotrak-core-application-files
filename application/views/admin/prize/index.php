@@ -43,12 +43,11 @@
     #prizeHistoryTable th:nth-child(1) { width: 30px; }     /* # */
     #prizeHistoryTable th:nth-child(2) { width: 100px; }    /* Original */
     #prizeHistoryTable th:nth-child(3) { width: 50px; }     /* Picks */
-    #prizeHistoryTable th:nth-child(4) { width: 60px; }     /* Drawn */
-    #prizeHistoryTable th:nth-child(5) { width: 120px; }    /* Original Filtered Combinations */
-    #prizeHistoryTable th:nth-child(6) { width: 100px; }    /* Saved */
-    #prizeHistoryTable th:nth-child(7) { width: 80px; }     /* Filtered Combinations */
-    #prizeHistoryTable th:nth-child(8) { width: 60px; }     /* Active */
-    #prizeHistoryTable th:nth-child(9) { width: 90px; }     /* Next Date */
+    #prizeHistoryTable th:nth-child(4) { width: 120px; }    /* Original Combinations */
+    #prizeHistoryTable th:nth-child(5) { width: 100px; }    /* Saved */
+    #prizeHistoryTable th:nth-child(6) { width: 120px; }    /* Actual Filtered Combinations */
+    #prizeHistoryTable th:nth-child(7) { width: 80px; }     /* Active */
+    #prizeHistoryTable th:nth-child(8) { width: 90px; }     /* Last Date */
     /* Win record columns */
     .win-record-col {
         width: 30px !important;
@@ -66,6 +65,34 @@
     .pagination-info {
         font-size: 0.9rem;
         color: #666;
+    }
+    /* Enhanced Status Tags */
+    .status-tag {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.75em;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border: 1px solid;
+        min-width: 60px;
+        text-align: center;
+    }
+    .status-active {
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+    }
+    .status-expired {
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+        color: #721c24;
+    }
+    .status-generated {
+        background-color: #d1ecf1;
+        border-color: #bee5eb;
+        color: #0c5460;
     }
 </style>
 
@@ -89,9 +116,9 @@
                     <!-- Pagination Controls -->
                     <div class="pagination-controls">
                         <div class="row">
-                            <div class="col-sm-6">
+                            <div class="col-sm-4">
                                 <div class="form-group">
-                                    <label for="per_page_select">Records per page:</label>
+                                    <label for="per_page_select">Combination Table per page:</label>
                                     <select id="per_page_select" class="form-control" style="width: auto; display: inline-block;">
                                         <?php foreach($pagination_options as $option): ?>
                                             <option value="<?php echo $option; ?>" <?php echo ($per_page == $option) ? 'selected' : ''; ?>>
@@ -101,7 +128,13 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-sm-6 text-right">
+                            <div class="col-sm-4">
+                                <div class="pagination-info">
+                                    <strong>Drawn:</strong> <?php echo !empty($prize_records) ? number_format($prize_records[0]->R) : '0'; ?><br>
+                                    <strong>Extra Included:</strong> <?php echo $extra_ball_included; ?>
+                                </div>
+                            </div>
+                            <div class="col-sm-4 text-right">
                                 <div class="pagination-info">
                                     Showing <?php echo $offset + 1; ?> to <?php echo min($offset + $per_page, $total_records); ?> 
                                     of <?php echo $total_records; ?> entries
@@ -118,19 +151,18 @@
                                     <th>#</th>
                                     <th>Original</th>
                                     <th>Picks</th>
-                                    <th>Drawn</th>
                                     <th>Original Combinations</th>
                                     <th>Saved</th>
                                     <th>Actual Filtered Combinations</th>
                                     <th>Active</th>
-                                    <th>Next Date</th>
+                                    <th>Last Date</th>
                                     <?php $prize_columns = isset($prize_columns) ? $prize_columns : array(); ?>
                                     <th colspan="<?php echo max(1, count($prize_columns)); ?>" class="text-center" style="background-color: #f4f4f4;">
                                         <strong>Win Record</strong>
                                     </th>
                                 </tr>
                                 <tr>
-                                    <th colspan="9"></th>
+                                    <th colspan="8"></th>
                                     <!-- Dynamic Win Record Sub-headers -->
                                     <?php if(!empty($prize_columns)): ?>
                                         <?php foreach($prize_columns as $column): ?>
@@ -150,7 +182,7 @@
                                 <tbody>
                                     <?php if(empty($prize_records)): ?>
                                         <tr>
-                                            <td colspan="<?php echo 9 + max(1, count($prize_columns)); ?>" class="text-center">
+                                            <td colspan="<?php echo 8 + max(1, count($prize_columns)); ?>" class="text-center">
                                                 <em>No prize history records found for this administrator.</em>
                                             </td>
                                         </tr>
@@ -160,15 +192,14 @@
                                                 <td><?php echo sprintf('%02d', $record->row_number); ?></td>
                                                 <td><?php echo htmlspecialchars($record->original_filename); ?></td>
                                                 <td class="text-center"><?php echo sprintf('%02d', $record->N); ?></td>
-                                                <td class="text-center"><?php echo number_format($record->R); ?></td>
                                                 <td class="text-center"><?php echo number_format($record->original_cccc); ?></td>
                                                 <td><?php echo htmlspecialchars($record->saved_filename); ?></td>
                                                 <td class="text-center"><?php echo number_format($record->actual_cccc); ?></td>
                                                 <td class="text-center">
                                                     <?php if($record->is_active == 'YES'): ?>
-                                                        <span class="label label-success">YES</span>
+                                                        <span class="status-tag status-active">ACTIVE</span>
                                                     <?php else: ?>
-                                                        <span class="label label-danger">EXPIRED</span>
+                                                        <span class="status-tag status-expired">EXPIRED</span>
                                                     <?php endif; ?>
                                                 </td>
                                                 <td><?php echo date('D M j, Y', strtotime($record->lastdate)); ?></td>
