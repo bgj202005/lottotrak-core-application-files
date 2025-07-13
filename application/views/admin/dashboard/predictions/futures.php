@@ -651,8 +651,15 @@
 									<input type="hidden" name="page" value="<?= $pagination['current'] ?>">
 								<?php endif; ?>
 							</form>
-							<div class="mb-4">
-								<h4>Generated Combination Tickets</h4>
+							<div class="mb-4" id="generated-combinations-section">
+								<?php if (isset($auto_generated) && $auto_generated): ?>
+									<h4 class="text-success"><i class="fas fa-magic"></i> Auto-Generated Combination Tickets</h4>
+									<div class="alert alert-info">
+										<i class="fas fa-info-circle"></i> These combinations were automatically generated after restoring your saved settings.
+									</div>
+								<?php else: ?>
+									<h4>Generated Combination Tickets</h4>
+								<?php endif; ?>
 								<div class="table-responsive mb-4">
 									<table 
 										id="generated-tickets-table"
@@ -1183,6 +1190,28 @@
 				$('#generated-tickets-table').bootstrapTable('clearFilterControl');
 			}, 100);
 		});
+		
+		<?php if (isset($auto_generated) && $auto_generated): ?>
+		// Auto-scroll to combinations section when tickets are auto-generated
+		setTimeout(function() {
+			const combinationsSection = document.getElementById('generated-combinations-section');
+			if (combinationsSection) {
+				combinationsSection.scrollIntoView({ 
+					behavior: 'smooth', 
+					block: 'start' 
+				});
+				// Add a subtle highlight effect
+				combinationsSection.style.border = '2px solid #28a745';
+				combinationsSection.style.borderRadius = '8px';
+				combinationsSection.style.padding = '10px';
+				setTimeout(function() {
+					combinationsSection.style.border = '';
+					combinationsSection.style.borderRadius = '';
+					combinationsSection.style.padding = '';
+				}, 3000);
+			}
+		}, 500);
+		<?php endif; ?>
 		<?php endif; ?>
     });
     

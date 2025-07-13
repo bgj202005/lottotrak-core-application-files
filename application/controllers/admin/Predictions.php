@@ -1975,134 +1975,89 @@ class Predictions extends Admin_Controller {
 		$ld = $this->data['lottery']->last_drawn['draw_date'];
 		$day = $this->lotteries_m->return_day($ld);
 		$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
-		// **AUTOMATICALLY GENERATE TICKETS AFTER RESTORING SETTINGS**
-		// Extract number of selections from combination_file (3rd and 4th digits)
-		$selections = (int)substr($original_filename, 2, 2);
 		
-		// Debug: Log the selections and settings
-		log_message('info', "Refresh method: Selections extracted: " . $selections);
-		log_message('info', "Refresh method: HWC checked: " . var_export($saved_settings['hwc'], true));
-		log_message('info', "Refresh method: Followers checked: " . var_export($saved_settings['followers'], true));
+		// **PREVENT IMMEDIATE EXPIRATION**
+		// Update the lastdate to the next draw date to prevent the filter from being expired
+		// when verify_active_date runs on page load
+		$mysql_next_date = date('Y-m-d H:i:s', strtotime($this->data['lottery']->next_draw_date));
 		
-		// Generate number series based on restored settings
-		$number_series = '';
-		$hwc_checked = (bool)$saved_settings['hwc'];
-		$followers_checked = (bool)$saved_settings['followers'];
-		$h_w_c_group = $saved_settings['h_w_c_group'];
-		$followers_type = $saved_settings['follower_type'];
-		$selected_ball_points = $saved_settings['ball_points'];
-		$selected_position_points = $saved_settings['position_points'];
-		$selected_friends = $saved_settings['selected_friends'];
-		$friends_checked = (bool)$saved_settings['friends'];
+		$update_data = [
+			'lastdate' => $mysql_next_date,
+			'active' => 1  // Ensure it stays active
+		];
 		
-		log_message('info', "Refresh method: About to generate number series with hwc={$hwc_checked}, followers={$followers_checked}");
+		$this->db->where('id', $record_id);
+		$update_result = $this->db->update('lottery_combination_filters', $update_data);
 		
-		if (!$hwc_checked && !$followers_checked) {
-			log_message('error', "Refresh method: Neither H-W-C nor Followers are checked");
-			$this->data['message'] = 'Error: Either H-W-C or Followers must be checked in the saved settings.';
-		} elseif ($hwc_checked && !$followers_checked) {
-			log_message('info', "Refresh method: Generating hwc_only with group: " . $h_w_c_group);
-			$number_series = $this->predictions_m->hwc_only($id, $selections, $h_w_c_group);
-		} elseif (!$hwc_checked && $followers_checked) {
-			$follower_select = ($followers_type === 'after_ball') ? $selected_ball_points : $selected_position_points;
-			log_message('info', "Refresh method: Generating followers_only with type: {$followers_type}, select: {$follower_select}");
-			$number_series = $this->predictions_m->followers_only($id, $selections, $followers_type, $follower_select);
-		} elseif ($hwc_checked && $followers_checked) {
-			$follower_select = ($followers_type == 'after_ball') ? $selected_ball_points : $selected_position_points;
-			log_message('info', "Refresh method: Generating hwc_followers with group: {$h_w_c_group}, type: {$followers_type}, select: {$follower_select}");
-			$number_series = $this->predictions_m->hwc_followers($id, $selections, $h_w_c_group, $followers_type, $follower_select);
-		}
-		
-		log_message('info', "Refresh method: Number series generated: " . (empty($number_series) ? 'EMPTY' : substr($number_series, 0, 100) . '...'));
-		
-		if (!$number_series) {
-			log_message('error', "Refresh method: Could not generate numbers with the restored settings");
-			$this->data['message'] = 'Could not generate numbers with the restored settings.';
+		if ($update_result) {
+			log_message('info', "Refresh method: Updated lastdate to {$mysql_next_date} to prevent immediate expiration");
 		} else {
-			// Friends logic
-			if ($friends_checked && $selected_friends !== 'all') {
-				$numbers = array_values(array_filter(array_map('trim', explode(',', $number_series))));
-				array_unshift($numbers, null);
-				unset($numbers[0]);
-				if ($hwc_checked) {
-					$heat_map = $this->predictions_m->get_heat_map($id);
-					if (!empty($heat_map)) {
-						$numbers = $this->predictions_m->friend_search_hwc($id, $numbers, $selected_friends, $heat_map);
-					}
-				} elseif (!$hwc_checked && $followers_checked) {
-					$followers_list = $this->predictions_m->get_followers_list($id, $followers_type, $follower_select);
-					if (!empty($followers_list)) {
-						$numbers = $this->predictions_m->friend_search_followers($id, $numbers, $selected_friends, $followers_list);
-					}
-				}
-				array_values($numbers);
-				$number_series = implode(',', $numbers);
-			}
-			// Prepare combination file path with correct pick directory
-			$pick_number = $saved_settings['R']; // Get the pick number (balls drawn)
-			$combinations_dir = FCPATH . 'combinations/pick' . $pick_number . '/';
-			$filename = basename($original_filename);
-			$filepath = $combinations_dir . $filename . '.txt';
-			
-			log_message('info', "Refresh method: Pick number: " . $pick_number);
-			log_message('info', "Refresh method: Looking for combination file at: " . $filepath);
-			log_message('info', "Refresh method: File exists: " . (file_exists($filepath) ? 'YES' : 'NO'));
-			
-			if (file_exists($filepath)) {
-				// Prepare number array and generate combinations
-				$number_array = array_map('intval', explode(',', $number_series));
-				$this->session->set_userdata('futures_number_array', $number_array);
-				
-				// Prepare filter array from restored settings
-				$filters = [
-					'selected_trends' => $saved_settings['trends'],
-					'selected_winning_sums' => $saved_settings['winning_sums'],
-					'selected_winning_digits' => $saved_settings['winning_digits'],
-					'selected_repeaters' => $saved_settings['repeaters'],
-					'selected_consecutives' => $saved_settings['consecutives'],
-					'selected_parity' => $saved_settings['parity'],
-					'selected_decades' => $saved_settings['decades'],
-					'selected_last_digits' => $saved_settings['last_digits'],
-					'selected_number_range' => $saved_settings['number_range'],
-					'selected_adjacents' => $saved_settings['adjacents'],
-					'drawn' => $drawn,
-					'lottery_last_drawn' => $this->data['lottery']->last_drawn,
-					'extra_ball' => $this->data['lottery']->extra_ball,
-					'lottery_highlights' => $this->data['lottery']->highlights
-				];
-				// Generate combinations with pagination (default to first page)
-				$page = 1;
-				$per_page = 10;
-				$combos_paginated = $this->predictions_m->insert_number_combination($filepath, $number_array, $page, $per_page, $filters);
-				if (!empty($combos_paginated)) {
-					$this->data['combos_paginated'] = $combos_paginated;
-					$total_filtered = $this->predictions_m->get_filtered_combinations_count($filepath, $number_array, $filters);
-					$this->data['pagination'] = [
-						'current' => $page,
-						'total' => ceil($total_filtered / $per_page),
-						'per_page' => $per_page
-					];
-					$this->data['number_array'] = $number_array;
-					$this->data['message'] = 'Previous settings restored and tickets generated successfully for combination file: ' . $original_filename;
-				} else {
-					$this->data['message'] = 'Settings restored but no combinations found with the applied filters for: ' . $original_filename;
-				}
-			} else {
-				$this->data['message'] = 'Settings restored but combination file not found: ' . $original_filename;
-			}
+			log_message('error', "Refresh method: Failed to update lastdate for record {$record_id}");
 		}
-		// **END OF AUTOMATIC TICKET GENERATION**
-		// Load the view with restored settings and generated tickets
-		unset($this->data['lottery']->highlights);
-		$this->data['current'] = $this->uri->segment(2);
-		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/futures'.'/'.$id);
-		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
-		$this->data['users'] = $this->maintenance_m->logged_online(0);
-		$this->data['admins'] = $this->maintenance_m->logged_online(1);
-		$this->data['visitors'] = $this->maintenance_m->active_visitors();
-		$this->data['predictions'] = $this;
-		$this->data['subview'] = 'admin/dashboard/predictions/futures';
-		$this->load->view('admin/_layout_main', $this->data);
+		// **END EXPIRATION PREVENTION**
+		// **AUTOMATICALLY GENERATE TICKETS AFTER RESTORING SETTINGS**
+		// Set session data and redirect to combination method for ticket generation
+		// This ensures we use the exact same logic as the "Generate Tickets" button
+		
+		// Set the session data that the combination method expects
+		$session_data = [
+			'selected_h_w_c_group' => $saved_settings['h_w_c_group'],
+			'selected_followers_type' => $saved_settings['follower_type'],
+			'selected_ball_points' => $saved_settings['ball_points'],
+			'selected_position_points' => $saved_settings['position_points'],
+			'selected_friends' => $saved_settings['selected_friends'],
+			'selected_hwc' => (bool)$saved_settings['hwc'],
+			'selected_followers' => (bool)$saved_settings['followers'],
+			'selected_friends_checkbox' => (bool)$saved_settings['friends'],
+			'selected_wheeling' => $record_id . '|' . $original_filename,
+			'selected_trends' => $saved_settings['trends'],
+			'selected_winning_sums' => $saved_settings['winning_sums'],
+			'selected_winning_digits' => $saved_settings['winning_digits'],
+			'selected_repeaters' => $saved_settings['repeaters'],
+			'selected_consecutives' => $saved_settings['consecutives'],
+			'selected_parity' => $saved_settings['parity'],
+			'selected_decades' => $saved_settings['decades'],
+			'selected_last_digits' => $saved_settings['last_digits'],
+			'selected_number_range' => $saved_settings['number_range'],
+			'selected_adjacents' => $saved_settings['adjacents'],
+			'selected_combo_id' => $record_id,
+		];
+		
+		$this->session->set_userdata('futures_form', $session_data);
+		$this->session->set_userdata('combination_file_id', $combo_id);
+		$this->session->set_userdata('combination_file_name', $original_filename);
+		
+		// Set a flag to indicate this came from refresh
+		$this->session->set_flashdata('auto_generate_from_refresh', true);
+		$this->session->set_flashdata('message', '<div class="alert alert-success"><strong>Settings Restored!</strong> Automatically generating tickets with restored settings...</div>');
+		
+		log_message('info', "Refresh method: Session data set, redirecting to combination method for auto-generation");
+		
+		// Redirect to combination method with POST data to trigger ticket generation
+		$_POST = [
+			'h_w_c_group' => $saved_settings['h_w_c_group'],
+			'hwc' => $saved_settings['hwc'] ? '1' : '0',
+			'followers' => $saved_settings['followers'] ? '1' : '0',
+			'friends' => $saved_settings['friends'] ? '1' : '0',
+			'followers_type' => $saved_settings['follower_type'],
+			'ball_points' => $saved_settings['ball_points'],
+			'position_points' => $saved_settings['position_points'],
+			'friends_dropdown' => $saved_settings['selected_friends'],
+			'combination_file' => $record_id . '|' . $original_filename,
+			'trends' => $saved_settings['trends'],
+			'winning_sums' => $saved_settings['winning_sums'],
+			'winning_digits' => $saved_settings['winning_digits'],
+			'repeaters' => $saved_settings['repeaters'],
+			'consecutives' => $saved_settings['consecutives'],
+			'parity' => $saved_settings['parity'],
+			'decades' => $saved_settings['decades'],
+			'last_digits' => $saved_settings['last_digits'],
+			'number_range' => $saved_settings['number_range'],
+			'adjacents' => $saved_settings['adjacents']
+		];
+		
+		// Call the combination method directly with the POST data
+		return $this->combination($id);
 	}
 	/**
 	 * Delete combination filter record and associated file
