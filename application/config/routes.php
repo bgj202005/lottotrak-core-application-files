@@ -54,10 +54,36 @@ $route['translate_uri_dashes'] = FALSE;
 
 // Admin routes - MUST be before 404 override
 $route['admin/prize_test2'] = 'admin/prize_test2/index';
+
+// Prize controller routes
 $route['admin/prize'] = 'admin/prize/index';
+$route['admin/prize/(:num)'] = 'admin/prize/index/$1';  // Prize history with lottery ID
 $route['admin/prize/(:any)'] = 'admin/prize/$1';
-// Add route for combination save
+
+// Predictions controller routes  
+$route['admin/predictions'] = 'admin/predictions/index';
+$route['admin/predictions/(:num)'] = 'admin/predictions/index/$1';  // Predictions with lottery ID
+$route['admin/predictions/futures/(:num)'] = 'admin/predictions/futures/$1';  // Futures with lottery ID
+$route['admin/predictions/combination/(:num)'] = 'admin/predictions/combination/$1';  // Combination with lottery ID
 $route['admin/predictions/combination_save/(:num)'] = 'admin/predictions/combination_save/$1';
+
+// Statistics controller routes
+$route['admin/statistics'] = 'admin/statistics/index';
+$route['admin/statistics/(:num)'] = 'admin/statistics/index/$1';  // Statistics with lottery ID
+
+// History controller routes
+$route['admin/history'] = 'admin/history/index';
+$route['admin/history/(:num)'] = 'admin/history/index/$1';  // History with lottery ID
+
+// Lotteries controller routes
+$route['admin/lotteries'] = 'admin/lotteries/index';
+$route['admin/lotteries/(:num)'] = 'admin/lotteries/index/$1';  // Lotteries with lottery ID
+
+// Dashboard controller routes
+$route['admin/dashboard'] = 'admin/dashboard/index';
+$route['admin/dashboard/(:any)'] = 'admin/dashboard/$1';
+
+// Add route for combination save
 // Article route
 $route['article/(:num)/(:any)'] = 'article/index/$1/$2';
 // 404 to page controller (if not found controller routing) 
