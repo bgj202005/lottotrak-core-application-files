@@ -46,6 +46,10 @@ class Predictions extends Admin_Controller {
 			$this->session->unset_userdata('combination_file_name');
 			$this->session->unset_userdata('combination_file_id');
 		}
+		if ($this->session->userdata('current_combination_file')) {
+			$this->session->unset_userdata('current_combination_file'); // Clear previous selection
+		}  
+
 		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
 		else $this->data['message'] = '';
 		// Load the view
@@ -218,10 +222,33 @@ class Predictions extends Admin_Controller {
 	{
 		$this->data['message'] = '';	// Defaulted to No Error Messages
 		$this->data['lottery'] = $this->lotteries_m->get($id);
-	$file_name = $this->input->post('file', TRUE);  // POST value from radio selection
-	$this->data['lottery']->generate = $this->combination_files_m->lottery_combination_record($file_name);
-	
-	$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; 		//Calculated Combinations
+		$file_name = $this->input->post('file', TRUE);  // POST value from radio selection
+		// If no POST data, try to get from session or URL segment
+		if (empty($file_name)) {
+			// Check if we have stored file_name in session from previous selection
+			$file_name = $this->session->userdata('current_combination_file');
+			// If still empty, try to get from URL segment
+			if (empty($file_name)) {
+				$file_name = $this->uri->segment(5, NULL); // Check if file_name is in URL
+			}
+			// If still empty, redirect to file selection
+			if (empty($file_name)) {
+				$this->data['message'] = 'No combination file was selected. Please select a file and try again.';
+				redirect('admin/predictions/generate/' . $id);
+				return;
+			}
+		} else {
+			// Store the selected file in session for future reference
+			$this->session->set_userdata('current_combination_file', $file_name);
+		}
+		$this->data['lottery']->generate = $this->combination_files_m->lottery_combination_record($file_name);
+		// Add check if record was found
+		if (empty($this->data['lottery']->generate)) {
+			$this->data['message'] = 'The selected combination file "' . $file_name . '" was not found in the database.';
+			redirect('admin/predictions/generate/' . $id);
+			return;
+		}
+		$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; 		//Calculated Combinations
 		$this->data['predict']=$this->data['lottery']->generate[0]->N;				//Number of Predictions
 		$this->data['pick']=$this->data['lottery']->generate[0]->R;					// Pick Game
 		$this->data['filename']=$this->data['lottery']->generate[0]->file_name;		// File name of text file
@@ -241,7 +268,7 @@ class Predictions extends Admin_Controller {
 		unset($this->data['lottery']->generate);
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
-		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/generate'.($id ? '/'.$id : ''));
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/generate_select'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
 		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
@@ -450,6 +477,7 @@ class Predictions extends Admin_Controller {
 		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_files($this->data['lottery']->balls_drawn); //$this->predictions_m->all_combination_files();
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/files'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
 		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
@@ -646,6 +674,25 @@ class Predictions extends Admin_Controller {
 	 */
 	public function combo_statistics($id) {
 		$file_name = (!empty($this->input->post('file')) ? $this->input->post('file') : $this->uri->segment(5));
+		 // Add validation for file_name
+		// If no POST data, try to get from session or URL segment
+		if (empty($file_name)) {
+			// Check if we have stored file_name in session from previous selection
+			$file_name = $this->session->userdata('current_combination_file');
+			// If still empty, try to get from URL segment
+			if (empty($file_name)) {
+				$file_name = $this->uri->segment(5, NULL); // Check if file_name is in URL
+			}
+			// If still empty, redirect to file selection
+			if (empty($file_name)) {
+				$this->data['message'] = 'No combination file was selected. Please select a file and try again.';
+				redirect('admin/predictions/combo_statistics/' . $id);
+				return;
+			}
+		} else {
+			// Store the selected file in session for future reference
+			$this->session->set_userdata('current_combination_file', $file_name);
+		}
 		// Decode the file name
 		$pick_per_ticket = substr($file_name, 0, 2); // First two digits
 		$numbers_to_pick = substr($file_name, 2, 2); // Next two digits
@@ -683,17 +730,30 @@ class Predictions extends Admin_Controller {
 				$prizes[] = $prize_tiers[$key];
 			}
 		}
-		// Path to the file containing combinations
-		$file_path = $this->predictions_m->full_path($file_name);
+		// Path to the file containing combinations - Use combination_files_m instead of predictions_m
+		$file_path = $this->combination_files_m->full_path($file_name);
 		// Check if the file exists
 		if (!file_exists($file_path)) {
-			show_error('The selected combination file does not exist.');
+			$this->session->set_flashdata('message', '<div class="alert alert-danger">The selected combination file "' . $file_name . '" does not exist.</div>');
+			redirect('admin/predictions/combo_statistics/' . $id);
+			return;
 		}
 		// Read the file and extract combinations
 		$combinations = file($file_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+		// Check if file content was read successfully and is not empty
+		if ($combinations === false) {
+			$this->session->set_flashdata('message', '<div class="alert alert-danger">Could not read the combination file "' . $file_name . '".</div>');
+			redirect('admin/predictions/combo_statistics/' . $id);
+			return;
+		}
 		// Total tickets in the file
 		$total_tickets = count($combinations);
-		
+		// Check if the file is empty (no combinations)
+		if ($total_tickets == 0) {
+			$this->session->set_flashdata('message', '<div class="alert alert-warning">The combination file "' . $file_name . '" is empty. No statistics can be calculated.</div>');
+			redirect('admin/predictions/combo_statistics/' . $id);
+			return;
+		}
 		// Calculate statistics for each prize tier
 		$stats = [];
 		foreach ($prizes as $prize) {
@@ -705,8 +765,8 @@ class Predictions extends Admin_Controller {
 				'probability' => round(($matching_tickets / $total_tickets) * 100 / 100, 6)
 			];
 		}
-		$this->data['current'] = $file_name; // Sets the Admins Menu Highlighted
-		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'combo_statistics'.($id ? '/'.$id : ''));
+		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/combo_statistics'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
 		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
