@@ -78,6 +78,9 @@ class Prize extends CI_Controller
         $this->data['admins'] = $this->maintenance_m->logged_online(1);     // Admins
         $this->data['visitors'] = $this->maintenance_m->active_visitors();  // Active Visitors
         
+        // Add meta title for page head
+        $this->data['meta_title'] = 'lottotrak';
+        
         $this->data['current'] = $this->uri->segment(2);
         $this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/index/'.$lottery_id);
         $this->data['subview'] = 'admin/prize/index';
@@ -186,17 +189,18 @@ class Prize extends CI_Controller
      */
     private function auto_update_prize_records($admin_id, $lottery_id)
     {
-        // Get all combination filters for this admin and lottery (active and inactive)
+        // Get all combination filters for this admin and lottery (active only)
         $this->db->select('*');
         $this->db->from('lottery_combination_filters');
         $this->db->where('user', 1);
         $this->db->where('user_id', $admin_id);
         $this->db->where('lottery_id', $lottery_id);
+        $this->db->where('active', 1); // Only process active filters
         $query = $this->db->get();
         $filters = $query->result();
         
         if (empty($filters)) {
-            return; // No filters to update
+            return; // No active filters to update
         }
         
         // Get lottery name first, then convert to table name
@@ -225,41 +229,92 @@ class Prize extends CI_Controller
             return; // No draws available
         }
         
+        // Get lottery profile for extra ball information
+        $this->db->select('extra_ball');
+        $this->db->from('lottery_profiles');
+        $this->db->where('id', $lottery_id);
+        $lottery_profile = $this->db->get()->row();
+        $extra_ball_included = ($lottery_profile && $lottery_profile->extra_ball == 1);
+        
         foreach ($filters as $filter) {
-            // Find the last draw date from this filter's lastdate
             $filter_last_date = $filter->lastdate;
             
-            // Get the drawn numbers for the filter's last date
-            $this->db->select('*');
-            $this->db->from($lottery_table);
-            $this->db->where('draw_date', $filter_last_date);
-            $draw_query = $this->db->get();
-            $draw_result = $draw_query->row();
-            
-            if ($draw_result) {
-                // Process this specific draw against combination tickets
-                $this->process_single_draw_for_filter($filter, $draw_result);
-            } else {
-                log_message('error', "Auto-update: No draw found for date {$filter_last_date} in filter {$filter->id}");
+            // If filter's lastdate equals lottery's most recent draw date, skip (already up to date)
+            if ($filter_last_date == $lottery_last_draw_date) {
+                log_message('info', "Auto-update: Filter {$filter->id} is already up to date, skipping");
+                continue;
             }
             
-            // Mark filter as expired and update lastdate to lottery's last draw date
-            $this->db->where('id', $filter->id);
-            $this->db->update('lottery_combination_filters', array(
-                'active' => 0,
-                'lastdate' => $lottery_last_draw_date
-            ));
+            // Get all draws from filter's lastdate (exclusive) to lottery's most recent draw date (inclusive)
+            $this->db->select('*');
+            $this->db->from($lottery_table);
+            $this->db->where('draw_date >', $filter_last_date);
+            $this->db->where('draw_date <=', $lottery_last_draw_date);
+            $this->db->order_by('draw_date', 'ASC');
+            $draws_query = $this->db->get();
+            $draws = $draws_query->result();
             
-            log_message('info', "Auto-update: Filter {$filter->id} marked as expired, lastdate updated to {$lottery_last_draw_date}");
+            if (empty($draws)) {
+                log_message('info', "Auto-update: No new draws found for filter {$filter->id}");
+                continue;
+            }
+            
+            // Process each draw in chronological order
+            $processed_any_draw = false;
+            foreach ($draws as $draw) {
+                // Check if we should skip this draw - if extra is included and extra ball is 0, skip
+                $should_skip = $this->should_skip_draw($draw, $extra_ball_included);
+                if ($should_skip) {
+                    log_message('info', "Auto-update: Skipping draw {$draw->draw_date} for filter {$filter->id} - extra ball is 0 and extra is included");
+                    continue;
+                }
+                
+                // Process this draw against combination tickets
+                $this->process_single_draw_for_filter($filter, $draw, $extra_ball_included);
+                $processed_any_draw = true;
+                
+                log_message('info', "Auto-update: Processed draw {$draw->draw_date} for filter {$filter->id}");
+            }
+            
+            // After processing all draws, mark filter as expired (active = 0) and update lastdate
+            if ($processed_any_draw) {
+                $this->db->where('id', $filter->id);
+                $this->db->update('lottery_combination_filters', array(
+                    'active' => 0,
+                    'lastdate' => $lottery_last_draw_date
+                ));
+                
+                log_message('info', "Auto-update: Filter {$filter->id} marked as expired, lastdate updated to {$lottery_last_draw_date}");
+            }
         }
+    }
+    
+    /**
+     * Check if a draw should be skipped based on extra number rules
+     * @param object $draw Draw result
+     * @param bool $extra_ball_included Whether lottery has extra ball included
+     * @return bool True if draw should be skipped
+     */
+    private function should_skip_draw($draw, $extra_ball_included)
+    {
+        // If extra is included and extra number in draw is 0, skip draw
+        if ($extra_ball_included) {
+            $extra_number = $this->extract_bonus_number_from_draw($draw);
+            if ($extra_number === 0 || $extra_number === null) {
+                return true;
+            }
+        }
+        
+        return false;
     }
     
     /**
      * Process a single draw for a specific filter
      * @param object $filter Combination filter record
-     * @param object $draw Draw result for the filter's lastdate
+     * @param object $draw Draw result for the specific draw date
+     * @param bool $extra_ball_included Whether lottery has extra ball included
      */
-    private function process_single_draw_for_filter($filter, $draw)
+    private function process_single_draw_for_filter($filter, $draw, $extra_ball_included)
     {
         // Get combination tickets from the file
         $combination_tickets = $this->get_combination_tickets_for_filter($filter);
@@ -275,13 +330,38 @@ class Prize extends CI_Controller
             return;
         }
         
+        // Get the required number of matches for top prize (from combination file R value)
+        $this->db->select('R');
+        $this->db->from('lottery_combination_files');
+        $this->db->where('id', $filter->combo_id);
+        $file_query = $this->db->get();
+        $file_record = $file_query->row();
+        $required_matches_for_top_prize = $file_record ? (int)$file_record->R : 0;
+        
         // Process each combination ticket against this single draw
         $win_updates = array();
         foreach ($combination_tickets as $ticket) {
             $matches = $this->count_ticket_matches($ticket, $draw);
             $bonus_match = $this->check_bonus_match_for_ticket($ticket, $draw);
             
-            // Determine win category and increment counter
+            // Special rule for extra number validation when extra is included
+            if ($extra_ball_included) {
+                // For top prize, must have exact matches (e.g., 6 out of 6 for pick 6, 7 out of 7 for pick 7)
+                // AND must match the exact bonus number
+                if ($matches == $required_matches_for_top_prize && $bonus_match) {
+                    // This is a top prize win with extra number
+                    $win_category = $required_matches_for_top_prize . '_win_extra';
+                    if (property_exists($prize_profile, $win_category) && $prize_profile->$win_category == 1) {
+                        if (!isset($win_updates[$win_category])) {
+                            $win_updates[$win_category] = 0;
+                        }
+                        $win_updates[$win_category]++;
+                        continue; // Skip regular win category determination for this ticket
+                    }
+                }
+            }
+            
+            // Determine win category using standard logic for all other cases
             $win_category = $this->determine_win_category($matches, $bonus_match, $prize_profile);
             if ($win_category) {
                 if (!isset($win_updates[$win_category])) {
@@ -340,9 +420,9 @@ class Prize extends CI_Controller
         
         $expected_picks = (int)$file_record->R;
         
-        // Build file path
+        // Build file path - the filtered combination file is saved in pick{R} directory
         $pick_dir = 'pick' . $expected_picks;
-        $file_path = APPPATH . '../combinations/' . $pick_dir . '/' . $file_record->file_name;
+        $file_path = FCPATH . 'combinations/' . $pick_dir . '/' . $filter->file_name . '.txt';
         
         if (!file_exists($file_path)) {
             log_message('error', "Auto-update: Combination file not found: {$file_path}");
@@ -499,7 +579,7 @@ class Prize extends CI_Controller
                 !is_null($prize_profile->$extra_field) && 
                 $prize_profile->$extra_field == 1) {
                 
-                return 'win_' . $category . '_extra';
+                return $category . '_win_extra';
             }
             
             // Check for regular win
@@ -507,7 +587,7 @@ class Prize extends CI_Controller
                 !is_null($prize_profile->$regular_field) && 
                 $prize_profile->$regular_field == 1) {
                 
-                return 'win_' . $category;
+                return $category . '_win';
             }
         }
         
@@ -517,7 +597,7 @@ class Prize extends CI_Controller
             !is_null($prize_profile->extra) && 
             $prize_profile->extra == 1) {
             
-            return 'win_extra';
+            return 'extra';
         }
         
         return null; // No win category matched

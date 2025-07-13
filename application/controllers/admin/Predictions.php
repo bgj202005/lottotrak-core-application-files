@@ -48,6 +48,10 @@ class Predictions extends Admin_Controller {
 		}
 		if ($this->session->userdata('current_combination_file')) {
 			$this->session->unset_userdata('current_combination_file'); // Clear previous selection
+		}
+		// Clear statistics file session data
+		if ($this->session->userdata('current_statistics_file')) {
+			$this->session->unset_userdata('current_statistics_file');
 		}  
 
 		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
@@ -673,34 +677,39 @@ class Predictions extends Admin_Controller {
 	 * @return void
 	 */
 	public function combo_statistics($id) {
-		$file_name = (!empty($this->input->post('file')) ? $this->input->post('file') : $this->uri->segment(5));
-		 // Add validation for file_name
-		// If no POST data, try to get from session or URL segment
+		// Get file_name from POST, URI, or session as fallback
+		$file_name = $this->input->post('file', TRUE);
+		
 		if (empty($file_name)) {
-			// Check if we have stored file_name in session from previous selection
-			$file_name = $this->session->userdata('current_combination_file');
-			// If still empty, try to get from URL segment
-			if (empty($file_name)) {
-				$file_name = $this->uri->segment(5, NULL); // Check if file_name is in URL
-			}
-			// If still empty, redirect to file selection
-			if (empty($file_name)) {
-				$this->data['message'] = 'No combination file was selected. Please select a file and try again.';
-				redirect('admin/predictions/combo_statistics/' . $id);
-				return;
-			}
-		} else {
-			// Store the selected file in session for future reference
-			$this->session->set_userdata('current_combination_file', $file_name);
+			$file_name = $this->uri->segment(5, NULL);
 		}
+		
+		// If still empty, try to get from session
+		if (empty($file_name)) {
+			$file_name = $this->session->userdata('current_statistics_file');
+		}
+		
+		// Add validation for file_name
+		if (empty($file_name)) {
+			$this->session->set_flashdata('message', '<div class="alert alert-danger">No combination file was selected for statistics.</div>');
+			redirect('admin/predictions/generate/' . $id);
+			return;
+		}
+		
+		// Store the file_name in session for future navigation
+		$this->session->set_userdata('current_statistics_file', $file_name);
+		
 		// Decode the file name
 		$pick_per_ticket = substr($file_name, 0, 2); // First two digits
 		$numbers_to_pick = substr($file_name, 2, 2); // Next two digits
     	$tickets = substr($file_name, 4); // Truncate the first 4 characters to get the tickets
+		
 		// Fetch the prize tiers for the lottery
 		$lottery = $this->lotteries_m->get($id);
-    	// Fetch the prize tiers for the lottery
+    	
+		// Fetch the prize tiers for the lottery
     	$prizes_data = $this->predictions_m->prizes_data_array($id);
+		
 		 // Map prize tiers to their corresponding names and required matches
 		$prize_tiers = [
 			'9_win_extra' => ['name' => '9 Matches + Extra', 'matches' => 9],
@@ -723,6 +732,7 @@ class Predictions extends Admin_Controller {
 			'1_win' => ['name' => '1 Match', 'matches' => 1],
 			'extra' => ['name' => 'Extra Ball Only', 'matches' => 0],
 		];
+		
 		// Filter out the prize tiers that are set (value is 1)
 		$prizes = [];
 		foreach ($prizes_data as $key => $value) {
@@ -730,30 +740,37 @@ class Predictions extends Admin_Controller {
 				$prizes[] = $prize_tiers[$key];
 			}
 		}
+		
 		// Path to the file containing combinations - Use combination_files_m instead of predictions_m
 		$file_path = $this->combination_files_m->full_path($file_name);
+		
 		// Check if the file exists
 		if (!file_exists($file_path)) {
 			$this->session->set_flashdata('message', '<div class="alert alert-danger">The selected combination file "' . $file_name . '" does not exist.</div>');
-			redirect('admin/predictions/combo_statistics/' . $id);
+			redirect('admin/predictions/generate/' . $id);
 			return;
 		}
+		
 		// Read the file and extract combinations
 		$combinations = file($file_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+		
 		// Check if file content was read successfully and is not empty
 		if ($combinations === false) {
 			$this->session->set_flashdata('message', '<div class="alert alert-danger">Could not read the combination file "' . $file_name . '".</div>');
-			redirect('admin/predictions/combo_statistics/' . $id);
+			redirect('admin/predictions/generate/' . $id);
 			return;
 		}
+		
 		// Total tickets in the file
 		$total_tickets = count($combinations);
+		
 		// Check if the file is empty (no combinations)
 		if ($total_tickets == 0) {
 			$this->session->set_flashdata('message', '<div class="alert alert-warning">The combination file "' . $file_name . '" is empty. No statistics can be calculated.</div>');
-			redirect('admin/predictions/combo_statistics/' . $id);
+			redirect('admin/predictions/generate/' . $id);
 			return;
 		}
+		
 		// Calculate statistics for each prize tier
 		$stats = [];
 		foreach ($prizes as $prize) {
@@ -762,11 +779,13 @@ class Predictions extends Admin_Controller {
 				'tier' => $prize['name'],
 				'tickets' => $matching_tickets,
 				'percentage' => round(($matching_tickets / $total_tickets) * 100, 2),
-				'probability' => round(($matching_tickets / $total_tickets) * 100 / 100, 6)
+				'probability' => round(($matching_tickets / $total_tickets), 6)
 			];
 		}
+		
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
-		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/combo_statistics'.($id ? '/'.$id : ''));
+		// Include the file_name in the URI session for proper navigation
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/combo_statistics'.($id ? '/'.$id : '').($file_name ? '/'.$file_name : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
 		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
@@ -777,9 +796,12 @@ class Predictions extends Admin_Controller {
 		$this->data['numbers_to_pick'] = $numbers_to_pick;
 		$this->data['tickets'] = $tickets;
 		$this->data['stats'] = $stats;
+		$this->data['total_tickets'] = $total_tickets;
+		
 		// Add navigation links
 		$this->data['back_to_dashboard'] = base_url('admin/predictions');
 		$this->data['back_to_combo_list'] = base_url('admin/predictions/combo_select/' . $id);
+		
 		// Load the statistics view
 		$this->data['subview'] = 'admin/dashboard/predictions/combo_results';
 		$this->load->view('admin/_layout_main', $this->data);
@@ -1767,25 +1789,39 @@ class Predictions extends Admin_Controller {
 		$this->data['message'] = '';
 		$this->data['disable_generate_button'] = false;
 		$this->data['disable_combination_dropdown'] = true;
-		// Get the combo_id from the URL parameter or POST data
-		$combo_id = $this->input->get('combo_id') ?: $this->input->post('combo_id');
-		// If combo_id comes from dropdown value format (253|06077), extract just the ID
-		if ($combo_id && strpos($combo_id, '|') !== false) {
-			list($combo_id, $filename) = explode('|', $combo_id, 2);
-			$combo_id = (int)$combo_id;
+		// Get the record_id from the URL parameter or POST data
+		$record_id = $this->input->get('combo_id') ?: $this->input->post('combo_id');
+		
+		// Debug: Log what we received
+		log_message('info', "Refresh method: Received combo_id parameter: " . var_export($record_id, true));
+		
+		// If record_id comes from dropdown value format (253|06077), extract just the ID
+		if ($record_id && strpos($record_id, '|') !== false) {
+			list($record_id, $filename) = explode('|', $record_id, 2);
+			$record_id = (int)$record_id;
+			log_message('info', "Refresh method: Extracted record_id from dropdown: " . $record_id . ", filename: " . $filename);
 		} else {
-			$combo_id = (int)$combo_id;
+			$record_id = (int)$record_id;
+			log_message('info', "Refresh method: Using record_id as is: " . $record_id);
 		}
-		if (!$combo_id) {
+		
+		if (!$record_id) {
+			log_message('error', "Refresh method: No record_id found");
 			$this->session->set_flashdata('message', '<div class="alert alert-danger">No combination ID found for refresh.</div>');
 			redirect('admin/predictions/futures/' . $id);
 			return;
 		}
+		
 		// Load the combination_filters_m model to get saved settings
 		$this->load->model('combination_filters_m');
-		$saved_settings = $this->combination_filters_m->get_saved_settings($combo_id);
+		$saved_settings = $this->combination_filters_m->get_saved_settings($record_id);
+		
+		// Debug: Log what we found
+		log_message('info', "Refresh method: Saved settings lookup result: " . var_export($saved_settings, true));
+		
 		if (!$saved_settings) {
-			$this->session->set_flashdata('message', '<div class="alert alert-danger">No saved settings found for combination ID: ' . $combo_id . '</div>');
+			log_message('error', "Refresh method: No saved settings found for record_id: " . $record_id);
+			$this->session->set_flashdata('message', '<div class="alert alert-danger">No saved settings found for combination ID: ' . $record_id . '</div>');
 			redirect('admin/predictions/futures/' . $id);
 			return;
 		}
@@ -1801,10 +1837,16 @@ class Predictions extends Admin_Controller {
 		$drawn = $this->data['lottery']->balls_drawn;
 		// Extract original combination file name (remove ADMIN## suffix)
 		$original_filename = $this->combination_filters_m->extract_original_filename($saved_settings['file_name']);
+		
+		// Get the actual combo_id from saved settings
+		$combo_id = $saved_settings['combo_id'];
+		
+		// Debug: Log the key values
+		log_message('info', "Refresh method: Original filename: " . $original_filename . ", combo_id: " . $combo_id);
 		// Set up all the basic lottery data
 		$this->data['country_code'] = $this->lottery_data_m->get_lottery_country($id);
 		$this->data['state_prov_code'] = $this->lottery_data_m->get_lottery_state_prov($id);
-		$this->data['combination_files'] = $this->lottery_data_m->get_combination_files($id);
+		$this->data['combination_files'] = $this->predictions_m->get_combination_files($id);
 		// Sort combination files numerically and set up the dropdown value format
 		if (!empty($this->data['combination_files'])) {
 			foreach ($this->data['combination_files'] as &$file) {
@@ -1868,9 +1910,9 @@ class Predictions extends Admin_Controller {
 		$this->data['selected_ball_points'] = $saved_settings['ball_points'];
 		$this->data['selected_position_points'] = $saved_settings['position_points'];
 		$this->data['selected_friends'] = $saved_settings['selected_friends'];
-		$this->data['selected_wheeling'] = $combo_id . '|' . $original_filename; // Set dropdown value format
+		$this->data['selected_wheeling'] = $record_id . '|' . $original_filename; // Set dropdown value format
 		$this->data['combo_id'] = $combo_id;
-		$this->data['active'] = $this->combination_filters_m->get_active_flag($combo_id);	
+		$this->data['active'] = $this->combination_filters_m->get_active_flag($record_id);	
 		// Restore filter selections
 		$this->data['selected_trends'] = $saved_settings['trends'];
 		$this->data['selected_winning_sums'] = $saved_settings['winning_sums'];
@@ -1900,7 +1942,7 @@ class Predictions extends Admin_Controller {
 			'selected_hwc' => (bool)$saved_settings['hwc'],
 			'selected_followers' => (bool)$saved_settings['followers'],
 			'selected_friends_checkbox' => (bool)$saved_settings['friends'],
-			'selected_wheeling' => $combo_id . '|' . $original_filename,
+			'selected_wheeling' => $record_id . '|' . $original_filename,
 			'selected_trends' => $saved_settings['trends'],
 			'selected_winning_sums' => $saved_settings['winning_sums'],
 			'selected_winning_digits' => $saved_settings['winning_digits'],
@@ -1911,7 +1953,7 @@ class Predictions extends Admin_Controller {
 			'selected_last_digits' => $saved_settings['last_digits'],
 			'selected_number_range' => $saved_settings['number_range'],
 			'selected_adjacents' => $saved_settings['adjacents'],
-			'selected_combo_id' => $combo_id,
+			'selected_combo_id' => $record_id,
 		];
 		$this->session->set_userdata('futures_form', $session_data);
 		$this->session->set_userdata('combination_file_id', $combo_id);
@@ -1936,6 +1978,12 @@ class Predictions extends Admin_Controller {
 		// **AUTOMATICALLY GENERATE TICKETS AFTER RESTORING SETTINGS**
 		// Extract number of selections from combination_file (3rd and 4th digits)
 		$selections = (int)substr($original_filename, 2, 2);
+		
+		// Debug: Log the selections and settings
+		log_message('info', "Refresh method: Selections extracted: " . $selections);
+		log_message('info', "Refresh method: HWC checked: " . var_export($saved_settings['hwc'], true));
+		log_message('info', "Refresh method: Followers checked: " . var_export($saved_settings['followers'], true));
+		
 		// Generate number series based on restored settings
 		$number_series = '';
 		$hwc_checked = (bool)$saved_settings['hwc'];
@@ -1946,18 +1994,29 @@ class Predictions extends Admin_Controller {
 		$selected_position_points = $saved_settings['position_points'];
 		$selected_friends = $saved_settings['selected_friends'];
 		$friends_checked = (bool)$saved_settings['friends'];
+		
+		log_message('info', "Refresh method: About to generate number series with hwc={$hwc_checked}, followers={$followers_checked}");
+		
 		if (!$hwc_checked && !$followers_checked) {
+			log_message('error', "Refresh method: Neither H-W-C nor Followers are checked");
 			$this->data['message'] = 'Error: Either H-W-C or Followers must be checked in the saved settings.';
 		} elseif ($hwc_checked && !$followers_checked) {
+			log_message('info', "Refresh method: Generating hwc_only with group: " . $h_w_c_group);
 			$number_series = $this->predictions_m->hwc_only($id, $selections, $h_w_c_group);
 		} elseif (!$hwc_checked && $followers_checked) {
 			$follower_select = ($followers_type === 'after_ball') ? $selected_ball_points : $selected_position_points;
+			log_message('info', "Refresh method: Generating followers_only with type: {$followers_type}, select: {$follower_select}");
 			$number_series = $this->predictions_m->followers_only($id, $selections, $followers_type, $follower_select);
 		} elseif ($hwc_checked && $followers_checked) {
 			$follower_select = ($followers_type == 'after_ball') ? $selected_ball_points : $selected_position_points;
+			log_message('info', "Refresh method: Generating hwc_followers with group: {$h_w_c_group}, type: {$followers_type}, select: {$follower_select}");
 			$number_series = $this->predictions_m->hwc_followers($id, $selections, $h_w_c_group, $followers_type, $follower_select);
 		}
+		
+		log_message('info', "Refresh method: Number series generated: " . (empty($number_series) ? 'EMPTY' : substr($number_series, 0, 100) . '...'));
+		
 		if (!$number_series) {
+			log_message('error', "Refresh method: Could not generate numbers with the restored settings");
 			$this->data['message'] = 'Could not generate numbers with the restored settings.';
 		} else {
 			// Friends logic
@@ -1979,10 +2038,16 @@ class Predictions extends Admin_Controller {
 				array_values($numbers);
 				$number_series = implode(',', $numbers);
 			}
-			// Prepare combination file path
-			$combinations_dir = FCPATH . 'combinations/';
+			// Prepare combination file path with correct pick directory
+			$pick_number = $saved_settings['R']; // Get the pick number (balls drawn)
+			$combinations_dir = FCPATH . 'combinations/pick' . $pick_number . '/';
 			$filename = basename($original_filename);
 			$filepath = $combinations_dir . $filename . '.txt';
+			
+			log_message('info', "Refresh method: Pick number: " . $pick_number);
+			log_message('info', "Refresh method: Looking for combination file at: " . $filepath);
+			log_message('info', "Refresh method: File exists: " . (file_exists($filepath) ? 'YES' : 'NO'));
+			
 			if (file_exists($filepath)) {
 				// Prepare number array and generate combinations
 				$number_array = array_map('intval', explode(',', $number_series));

@@ -623,15 +623,25 @@ class Combination_filters_m extends MY_Model
         return $last_digits;
     }
     /**
-     * Get saved settings from lottery_combination_filters table by combo_id
+     * Get saved settings from lottery_combination_filters table by record ID or combo_id
      * 
-     * @param int $combo_id The combination ID to retrieve settings for
+     * @param int $id The record ID or combo_id to retrieve settings for
      * @return array|false The saved settings array or false if not found
      */
-    public function get_saved_settings($combo_id)
+    public function get_saved_settings($id)
     {
-        $this->db->where('combo_id', $combo_id);
-        //$this->db->where('active', 1);
+        // First try to find by record id
+        $this->db->where('id', $id);
+        $this->db->limit(1);
+        
+        $query = $this->db->get('lottery_combination_filters');
+        
+        if ($query->num_rows() > 0) {
+            return $query->row_array();
+        }
+        
+        // If not found by id, try by combo_id
+        $this->db->where('combo_id', $id);
         $this->db->order_by('id', 'DESC'); // Get the most recent record if multiple exist
         $this->db->limit(1);
         
@@ -690,21 +700,35 @@ class Combination_filters_m extends MY_Model
         return $query->result_array();
     }
     /**
-     * Get active flag from combo_id
+     * Get active flag from record ID or combo_id
      *
-     * @param   int         $combo_id Combination ID
+     * @param   int         $id Record ID or combo_id
      * @return  boolean     TRUE on active flag, FALSE on expired
      */
-    public function get_active_flag($combo_id)
+    public function get_active_flag($id)
     {
+        // First try to find by record id
         $this->db->select('active');
-        $this->db->where('combo_id', $combo_id);
+        $this->db->where('id', $id);
         $query = $this->db->get('lottery_combination_filters');
         
         if ($query->num_rows() > 0) {
             $row = $query->row();
             return $row->active == 1;
         }
+        
+        // If not found by id, try by combo_id
+        $this->db->select('active');
+        $this->db->where('combo_id', $id);
+        $this->db->order_by('id', 'DESC');
+        $this->db->limit(1);
+        $query = $this->db->get('lottery_combination_filters');
+        
+        if ($query->num_rows() > 0) {
+            $row = $query->row();
+            return $row->active == 1;
+        }
+        
         return FALSE;
     }
 }
