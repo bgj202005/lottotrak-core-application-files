@@ -2,7 +2,119 @@
 
 <link rel="stylesheet" href="<?php echo base_url('application/views/admin/prize/prize_history.css'); ?>">
 
+<!-- Loading Overlay -->
+<div id="prizeHistoryLoader" class="prize-loading-overlay">
+    <div class="prize-loading-content">
+        <div class="prize-loading-text">
+            <h4>Calculating and Loading Prize History</h4>
+        </div>
+        <div class="prize-progress-bar">
+            <div class="prize-progress-fill"></div>
+        </div>
+    </div>
+</div>
+
 <style>
+    /* Loading Overlay Styles */
+    .prize-loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.95);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(3px);
+    }
+    
+    .prize-loading-content {
+        text-align: center;
+        background: white;
+        padding: 2rem 3rem;
+        border-radius: 10px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e0e0e0;
+        min-width: 300px;
+    }
+    
+    .prize-loading-text h4 {
+        color: #333;
+        margin-bottom: 1.5rem;
+        font-weight: 500;
+        font-size: 1.1rem;
+    }
+    
+    .prize-progress-bar {
+        width: 100%;
+        height: 6px;
+        background-color: #f0f0f0;
+        border-radius: 3px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .prize-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #007bff, #0056b3);
+        width: 0%;
+        border-radius: 3px;
+        animation: simpleProgress 2s ease-in-out infinite;
+        position: relative;
+    }
+    
+    .prize-progress-fill::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+        animation: shimmer 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes simpleProgress {
+        0% { width: 0%; }
+        50% { width: 70%; }
+        100% { width: 100%; }
+    }
+    
+    @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+
+    /* Page Loading Overlay for AJAX */
+    .page-loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.3);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .page-loading-content {
+        background: white;
+        padding: 1.5rem 2rem;
+        border-radius: 8px;
+        text-align: center;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        color: #333;
+        font-size: 0.9rem;
+    }
+    
+    .page-loading-content i {
+        color: #007bff;
+    }
+
     .card {
         background-color: #ffffff;
         border: 1px solid rgba(0, 34, 51, 0.1);
@@ -316,7 +428,25 @@
 </style>
 
 <script>
+// Prize History Loading Animation
 $(document).ready(function() {
+    var loader = $('#prizeHistoryLoader');
+    
+    // Hide loader when page is fully loaded
+    $(window).on('load', function() {
+        setTimeout(function() {
+            loader.fadeOut(500);
+        }, 800); // Small delay to ensure content is ready
+    });
+    
+    // Fallback: hide loader after reasonable time
+    setTimeout(function() {
+        if (loader.is(':visible')) {
+            loader.fadeOut(500);
+        }
+    }, 4000); // 4 second maximum
+
+    // Original Prize History JavaScript
     // Handle per page change
     $('#per_page_select').change(function() {
         var per_page = $(this).val();
@@ -335,9 +465,13 @@ $(document).ready(function() {
     function loadPage(page, per_page) {
         var offset = (page - 1) * per_page;
         
-        // Show loading indicator
+        // Show simple loading overlay
+        var pageLoader = $('<div class="page-loading-overlay"><div class="page-loading-content"><i class="fa fa-spinner fa-spin fa-lg"></i><p style="margin-top: 0.5rem; margin-bottom: 0;">Updating...</p></div></div>');
+        $('body').append(pageLoader);
+        
+        // Show loading indicator in table
         var totalCols = 9 + <?php echo max(1, count($prize_columns)); ?>;
-        $('#prizeHistoryTable tbody').html('<tr><td colspan="' + totalCols + '" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading...</td></tr>');
+        $('#prizeHistoryTable tbody').html('<tr><td colspan="' + totalCols + '" class="text-center"><i class="fa fa-spinner fa-spin"></i> Calculating and Loading prize Data...</td></tr>');
         
         $.ajax({
             url: '<?php echo site_url("admin/prize/get_table_data"); ?>',
@@ -350,6 +484,7 @@ $(document).ready(function() {
             success: function(response) {
                 if (response.error) {
                     alert(response.error);
+                    pageLoader.remove();
                     return;
                 }
                 
@@ -363,6 +498,7 @@ $(document).ready(function() {
                 location.reload();
             },
             error: function() {
+                pageLoader.remove();
                 alert('Error loading data. Please try again.');
                 location.reload();
             }

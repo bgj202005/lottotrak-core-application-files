@@ -52,9 +52,6 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 $route['default_controller'] = 'page';
 $route['translate_uri_dashes'] = FALSE;
 
-// Admin routes - MUST be before 404 override
-$route['admin/prize_test2'] = 'admin/prize_test2/index';
-
 // Prize controller routes
 $route['admin/prize'] = 'admin/prize/index';
 $route['admin/prize/(:num)'] = 'admin/prize/index/$1';  // Prize history with lottery ID
