@@ -1144,6 +1144,7 @@ class Predictions extends Admin_Controller {
 	{
 		$this->data['message'] = '';
 		$this->data['disable_generate_button'] = false; // Used to disable the generate button in the view
+		
 		// Fetch lottery and related data
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
@@ -1411,7 +1412,8 @@ class Predictions extends Admin_Controller {
 				$this->data['pagination'] = [
 					'current' => 1,
 					'total' => 1,
-					'per_page' => $per_page
+					'per_page' => $per_page,
+					'total_filtered' => 0
 				];
 			} else {
 				// Prepare number array and updated combinations
@@ -1446,7 +1448,8 @@ class Predictions extends Admin_Controller {
 					$this->data['pagination'] = [
 						'current' => 1,
 						'total' => 1,
-						'per_page' => $per_page
+						'per_page' => $per_page,
+						'total_filtered' => 0
 					];
 				} else {
 					$this->data['combos_paginated'] = $combos_paginated;
@@ -1537,7 +1540,8 @@ class Predictions extends Admin_Controller {
 					$this->data['pagination'] = [
 						'current' => 1,
 						'total' => 1,
-						'per_page' => $per_page
+						'per_page' => $per_page,
+						'total_filtered' => 0
 					];
 				} else {
 					$this->data['combos_paginated'] = $updated_combinations;
@@ -1546,7 +1550,8 @@ class Predictions extends Admin_Controller {
 					$this->data['pagination'] = [
 						'current' => $page,
 						'total' => ceil($total_filtered / $per_page),
-						'per_page' => $per_page
+						'per_page' => $per_page,
+						'total_filtered' => $total_filtered
 					];
 					$this->data['number_array'] = $number_array;
 					$this->data['message'] = 'Combination Table and filters loaded successfully.';
@@ -1556,7 +1561,8 @@ class Predictions extends Admin_Controller {
 				$this->data['pagination'] = [
 					'current' => 1,
 					'total' => 1,
-					'per_page' => $per_page
+					'per_page' => $per_page,
+					'total_filtered' => 0
 				];
 			}
 			$this->data['disable_combination_dropdown'] = true; // or false
@@ -1996,10 +2002,127 @@ class Predictions extends Admin_Controller {
 			log_message('error', "Refresh method: Failed to update lastdate for record {$record_id}");
 		}
 		// **END EXPIRATION PREVENTION**
-		// **AUTOMATICALLY GENERATE TICKETS AFTER RESTORING SETTINGS**
-		// Set session data and redirect to combination method for ticket generation
-		// This ensures we use the exact same logic as the "Generate Tickets" button
+		// **LOAD EXISTING FILTERED TICKETS INSTEAD OF REGENERATING**
+		// First, try to load the existing filtered tickets from the saved file
 		
+		$saved_filename = $saved_settings['file_name']; // This is the ADMIN## filename
+		
+		// Get picks count from the lottery combination files table
+		$this->db->select('N');
+		$this->db->from('lottery_combination_files');
+		$this->db->where('id', $combo_id);
+		$combo_file = $this->db->get()->row();
+		
+		if (!$combo_file || !$combo_file->N) {
+			log_message('error', "Refresh method: Could not get picks count for combo_id: " . $combo_id);
+			$this->session->set_flashdata('message', '<div class="alert alert-danger">Unable to determine lottery pick count.</div>');
+			redirect('admin/predictions/futures/' . $id);
+			return;
+		}
+		
+		$picks = (int)$combo_file->N;
+		
+		// Construct the file path for the saved filtered tickets
+		$directory = FCPATH . 'combinations/pick' . $picks . '/';
+		$file_path = $directory . $saved_filename . '.txt';
+		
+		log_message('info', "Refresh method: Looking for saved filtered tickets at: " . $file_path);
+		
+		// Check if the filtered tickets file exists
+		if (file_exists($file_path)) {
+			// Load the existing filtered tickets
+			$file_content = file_get_contents($file_path);
+			
+			if ($file_content) {
+				$lines = explode("\n", $file_content);
+				$filtered_tickets = [];
+				
+				foreach ($lines as $line) {
+					$line = trim($line);
+					if (!empty($line)) {
+						// Parse the line into numbers
+						$numbers = preg_split('/[\s,]+/', $line);
+						$numbers = array_map('intval', array_filter($numbers, 'is_numeric'));
+						
+						if (count($numbers) == $picks) {
+							$filtered_tickets[] = $numbers;
+						}
+					}
+				}
+				
+				if (!empty($filtered_tickets)) {
+					// Create number array from the original combination file (for filtering purposes)
+					$original_file_path = $directory . $original_filename . '.txt';
+					
+					if (file_exists($original_file_path)) {
+						$original_content = file_get_contents($original_file_path);
+						$original_lines = explode("\n", $original_content);
+						$number_array = [];
+						
+						foreach ($original_lines as $line) {
+							$line = trim($line);
+							if (!empty($line)) {
+								$numbers = preg_split('/[\s,]+/', $line);
+								$numbers = array_filter($numbers, 'is_numeric');
+								foreach ($numbers as $num) {
+									$number_array[] = (int)$num;
+								}
+							}
+						}
+						$number_array = array_unique($number_array);
+						sort($number_array);
+						
+						// Set session data for the existing filtered tickets
+						$this->session->set_userdata('futures_number_array', $number_array);
+						$this->session->set_userdata('combination_file_id', $combo_id);
+						$this->session->set_userdata('combination_file_name', $original_filename);
+						
+						log_message('info', "Refresh method: Successfully loaded " . count($filtered_tickets) . " existing filtered tickets");
+						
+						// Set up pagination for existing tickets
+						$page = 1;
+						$per_page = 10;
+						$total_filtered = count($filtered_tickets);
+						$total_pages = ceil($total_filtered / $per_page);
+						$offset = ($page - 1) * $per_page;
+						$paginated_tickets = array_slice($filtered_tickets, $offset, $per_page);
+						
+						// Add row numbers to tickets
+						foreach ($paginated_tickets as $index => &$ticket) {
+							$ticket['row_number'] = $offset + $index + 1;
+							$ticket['numbers'] = is_array($ticket) && isset($ticket[0]) ? array_slice($ticket, 0, $picks) : $ticket;
+						}
+						
+						// Set up the data for the view
+						$this->data['combos_paginated'] = $paginated_tickets;
+						$this->data['total_filtered'] = $total_filtered;
+						$this->data['total_pages'] = $total_pages;
+						$this->data['current_page'] = $page;
+						$this->data['per_page'] = $per_page;
+						$this->data['number_array'] = $number_array;
+						
+						// Set up pagination array for the view
+						$this->data['pagination'] = [
+							'current' => $page,
+							'total' => $total_pages,
+							'per_page' => $per_page,
+							'total_filtered' => $total_filtered
+						];
+						
+						log_message('info', "Refresh method: Displaying existing filtered tickets, page {$page} of {$total_pages}, showing {$per_page} tickets per page");
+						
+						// Load the futures view with existing filtered tickets
+						$this->data['subview'] = 'admin/dashboard/predictions/futures';
+						$this->load->view('admin/_layout_main', $this->data);
+						return;
+					}
+				}
+			}
+		}
+		
+		log_message('error', "Refresh method: Could not load existing filtered tickets, falling back to regeneration");
+		
+		// **FALLBACK: REGENERATE TICKETS IF EXISTING ONES CAN'T BE LOADED**
 		// Set the session data that the combination method expects
 		$session_data = [
 			'selected_h_w_c_group' => $saved_settings['h_w_c_group'],
@@ -2028,11 +2151,7 @@ class Predictions extends Admin_Controller {
 		$this->session->set_userdata('combination_file_id', $combo_id);
 		$this->session->set_userdata('combination_file_name', $original_filename);
 		
-		// Set a flag to indicate this came from refresh
-		$this->session->set_flashdata('auto_generate_from_refresh', true);
-		$this->session->set_flashdata('message', '<div class="alert alert-success"><strong>Settings Restored!</strong> Automatically generating tickets with restored settings...</div>');
-		
-		log_message('info', "Refresh method: Session data set, redirecting to combination method for auto-generation");
+		log_message('info', "Refresh method: Session data set, redirecting to combination method for regeneration");
 		
 		// Redirect to combination method with POST data to trigger ticket generation
 		$_POST = [

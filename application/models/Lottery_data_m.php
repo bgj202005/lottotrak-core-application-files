@@ -304,24 +304,49 @@ class Lottery_data_m extends MY_Model
             if ($lottery_last_date === false) {
                 return false; // Invalid date format
             }
+            
+            // **EXCLUDE PREDICTION FUTURES FROM AUTO-EXPIRATION**
+            // Only process combinations that are for Prize History (older combinations)
+            // Prediction Futures have lastdate >= recent draws and should remain active
+            $recent_cutoff = date('Y-m-d H:i:s', strtotime('-7 days'));
+            
+            log_message('debug', "verify_active_date: lottery_last_date={$lottery_last_date}, recent_cutoff={$recent_cutoff}");
+            
             // Get all active records for the given lottery that are expired
-            // Only expire records where lastdate < lottery's last draw date (not equal)
-            $this->db->select('combo_id');
+            // Only expire records where:
+            // 1. lastdate <= lottery's last draw date (the prediction has been completed)
+            // 2. lastdate < recent cutoff (exclude Prediction Futures which have recent/future dates)
+            $this->db->select('combo_id, lastdate');
             $this->db->from('lottery_combination_filters');
             $this->db->where('lottery_id', $lottery_id);
             $this->db->where('active', 1);
             $this->db->where('lastdate <=', $lottery_last_date);
+            $this->db->where('lastdate <', $recent_cutoff); // Exclude Prediction Futures
             $query = $this->db->get();
+            
+            log_message('debug', "verify_active_date: Found " . $query->num_rows() . " Prize History combinations to expire");
+            
             // If there are expired records, update them to inactive
             if ($query->num_rows() > 0) {
+                $expired_ids = [];
+                foreach ($query->result() as $row) {
+                    $expired_ids[] = $row->combo_id;
+                }
+                
                 $this->db->where('lottery_id', $lottery_id);
                 $this->db->where('active', 1);
                 $this->db->where('lastdate <=', $lottery_last_date);
+                $this->db->where('lastdate <', $recent_cutoff); // Exclude Prediction Futures
                 $update_result = $this->db->update('lottery_combination_filters', ['active' => 0]);
+                
                 if (!$update_result) {
+                    log_message('error', "verify_active_date: Failed to update expired combinations");
                     return false; // Error updating the table
                 }
+                
+                log_message('info', "verify_active_date: Successfully expired " . count($expired_ids) . " Prize History combinations: " . implode(',', $expired_ids));
             }
+            
             return true; // Success - either no expired records or successfully updated
         } catch (Exception $e) {
             // Log the error if needed

@@ -190,18 +190,30 @@ class Prize extends CI_Controller
     private function auto_update_prize_records($admin_id, $lottery_id)
     {
         // Get all combination filters for this admin and lottery (active only)
+        // IMPORTANT: Only process filters that are for Prize History, not Prediction Futures
+        // Prize History filters typically have older lastdate values and are meant to be updated
+        // Prediction Futures filters have lastdate = next draw date and should remain active
         $this->db->select('*');
         $this->db->from('lottery_combination_filters');
         $this->db->where('user', 1);
         $this->db->where('user_id', $admin_id);
         $this->db->where('lottery_id', $lottery_id);
         $this->db->where('active', 1); // Only process active filters
+        
+        // Add condition to exclude Prediction Futures filters
+        // Prediction Futures typically have lastdate >= recent draws (future/current draw dates)
+        // Prize History typically has lastdate < recent draws (past draw dates)
+        // We'll only process filters where lastdate is clearly in the past (more than 7 days ago)
+        $this->db->where('lastdate <', date('Y-m-d', strtotime('-7 days')));
+        
         $query = $this->db->get();
         $filters = $query->result();
         
         if (empty($filters)) {
-            return; // No active filters to update
+            return; // No active Prize History filters to update
         }
+        
+        log_message('info', "Auto-update: Found " . count($filters) . " Prize History filters to process for admin {$admin_id}, lottery {$lottery_id}");
         
         // Get lottery name first, then convert to table name
         $lottery = $this->lotteries_m->get($lottery_id);
@@ -601,5 +613,44 @@ class Prize extends CI_Controller
         }
         
         return null; // No win category matched
+    }
+    
+    /**
+     * Temporary debug method to check active status logic
+     */
+    public function debug_active($lottery_id, $lastdate = null)
+    {
+        // For security, only allow in development
+        if (ENVIRONMENT !== 'development') {
+            show_404();
+            return;
+        }
+        
+        if (!$lastdate) {
+            // Use a sample lastdate if not provided
+            $lastdate = '2024-01-01'; // Adjust as needed
+        }
+        
+        $debug_info = $this->prize_m->debug_active_status($lottery_id, $lastdate);
+        
+        echo "<h2>Active Status Debug for Lottery ID: $lottery_id</h2>";
+        echo "<pre>";
+        print_r($debug_info);
+        echo "</pre>";
+        
+        // Also check actual combination filters
+        $this->db->select('*');
+        $this->db->from('lottery_combination_filters');
+        $this->db->where('lottery_id', $lottery_id);
+        $this->db->order_by('id', 'DESC');
+        $this->db->limit(5);
+        $filters = $this->db->get()->result();
+        
+        echo "<h3>Recent Combination Filters:</h3>";
+        echo "<pre>";
+        foreach ($filters as $filter) {
+            echo "ID: {$filter->id}, Active: {$filter->active}, Last Date: {$filter->lastdate}, File: {$filter->file_name}\n";
+        }
+        echo "</pre>";
     }
 }
