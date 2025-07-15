@@ -2,91 +2,7 @@
 
 <link rel="stylesheet" href="<?php echo base_url('application/views/admin/prize/prize_history.css'); ?>">
 
-<!-- Loading Overlay -->
-<div id="prizeHistoryLoader" class="prize-loading-overlay">
-    <div class="prize-loading-content">
-        <div class="prize-loading-text">
-            <h4>Calculating and Loading Prize History</h4>
-        </div>
-        <div class="prize-progress-bar">
-            <div class="prize-progress-fill"></div>
-        </div>
-    </div>
-</div>
-
 <style>
-    /* Loading Overlay Styles */
-    .prize-loading-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(255, 255, 255, 0.95);
-        z-index: 9999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        backdrop-filter: blur(3px);
-    }
-    
-    .prize-loading-content {
-        text-align: center;
-        background: white;
-        padding: 2rem 3rem;
-        border-radius: 10px;
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e0e0e0;
-        min-width: 300px;
-    }
-    
-    .prize-loading-text h4 {
-        color: #333;
-        margin-bottom: 1.5rem;
-        font-weight: 500;
-        font-size: 1.1rem;
-    }
-    
-    .prize-progress-bar {
-        width: 100%;
-        height: 6px;
-        background-color: #f0f0f0;
-        border-radius: 3px;
-        overflow: hidden;
-        position: relative;
-    }
-    
-    .prize-progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, #007bff, #0056b3);
-        width: 0%;
-        border-radius: 3px;
-        animation: simpleProgress 2s ease-in-out infinite;
-        position: relative;
-    }
-    
-    .prize-progress-fill::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-        animation: shimmer 1.5s ease-in-out infinite;
-    }
-    
-    @keyframes simpleProgress {
-        0% { width: 0%; }
-        50% { width: 70%; }
-        100% { width: 100%; }
-    }
-    
-    @keyframes shimmer {
-        0% { transform: translateX(-100%); }
-        100% { transform: translateX(100%); }
-    }
-
     /* Page Loading Overlay for AJAX */
     .page-loading-overlay {
         position: fixed;
@@ -269,7 +185,7 @@
                                     <th>Active</th>
                                     <th>Last Date</th>
                                     <?php $prize_columns = isset($prize_columns) ? $prize_columns : array(); ?>
-                                    <th colspan="<?php echo max(1, count($prize_columns)); ?>" class="text-center" style="background-color: #f4f4f4;">
+                                    <th colspan="<?php echo max(1, count($prize_columns) + 1); ?>" class="text-center" style="background-color: #f4f4f4;">
                                         <strong>Win Record</strong>
                                     </th>
                                 </tr>
@@ -284,9 +200,15 @@
                                                 <?php echo htmlspecialchars($column['label']); ?>
                                             </th>
                                         <?php endforeach; ?>
+                                        <th class="text-center" style="background-color: #f8d7da;">
+                                            Reset
+                                        </th>
                                     <?php else: ?>
                                         <th class="text-center" style="background-color: #e8f5e8;">
                                             No Prize Categories
+                                        </th>
+                                        <th class="text-center" style="background-color: #f8d7da;">
+                                            Reset
                                         </th>
                                     <?php endif; ?>
                                 </tr>
@@ -294,18 +216,26 @@
                                 <tbody>
                                     <?php if(empty($prize_records)): ?>
                                         <tr>
-                                            <td colspan="<?php echo 8 + max(1, count($prize_columns)); ?>" class="text-center">
+                                            <td colspan="<?php echo 8 + max(1, count($prize_columns)) + 1; ?>" class="text-center">
                                                 <em>No prize history records found for this administrator.</em>
                                             </td>
                                         </tr>
                                     <?php else: ?>
                                         <?php foreach($prize_records as $record): ?>
                                             <tr>
-                                                <td><?php echo sprintf('%02d', $record->row_number); ?></td>
+                                                <td>
+                                                    <a href="#" class="combination-link" data-filter-id="<?php echo $record->id; ?>" data-filename="<?php echo htmlspecialchars($record->saved_filename); ?>">
+                                                        <?php echo sprintf('%02d', $record->row_number); ?>
+                                                    </a>
+                                                </td>
                                                 <td><?php echo htmlspecialchars($record->original_filename); ?></td>
                                                 <td class="text-center"><?php echo sprintf('%02d', $record->N); ?></td>
                                                 <td class="text-center"><?php echo number_format($record->original_cccc); ?></td>
-                                                <td><?php echo htmlspecialchars($record->saved_filename); ?></td>
+                                                <td>
+                                                    <a href="#" class="combination-link" data-filter-id="<?php echo $record->id; ?>" data-filename="<?php echo htmlspecialchars($record->saved_filename); ?>">
+                                                        <?php echo htmlspecialchars($record->saved_filename); ?>
+                                                    </a>
+                                                </td>
                                                 <td class="text-center"><?php echo number_format($record->actual_cccc); ?></td>
                                                 <td class="text-center">
                                                     <?php if($record->is_active == 'YES'): ?>
@@ -327,8 +257,25 @@
                                                             ?>
                                                         </td>
                                                     <?php endforeach; ?>
+                                                    <!-- Reset Button Column -->
+                                                    <td class="text-center">
+                                                        <button type="button" class="btn btn-sm btn-warning reset-win-record" 
+                                                                data-filter-id="<?php echo $record->id; ?>" 
+                                                                data-filename="<?php echo htmlspecialchars($record->saved_filename); ?>"
+                                                                title="Reset win record for this filename">
+                                                            <i class="fa fa-undo fa-lg" aria-hidden="true"></i> reset
+                                                        </button>
+                                                    </td>
                                                 <?php else: ?>
                                                     <td class="text-center win-record">-</td>
+                                                    <td class="text-center">
+                                                        <button type="button" class="btn btn-sm btn-warning reset-win-record" 
+                                                                data-filter-id="<?php echo $record->id; ?>" 
+                                                                data-filename="<?php echo htmlspecialchars($record->saved_filename); ?>"
+                                                                title="Reset win record for this filename">
+                                                            <i class="fa fa-undo fa-lg" aria-hidden="true"></i> reset
+                                                        </button>
+                                                    </td>
                                                 <?php endif; ?>
                                             </tr>
                                         <?php endforeach; ?>
@@ -415,6 +362,43 @@
     background-color: #d9534f;
 }
 
+/* Clickable combination links */
+.combination-link {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.combination-link:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}
+
+.combination-link:visited {
+    color: #007bff;
+}
+
+.combination-link:focus, .combination-link:active {
+    color: #0056b3;
+    text-decoration: none;
+}
+
+/* Reset button styling */
+.reset-win-record {
+    padding: 4px 8px;
+    font-size: 11px;
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #212529;
+}
+
+.reset-win-record:hover {
+    background-color: #e0a800;
+    border-color: #d39e00;
+    color: #212529;
+}
+
 /* Responsive table improvements */
 @media (max-width: 768px) {
     .table-responsive {
@@ -424,28 +408,55 @@
     .win-record {
         font-size: 11px;
     }
+    
+    .reset-win-record {
+        font-size: 9px;
+        padding: 2px 4px;
+    }
 }
 </style>
 
 <script>
-// Prize History Loading Animation
 $(document).ready(function() {
-    var loader = $('#prizeHistoryLoader');
+    console.log('Prize History page loaded, setting up event handlers...'); // Debug log
     
-    // Hide loader when page is fully loaded
-    $(window).on('load', function() {
-        setTimeout(function() {
-            loader.fadeOut(500);
-        }, 800); // Small delay to ensure content is ready
+    // Handle reset win record clicks
+    $(document).on('click', '.reset-win-record', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var filterId = $(this).data('filter-id');
+        var filename = $(this).data('filename');
+        
+        console.log('Reset button clicked:', filterId, filename); // Debug log
+        
+        if (confirm('Are you sure you want to reset the win record for ' + filename + '?')) {
+            resetWinRecord(filterId, filename);
+        }
+        
+        return false;
     });
     
-    // Fallback: hide loader after reasonable time
-    setTimeout(function() {
-        if (loader.is(':visible')) {
-            loader.fadeOut(500);
+    // Handle combination links (row numbers and saved filenames)
+    $(document).on('click', '.combination-link', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var filterId = $(this).data('filter-id');
+        var filename = $(this).data('filename');
+        
+        console.log('Combination link clicked:', filterId, filename); // Debug log
+        
+        if (!filterId || !filename) {
+            console.error('Missing data attributes:', filterId, filename);
+            alert('Error: Missing filter data. Please refresh the page and try again.');
+            return false;
         }
-    }, 4000); // 4 second maximum
-
+        
+        showProgressBar(filename);
+        checkResults(filterId, filename);
+        
+        return false; // Ensure no default behavior
+    });
+    
     // Original Prize History JavaScript
     // Handle per page change
     $('#per_page_select').change(function() {
@@ -470,8 +481,8 @@ $(document).ready(function() {
         $('body').append(pageLoader);
         
         // Show loading indicator in table
-        var totalCols = 9 + <?php echo max(1, count($prize_columns)); ?>;
-        $('#prizeHistoryTable tbody').html('<tr><td colspan="' + totalCols + '" class="text-center"><i class="fa fa-spinner fa-spin"></i> Calculating and Loading prize Data...</td></tr>');
+        var totalCols = 9 + <?php echo max(1, count($prize_columns)) + 1; ?>;
+        $('#prizeHistoryTable tbody').html('<tr><td colspan="' + totalCols + '" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading Prize History Data...</td></tr>');
         
         $.ajax({
             url: '<?php echo site_url("admin/prize/get_table_data"); ?>',
@@ -503,6 +514,111 @@ $(document).ready(function() {
                 location.reload();
             }
         });
+    }
+    
+    function resetWinRecord(filterId, filename) {
+        $.ajax({
+            url: '<?php echo site_url("admin/prize/reset_win_record"); ?>',
+            type: 'POST',
+            data: {
+                filter_id: filterId
+            },
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                    // Show success message
+                    showMessage(response.message, 'success');
+                    
+                    // Reload the page to show updated data
+                    setTimeout(function() {
+                        location.reload();
+                    }, 2000);
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            },
+            error: function() {
+                alert('Error resetting win record. Please try again.');
+            }
+        });
+    }
+    
+    function showProgressBar(filename) {
+        // Create progress modal
+        var progressModal = $('<div class="modal fade" id="progressModal" tabindex="-1" role="dialog">' +
+            '<div class="modal-dialog" role="document">' +
+            '<div class="modal-content">' +
+            '<div class="modal-header">' +
+            '<h4 class="modal-title">Checking Results</h4>' +
+            '</div>' +
+            '<div class="modal-body text-center">' +
+            '<h5>Checking Results for ' + filename + '</h5>' +
+            '<div class="progress" style="height: 25px; margin-top: 20px;">' +
+            '<div class="progress-bar progress-bar-striped active" role="progressbar" style="width: 0%">' +
+            '<span class="sr-only">0% Complete</span>' +
+            '</div>' +
+            '</div>' +
+            '</div>' +
+            '</div>' +
+            '</div>' +
+            '</div>');
+        
+        $('body').append(progressModal);
+        $('#progressModal').modal({backdrop: 'static', keyboard: false});
+        
+        // Animate progress bar
+        var progress = 0;
+        var progressInterval = setInterval(function() {
+            progress += 10;
+            $('#progressModal .progress-bar').css('width', progress + '%');
+            
+            if (progress >= 100) {
+                clearInterval(progressInterval);
+                setTimeout(function() {
+                    $('#progressModal').modal('hide').remove();
+                }, 500);
+            }
+        }, 100);
+    }
+    
+    function checkResults(filterId, filename) {
+        $.ajax({
+            url: '<?php echo site_url("admin/prize/check_results_progress"); ?>',
+            type: 'POST',
+            data: {
+                filter_id: filterId
+            },
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                    setTimeout(function() {
+                        window.location.href = response.redirect_url;
+                    }, 1200); // Delay to allow progress bar to complete
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            },
+            error: function() {
+                alert('Error checking results. Please try again.');
+            }
+        });
+    }
+    
+    function showMessage(message, type) {
+        var alertClass = type === 'success' ? 'alert-warning' : 'alert-danger';
+        var alertHtml = '<div class="alert ' + alertClass + ' alert-dismissible" style="position: fixed; top: 70px; right: 20px; z-index: 9999; min-width: 300px;">' +
+            '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
+            '<span aria-hidden="true">&times;</span>' +
+            '</button>' +
+            message +
+            '</div>';
+        
+        $('body').append(alertHtml);
+        
+        // Auto-hide after 5 seconds
+        setTimeout(function() {
+            $('.alert').fadeOut();
+        }, 5000);
     }
 });
 </script>

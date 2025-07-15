@@ -616,6 +616,348 @@ class Prize extends CI_Controller
     }
     
     /**
+     * Reset win records for a specific filter
+     */
+    public function reset_win_record()
+    {
+        $filter_id = $this->input->post('filter_id');
+        $admin_id = $this->session->userdata('id');
+        
+        if (!$admin_id) {
+            echo json_encode(['success' => false, 'message' => 'Not authorized']);
+            return;
+        }
+        
+        if (!$filter_id || !is_numeric($filter_id)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid filter ID']);
+            return;
+        }
+        
+        // Verify the filter belongs to this admin
+        $this->db->select('file_name');
+        $this->db->from('lottery_combination_filters');
+        $this->db->where('id', $filter_id);
+        $this->db->where('user', 1);
+        $this->db->where('user_id', $admin_id);
+        $filter = $this->db->get()->row();
+        
+        if (!$filter) {
+            echo json_encode(['success' => false, 'message' => 'Filter not found or access denied']);
+            return;
+        }
+        
+        // Get all prize columns to reset
+        $prize_columns = $this->prize_m->get_all_prize_columns();
+        $reset_data = array();
+        
+        foreach ($prize_columns as $column) {
+            $reset_data[$column] = 0;
+        }
+        
+        // Update the filter record
+        $this->db->where('id', $filter_id);
+        $result = $this->db->update('lottery_combination_filters', $reset_data);
+        
+        if ($result) {
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Win Record for ' . $filter->file_name . ' is now cleared'
+            ]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to reset win record']);
+        }
+    }
+    
+    /**
+     * Display combination ticket winner table
+     */
+    public function view_combination_tickets($filter_id = null)
+    {
+        if (!$filter_id || !is_numeric($filter_id)) {
+            show_error('Invalid filter ID provided', 400);
+        }
+        
+        $admin_id = $this->session->userdata('id');
+        if (!$admin_id) {
+            show_error('Administrator must be logged in', 403);
+        }
+        
+        // Get filter details
+        $this->db->select('lcf.*, lp.lottery_name, lcfiles.file_name as original_filename, lcfiles.N, lcfiles.R');
+        $this->db->from('lottery_combination_filters lcf');
+        $this->db->join('lottery_profiles lp', 'lp.id = lcf.lottery_id', 'left');
+        $this->db->join('lottery_combination_files lcfiles', 'lcfiles.id = lcf.combo_id', 'left');
+        $this->db->where('lcf.id', $filter_id);
+        $this->db->where('lcf.user', 1);
+        $this->db->where('lcf.user_id', $admin_id);
+        
+        $filter = $this->db->get()->row();
+        
+        if (!$filter) {
+            show_error('Filter not found or access denied', 404);
+        }
+        
+        // Get pagination settings
+        $per_page = $this->input->get('per_page') ? (int)$this->input->get('per_page') : 10;
+        $page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
+        $offset = ($page - 1) * $per_page;
+        
+        // Get combination tickets
+        $tickets = $this->get_paginated_combination_tickets($filter, $per_page, $offset);
+        $total_tickets = $this->count_combination_tickets($filter);
+        
+        // Get latest draw information
+        $draw_info = $this->get_latest_draw_info($filter->lottery_id);
+        
+        // Calculate win results for each ticket
+        foreach ($tickets as &$ticket) {
+            $ticket['win_result'] = $this->calculate_ticket_win_result($ticket['numbers'], $draw_info, $filter);
+        }
+        
+        $this->data['filter'] = $filter;
+        $this->data['tickets'] = $tickets;
+        $this->data['draw_info'] = $draw_info;
+        $this->data['total_tickets'] = $total_tickets;
+        $this->data['per_page'] = $per_page;
+        $this->data['current_page'] = $page;
+        $this->data['total_pages'] = ceil($total_tickets / $per_page);
+        $this->data['offset'] = $offset;
+        
+        // Pagination options
+        $this->data['pagination_options'] = array(10, 20, 50, 100, 200, 300, 500, 1000);
+        
+        // Add maintenance check for layout
+        $this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+        $this->data['users'] = $this->maintenance_m->logged_online(0);
+        $this->data['admins'] = $this->maintenance_m->logged_online(1);
+        $this->data['visitors'] = $this->maintenance_m->active_visitors();
+        $this->data['meta_title'] = 'Combination Ticket Winner Table - lottotrak';
+        
+        $this->data['current'] = $this->uri->segment(2);
+        $this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/view_combination_tickets/'.$filter_id);
+        $this->data['subview'] = 'admin/prize/combination_tickets';
+        $this->load->view('admin/_layout_main', $this->data);
+    }
+    
+    /**
+     * AJAX endpoint for checking results progress
+     */
+    public function check_results_progress()
+    {
+        $filter_id = $this->input->post('filter_id');
+        $admin_id = $this->session->userdata('id');
+        
+        if (!$admin_id || !$filter_id) {
+            echo json_encode(['success' => false, 'message' => 'Invalid request']);
+            return;
+        }
+        
+        // Simulate progress checking - in real implementation, this could track actual processing
+        sleep(1); // Simulate processing time
+        
+        echo json_encode([
+            'success' => true, 
+            'progress' => 100, 
+            'message' => 'Results calculated successfully',
+            'redirect_url' => site_url('admin/prize/view_combination_tickets/' . $filter_id)
+        ]);
+    }
+    
+    /**
+     * Get paginated combination tickets for a filter
+     */
+    private function get_paginated_combination_tickets($filter, $limit, $offset)
+    {
+        $file_path = $this->get_combination_file_path($filter);
+        
+        if (!file_exists($file_path)) {
+            return array();
+        }
+        
+        $tickets = array();
+        $file_content = file_get_contents($file_path);
+        
+        if ($file_content) {
+            $lines = explode("\n", $file_content);
+            $all_tickets = array();
+            
+            foreach ($lines as $line_number => $line) {
+                $line = trim($line);
+                if (!empty($line)) {
+                    $numbers = array_map('intval', preg_split('/\s+/', $line));
+                    if (count($numbers) >= $filter->N) {
+                        $all_tickets[] = array(
+                            'ticket_number' => $line_number + 1,
+                            'numbers' => array_slice($numbers, 0, $filter->N)
+                        );
+                    }
+                }
+            }
+            
+            // Apply pagination
+            $tickets = array_slice($all_tickets, $offset, $limit);
+        }
+        
+        return $tickets;
+    }
+    
+    /**
+     * Count total combination tickets in a filter file
+     */
+    private function count_combination_tickets($filter)
+    {
+        $file_path = $this->get_combination_file_path($filter);
+        
+        if (!file_exists($file_path)) {
+            return 0;
+        }
+        
+        $file_content = file_get_contents($file_path);
+        if (!$file_content) {
+            return 0;
+        }
+        
+        $lines = explode("\n", $file_content);
+        $count = 0;
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (!empty($line)) {
+                $numbers = preg_split('/\s+/', $line);
+                if (count($numbers) >= $filter->N) {
+                    $count++;
+                }
+            }
+        }
+        
+        return $count;
+    }
+    
+    /**
+     * Get the file path for combination tickets
+     */
+    private function get_combination_file_path($filter)
+    {
+        $pick_dir = 'pick' . $filter->R;
+        return FCPATH . 'combinations/' . $pick_dir . '/' . $filter->file_name . '.txt';
+    }
+    
+    /**
+     * Get latest draw information for a lottery
+     */
+    private function get_latest_draw_info($lottery_id)
+    {
+        // Get lottery information
+        $lottery = $this->lotteries_m->get($lottery_id);
+        if (!$lottery) {
+            return null;
+        }
+        
+        $lottery_table = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+        if (!$lottery_table) {
+            return null;
+        }
+        
+        // Get the latest draw
+        $this->db->select('*');
+        $this->db->from($lottery_table);
+        $this->db->order_by('draw_date', 'DESC');
+        $this->db->limit(1);
+        
+        $latest_draw = $this->db->get()->row();
+        
+        if ($latest_draw) {
+            // Get lottery profile for extra ball information
+            $this->db->select('extra_ball');
+            $this->db->from('lottery_profiles');
+            $this->db->where('id', $lottery_id);
+            $lottery_profile = $this->db->get()->row();
+            
+            $latest_draw->extra_ball_included = ($lottery_profile && $lottery_profile->extra_ball == 1);
+        }
+        
+        return $latest_draw;
+    }
+    
+    /**
+     * Calculate win result for a single ticket
+     */
+    private function calculate_ticket_win_result($ticket_numbers, $draw_info, $filter)
+    {
+        if (!$draw_info) {
+            return array('matches' => 0, 'category' => '0 Winners', 'color_class' => 'no-win');
+        }
+        
+        // Extract drawn numbers (assuming they are in numbered fields like ball1, ball2, etc.)
+        $drawn_numbers = array();
+        for ($i = 1; $i <= $filter->N; $i++) {
+            $ball_field = 'ball' . $i;
+            if (property_exists($draw_info, $ball_field)) {
+                $drawn_numbers[] = (int)$draw_info->$ball_field;
+            }
+        }
+        
+        if (empty($drawn_numbers)) {
+            return array('matches' => 0, 'category' => '0 Winners', 'color_class' => 'no-win');
+        }
+        
+        // Count matches
+        $matches = count(array_intersect($ticket_numbers, $drawn_numbers));
+        
+        // Check for bonus/extra ball match
+        $bonus_match = false;
+        if ($draw_info->extra_ball_included) {
+            $bonus_fields = array('extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number');
+            foreach ($bonus_fields as $field) {
+                if (property_exists($draw_info, $field) && !is_null($draw_info->$field)) {
+                    $bonus_number = (int)$draw_info->$field;
+                    $bonus_match = in_array($bonus_number, $ticket_numbers);
+                    break;
+                }
+            }
+        }
+        
+        // Determine win category and color
+        $result = array(
+            'matches' => $matches,
+            'bonus_match' => $bonus_match
+        );
+        
+        if ($matches >= 6) {
+            $result['category'] = $matches . ($bonus_match ? ' + Extra Winner' : ' Winners');
+            $result['color_class'] = 'jackpot-win';
+        } elseif ($matches >= 4) {
+            $result['category'] = $matches . ($bonus_match ? ' + Extra Winner' : ' Winners');
+            $result['color_class'] = 'major-win';
+        } elseif ($matches >= 2) {
+            $result['category'] = $matches . ($bonus_match ? ' + Extra Winner' : ' Winners');
+            $result['color_class'] = 'minor-win';
+        } elseif ($bonus_match) {
+            $result['category'] = 'Extra Winner';
+            $result['color_class'] = 'bonus-win';
+        } else {
+            $result['category'] = '0 Winners';
+            $result['color_class'] = 'no-win';
+        }
+        
+        return $result;
+    }
+    
+    /**
+     * Calculate the number of winning tickets
+     */
+    public function calculate_winning_tickets_count($tickets)
+    {
+        $winning_count = 0;
+        foreach ($tickets as $ticket) {
+            if ($ticket['win_result']['matches'] > 0 || $ticket['win_result']['bonus_match']) {
+                $winning_count++;
+            }
+        }
+        return $winning_count;
+    }
+
+    /**
      * Temporary debug method to check active status logic
      */
     public function debug_active($lottery_id, $lastdate = null)

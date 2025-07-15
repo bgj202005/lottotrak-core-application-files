@@ -86,6 +86,19 @@ class Prize_m extends MY_Model
     }
     
     /**
+     * Get all available prize columns for reset functionality
+     * @return array Array of prize column field names
+     */
+    public function get_all_prize_columns()
+    {
+        return array(
+            '2_win', '2_win_extra', '3_win', '3_win_extra', '4_win', '4_win_extra',
+            '5_win', '5_win_extra', '6_win', '6_win_extra', '7_win', '7_win_extra',
+            '8_win', '8_win_extra', '9_win', '9_win_extra', 'extra'
+        );
+    }
+
+    /**
      * Count total prize records for an administrator and specific lottery
      * @param int $admin_id Administrator user ID
      * @param int $lottery_id Lottery ID to filter by (optional)
