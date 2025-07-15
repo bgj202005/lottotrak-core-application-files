@@ -620,51 +620,59 @@ class Prize extends CI_Controller
      */
     public function reset_win_record()
     {
-        $filter_id = $this->input->post('filter_id');
-        $admin_id = $this->session->userdata('id');
+        // Set JSON content type
+        header('Content-Type: application/json');
         
-        if (!$admin_id) {
-            echo json_encode(['success' => false, 'message' => 'Not authorized']);
-            return;
-        }
-        
-        if (!$filter_id || !is_numeric($filter_id)) {
-            echo json_encode(['success' => false, 'message' => 'Invalid filter ID']);
-            return;
-        }
-        
-        // Verify the filter belongs to this admin
-        $this->db->select('file_name');
-        $this->db->from('lottery_combination_filters');
-        $this->db->where('id', $filter_id);
-        $this->db->where('user', 1);
-        $this->db->where('user_id', $admin_id);
-        $filter = $this->db->get()->row();
-        
-        if (!$filter) {
-            echo json_encode(['success' => false, 'message' => 'Filter not found or access denied']);
-            return;
-        }
-        
-        // Get all prize columns to reset
-        $prize_columns = $this->prize_m->get_all_prize_columns();
-        $reset_data = array();
-        
-        foreach ($prize_columns as $column) {
-            $reset_data[$column] = 0;
-        }
-        
-        // Update the filter record
-        $this->db->where('id', $filter_id);
-        $result = $this->db->update('lottery_combination_filters', $reset_data);
-        
-        if ($result) {
-            echo json_encode([
-                'success' => true, 
-                'message' => 'Win Record for ' . $filter->file_name . ' is now cleared'
-            ]);
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Failed to reset win record']);
+        try {
+            $filter_id = $this->input->post('filter_id');
+            $admin_id = $this->session->userdata('id');
+            
+            if (!$admin_id) {
+                echo json_encode(['success' => false, 'message' => 'Not authorized']);
+                return;
+            }
+            
+            if (!$filter_id || !is_numeric($filter_id)) {
+                echo json_encode(['success' => false, 'message' => 'Invalid filter ID']);
+                return;
+            }
+            
+            // Verify the filter belongs to this admin
+            $this->db->select('file_name');
+            $this->db->from('lottery_combination_filters');
+            $this->db->where('id', $filter_id);
+            $this->db->where('user', 1);
+            $this->db->where('user_id', $admin_id);
+            $filter = $this->db->get()->row();
+            
+            if (!$filter) {
+                echo json_encode(['success' => false, 'message' => 'Filter not found or access denied']);
+                return;
+            }
+            
+            // Reset all prize columns to 0
+            $reset_data = array(
+                '2_win' => 0, '2_win_extra' => 0, '3_win' => 0, '3_win_extra' => 0,
+                '4_win' => 0, '4_win_extra' => 0, '5_win' => 0, '5_win_extra' => 0,
+                '6_win' => 0, '6_win_extra' => 0, '7_win' => 0, '7_win_extra' => 0,
+                '8_win' => 0, '8_win_extra' => 0, '9_win' => 0, '9_win_extra' => 0,
+                'extra' => 0
+            );
+            
+            // Update the filter record
+            $this->db->where('id', $filter_id);
+            $result = $this->db->update('lottery_combination_filters', $reset_data);
+            
+            if ($result) {
+                echo json_encode([
+                    'success' => true, 
+                    'message' => 'Win Record for ' . $filter->file_name . ' is now cleared'
+                ]);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to reset win record']);
+            }
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
         }
     }
     
@@ -740,27 +748,93 @@ class Prize extends CI_Controller
     }
     
     /**
-     * AJAX endpoint for checking results progress
+     * AJAX endpoint for checking results progress and returning combination data
      */
     public function check_results_progress()
     {
-        $filter_id = $this->input->post('filter_id');
-        $admin_id = $this->session->userdata('id');
+        // Set JSON content type
+        header('Content-Type: application/json');
         
-        if (!$admin_id || !$filter_id) {
-            echo json_encode(['success' => false, 'message' => 'Invalid request']);
-            return;
+        try {
+            $filter_id = $this->input->post('filter_id');
+            $admin_id = $this->session->userdata('id');
+            
+            if (!$admin_id || !$filter_id) {
+                echo json_encode(['success' => false, 'message' => 'Invalid request']);
+                return;
+            }
+            
+            // Get filter details with lottery and file info
+            $this->db->select('lcf.*, lp.lottery_name, lcfiles.file_name as original_filename, lcfiles.N, lcfiles.R');
+            $this->db->from('lottery_combination_filters lcf');
+            $this->db->join('lottery_profiles lp', 'lp.id = lcf.lottery_id', 'left');
+            $this->db->join('lottery_combination_files lcfiles', 'lcfiles.id = lcf.combo_id', 'left');
+            $this->db->where('lcf.id', $filter_id);
+            $this->db->where('lcf.user', 1);
+            $this->db->where('lcf.user_id', $admin_id);
+            
+            $filter = $this->db->get()->row();
+            
+            if (!$filter) {
+                echo json_encode(['success' => false, 'message' => 'Filter not found or access denied']);
+                return;
+            }
+            
+            // The R field from lottery_combination_files table contains the correct pick count
+            // This is the authoritative source for determining the pick directory
+            $pick_count = isset($filter->R) ? (int)$filter->R : 6; // Default to 6 if R is not available
+            
+            $filter->pick_count = $pick_count;
+            
+            // Get latest draw information
+            $draw_info = $this->get_latest_draw_info($filter->lottery_id);
+            
+            // Get first 20 combination tickets for preview
+            $tickets = $this->get_paginated_combination_tickets($filter, 20, 0);
+            $total_tickets = $this->count_combination_tickets($filter);
+            
+            // Calculate win results for each ticket
+            foreach ($tickets as &$ticket) {
+                $ticket['win_result'] = $this->calculate_ticket_win_result($ticket['numbers'], $draw_info, $filter);
+            }
+            
+            // Format drawn numbers as simple text (no colored balls)
+            $drawn_numbers = array();
+            if ($draw_info) {
+                for ($i = 1; $i <= $filter->N; $i++) {
+                    $ball_field = 'ball' . $i;
+                    if (property_exists($draw_info, $ball_field)) {
+                        $drawn_numbers[] = sprintf('%02d', $draw_info->$ball_field);
+                    }
+                }
+                
+                // Add extra/bonus number if available
+                if (property_exists($draw_info, 'extra_ball_included') && $draw_info->extra_ball_included) {
+                    $bonus_fields = array('extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number');
+                    foreach ($bonus_fields as $field) {
+                        if (property_exists($draw_info, $field) && !is_null($draw_info->$field)) {
+                            $drawn_numbers[] = '+' . sprintf('%02d', $draw_info->$field);
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Results calculated successfully',
+                'data' => [
+                    'filter' => $filter,
+                    'tickets' => $tickets,
+                    'draw_info' => $draw_info,
+                    'drawn_numbers' => $drawn_numbers,
+                    'total_tickets' => $total_tickets,
+                    'showing_count' => count($tickets)
+                ]
+            ]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
         }
-        
-        // Simulate progress checking - in real implementation, this could track actual processing
-        sleep(1); // Simulate processing time
-        
-        echo json_encode([
-            'success' => true, 
-            'progress' => 100, 
-            'message' => 'Results calculated successfully',
-            'redirect_url' => site_url('admin/prize/view_combination_tickets/' . $filter_id)
-        ]);
     }
     
     /**
@@ -771,6 +845,28 @@ class Prize extends CI_Controller
         $file_path = $this->get_combination_file_path($filter);
         
         if (!file_exists($file_path)) {
+            error_log("Combination file not found: " . $file_path);
+            error_log("Available combinations directory: " . FCPATH . 'combinations/');
+            
+            // Check what directories exist in combinations folder
+            $combinations_dir = FCPATH . 'combinations/';
+            if (is_dir($combinations_dir)) {
+                $dirs = scandir($combinations_dir);
+                error_log("Available pick directories: " . implode(', ', array_filter($dirs, function($d) { return $d !== '.' && $d !== '..'; })));
+                
+                // Check if the specific pick directory exists
+                $pick_dir = 'pick' . $filter->N;
+                $full_pick_path = $combinations_dir . $pick_dir . '/';
+                if (is_dir($full_pick_path)) {
+                    $files = scandir($full_pick_path);
+                    error_log("Files in " . $pick_dir . " directory: " . implode(', ', array_filter($files, function($f) { return $f !== '.' && $f !== '..'; })));
+                } else {
+                    error_log("Pick directory does not exist: " . $full_pick_path);
+                }
+            } else {
+                error_log("Combinations directory does not exist: " . $combinations_dir);
+            }
+            
             return array();
         }
         
@@ -785,17 +881,26 @@ class Prize extends CI_Controller
                 $line = trim($line);
                 if (!empty($line)) {
                     $numbers = array_map('intval', preg_split('/\s+/', $line));
-                    if (count($numbers) >= $filter->N) {
+                    // Use R from lottery_combination_files table as the authoritative pick count
+                    $expected_picks = isset($filter->R) ? (int)$filter->R : 
+                                     (isset($filter->pick_count) ? $filter->pick_count : 
+                                     (isset($filter->N) ? $filter->N : 6));
+                    
+                    if (count($numbers) >= $expected_picks) {
                         $all_tickets[] = array(
                             'ticket_number' => $line_number + 1,
-                            'numbers' => array_slice($numbers, 0, $filter->N)
+                            'numbers' => array_slice($numbers, 0, $expected_picks)
                         );
                     }
                 }
             }
             
+            error_log("Total tickets found in file: " . count($all_tickets));
+            
             // Apply pagination
             $tickets = array_slice($all_tickets, $offset, $limit);
+        } else {
+            error_log("Could not read file content from: " . $file_path);
         }
         
         return $tickets;
@@ -824,7 +929,12 @@ class Prize extends CI_Controller
             $line = trim($line);
             if (!empty($line)) {
                 $numbers = preg_split('/\s+/', $line);
-                if (count($numbers) >= $filter->N) {
+                // Use R from lottery_combination_files table as the authoritative pick count
+                $expected_picks = isset($filter->R) ? (int)$filter->R : 
+                                 (isset($filter->pick_count) ? $filter->pick_count : 
+                                 (isset($filter->N) ? $filter->N : 6));
+                
+                if (count($numbers) >= $expected_picks) {
                     $count++;
                 }
             }
@@ -838,8 +948,25 @@ class Prize extends CI_Controller
      */
     private function get_combination_file_path($filter)
     {
-        $pick_dir = 'pick' . $filter->R;
-        return FCPATH . 'combinations/' . $pick_dir . '/' . $filter->file_name . '.txt';
+        // Use R from lottery_combination_files table as the authoritative pick count
+        $pick_count = isset($filter->R) ? (int)$filter->R : 
+                     (isset($filter->pick_count) ? $filter->pick_count : 
+                     (isset($filter->N) ? $filter->N : 6));
+        
+        // Ensure pick_count is reasonable (between 3 and 20)
+        if ($pick_count < 3 || $pick_count > 20) {
+            $pick_count = 6; // Safe default
+        }
+        
+        $pick_dir = 'pick' . $pick_count;
+        $file_path = FCPATH . 'combinations/' . $pick_dir . '/' . $filter->file_name . '.txt';
+        
+        // Log debug information
+        error_log("Combination file lookup - Using pick count: " . $pick_count . " (from " . (isset($filter->R) ? 'R field' : (isset($filter->pick_count) ? 'pick_count' : 'N')) . ")");
+        error_log("File name: " . $filter->file_name . ", Directory: " . $pick_dir . ", Full path: " . $file_path);
+        error_log("File exists: " . (file_exists($file_path) ? 'YES' : 'NO'));
+        
+        return $file_path;
     }
     
     /**
@@ -880,17 +1007,21 @@ class Prize extends CI_Controller
     }
     
     /**
-     * Calculate win result for a single ticket
+     * Calculate win result for a single ticket (simplified for display)
      */
     private function calculate_ticket_win_result($ticket_numbers, $draw_info, $filter)
     {
         if (!$draw_info) {
-            return array('matches' => 0, 'category' => '0 Winners', 'color_class' => 'no-win');
+            return 'No Draw Data';
         }
         
         // Extract drawn numbers (assuming they are in numbered fields like ball1, ball2, etc.)
         $drawn_numbers = array();
-        for ($i = 1; $i <= $filter->N; $i++) {
+        // Use R from lottery_combination_files table as the authoritative pick count
+        $expected_picks = isset($filter->R) ? (int)$filter->R : 
+                         (isset($filter->pick_count) ? $filter->pick_count : $filter->N);
+        
+        for ($i = 1; $i <= $expected_picks; $i++) {
             $ball_field = 'ball' . $i;
             if (property_exists($draw_info, $ball_field)) {
                 $drawn_numbers[] = (int)$draw_info->$ball_field;
@@ -898,7 +1029,7 @@ class Prize extends CI_Controller
         }
         
         if (empty($drawn_numbers)) {
-            return array('matches' => 0, 'category' => '0 Winners', 'color_class' => 'no-win');
+            return 'No Draw Data';
         }
         
         // Count matches
@@ -906,7 +1037,7 @@ class Prize extends CI_Controller
         
         // Check for bonus/extra ball match
         $bonus_match = false;
-        if ($draw_info->extra_ball_included) {
+        if (property_exists($draw_info, 'extra_ball_included') && $draw_info->extra_ball_included) {
             $bonus_fields = array('extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number');
             foreach ($bonus_fields as $field) {
                 if (property_exists($draw_info, $field) && !is_null($draw_info->$field)) {
@@ -917,30 +1048,18 @@ class Prize extends CI_Controller
             }
         }
         
-        // Determine win category and color
-        $result = array(
-            'matches' => $matches,
-            'bonus_match' => $bonus_match
-        );
-        
+        // Return simple text result
         if ($matches >= 6) {
-            $result['category'] = $matches . ($bonus_match ? ' + Extra Winner' : ' Winners');
-            $result['color_class'] = 'jackpot-win';
+            return $matches . ($bonus_match ? ' + Extra' : '') . ' Matches';
         } elseif ($matches >= 4) {
-            $result['category'] = $matches . ($bonus_match ? ' + Extra Winner' : ' Winners');
-            $result['color_class'] = 'major-win';
+            return $matches . ($bonus_match ? ' + Extra' : '') . ' Matches';
         } elseif ($matches >= 2) {
-            $result['category'] = $matches . ($bonus_match ? ' + Extra Winner' : ' Winners');
-            $result['color_class'] = 'minor-win';
+            return $matches . ($bonus_match ? ' + Extra' : '') . ' Matches';
         } elseif ($bonus_match) {
-            $result['category'] = 'Extra Winner';
-            $result['color_class'] = 'bonus-win';
+            return 'Extra Match Only';
         } else {
-            $result['category'] = '0 Winners';
-            $result['color_class'] = 'no-win';
+            return 'No Match';
         }
-        
-        return $result;
     }
     
     /**
@@ -994,5 +1113,72 @@ class Prize extends CI_Controller
             echo "ID: {$filter->id}, Active: {$filter->active}, Last Date: {$filter->lastdate}, File: {$filter->file_name}\n";
         }
         echo "</pre>";
+    }
+    
+    /**
+     * Debug method to test pick directory selection for different lotteries
+     */
+    public function debug_pick_directories()
+    {
+        // For security, only allow in development
+        if (ENVIRONMENT !== 'development') {
+            show_404();
+            return;
+        }
+        
+        $admin_id = $this->session->userdata('id');
+        if (!$admin_id) {
+            echo "<h2>Please log in as admin to test</h2>";
+            return;
+        }
+        
+        // Get some sample filters with their lottery and file information
+        $this->db->select('lcf.*, lp.lottery_name, lcfiles.file_name as original_filename, lcfiles.N, lcfiles.R');
+        $this->db->from('lottery_combination_filters lcf');
+        $this->db->join('lottery_profiles lp', 'lp.id = lcf.lottery_id', 'left');
+        $this->db->join('lottery_combination_files lcfiles', 'lcfiles.id = lcf.combo_id', 'left');
+        $this->db->where('lcf.user', 1);
+        $this->db->where('lcf.user_id', $admin_id);
+        $this->db->limit(10);
+        $filters = $this->db->get()->result();
+        
+        echo "<h2>Pick Directory Selection Debug</h2>";
+        echo "<p>Testing how the system determines the correct pick directory for combination files:</p>";
+        
+        echo "<table border='1' cellpadding='5' cellspacing='0'>";
+        echo "<tr><th>Filter ID</th><th>Lottery Name</th><th>File Name</th><th>N (from combo file)</th><th>R (from combo file)</th><th>Selected Pick Directory</th><th>Full File Path</th><th>File Exists?</th></tr>";
+        
+        foreach ($filters as $filter) {
+            $file_path = $this->get_combination_file_path($filter);
+            $pick_count = isset($filter->R) ? (int)$filter->R : (isset($filter->N) ? $filter->N : 6);
+            $pick_dir = 'pick' . $pick_count;
+            $file_exists = file_exists($file_path) ? 'YES' : 'NO';
+            
+            echo "<tr>";
+            echo "<td>{$filter->id}</td>";
+            echo "<td>{$filter->lottery_name}</td>";
+            echo "<td>{$filter->file_name}</td>";
+            echo "<td>{$filter->N}</td>";
+            echo "<td>{$filter->R}</td>";
+            echo "<td>{$pick_dir}</td>";
+            echo "<td style='font-size: 10px;'>{$file_path}</td>";
+            echo "<td>{$file_exists}</td>";
+            echo "</tr>";
+        }
+        
+        echo "</table>";
+        
+        // Also show available directories
+        echo "<h3>Available Pick Directories:</h3>";
+        $combinations_dir = FCPATH . 'combinations/';
+        if (is_dir($combinations_dir)) {
+            $dirs = scandir($combinations_dir);
+            $pick_dirs = array_filter($dirs, function($d) { return strpos($d, 'pick') === 0 && is_dir(FCPATH . 'combinations/' . $d); });
+            echo "<ul>";
+            foreach ($pick_dirs as $dir) {
+                echo "<li>{$dir}</li>";
+            }
+            echo "</ul>";
+        }
     }
 }
