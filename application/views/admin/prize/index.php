@@ -140,7 +140,7 @@
                     <h3 class="card-title text-center">
                         <i class="fa fa-table"></i> Prize History
                     </h3>
-                    
+                     
                     <!-- Pagination Controls -->
                     <div class="pagination-controls">
                         <div class="row">
@@ -721,11 +721,18 @@ function checkResults(filterId, filename) {
                 $('body').removeClass('modal-open'); // Remove modal-open class from body
             }, 500);
             
-            if (response.success && response.data) {
-                // Display the combination ticket table below the prize history
-                setTimeout(function() {
-                    displayCombinationTickets(response.data);
-                }, 800); // Delay to ensure modal is fully removed
+            if (response.success) {
+                if (response.redirect) {
+                    // Redirect to the combination tickets page
+                    setTimeout(function() {
+                        window.location.href = response.redirect;
+                    }, 800); // Delay to ensure modal is fully removed
+                } else if (response.data) {
+                    // Display the combination ticket table below the prize history
+                    setTimeout(function() {
+                        displayCombinationTickets(response.data);
+                    }, 800); // Delay to ensure modal is fully removed
+                }
             } else {
                 alert('Error: ' + response.message);
             }
