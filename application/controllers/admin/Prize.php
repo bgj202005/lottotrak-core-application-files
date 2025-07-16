@@ -1,7 +1,7 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-class Prize extends CI_Controller 
+class Prize extends Admin_Controller 
 {
     
     public function __construct()
@@ -45,10 +45,6 @@ class Prize extends CI_Controller
         
         // Get logged in admin user ID
         $admin_id = $this->session->userdata('id');
-        
-        if (!$admin_id) {
-            show_error('Administrator must be logged in to view Prize History', 403);
-        }
         
         // Auto-update prize records before displaying - check for new draws and update win records
         $this->auto_update_prize_records($admin_id, $lottery_id);
@@ -590,11 +586,6 @@ class Prize extends CI_Controller
             $admin_id = $this->session->userdata('id');
             log_message('debug', "Admin ID from session: $admin_id");
             
-            if (!$admin_id) {
-                log_message('error', 'Administrator not logged in');
-                show_error('Administrator must be logged in', 403);
-            }
-        
         // Get filter details
         log_message('debug', 'Getting filter details from database');
         $this->db->select('lcf.*, lp.lottery_name, lcfiles.file_name as original_filename, lcfiles.N, lcfiles.R');
