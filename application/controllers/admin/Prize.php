@@ -942,11 +942,16 @@ class Prize extends CI_Controller
             // Calculate pagination data
             $total_pages = ceil($total_tickets / $per_page);
             
-            // Calculate total winners (count if not in TBD mode, regardless of filter status if results processed)
+            // Calculate total winners (count tickets that actually won a prize, not just matches)
             $total_winners = 0;
             if ($display_mode != 'tbd') {
                 foreach ($tickets as $ticket) {
-                    if ($ticket['win_result']['matches'] > 0 || $ticket['win_result']['bonus_match']) {
+                    // Only count as winner if the ticket actually won a prize category
+                    // Exclude "Not a Winner", "No Draw Data", and "TBD" categories
+                    if (isset($ticket['win_result']['category']) && 
+                        $ticket['win_result']['category'] != 'Not a Winner' && 
+                        $ticket['win_result']['category'] != 'No Draw Data' && 
+                        strpos($ticket['win_result']['category'], 'TBD') === false) {
                         $total_winners++;
                     }
                 }

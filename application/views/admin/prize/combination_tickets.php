@@ -84,10 +84,15 @@
                                     <span class="stat-separator">|</span>
                                     <span class="stat-item"><strong>Total Winners:</strong> <span id="total-winners"><?php 
                                     $winning_count = 0;
-                                    // Count winners if not in TBD mode (regardless of filter active status if results are processed)
+                                    // Count tickets that actually won a prize, not just those with matches
                                     if (!isset($display_mode) || $display_mode != 'tbd') {
                                         foreach ($tickets as $ticket) {
-                                            if ($ticket['win_result']['matches'] > 0 || $ticket['win_result']['bonus_match']) {
+                                            // Only count as winner if the ticket actually won a prize category
+                                            // Exclude "Not a Winner", "No Draw Data", and "TBD" categories
+                                            if (isset($ticket['win_result']['category']) && 
+                                                $ticket['win_result']['category'] != 'Not a Winner' && 
+                                                $ticket['win_result']['category'] != 'No Draw Data' && 
+                                                strpos($ticket['win_result']['category'], 'TBD') === false) {
                                                 $winning_count++;
                                             }
                                         }
