@@ -145,10 +145,14 @@
                                             </td>
                                         </tr>
                                     <?php else: ?>
-                                        <?php foreach($tickets as $ticket): ?>
+                                        <?php 
+                                        $base_offset = isset($offset) ? $offset : 0;
+                                        foreach($tickets as $index => $ticket): 
+                                            $current_row_number = $base_offset + $index + 1;
+                                        ?>
                                             <tr class="<?php echo ($filter->active == 0) ? 'expired-row' : ''; ?>">
                                                 <td class="text-center">
-                                                    <?php echo sprintf('%02d', $ticket['ticket_number']); ?>
+                                                    <?php echo sprintf('%02d', $current_row_number); ?>
                                                 </td>
                                                 <td class="combination-numbers">
                                                     <?php 
@@ -593,9 +597,13 @@ $(document).ready(function() {
             return;
         }
         
+        // Calculate proper row numbers based on pagination
+        var baseOffset = response.pagination ? (response.pagination.offset || 0) : 0;
+        
         $.each(tickets, function(index, ticket) {
+            var currentRowNumber = baseOffset + index + 1;
             var row = '<tr class="' + (filter.active == 0 ? 'expired-row' : '') + '">';
-            row += '<td class="text-center">' + String(ticket.ticket_number).padStart(2, '0') + '</td>';
+            row += '<td class="text-center">' + String(currentRowNumber).padStart(2, '0') + '</td>';
             row += '<td class="combination-numbers">';
             
             // Add combination numbers with highlighting
