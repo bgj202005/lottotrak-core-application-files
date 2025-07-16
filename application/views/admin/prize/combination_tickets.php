@@ -23,32 +23,42 @@
                         <div class="row">
                             <div class="col-md-10">
                                 <div class="draw-header-box">
-                                    <h4><strong>Draw Date:</strong> <?php echo date('l j F, Y', strtotime($draw_info->draw_date)); ?></h4>
-                                    <div class="drawn-numbers-section">
-                                        <strong>Drawn Numbers:</strong>
-                                        <div class="drawn-numbers-display">
-                                            <?php 
-                                            // Display drawn numbers
-                                            for ($i = 1; $i <= $filter->N; $i++) {
-                                                $ball_field = 'ball' . $i;
-                                                if (property_exists($draw_info, $ball_field)) {
-                                                    echo '<span class="drawn-number-highlight">' . sprintf('%02d', $draw_info->$ball_field) . '</span>';
-                                                }
-                                            }
-                                            
-                                            // Display extra/bonus number if available
-                                            if ($draw_info->extra_ball_included) {
-                                                $bonus_fields = array('extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number');
-                                                foreach ($bonus_fields as $field) {
-                                                    if (property_exists($draw_info, $field) && !is_null($draw_info->$field)) {
-                                                        echo ' <strong class="plus-sign">+</strong> <span class="bonus-number-highlight">' . sprintf('%02d', $draw_info->$field) . '</span>';
-                                                        break;
+                                    <?php if(isset($display_mode) && $display_mode == 'tbd'): ?>
+                                        <h4><strong>Next Draw Date:</strong> <?php echo date('l j F, Y', strtotime($next_draw_date)); ?></h4>
+                                        <div class="drawn-numbers-section">
+                                            <strong>Drawn Numbers:</strong>
+                                            <div class="drawn-numbers-display">
+                                                <span class="tbd-display">TBD (To Be Determined)</span>
+                                            </div>
+                                        </div>
+                                    <?php else: ?>
+                                        <h4><strong>Draw Date:</strong> <?php echo date('l j F, Y', strtotime($draw_info->draw_date)); ?></h4>
+                                        <div class="drawn-numbers-section">
+                                            <strong>Drawn Numbers:</strong>
+                                            <div class="drawn-numbers-display">
+                                                <?php 
+                                                // Display drawn numbers
+                                                for ($i = 1; $i <= $filter->N; $i++) {
+                                                    $ball_field = 'ball' . $i;
+                                                    if (property_exists($draw_info, $ball_field)) {
+                                                        echo '<span class="drawn-number-highlight">' . sprintf('%02d', $draw_info->$ball_field) . '</span>';
                                                     }
                                                 }
-                                            }
-                                            ?>
+                                                
+                                                // Display extra/bonus number if available
+                                                if ($draw_info->extra_ball_included) {
+                                                    $bonus_fields = array('extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number');
+                                                    foreach ($bonus_fields as $field) {
+                                                        if (property_exists($draw_info, $field) && !is_null($draw_info->$field)) {
+                                                            echo ' <strong class="plus-sign">+</strong> <span class="bonus-number-highlight">' . sprintf('%02d', $draw_info->$field) . '</span>';
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                                ?>
+                                            </div>
                                         </div>
-                                    </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                             <div class="col-md-2 text-right">
@@ -74,8 +84,8 @@
                                     <span class="stat-separator">|</span>
                                     <span class="stat-item"><strong>Total Winners:</strong> <span id="total-winners"><?php 
                                     $winning_count = 0;
-                                    // Only count winners if filter is active
-                                    if ($filter->active == 1) {
+                                    // Count winners if not in TBD mode (regardless of filter active status if results are processed)
+                                    if (!isset($display_mode) || $display_mode != 'tbd') {
                                         foreach ($tickets as $ticket) {
                                             if ($ticket['win_result']['matches'] > 0 || $ticket['win_result']['bonus_match']) {
                                                 $winning_count++;
@@ -142,7 +152,7 @@
                                                         $is_bonus = false;
                                                         
                                                         // Check if this number matches any drawn numbers
-                                                        if ($draw_info && $filter->active == 1) {
+                                                        if ($draw_info && $filter->active == 1 && (!isset($display_mode) || $display_mode != 'tbd')) {
                                                             for ($i = 1; $i <= $filter->N; $i++) {
                                                                 $ball_field = 'ball' . $i;
                                                                 if (property_exists($draw_info, $ball_field) && $draw_info->$ball_field == $number) {
@@ -164,7 +174,7 @@
                                                         }
                                                         
                                                         $number_class = '';
-                                                        if ($filter->active == 1) {
+                                                        if ($filter->active == 1 && (!isset($display_mode) || $display_mode != 'tbd')) {
                                                             if ($is_winning) {
                                                                 $number_class = 'winning-number';
                                                             } elseif ($is_bonus) {
@@ -177,9 +187,13 @@
                                                     ?>
                                                 </td>
                                                 <td class="text-center check-results">
-                                                    <span class="result-<?php echo $ticket['win_result']['color_class']; ?>">
-                                                        <?php echo $ticket['win_result']['category']; ?>
-                                                    </span>
+                                                    <?php if(isset($display_mode) && $display_mode == 'tbd'): ?>
+                                                        <span class="check-result-tbd">TBD (To Be Determined)</span>
+                                                    <?php else: ?>
+                                                        <span class="result-<?php echo $ticket['win_result']['color_class']; ?>">
+                                                            <?php echo $ticket['win_result']['category']; ?>
+                                                        </span>
+                                                    <?php endif; ?>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -529,13 +543,16 @@ $(document).ready(function() {
             success: function(response) {
                 if (response.success) {
                     // Update table content
-                    updateTable(response.tickets, response.filter, response.draw_info);
+                    updateTable(response.tickets, response.filter, response.draw_info, response);
                     
                     // Update pagination
                     updatePagination(response.pagination);
                     
                     // Update header stats
                     updateHeaderStats(response.pagination, response.total_winners_on_page);
+                    
+                    // Update draw header if display mode changes
+                    updateDrawHeader(response);
                     
                     // Update current page tracking
                     currentPage = response.pagination.current_page;
@@ -562,7 +579,7 @@ $(document).ready(function() {
         });
     }
     
-    function updateTable(tickets, filter, draw_info) {
+    function updateTable(tickets, filter, draw_info, response) {
         var tbody = $('#tickets-tbody');
         tbody.empty();
         
@@ -582,7 +599,7 @@ $(document).ready(function() {
                 var isWinning = false;
                 var isBonus = false;
                 
-                if (draw_info && filter.active == 1) {
+                if (draw_info && filter.active == 1 && response.display_mode !== 'tbd') {
                     // Check if number matches drawn numbers
                     for (var j = 1; j <= filter.N; j++) {
                         var ballField = 'ball' + j;
@@ -604,7 +621,7 @@ $(document).ready(function() {
                     }
                 }
                 
-                if (filter.active == 1) {
+                if (filter.active == 1 && response.display_mode !== 'tbd') {
                     if (isWinning) {
                         numberClass = 'winning-number';
                     } else if (isBonus) {
@@ -617,7 +634,14 @@ $(document).ready(function() {
             
             row += '</td>';
             row += '<td class="text-center check-results">';
-            row += '<span class="result-' + ticket.win_result.color_class + '">' + ticket.win_result.category + '</span>';
+            
+            // Check for TBD display mode
+            if (response.display_mode === 'tbd') {
+                row += '<span class="check-result-tbd">TBD (To Be Determined)</span>';
+            } else {
+                row += '<span class="result-' + ticket.win_result.color_class + '">' + ticket.win_result.category + '</span>';
+            }
+            
             row += '</td>';
             row += '</tr>';
             
@@ -665,6 +689,51 @@ $(document).ready(function() {
         $('#total-winners').text(totalWinnersOnPage.toLocaleString());
         $('#current-page-display').text(pagination.current_page);
         $('#total-pages-display').text(pagination.total_pages);
+    }
+    
+    function updateDrawHeader(response) {
+        // Update draw information header based on display mode
+        if (response.display_mode === 'tbd' && response.next_draw_date) {
+            // Update to show next draw date and TBD
+            var nextDrawDate = new Date(response.next_draw_date);
+            var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            var formattedDate = nextDrawDate.toLocaleDateString('en-US', options);
+            
+            $('.draw-header-box h4').html('<strong>Next Draw Date:</strong> ' + formattedDate);
+            $('.drawn-numbers-display').html('<span class="tbd-display">TBD (To Be Determined)</span>');
+        } else if (response.draw_info) {
+            // Update to show actual draw results
+            var drawDate = new Date(response.draw_info.draw_date);
+            var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            var formattedDate = drawDate.toLocaleDateString('en-US', options);
+            
+            $('.draw-header-box h4').html('<strong>Draw Date:</strong> ' + formattedDate);
+            
+            // Rebuild drawn numbers display
+            var numbersHtml = '';
+            var filter = response.filter;
+            
+            for (var i = 1; i <= filter.N; i++) {
+                var ballField = 'ball' + i;
+                if (response.draw_info[ballField]) {
+                    numbersHtml += '<span class="drawn-number-highlight">' + String(response.draw_info[ballField]).padStart(2, '0') + '</span>';
+                }
+            }
+            
+            // Add bonus number if available
+            if (response.draw_info.extra_ball_included) {
+                var bonusFields = ['extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number'];
+                for (var j = 0; j < bonusFields.length; j++) {
+                    var field = bonusFields[j];
+                    if (response.draw_info[field] && response.draw_info[field] != null) {
+                        numbersHtml += ' <strong class="plus-sign">+</strong> <span class="bonus-number-highlight">' + String(response.draw_info[field]).padStart(2, '0') + '</span>';
+                        break;
+                    }
+                }
+            }
+            
+            $('.drawn-numbers-display').html(numbersHtml);
+        }
     }
 });
 </script>

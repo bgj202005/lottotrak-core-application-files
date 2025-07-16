@@ -53,6 +53,9 @@ class Prize extends CI_Controller
         // Auto-update prize records before displaying - check for new draws and update win records
         $this->auto_update_prize_records($admin_id, $lottery_id);
         
+        // Note: Filter expiration now only happens when viewing Combination Ticket Winner table
+        // This ensures filters remain active until user actually views the results
+        
         // Get prize history data for the specific lottery and admin
         $this->data['prize_records'] = $this->prize_m->get_admin_prize_history($admin_id, $per_page, $offset, $lottery_id);
         $this->data['total_records'] = $this->prize_m->count_admin_prize_records($admin_id, $lottery_id);
@@ -186,119 +189,14 @@ class Prize extends CI_Controller
      * Auto-update prize records when there are new draws available
      * @param int $admin_id Administrator ID
      * @param int $lottery_id Lottery ID
+     * Note: This method is now disabled. Win records are only updated when user views Combination Ticket Winner table.
      */
     private function auto_update_prize_records($admin_id, $lottery_id)
     {
-        // Get all combination filters for this admin and lottery (active only)
-        // IMPORTANT: Only process filters that are for Prize History, not Prediction Futures
-        // Prize History filters typically have older lastdate values and are meant to be updated
-        // Prediction Futures filters have lastdate = next draw date and should remain active
-        $this->db->select('*');
-        $this->db->from('lottery_combination_filters');
-        $this->db->where('user', 1);
-        $this->db->where('user_id', $admin_id);
-        $this->db->where('lottery_id', $lottery_id);
-        $this->db->where('active', 1); // Only process active filters
-        
-        // Add condition to exclude Prediction Futures filters
-        // Prediction Futures typically have lastdate >= recent draws (future/current draw dates)
-        // Prize History typically has lastdate < recent draws (past draw dates)
-        // We'll only process filters where lastdate is clearly in the past (more than 7 days ago)
-        $this->db->where('lastdate <', date('Y-m-d', strtotime('-7 days')));
-        
-        $query = $this->db->get();
-        $filters = $query->result();
-        
-        if (empty($filters)) {
-            return; // No active Prize History filters to update
-        }
-        
-        log_message('info', "Auto-update: Found " . count($filters) . " Prize History filters to process for admin {$admin_id}, lottery {$lottery_id}");
-        
-        // Get lottery name first, then convert to table name
-        $lottery = $this->lotteries_m->get($lottery_id);
-        if (!$lottery || empty($lottery->lottery_name)) {
-            log_message('error', "Auto-update: Invalid lottery or lottery name for lottery_id {$lottery_id}");
-            return;
-        }
-        
-        $lottery_table = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
-        
-        if (!$lottery_table || !is_string($lottery_table)) {
-            log_message('error', "Auto-update: Invalid lottery table for lottery {$lottery->lottery_name}");
-            return;
-        }
-        
-        // Get the latest draw date from the lottery table (last available draw)
-        $this->db->select_max('draw_date');
-        $this->db->from($lottery_table);
-        $latest_draw_query = $this->db->get();
-        $latest_draw_result = $latest_draw_query->row();
-        $lottery_last_draw_date = $latest_draw_result->draw_date ?? null;
-        
-        if (!$lottery_last_draw_date) {
-            log_message('error', "Auto-update: No draws available in lottery table {$lottery_table}");
-            return; // No draws available
-        }
-        
-        // Get lottery profile for extra ball information
-        $this->db->select('extra_ball');
-        $this->db->from('lottery_profiles');
-        $this->db->where('id', $lottery_id);
-        $lottery_profile = $this->db->get()->row();
-        $extra_ball_included = ($lottery_profile && $lottery_profile->extra_ball == 1);
-        
-        foreach ($filters as $filter) {
-            $filter_last_date = $filter->lastdate;
-            
-            // If filter's lastdate equals lottery's most recent draw date, skip (already up to date)
-            if ($filter_last_date == $lottery_last_draw_date) {
-                log_message('info', "Auto-update: Filter {$filter->id} is already up to date, skipping");
-                continue;
-            }
-            
-            // Get all draws from filter's lastdate (exclusive) to lottery's most recent draw date (inclusive)
-            $this->db->select('*');
-            $this->db->from($lottery_table);
-            $this->db->where('draw_date >', $filter_last_date);
-            $this->db->where('draw_date <=', $lottery_last_draw_date);
-            $this->db->order_by('draw_date', 'ASC');
-            $draws_query = $this->db->get();
-            $draws = $draws_query->result();
-            
-            if (empty($draws)) {
-                log_message('info', "Auto-update: No new draws found for filter {$filter->id}");
-                continue;
-            }
-            
-            // Process each draw in chronological order
-            $processed_any_draw = false;
-            foreach ($draws as $draw) {
-                // Check if we should skip this draw - if extra is included and extra ball is 0, skip
-                $should_skip = $this->should_skip_draw($draw, $extra_ball_included);
-                if ($should_skip) {
-                    log_message('info', "Auto-update: Skipping draw {$draw->draw_date} for filter {$filter->id} - extra ball is 0 and extra is included");
-                    continue;
-                }
-                
-                // Process this draw against combination tickets
-                $this->process_single_draw_for_filter($filter, $draw, $extra_ball_included);
-                $processed_any_draw = true;
-                
-                log_message('info', "Auto-update: Processed draw {$draw->draw_date} for filter {$filter->id}");
-            }
-            
-            // After processing all draws, mark filter as expired (active = 0) and update lastdate
-            if ($processed_any_draw) {
-                $this->db->where('id', $filter->id);
-                $this->db->update('lottery_combination_filters', array(
-                    'active' => 0,
-                    'lastdate' => $lottery_last_draw_date
-                ));
-                
-                log_message('info', "Auto-update: Filter {$filter->id} marked as expired, lastdate updated to {$lottery_last_draw_date}");
-            }
-        }
+        // This method is intentionally disabled to prevent premature win record updates
+        // Win records will only be processed when user explicitly views the Combination Ticket Winner table
+        log_message('info', "Auto-update disabled: Win records will only be processed when viewing Combination Ticket Winner table");
+        return;
     }
     
     /**
@@ -735,9 +633,14 @@ class Prize extends CI_Controller
         $draw_info = $this->get_latest_draw_info($filter->lottery_id);
         log_message('debug', 'Draw info: ' . ($draw_info ? 'found' : 'not found'));
         
-        // Check if filter should be expired based on next draw date logic
+        // Check if filter should be processed for win records (but don't expire yet)
+        // Only expire when returning to Prize History, not when viewing tickets
+        $should_process_wins = false;
+        $next_draw_date = null;
+        $display_mode = 'normal'; // 'normal', 'tbd', or 'results'
+        
         if ($draw_info && $filter->active == 1) {
-            log_message('debug', 'Checking if filter should be expired based on draw dates');
+            log_message('debug', 'Checking draw date logic for display mode');
             
             // Load required models
             $this->load->model('Lotteries_m', 'lotteries_m');
@@ -761,35 +664,62 @@ class Prize extends CI_Controller
                 // Calculate next draw date based on the lastdate
                 $day = $this->lotteries_m->return_day($ld);
                 $next_draw_date = $this->lotteries_m->next_date($lottery, $day, $ld);
-                log_message('debug', "Calculated next_draw_date: {$next_draw_date}, actual last draw date: {$draw_info->draw_date}");
                 
-                // If next_draw_date matches the last draw date of the lottery, expire the filter
-                if ($next_draw_date == $draw_info->draw_date) {
-                    log_message('debug', 'Next draw date matches last draw date - expiring filter');
-                    $update_data = array(
-                        'active' => 0,
-                        'lastdate' => $draw_info->draw_date
-                    );
-                    $this->db->where('id', $filter_id);
-                    $this->db->where('user_id', $admin_id); // Security check
-                    $this->db->update('lottery_combination_filters', $update_data);
-                    
-                    // Update the filter object for current view
-                    $filter->active = 0;
-                    $filter->lastdate = $draw_info->draw_date;
-                    log_message('debug', 'Filter updated to expired, lastdate set to: ' . $draw_info->draw_date);
+                // Enhanced debugging for date comparison
+                log_message('debug', "Date comparison debug:");
+                log_message('debug', "- Filter lastdate: {$ld}");
+                log_message('debug', "- Calculated next_draw_date: {$next_draw_date}");
+                log_message('debug', "- Actual lottery draw_date: {$draw_info->draw_date}");
+                log_message('debug', "- Date comparison (next == actual): " . ($next_draw_date == $draw_info->draw_date ? 'TRUE' : 'FALSE'));
+                log_message('debug', "- Date comparison (next > actual): " . ($next_draw_date > $draw_info->draw_date ? 'TRUE' : 'FALSE'));
+                
+                // Check if there's a draw specifically on the expected date (regardless of extra ball)
+                $draw_on_expected_date = $this->get_draw_on_date($filter->lottery_id, $next_draw_date);
+                log_message('debug', "- Draw on expected date ({$next_draw_date}): " . ($draw_on_expected_date ? 'FOUND' : 'NOT FOUND'));
+                
+                // Determine display mode based on whether draw exists on expected date
+                if ($draw_on_expected_date) {
+                    // There's a draw on the expected date - show the results
+                    $should_process_wins = true;
+                    $display_mode = 'results';
+                    // Use the specific draw on the expected date instead of latest draw with extra > 0
+                    $draw_info = $draw_on_expected_date;
+                    log_message('debug', 'Display mode: results - draw found on expected date, process wins');
                 } else {
-                    log_message('debug', 'Next draw date does not match - filter remains active');
+                    // No draw found on expected date - show TBD
+                    $display_mode = 'tbd';
+                    log_message('debug', 'Display mode: tbd - no draw found on expected date');
                 }
             } else {
                 log_message('error', 'Filter lastdate is empty or null');
             }
         }
         
+        // Process win records if lottery has been updated to expected date
+        // Only process if filter is still active (not already expired)
+        if ($should_process_wins && $filter->active == 1) {
+            log_message('debug', 'Processing win records for updated lottery - filter is active');
+            $this->process_filter_win_records($filter, $draw_info);
+            log_message('debug', 'Win records processed - filter will be expired after viewing');
+            
+            // After processing wins, expire the filter since results are now final
+            // This happens after the user views the results
+            log_message('debug', 'Expiring filter after processing win records');
+            $this->db->where('id', $filter->id);
+            $this->db->where('user_id', $admin_id); // Security check
+            $this->db->update('lottery_combination_filters', array('active' => 0));
+            
+            // Update the filter object for current view (but display will still show results)
+            $filter->active = 0;
+            log_message('debug', 'Filter expired after win record processing');
+        } elseif ($should_process_wins && $filter->active == 0) {
+            log_message('debug', 'Lottery updated but filter already expired - no win record update needed');
+        }
+        
         // Calculate win results for each ticket
         log_message('debug', 'Calculating win results for tickets');
         foreach ($tickets as &$ticket) {
-            $ticket['win_result'] = $this->calculate_ticket_win_result($ticket['numbers'], $draw_info, $filter);
+            $ticket['win_result'] = $this->calculate_ticket_win_result($ticket['numbers'], $draw_info, $filter, $display_mode, $next_draw_date);
         }
         log_message('debug', 'Win results calculated');
         
@@ -801,6 +731,13 @@ class Prize extends CI_Controller
         $this->data['current_page'] = $page;
         $this->data['total_pages'] = ceil($total_tickets / $per_page);
         $this->data['offset'] = $offset;
+        $this->data['display_mode'] = $display_mode;
+        $this->data['next_draw_date'] = $next_draw_date;
+        
+        // Debug logging for final display mode
+        log_message('debug', "Final view data - display_mode: {$display_mode}, next_draw_date: {$next_draw_date}");
+        log_message('debug', "Filter active status: {$filter->active}");
+        log_message('debug', "Draw info available: " . ($draw_info ? 'YES' : 'NO'));
         
         // Pagination options
         $this->data['pagination_options'] = array(10, 20, 50, 100, 200, 300, 500, 1000);
@@ -928,19 +865,86 @@ class Prize extends CI_Controller
             $draw_info = $this->get_latest_draw_info($filter->lottery_id);
             log_message('debug', 'AJAX draw info: ' . ($draw_info ? 'found' : 'not found'));
             
+            // Determine display mode for AJAX response and process wins if needed
+            $display_mode = 'normal';
+            $next_draw_date = null;
+            $should_process_wins = false;
+            
+            if ($draw_info && $filter->active == 1) {
+                // Load required models
+                $this->load->model('Lotteries_m', 'lotteries_m');
+                
+                // Get the lottery object for the next_date calculation
+                $this->db->select('*');
+                $this->db->from('lottery_profiles');
+                $this->db->where('id', $filter->lottery_id);
+                $lottery = $this->db->get()->row();
+                
+                if ($lottery && $filter->lastdate) {
+                    // Calculate next draw date based on the lastdate
+                    $day = $this->lotteries_m->return_day($filter->lastdate);
+                    $next_draw_date = $this->lotteries_m->next_date($lottery, $day, $filter->lastdate);
+                    
+                    // Enhanced debugging for AJAX date comparison
+                    log_message('debug', "AJAX Date comparison debug:");
+                    log_message('debug', "- Filter lastdate: {$filter->lastdate}");
+                    log_message('debug', "- Calculated next_draw_date: {$next_draw_date}");
+                    log_message('debug', "- Actual lottery draw_date: {$draw_info->draw_date}");
+                    log_message('debug', "- Date comparison (next == actual): " . ($next_draw_date == $draw_info->draw_date ? 'TRUE' : 'FALSE'));
+                    log_message('debug', "- Date comparison (next > actual): " . ($next_draw_date > $draw_info->draw_date ? 'TRUE' : 'FALSE'));
+                    
+                    // Check if there's a draw specifically on the expected date (regardless of extra ball)
+                    $draw_on_expected_date = $this->get_draw_on_date($filter->lottery_id, $next_draw_date);
+                    log_message('debug', "- AJAX: Draw on expected date ({$next_draw_date}): " . ($draw_on_expected_date ? 'FOUND' : 'NOT FOUND'));
+                    
+                    // Determine display mode based on whether draw exists on expected date
+                    if ($draw_on_expected_date) {
+                        // There's a draw on the expected date - show the results
+                        $display_mode = 'results';
+                        $should_process_wins = true;
+                        // Use the specific draw on the expected date instead of latest draw with extra > 0
+                        $draw_info = $draw_on_expected_date;
+                        log_message('debug', 'AJAX: draw found on expected date, will process wins');
+                    } else {
+                        // No draw found on expected date - show TBD
+                        $display_mode = 'tbd';
+                        log_message('debug', 'AJAX: no draw found on expected date, showing TBD');
+                    }
+                }
+            }
+            
+            // Process win records if lottery has been updated to expected date (AJAX)
+            // Only process if filter is still active (not already expired)
+            if ($should_process_wins && $filter->active == 1) {
+                log_message('debug', 'AJAX: Processing win records for updated lottery - filter is active');
+                $this->process_filter_win_records($filter, $draw_info);
+                
+                // After processing wins, expire the filter since results are now final
+                log_message('debug', 'AJAX: Expiring filter after processing win records');
+                $this->db->where('id', $filter->id);
+                $this->db->where('user_id', $admin_id); // Security check
+                $this->db->update('lottery_combination_filters', array('active' => 0));
+                
+                // Update the filter object for current response
+                $filter->active = 0;
+                log_message('debug', 'AJAX: Filter expired after win record processing');
+            } elseif ($should_process_wins && $filter->active == 0) {
+                log_message('debug', 'AJAX: Lottery updated but filter already expired - no win record update needed');
+            }
+            
             // Calculate win results for each ticket
             log_message('debug', 'AJAX calculating win results');
             foreach ($tickets as &$ticket) {
-                $ticket['win_result'] = $this->calculate_ticket_win_result($ticket['numbers'], $draw_info, $filter);
+                $ticket['win_result'] = $this->calculate_ticket_win_result($ticket['numbers'], $draw_info, $filter, $display_mode, $next_draw_date);
             }
             log_message('debug', 'AJAX win results calculated');
             
             // Calculate pagination data
             $total_pages = ceil($total_tickets / $per_page);
             
-            // Calculate total winners (only if filter is active)
+            // Calculate total winners (count if not in TBD mode, regardless of filter status if results processed)
             $total_winners = 0;
-            if ($filter->active == 1) {
+            if ($display_mode != 'tbd') {
                 foreach ($tickets as $ticket) {
                     if ($ticket['win_result']['matches'] > 0 || $ticket['win_result']['bonus_match']) {
                         $total_winners++;
@@ -963,7 +967,9 @@ class Prize extends CI_Controller
                 ],
                 'total_winners_on_page' => $total_winners,
                 'filter' => $filter,
-                'draw_info' => $draw_info
+                'draw_info' => $draw_info,
+                'display_mode' => $display_mode,
+                'next_draw_date' => $next_draw_date
             ]);
             
         } catch (Exception $e) {
@@ -1267,20 +1273,19 @@ class Prize extends CI_Controller
                 return null;
             }
             
-            // Get the latest draw for this lottery (only where extra ball exists)
+            // Get the latest draw for this lottery with non-zero extra ball
+            // Draws with extra = 0 are bonus/extra draws not used for combination comparison
             $this->db->select('*');
             $this->db->from($table_name);
-            // Only check for 'extra' field since 'bonus' doesn't exist
-            $this->db->where('extra > 0');
-            $this->db->where('extra IS NOT NULL');
+            $this->db->where('extra > 0'); // Only get draws with valid extra ball for combination comparison
             $this->db->order_by('draw_date', 'DESC');
             $this->db->limit(1);
             $latest_draw = $this->db->get()->row();
             
             if ($latest_draw) {
-                // Add extra ball information
+                // Add extra ball information from lottery profile
                 $latest_draw->extra_ball_included = ($lottery_profile->extra_ball == 1);
-                log_message('debug', 'get_latest_draw_info: found latest draw');
+                log_message('debug', "get_latest_draw_info: found latest draw for date: {$latest_draw->draw_date}");
             } else {
                 log_message('debug', 'get_latest_draw_info: no draws found');
             }
@@ -1294,10 +1299,122 @@ class Prize extends CI_Controller
     }
     
     /**
+     * Check if there's a draw on a specific date (regardless of extra ball value)
+     * @param int $lottery_id Lottery ID
+     * @param string $expected_date Expected draw date (YYYY-MM-DD format)
+     * @return object|null Draw info if found, null if not found
+     */
+    private function get_draw_on_date($lottery_id, $expected_date)
+    {
+        try {
+            log_message('debug', "get_draw_on_date called for lottery_id: $lottery_id, expected_date: $expected_date");
+            
+            $this->db->select('*');
+            $this->db->from('lottery_profiles');
+            $this->db->where('id', $lottery_id);
+            $this->db->limit(1);
+            $lottery_profile = $this->db->get()->row();
+            
+            if (!$lottery_profile) {
+                log_message('debug', 'get_draw_on_date: lottery profile not found');
+                return null;
+            }
+            
+            // Load the Lotteries model to convert lottery name to table name
+            $this->load->model('Lotteries_m', 'lotteries_m');
+            $table_name = $this->lotteries_m->lotto_table_convert($lottery_profile->lottery_name);
+            
+            log_message('debug', "get_draw_on_date: found profile, lottery_name: {$lottery_profile->lottery_name}, table_name: {$table_name}");
+            
+            if (!$table_name || !is_string($table_name) || strlen($table_name) == 0) {
+                log_message('error', "get_draw_on_date: invalid table name generated for lottery_name: {$lottery_profile->lottery_name}");
+                return null;
+            }
+            
+            // Check if the table exists before querying
+            $table_exists = $this->db->table_exists($table_name);
+            if (!$table_exists) {
+                log_message('error', "get_draw_on_date: table {$table_name} does not exist");
+                return null;
+            }
+            
+            // Convert date format to MySQL format (YYYY-MM-DD) if needed
+            $mysql_date = $this->convert_to_mysql_date($expected_date);
+            if (!$mysql_date) {
+                log_message('error', "get_draw_on_date: invalid date format: {$expected_date}");
+                return null;
+            }
+            
+            log_message('debug', "get_draw_on_date: converted date from '{$expected_date}' to '{$mysql_date}'");
+            
+            // Get the draw for this specific date (any draw, regardless of extra ball)
+            $this->db->select('*');
+            $this->db->from($table_name);
+            $this->db->where('draw_date', $mysql_date);
+            $this->db->limit(1);
+            $draw_on_date = $this->db->get()->row();
+            
+            if ($draw_on_date) {
+                // Add extra ball information from lottery profile
+                $draw_on_date->extra_ball_included = ($lottery_profile->extra_ball == 1);
+                log_message('debug', "get_draw_on_date: found draw on date: {$draw_on_date->draw_date}, extra: " . (isset($draw_on_date->extra) ? $draw_on_date->extra : 'NULL'));
+            } else {
+                log_message('debug', "get_draw_on_date: no draw found for date: $expected_date");
+            }
+            
+            return $draw_on_date;
+            
+        } catch (Exception $e) {
+            log_message('error', 'get_draw_on_date exception: ' . $e->getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Convert various date formats to MySQL date format (YYYY-MM-DD)
+     * @param string $date_string Date in various formats
+     * @return string|false MySQL formatted date or false if invalid
+     */
+    private function convert_to_mysql_date($date_string)
+    {
+        try {
+            // If already in MySQL format (YYYY-MM-DD), return as is
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_string)) {
+                return $date_string;
+            }
+            
+            // Try to parse the date using strtotime
+            $timestamp = strtotime($date_string);
+            if ($timestamp === false) {
+                return false;
+            }
+            
+            // Convert to MySQL format
+            return date('Y-m-d', $timestamp);
+            
+        } catch (Exception $e) {
+            log_message('error', 'convert_to_mysql_date exception: ' . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
      * Calculate win result for a ticket
      */
-    private function calculate_ticket_win_result($ticket_numbers, $draw_info, $filter)
+    private function calculate_ticket_win_result($ticket_numbers, $draw_info, $filter, $display_mode = 'normal', $next_draw_date = null)
     {
+        // Debug: Log the draw information being used
+        if ($draw_info) {
+            log_message('debug', "Win calculation using draw_date: {$draw_info->draw_date}, extra: " . (isset($draw_info->extra) ? $draw_info->extra : 'NULL'));
+            // Also log the actual drawn numbers for debugging
+            $draw_numbers = $this->extract_drawn_numbers_from_draw($draw_info);
+            if (!empty($draw_numbers)) {
+                log_message('debug', "Drawn numbers: " . implode(', ', $draw_numbers));
+            }
+        } else {
+            log_message('debug', "Win calculation: No draw_info available");
+        }
+        
         if (!$draw_info) {
             return array(
                 'category' => 'No Draw Data',
@@ -1307,7 +1424,18 @@ class Prize extends CI_Controller
             );
         }
         
-        // Count matches regardless of filter status
+        // Handle TBD display mode for future draws
+        if ($display_mode == 'tbd') {
+            return array(
+                'category' => 'TBD (To Be Determined)',
+                'color_class' => 'tbd-result',
+                'matches' => 'TBD',
+                'bonus_match' => 'TBD',
+                'next_draw_date' => $next_draw_date
+            );
+        }
+        
+        // Count matches regardless of filter status for normal and results modes
         $matches = $this->count_ticket_matches($ticket_numbers, $draw_info);
         $bonus_match = $this->check_bonus_match_for_ticket($ticket_numbers, $draw_info);
         
@@ -1335,6 +1463,161 @@ class Prize extends CI_Controller
             'matches' => $matches,
             'bonus_match' => $bonus_match
         );
+    }
+    
+    /**
+     * Process win records for a filter when lottery has been updated to expected draw date
+     */
+    private function process_filter_win_records($filter, $draw_info)
+    {
+        try {
+            log_message('debug', "Processing win records for filter {$filter->id}");
+            
+            // Get combination tickets from the file
+            $combination_tickets = $this->get_combination_tickets_for_filter($filter);
+            if (empty($combination_tickets)) {
+                log_message('error', "No combination tickets found for filter {$filter->id}");
+                return;
+            }
+            
+            // Get prize profile for win category determination
+            $prize_profile = $this->get_lottery_prize_profile($filter->lottery_id);
+            if (!$prize_profile) {
+                log_message('error', "No prize profile found for lottery {$filter->lottery_id}");
+                return;
+            }
+            
+            // Get the required number of matches for top prize (from combination file R value)
+            $this->db->select('R');
+            $this->db->from('lottery_combination_files');
+            $this->db->where('id', $filter->combo_id);
+            $file_query = $this->db->get();
+            $file_record = $file_query->row();
+            $required_matches_for_top_prize = $file_record ? (int)$file_record->R : 0;
+            
+            // Get lottery profile for extra ball information
+            $this->db->select('extra_ball');
+            $this->db->from('lottery_profiles');
+            $this->db->where('id', $filter->lottery_id);
+            $lottery_profile = $this->db->get()->row();
+            $extra_ball_included = ($lottery_profile && $lottery_profile->extra_ball == 1);
+            
+            // Skip if extra is included and extra number is 0
+            if ($this->should_skip_draw($draw_info, $extra_ball_included)) {
+                log_message('info', "Skipping win record processing - extra ball is 0 and extra is included");
+                return;
+            }
+            
+            // Process each combination ticket against this draw
+            $win_updates = array();
+            foreach ($combination_tickets as $ticket) {
+                $matches = $this->count_ticket_matches($ticket, $draw_info);
+                $bonus_match = $this->check_bonus_match_for_ticket($ticket, $draw_info);
+                
+                // Special rule for extra number validation when extra is included
+                if ($extra_ball_included) {
+                    // For top prize, must have exact matches AND must match the exact bonus number
+                    if ($matches == $required_matches_for_top_prize && $bonus_match) {
+                        $win_category = $required_matches_for_top_prize . '_win_extra';
+                        if (property_exists($prize_profile, $win_category) && $prize_profile->$win_category == 1) {
+                            if (!isset($win_updates[$win_category])) {
+                                $win_updates[$win_category] = 0;
+                            }
+                            $win_updates[$win_category]++;
+                            continue; // Skip regular win category determination for this ticket
+                        }
+                    }
+                }
+                
+                // Determine win category using standard logic for all other cases
+                $win_category = $this->determine_win_category($matches, $bonus_match, $prize_profile);
+                if ($win_category) {
+                    if (!isset($win_updates[$win_category])) {
+                        $win_updates[$win_category] = 0;
+                    }
+                    $win_updates[$win_category]++;
+                }
+            }
+            
+            // Update the filter's win record fields in database
+            if (!empty($win_updates)) {
+                $update_data = array();
+                
+                // Add win record updates to existing values
+                foreach ($win_updates as $category => $count) {
+                    // Get current value and add new wins
+                    $this->db->select($category);
+                    $this->db->from('lottery_combination_filters');
+                    $this->db->where('id', $filter->id);
+                    $current_query = $this->db->get();
+                    $current_result = $current_query->row();
+                    
+                    if ($current_result) {
+                        $current_value = isset($current_result->$category) ? (int)$current_result->$category : 0;
+                        $update_data[$category] = $current_value + $count;
+                    }
+                }
+                
+                // Update lastdate to the draw date
+                $update_data['lastdate'] = $draw_info->draw_date;
+                
+                // Update the filter record with new win counts and lastdate
+                if (!empty($update_data)) {
+                    $this->db->where('id', $filter->id);
+                    $this->db->update('lottery_combination_filters', $update_data);
+                    
+                    // Update the filter object for current view
+                    $filter->lastdate = $draw_info->draw_date;
+                    
+                    log_message('info', "Filter {$filter->id} win records updated with draw from {$draw_info->draw_date}");
+                }
+            } else {
+                // Even if no wins, update the lastdate
+                $this->db->where('id', $filter->id);
+                $this->db->update('lottery_combination_filters', array('lastdate' => $draw_info->draw_date));
+                
+                // Update the filter object for current view
+                $filter->lastdate = $draw_info->draw_date;
+                
+                log_message('info', "Filter {$filter->id} lastdate updated to {$draw_info->draw_date} (no wins)");
+            }
+            
+        } catch (Exception $e) {
+            log_message('error', 'Exception in process_filter_win_records: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Explicitly expire filters when returning to Prize History
+     * This method is called when user navigates back from Combination Ticket Winner view
+     */
+    public function expire_filters_on_return($lottery_id)
+    {
+        $admin_id = $this->session->userdata('id');
+        
+        if (!$admin_id) {
+            redirect('admin/login');
+            return;
+        }
+        
+        // Expire completed filters
+        $this->expire_completed_filters($admin_id, $lottery_id);
+        
+        // Redirect back to Prize History
+        redirect('admin/prize/index/' . $lottery_id);
+    }
+    
+    /**
+     * Expire filters that have been processed and should now be marked as expired
+     * Note: This method is now disabled to prevent automatic filter expiration
+     * This is called when returning to Prize History page from Combination Ticket view
+     */
+    private function expire_completed_filters($admin_id, $lottery_id)
+    {
+        // Automatic filter expiration is disabled
+        // Filters will remain active until manually expired by user
+        log_message('debug', "Automatic filter expiration disabled for admin {$admin_id}, lottery {$lottery_id}");
+        return;
     }
     
     /**

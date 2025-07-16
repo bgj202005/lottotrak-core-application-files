@@ -504,58 +504,15 @@ class Prize_m extends MY_Model
     
     /**
      * Check if a record should be expired and update its status
+     * Note: Automatic expiration is now disabled to prevent premature filter expiration
      * @param object $record Lottery combination filter record
      */
     private function check_and_update_active_status($record)
     {
-        if ($record->active == 1) {
-            // Get lottery name from lottery_profiles table first
-            $this->db->select('lottery_name');
-            $this->db->from('lottery_profiles');
-            $this->db->where('id', $record->lottery_id);
-            $lottery_profile = $this->db->get()->row();
-            
-            if ($lottery_profile && $lottery_profile->lottery_name) {
-                // Convert lottery name to table name
-                $table_name = $this->lotteries_m->lotto_table_convert($lottery_profile->lottery_name);
-                
-                // Validate table name - should be a string and not empty
-                if ($table_name && is_string($table_name) && strlen($table_name) > 0) {
-                    // For Prediction Futures: Check if lottery's last draw date > prediction lastdate
-                    // This means the predicted draw has been completed
-                    $this->db->select('draw_date');
-                    $this->db->from($table_name);
-                    $this->db->order_by('draw_date', 'DESC');
-                    $this->db->limit(1);
-                    $last_draw_result = $this->db->get()->row();
-                    
-                    if ($last_draw_result && $last_draw_result->draw_date) {
-                        $lottery_last_draw_date = $last_draw_result->draw_date;
-                        
-                        // Log the check for debugging
-                        log_message('debug', "Prize History Active Check: lottery_id={$record->lottery_id}, prediction_lastdate={$record->lastdate}, lottery_last_draw={$lottery_last_draw_date}");
-                        
-                        // If lottery's last draw date > prediction lastdate, the prediction is expired
-                        if (strtotime($lottery_last_draw_date) > strtotime($record->lastdate)) {
-                            log_message('info', "Prize History: Marking combination filter {$record->id} as expired - lottery last draw ({$lottery_last_draw_date}) is after prediction date ({$record->lastdate})");
-                            $this->db->where('id', $record->id);
-                            $this->db->update('lottery_combination_filters', array('active' => 0));
-                            $record->active = 0; // Update local object
-                        } else {
-                            log_message('debug', "Prize History: Combination filter {$record->id} remains active - lottery last draw ({$lottery_last_draw_date}) has not passed prediction date ({$record->lastdate})");
-                        }
-                    } else {
-                        log_message('error', "Prize History: Could not get last draw date for lottery table {$table_name}");
-                    }
-                } else {
-                    // Log error if table name is invalid
-                    log_message('error', "Prize History: Invalid table name generated for lottery_id {$record->lottery_id}, lottery_name: " . ($lottery_profile->lottery_name ?? 'NULL') . ", table_name: " . var_export($table_name, true));
-                }
-            } else {
-                // Log error if lottery profile not found
-                log_message('error', "Prize History: Lottery profile not found for lottery_id {$record->lottery_id}");
-            }
-        }
+        // Automatic expiration disabled - filters will remain active until manually expired
+        // This prevents filters from being expired when Prize History page loads
+        log_message('debug', "Automatic filter expiration disabled for filter {$record->id}");
+        return;
     }
     
     /**
@@ -652,9 +609,11 @@ class Prize_m extends MY_Model
         // Initialize win records
         $win_records = $this->initialize_win_records($prize_profile);
         
-        // If not active, return zeros
+        // For expired filters, return the stored win records from database instead of calculating
         if ($record->active != 1) {
-            return $win_records;
+            // Get stored win records from the filter record itself
+            $stored_records = $this->get_stored_win_records($record, $prize_profile);
+            return $stored_records;
         }
         
         // Get lottery name from lottery_profiles table first
@@ -721,6 +680,7 @@ class Prize_m extends MY_Model
         $this->db->select('*');
         $this->db->from($table_name);
         $this->db->where('draw_date >=', $from_date); // Use >= instead of >
+        $this->db->where('extra > 0'); // Only get draws with valid extra ball for combination comparison
         $this->db->order_by('draw_date', 'ASC');
         return $this->db->get()->result();
     }
@@ -967,5 +927,44 @@ class Prize_m extends MY_Model
         }
         
         return $debug_info;
+    }
+    
+    /**
+     * Get stored win records from the filter record itself (for expired filters)
+     * @param object $record Lottery combination filter record
+     * @param object $prize_profile Prize profile for available categories
+     * @return object Win record counts from database
+     */
+    private function get_stored_win_records($record, $prize_profile)
+    {
+        $win_records = (object) array();
+        
+        // Define all possible prize categories (9 down to 1)
+        $prize_categories = array(9, 8, 7, 6, 5, 4, 3, 2, 1);
+        
+        foreach ($prize_categories as $category) {
+            // Check if this category exists in prize profile (not NULL)
+            $regular_field = $category . '_win';
+            $extra_field = $category . '_win_extra';
+            
+            // Add regular category if it exists in prize profile and record
+            if (property_exists($prize_profile, $regular_field) && !is_null($prize_profile->$regular_field)) {
+                $record_field = $regular_field; // Field name in record matches prize profile
+                $win_records->{'win_' . $category} = property_exists($record, $record_field) ? (int)$record->$record_field : 0;
+            }
+            
+            // Add extra category if it exists in prize profile and record
+            if (property_exists($prize_profile, $extra_field) && !is_null($prize_profile->$extra_field)) {
+                $record_field = $extra_field; // Field name in record matches prize profile
+                $win_records->{'win_' . $category . '_extra'} = property_exists($record, $record_field) ? (int)$record->$record_field : 0;
+            }
+        }
+        
+        // Check for final 'extra' category
+        if (property_exists($prize_profile, 'extra') && !is_null($prize_profile->extra)) {
+            $win_records->win_extra = property_exists($record, 'extra') ? (int)$record->extra : 0;
+        }
+        
+        return $win_records;
     }
 }
