@@ -179,9 +179,9 @@
                                     <th>#</th>
                                     <th>Original</th>
                                     <th>Picks</th>
-                                    <th>Original Combinations</th>
+                                    <th>Original Count</th>
                                     <th>Saved</th>
-                                    <th>Actual Filtered Combinations</th>
+                                    <th>Actual Filtered</th>
                                     <th>Active</th>
                                     <th>Last Date</th>
                                     <?php $prize_columns = isset($prize_columns) ? $prize_columns : array(); ?>
