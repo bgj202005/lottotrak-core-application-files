@@ -621,7 +621,7 @@ class Prize extends Admin_Controller
         
         // Get latest draw information
         log_message('debug', 'Getting latest draw information');
-        $draw_info = $this->get_latest_draw_info($filter->lottery_id);
+        $draw_info = $this->get_latest_draw_info($filter->lottery_id, $filter->lastdate);
         log_message('debug', 'Draw info: ' . ($draw_info ? 'found' : 'not found'));
         
         // Check if filter should be processed for win records (but don't expire yet)
@@ -664,18 +664,12 @@ class Prize extends Admin_Controller
                 log_message('debug', "- Date comparison (next == actual): " . ($next_draw_date == $draw_info->draw_date ? 'TRUE' : 'FALSE'));
                 log_message('debug', "- Date comparison (next > actual): " . ($next_draw_date > $draw_info->draw_date ? 'TRUE' : 'FALSE'));
                 
-                // Check if there's a draw specifically on the expected date (regardless of extra ball)
-                $draw_on_expected_date = $this->get_draw_on_date($filter->lottery_id, $next_draw_date);
-                log_message('debug', "- Draw on expected date ({$next_draw_date}): " . ($draw_on_expected_date ? 'FOUND' : 'NOT FOUND'));
-                
-                // Determine display mode based on whether draw exists on expected date
-                if ($draw_on_expected_date) {
+                // Check if the draw_info is already for the expected date (smart method handled this)
+                if ($next_draw_date == $draw_info->draw_date) {
                     // There's a draw on the expected date - show the results
                     $should_process_wins = true;
                     $display_mode = 'results';
-                    // Use the specific draw on the expected date instead of latest draw with extra > 0
-                    $draw_info = $draw_on_expected_date;
-                    log_message('debug', 'Display mode: results - draw found on expected date, process wins');
+                    log_message('debug', 'Display mode: results - using expected draw date from smart method');
                 } else {
                     // No draw found on expected date - show TBD
                     $display_mode = 'tbd';
@@ -859,7 +853,7 @@ class Prize extends Admin_Controller
             
             // Get latest draw information
             log_message('debug', 'AJAX getting draw info');
-            $draw_info = $this->get_latest_draw_info($filter->lottery_id);
+            $draw_info = $this->get_latest_draw_info($filter->lottery_id, $filter->lastdate);
             log_message('debug', 'AJAX draw info: ' . ($draw_info ? 'found' : 'not found'));
             
             // Determine display mode for AJAX response and process wins if needed
@@ -890,18 +884,12 @@ class Prize extends Admin_Controller
                     log_message('debug', "- Date comparison (next == actual): " . ($next_draw_date == $draw_info->draw_date ? 'TRUE' : 'FALSE'));
                     log_message('debug', "- Date comparison (next > actual): " . ($next_draw_date > $draw_info->draw_date ? 'TRUE' : 'FALSE'));
                     
-                    // Check if there's a draw specifically on the expected date (regardless of extra ball)
-                    $draw_on_expected_date = $this->get_draw_on_date($filter->lottery_id, $next_draw_date);
-                    log_message('debug', "- AJAX: Draw on expected date ({$next_draw_date}): " . ($draw_on_expected_date ? 'FOUND' : 'NOT FOUND'));
-                    
-                    // Determine display mode based on whether draw exists on expected date
-                    if ($draw_on_expected_date) {
+                    // Check if the draw_info is already for the expected date (smart method handled this)
+                    if ($next_draw_date == $draw_info->draw_date) {
                         // There's a draw on the expected date - show the results
                         $display_mode = 'results';
                         $should_process_wins = true;
-                        // Use the specific draw on the expected date instead of latest draw with extra > 0
-                        $draw_info = $draw_on_expected_date;
-                        log_message('debug', 'AJAX: draw found on expected date, will process wins');
+                        log_message('debug', 'AJAX: using expected draw date from smart method, will process wins');
                     } else {
                         // No draw found on expected date - show TBD
                         $display_mode = 'tbd';
@@ -1231,10 +1219,10 @@ class Prize extends Admin_Controller
     /**
      * Get latest draw information for a lottery
      */
-    private function get_latest_draw_info($lottery_id)
+    private function get_latest_draw_info($lottery_id, $filter_lastdate = null)
     {
         try {
-            log_message('debug', "get_latest_draw_info called for lottery_id: $lottery_id");
+            log_message('debug', "get_latest_draw_info called for lottery_id: $lottery_id, filter_lastdate: " . ($filter_lastdate ?: 'null'));
             
             $this->db->select('*');
             $this->db->from('lottery_profiles');
@@ -1263,6 +1251,30 @@ class Prize extends Admin_Controller
             if (!$table_exists) {
                 log_message('error', "get_latest_draw_info: table {$table_name} does not exist");
                 return null;
+            }
+            
+            // If we have a filter lastdate, try to get the appropriate expected draw first
+            if ($filter_lastdate) {
+                try {
+                    // Calculate the expected next draw date based on lottery schedule
+                    $day = $this->lotteries_m->return_day($filter_lastdate);
+                    $expected_next_draw_date = $this->lotteries_m->next_date($lottery_profile, $day, $filter_lastdate);
+                    
+                    log_message('debug', "get_latest_draw_info: calculated expected_next_draw_date: {$expected_next_draw_date} from filter_lastdate: {$filter_lastdate}");
+                    
+                    // Check if there's a draw on the expected date
+                    $expected_draw = $this->get_draw_on_date($lottery_id, $expected_next_draw_date);
+                    
+                    if ($expected_draw) {
+                        log_message('debug', "get_latest_draw_info: found draw on expected date {$expected_next_draw_date}, returning expected draw instead of latest");
+                        return $expected_draw; // Return the expected draw instead of latest
+                    } else {
+                        log_message('debug', "get_latest_draw_info: no draw found on expected date {$expected_next_draw_date}, falling back to latest draw");
+                    }
+                } catch (Exception $e) {
+                    log_message('error', "get_latest_draw_info: error calculating expected draw date: " . $e->getMessage());
+                    // Fall through to get latest draw
+                }
             }
             
             // Get the latest draw for this lottery with non-zero extra ball

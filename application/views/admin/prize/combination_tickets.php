@@ -5,7 +5,7 @@
 <div class="content-wrapper">
     <section class="content-header">
         <h1>
-            <i class="fa fa-list"></i> Combination Ticket Winner Table
+            <i class="fa fa-list"></i> Combination Ticket Winners
         </h1>
         <h5 style="text-align:left">
             <?php echo anchor('admin/prize/index/'.$filter->lottery_id, 'Back to Prize History', 'title="Back to Prize History"'); ?>
