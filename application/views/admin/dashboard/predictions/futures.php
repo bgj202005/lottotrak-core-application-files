@@ -47,8 +47,8 @@
 	}
 	.mt-4 .table,
 	.generated-tickets-table {
-		width: 90% !important;
-		max-width: 90% !important;
+		width: 100% !important;
+		max-width: 100% !important;
 		margin-left: auto;
 		margin-right: auto;
 		display: table;
@@ -69,8 +69,15 @@
         pointer-events: auto; /* Enable interaction */
     }
 	 .table-responsive {
-        overflow-x: auto;
+        overflow-x: visible !important;
         -webkit-overflow-scrolling: touch; /* Smooth scrolling for mobile */
+    }
+    
+    /* Only enable horizontal scroll on very small screens */
+    @media (max-width: 576px) {
+        .table-responsive {
+            overflow-x: auto;
+        }
     }
 	 .nowrap {
         white-space: nowrap;
@@ -312,6 +319,40 @@
 		white-space: nowrap;
 		background-color: #007bff;
 		transition: width 0.3s ease;
+	}
+	
+	/* Generated Combination Tickets table optimization */
+	.generated-tickets-table {
+		table-layout: fixed !important;
+		word-wrap: break-word;
+	}
+	
+	/* Column width optimization for Generated Combination Tickets */
+	.generated-tickets-table th:nth-child(1) { width: 5%; }   /* # */
+	.generated-tickets-table th:nth-child(2) { width: 25%; }  /* Combination */
+	.generated-tickets-table th:nth-child(3) { width: 7%; }   /* Sum */
+	.generated-tickets-table th:nth-child(4) { width: 8%; }   /* Digit Sum */
+	.generated-tickets-table th:nth-child(5) { width: 8%; }   /* Repeaters */
+	.generated-tickets-table th:nth-child(6) { width: 9%; }   /* Consecutive */
+	.generated-tickets-table th:nth-child(7) { width: 6%; }   /* Odd */
+	.generated-tickets-table th:nth-child(8) { width: 6%; }   /* Even */
+	.generated-tickets-table th:nth-child(9) { width: 8%; }   /* Decade */
+	.generated-tickets-table th:nth-child(10) { width: 6%; }  /* Last */
+	.generated-tickets-table th:nth-child(11) { width: 8%; }  /* Range */
+	
+	/* Responsive adjustments for Generated Combination Tickets */
+	@media (max-width: 1200px) {
+		.generated-tickets-table th:nth-child(2) { width: 20%; }  /* Combination */
+		.generated-tickets-table th:nth-child(3) { width: 8%; }   /* Sum */
+		.generated-tickets-table th:nth-child(4) { width: 9%; }   /* Digit Sum */
+	}
+	
+	@media (max-width: 768px) {
+		.generated-tickets-table {
+			font-size: 0.85em;
+		}
+		.generated-tickets-table th:nth-child(1) { width: 8%; }   /* # */
+		.generated-tickets-table th:nth-child(2) { width: 30%; }  /* Combination */
 	}
 </style>
 	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
@@ -657,7 +698,7 @@
 									<table 
 										id="generated-tickets-table"
 										class="table table-bordered table-striped generated-tickets-table" 
-										style="width:90%; margin:0 auto;"
+										style="width:100%; margin:0 auto;"
 										data-toggle="table"
 										data-filter-control="true"
 										data-show-filter-control-switch="true"

@@ -714,10 +714,16 @@ class Prize extends Admin_Controller
         }
         log_message('debug', 'Win results calculated');
         
+        // Calculate total winners across the entire file
+        log_message('debug', 'Calculating total winners across entire file');
+        $total_winners = $this->count_total_winners($filter, $draw_info, $display_mode, $next_draw_date);
+        log_message('debug', "Total winners in entire file: $total_winners");
+        
         $this->data['filter'] = $filter;
         $this->data['tickets'] = $tickets;
         $this->data['draw_info'] = $draw_info;
         $this->data['total_tickets'] = $total_tickets;
+        $this->data['total_winners'] = $total_winners;
         $this->data['per_page'] = $per_page;
         $this->data['current_page'] = $page;
         $this->data['total_pages'] = ceil($total_tickets / $per_page);
@@ -933,20 +939,10 @@ class Prize extends Admin_Controller
             // Calculate pagination data
             $total_pages = ceil($total_tickets / $per_page);
             
-            // Calculate total winners (count tickets that actually won a prize, not just matches)
-            $total_winners = 0;
-            if ($display_mode != 'tbd') {
-                foreach ($tickets as $ticket) {
-                    // Only count as winner if the ticket actually won a prize category
-                    // Exclude "Not a Winner", "No Draw Data", and "TBD" categories
-                    if (isset($ticket['win_result']['category']) && 
-                        $ticket['win_result']['category'] != 'Not a Winner' && 
-                        $ticket['win_result']['category'] != 'No Draw Data' && 
-                        strpos($ticket['win_result']['category'], 'TBD') === false) {
-                        $total_winners++;
-                    }
-                }
-            }
+            // Calculate total winners across the entire file (not just current page)
+            log_message('debug', 'AJAX calculating total winners across entire file');
+            $total_winners = $this->count_total_winners($filter, $draw_info, $display_mode, $next_draw_date);
+            log_message('debug', "AJAX total winners in entire file: $total_winners");
             
             log_message('debug', 'AJAX sending response');
             echo json_encode([
@@ -961,7 +957,7 @@ class Prize extends Admin_Controller
                     'showing_from' => $offset + 1,
                     'showing_to' => min($offset + $per_page, $total_tickets)
                 ],
-                'total_winners_on_page' => $total_winners,
+                'total_winners' => $total_winners,
                 'filter' => $filter,
                 'draw_info' => $draw_info,
                 'display_mode' => $display_mode,
@@ -1435,22 +1431,46 @@ class Prize extends Admin_Controller
         $matches = $this->count_ticket_matches($ticket_numbers, $draw_info);
         $bonus_match = $this->check_bonus_match_for_ticket($ticket_numbers, $draw_info);
         
-        // Determine win category based on matches
+        // Get prize profile to determine valid win categories
+        $prize_profile = $this->get_lottery_prize_profile($filter->lottery_id);
+        
+        // Determine win category based on prize profile
         $category = 'Not a Winner';
         $color_class = 'not-a-winner';
         
-        if ($matches >= 6) {
-            $category = 'JACKPOT WIN';
-            $color_class = 'jackpot-win';
-        } elseif ($matches >= 4) {
-            $category = 'MAJOR WIN';
-            $color_class = 'major-win';
-        } elseif ($matches >= 2) {
-            $category = $matches . ' Winning Numbers';
-            $color_class = 'minor-win';
-        } elseif ($bonus_match) {
-            $category = 'BONUS WIN';
-            $color_class = 'bonus-win';
+        if ($prize_profile) {
+            $win_category = $this->determine_win_category($matches, $bonus_match, $prize_profile);
+            
+            if ($win_category) {
+                // Determine display category and color based on win category
+                if (strpos($win_category, '_win_extra') !== false || $win_category == 'extra') {
+                    $category = 'BONUS WIN';
+                    $color_class = 'bonus-win';
+                } else {
+                    // Extract number of matches from win category
+                    $match_number = (int)str_replace('_win', '', $win_category);
+                    if ($match_number >= 6) {
+                        $category = 'JACKPOT WIN';
+                        $color_class = 'jackpot-win';
+                    } elseif ($match_number >= 4) {
+                        $category = 'MAJOR WIN';
+                        $color_class = 'major-win';
+                    } else {
+                        $category = $match_number . ' Winning Numbers';
+                        $color_class = 'minor-win';
+                    }
+                }
+            } else {
+                // No valid win category found, show matches for debugging
+                if ($matches > 0) {
+                    $category = $matches . ' Matches (Not a Winner)';
+                    $color_class = 'no-win';
+                }
+            }
+        } else {
+            // Fallback if no prize profile found
+            $category = 'No Prize Profile';
+            $color_class = 'no-win';
         }
         
         return array(
@@ -1629,5 +1649,138 @@ class Prize extends Admin_Controller
         } else {
             show_error('Invalid filter ID', 400);
         }
+    }
+    
+    /**
+     * Count total winners across all tickets in a combination file (OPTIMIZED)
+     * @param object $filter Filter object
+     * @param object $draw_info Draw information
+     * @param string $display_mode Display mode (normal, tbd, results)
+     * @param string $next_draw_date Next draw date for TBD mode
+     * @return int Total number of winning tickets
+     */
+    private function count_total_winners($filter, $draw_info, $display_mode = 'normal', $next_draw_date = null)
+    {
+        if ($display_mode == 'tbd' || !$draw_info) {
+            return 0;
+        }
+        
+        // Get file info including R (picks) from combination files
+        $this->db->select('file_name, R');
+        $this->db->from('lottery_combination_files');
+        $this->db->where('id', $filter->combo_id);
+        $file_query = $this->db->get();
+        $file_record = $file_query->row();
+        
+        if (!$file_record) {
+            return 0;
+        }
+        
+        $expected_picks = (int)$file_record->R;
+        
+        // Build file path
+        $pick_dir = 'pick' . $expected_picks;
+        $file_path = FCPATH . 'combinations/' . $pick_dir . '/' . $filter->file_name . '.txt';
+        
+        if (!file_exists($file_path)) {
+            return 0;
+        }
+        
+        // Get prize profile for efficient win validation
+        $this->db->select('*');
+        $this->db->from('lottery_prize_profiles');
+        $this->db->where('lottery_id', $filter->lottery_id);
+        $prize_profile = $this->db->get()->row();
+        
+        if (!$prize_profile) {
+            return 0;
+        }
+        
+        // Extract drawn numbers and bonus number once
+        $drawn_numbers = $this->extract_drawn_numbers_from_draw($draw_info);
+        $bonus_number = $this->extract_bonus_number_from_draw($draw_info);
+        
+        if (empty($drawn_numbers)) {
+            return 0;
+        }
+        
+        // Count winners in the entire file with optimized logic
+        $total_winners = 0;
+        $file_content = file_get_contents($file_path);
+        
+        if ($file_content) {
+            $lines = explode("\n", $file_content);
+            
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if (!empty($line)) {
+                    $numbers = preg_split('/[\s,]+/', $line);
+                    $numbers = array_map('intval', array_filter($numbers, 'is_numeric'));
+                    
+                    if (count($numbers) == $expected_picks) {
+                        // Quick match calculation using array_intersect
+                        $matches = count(array_intersect($numbers, $drawn_numbers));
+                        $bonus_match = !is_null($bonus_number) && in_array($bonus_number, $numbers);
+                        
+                        // Quick win category determination using prize profile
+                        if ($this->fast_determine_win_category($matches, $bonus_match, $prize_profile)) {
+                            $total_winners++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return $total_winners;
+    }
+    
+    /**
+     * Fast win category determination for counting (optimized version)
+     * @param int $matches Number of matches
+     * @param bool $bonus_match Bonus match status
+     * @param object $prize_profile Prize profile
+     * @return bool True if it's a winning combination
+     */
+    private function fast_determine_win_category($matches, $bonus_match, $prize_profile)
+    {
+        // Check from highest to lowest prize category
+        $prize_categories = array(9, 8, 7, 6, 5, 4, 3, 2, 1);
+        
+        foreach ($prize_categories as $category) {
+            if ($matches < $category) {
+                continue; // Not enough matches for this category
+            }
+            
+            $regular_field = $category . '_win';
+            $extra_field = $category . '_win_extra';
+            
+            // Check for extra win first (higher priority)
+            if ($bonus_match && 
+                property_exists($prize_profile, $extra_field) && 
+                !is_null($prize_profile->$extra_field) && 
+                $prize_profile->$extra_field == 1) {
+                
+                return true;
+            }
+            
+            // Check for regular win
+            if (property_exists($prize_profile, $regular_field) && 
+                !is_null($prize_profile->$regular_field) && 
+                $prize_profile->$regular_field == 1) {
+                
+                return true;
+            }
+        }
+        
+        // Check for extra-only category
+        if ($bonus_match && 
+            property_exists($prize_profile, 'extra') && 
+            !is_null($prize_profile->extra) && 
+            $prize_profile->extra == 1) {
+            
+            return true;
+        }
+        
+        return false; // No win category matched
     }
 }

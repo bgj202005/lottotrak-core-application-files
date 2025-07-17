@@ -83,21 +83,8 @@
                                     <span class="stat-item"><strong>Total Filtered:</strong> <?php echo number_format($total_tickets); ?></span>
                                     <span class="stat-separator">|</span>
                                     <span class="stat-item"><strong>Total Winners:</strong> <span id="total-winners"><?php 
-                                    $winning_count = 0;
-                                    // Count tickets that actually won a prize, not just those with matches
-                                    if (!isset($display_mode) || $display_mode != 'tbd') {
-                                        foreach ($tickets as $ticket) {
-                                            // Only count as winner if the ticket actually won a prize category
-                                            // Exclude "Not a Winner", "No Draw Data", and "TBD" categories
-                                            if (isset($ticket['win_result']['category']) && 
-                                                $ticket['win_result']['category'] != 'Not a Winner' && 
-                                                $ticket['win_result']['category'] != 'No Draw Data' && 
-                                                strpos($ticket['win_result']['category'], 'TBD') === false) {
-                                                $winning_count++;
-                                            }
-                                        }
-                                    }
-                                    echo number_format($winning_count);
+                                    // Use the total winners calculated by the controller for the entire file
+                                    echo number_format(isset($total_winners) ? $total_winners : 0);
                                     ?></span></span>
                                     <span class="stat-separator">|</span>
                                     <span class="stat-item"><strong>Showing Page:</strong> <span id="current-page-display"><?php echo $current_page; ?></span> of <span id="total-pages-display"><?php echo $total_pages; ?></span></span>
@@ -558,7 +545,7 @@ $(document).ready(function() {
                     updatePagination(response.pagination);
                     
                     // Update header stats
-                    updateHeaderStats(response.pagination, response.total_winners_on_page);
+                    updateHeaderStats(response.pagination, response.total_winners);
                     
                     // Update draw header if display mode changes
                     updateDrawHeader(response);
