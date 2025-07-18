@@ -1,6 +1,6 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
 
-<link rel="stylesheet" href="<?php echo base_url('application/views/admin/prize/prize_history.css'); ?>">
+<link rel="stylesheet" href="<?php echo base_url('css/prize_history.css'); ?>">
 
 <div class="content-wrapper">
     <section class="content-header">
@@ -24,6 +24,7 @@
                             <div class="col-md-10">
                                 <div class="draw-header-box">
                                     <?php if(isset($display_mode) && $display_mode == 'tbd'): ?>
+                                        <script>console.log('VIEW DEBUG: display_mode is TBD');</script>
                                         <h4><strong>Next Draw Date:</strong> <?php echo date('l j F, Y', strtotime($next_draw_date)); ?></h4>
                                         <div class="drawn-numbers-section">
                                             <strong>Drawn Numbers:</strong>
@@ -32,6 +33,7 @@
                                             </div>
                                         </div>
                                     <?php else: ?>
+                                        <script>console.log('VIEW DEBUG: display_mode is NOT TBD, showing results. display_mode = <?php echo isset($display_mode) ? $display_mode : "NOT SET"; ?>');</script>
                                         <h4><strong>Draw Date:</strong> <?php echo date('l j F, Y', strtotime($draw_info->draw_date)); ?></h4>
                                         <div class="drawn-numbers-section">
                                             <strong>Drawn Numbers:</strong>

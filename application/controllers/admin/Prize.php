@@ -630,8 +630,9 @@ class Prize extends Admin_Controller
         $next_draw_date = null;
         $display_mode = 'normal'; // 'normal', 'tbd', or 'results'
         
-        if ($draw_info && $filter->active == 1) {
-            log_message('debug', 'Checking draw date logic for display mode');
+        // Always calculate expected next draw date for active filters, regardless of whether draw_info exists
+        if ($filter->active == 1 && $filter->lastdate) {
+            log_message('debug', 'Checking draw date logic for display mode - filter is active');
             
             // Load required models
             $this->load->model('Lotteries_m', 'lotteries_m');
@@ -651,32 +652,62 @@ class Prize extends Admin_Controller
             $ld = $filter->lastdate;
             log_message('debug', "Retrieved lastdate from filter: " . $ld);
             
-            if ($ld) {
-                // Calculate next draw date based on the lastdate
-                $day = $this->lotteries_m->return_day($ld);
-                $next_draw_date = $this->lotteries_m->next_date($lottery, $day, $ld);
-                
+            // CORRECTED LOGIC: Always calculate the NEXT draw date after filter_lastdate
+            // The filter_lastdate is when predictions were made, we check against the NEXT draw
+            
+            $day = $this->lotteries_m->return_day($ld);
+            
+            // Always calculate the next draw date after the filter lastdate
+            $expected_next_draw_date = $this->lotteries_m->next_date($lottery, $day, $ld);
+            // Convert expected date to MySQL format for comparison and display
+            $next_draw_date_mysql = $this->convert_to_mysql_date($expected_next_draw_date);
+            echo "<script>console.log('DEBUG: filter_lastdate ({$ld}) - calculating NEXT draw after this date');</script>";
+            echo "<script>console.log('DEBUG: Next draw date calculated (raw) = {$expected_next_draw_date}');</script>";
+            echo "<script>console.log('DEBUG: Next draw date (MySQL) = {$next_draw_date_mysql}');</script>";
+            // COMPREHENSIVE DEBUG: Show lottery schedule
+            echo "<script>console.log('LOTTERY SCHEDULE DEBUG:');</script>";
+            echo "<script>console.log('- Monday: {$lottery->monday}');</script>";
+            echo "<script>console.log('- Tuesday: {$lottery->tuesday}');</script>";
+            echo "<script>console.log('- Wednesday: {$lottery->wednesday}');</script>";
+            echo "<script>console.log('- Thursday: {$lottery->thursday}');</script>";
+            echo "<script>console.log('- Friday: {$lottery->friday}');</script>";
+            echo "<script>console.log('- Saturday: {$lottery->saturday}');</script>";
+            echo "<script>console.log('- Sunday: {$lottery->sunday}');</script>";
+            // Set the expected next draw date for display (always use MySQL format for consistency)
+            $next_draw_date = $next_draw_date_mysql;
+            // Now check if we have draw info and if it matches the expected date
+            if ($draw_info) {
                 // Enhanced debugging for date comparison
+                echo "<script>console.log('DEBUG COMPARISON: Filter lastdate = {$ld}');</script>";
+                echo "<script>console.log('DEBUG COMPARISON: next_draw_date_mysql = {$next_draw_date_mysql}');</script>";
+                echo "<script>console.log('DEBUG COMPARISON: Actual draw_date = {$draw_info->draw_date}');</script>";
+                echo "<script>console.log('DEBUG COMPARISON: Dates match? ' + ('{$next_draw_date_mysql}' === '{$draw_info->draw_date}'));</script>";
                 log_message('debug', "Date comparison debug:");
                 log_message('debug', "- Filter lastdate: {$ld}");
-                log_message('debug', "- Calculated next_draw_date: {$next_draw_date}");
+                log_message('debug', "- next_draw_date_mysql: {$next_draw_date_mysql}");
                 log_message('debug', "- Actual lottery draw_date: {$draw_info->draw_date}");
-                log_message('debug', "- Date comparison (next == actual): " . ($next_draw_date == $draw_info->draw_date ? 'TRUE' : 'FALSE'));
-                log_message('debug', "- Date comparison (next > actual): " . ($next_draw_date > $draw_info->draw_date ? 'TRUE' : 'FALSE'));
-                
-                // Check if the draw_info is already for the expected date (smart method handled this)
-                if ($next_draw_date == $draw_info->draw_date) {
-                    // There's a draw on the expected date - show the results
+                log_message('debug', "- Date comparison (mysql == actual): " . ($next_draw_date_mysql == $draw_info->draw_date ? 'TRUE' : 'FALSE'));
+                // Check if the draw_info is for the expected NEXT date
+                if ($next_draw_date_mysql == $draw_info->draw_date) {
+                    // There's a draw on the expected next date - show the results
                     $should_process_wins = true;
                     $display_mode = 'results';
-                    log_message('debug', 'Display mode: results - using expected draw date from smart method');
+                    echo "<script>console.log('DEBUG DISPLAY: Setting display_mode to RESULTS - dates match!');</script>";
+                    echo "<script>console.log('DEBUG: Draw found on expected NEXT date - showing results');</script>";
+                    log_message('debug', 'Display mode: results - using expected NEXT draw date');
                 } else {
-                    // No draw found on expected date - show TBD
+                    // Draw info exists but not for expected date - show TBD for future draw
                     $display_mode = 'tbd';
-                    log_message('debug', 'Display mode: tbd - no draw found on expected date');
+                    echo "<script>console.log('DEBUG DISPLAY: Setting display_mode to TBD - dates do NOT match!');</script>";
+                    echo "<script>console.log('DEBUG: Draw exists but not on expected NEXT date - showing TBD for: {$next_draw_date}');</script>";
+                    log_message('debug', 'Display mode: tbd - draw exists but not on expected NEXT date');
                 }
             } else {
-                log_message('error', 'Filter lastdate is empty or null');
+                // No draw info at all - show TBD for expected next draw
+                $display_mode = 'tbd';
+                echo "<script>console.log('DEBUG DISPLAY: Setting display_mode to TBD - no draw_info found');</script>";
+                echo "<script>console.log('DEBUG: No draw_info found - showing TBD for: {$next_draw_date}');</script>";
+                log_message('debug', 'Display mode: tbd - no draw_info found, showing expected NEXT date');
             }
         }
         
@@ -684,8 +715,19 @@ class Prize extends Admin_Controller
         // Only process if filter is still active (not already expired)
         if ($should_process_wins && $filter->active == 1) {
             log_message('debug', 'Processing win records for updated lottery - filter is active');
-            $this->process_filter_win_records($filter, $draw_info);
+            $this->process_filter_win_records($filter, $draw_info, false); // Don't update lastdate during processing
             log_message('debug', 'Win records processed - filter will be expired after viewing');
+            
+            // Update the filter's lastdate to the draw date that was just processed
+            // This ensures next access will look for the draw after this one
+            log_message('debug', 'Updating filter lastdate to processed draw date: ' . $draw_info->draw_date);
+            $this->db->where('id', $filter->id);
+            $this->db->where('user_id', $admin_id); // Security check
+            $this->db->update('lottery_combination_filters', array('lastdate' => $draw_info->draw_date));
+            
+            // Update the filter object for current view
+            $filter->lastdate = $draw_info->draw_date;
+            log_message('info', "Filter {$filter->id} lastdate updated to {$draw_info->draw_date} after processing results");
             
             // After processing wins, expire the filter since results are now final
             // This happens after the user views the results
@@ -861,7 +903,8 @@ class Prize extends Admin_Controller
             $next_draw_date = null;
             $should_process_wins = false;
             
-            if ($draw_info && $filter->active == 1) {
+            // Always calculate expected next draw date for active filters, regardless of whether draw_info exists
+            if ($filter->active == 1 && $filter->lastdate) {
                 // Load required models
                 $this->load->model('Lotteries_m', 'lotteries_m');
                 
@@ -871,29 +914,48 @@ class Prize extends Admin_Controller
                 $this->db->where('id', $filter->lottery_id);
                 $lottery = $this->db->get()->row();
                 
-                if ($lottery && $filter->lastdate) {
-                    // Calculate next draw date based on the lastdate
+                if ($lottery) {
+                    // CORRECTED LOGIC: Always calculate the NEXT draw date after filter_lastdate
+                    // The filter_lastdate is when predictions were made, we check against the NEXT draw
+                    
                     $day = $this->lotteries_m->return_day($filter->lastdate);
-                    $next_draw_date = $this->lotteries_m->next_date($lottery, $day, $filter->lastdate);
                     
-                    // Enhanced debugging for AJAX date comparison
-                    log_message('debug', "AJAX Date comparison debug:");
-                    log_message('debug', "- Filter lastdate: {$filter->lastdate}");
-                    log_message('debug', "- Calculated next_draw_date: {$next_draw_date}");
-                    log_message('debug', "- Actual lottery draw_date: {$draw_info->draw_date}");
-                    log_message('debug', "- Date comparison (next == actual): " . ($next_draw_date == $draw_info->draw_date ? 'TRUE' : 'FALSE'));
-                    log_message('debug', "- Date comparison (next > actual): " . ($next_draw_date > $draw_info->draw_date ? 'TRUE' : 'FALSE'));
+                    // Always calculate the next draw date after the filter lastdate
+                    $expected_next_draw_date = $this->lotteries_m->next_date($lottery, $day, $filter->lastdate);
+                    log_message('debug', "AJAX: filter_lastdate ({$filter->lastdate}) - calculating NEXT draw after this date");
+                    log_message('debug', "AJAX: Next draw date calculated = {$expected_next_draw_date}");
                     
-                    // Check if the draw_info is already for the expected date (smart method handled this)
-                    if ($next_draw_date == $draw_info->draw_date) {
-                        // There's a draw on the expected date - show the results
-                        $display_mode = 'results';
-                        $should_process_wins = true;
-                        log_message('debug', 'AJAX: using expected draw date from smart method, will process wins');
+                    // Convert expected date to MySQL format for comparison
+                    $next_draw_date_mysql = $this->convert_to_mysql_date($expected_next_draw_date);
+                    
+                    // Set the expected next draw date for display
+                    $next_draw_date = $expected_next_draw_date;
+                    
+                    // Now check if we have draw info and if it matches the expected date
+                    if ($draw_info) {
+                        // Enhanced debugging for AJAX date comparison
+                        log_message('debug', "AJAX Date comparison debug:");
+                        log_message('debug', "- Filter lastdate: {$filter->lastdate}");
+                        log_message('debug', "- Expected NEXT draw date: {$expected_next_draw_date}");
+                        log_message('debug', "- expected_draw_date_mysql: {$next_draw_date_mysql}");
+                        log_message('debug', "- Actual lottery draw_date: {$draw_info->draw_date}");
+                        log_message('debug', "- Date comparison (mysql == actual): " . ($next_draw_date_mysql == $draw_info->draw_date ? 'TRUE' : 'FALSE'));
+                        
+                        // Check if the draw_info is for the expected NEXT date
+                        if ($next_draw_date_mysql == $draw_info->draw_date) {
+                            // There's a draw on the expected next date - show the results
+                            $display_mode = 'results';
+                            $should_process_wins = true;
+                            log_message('debug', 'AJAX: using expected NEXT draw date, will process wins');
+                        } else {
+                            // Draw info exists but not for expected date - show TBD for future draw
+                            $display_mode = 'tbd';
+                            log_message('debug', 'AJAX: draw exists but not on expected NEXT date, showing TBD');
+                        }
                     } else {
-                        // No draw found on expected date - show TBD
+                        // No draw info at all - show TBD for expected next draw
                         $display_mode = 'tbd';
-                        log_message('debug', 'AJAX: no draw found on expected date, showing TBD');
+                        log_message('debug', 'AJAX: no draw_info found, showing TBD for expected NEXT date');
                     }
                 }
             }
@@ -902,7 +964,18 @@ class Prize extends Admin_Controller
             // Only process if filter is still active (not already expired)
             if ($should_process_wins && $filter->active == 1) {
                 log_message('debug', 'AJAX: Processing win records for updated lottery - filter is active');
-                $this->process_filter_win_records($filter, $draw_info);
+                $this->process_filter_win_records($filter, $draw_info, false); // Don't update lastdate during processing
+                
+                // Update the filter's lastdate to the draw date that was just processed
+                // This ensures next access will look for the draw after this one
+                log_message('debug', 'AJAX: Updating filter lastdate to processed draw date: ' . $draw_info->draw_date);
+                $this->db->where('id', $filter->id);
+                $this->db->where('user_id', $admin_id); // Security check
+                $this->db->update('lottery_combination_filters', array('lastdate' => $draw_info->draw_date));
+                
+                // Update the filter object for current response
+                $filter->lastdate = $draw_info->draw_date;
+                log_message('info', "AJAX: Filter {$filter->id} lastdate updated to {$draw_info->draw_date} after processing results");
                 
                 // After processing wins, expire the filter since results are now final
                 log_message('debug', 'AJAX: Expiring filter after processing win records');
@@ -1256,45 +1329,131 @@ class Prize extends Admin_Controller
             // If we have a filter lastdate, try to get the appropriate expected draw first
             if ($filter_lastdate) {
                 try {
-                    // Calculate the expected next draw date based on lottery schedule
+                    // CORRECTED LOGIC: Always calculate the NEXT draw date after filter_lastdate
+                    // The filter_lastdate is when predictions were made, we check against the NEXT draw
                     $day = $this->lotteries_m->return_day($filter_lastdate);
+                    
+                    // Always calculate the next draw date after the filter lastdate
                     $expected_next_draw_date = $this->lotteries_m->next_date($lottery_profile, $day, $filter_lastdate);
+                    echo "<script>console.log('DEBUG: filter_lastdate ({$filter_lastdate}) - calculating NEXT draw after this date');</script>";
+                    echo "<script>console.log('DEBUG: Next draw date calculated = {$expected_next_draw_date}');</script>";
                     
                     log_message('debug', "get_latest_draw_info: calculated expected_next_draw_date: {$expected_next_draw_date} from filter_lastdate: {$filter_lastdate}");
                     
-                    // Check if there's a draw on the expected date
+                    // TEMPORARY DEBUG: Output calculation details
+                    echo "<script>console.log('DEBUG COMPARISON: Filter lastdate = {$filter_lastdate}');</script>";
+                    echo "<script>console.log('DEBUG COMPARISON: Calculated NEXT draw date = " . date('D M d, Y', strtotime($expected_next_draw_date)) . "');</script>";
+                    echo "<script>console.log('DEBUG COMPARISON: next_draw_date_mysql = {$expected_next_draw_date}');</script>";
+                    echo "<script>console.log('DEBUG: day = {$day}');</script>";
+                    
+                    // Debug lottery schedule
+                    echo "<script>console.log('DEBUG LOTTERY SCHEDULE:');</script>";
+                    echo "<script>console.log('- Monday: {$lottery_profile->monday}');</script>";
+                    echo "<script>console.log('- Tuesday: {$lottery_profile->tuesday}');</script>";
+                    echo "<script>console.log('- Wednesday: {$lottery_profile->wednesday}');</script>";
+                    echo "<script>console.log('- Thursday: {$lottery_profile->thursday}');</script>";
+                    echo "<script>console.log('- Friday: {$lottery_profile->friday}');</script>";
+                    echo "<script>console.log('- Saturday: {$lottery_profile->saturday}');</script>";
+                    echo "<script>console.log('- Sunday: {$lottery_profile->sunday}');</script>";
+                    
+                    // Check if there's a draw on the expected NEXT draw date
                     $expected_draw = $this->get_draw_on_date($lottery_id, $expected_next_draw_date);
                     
+                    // Enhanced debugging for draw lookup
+                    echo "<script>console.log('DEBUG: Looking for draw on calculated NEXT draw date: {$expected_next_draw_date}');</script>";
+                    echo "<script>console.log('DEBUG: get_draw_on_date result: " . ($expected_draw ? "FOUND" : "NOT FOUND") . "');</script>";
+                    
                     if ($expected_draw) {
-                        log_message('debug', "get_latest_draw_info: found draw on expected date {$expected_next_draw_date}, returning expected draw instead of latest");
-                        return $expected_draw; // Return the expected draw instead of latest
+                        echo "<script>console.log('DEBUG: Found draw on calculated NEXT draw date = {$expected_next_draw_date}');</script>";
+                        echo "<script>console.log('DEBUG: Draw ID: {$expected_draw->id}, Draw Date: {$expected_draw->draw_date}');</script>";
+                        
+                        // Verify the drawn numbers exist and are valid (not zero or null)
+                        $has_valid_numbers = false;
+                        
+                        // Check for individual ball fields (ball1, ball2, etc.)
+                        for ($i = 1; $i <= 9; $i++) {
+                            $ball_field = 'ball' . $i;
+                            if (property_exists($expected_draw, $ball_field) && 
+                                !is_null($expected_draw->$ball_field) && 
+                                $expected_draw->$ball_field > 0) {
+                                $has_valid_numbers = true;
+                                break; // Found at least one valid ball number
+                            }
+                        }
+                        
+                        // Also check for other common number field names
+                        if (!$has_valid_numbers) {
+                            $number_fields = array('numbers', 'drawn_numbers', 'winning_numbers');
+                            foreach ($number_fields as $field) {
+                                if (property_exists($expected_draw, $field) && 
+                                    !empty($expected_draw->$field) && 
+                                    trim($expected_draw->$field) != '') {
+                                    $has_valid_numbers = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        echo "<script>console.log('DEBUG: Checking draw numbers validity...');</script>";
+                        echo "<script>console.log('DEBUG: ball1 = " . (property_exists($expected_draw, 'ball1') ? $expected_draw->ball1 : 'NOT SET') . "');</script>";
+                        echo "<script>console.log('DEBUG: ball2 = " . (property_exists($expected_draw, 'ball2') ? $expected_draw->ball2 : 'NOT SET') . "');</script>";
+                        echo "<script>console.log('DEBUG: ball3 = " . (property_exists($expected_draw, 'ball3') ? $expected_draw->ball3 : 'NOT SET') . "');</script>";
+                        echo "<script>console.log('DEBUG: has_valid_numbers = " . ($has_valid_numbers ? 'TRUE' : 'FALSE') . "');</script>";
+                        
+                        if ($has_valid_numbers) {
+                            echo "<script>console.log('DEBUG: Draw has valid ball numbers - returning this draw');</script>";
+                            log_message('debug', "get_latest_draw_info: found draw with numbers on expected NEXT date {$expected_next_draw_date}");
+                            return $expected_draw;
+                        } else {
+                            echo "<script>console.log('DEBUG: Draw found but no valid ball numbers set - treating as TBD');</script>";
+                            log_message('debug', "get_latest_draw_info: draw found on {$expected_next_draw_date} but no valid numbers set");
+                            return null; // No valid numbers set, treat as TBD
+                        }
                     } else {
-                        log_message('debug', "get_latest_draw_info: no draw found on expected date {$expected_next_draw_date}, falling back to latest draw");
+                        echo "<script>console.log('DEBUG: No draw found on calculated NEXT draw date = {$expected_next_draw_date}');</script>";
+                        
+                        // Additional debugging: Try to find draws around this date
+                        echo "<script>console.log('DEBUG: Attempting to find draws around this date...');</script>";
+                        $this->debug_draws_around_date($lottery_id, $expected_next_draw_date);
+                        
+                        echo "<script>console.log('DEBUG: No draw found on calculated NEXT date - returning NULL for TBD');</script>";
+                        log_message('debug', "get_latest_draw_info: no draw found on expected NEXT date {$expected_next_draw_date}, returning NULL for TBD");
+                        return null; // Return null so the display mode will be set to TBD
                     }
                 } catch (Exception $e) {
                     log_message('error', "get_latest_draw_info: error calculating expected draw date: " . $e->getMessage());
-                    // Fall through to get latest draw
+                    // When we have a filter_lastdate but error occurred, return null instead of falling back
+                    echo "<script>console.log('DEBUG: Exception occurred during date calculation - returning NULL');</script>";
+                    return null;
                 }
             }
             
-            // Get the latest draw for this lottery with non-zero extra ball
-            // Draws with extra = 0 are bonus/extra draws not used for combination comparison
-            $this->db->select('*');
-            $this->db->from($table_name);
-            $this->db->where('extra > 0'); // Only get draws with valid extra ball for combination comparison
-            $this->db->order_by('draw_date', 'DESC');
-            $this->db->limit(1);
-            $latest_draw = $this->db->get()->row();
-            
-            if ($latest_draw) {
-                // Add extra ball information from lottery profile
-                $latest_draw->extra_ball_included = ($lottery_profile->extra_ball == 1);
-                log_message('debug', "get_latest_draw_info: found latest draw for date: {$latest_draw->draw_date}");
+            // Only get latest draw if no filter_lastdate was provided
+            // When filter_lastdate is provided, we only want the specific expected draw or null
+            if (!$filter_lastdate) {
+                // Get the latest draw for this lottery with non-zero extra ball
+                // Draws with extra = 0 are bonus/extra draws not used for combination comparison
+                $this->db->select('*');
+                $this->db->from($table_name);
+                $this->db->where('extra > 0'); // Only get draws with valid extra ball for combination comparison
+                $this->db->order_by('draw_date', 'DESC');
+                $this->db->limit(1);
+                $latest_draw = $this->db->get()->row();
+                
+                if ($latest_draw) {
+                    // Add extra ball information from lottery profile
+                    $latest_draw->extra_ball_included = ($lottery_profile->extra_ball == 1);
+                    log_message('debug', "get_latest_draw_info: found latest draw for date: {$latest_draw->draw_date}");
+                } else {
+                    log_message('debug', 'get_latest_draw_info: no draws found');
+                }
+                
+                return $latest_draw;
             } else {
-                log_message('debug', 'get_latest_draw_info: no draws found');
+                // filter_lastdate was provided but no draw found on expected date
+                log_message('debug', "get_latest_draw_info: filter_lastdate provided but no expected draw found, returning NULL");
+                return null;
             }
-            
-            return $latest_draw;
             
         } catch (Exception $e) {
             log_message('error', 'get_latest_draw_info exception: ' . $e->getMessage());
@@ -1496,10 +1655,10 @@ class Prize extends Admin_Controller
     /**
      * Process win records for a filter when lottery has been updated to expected draw date
      */
-    private function process_filter_win_records($filter, $draw_info)
+    private function process_filter_win_records($filter, $draw_info, $update_lastdate = true)
     {
         try {
-            log_message('debug', "Processing win records for filter {$filter->id}");
+            log_message('debug', "Processing win records for filter {$filter->id}, update_lastdate: " . ($update_lastdate ? 'true' : 'false'));
             
             // Get combination tickets from the file
             $combination_tickets = $this->get_combination_tickets_for_filter($filter);
@@ -1586,28 +1745,36 @@ class Prize extends Admin_Controller
                     }
                 }
                 
-                // Update lastdate to the draw date
-                $update_data['lastdate'] = $draw_info->draw_date;
+                // Only update lastdate if requested (for batch processing, not user viewing)
+                if ($update_lastdate) {
+                    $update_data['lastdate'] = $draw_info->draw_date;
+                }
                 
-                // Update the filter record with new win counts and lastdate
+                // Update the filter record with new win counts and optionally lastdate
                 if (!empty($update_data)) {
                     $this->db->where('id', $filter->id);
                     $this->db->update('lottery_combination_filters', $update_data);
                     
+                    // Update the filter object for current view only if lastdate was updated
+                    if ($update_lastdate) {
+                        $filter->lastdate = $draw_info->draw_date;
+                    }
+                    
+                    log_message('info', "Filter {$filter->id} win records updated with draw from {$draw_info->draw_date}" . ($update_lastdate ? ", lastdate updated" : ", lastdate preserved"));
+                }
+            } else {
+                // Even if no wins, update the lastdate only if requested
+                if ($update_lastdate) {
+                    $this->db->where('id', $filter->id);
+                    $this->db->update('lottery_combination_filters', array('lastdate' => $draw_info->draw_date));
+                    
                     // Update the filter object for current view
                     $filter->lastdate = $draw_info->draw_date;
                     
-                    log_message('info', "Filter {$filter->id} win records updated with draw from {$draw_info->draw_date}");
+                    log_message('info', "Filter {$filter->id} lastdate updated to {$draw_info->draw_date} (no wins)");
+                } else {
+                    log_message('info', "Filter {$filter->id} win processing completed, lastdate preserved (no wins)");
                 }
-            } else {
-                // Even if no wins, update the lastdate
-                $this->db->where('id', $filter->id);
-                $this->db->update('lottery_combination_filters', array('lastdate' => $draw_info->draw_date));
-                
-                // Update the filter object for current view
-                $filter->lastdate = $draw_info->draw_date;
-                
-                log_message('info', "Filter {$filter->id} lastdate updated to {$draw_info->draw_date} (no wins)");
             }
             
         } catch (Exception $e) {
@@ -1794,5 +1961,35 @@ class Prize extends Admin_Controller
         }
         
         return false; // No win category matched
+    }
+    
+    /**
+     * Debug method to check draws around a specific date
+     */
+    private function debug_draws_around_date($lottery_id, $target_date) {
+        // Look for draws 7 days before and 7 days after target date
+        $start_date = date('Y-m-d', strtotime($target_date . ' -7 days'));
+        $end_date = date('Y-m-d', strtotime($target_date . ' +7 days'));
+        $lottery = $this->lotteries_m->get($lottery_id);
+		$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+        $this->db->select('id, draw_date, ball1, ball2, ball3, ball4, ball5, ball6, extra');
+        $this->db->from($tbl_name);
+        $this->db->where('lottery_id', $lottery_id);
+        $this->db->where('draw_date >=', $start_date);
+        $this->db->where('draw_date <=', $end_date);
+        $this->db->order_by('draw_date', 'ASC');
+        $query = $this->db->get();
+        $draws = $query->result();
+        echo "<script>console.log('DEBUG DRAWS: Found " . count($draws) . " draws between {$start_date} and {$end_date}');</script>";
+        foreach ($draws as $draw) {
+            $draw_info = "ID: {$draw->id}, Date: {$draw->draw_date}";
+            if ($draw->ball1) {
+                $draw_info .= ", Numbers: {$draw->ball1}-{$draw->ball2}-{$draw->ball3}-{$draw->ball4}-{$draw->ball5}-{$draw->ball6}";
+                if ($draw->extra) $draw_info .= " +{$draw->extra}";
+            } else {
+                $draw_info .= ", Numbers: NOT SET";
+            }
+            echo "<script>console.log('DEBUG DRAW: {$draw_info}');</script>";
+        }
     }
 }
