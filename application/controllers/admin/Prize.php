@@ -622,25 +622,61 @@ class Prize extends Admin_Controller
             
             // Always calculate the next draw date after the filter lastdate
             $expected_next_draw_date = $this->lotteries_m->next_date($lottery, $day, $ld);
+            
             // Convert expected date to MySQL format for comparison and display
             $next_draw_date_mysql = $this->convert_to_mysql_date($expected_next_draw_date);
             
-            // Set the expected next draw date for display (always use MySQL format for consistency)
-            $next_draw_date = $next_draw_date_mysql;
+            // Handle failed date conversion
+            if (!$next_draw_date_mysql) {
+                log_message('error', "Date conversion failed for: {$expected_next_draw_date}. Using raw date instead.");
+                $next_draw_date = $expected_next_draw_date; // Use the raw date as fallback
+            } else {
+                // Set the expected next draw date for display (always use MySQL format for consistency)
+                $next_draw_date = $next_draw_date_mysql;
+            }
             // Now check if we have draw info and if it matches the expected date
             if ($draw_info) {
                 // Check if the draw_info is for the expected NEXT date
-                if ($next_draw_date_mysql == $draw_info->draw_date) {
+                if ($next_draw_date_mysql && $next_draw_date_mysql == $draw_info->draw_date) {
                     // There's a draw on the expected next date - show the results
                     $should_process_wins = true;
                     $display_mode = 'results';
                 } else {
-                    // Draw info exists but not for expected date - show TBD for future draw
-                    $display_mode = 'tbd';
+                    // Draw info exists but not for expected date - this shouldn't happen with new logic
+                    $display_mode = 'results';
+                    $next_draw_date = $draw_info->draw_date; // Use the actual draw date
                 }
             } else {
                 // No draw info at all - show TBD for expected next draw
                 $display_mode = 'tbd';
+                // Use the user-friendly format for display, not MySQL format
+                $next_draw_date = $expected_next_draw_date;
+            }
+        } else {
+            // Filter is expired (inactive) - show results for the date the prediction was made for
+            if ($filter->lastdate) {
+                // For expired filters, check if there's a draw on the exact lastdate (the date predictions were made for)
+                $exact_date_draw = $this->get_draw_on_date($filter->lottery_id, $filter->lastdate);
+                
+                if ($exact_date_draw) {
+                    // Show results for the exact date the prediction was made for
+                    $display_mode = 'results';
+                    $draw_info = $exact_date_draw; // Use the draw from the exact prediction date
+                    $next_draw_date = $exact_date_draw->draw_date;
+                } else {
+                    // No draw found on the exact date - show TBD
+                    $display_mode = 'tbd';
+                    $next_draw_date = $filter->lastdate;
+                }
+            } else {
+                // No lastdate available - fallback to any available draw info
+                if ($draw_info) {
+                    $display_mode = 'results';
+                    $next_draw_date = $draw_info->draw_date;
+                } else {
+                    $display_mode = 'tbd';
+                    $next_draw_date = 'Unknown';
+                }
             }
         }
         
@@ -840,12 +876,39 @@ class Prize extends Admin_Controller
                             $display_mode = 'results';
                             $should_process_wins = true;
                         } else {
-                            // Draw info exists but not for expected date - show TBD for future draw
-                            $display_mode = 'tbd';
+                            // Draw info exists but not for expected date - this shouldn't happen with new logic
+                            $display_mode = 'results';
+                            $next_draw_date = $draw_info->draw_date; // Use the actual draw date
                         }
                     } else {
                         // No draw info at all - show TBD for expected next draw
                         $display_mode = 'tbd';
+                    }
+                }
+            } else {
+                // Filter is expired (inactive) - show results for the date the prediction was made for
+                if ($filter->lastdate) {
+                    // For expired filters, check if there's a draw on the exact lastdate (the date predictions were made for)
+                    $exact_date_draw = $this->get_draw_on_date($filter->lottery_id, $filter->lastdate);
+                    
+                    if ($exact_date_draw) {
+                        // Show results for the exact date the prediction was made for
+                        $display_mode = 'results';
+                        $draw_info = $exact_date_draw; // Use the draw from the exact prediction date
+                        $next_draw_date = $exact_date_draw->draw_date;
+                    } else {
+                        // No draw found on the exact date - show TBD
+                        $display_mode = 'tbd';
+                        $next_draw_date = $filter->lastdate;
+                    }
+                } else {
+                    // No lastdate available - fallback to any available draw info
+                    if ($draw_info) {
+                        $display_mode = 'results';
+                        $next_draw_date = $draw_info->draw_date;
+                    } else {
+                        $display_mode = 'tbd';
+                        $next_draw_date = 'Unknown';
                     }
                 }
             }
@@ -1096,15 +1159,25 @@ class Prize extends Admin_Controller
             // If we have a filter lastdate, try to get the appropriate expected draw first
             if ($filter_lastdate) {
                 try {
-                    // CORRECTED LOGIC: Always calculate the NEXT draw date after filter_lastdate
-                    // The filter_lastdate is when predictions were made, we check against the NEXT draw
+                    // FIRST: Calculate the NEXT draw date after filter_lastdate (the draw we predicted for)
+                    // The filter_lastdate is when predictions were made, we check for the NEXT draw
                     $day = $this->lotteries_m->return_day($filter_lastdate);
                     
                     // Always calculate the next draw date after the filter lastdate
                     $expected_next_draw_date = $this->lotteries_m->next_date($lottery_profile, $day, $filter_lastdate);
                     
-                    // Check if there's a draw on the expected NEXT draw date
+                    // Check if there's a draw on the expected NEXT draw date (the one we predicted for)
                     $expected_draw = $this->get_draw_on_date($lottery_id, $expected_next_draw_date);
+                    
+                    if ($expected_draw) {
+                        // There's a draw on the expected date we predicted for - return this draw
+                        return $expected_draw;
+                    }
+                    
+                    // If no draw on expected date, this means the draw hasn't happened yet
+                    // Return null so the system shows TBD for the future draw
+                    return null;
+                    
                     
                     if ($expected_draw) {
                         
@@ -1141,7 +1214,48 @@ class Prize extends Admin_Controller
                             return null; // No valid numbers set, treat as TBD
                         }
                     } else {
-                        return null; // Return null so the display mode will be set to TBD
+                        // No draw found on expected date, look for next available draw after filter_lastdate
+                        log_message('info', "DEBUG: No draw on expected date, looking for next available draw after {$filter_lastdate}");
+                        
+                        // Query to find next available draw with detailed logging
+                        $this->db->select('*');
+                        $this->db->from($table_name);
+                        $this->db->where('draw_date >', $filter_lastdate);
+                        $this->db->order_by('draw_date', 'ASC');
+                        $this->db->limit(5); // Get up to 5 draws for debugging
+                        $next_draws_query = $this->db->get();
+                        $next_draws = $next_draws_query->result();
+                        
+                        log_message('info', "DEBUG: Found " . count($next_draws) . " draws after {$filter_lastdate}");
+                        
+                        if ($next_draws) {
+                            foreach ($next_draws as $index => $draw) {
+                                log_message('info', "DEBUG: Draw " . ($index + 1) . ": ID={$draw->id}, Date={$draw->draw_date}, Extra={$draw->extra}");
+                            }
+                            
+                            // Use the first (closest) draw
+                            $next_available_draw = $next_draws[0];
+                            log_message('info', "DEBUG: Using next available draw on {$next_available_draw->draw_date}");
+                            $next_available_draw->extra_ball_included = ($lottery_profile->extra_ball == 1);
+                            return $next_available_draw;
+                        } else {
+                            log_message('info', "DEBUG: No draws found after {$filter_lastdate}");
+                            
+                            // Let's also check what draws exist in the table for debugging
+                            $this->db->select('draw_date, extra');
+                            $this->db->from($table_name);
+                            $this->db->order_by('draw_date', 'DESC');
+                            $this->db->limit(10);
+                            $all_draws_query = $this->db->get();
+                            $all_draws = $all_draws_query->result();
+                            
+                            log_message('info', "DEBUG: Recent draws in table (last 10):");
+                            foreach ($all_draws as $draw) {
+                                log_message('info', "DEBUG: Available draw: {$draw->draw_date} (extra={$draw->extra})");
+                            }
+                            
+                            return null; // Return null so the display mode will be set to TBD
+                        }
                     }
                 } catch (Exception $e) {
                     log_message('error', "get_latest_draw_info: error calculating expected draw date: " . $e->getMessage());
@@ -1249,6 +1363,10 @@ class Prize extends Admin_Controller
     private function convert_to_mysql_date($date_string)
     {
         try {
+            if (empty($date_string)) {
+                return false;
+            }
+            
             // If already in MySQL format (YYYY-MM-DD), return as is
             if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_string)) {
                 return $date_string;
@@ -1261,7 +1379,8 @@ class Prize extends Admin_Controller
             }
             
             // Convert to MySQL format
-            return date('Y-m-d', $timestamp);
+            $mysql_date = date('Y-m-d', $timestamp);
+            return $mysql_date;
             
         } catch (Exception $e) {
             log_message('error', 'convert_to_mysql_date exception: ' . $e->getMessage());
@@ -1274,16 +1393,7 @@ class Prize extends Admin_Controller
      */
     private function calculate_ticket_win_result($ticket_numbers, $draw_info, $filter, $display_mode = 'normal', $next_draw_date = null)
     {
-        if (!$draw_info) {
-            return array(
-                'category' => 'No Draw Data',
-                'color_class' => 'no-win',
-                'matches' => 0,
-                'bonus_match' => false
-            );
-        }
-        
-        // Handle TBD display mode for future draws
+        // Handle TBD display mode for future draws (even when draw_info is null)
         if ($display_mode == 'tbd') {
             return array(
                 'category' => 'TBD (To Be Determined)',
@@ -1293,6 +1403,16 @@ class Prize extends Admin_Controller
                 'next_draw_date' => $next_draw_date
             );
         }
+        
+        if (!$draw_info) {
+            return array(
+                'category' => 'No Draw Data',
+                'color_class' => 'no-win',
+                'matches' => 0,
+                'bonus_match' => false
+            );
+        }
+        
         
         // Count matches regardless of filter status for normal and results modes
         $matches = $this->count_ticket_matches($ticket_numbers, $draw_info);

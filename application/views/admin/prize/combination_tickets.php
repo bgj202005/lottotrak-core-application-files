@@ -72,6 +72,44 @@
                             </div>
                         </div>
                     </div>
+                    <?php elseif(isset($display_mode) && $display_mode == 'tbd' && isset($next_draw_date)): ?>
+                    <!-- TBD case when no draw_info but we have next_draw_date -->
+                    <div class="draw-info-header">
+                        <div class="row">
+                            <div class="col-md-10">
+                                <div class="draw-header-box">
+                                    <h4><strong>Next Draw Date:</strong> <?php echo date('l j F, Y', strtotime($next_draw_date)); ?></h4>
+                                    <div class="drawn-numbers-section">
+                                        <strong>Drawn Numbers:</strong>
+                                        <div class="drawn-numbers-display">
+                                            <span class="tbd-display">TBD (To Be Determined)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2 text-right">
+                                <div class="filter-status-badge">
+                                    <?php if ($filter->active == 1): ?>
+                                        <span class="status-active">ACTIVE</span>
+                                    <?php else: ?>
+                                        <span class="status-expired">EXPIRED</span>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <?php else: ?>
+                    <!-- No draw information available -->
+                    <div class="draw-info-header" style="background: #f8f9fa; border: 1px solid #dee2e6;">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="draw-header-box">
+                                    <h4 style="color: #6c757d;"><strong>No Draw Information Available</strong></h4>
+                                    <p>Please check back later for draw results.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <?php endif; ?>
                     
                     <!-- Table Information -->
