@@ -511,86 +511,7 @@ class Prize_m extends MY_Model
     {
         // Automatic expiration disabled - filters will remain active until manually expired
         // This prevents filters from being expired when Prize History page loads
-        log_message('debug', "Automatic filter expiration disabled for filter {$record->id}");
         return;
-    }
-    
-    /**
-     * Debug helper to check active status logic
-     * @param int $lottery_id Lottery ID
-     * @param string $lastdate Last date from combination filter
-     * @return array Debug information about active status
-     */
-    public function debug_active_status($lottery_id, $lastdate)
-    {
-        // Get lottery name from lottery_profiles table first
-        $this->db->select('lottery_name');
-        $this->db->from('lottery_profiles');
-        $this->db->where('id', $lottery_id);
-        $lottery_profile = $this->db->get()->row();
-        
-        $debug_info = array(
-            'lottery_id' => $lottery_id,
-            'prediction_lastdate' => $lastdate,
-            'lottery_name' => $lottery_profile ? $lottery_profile->lottery_name : null,
-            'table_name' => null,
-            'lottery_last_draw_date' => null,
-            'prediction_expired' => false,
-            'should_be_active' => false,
-            'logic' => 'Prediction Futures: Active until lottery_last_draw > prediction_lastdate',
-            'error' => null
-        );
-        
-        if ($lottery_profile && $lottery_profile->lottery_name) {
-            // Convert lottery name to table name
-            $table_name = $this->lotteries_m->lotto_table_convert($lottery_profile->lottery_name);
-            $debug_info['table_name'] = $table_name;
-            
-            // Validate table name
-            if ($table_name && is_string($table_name) && strlen($table_name) > 0) {
-                // Get lottery's last draw date
-                $this->db->select('draw_date');
-                $this->db->from($table_name);
-                $this->db->order_by('draw_date', 'DESC');
-                $this->db->limit(1);
-                $last_draw_result = $this->db->get()->row();
-                
-                if ($last_draw_result && $last_draw_result->draw_date) {
-                    $debug_info['lottery_last_draw_date'] = $last_draw_result->draw_date;
-                    
-                    // Check if prediction is expired
-                    $debug_info['prediction_expired'] = (strtotime($last_draw_result->draw_date) > strtotime($lastdate));
-                    $debug_info['should_be_active'] = !$debug_info['prediction_expired'];
-                    
-                    // Add date comparison details
-                    $debug_info['date_comparison'] = array(
-                        'lottery_last_draw_timestamp' => strtotime($last_draw_result->draw_date),
-                        'prediction_lastdate_timestamp' => strtotime($lastdate),
-                        'lottery_draw_is_after_prediction' => (strtotime($last_draw_result->draw_date) > strtotime($lastdate))
-                    );
-                    
-                } else {
-                    $debug_info['error'] = 'Could not get last draw date from lottery table';
-                }
-                
-                // Get some recent draws for context
-                $this->db->select('draw_date');
-                $this->db->from($table_name);
-                $this->db->order_by('draw_date', 'DESC');
-                $this->db->limit(5);
-                $recent_draws = $this->db->get()->result();
-                $debug_info['recent_draws'] = array_map(function($draw) { 
-                    return $draw->draw_date; 
-                }, $recent_draws);
-                
-            } else {
-                $debug_info['error'] = 'Invalid table name: ' . var_export($table_name, true);
-            }
-        } else {
-            $debug_info['error'] = 'Lottery profile not found';
-        }
-        
-        return $debug_info;
     }
 
     /**
@@ -717,9 +638,6 @@ class Prize_m extends MY_Model
                     // Validate that we have the expected number of picks
                     if (count($numbers) == $expected_picks) {
                         $tickets[] = $numbers;
-                    } else {
-                        // Log validation warnings for debugging
-                        log_message('debug', "Prize History: Line " . ($line_num + 1) . " in {$record->file_name} has " . count($numbers) . " numbers, expected {$expected_picks}");
                     }
                 }
             }
@@ -881,52 +799,6 @@ class Prize_m extends MY_Model
     public function get_supported_pick_range()
     {
         return array(3, 4, 5, 6, 7, 8, 9);
-    }
-    
-    /**
-     * Debug helper to check lottery table conversion
-     * @param int $lottery_id Lottery ID
-     * @return string Debug information
-     */
-    public function debug_lottery_table($lottery_id)
-    {
-        // Get lottery name from lottery_profiles table first (correct approach)
-        $this->db->select('lottery_name');
-        $this->db->from('lottery_profiles');
-        $this->db->where('id', $lottery_id);
-        $lottery_profile = $this->db->get()->row();
-        
-        $lottery_name = $lottery_profile ? $lottery_profile->lottery_name : null;
-        $table_name = $lottery_name ? $this->lotteries_m->lotto_table_convert($lottery_name) : null;
-        
-        // Also show what the old broken method would return
-        $broken_table_name = $this->lotteries_m->lotto_table_convert($lottery_id);
-        
-        $debug_info = array(
-            'lottery_id' => $lottery_id,
-            'lottery_name' => $lottery_name,
-            'correct_table_name' => $table_name,
-            'broken_table_name' => $broken_table_name,
-            'table_name_type' => gettype($table_name),
-            'is_string' => is_string($table_name),
-            'is_valid' => ($table_name && is_string($table_name) && strlen($table_name) > 0)
-        );
-        
-        // Check if lottery profile exists  
-        $this->db->select('lottery_name, extra_ball');
-        $this->db->from('lottery_profiles');
-        $this->db->where('id', $lottery_id);
-        $lottery_profile = $this->db->get()->row();
-        
-        if ($lottery_profile) {
-            $debug_info['lottery_name'] = $lottery_profile->lottery_name;
-            $debug_info['extra_ball'] = $lottery_profile->extra_ball;
-            $debug_info['note'] = 'picks field should come from lottery_combination_files.N, not lottery_profiles';
-        } else {
-            $debug_info['error'] = 'Lottery profile not found';
-        }
-        
-        return $debug_info;
     }
     
     /**

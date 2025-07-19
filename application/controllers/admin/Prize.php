@@ -160,28 +160,6 @@ class Prize extends Admin_Controller
     }
     
     /**
-     * Debug method to check lottery table conversion
-     */
-    public function debug_table($lottery_id = 1)
-    {
-        $debug_info = $this->prize_m->debug_lottery_table($lottery_id);
-        
-        echo "<h3>Lottery Table Debug Info</h3>";
-        echo "<pre>";
-        print_r($debug_info);
-        echo "</pre>";
-        
-        // Also test with different lottery IDs
-        echo "<h3>Testing Multiple Lottery IDs</h3>";
-        for ($i = 1; $i <= 5; $i++) {
-            echo "<h4>Lottery ID: $i</h4>";
-            echo "<pre>";
-            print_r($this->prize_m->debug_lottery_table($i));
-            echo "</pre>";
-        }
-    }
-    
-    /**
      * Auto-update prize records when there are new draws available
      * @param int $admin_id Administrator ID
      * @param int $lottery_id Lottery ID
@@ -576,18 +554,14 @@ class Prize extends Admin_Controller
     public function view_combination_tickets($filter_id = null)
     {
         try {
-            log_message('debug', "view_combination_tickets called with filter_id: $filter_id");
-            
             if (!$filter_id || !is_numeric($filter_id)) {
                 log_message('error', 'Invalid filter ID provided: ' . $filter_id);
                 show_error('Invalid filter ID provided', 400);
             }
             
             $admin_id = $this->session->userdata('id');
-            log_message('debug', "Admin ID from session: $admin_id");
             
         // Get filter details
-        log_message('debug', 'Getting filter details from database');
         $this->db->select('lcf.*, lp.lottery_name, lcfiles.file_name as original_filename, lcfiles.N, lcfiles.R');
         $this->db->from('lottery_combination_filters lcf');
         $this->db->join('lottery_profiles lp', 'lp.id = lcf.lottery_id', 'left');
@@ -597,7 +571,6 @@ class Prize extends Admin_Controller
         $this->db->where('lcf.user_id', $admin_id);
         
         $filter = $this->db->get()->row();
-        log_message('debug', 'Filter query result: ' . ($filter ? 'found' : 'not found'));
         
         if (!$filter) {
             log_message('error', 'Filter not found or access denied for filter_id: ' . $filter_id);
@@ -608,21 +581,14 @@ class Prize extends Admin_Controller
         $per_page = $this->input->get('per_page') ? (int)$this->input->get('per_page') : 10;
         $page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
         $offset = ($page - 1) * $per_page;
-        log_message('debug', "Pagination settings: per_page=$per_page, page=$page, offset=$offset");
         
         // Get combination tickets
-        log_message('debug', 'Getting paginated combination tickets');
         $tickets = $this->get_paginated_combination_tickets($filter, $per_page, $offset);
-        log_message('debug', 'Got ' . count($tickets) . ' tickets');
         
-        log_message('debug', 'Counting total tickets');
         $total_tickets = $this->count_combination_tickets($filter);
-        log_message('debug', "Total tickets: $total_tickets");
         
         // Get latest draw information
-        log_message('debug', 'Getting latest draw information');
         $draw_info = $this->get_latest_draw_info($filter->lottery_id, $filter->lastdate);
-        log_message('debug', 'Draw info: ' . ($draw_info ? 'found' : 'not found'));
         
         // Check if filter should be processed for win records (but don't expire yet)
         // Only expire when returning to Prize History, not when viewing tickets
@@ -632,8 +598,6 @@ class Prize extends Admin_Controller
         
         // Always calculate expected next draw date for active filters, regardless of whether draw_info exists
         if ($filter->active == 1 && $filter->lastdate) {
-            log_message('debug', 'Checking draw date logic for display mode - filter is active');
-            
             // Load required models
             $this->load->model('Lotteries_m', 'lotteries_m');
             
@@ -650,7 +614,6 @@ class Prize extends Admin_Controller
             
             // Get the lastdate from the filter object (already loaded)
             $ld = $filter->lastdate;
-            log_message('debug', "Retrieved lastdate from filter: " . $ld);
             
             // CORRECTED LOGIC: Always calculate the NEXT draw date after filter_lastdate
             // The filter_lastdate is when predictions were made, we check against the NEXT draw
@@ -661,66 +624,33 @@ class Prize extends Admin_Controller
             $expected_next_draw_date = $this->lotteries_m->next_date($lottery, $day, $ld);
             // Convert expected date to MySQL format for comparison and display
             $next_draw_date_mysql = $this->convert_to_mysql_date($expected_next_draw_date);
-            echo "<script>console.log('DEBUG: filter_lastdate ({$ld}) - calculating NEXT draw after this date');</script>";
-            echo "<script>console.log('DEBUG: Next draw date calculated (raw) = {$expected_next_draw_date}');</script>";
-            echo "<script>console.log('DEBUG: Next draw date (MySQL) = {$next_draw_date_mysql}');</script>";
-            // COMPREHENSIVE DEBUG: Show lottery schedule
-            echo "<script>console.log('LOTTERY SCHEDULE DEBUG:');</script>";
-            echo "<script>console.log('- Monday: {$lottery->monday}');</script>";
-            echo "<script>console.log('- Tuesday: {$lottery->tuesday}');</script>";
-            echo "<script>console.log('- Wednesday: {$lottery->wednesday}');</script>";
-            echo "<script>console.log('- Thursday: {$lottery->thursday}');</script>";
-            echo "<script>console.log('- Friday: {$lottery->friday}');</script>";
-            echo "<script>console.log('- Saturday: {$lottery->saturday}');</script>";
-            echo "<script>console.log('- Sunday: {$lottery->sunday}');</script>";
+            
             // Set the expected next draw date for display (always use MySQL format for consistency)
             $next_draw_date = $next_draw_date_mysql;
             // Now check if we have draw info and if it matches the expected date
             if ($draw_info) {
-                // Enhanced debugging for date comparison
-                echo "<script>console.log('DEBUG COMPARISON: Filter lastdate = {$ld}');</script>";
-                echo "<script>console.log('DEBUG COMPARISON: next_draw_date_mysql = {$next_draw_date_mysql}');</script>";
-                echo "<script>console.log('DEBUG COMPARISON: Actual draw_date = {$draw_info->draw_date}');</script>";
-                echo "<script>console.log('DEBUG COMPARISON: Dates match? ' + ('{$next_draw_date_mysql}' === '{$draw_info->draw_date}'));</script>";
-                log_message('debug', "Date comparison debug:");
-                log_message('debug', "- Filter lastdate: {$ld}");
-                log_message('debug', "- next_draw_date_mysql: {$next_draw_date_mysql}");
-                log_message('debug', "- Actual lottery draw_date: {$draw_info->draw_date}");
-                log_message('debug', "- Date comparison (mysql == actual): " . ($next_draw_date_mysql == $draw_info->draw_date ? 'TRUE' : 'FALSE'));
                 // Check if the draw_info is for the expected NEXT date
                 if ($next_draw_date_mysql == $draw_info->draw_date) {
                     // There's a draw on the expected next date - show the results
                     $should_process_wins = true;
                     $display_mode = 'results';
-                    echo "<script>console.log('DEBUG DISPLAY: Setting display_mode to RESULTS - dates match!');</script>";
-                    echo "<script>console.log('DEBUG: Draw found on expected NEXT date - showing results');</script>";
-                    log_message('debug', 'Display mode: results - using expected NEXT draw date');
                 } else {
                     // Draw info exists but not for expected date - show TBD for future draw
                     $display_mode = 'tbd';
-                    echo "<script>console.log('DEBUG DISPLAY: Setting display_mode to TBD - dates do NOT match!');</script>";
-                    echo "<script>console.log('DEBUG: Draw exists but not on expected NEXT date - showing TBD for: {$next_draw_date}');</script>";
-                    log_message('debug', 'Display mode: tbd - draw exists but not on expected NEXT date');
                 }
             } else {
                 // No draw info at all - show TBD for expected next draw
                 $display_mode = 'tbd';
-                echo "<script>console.log('DEBUG DISPLAY: Setting display_mode to TBD - no draw_info found');</script>";
-                echo "<script>console.log('DEBUG: No draw_info found - showing TBD for: {$next_draw_date}');</script>";
-                log_message('debug', 'Display mode: tbd - no draw_info found, showing expected NEXT date');
             }
         }
         
         // Process win records if lottery has been updated to expected date
         // Only process if filter is still active (not already expired)
         if ($should_process_wins && $filter->active == 1) {
-            log_message('debug', 'Processing win records for updated lottery - filter is active');
             $this->process_filter_win_records($filter, $draw_info, false); // Don't update lastdate during processing
-            log_message('debug', 'Win records processed - filter will be expired after viewing');
             
             // Update the filter's lastdate to the draw date that was just processed
             // This ensures next access will look for the draw after this one
-            log_message('debug', 'Updating filter lastdate to processed draw date: ' . $draw_info->draw_date);
             $this->db->where('id', $filter->id);
             $this->db->where('user_id', $admin_id); // Security check
             $this->db->update('lottery_combination_filters', array('lastdate' => $draw_info->draw_date));
@@ -731,29 +661,21 @@ class Prize extends Admin_Controller
             
             // After processing wins, expire the filter since results are now final
             // This happens after the user views the results
-            log_message('debug', 'Expiring filter after processing win records');
             $this->db->where('id', $filter->id);
             $this->db->where('user_id', $admin_id); // Security check
             $this->db->update('lottery_combination_filters', array('active' => 0));
             
             // Update the filter object for current view (but display will still show results)
             $filter->active = 0;
-            log_message('debug', 'Filter expired after win record processing');
-        } elseif ($should_process_wins && $filter->active == 0) {
-            log_message('debug', 'Lottery updated but filter already expired - no win record update needed');
         }
         
         // Calculate win results for each ticket
-        log_message('debug', 'Calculating win results for tickets');
         foreach ($tickets as &$ticket) {
             $ticket['win_result'] = $this->calculate_ticket_win_result($ticket['numbers'], $draw_info, $filter, $display_mode, $next_draw_date);
         }
-        log_message('debug', 'Win results calculated');
         
         // Calculate total winners across the entire file
-        log_message('debug', 'Calculating total winners across entire file');
         $total_winners = $this->count_total_winners($filter, $draw_info, $display_mode, $next_draw_date);
-        log_message('debug', "Total winners in entire file: $total_winners");
         
         $this->data['filter'] = $filter;
         $this->data['tickets'] = $tickets;
@@ -766,11 +688,6 @@ class Prize extends Admin_Controller
         $this->data['offset'] = $offset;
         $this->data['display_mode'] = $display_mode;
         $this->data['next_draw_date'] = $next_draw_date;
-        
-        // Debug logging for final display mode
-        log_message('debug', "Final view data - display_mode: {$display_mode}, next_draw_date: {$next_draw_date}");
-        log_message('debug', "Filter active status: {$filter->active}");
-        log_message('debug', "Draw info available: " . ($draw_info ? 'YES' : 'NO'));
         
         // Pagination options
         $this->data['pagination_options'] = array(10, 20, 50, 100, 200, 300, 500, 1000);
@@ -786,7 +703,6 @@ class Prize extends Admin_Controller
         $this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/view_combination_tickets/'.$filter_id);
         $this->data['subview'] = 'admin/prize/combination_tickets';
         
-        log_message('debug', 'Loading main layout view');
         $this->load->view('admin/_layout_main', $this->data);
         
         } catch (Exception $e) {
@@ -846,14 +762,10 @@ class Prize extends Admin_Controller
         header('Content-Type: application/json');
         
         try {
-            log_message('debug', 'AJAX load_combination_tickets called');
-            
             $filter_id = $this->input->post('filter_id');
             $page = $this->input->post('page') ? (int)$this->input->post('page') : 1;
             $per_page = $this->input->post('per_page') ? (int)$this->input->post('per_page') : 10;
             $admin_id = $this->session->userdata('id');
-            
-            log_message('debug', "AJAX params: filter_id=$filter_id, page=$page, per_page=$per_page, admin_id=$admin_id");
             
             if (!$admin_id || !$filter_id) {
                 log_message('error', 'AJAX validation failed: missing admin_id or filter_id');
@@ -862,7 +774,6 @@ class Prize extends Admin_Controller
             }
             
             // Get filter details
-            log_message('debug', 'AJAX getting filter details');
             $this->db->select('lcf.*, lp.lottery_name, lcfiles.file_name as original_filename, lcfiles.N, lcfiles.R');
             $this->db->from('lottery_combination_filters lcf');
             $this->db->join('lottery_profiles lp', 'lp.id = lcf.lottery_id', 'left');
@@ -872,7 +783,6 @@ class Prize extends Admin_Controller
             $this->db->where('lcf.user_id', $admin_id);
             
             $filter = $this->db->get()->row();
-            log_message('debug', 'AJAX filter query result: ' . ($filter ? 'found' : 'not found'));
             
             if (!$filter) {
                 log_message('error', 'AJAX filter not found or access denied');
@@ -882,21 +792,14 @@ class Prize extends Admin_Controller
             
             // Calculate offset
             $offset = ($page - 1) * $per_page;
-            log_message('debug', "AJAX calculated offset: $offset");
             
             // Get combination tickets
-            log_message('debug', 'AJAX getting paginated tickets');
             $tickets = $this->get_paginated_combination_tickets($filter, $per_page, $offset);
-            log_message('debug', 'AJAX got ' . count($tickets) . ' tickets');
             
-            log_message('debug', 'AJAX counting total tickets');
             $total_tickets = $this->count_combination_tickets($filter);
-            log_message('debug', "AJAX total tickets: $total_tickets");
             
             // Get latest draw information
-            log_message('debug', 'AJAX getting draw info');
             $draw_info = $this->get_latest_draw_info($filter->lottery_id, $filter->lastdate);
-            log_message('debug', 'AJAX draw info: ' . ($draw_info ? 'found' : 'not found'));
             
             // Determine display mode for AJAX response and process wins if needed
             $display_mode = 'normal';
@@ -922,8 +825,6 @@ class Prize extends Admin_Controller
                     
                     // Always calculate the next draw date after the filter lastdate
                     $expected_next_draw_date = $this->lotteries_m->next_date($lottery, $day, $filter->lastdate);
-                    log_message('debug', "AJAX: filter_lastdate ({$filter->lastdate}) - calculating NEXT draw after this date");
-                    log_message('debug', "AJAX: Next draw date calculated = {$expected_next_draw_date}");
                     
                     // Convert expected date to MySQL format for comparison
                     $next_draw_date_mysql = $this->convert_to_mysql_date($expected_next_draw_date);
@@ -933,29 +834,18 @@ class Prize extends Admin_Controller
                     
                     // Now check if we have draw info and if it matches the expected date
                     if ($draw_info) {
-                        // Enhanced debugging for AJAX date comparison
-                        log_message('debug', "AJAX Date comparison debug:");
-                        log_message('debug', "- Filter lastdate: {$filter->lastdate}");
-                        log_message('debug', "- Expected NEXT draw date: {$expected_next_draw_date}");
-                        log_message('debug', "- expected_draw_date_mysql: {$next_draw_date_mysql}");
-                        log_message('debug', "- Actual lottery draw_date: {$draw_info->draw_date}");
-                        log_message('debug', "- Date comparison (mysql == actual): " . ($next_draw_date_mysql == $draw_info->draw_date ? 'TRUE' : 'FALSE'));
-                        
                         // Check if the draw_info is for the expected NEXT date
                         if ($next_draw_date_mysql == $draw_info->draw_date) {
                             // There's a draw on the expected next date - show the results
                             $display_mode = 'results';
                             $should_process_wins = true;
-                            log_message('debug', 'AJAX: using expected NEXT draw date, will process wins');
                         } else {
                             // Draw info exists but not for expected date - show TBD for future draw
                             $display_mode = 'tbd';
-                            log_message('debug', 'AJAX: draw exists but not on expected NEXT date, showing TBD');
                         }
                     } else {
                         // No draw info at all - show TBD for expected next draw
                         $display_mode = 'tbd';
-                        log_message('debug', 'AJAX: no draw_info found, showing TBD for expected NEXT date');
                     }
                 }
             }
@@ -963,12 +853,10 @@ class Prize extends Admin_Controller
             // Process win records if lottery has been updated to expected date (AJAX)
             // Only process if filter is still active (not already expired)
             if ($should_process_wins && $filter->active == 1) {
-                log_message('debug', 'AJAX: Processing win records for updated lottery - filter is active');
                 $this->process_filter_win_records($filter, $draw_info, false); // Don't update lastdate during processing
                 
                 // Update the filter's lastdate to the draw date that was just processed
                 // This ensures next access will look for the draw after this one
-                log_message('debug', 'AJAX: Updating filter lastdate to processed draw date: ' . $draw_info->draw_date);
                 $this->db->where('id', $filter->id);
                 $this->db->where('user_id', $admin_id); // Security check
                 $this->db->update('lottery_combination_filters', array('lastdate' => $draw_info->draw_date));
@@ -978,34 +866,25 @@ class Prize extends Admin_Controller
                 log_message('info', "AJAX: Filter {$filter->id} lastdate updated to {$draw_info->draw_date} after processing results");
                 
                 // After processing wins, expire the filter since results are now final
-                log_message('debug', 'AJAX: Expiring filter after processing win records');
                 $this->db->where('id', $filter->id);
                 $this->db->where('user_id', $admin_id); // Security check
                 $this->db->update('lottery_combination_filters', array('active' => 0));
                 
                 // Update the filter object for current response
                 $filter->active = 0;
-                log_message('debug', 'AJAX: Filter expired after win record processing');
-            } elseif ($should_process_wins && $filter->active == 0) {
-                log_message('debug', 'AJAX: Lottery updated but filter already expired - no win record update needed');
             }
             
             // Calculate win results for each ticket
-            log_message('debug', 'AJAX calculating win results');
             foreach ($tickets as &$ticket) {
                 $ticket['win_result'] = $this->calculate_ticket_win_result($ticket['numbers'], $draw_info, $filter, $display_mode, $next_draw_date);
             }
-            log_message('debug', 'AJAX win results calculated');
             
             // Calculate pagination data
             $total_pages = ceil($total_tickets / $per_page);
             
             // Calculate total winners across the entire file (not just current page)
-            log_message('debug', 'AJAX calculating total winners across entire file');
             $total_winners = $this->count_total_winners($filter, $draw_info, $display_mode, $next_draw_date);
-            log_message('debug', "AJAX total winners in entire file: $total_winners");
             
-            log_message('debug', 'AJAX sending response');
             echo json_encode([
                 'success' => true,
                 'tickets' => $tickets,
@@ -1039,7 +918,6 @@ class Prize extends Admin_Controller
         header('Content-Type: application/json');
         
         try {
-            log_message('debug', 'test_ajax endpoint called');
             echo json_encode([
                 'success' => true,
                 'message' => 'AJAX endpoint is working',
@@ -1065,112 +943,6 @@ class Prize extends Admin_Controller
             'message' => 'Simple test works',
             'time' => date('Y-m-d H:i:s')
         ]);
-    }
-
-    /**
-     * Temporary debug method to check active status logic
-     */
-    public function debug_active($lottery_id, $lastdate = null)
-    {
-        // For security, only allow in development
-        if (ENVIRONMENT !== 'development') {
-            show_404();
-            return;
-        }
-        
-        if (!$lastdate) {
-            // Use a sample lastdate if not provided
-            $lastdate = '2024-01-01'; // Adjust as needed
-        }
-        
-        $debug_info = $this->prize_m->debug_active_status($lottery_id, $lastdate);
-        
-        echo "<h2>Active Status Debug for Lottery ID: $lottery_id</h2>";
-        echo "<pre>";
-        print_r($debug_info);
-        echo "</pre>";
-        
-        // Also check actual combination filters
-        $this->db->select('*');
-        $this->db->from('lottery_combination_filters');
-        $this->db->where('lottery_id', $lottery_id);
-        $this->db->order_by('id', 'DESC');
-        $this->db->limit(5);
-        $filters = $this->db->get()->result();
-        
-        echo "<h3>Recent Combination Filters:</h3>";
-        echo "<pre>";
-        foreach ($filters as $filter) {
-            echo "ID: {$filter->id}, Active: {$filter->active}, Last Date: {$filter->lastdate}, File: {$filter->file_name}\n";
-        }
-        echo "</pre>";
-    }
-    
-    /**
-     * Debug method to test pick directory selection for different lotteries
-     */
-    public function debug_pick_directories()
-    {
-        // For security, only allow in development
-        if (ENVIRONMENT !== 'development') {
-            show_404();
-            return;
-        }
-        
-        $admin_id = $this->session->userdata('id');
-        if (!$admin_id) {
-            echo "<h2>Please log in as admin to test</h2>";
-            return;
-        }
-        
-        // Get some sample filters with their lottery and file information
-        $this->db->select('lcf.*, lp.lottery_name, lcfiles.file_name as original_filename, lcfiles.N, lcfiles.R');
-        $this->db->from('lottery_combination_filters lcf');
-        $this->db->join('lottery_profiles lp', 'lp.id = lcf.lottery_id', 'left');
-        $this->db->join('lottery_combination_files lcfiles', 'lcfiles.id = lcf.combo_id', 'left');
-        $this->db->where('lcf.user', 1);
-        $this->db->where('lcf.user_id', $admin_id);
-        $this->db->limit(10);
-        $filters = $this->db->get()->result();
-        
-        echo "<h2>Pick Directory Selection Debug</h2>";
-        echo "<p>Testing how the system determines the correct pick directory for combination files:</p>";
-        
-        echo "<table border='1' cellpadding='5' cellspacing='0'>";
-        echo "<tr><th>Filter ID</th><th>Lottery Name</th><th>File Name</th><th>N (from combo file)</th><th>R (from combo file)</th><th>Selected Pick Directory</th><th>Full File Path</th><th>File Exists?</th></tr>";
-        
-        foreach ($filters as $filter) {
-            $file_path = $this->get_combination_file_path($filter);
-            $pick_count = isset($filter->R) ? (int)$filter->R : (isset($filter->N) ? $filter->N : 6);
-            $pick_dir = 'pick' . $pick_count;
-            $file_exists = file_exists($file_path) ? 'YES' : 'NO';
-            
-            echo "<tr>";
-            echo "<td>{$filter->id}</td>";
-            echo "<td>{$filter->lottery_name}</td>";
-            echo "<td>{$filter->file_name}</td>";
-            echo "<td>{$filter->N}</td>";
-            echo "<td>{$filter->R}</td>";
-            echo "<td>{$pick_dir}</td>";
-            echo "<td style='font-size: 10px;'>{$file_path}</td>";
-            echo "<td>{$file_exists}</td>";
-            echo "</tr>";
-        }
-        
-        echo "</table>";
-        
-        // Also show available directories
-        echo "<h3>Available Pick Directories:</h3>";
-        $combinations_dir = FCPATH . 'combinations/';
-        if (is_dir($combinations_dir)) {
-            $dirs = scandir($combinations_dir);
-            $pick_dirs = array_filter($dirs, function($d) { return strpos($d, 'pick') === 0 && is_dir(FCPATH . 'combinations/' . $d); });
-            echo "<ul>";
-            foreach ($pick_dirs as $dir) {
-                echo "<li>{$dir}</li>";
-            }
-            echo "</ul>";
-        }
     }
     
     /**
@@ -1295,8 +1067,6 @@ class Prize extends Admin_Controller
     private function get_latest_draw_info($lottery_id, $filter_lastdate = null)
     {
         try {
-            log_message('debug', "get_latest_draw_info called for lottery_id: $lottery_id, filter_lastdate: " . ($filter_lastdate ?: 'null'));
-            
             $this->db->select('*');
             $this->db->from('lottery_profiles');
             $this->db->where('id', $lottery_id);
@@ -1304,15 +1074,12 @@ class Prize extends Admin_Controller
             $lottery_profile = $this->db->get()->row();
             
             if (!$lottery_profile) {
-                log_message('debug', 'get_latest_draw_info: lottery profile not found');
                 return null;
             }
             
             // Load the Lotteries model to convert lottery name to table name
             $this->load->model('Lotteries_m', 'lotteries_m');
             $table_name = $this->lotteries_m->lotto_table_convert($lottery_profile->lottery_name);
-            
-            log_message('debug', "get_latest_draw_info: found profile, lottery_name: {$lottery_profile->lottery_name}, table_name: {$table_name}");
             
             if (!$table_name || !is_string($table_name) || strlen($table_name) == 0) {
                 log_message('error', "get_latest_draw_info: invalid table name generated for lottery_name: {$lottery_profile->lottery_name}");
@@ -1335,37 +1102,11 @@ class Prize extends Admin_Controller
                     
                     // Always calculate the next draw date after the filter lastdate
                     $expected_next_draw_date = $this->lotteries_m->next_date($lottery_profile, $day, $filter_lastdate);
-                    echo "<script>console.log('DEBUG: filter_lastdate ({$filter_lastdate}) - calculating NEXT draw after this date');</script>";
-                    echo "<script>console.log('DEBUG: Next draw date calculated = {$expected_next_draw_date}');</script>";
-                    
-                    log_message('debug', "get_latest_draw_info: calculated expected_next_draw_date: {$expected_next_draw_date} from filter_lastdate: {$filter_lastdate}");
-                    
-                    // TEMPORARY DEBUG: Output calculation details
-                    echo "<script>console.log('DEBUG COMPARISON: Filter lastdate = {$filter_lastdate}');</script>";
-                    echo "<script>console.log('DEBUG COMPARISON: Calculated NEXT draw date = " . date('D M d, Y', strtotime($expected_next_draw_date)) . "');</script>";
-                    echo "<script>console.log('DEBUG COMPARISON: next_draw_date_mysql = {$expected_next_draw_date}');</script>";
-                    echo "<script>console.log('DEBUG: day = {$day}');</script>";
-                    
-                    // Debug lottery schedule
-                    echo "<script>console.log('DEBUG LOTTERY SCHEDULE:');</script>";
-                    echo "<script>console.log('- Monday: {$lottery_profile->monday}');</script>";
-                    echo "<script>console.log('- Tuesday: {$lottery_profile->tuesday}');</script>";
-                    echo "<script>console.log('- Wednesday: {$lottery_profile->wednesday}');</script>";
-                    echo "<script>console.log('- Thursday: {$lottery_profile->thursday}');</script>";
-                    echo "<script>console.log('- Friday: {$lottery_profile->friday}');</script>";
-                    echo "<script>console.log('- Saturday: {$lottery_profile->saturday}');</script>";
-                    echo "<script>console.log('- Sunday: {$lottery_profile->sunday}');</script>";
                     
                     // Check if there's a draw on the expected NEXT draw date
                     $expected_draw = $this->get_draw_on_date($lottery_id, $expected_next_draw_date);
                     
-                    // Enhanced debugging for draw lookup
-                    echo "<script>console.log('DEBUG: Looking for draw on calculated NEXT draw date: {$expected_next_draw_date}');</script>";
-                    echo "<script>console.log('DEBUG: get_draw_on_date result: " . ($expected_draw ? "FOUND" : "NOT FOUND") . "');</script>";
-                    
                     if ($expected_draw) {
-                        echo "<script>console.log('DEBUG: Found draw on calculated NEXT draw date = {$expected_next_draw_date}');</script>";
-                        echo "<script>console.log('DEBUG: Draw ID: {$expected_draw->id}, Draw Date: {$expected_draw->draw_date}');</script>";
                         
                         // Verify the drawn numbers exist and are valid (not zero or null)
                         $has_valid_numbers = false;
@@ -1394,36 +1135,17 @@ class Prize extends Admin_Controller
                             }
                         }
                         
-                        echo "<script>console.log('DEBUG: Checking draw numbers validity...');</script>";
-                        echo "<script>console.log('DEBUG: ball1 = " . (property_exists($expected_draw, 'ball1') ? $expected_draw->ball1 : 'NOT SET') . "');</script>";
-                        echo "<script>console.log('DEBUG: ball2 = " . (property_exists($expected_draw, 'ball2') ? $expected_draw->ball2 : 'NOT SET') . "');</script>";
-                        echo "<script>console.log('DEBUG: ball3 = " . (property_exists($expected_draw, 'ball3') ? $expected_draw->ball3 : 'NOT SET') . "');</script>";
-                        echo "<script>console.log('DEBUG: has_valid_numbers = " . ($has_valid_numbers ? 'TRUE' : 'FALSE') . "');</script>";
-                        
                         if ($has_valid_numbers) {
-                            echo "<script>console.log('DEBUG: Draw has valid ball numbers - returning this draw');</script>";
-                            log_message('debug', "get_latest_draw_info: found draw with numbers on expected NEXT date {$expected_next_draw_date}");
                             return $expected_draw;
                         } else {
-                            echo "<script>console.log('DEBUG: Draw found but no valid ball numbers set - treating as TBD');</script>";
-                            log_message('debug', "get_latest_draw_info: draw found on {$expected_next_draw_date} but no valid numbers set");
                             return null; // No valid numbers set, treat as TBD
                         }
                     } else {
-                        echo "<script>console.log('DEBUG: No draw found on calculated NEXT draw date = {$expected_next_draw_date}');</script>";
-                        
-                        // Additional debugging: Try to find draws around this date
-                        echo "<script>console.log('DEBUG: Attempting to find draws around this date...');</script>";
-                        $this->debug_draws_around_date($lottery_id, $expected_next_draw_date);
-                        
-                        echo "<script>console.log('DEBUG: No draw found on calculated NEXT date - returning NULL for TBD');</script>";
-                        log_message('debug', "get_latest_draw_info: no draw found on expected NEXT date {$expected_next_draw_date}, returning NULL for TBD");
                         return null; // Return null so the display mode will be set to TBD
                     }
                 } catch (Exception $e) {
                     log_message('error', "get_latest_draw_info: error calculating expected draw date: " . $e->getMessage());
                     // When we have a filter_lastdate but error occurred, return null instead of falling back
-                    echo "<script>console.log('DEBUG: Exception occurred during date calculation - returning NULL');</script>";
                     return null;
                 }
             }
@@ -1443,15 +1165,11 @@ class Prize extends Admin_Controller
                 if ($latest_draw) {
                     // Add extra ball information from lottery profile
                     $latest_draw->extra_ball_included = ($lottery_profile->extra_ball == 1);
-                    log_message('debug', "get_latest_draw_info: found latest draw for date: {$latest_draw->draw_date}");
-                } else {
-                    log_message('debug', 'get_latest_draw_info: no draws found');
-                }
+                } 
                 
                 return $latest_draw;
             } else {
                 // filter_lastdate was provided but no draw found on expected date
-                log_message('debug', "get_latest_draw_info: filter_lastdate provided but no expected draw found, returning NULL");
                 return null;
             }
             
@@ -1470,8 +1188,6 @@ class Prize extends Admin_Controller
     private function get_draw_on_date($lottery_id, $expected_date)
     {
         try {
-            log_message('debug', "get_draw_on_date called for lottery_id: $lottery_id, expected_date: $expected_date");
-            
             $this->db->select('*');
             $this->db->from('lottery_profiles');
             $this->db->where('id', $lottery_id);
@@ -1479,15 +1195,12 @@ class Prize extends Admin_Controller
             $lottery_profile = $this->db->get()->row();
             
             if (!$lottery_profile) {
-                log_message('debug', 'get_draw_on_date: lottery profile not found');
                 return null;
             }
             
             // Load the Lotteries model to convert lottery name to table name
             $this->load->model('Lotteries_m', 'lotteries_m');
             $table_name = $this->lotteries_m->lotto_table_convert($lottery_profile->lottery_name);
-            
-            log_message('debug', "get_draw_on_date: found profile, lottery_name: {$lottery_profile->lottery_name}, table_name: {$table_name}");
             
             if (!$table_name || !is_string($table_name) || strlen($table_name) == 0) {
                 log_message('error', "get_draw_on_date: invalid table name generated for lottery_name: {$lottery_profile->lottery_name}");
@@ -1508,8 +1221,6 @@ class Prize extends Admin_Controller
                 return null;
             }
             
-            log_message('debug', "get_draw_on_date: converted date from '{$expected_date}' to '{$mysql_date}'");
-            
             // Get the draw for this specific date (any draw, regardless of extra ball)
             $this->db->select('*');
             $this->db->from($table_name);
@@ -1520,10 +1231,7 @@ class Prize extends Admin_Controller
             if ($draw_on_date) {
                 // Add extra ball information from lottery profile
                 $draw_on_date->extra_ball_included = ($lottery_profile->extra_ball == 1);
-                log_message('debug', "get_draw_on_date: found draw on date: {$draw_on_date->draw_date}, extra: " . (isset($draw_on_date->extra) ? $draw_on_date->extra : 'NULL'));
-            } else {
-                log_message('debug', "get_draw_on_date: no draw found for date: $expected_date");
-            }
+            } 
             
             return $draw_on_date;
             
@@ -1566,18 +1274,6 @@ class Prize extends Admin_Controller
      */
     private function calculate_ticket_win_result($ticket_numbers, $draw_info, $filter, $display_mode = 'normal', $next_draw_date = null)
     {
-        // Debug: Log the draw information being used
-        if ($draw_info) {
-            log_message('debug', "Win calculation using draw_date: {$draw_info->draw_date}, extra: " . (isset($draw_info->extra) ? $draw_info->extra : 'NULL'));
-            // Also log the actual drawn numbers for debugging
-            $draw_numbers = $this->extract_drawn_numbers_from_draw($draw_info);
-            if (!empty($draw_numbers)) {
-                log_message('debug', "Drawn numbers: " . implode(', ', $draw_numbers));
-            }
-        } else {
-            log_message('debug', "Win calculation: No draw_info available");
-        }
-        
         if (!$draw_info) {
             return array(
                 'category' => 'No Draw Data',
@@ -1658,8 +1354,6 @@ class Prize extends Admin_Controller
     private function process_filter_win_records($filter, $draw_info, $update_lastdate = true)
     {
         try {
-            log_message('debug', "Processing win records for filter {$filter->id}, update_lastdate: " . ($update_lastdate ? 'true' : 'false'));
-            
             // Get combination tickets from the file
             $combination_tickets = $this->get_combination_tickets_for_filter($filter);
             if (empty($combination_tickets)) {
@@ -1811,7 +1505,6 @@ class Prize extends Admin_Controller
     {
         // Automatic filter expiration is disabled
         // Filters will remain active until manually expired by user
-        log_message('debug', "Automatic filter expiration disabled for admin {$admin_id}, lottery {$lottery_id}");
         return;
     }
     
@@ -1961,35 +1654,5 @@ class Prize extends Admin_Controller
         }
         
         return false; // No win category matched
-    }
-    
-    /**
-     * Debug method to check draws around a specific date
-     */
-    private function debug_draws_around_date($lottery_id, $target_date) {
-        // Look for draws 7 days before and 7 days after target date
-        $start_date = date('Y-m-d', strtotime($target_date . ' -7 days'));
-        $end_date = date('Y-m-d', strtotime($target_date . ' +7 days'));
-        $lottery = $this->lotteries_m->get($lottery_id);
-		$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
-        $this->db->select('id, draw_date, ball1, ball2, ball3, ball4, ball5, ball6, extra');
-        $this->db->from($tbl_name);
-        $this->db->where('lottery_id', $lottery_id);
-        $this->db->where('draw_date >=', $start_date);
-        $this->db->where('draw_date <=', $end_date);
-        $this->db->order_by('draw_date', 'ASC');
-        $query = $this->db->get();
-        $draws = $query->result();
-        echo "<script>console.log('DEBUG DRAWS: Found " . count($draws) . " draws between {$start_date} and {$end_date}');</script>";
-        foreach ($draws as $draw) {
-            $draw_info = "ID: {$draw->id}, Date: {$draw->draw_date}";
-            if ($draw->ball1) {
-                $draw_info .= ", Numbers: {$draw->ball1}-{$draw->ball2}-{$draw->ball3}-{$draw->ball4}-{$draw->ball5}-{$draw->ball6}";
-                if ($draw->extra) $draw_info .= " +{$draw->extra}";
-            } else {
-                $draw_info .= ", Numbers: NOT SET";
-            }
-            echo "<script>console.log('DEBUG DRAW: {$draw_info}');</script>";
-        }
     }
 }
