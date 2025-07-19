@@ -741,6 +741,45 @@ class Lotteries extends Admin_Controller {
 	}
 
 	/**
+	 * Get the latest draw information for a lottery after import completion
+	 * @param       $id		lottery id		
+	 * @return      JSON with last draw information including draw number
+	 */
+	public function get_last_draw($id)
+	{
+		$lottery = $this->lotteries_m->get($id);
+		if (!$lottery) {
+			echo json_encode(['error' => 'Lottery not found']);
+			return;
+		}
+		
+		$last_draw = $this->lotteries_m->last_draw_db($lottery->lottery_name);
+		
+		if ($last_draw == 'nodraws') {
+			echo json_encode(['nodraws' => true]);
+		} elseif ($last_draw && !empty($last_draw->id)) {
+			$draw = "";
+			$last_date = "";
+			$draw_id = $last_draw->id; // Get the draw ID/number
+			
+			foreach ($last_draw as $key => $value) {
+				if (substr($key, 0, 4) == 'ball') $draw .= $value . " ";
+				if ($key == 'extra') $draw .= " + " . $value;
+				if ($key == 'draw_date') $last_date = date("D, M d, Y", strtotime(str_replace('/', '-', $value)));
+			}
+			
+			echo json_encode([
+				'success' => true,
+				'last_date' => $last_date,
+				'draw_numbers' => trim($draw),
+				'draw_id' => $draw_id
+			]);
+		} else {
+			echo json_encode(['error' => 'Unable to retrieve last draw']);
+		}
+	}
+
+	/**
 	 * Views all draws with pagination, filtering and Draw Search Options
 	 *  being imported in the database
 	 * @param       $id		current id of draws		

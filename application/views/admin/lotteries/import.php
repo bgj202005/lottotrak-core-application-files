@@ -294,6 +294,10 @@ $(document).ready(function() {
 	$('#import_form').on('submit', function(event) {
 		document.getElementById("import_click").value = '1'; // The submit has been clicked
 		$('#import_message').html('');
+		
+		// Reset the no data imported flag at the start of each import
+		window.noDataImported = false;
+		
 			event.preventDefault();
 			$.ajax({
 				url:url_import, 
@@ -403,9 +407,18 @@ $(document).ready(function() {
 					$('#process').css('display', 'none');
 					$('#lottery_upload_csv').val('');
 					$('#import_message').html('<div class="alert alert-danger">No Data Import Required.</div>');
+					
+					// Update the card to show "Nothing to import" instead of "Adding draws ... please wait"
+					$('.card-title').html("<div class='alert alert-info' style = 'text-align:center' role='alert'>NO NEW DRAWS TO IMPORT</div>");
+					$('.card-text').html("<div class='alert alert-info' style = 'text-align:center' role='alert'>Nothing to import</div>");
+					
 					$('#import').attr('disabled',false);
 					$('#import').val('Begin Import / Upload');
 					document.getElementById("import_click").value = '0'; // No popup warning message is required
+					
+					// Set a flag to prevent showing success message when no data was imported
+					// Do NOT call refreshLastDraw() here since no new data was imported
+					window.noDataImported = true;
 				}
 				if (error)
 				{
@@ -438,17 +451,18 @@ $(document).ready(function() {
 				$('#process_data').text(data);
 				$('.progress-bar').css('width', width+'%').attr('aria-valuenow', width); 
 				$('#draw_number').html(data);
-				if(width >= 100)
+				if(width >= 100 && !window.noDataImported)
 				{
 					document.getElementById("import_click").value = '0'; // Import Completed, no warning message is required
 					clearInterval(clear_timer);
 					$('#process').css('display', 'none');
 					$('#lottery_upload_csv').val('');
 					$('#import_message').html('<div class="alert alert-success">Draw(s) Successfully Imported</div>');
-					$('.card-title').html("<div class='alert alert-success' style = 'text-align:center' role='alert'>IMPORT COMPLETE</div>");
-					$('.card-text').html("<div class='alert alert-info' style = 'text-align:center' role='alert'>Draw Importing <br /><br /> ... Done ... </div>");
 					$('#import').attr('disabled',false);
 					$('#import').val('Begin Import / Upload');
+					
+					// Refresh the last draw information (this will set the card title and text)
+					refreshLastDraw();
 				}
 				if (data.error)
 				{
@@ -462,22 +476,62 @@ $(document).ready(function() {
 			}
 		})
 	} 
-})										
-<?php if(isset($columns)):?> var columns = <?php echo json_encode($columns); 
-endif;?>											
-<?php if(!isset($columns)):?> var columns = 0; 
-<?php endif;?>
-if(columns!=0) {
-	csv_field = document.getElementsByName('csv_field[]');
-	// Loop through the array and target the next available textbox
-	var count=0;
-	for(var i = 0; i < columns.length; i++){
-	// If there are any names to use, use one
-		// Pop the next name off of your array and set the value
-		// of your textbox
-		csv_field[i].value = columns[i];
-		count++;
-		if(i < columns.length-1) $('#dynamic_field').append('<tr id="row'+i+'"><td><input type="text" name="csv_field[]" value = "'+csv_field[i].value+'" style="width:90%" class="form-control field_list" /></td><td align="center"><button type="button" name="remove" id="'+i+'" class="btn btn-danger btn_remove text-center">X</button></td></tr>');
-	} 
-}
+	
+	// Function to refresh the last draw information after import completion
+	function refreshLastDraw() {
+		var url_last_draw = '<?php echo base_url();?>admin/lotteries/get_last_draw/<?=$lottery->id;?>';
+		
+		$.ajax({
+			url: url_last_draw,
+			dataType: "json",
+			success: function(data) {
+				if (data.success) {
+					// Clear any existing content first to prevent duplication
+					$('.card-title').empty();
+					
+					// Format exactly as requested: Last Draw Date, the date, the drawn numbers only
+					var lastDrawHtml = "<h5 class='alert alert-primary'>Last Draw Date:</h5>";
+					lastDrawHtml += "<h5 class='alert alert-danger'>" + data.last_date + "</h5>";
+					lastDrawHtml += "<h6 class='alert alert-success text-dark'>" + data.draw_numbers + "</h6>";
+					
+					// Replace the content inside the card-title div
+					$('.card-title').html(lastDrawHtml);
+					
+					// Update the card-text to show simple completion message
+					$('.card-text').html('Draw Importing<br /><br />... Done ...');
+					
+					// Hide the "No Draws Currently Exist" message if it's visible
+					$('#nodraws').hide();
+				} else if (data.nodraws) {
+					$('.card-title').empty().html('<h6 id="nodraws" style="display:block">No Draws Currently Exist</h6>');
+					$('.card-text').html('Please Import NEW draws by clicking the Import Button below.');
+				} else {
+					console.log('Error refreshing last draw:', data.error || 'Unknown error');
+				}
+			},
+			error: function(jqXhr, textStatus, errorMessage) {
+				console.log("Error refreshing last draw: " + errorMessage);
+			}
+		});
+	}
+
+	// Handle existing CSV columns if they exist
+	<?php if(isset($columns)):?> var columns = <?php echo json_encode($columns); 
+	endif;?>											
+	<?php if(!isset($columns)):?> var columns = 0; 
+	<?php endif;?>
+	if(columns!=0) {
+		csv_field = document.getElementsByName('csv_field[]');
+		// Loop through the array and target the next available textbox
+		var count=0;
+		for(var i = 0; i < columns.length; i++){
+		// If there are any names to use, use one
+			// Pop the next name off of your array and set the value
+			// of your textbox
+			csv_field[i].value = columns[i];
+			count++;
+			if(i < columns.length-1) $('#dynamic_field').append('<tr id="row'+i+'"><td><input type="text" name="csv_field[]" value = "'+csv_field[i].value+'" style="width:90%" class="form-control field_list" /></td><td align="center"><button type="button" name="remove" id="'+i+'" class="btn btn-danger btn_remove text-center">X</button></td></tr>');
+		} 
+	}
+})
 </script>
