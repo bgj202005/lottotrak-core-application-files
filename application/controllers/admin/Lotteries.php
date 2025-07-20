@@ -555,17 +555,38 @@ class Lotteries extends Admin_Controller {
 
 		// Retrieve the lottery table name for the database
 		$table = $this->session->userdata('table_name'); 
+		// Enhanced server compatibility headers and settings
 		header('Content-type: text/html; charset=utf-8');
 		header("Cache-Control: no-cache, must-revalidate");
 		header("Pragma: no-cache");
-
+		header("Connection: keep-alive");
+		
+		// More aggressive timeout and memory settings for hosting servers
 		set_time_limit(0);
-
+		ini_set('memory_limit', '256M'); // Increase memory limit
+		ini_set('max_execution_time', 0);
+		
+		// Force output buffering for hosting server compatibility
+		if (ob_get_level()) {
+			ob_end_clean();
+		}
+		ob_start();
 		ob_implicit_flush(1);
+		
+		// Counter for batch processing
+		$processed_count = 0;
+		$batch_size = 5; // Even smaller batches for maximum server stability
+		$heartbeat_counter = 0; // Counter for regular status updates
 		
 		if (!empty($this->session->userdata('new_file_name')))
 		{
+			// OPTIMIZATION: Pre-scan CSV to identify only records that need importing
 			$file_data = fopen(self::FILE_PATH.$this->session->userdata('new_file_name'), 'r');
+			if (!$file_data) {
+				echo json_encode(['error' => TRUE, 'message' => 'Failed to open CSV file']);
+				return;
+			}
+			
 			$header = fgetcsv($file_data); // Set the File Pointer to start of file and move retrieve the header
 			$column_count = count($header);
 			$draw_data = array();
@@ -582,114 +603,185 @@ class Lotteries extends Admin_Controller {
 					$column_count--;
 				} while($column_count>=0);
 			} 
-			// Retrieve firstdate from session
+			
+			// Retrieve firstdate and last draw info from session
     		$firstdate = $this->session->userdata('firstdate');
     		$firstdate_timestamp = strtotime($firstdate);
-			// If existing draws in database, go to the next draw date in the csv file
 			$ld = $this->session->userdata('last_draw');
-			$ld = (is_object($ld) ? strtotime($ld->draw_date) : $ld);  // Change date format or return $ld as no draws, if no previous dates have been imported
-			$found_firstdate = false;
+			$last_draw_timestamp = (is_object($ld) ? strtotime($ld->draw_date) : 0);
+			
+			// PHASE 1: Pre-scan CSV to collect only records that need importing
+			$records_to_import = array();
+			$total_csv_records = 0;
+			$skipped_records = 0;
+			$already_imported = 0;
+			
 			while($row = fgetcsv($file_data)) 
 			{
-				// Eliminate the data that will not be imported in the database
+				$total_csv_records++;
+				
+				// Apply column elimination
+				$temp_row = $row; // Keep original for processing
 				$column_count = count($elim);
 				$i = 0;
 				while ($i!=$column_count)
 				{
 					if(!$elim[$i])
 					{
-						unset($row[$i]);	// Remove this csv column
+						unset($temp_row[$i]);	// Remove this csv column
 					}
 					$i++;
 				}
-				$row = array_values($row);	// Reindex the row without the eliminated column
-				// Assuming the date is in a specific column, e.g., column 1 (index 0 after filtering)
-				$csv_date = (strpos($row[0], '-')) ? explode('-', $row[0]) : explode('/', $row[0]);	// Two formats of csv using either dash or forward slash to separate m, d, y
-				$unix_date = (isset($csv_date[2])&&isset($csv_date[1])&&isset($csv_date[0]) ? strtotime($csv_date[0].'/'.$csv_date[1].'/'.$csv_date[2]) : FALSE);  // m / d / yyyy is assumed with '/'
-
-				 // Check if the date in the CSV matches the firstdate
-        		if (!$found_firstdate) {
-            	if ($unix_date === $firstdate_timestamp) {
-                $found_firstdate = true;
-            	} else {
-                	continue; // Skip rows until the firstdate is found
-            		}
-        		}	
-				$draw_exists = (!$unix_date ? FALSE : $this->lotteries_m->lotto_draw_exists($table, $this->lotteries_m->drawn_only($row), $lottery_props->extra_ball, date('Y-m-d', $unix_date))); // check 1, Search existing draw, if csv_date does not match db, return false
-				$draw_skip = (($unix_date&&!$draw_exists) ? $this->lotteries_m->skip_next_draw($table, $csv_date[0].'-'.$csv_date[1].'-'.$csv_date[2]) : FALSE); // check 2, Skip over any old draws that are prior to first draw date in the db
-				if (($ld =='nodraws'||(($ld<=$unix_date))&&($unix_date!=FALSE)&&(!$draw_exists)&&(!$draw_skip))) 
+				$temp_row = array_values($temp_row);	// Reindex the row without the eliminated column
+				
+				// Parse the date
+				$csv_date = (strpos($temp_row[0], '-')) ? explode('-', $temp_row[0]) : explode('/', $temp_row[0]);
+				$unix_date = (isset($csv_date[2])&&isset($csv_date[1])&&isset($csv_date[0]) ? strtotime($csv_date[0].'/'.$csv_date[1].'/'.$csv_date[2]) : FALSE);
+				
+				// Skip records before the first date
+				if ($unix_date < $firstdate_timestamp) {
+					$skipped_records++;
+					continue;
+				}
+				
+				// Skip records that are already imported (before or equal to last draw date)
+				if ($last_draw_timestamp > 0 && $unix_date <= $last_draw_timestamp) {
+					$already_imported++;
+					continue;
+				}
+				
+				// Quick check if this draw already exists in database
+				$draw_exists = (!$unix_date ? FALSE : $this->lotteries_m->lotto_draw_exists($table, $this->lotteries_m->drawn_only($temp_row), $lottery_props->extra_ball, date('Y-m-d', $unix_date)));
+				
+				if ($draw_exists) {
+					$already_imported++;
+					continue;
+				}
+				
+				// This record needs to be imported
+				$records_to_import[] = $temp_row;
+				
+				// Log progress every 100 records during scan
+			}
+			
+			fclose($file_data);
+			
+			// If no records to process, exit early
+			if (empty($records_to_import)) {
+				echo json_encode(array('exit' => TRUE));
+				return;
+			}
+			
+			// PHASE 2: Process only the records that need importing
+			
+			foreach ($records_to_import as $row_index => $row) {
+				$csv_date = (strpos($row[0], '-')) ? explode('-', $row[0]) : explode('/', $row[0]);
+				$unix_date = (isset($csv_date[2])&&isset($csv_date[1])&&isset($csv_date[0]) ? strtotime($csv_date[0].'/'.$csv_date[1].'/'.$csv_date[2]) : FALSE);
+				
+				$balls_drawn = intval($this->session->userdata('balls_drawn'));
+				$draw_data = array();
+				
+				$c = 1; // array counter
+				for ($balls_drawn; $balls_drawn>0; $balls_drawn--) 
 				{
-					$balls_drawn = intval($this->session->userdata('balls_drawn'));		// balls drawn
+					$draw_data['ball'.$c] =  $row[$c];
+					$c++;	// Increment row count
+				}
+				
+				if (!empty($lottery_props->extra_ball)) $draw_data['extra'] = $row[$c];
 
-					$c = 1; // array counter
-					for ($balls_drawn; $balls_drawn>0; $balls_drawn--) 
-					{
-						$draw_data['ball'.$c] =  $row[$c];
-						$c++;	// Increment row count
-					}
+				$draw_data += ['draw_date'	 =>	$row[0], 
+								'lottery_id' => $id];
+				// Check the draw date to make sure it is in the correct format for Month / Day / Year
+				if (intval($csv_date[1])<1||(intval($csv_date[1]>12))) // Month between 1 and 12
+				{
+					$draw_data += [
+						'month_error'	=>	TRUE];
+					break;
+				} 
+				else if (intval($csv_date[2])<1&&(intval($csv_date[2])<=cal_days_in_month(CAL_GREGORIAN, $csv_date[1], $csv_date[0])))
+				{
+					$draw_data += [
+						'day_error'	=>	TRUE];
+					break;
+				} 
+				else if (intval($csv_date[0]<1)||intval($csv_date[0])>intval(date("Y")))
+				{
+					$draw_data += [
+						'year_error'	=>	TRUE];
+					break;
+				}
+				else if (!$this->lotteries_m->range_check($draw_data, $lottery_props)) 
+				{
+					$draw_data += [
+							'range_error'	=>	TRUE];
+					break;
+				}
+				else if (!$this->lotteries_m->duplicate_extra_check($lottery_props->balls_drawn, $draw_data, $lottery_props->duplicate)) 
+				{
+					$draw_data += [
+							'duplicate_error'	=>	TRUE];
+					break;
+				}
+				else if (!$this->lotteries_m->zero_extra_check($lottery_props->extra_ball, $draw_data['extra'], $lottery_props->allow_zero_extra)) 
+				{
+					$draw_data += [
+							'zero_error'	=>	TRUE];
+					break;
+				}
+				else if (!$this->lotteries_m->duplicate_regular_drawn($lottery_props->extra_ball, $draw_data)) 
+				{
+					$draw_data += [
+							"regular_duplicate_error"	=>	TRUE];
+					break;
+				}
+
+				// Enhanced database operation with error handling for hosting servers
+				$insert_result = $this->lotteries_m->csv_array_to_query($table, $draw_data);
+				if (!$insert_result) 
+				{
+					$db_error = $this->db->error();
 					
-					if (!empty($lottery_props->extra_ball)) $draw_data['extra'] = $row[$c];
-
-					$draw_data += ['draw_date'	 =>	$row[0], 
-									'lottery_id' => $id];
-					// Check the draw date to make sure it is in the correct format for Month / Day / Year
-					//$date = explode('/', $draw_data['draw_date']);
+					$draw_data += [
+						'error'	=>	TRUE,
+						'db_error' => $db_error['message']];
+					break;
+				}
+				
+				$draw_data += ['success' => TRUE];
+				$processed_count++; // Increment batch counter
+				
+				// Batch processing for server stability
+				if ($processed_count % $batch_size == 0) {
+					// Refresh database connection to prevent timeout
+					$this->db->reconnect();
 					
-					if (intval($csv_date[1])<1||(intval($csv_date[1]>12))) // Month between 1 and 12
-					{
-						$draw_data += [
-							'month_error'	=>	TRUE];
-						break;
-					} 
-					else if (intval($csv_date[2])<1&&(intval($csv_date[2])<=cal_days_in_month(CAL_GREGORIAN, $csv_date[1], $csv_date[0])))
-					{
-						$draw_data += [
-							'day_error'	=>	TRUE];
-						break;
-					} 
-					else if (intval($csv_date[0]<1)||intval($csv_date[0])>intval(date("Y")))
-					{
-						$draw_data += [
-							'year_error'	=>	TRUE];
-						break;
+					// Longer delay for hosting server stability
+					usleep(250000); // 0.25 second delay every 5 records
+					
+					// Force session update to prevent timeout
+					$this->session->mark_as_temp(array(
+						'new_file_name' => 600,
+						'table_name' => 600,
+						'last_draw' => 600
+					));
+					
+					// Periodic memory cleanup
+					if (function_exists('gc_collect_cycles')) {
+						gc_collect_cycles();
 					}
-
-					else if (!$this->lotteries_m->range_check($draw_data, $lottery_props)) 
-					{
-						$draw_data += [
-								'range_error'	=>	TRUE];
-						break;
+				}
+				
+				// Send heartbeat every record to prevent timeout
+				$heartbeat_counter++;
+				if ($heartbeat_counter % 1 == 0) {
+					// Send a small response to keep connection alive
+					echo " "; // Single space as heartbeat
+					if(ob_get_level() > 0) {
+						ob_flush();
+						flush();
 					}
-					else if (!$this->lotteries_m->duplicate_extra_check($lottery_props->balls_drawn, $draw_data, $lottery_props->duplicate)) 
-					{
-						$draw_data += [
-								'duplicate_error'	=>	TRUE];
-						break;
-					}
-					else if (!$this->lotteries_m->zero_extra_check($lottery_props->extra_ball, $draw_data['extra'], $lottery_props->allow_zero_extra)) 
-					{
-						$draw_data += [
-								'zero_error'	=>	TRUE];
-						break;
-					}
-					else if (!$this->lotteries_m->duplicate_regular_drawn($lottery_props->extra_ball, $draw_data)) 
-					{
-						$draw_data += [
-								"regular_duplicate_error"	=>	TRUE];
-						break;
-					}
-					//$draw_data['draw_date'] = $csv_date[2].'-'.$csv_date[0].'-'.$csv_date[1];	// Re-arranged format for Database
-
-					if (!$this->lotteries_m->csv_array_to_query($table, $draw_data)) 
-					{
-						$draw_data += [
-							'error'	=>	TRUE];
-						break;
-					}
-					$ld = $unix_date; // The new unix_date (converted date) becomes the last date that was added to the database.
-					$draw_data += ['success' => TRUE];
-					//sleep(1);
-					//usleep(500000); // 0.5 of a second delay
+				}
 
 				if(ob_get_level() > 0)
 				{
@@ -697,24 +789,9 @@ class Lotteries extends Admin_Controller {
 					flush();
 				}
 				echo json_encode($draw_data);
-				} // if ($ld=='nodraws'||(($ld<=$csv_date)&&($csv_date!=FALSE)))
-				elseif($draw_exists)		// Only if draw exists, go to the next draw.
-				{
-					unset($draw_exists);	// Go to next draw, without existing the loop
-				}
-				elseif($draw_skip)
-				{
-					unset($draw_exists);	// Go to next draw, without existing the loop
-				}
-				else 
-				{
-					$draw_data = ['error' => TRUE];
-				break;
-				} 
-
-			unset($draw_data);		// Remove Current Draw Date for next CSV Row
+				
+				unset($draw_data);		// Remove Current Draw Date for next iteration
 			}
-			fclose($file_data);		// Close out File data stream
 			
 			if (isset($draw_data)) {
 				echo json_encode($draw_data);
