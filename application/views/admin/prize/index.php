@@ -431,6 +431,19 @@
 }
 </style>
 <script>
+// Global error handler for modal-related issues
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+    if (msg.includes('modal is not a function')) {
+        console.warn('Modal error caught and handled:', msg);
+        // Clean up any modal-related elements
+        $('#progressModal, #progressOverlay').remove();
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open');
+        return true; // Prevent default error handling
+    }
+    return false; // Allow other errors to be handled normally
+};
+
 // Check if jQuery is loaded
 if (typeof jQuery === 'undefined') {
     console.error('jQuery is not loaded!');
@@ -438,14 +451,28 @@ if (typeof jQuery === 'undefined') {
     console.log('jQuery version:', jQuery.fn.jquery);
     console.log('jQuery AJAX support:', typeof jQuery.ajax !== 'undefined');
 }
-// Check if Bootstrap is loaded
-if (typeof jQuery === 'undefined' || typeof jQuery.fn.modal === 'undefined') {
-    console.error('Bootstrap JavaScript is not loaded properly!');
+
+// Check if Bootstrap modal is available
+if (typeof $.fn.modal === 'undefined') {
+    console.log('Bootstrap JavaScript is not loaded properly!');
+    console.log('Using fallback UI components (no Bootstrap modal dependency)');
 } else {
-    console.log('Bootstrap modal support: Available');
+    console.log('Bootstrap modal available');
 }
 $(document).ready(function() {
-    console.log('Prize History page loaded, setting up event handlers...'); // Debug log
+    console.log('Prize History page loaded, setting up event handlers...');
+    
+    // Safety check: Override modal function if Bootstrap is not available
+    if (typeof $.fn.modal === 'undefined') {
+        console.warn('Bootstrap modal not available, creating mock function');
+        $.fn.modal = function(action) {
+            console.log('Mock modal called with action:', action);
+            if (action === 'hide') {
+                $(this).remove();
+            }
+            return this;
+        };
+    }
     
     // Test if elements exist
     console.log('Found combination links:', $('.combination-link').length);
@@ -591,109 +618,211 @@ function resetWinRecord(filterId, filename) {
     });
 }
 function showProgressBar(filename) {
-    // Remove any existing progress modal
-    $('#progressModal').remove();
+    console.log('showProgressBar called with filename:', filename);
     
-    // Create progress modal using Bootstrap 4 syntax
-    var progressModal = $('<div class="modal fade" id="progressModal" tabindex="-1" role="dialog" aria-labelledby="progressModalLabel" aria-hidden="true">' +
-        '<div class="modal-dialog modal-dialog-centered" role="document">' +
-        '<div class="modal-content">' +
-        '<div class="modal-header">' +
-        '<h5 class="modal-title" id="progressModalLabel">Checking Results</h5>' +
-        '</div>' +
-        '<div class="modal-body text-center">' +
-        '<h6>Checking Results for <strong>' + filename + '</strong></h6>' +
-        '<div class="progress" style="height: 25px; margin-top: 20px;">' +
-        '<div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">' +
-        '<span class="sr-only">0% Complete</span>' +
-        '</div>' +
-        '</div>' +
-        '<p class="mt-2"><small class="text-muted">Please wait while we process your request...</small></p>' +
-        '</div>' +
-        '</div>' +
-        '</div>' +
-        '</div>');
-    $('body').append(progressModal);
-    // Show modal using Bootstrap 4 syntax
-    $('#progressModal').modal({
-        backdrop: 'static', 
-        keyboard: false,
-        show: true
-    });
-    // Animate progress bar
-    var progress = 0;
-    var progressInterval = setInterval(function() {
-        progress += 15; // Faster progress
-        $('#progressModal .progress-bar')
-            .css('width', progress + '%')
-            .attr('aria-valuenow', progress)
-            .find('.sr-only').text(progress + '% Complete');
-        if (progress >= 100) {
-            clearInterval(progressInterval);
-            // Keep modal open briefly to show completion
-            setTimeout(function() {
-                $('#progressModal').modal('hide');
-                setTimeout(function() {
-                    $('#progressModal').remove();
-                }, 500);
-            }, 800);
+    // Remove any existing progress overlay or modal
+    $('#progressOverlay').remove();
+    $('#progressModal').remove();
+    $('.modal-backdrop').remove();
+    $('body').removeClass('modal-open');
+    
+    try {
+        // Check if Bootstrap modal is available
+        if (typeof $.fn.modal !== 'undefined') {
+            console.log('Using Bootstrap modal for progress');
+            // Create Bootstrap modal
+            var modalHtml = '<div class="modal fade" id="progressModal" tabindex="-1" role="dialog">' +
+                '<div class="modal-dialog modal-sm" role="document">' +
+                '<div class="modal-content">' +
+                '<div class="modal-body text-center">' +
+                '<h5>Checking Results</h5>' +
+                '<p>Checking Results for <strong>' + filename + '</strong></p>' +
+                '<div class="progress">' +
+                '<div id="progressBarFill" class="progress-bar progress-bar-striped progress-bar-animated" ' +
+                'role="progressbar" style="width: 0%"></div>' +
+                '</div>' +
+                '<p class="mt-2"><small>Please wait while we process your request...</small></p>' +
+                '</div>' +
+                '</div>' +
+                '</div>' +
+                '</div>';
+            
+            $('body').append(modalHtml);
+            $('#progressModal').modal({
+                backdrop: 'static',
+                keyboard: false
+            });
+            
+            // Animate progress bar
+            var progress = 0;
+            var progressInterval = setInterval(function() {
+                progress += 15;
+                $('#progressBarFill').css('width', progress + '%');
+                
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    setTimeout(function() {
+                        $('#progressModal').modal('hide');
+                        setTimeout(function() {
+                            $('#progressModal').remove();
+                        }, 500);
+                    }, 800);
+                }
+            }, 120);
+            
+        } else {
+            console.log('Bootstrap not available, using CSS overlay fallback');
+            // Fallback to CSS overlay (current implementation)
+            
+            // Create simple CSS overlay (no Bootstrap modal dependency)
+            var progressOverlay = $('<div id="progressOverlay" style="' +
+                'position: fixed; top: 0; left: 0; width: 100%; height: 100%; ' +
+                'background: rgba(0, 0, 0, 0.5); z-index: 10000; ' +
+                'display: flex; align-items: center; justify-content: center;">' +
+                '<div style="' +
+                'background: white; padding: 30px; border-radius: 8px; ' +
+                'box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); text-align: center; ' +
+                'min-width: 300px; max-width: 400px;">' +
+                '<h5 style="margin-bottom: 20px; color: #333;">Checking Results</h5>' +
+                '<h6 style="margin-bottom: 20px; color: #666;">Checking Results for <strong>' + filename + '</strong></h6>' +
+                '<div style="' +
+                'height: 25px; background: #f0f0f0; border-radius: 12px; ' +
+                'overflow: hidden; margin: 20px 0; position: relative;">' +
+                '<div id="progressBarFill" style="' +
+                'height: 100%; background: linear-gradient(45deg, #007bff, #0056b3); ' +
+                'width: 0%; transition: width 0.3s ease; border-radius: 12px; ' +
+                'position: relative; overflow: hidden;">' +
+                '<div style="' +
+                'position: absolute; top: 0; left: -100%; width: 100%; height: 100%; ' +
+                'background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); ' +
+                'animation: shimmer 2s infinite;">' +
+                '</div>' +
+                '</div>' +
+                '</div>' +
+                '<p style="margin: 10px 0 0 0; font-size: 12px; color: #888;">Please wait while we process your request...</p>' +
+                '</div>' +
+                '</div>');
+            
+            // Add shimmer animation styles if not already present
+            if (!$('#shimmerStyles').length) {
+                $('head').append('<style id="shimmerStyles">' +
+                    '@keyframes shimmer { 0% { left: -100%; } 100% { left: 100%; } }' +
+                    '</style>');
+            }
+            
+            $('body').append(progressOverlay);
+            
+            // Animate progress bar
+            var progress = 0;
+            var progressInterval = setInterval(function() {
+                progress += 15; // Faster progress
+                $('#progressBarFill').css('width', progress + '%');
+                
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    // Keep overlay open briefly to show completion
+                    setTimeout(function() {
+                        $('#progressOverlay').fadeOut(300, function() {
+                            $(this).remove();
+                        });
+                    }, 800);
+                }
+            }, 120); // Slightly faster animation
         }
-    }, 120); // Slightly faster animation
+        
+    } catch (error) {
+        console.error('Error in showProgressBar:', error);
+        // Fallback to simple alert if everything else fails
+        console.log('Fallback: Using simple notification');
+    }
 }
 function checkResults(filterId, filename) {
     console.log('checkResults called with:', filterId, filename);
-    $.ajax({
-        url: '<?php echo site_url("admin/prize/check_results_progress"); ?>',
-        type: 'POST',
-        data: {
-            filter_id: filterId
-        },
-        dataType: 'json',
-        beforeSend: function() {
-            console.log('Sending check results request...');
-        },
-        success: function(response) {
-            console.log('Check results response:', response);
-            // Always hide and remove the progress modal first
-            $('#progressModal').modal('hide');
-            setTimeout(function() {
-                $('#progressModal').remove();
-                $('.modal-backdrop').remove(); // Force remove any stuck backdrop
-                $('body').removeClass('modal-open'); // Remove modal-open class from body
-            }, 500);
-            if (response.success) {
-                if (response.redirect) {
-                    // Redirect to the combination tickets page
-                    setTimeout(function() {
-                        window.location.href = response.redirect;
-                    }, 800); // Delay to ensure modal is fully removed
-                } else if (response.data) {
-                    // Display the combination ticket table below the prize history
-                    setTimeout(function() {
-                        displayCombinationTickets(response.data);
-                    }, 800); // Delay to ensure modal is fully removed
+    
+    try {
+        $.ajax({
+            url: '<?php echo site_url("admin/prize/check_results_progress"); ?>',
+            type: 'POST',
+            data: {
+                filter_id: filterId
+            },
+            dataType: 'json',
+            beforeSend: function() {
+                console.log('Sending check results request...');
+            },
+            success: function(response) {
+                console.log('Check results response:', response);
+                
+                // Hide progress overlay/modal safely
+                try {
+                    if (typeof $.fn.modal !== 'undefined' && $('#progressModal').length) {
+                        $('#progressModal').modal('hide');
+                        setTimeout(function() {
+                            $('#progressModal').remove();
+                        }, 500);
+                    } else {
+                        $('#progressOverlay').fadeOut(300, function() {
+                            $(this).remove();
+                        });
+                    }
+                } catch (error) {
+                    console.warn('Error hiding progress display:', error);
+                    $('#progressOverlay, #progressModal').remove();
                 }
-            } else {
-                alert('Error: ' + response.message);
+                
+                if (response.success) {
+                    if (response.redirect) {
+                        // Redirect to the combination tickets page
+                        setTimeout(function() {
+                            window.location.href = response.redirect;
+                        }, 400);
+                    } else if (response.data) {
+                        // Display the combination ticket table below the prize history
+                        setTimeout(function() {
+                            displayCombinationTickets(response.data);
+                        }, 400);
+                    }
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Check Results AJAX Error:', {
+                    status: xhr.status,
+                    statusText: xhr.statusText,
+                    responseText: xhr.responseText,
+                    error: error
+                });
+                
+                // Hide progress overlay/modal safely on error
+                try {
+                    if (typeof $.fn.modal !== 'undefined' && $('#progressModal').length) {
+                        $('#progressModal').modal('hide');
+                        setTimeout(function() {
+                            $('#progressModal').remove();
+                        }, 500);
+                    } else {
+                        $('#progressOverlay').fadeOut(300, function() {
+                            $(this).remove();
+                        });
+                    }
+                } catch (modalError) {
+                    console.warn('Error hiding progress display on error:', modalError);
+                    $('#progressOverlay, #progressModal').remove();
+                }
+                
+                alert('Error checking results. Server responded with: ' + xhr.status + ' ' + xhr.statusText);
             }
-        },
-        error: function(xhr, status, error) {
-            console.error('Check Results AJAX Error:', {
-                status: xhr.status,
-                statusText: xhr.statusText,
-                responseText: xhr.responseText,
-                error: error
-            });
-            // Always clean up modal on error too
-            $('#progressModal').modal('hide');
-            setTimeout(function() {
-                $('#progressModal').remove();
-                $('.modal-backdrop').remove();
-                $('body').removeClass('modal-open');
-            }, 500);
-            alert('Error checking results. Server responded with: ' + xhr.status + ' ' + xhr.statusText);
-        }
-    });
+        });
+        
+    } catch (error) {
+        console.error('Error in checkResults function:', error);
+        // Clean up any progress displays
+        $('#progressOverlay, #progressModal').remove();
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open');
+        alert('An error occurred while checking results. Please try again.');
+    }
 }
 function showMessage(message, type) {
     var alertClass = type === 'success' ? 'alert-warning' : 'alert-danger';
@@ -722,10 +851,20 @@ function handleCombinationClick(filterId, filename) {
 }
 function displayCombinationTickets(data) {
     console.log('Displaying combination tickets:', data);
-    // Ensure any modal backdrop is removed immediately
-    $('.modal-backdrop').remove();
-    $('body').removeClass('modal-open');
-    $('#progressModal').remove();
+    
+    // Ensure any modal or overlay is properly removed
+    try {
+        if (typeof $.fn.modal !== 'undefined') {
+            $('#progressModal').modal('hide');
+        }
+        $('#progressModal').remove();
+        $('#progressOverlay').remove();
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open');
+    } catch (error) {
+        console.warn('Error cleaning up modal/overlay:', error);
+    }
+    
     // Remove any existing combination table
     $('#combinationTicketsContainer').remove();
     // Create the combination tickets container
