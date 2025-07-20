@@ -1,7 +1,6 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
 
-<link rel="stylesheet" href="<?php echo base_url('application/views/admin/prize/prize_history.css'); ?>">
-
+<link rel="stylesheet" href="<?php echo base_url('css/prize_history.css'); ?>">
 <style>
     /* Page Loading Overlay for AJAX */
     .page-loading-overlay {
@@ -16,7 +15,6 @@
         align-items: center;
         justify-content: center;
     }
-    
     .page-loading-content {
         background: white;
         padding: 1.5rem 2rem;
@@ -26,11 +24,9 @@
         color: #333;
         font-size: 0.9rem;
     }
-    
     .page-loading-content i {
         color: #007bff;
     }
-
     .card {
         background-color: #ffffff;
         border: 1px solid rgba(0, 34, 51, 0.1);
@@ -123,7 +119,6 @@
         color: #0c5460;
     }
 </style>
-
 <div class="content-wrapper">
     <section class="content-header">
         <h1>
@@ -131,7 +126,6 @@
         </h1>
         <h5 style="text-align:left"><?php echo anchor('admin/predictions', 'Back to Predictions Dashboard', 'title="Back to Predictions"'); ?></h5>
     </section>
-
     <section class="content">
         <div class="container mt-4">
             <!-- White Card -->
@@ -140,7 +134,6 @@
                     <h3 class="card-title text-center">
                         <i class="fa fa-table"></i> Prize History
                     </h3>
-                     
                     <!-- Pagination Controls -->
                     <div class="pagination-controls">
                         <div class="row">
@@ -170,7 +163,6 @@
                             </div>
                         </div>
                     </div>
-
                     <!-- Prize History Table -->
                     <div class="table-responsive">
                         <table class="table table-bordered table-striped" id="prizeHistoryTable">
@@ -253,7 +245,6 @@
                                                     <?php endif; ?>
                                                 </td>
                                                 <td><?php echo date('D M j, Y', strtotime($record->lastdate)); ?></td>
-                                                
                                                 <!-- Dynamic Win Record Columns -->
                                                 <?php if(!empty($prize_columns)): ?>
                                                     <?php foreach($prize_columns as $column): ?>
@@ -291,7 +282,6 @@
                                 </tbody>
                             </table>
                         </div>
-
                         <!-- Pagination -->
                         <?php if($total_pages > 1): ?>
                             <div class="row">
@@ -303,19 +293,16 @@
                                                 <li><a href="#" data-page="1">&laquo;&laquo;</a></li>
                                                 <li><a href="#" data-page="<?php echo $current_page - 1; ?>">&laquo;</a></li>
                                             <?php endif; ?>
-                                            
                                             <!-- Page Numbers -->
                                             <?php 
                                             $start_page = max(1, $current_page - 2);
                                             $end_page = min($total_pages, $current_page + 2);
-                                            
                                             for($i = $start_page; $i <= $end_page; $i++): 
                                             ?>
                                                 <li class="<?php echo ($i == $current_page) ? 'active' : ''; ?>">
                                                     <a href="#" data-page="<?php echo $i; ?>"><?php echo $i; ?></a>
                                                 </li>
                                             <?php endfor; ?>
-                                            
                                             <!-- Show ellipsis if needed -->
                                             <?php if($end_page < $total_pages): ?>
                                                 <?php if($end_page < $total_pages - 1): ?>
@@ -323,7 +310,6 @@
                                                 <?php endif; ?>
                                                 <li><a href="#" data-page="<?php echo $total_pages; ?>"><?php echo $total_pages; ?></a></li>
                                             <?php endif; ?>
-                                            
                                             <!-- Next Page -->
                                             <?php if($current_page < $total_pages): ?>
                                                 <li><a href="#" data-page="<?php echo $current_page + 1; ?>">&raquo;</a></li>
@@ -339,37 +325,30 @@
         </div>
     </section>
 </div>
-
 <style>
 .win-record {
     font-family: monospace;
     font-weight: bold;
     background-color: #f9f9f9;
 }
-
 .table th {
     background-color: #f4f4f4;
     font-weight: bold;
 }
-
 .pagination {
     margin: 20px 0;
 }
-
 .pagination-info {
     margin-top: 8px;
     font-size: 13px;
     color: #777;
 }
-
 .label-success {
     background-color: #5cb85c;
 }
-
 .label-danger {
     background-color: #d9534f;
 }
-
 /* Clickable combination links */
 .combination-link {
     color: #007bff !important;
@@ -380,23 +359,19 @@
     background: none !important;
     padding: 0 !important;
 }
-
 .combination-link:hover {
     color: #0056b3 !important;
     text-decoration: underline !important;
 }
-
 .combination-link:visited {
     color: #007bff !important;
 }
-
 .combination-link:focus, .combination-link:active {
     color: #0056b3 !important;
     text-decoration: none !important;
     box-shadow: none !important;
     outline: none !important;
 }
-
 /* Reset button styling */
 .reset-win-record {
     padding: 4px 8px;
@@ -405,19 +380,17 @@
     border-color: #ffc107;
     color: #212529;
 }
-
 .reset-win-record:hover {
     background-color: #e0a800;
     border-color: #d39e00;
     color: #212529;
 }
-
 /* Responsive table improvements */
 @media (max-width: 768px) {
     .table-responsive {
         border: none;
     }
-    
+  
     .win-record {
         font-size: 11px;
     }
@@ -427,12 +400,10 @@
         padding: 2px 4px;
     }
 }
-
 /* Combination Tickets Styling */
 #combinationTicketsContainer {
     animation: slideDown 0.5s ease-in-out;
 }
-
 @keyframes slideDown {
     from {
         opacity: 0;
@@ -443,27 +414,22 @@
         transform: translateY(0);
     }
 }
-
 #combinationTicketsTable {
     font-size: 0.9em;
 }
-
 #combinationTicketsTable .badge {
     font-size: 0.75em;
     padding: 0.25em 0.6em;
 }
-
 .table-success {
     background-color: rgba(40, 167, 69, 0.1) !important;
 }
-
 .combination-numbers {
     font-family: 'Courier New', monospace;
     font-weight: bold;
     letter-spacing: 1px;
 }
 </style>
-
 <script>
 // Check if jQuery is loaded
 if (typeof jQuery === 'undefined') {
@@ -472,14 +438,12 @@ if (typeof jQuery === 'undefined') {
     console.log('jQuery version:', jQuery.fn.jquery);
     console.log('jQuery AJAX support:', typeof jQuery.ajax !== 'undefined');
 }
-
 // Check if Bootstrap is loaded
 if (typeof jQuery === 'undefined' || typeof jQuery.fn.modal === 'undefined') {
     console.error('Bootstrap JavaScript is not loaded properly!');
 } else {
     console.log('Bootstrap modal support: Available');
 }
-
 $(document).ready(function() {
     console.log('Prize History page loaded, setting up event handlers...'); // Debug log
     
@@ -496,7 +460,6 @@ $(document).ready(function() {
             text: $(this).text()
         });
     });
-    
     // Handle reset win record clicks
     $(document).on('click', '.reset-win-record', function(e) {
         e.preventDefault();
@@ -512,43 +475,36 @@ $(document).ready(function() {
         
         return false;
     });
-    
     // Handle combination links (row numbers and saved filenames)
     $(document).on('click', '.combination-link', function(e) {
         console.log('Combination link click event fired!'); // Debug log
         e.preventDefault();
         e.stopPropagation();
-        
         var $this = $(this);
         var filterId = $this.data('filter-id');
         var filename = $this.data('filename');
-        
         console.log('Combination link clicked:', {
             element: this,
             filterId: filterId,
             filename: filename,
             dataAttributes: $this.data()
         });
-        
         if (!filterId || !filename) {
             console.error('Missing data attributes:', filterId, filename);
             alert('Error: Missing filter data. Please refresh the page and try again.');
             return false;
         }
-        
         showProgressBar(filename);
         checkResults(filterId, filename);
         
         return false; // Ensure no default behavior
     });
-    
     // Original Prize History JavaScript
     // Handle per page change
     $('#per_page_select').change(function() {
         var per_page = $(this).val();
         loadPage(1, per_page);
     });
-    
     // Handle pagination clicks
     $('.pagination a').click(function(e) {
         e.preventDefault();
@@ -557,18 +513,15 @@ $(document).ready(function() {
             loadPage(page, $('#per_page_select').val());
         }
     });
-    
     function loadPage(page, per_page) {
         var offset = (page - 1) * per_page;
         
         // Show simple loading overlay
         var pageLoader = $('<div class="page-loading-overlay"><div class="page-loading-content"><i class="fa fa-spinner fa-spin fa-lg"></i><p style="margin-top: 0.5rem; margin-bottom: 0;">Updating...</p></div></div>');
         $('body').append(pageLoader);
-        
         // Show loading indicator in table
         var totalCols = 9 + <?php echo max(1, count($prize_columns)) + 1; ?>;
         $('#prizeHistoryTable tbody').html('<tr><td colspan="' + totalCols + '" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading Prize History Data...</td></tr>');
-        
         $.ajax({
             url: '<?php echo site_url("admin/prize/get_table_data"); ?>',
             type: 'POST',
@@ -583,13 +536,11 @@ $(document).ready(function() {
                     pageLoader.remove();
                     return;
                 }
-                
                 // Update URL parameters
                 var url = new URL(window.location);
                 url.searchParams.set('per_page', per_page);
                 url.searchParams.set('offset', offset);
                 window.history.pushState({}, '', url);
-                
                 // Reload the page to show updated data
                 location.reload();
             },
@@ -601,11 +552,9 @@ $(document).ready(function() {
         });
     }
 });
-
 // Global functions for inline handlers and jQuery events
 function resetWinRecord(filterId, filename) {
     console.log('resetWinRecord called with:', filterId, filename);
-    
     $.ajax({
         url: '<?php echo site_url("admin/prize/reset_win_record"); ?>',
         type: 'POST',
@@ -641,7 +590,6 @@ function resetWinRecord(filterId, filename) {
         }
     });
 }
-
 function showProgressBar(filename) {
     // Remove any existing progress modal
     $('#progressModal').remove();
@@ -665,16 +613,13 @@ function showProgressBar(filename) {
         '</div>' +
         '</div>' +
         '</div>');
-    
     $('body').append(progressModal);
-    
     // Show modal using Bootstrap 4 syntax
     $('#progressModal').modal({
         backdrop: 'static', 
         keyboard: false,
         show: true
     });
-    
     // Animate progress bar
     var progress = 0;
     var progressInterval = setInterval(function() {
@@ -683,7 +628,6 @@ function showProgressBar(filename) {
             .css('width', progress + '%')
             .attr('aria-valuenow', progress)
             .find('.sr-only').text(progress + '% Complete');
-        
         if (progress >= 100) {
             clearInterval(progressInterval);
             // Keep modal open briefly to show completion
@@ -696,10 +640,8 @@ function showProgressBar(filename) {
         }
     }, 120); // Slightly faster animation
 }
-
 function checkResults(filterId, filename) {
     console.log('checkResults called with:', filterId, filename);
-    
     $.ajax({
         url: '<?php echo site_url("admin/prize/check_results_progress"); ?>',
         type: 'POST',
@@ -712,7 +654,6 @@ function checkResults(filterId, filename) {
         },
         success: function(response) {
             console.log('Check results response:', response);
-            
             // Always hide and remove the progress modal first
             $('#progressModal').modal('hide');
             setTimeout(function() {
@@ -720,7 +661,6 @@ function checkResults(filterId, filename) {
                 $('.modal-backdrop').remove(); // Force remove any stuck backdrop
                 $('body').removeClass('modal-open'); // Remove modal-open class from body
             }, 500);
-            
             if (response.success) {
                 if (response.redirect) {
                     // Redirect to the combination tickets page
@@ -744,7 +684,6 @@ function checkResults(filterId, filename) {
                 responseText: xhr.responseText,
                 error: error
             });
-            
             // Always clean up modal on error too
             $('#progressModal').modal('hide');
             setTimeout(function() {
@@ -752,12 +691,10 @@ function checkResults(filterId, filename) {
                 $('.modal-backdrop').remove();
                 $('body').removeClass('modal-open');
             }, 500);
-            
             alert('Error checking results. Server responded with: ' + xhr.status + ' ' + xhr.statusText);
         }
     });
 }
-
 function showMessage(message, type) {
     var alertClass = type === 'success' ? 'alert-warning' : 'alert-danger';
     var alertHtml = '<div class="alert ' + alertClass + ' alert-dismissible" style="position: fixed; top: 70px; right: 20px; z-index: 9999; min-width: 300px;">' +
@@ -766,40 +703,31 @@ function showMessage(message, type) {
         '</button>' +
         message +
         '</div>';
-    
     $('body').append(alertHtml);
-    
     // Auto-hide after 5 seconds
     setTimeout(function() {
         $('.alert').fadeOut();
     }, 5000);
 }
-
 // Inline function for combination clicks (fallback)
 function handleCombinationClick(filterId, filename) {
     console.log('Inline combination click handler called:', filterId, filename);
-    
     if (!filterId || !filename) {
         console.error('Missing parameters:', filterId, filename);
         alert('Error: Missing filter data. Please refresh the page and try again.');
         return false;
     }
-    
     showProgressBar(filename);
     checkResults(filterId, filename);
 }
-
 function displayCombinationTickets(data) {
     console.log('Displaying combination tickets:', data);
-    
     // Ensure any modal backdrop is removed immediately
     $('.modal-backdrop').remove();
     $('body').removeClass('modal-open');
     $('#progressModal').remove();
-    
     // Remove any existing combination table
     $('#combinationTicketsContainer').remove();
-    
     // Create the combination tickets container
     var containerHtml = '<div id="combinationTicketsContainer" class="mt-4">' +
         '<div class="card shadow-sm">' +
@@ -807,7 +735,6 @@ function displayCombinationTickets(data) {
         '<h3 class="card-title text-center">' +
         '<i class="fa fa-list"></i> Combination Ticket Winners' +
         '</h3>' +
-        
         // Draw Information Header
         '<div class="alert alert-info">' +
         '<div class="row">' +
@@ -819,17 +746,14 @@ function displayCombinationTickets(data) {
         '<div class="col-md-6">' +
         '<strong>Total Tickets:</strong> ' + data.total_tickets.toLocaleString() + '<br>' +
         '<strong>Showing:</strong> First ' + data.showing_count + ' tickets<br>';
-    
     // Add drawn numbers if available
     if (data.draw_info && data.drawn_numbers.length > 0) {
         containerHtml += '<strong>Drawn Numbers:</strong> ' + data.drawn_numbers.join(' ') + '';
     } else {
         containerHtml += '<strong>Status:</strong> <span class="text-warning">No recent draw data</span>';
     }
-    
     containerHtml += '</div>' +
         '</div>';
-    
     // Add debug information if no tickets found
     if (!data.tickets || data.tickets.length === 0) {
         var expectedPicks = data.filter.lottery_picks || data.filter.pick_count || data.filter.N;
@@ -842,9 +766,7 @@ function displayCombinationTickets(data) {
             '<small class="text-muted">Check server logs for more detailed file path information.</small>' +
             '</div>';
     }
-    
     containerHtml += '</div>' +
-        
         // Tickets Table
         '<div class="table-responsive">' +
         '<table class="table table-bordered table-striped table-sm" id="combinationTicketsTable">' +
@@ -856,20 +778,16 @@ function displayCombinationTickets(data) {
         '</tr>' +
         '</thead>' +
         '<tbody>';
-    
     // Add ticket rows
     if (data.tickets && data.tickets.length > 0) {
         data.tickets.forEach(function(ticket, index) {
             var ticketNumbers = ticket.numbers ? ticket.numbers.map(function(num) {
                 return String(num).padStart(2, '0');
             }).join(' ') : 'N/A';
-            
             var winResult = ticket.win_result || 'No Match';
-            
             // Add row styling based on win result
             var rowClass = '';
             var badgeClass = 'badge-secondary';
-            
             if (winResult.includes('Matches') && !winResult.includes('No Match')) {
                 rowClass = 'table-success';
                 badgeClass = 'badge-success';
@@ -877,7 +795,6 @@ function displayCombinationTickets(data) {
                 rowClass = 'table-warning';
                 badgeClass = 'badge-warning';
             }
-            
             containerHtml += '<tr class="' + rowClass + '">' +
                 '<td class="text-center">' + (index + 1) + '</td>' +
                 '<td class="text-center combination-numbers">' + ticketNumbers + '</td>' +
@@ -893,31 +810,25 @@ function displayCombinationTickets(data) {
             '</td>' +
             '</tr>';
     }
-    
     containerHtml += '</tbody>' +
         '</table>' +
         '</div>' +
-        
         // Close Button
         '<div class="text-center mt-3">' +
         '<button type="button" class="btn btn-secondary" onclick="hideCombinationTickets()">' +
         '<i class="fa fa-times"></i> Close Combination Table' +
         '</button>' +
         '</div>' +
-        
         '</div>' +
         '</div>' +
         '</div>';
-    
     // Add the container after the prize history card
     $('.content .container .card:first').after(containerHtml);
-    
     // Scroll to the combination table
     $('html, body').animate({
         scrollTop: $('#combinationTicketsContainer').offset().top - 20
     }, 800);
 }
-
 function hideCombinationTickets() {
     $('#combinationTicketsContainer').fadeOut(500, function() {
         $(this).remove();
