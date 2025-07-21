@@ -188,8 +188,9 @@ class Predictions extends Admin_Controller {
 			$this->data['subview'] = 'admin/dashboard/predictions/file_select';
 		}
 		else
-		{		$file_name = $this->data['lottery']->generate[0]->file_name; // Get the single file name
-		$file_path = $this->combination_files_m->full_path($file_name);
+		{		
+			$file_name = $this->data['lottery']->generate[0]->file_name; // Get the single file name
+			$file_path = $this->combination_files_m->full_path($file_name);
 			if (file_exists($file_path)) {
 				$file_content = file_get_contents($file_path); // Read file content
 				$is_generated = !empty(trim($file_content)); // Check if file content is not empty
@@ -522,9 +523,16 @@ class Predictions extends Admin_Controller {
 		// Before passing $combination_files to the view
 		if (!empty($this->data['combination_files'])) {
 			 // Transform the combination files to include id|filename in value
-			foreach ($this->data['combination_files'] as &$file) {
-				$file['value'] = $file['id'] . '|' . $file['file_name']; // e.g., "246|060828"
-				$file['display'] = $file['file_name']; // Keep original filename for display
+			foreach ($this->data['combination_files'] as $index => &$file) {
+				$file_path = $this->combination_files_m->full_path($file['file_name']);
+				$file_content = file_get_contents($file_path); // Read file content
+				if (!empty(trim($file_content))) {
+					$file['value'] = $file['id'] . '|' . $file['file_name']; // e.g., "246|060828"
+					$file['display'] = $file['file_name']; // Keep original filename for display
+				}
+				else {
+					unset($this->data['combination_files'][$index]); // Remove file with no content
+				}
 			}
 			usort($this->data['combination_files'], function($a, $b) {
 				// Extract the number part from the file name (assuming format like "06120500.txt")
@@ -533,6 +541,7 @@ class Predictions extends Admin_Controller {
 				return $numA - $numB;
 			});
 	}
+	
 	// Fetch H-W-C, Followers, and Friends data
 	$this->data['h_w_c'] = $this->lottery_data_m->get_h_w_c($id);
 	$h_w_c_group = $this->lottery_statistics_m->get_h_w_c_range($id);
