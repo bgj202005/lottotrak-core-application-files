@@ -219,7 +219,6 @@
                                                     <button type="button" class="btn btn-link combination-link p-0" 
                                                             data-filter-id="<?php echo $record->id; ?>" 
                                                             data-filename="<?php echo htmlspecialchars($record->saved_filename); ?>"
-                                                            onclick="handleCombinationClick(<?php echo $record->id; ?>, '<?php echo htmlspecialchars($record->saved_filename); ?>')"
                                                             style="color: #007bff; font-weight: bold; text-decoration: none;">
                                                         <?php echo sprintf('%02d', $record->row_number); ?>
                                                     </button>
@@ -231,7 +230,6 @@
                                                     <button type="button" class="btn btn-link combination-link p-0" 
                                                             data-filter-id="<?php echo $record->id; ?>" 
                                                             data-filename="<?php echo htmlspecialchars($record->saved_filename); ?>"
-                                                            onclick="handleCombinationClick(<?php echo $record->id; ?>, '<?php echo htmlspecialchars($record->saved_filename); ?>')"
                                                             style="color: #007bff; font-weight: bold; text-decoration: none;">
                                                         <?php echo htmlspecialchars($record->saved_filename); ?>
                                                     </button>
@@ -434,7 +432,6 @@
 // Global error handler for modal-related issues
 window.onerror = function(msg, url, lineNo, columnNo, error) {
     if (msg.includes('modal is not a function')) {
-        console.warn('Modal error caught and handled:', msg);
         // Clean up any modal-related elements
         $('#progressModal, #progressOverlay').remove();
         $('.modal-backdrop').remove();
@@ -443,30 +440,10 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
     }
     return false; // Allow other errors to be handled normally
 };
-
-// Check if jQuery is loaded
-if (typeof jQuery === 'undefined') {
-    console.error('jQuery is not loaded!');
-} else {
-    console.log('jQuery version:', jQuery.fn.jquery);
-    console.log('jQuery AJAX support:', typeof jQuery.ajax !== 'undefined');
-}
-
-// Check if Bootstrap modal is available
-if (typeof $.fn.modal === 'undefined') {
-    console.log('Bootstrap JavaScript is not loaded properly!');
-    console.log('Using fallback UI components (no Bootstrap modal dependency)');
-} else {
-    console.log('Bootstrap modal available');
-}
 $(document).ready(function() {
-    console.log('Prize History page loaded, setting up event handlers...');
-    
     // Safety check: Override modal function if Bootstrap is not available
     if (typeof $.fn.modal === 'undefined') {
-        console.warn('Bootstrap modal not available, creating mock function');
         $.fn.modal = function(action) {
-            console.log('Mock modal called with action:', action);
             if (action === 'hide') {
                 $(this).remove();
             }
@@ -474,27 +451,12 @@ $(document).ready(function() {
         };
     }
     
-    // Test if elements exist
-    console.log('Found combination links:', $('.combination-link').length);
-    console.log('Found reset buttons:', $('.reset-win-record').length);
-    
-    // Log all combination links and their data
-    $('.combination-link').each(function(index) {
-        console.log('Link ' + index + ':', {
-            element: this,
-            filterId: $(this).data('filter-id'),
-            filename: $(this).data('filename'),
-            text: $(this).text()
-        });
-    });
     // Handle reset win record clicks
     $(document).on('click', '.reset-win-record', function(e) {
         e.preventDefault();
         e.stopPropagation();
         var filterId = $(this).data('filter-id');
         var filename = $(this).data('filename');
-        
-        console.log('Reset button clicked:', filterId, filename); // Debug log
         
         if (confirm('Are you sure you want to reset the win record for ' + filename + '?')) {
             resetWinRecord(filterId, filename);
@@ -504,27 +466,22 @@ $(document).ready(function() {
     });
     // Handle combination links (row numbers and saved filenames)
     $(document).on('click', '.combination-link', function(e) {
-        console.log('Combination link click event fired!'); // Debug log
         e.preventDefault();
         e.stopPropagation();
+        
         var $this = $(this);
-        var filterId = $this.data('filter-id');
-        var filename = $this.data('filename');
-        console.log('Combination link clicked:', {
-            element: this,
-            filterId: filterId,
-            filename: filename,
-            dataAttributes: $this.data()
-        });
+        var filterId = $this.data('filter-id') || $this.attr('data-filter-id');
+        var filename = $this.data('filename') || $this.attr('data-filename');
+        
         if (!filterId || !filename) {
-            console.error('Missing data attributes:', filterId, filename);
             alert('Error: Missing filter data. Please refresh the page and try again.');
             return false;
         }
+        
         showProgressBar(filename);
         checkResults(filterId, filename);
         
-        return false; // Ensure no default behavior
+        return false;
     });
     // Original Prize History JavaScript
     // Handle per page change
@@ -581,7 +538,6 @@ $(document).ready(function() {
 });
 // Global functions for inline handlers and jQuery events
 function resetWinRecord(filterId, filename) {
-    console.log('resetWinRecord called with:', filterId, filename);
     $.ajax({
         url: '<?php echo site_url("admin/prize/reset_win_record"); ?>',
         type: 'POST',
@@ -589,11 +545,7 @@ function resetWinRecord(filterId, filename) {
             filter_id: filterId
         },
         dataType: 'json',
-        beforeSend: function() {
-            console.log('Sending reset request...');
-        },
         success: function(response) {
-            console.log('Reset response:', response);
             if (response.success) {
                 // Show success message
                 showMessage(response.message, 'success');
@@ -607,138 +559,130 @@ function resetWinRecord(filterId, filename) {
             }
         },
         error: function(xhr, status, error) {
-            console.error('Reset AJAX Error:', {
-                status: xhr.status,
-                statusText: xhr.statusText,
-                responseText: xhr.responseText,
-                error: error
-            });
             alert('Error resetting win record. Server responded with: ' + xhr.status + ' ' + xhr.statusText);
         }
     });
 }
 function showProgressBar(filename) {
-    console.log('showProgressBar called with filename:', filename);
-    
     // Remove any existing progress overlay or modal
     $('#progressOverlay').remove();
     $('#progressModal').remove();
     $('.modal-backdrop').remove();
     $('body').removeClass('modal-open');
     
-    try {
-        // Check if Bootstrap modal is available
-        if (typeof $.fn.modal !== 'undefined') {
-            console.log('Using Bootstrap modal for progress');
-            // Create Bootstrap modal
-            var modalHtml = '<div class="modal fade" id="progressModal" tabindex="-1" role="dialog">' +
-                '<div class="modal-dialog modal-sm" role="document">' +
-                '<div class="modal-content">' +
-                '<div class="modal-body text-center">' +
-                '<h5>Checking Results</h5>' +
-                '<p>Checking Results for <strong>' + filename + '</strong></p>' +
-                '<div class="progress">' +
-                '<div id="progressBarFill" class="progress-bar progress-bar-striped progress-bar-animated" ' +
-                'role="progressbar" style="width: 0%"></div>' +
-                '</div>' +
-                '<p class="mt-2"><small>Please wait while we process your request...</small></p>' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '</div>';
+    // Create professional progress overlay with original green styling
+    var progressOverlay = $('<div id="progressOverlay" style="' +
+        'position: fixed; top: 0; left: 0; width: 100%; height: 100%; ' +
+        'background: rgba(0, 0, 0, 0.6); z-index: 10000; ' +
+        'display: flex; align-items: center; justify-content: center;">' +
+        '<div style="' +
+        'background: white; padding: 40px; border-radius: 12px; ' +
+        'box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); text-align: center; ' +
+        'min-width: 420px; max-width: 500px; border: 1px solid #e0e0e0;">' +
+        '<div style="margin-bottom: 25px;">' +
+        '<i class="fa fa-search" style="font-size: 2.5em; color: #28a745; margin-bottom: 15px;"></i>' +
+        '<h4 style="margin: 0; color: #2c3e50; font-weight: 600;">Processing Results</h4>' +
+        '</div>' +
+        '<div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #28a745;">' +
+        '<h6 style="margin: 0 0 8px 0; color: #495057; font-weight: 500;">Filter File:</h6>' +
+        '<strong style="color: #28a745; font-size: 1.1em;">' + filename + '</strong>' +
+        '</div>' +
+        '<div id="progressStageInfo" style="margin-bottom: 20px; font-size: 14px; color: #6c757d; min-height: 40px;">' +
+        '<div><i class="fa fa-hourglass-start" style="color: #ffc107;"></i> <span id="progressStageText">Initializing request...</span></div>' +
+        '</div>' +
+        '<div style="' +
+        'height: 30px; background: #e9ecef; border-radius: 15px; ' +
+        'overflow: hidden; margin: 20px 0; position: relative; border: 1px solid #dee2e6;">' +
+        '<div id="progressBarFill" style="' +
+        'height: 100%; background: linear-gradient(45deg, #28a745, #20c997, #28a745); ' +
+        'width: 0%; transition: width 0.4s ease; border-radius: 15px; ' +
+        'position: relative; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">' +
+        '<div style="' +
+        'position: absolute; top: 0; left: -100%; width: 100%; height: 100%; ' +
+        'background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent); ' +
+        'animation: shimmer 2s infinite;">' +
+        '</div>' +
+        '</div>' +
+        '</div>' +
+        '<div style="display: flex; justify-content: space-between; font-size: 12px; color: #6c757d; margin-top: 10px;">' +
+        '<span>Progress: <span id="progressPercent">0%</span></span>' +
+        '<span id="progressETA">Estimated: 3-5 seconds</span>' +
+        '</div>' +
+        '<p style="margin: 15px 0 0 0; font-size: 13px; color: #6c757d;">' +
+        '<i class="fa fa-info-circle" style="color: #17a2b8;"></i> ' +
+        'Please wait while we analyze your combination data...' +
+        '</p>' +
+        '</div>' +
+        '</div>');
+    
+    // Add enhanced shimmer animation styles
+    if (!$('#enhancedShimmerStyles').length) {
+        $('head').append('<style id="enhancedShimmerStyles">' +
+            '@keyframes shimmer { 0% { left: -100%; } 100% { left: 100%; } }' +
+            '@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }' +
+            '.fa-hourglass-start { animation: pulse 1.5s infinite; }' +
+            '</style>');
+    }
+    
+    $('body').append(progressOverlay);
+    
+    // Detailed progress stages with realistic timing
+    var progressStages = [
+        { percent: 15, text: "Validating filter permissions...", icon: "fa-shield-alt" },
+        { percent: 30, text: "Locating combination file...", icon: "fa-search" },
+        { percent: 50, text: "Loading draw data...", icon: "fa-download" },
+        { percent: 70, text: "Analyzing combinations...", icon: "fa-calculator" },
+        { percent: 85, text: "Processing win results...", icon: "fa-trophy" },
+        { percent: 95, text: "Preparing display...", icon: "fa-table" },
+        { percent: 100, text: "Complete! Redirecting...", icon: "fa-check-circle" }
+    ];
+    
+    var currentStage = 0;
+    var progress = 0;
+    
+    var progressInterval = setInterval(function() {
+        if (currentStage < progressStages.length) {
+            var stage = progressStages[currentStage];
+            var targetPercent = stage.percent;
             
-            $('body').append(modalHtml);
-            $('#progressModal').modal({
-                backdrop: 'static',
-                keyboard: false
-            });
-            
-            // Animate progress bar
-            var progress = 0;
-            var progressInterval = setInterval(function() {
-                progress += 15;
-                $('#progressBarFill').css('width', progress + '%');
+            // Smooth progress increment towards target
+            if (progress < targetPercent) {
+                progress += Math.max(1, Math.floor((targetPercent - progress) / 3));
+                if (progress > targetPercent) progress = targetPercent;
                 
-                if (progress >= 100) {
-                    clearInterval(progressInterval);
-                    setTimeout(function() {
-                        $('#progressModal').modal('hide');
-                        setTimeout(function() {
-                            $('#progressModal').remove();
-                        }, 500);
-                    }, 800);
+                $('#progressBarFill').css('width', progress + '%');
+                $('#progressPercent').text(progress + '%');
+                
+                // Update stage info when reaching stage target
+                if (progress >= targetPercent) {
+                    $('#progressStageText').html('<i class="fa ' + stage.icon + '" style="color: #28a745;"></i> ' + stage.text);
+                    
+                    // Update ETA
+                    var remainingStages = progressStages.length - currentStage - 1;
+                    var eta = remainingStages > 0 ? (remainingStages * 0.8).toFixed(1) + ' seconds' : 'Almost done...';
+                    $('#progressETA').text('Estimated: ' + eta);
+                    
+                    currentStage++;
                 }
-            }, 120);
-            
-        } else {
-            console.log('Bootstrap not available, using CSS overlay fallback');
-            // Fallback to CSS overlay (current implementation)
-            
-            // Create simple CSS overlay (no Bootstrap modal dependency)
-            var progressOverlay = $('<div id="progressOverlay" style="' +
-                'position: fixed; top: 0; left: 0; width: 100%; height: 100%; ' +
-                'background: rgba(0, 0, 0, 0.5); z-index: 10000; ' +
-                'display: flex; align-items: center; justify-content: center;">' +
-                '<div style="' +
-                'background: white; padding: 30px; border-radius: 8px; ' +
-                'box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); text-align: center; ' +
-                'min-width: 300px; max-width: 400px;">' +
-                '<h5 style="margin-bottom: 20px; color: #333;">Checking Results</h5>' +
-                '<h6 style="margin-bottom: 20px; color: #666;">Checking Results for <strong>' + filename + '</strong></h6>' +
-                '<div style="' +
-                'height: 25px; background: #f0f0f0; border-radius: 12px; ' +
-                'overflow: hidden; margin: 20px 0; position: relative;">' +
-                '<div id="progressBarFill" style="' +
-                'height: 100%; background: linear-gradient(45deg, #007bff, #0056b3); ' +
-                'width: 0%; transition: width 0.3s ease; border-radius: 12px; ' +
-                'position: relative; overflow: hidden;">' +
-                '<div style="' +
-                'position: absolute; top: 0; left: -100%; width: 100%; height: 100%; ' +
-                'background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); ' +
-                'animation: shimmer 2s infinite;">' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '<p style="margin: 10px 0 0 0; font-size: 12px; color: #888;">Please wait while we process your request...</p>' +
-                '</div>' +
-                '</div>');
-            
-            // Add shimmer animation styles if not already present
-            if (!$('#shimmerStyles').length) {
-                $('head').append('<style id="shimmerStyles">' +
-                    '@keyframes shimmer { 0% { left: -100%; } 100% { left: 100%; } }' +
-                    '</style>');
             }
             
-            $('body').append(progressOverlay);
-            
-            // Animate progress bar
-            var progress = 0;
-            var progressInterval = setInterval(function() {
-                progress += 15; // Faster progress
-                $('#progressBarFill').css('width', progress + '%');
+            // Complete when reaching 100%
+            if (progress >= 100) {
+                clearInterval(progressInterval);
+                $('#progressStageText').html('<i class="fa fa-check-circle" style="color: #28a745;"></i> Processing complete!');
+                $('#progressETA').text('Redirecting...');
                 
-                if (progress >= 100) {
-                    clearInterval(progressInterval);
-                    // Keep overlay open briefly to show completion
-                    setTimeout(function() {
-                        $('#progressOverlay').fadeOut(300, function() {
-                            $(this).remove();
-                        });
-                    }, 800);
-                }
-            }, 120); // Slightly faster animation
+                // Keep overlay visible briefly to show completion
+                setTimeout(function() {
+                    $('#progressOverlay').fadeOut(400, function() {
+                        $(this).remove();
+                    });
+                }, 1200);
+            }
         }
-        
-    } catch (error) {
-        console.error('Error in showProgressBar:', error);
-        // Fallback to simple alert if everything else fails
-        console.log('Fallback: Using simple notification');
-    }
+    }, 200); // Smoother animation with shorter intervals
 }
 function checkResults(filterId, filename) {
-    console.log('checkResults called with:', filterId, filename);
-    
     try {
         $.ajax({
             url: '<?php echo site_url("admin/prize/check_results_progress"); ?>',
@@ -747,80 +691,67 @@ function checkResults(filterId, filename) {
                 filter_id: filterId
             },
             dataType: 'json',
-            beforeSend: function() {
-                console.log('Sending check results request...');
-            },
+            timeout: 30000, // 30 second timeout
             success: function(response) {
-                console.log('Check results response:', response);
                 
-                // Hide progress overlay/modal safely
-                try {
-                    if (typeof $.fn.modal !== 'undefined' && $('#progressModal').length) {
-                        $('#progressModal').modal('hide');
-                        setTimeout(function() {
-                            $('#progressModal').remove();
-                        }, 500);
-                    } else {
-                        $('#progressOverlay').fadeOut(300, function() {
-                            $(this).remove();
-                        });
-                    }
-                } catch (error) {
-                    console.warn('Error hiding progress display:', error);
-                    $('#progressOverlay, #progressModal').remove();
-                }
+                // Hide progress overlay safely
+                setTimeout(function() {
+                    $('#progressOverlay').fadeOut(400, function() {
+                        $(this).remove();
+                    });
+                }, 800);
                 
                 if (response.success) {
                     if (response.redirect) {
+                        // Update progress to show redirection
+                        $('#progressStageText').html('<i class="fa fa-external-link-alt" style="color: #28a745;"></i> Redirecting to combination tickets...');
+                        
                         // Redirect to the combination tickets page
                         setTimeout(function() {
                             window.location.href = response.redirect;
-                        }, 400);
+                        }, 1500);
                     } else if (response.data) {
                         // Display the combination ticket table below the prize history
                         setTimeout(function() {
                             displayCombinationTickets(response.data);
-                        }, 400);
+                        }, 1000);
                     }
                 } else {
                     alert('Error: ' + response.message);
                 }
             },
             error: function(xhr, status, error) {
-                console.error('Check Results AJAX Error:', {
-                    status: xhr.status,
-                    statusText: xhr.statusText,
-                    responseText: xhr.responseText,
-                    error: error
+                // Hide progress overlay safely on error
+                $('#progressOverlay').fadeOut(300, function() {
+                    $(this).remove();
                 });
                 
-                // Hide progress overlay/modal safely on error
-                try {
-                    if (typeof $.fn.modal !== 'undefined' && $('#progressModal').length) {
-                        $('#progressModal').modal('hide');
-                        setTimeout(function() {
-                            $('#progressModal').remove();
-                        }, 500);
-                    } else {
-                        $('#progressOverlay').fadeOut(300, function() {
-                            $(this).remove();
-                        });
-                    }
-                } catch (modalError) {
-                    console.warn('Error hiding progress display on error:', modalError);
-                    $('#progressOverlay, #progressModal').remove();
+                // Provide detailed error information
+                var errorMessage = 'Error checking results. ';
+                
+                if (xhr.status === 0) {
+                    errorMessage += 'Unable to connect to server. Please check your internet connection and server availability.';
+                } else if (xhr.status === 404) {
+                    errorMessage += 'Server endpoint not found (404). The check_results_progress method may not exist.';
+                } else if (xhr.status === 500) {
+                    errorMessage += 'Internal server error (500). Please check server logs.';
+                } else if (xhr.status === 403) {
+                    errorMessage += 'Access forbidden (403). Please check your permissions.';
+                } else if (status === 'timeout') {
+                    errorMessage += 'Request timed out. The server may be overloaded.';
+                } else if (status === 'parsererror') {
+                    errorMessage += 'Response parsing error. Server may have returned invalid JSON.';
+                } else {
+                    errorMessage += 'Server responded with ' + xhr.status + ' ' + xhr.statusText;
                 }
                 
-                alert('Error checking results. Server responded with: ' + xhr.status + ' ' + xhr.statusText);
+                alert(errorMessage);
             }
         });
         
     } catch (error) {
-        console.error('Error in checkResults function:', error);
         // Clean up any progress displays
-        $('#progressOverlay, #progressModal').remove();
-        $('.modal-backdrop').remove();
-        $('body').removeClass('modal-open');
+        $('#progressOverlay').remove();
         alert('An error occurred while checking results. Please try again.');
     }
 }
@@ -840,18 +771,17 @@ function showMessage(message, type) {
 }
 // Inline function for combination clicks (fallback)
 function handleCombinationClick(filterId, filename) {
-    console.log('Inline combination click handler called:', filterId, filename);
     if (!filterId || !filename) {
-        console.error('Missing parameters:', filterId, filename);
         alert('Error: Missing filter data. Please refresh the page and try again.');
         return false;
     }
+    
     showProgressBar(filename);
     checkResults(filterId, filename);
+    
+    return false;
 }
 function displayCombinationTickets(data) {
-    console.log('Displaying combination tickets:', data);
-    
     // Ensure any modal or overlay is properly removed
     try {
         if (typeof $.fn.modal !== 'undefined') {
@@ -862,7 +792,7 @@ function displayCombinationTickets(data) {
         $('.modal-backdrop').remove();
         $('body').removeClass('modal-open');
     } catch (error) {
-        console.warn('Error cleaning up modal/overlay:', error);
+        // Silent cleanup
     }
     
     // Remove any existing combination table
