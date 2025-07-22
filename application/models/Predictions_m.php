@@ -1909,129 +1909,104 @@ class Predictions_m extends MY_Model
 	private function apply_other_filters($combo, $filter_select)
 	{
 		// Example filter implementations - expand as needed
-		
 		// Filter by winning sums
-		if (!empty($filter_select['selected_winning_sums']) && $filter_select['selected_winning_sums'] !== 'ALL') {
+		if ($filter_select['selected_winning_sums'] !== 'ALL') {
 			$combo_sum = array_sum(array_values($combo));
 			$winning_sums = is_array($filter_select['selected_winning_sums']) 
 				? $filter_select['selected_winning_sums'] 
 				: [$filter_select['selected_winning_sums']];
-			
 			if (!in_array($combo_sum, $winning_sums)) {
 				return false;
 			}
 		}
-		
 		// Filter by repeaters
-		if (!empty($filter_select['selected_repeaters']) && $filter_select['selected_repeaters'] !== 'ALL') {
+		if ($filter_select['selected_repeaters'] !== 'ALL') {
 			$drawn = $filter_select['drawn'] ?? 0;
 			$last_drawn = $filter_select['lottery_last_drawn'] ?? [];
 			$repeater_count = $this->is_repeater($combo, $drawn, $last_drawn);
-			
 			$expected_repeaters = (int)$filter_select['selected_repeaters'];
 			if ($repeater_count !== $expected_repeaters) {
 				return false;
 			}
 		}
-		
 		// Filter by consecutive numbers
-		if (!empty($filter_select['selected_consecutives']) && $filter_select['selected_consecutives'] !== 'ALL') {
+		if ($filter_select['selected_consecutives'] !== 'ALL') {
 			$drawn = $filter_select['drawn'] ?? 0;
 			$consecutive_count = $this->has_consecutive($combo, $drawn);
-			
 			$expected_consecutives = (int)$filter_select['selected_consecutives'];
 			if ($consecutive_count !== $expected_consecutives) {
 				return false;
 			}
 		}
-		
 		// Filter by digit sums (selected_winning_digits)
-		if (!empty($filter_select['selected_winning_digits']) && $filter_select['selected_winning_digits'] !== 'ALL') {
+ 		if ($filter_select['selected_winning_digits'] !== 'ALL') {
 			$drawn = $filter_select['drawn'] ?? 0;
 			$combo_digit_sum = $this->statistics_m->lottery_draw_sumdigits($combo, $drawn);
-			
 			$selected_digit_sum = (int)$filter_select['selected_winning_digits'];
 			if ($combo_digit_sum !== $selected_digit_sum) {
 				return false;
 			}
 		}
-		
 		// Filter by odd/even distribution (selected_parity)
-		if (!empty($filter_select['selected_parity']) && $filter_select['selected_parity'] !== 'ALL') {
+		if ($filter_select['selected_parity'] !== 'ALL') {
 			$drawn = $filter_select['drawn'] ?? 0;
 			$odd_count = $this->statistics_m->lottery_draw_odd($combo, $drawn);
 			$even_count = $this->statistics_m->lottery_draw_even($combo, $drawn);
-			
 			// Parse the selected parity format (e.g., "4-3" for 4 odd, 3 even)
 			$parity_parts = explode('-', $filter_select['selected_parity']);
 			if (count($parity_parts) === 2) {
 				$expected_odd = (int)$parity_parts[0];
 				$expected_even = (int)$parity_parts[1];
-				
 				if ($odd_count !== $expected_odd || $even_count !== $expected_even) {
 					return false;
 				}
 			}
 		}
-		
 		// Filter by decades (selected_decades)
-		if (!empty($filter_select['selected_decades']) && $filter_select['selected_decades'] !== 'ALL') {
+		if ($filter_select['selected_decades'] !== 'ALL') {
 			$drawn = $filter_select['drawn'] ?? 0;
 			$decade_count = $this->count_decade_numbers($combo, $drawn);
-			
 			$expected_decades = (int)$filter_select['selected_decades'];
 			if ($decade_count !== $expected_decades) {
 				return false;
 			}
 		}
-		
 		// Filter by last digits (selected_last_digits)
-		if (!empty($filter_select['selected_last_digits']) && $filter_select['selected_last_digits'] !== 'ALL') {
+		if ($filter_select['selected_last_digits'] !== 'ALL') {
 			$drawn = $filter_select['drawn'] ?? 0;
 			$last_digit_count = $this->count_last_digit_numbers($combo, $drawn);
-			
 			$expected_last_digits = (int)$filter_select['selected_last_digits'];
 			if ($last_digit_count !== $expected_last_digits) {
 				return false;
 			}
 		}
-		
 		// Filter by number range (selected_number_range)
-		if (!empty($filter_select['selected_number_range']) && $filter_select['selected_number_range'] !== 'ALL') {
+		if ($filter_select['selected_number_range'] !== 'ALL') {
 			$combo_numbers = array_values($combo);
 			$combo_range = !empty($combo_numbers) ? max($combo_numbers) - min($combo_numbers) : 0;
-			
 			$expected_range = (int)$filter_select['selected_number_range'];
 			if ($combo_range !== $expected_range) {
 				return false;
 			}
 		}
-		
 		// Filter by adjacents (selected_adjacents)
-		if (!empty($filter_select['selected_adjacents']) && $filter_select['selected_adjacents'] !== 'ALL') {
+		if ($filter_select['selected_adjacents'] !== 'ALL') {
 			$ball_position = (int)$filter_select['selected_adjacents'];
-			
 			// Calculate the actual difference between the specified adjacent balls
 			$actual_difference = $this->calculate_adjacent_difference($combo, $ball_position);
-			
 			// For now, we'll get the expected difference from the adjacents data if available
 			// This will need to be enhanced to get the expected difference from the lottery highlights
 			if ($actual_difference !== null) {
 				// The expected difference should come from the adjacents dropdown selection
 				// For now, we'll implement a basic version and enhance it as needed
 				$expected_difference = $this->get_expected_adjacent_difference($filter_select, $ball_position);
-				
 				if ($expected_difference !== null && $actual_difference !== $expected_difference) {
 					return false;
 				}
 			}
 		}
-		
 		return true;
 	}
-
-	// ...existing code...
-	
 	/**
 	 * Calculates statistics for a given combination array.
 	 *
@@ -2516,11 +2491,10 @@ class Predictions_m extends MY_Model
 		];
 		
 		foreach ($filter_keys as $key) {
-			if (!empty($filter_select[$key]) && $filter_select[$key] !== 'ALL') {
+			if ($filter_select[$key] !== 'ALL') {
 				return true;
 			}
 		}
-		
 		return false;
 	}
 	/**
