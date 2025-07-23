@@ -479,7 +479,7 @@ class Predictions extends Admin_Controller {
 	{
 		$this->data['message'] = '';			// Defaulted to No Error Messages
 		$this->data['lottery'] = $this->lotteries_m->get($id);
-		$this->data['lottery']->generate = $this->predictions_m->lottery_combination_files($this->data['lottery']->balls_drawn); //$this->predictions_m->all_combination_files();
+		$this->data['lottery']->generate = $this->combination_files_m->lottery_combination_files($this->data['lottery']->balls_drawn); //$this->predictions_m->all_combination_files();
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/files'.($id ? '/'.$id : ''));
@@ -635,7 +635,7 @@ class Predictions extends Admin_Controller {
 		$this->data['message'] = '';
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		$filename = (!empty($this->input->post('file')) ? $this->input->post('file') : $this->uri->segment(5));
-		$this->data['file'] = $this->predictions_m->lottery_combination_record($filename);
+		$this->data['file'] = $this->combination_files_m->lottery_combination_record($filename);
 		if(!empty($this->uri->segment(6))) 
 		{
 			$new_range = $this->uri->segment(6,0); // Return segment range
