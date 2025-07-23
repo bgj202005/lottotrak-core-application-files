@@ -1338,12 +1338,17 @@ class Predictions extends Admin_Controller {
 				$this->data['active'] = $this->combination_filters_m->get_active_flag($combo_id);	
 				
 				// Get filter record ID for Prize controller navigation
+				// This should work for both active and expired filters
 				$this->data['filter_record_id'] = NULL;
-				if ($combo_id && $this->data['combo_id']) {
+				if ($combo_id) {
 					// Look up the filter record by combo_id to get the actual filter ID
+					// This works regardless of active/expired status
 					$saved_settings = $this->combination_filters_m->get_saved_settings($combo_id);
 					if ($saved_settings && isset($saved_settings['id'])) {
 						$this->data['filter_record_id'] = $saved_settings['id'];
+						log_message('info', "Predictions::combination - Found filter_record_id: {$saved_settings['id']} for combo_id: {$combo_id}, active: " . ($this->data['active'] ? 'true' : 'false'));
+					} else {
+						log_message('info', "Predictions::combination - No saved settings found for combo_id: {$combo_id}");
 					}
 				}
 				
@@ -1517,6 +1522,22 @@ class Predictions extends Admin_Controller {
     		$combo_id = $this->session->userdata('combination_file_id'); // Get combo_id
 			$this->data['combo_id'] = ($this->lottery_data_m->validate_combo_id($combo_id) ? $combo_id : NULL); 
 			$this->data['active'] = $this->combination_filters_m->get_active_flag($combo_id);
+			
+			// Get filter record ID for Prize controller navigation
+			// This should work for both active and expired filters
+			$this->data['filter_record_id'] = NULL;
+			if ($combo_id) {
+				// Look up the filter record by combo_id to get the actual filter ID
+				// This works regardless of active/expired status
+				$saved_settings = $this->combination_filters_m->get_saved_settings($combo_id);
+				if ($saved_settings && isset($saved_settings['id'])) {
+					$this->data['filter_record_id'] = $saved_settings['id'];
+					log_message('info', "Predictions::combination - Found filter_record_id: {$saved_settings['id']} for combo_id: {$combo_id}, active: " . ($this->data['active'] ? 'true' : 'false') . " (session data path)");
+				} else {
+					log_message('info', "Predictions::combination - No saved settings found for combo_id: {$combo_id} (session data path)");
+				}
+			}
+			
 			// Get filename and CCCC data for futures view
 			if ($combo_id && $this->data['combo_id']) {
 				$filename_cccc_data = $this->lottery_data_m->get_combination_filename_cccc($combo_id);
@@ -2130,6 +2151,10 @@ class Predictions extends Admin_Controller {
 						];
 						
 						log_message('info', "Refresh method: Displaying existing filtered tickets, page {$page} of {$total_pages}, showing {$per_page} tickets per page");
+						
+						// Set filter record ID for Prize controller navigation
+						$this->data['filter_record_id'] = $record_id;
+						log_message('info', "Refresh method: Set filter_record_id to {$record_id} for dollar icon navigation");
 						
 						// Load the futures view with existing filtered tickets
 						$this->data['subview'] = 'admin/dashboard/predictions/futures';

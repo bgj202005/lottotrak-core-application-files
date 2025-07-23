@@ -1261,9 +1261,20 @@
         // Use the filter record ID if available, otherwise show error
         <?php if (!empty($filter_record_id)): ?>
             var filterRecordId = <?= $filter_record_id ?>;
-            console.log('Navigating to combination winners with filter record ID:', filterRecordId);
-            // Add referrer parameter to indicate we came from prediction futures
-            window.location.href = '<?= base_url() ?>admin/prize/view_combination_tickets/' + filterRecordId + '?referrer=futures&lottery_id=<?= $lottery->id ?>&combo_id=<?= $combo_id ?>';
+            var isActive = <?= $active ? 'true' : 'false' ?>;
+            
+            console.log('Navigating to combination winners with filter record ID:', filterRecordId, 'Active:', isActive);
+            
+            // Show warning for expired filters but still allow navigation
+            if (!isActive) {
+                if (confirm('This filter is EXPIRED. You can still view the combination ticket winners, but results will be based on historical data. Continue?')) {
+                    // Add referrer parameter to indicate we came from prediction futures
+                    window.location.href = '<?= base_url() ?>admin/prize/view_combination_tickets/' + filterRecordId + '?referrer=futures&lottery_id=<?= $lottery->id ?>&combo_id=<?= $combo_id ?>';
+                }
+            } else {
+                // Active filter - navigate directly
+                window.location.href = '<?= base_url() ?>admin/prize/view_combination_tickets/' + filterRecordId + '?referrer=futures&lottery_id=<?= $lottery->id ?>&combo_id=<?= $combo_id ?>';
+            }
         <?php else: ?>
             alert('No saved filter found. Please save filtered tickets first before viewing combination winners.');
         <?php endif; ?>
