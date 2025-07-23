@@ -1336,6 +1336,17 @@ class Predictions extends Admin_Controller {
 				$this->data['selected_wheeling'] = $combination_file; 			// preset value for the Combination File (wheeling file)
 				$this->data['combo_id'] = ($this->lottery_data_m->validate_combo_id($combo_id) ? $combo_id : NULL);
 				$this->data['active'] = $this->combination_filters_m->get_active_flag($combo_id);	
+				
+				// Get filter record ID for Prize controller navigation
+				$this->data['filter_record_id'] = NULL;
+				if ($combo_id && $this->data['combo_id']) {
+					// Look up the filter record by combo_id to get the actual filter ID
+					$saved_settings = $this->combination_filters_m->get_saved_settings($combo_id);
+					if ($saved_settings && isset($saved_settings['id'])) {
+						$this->data['filter_record_id'] = $saved_settings['id'];
+					}
+				}
+				
 				// Get filename and CCCC data for futures view
 				if ($combo_id && $this->data['combo_id']) {
 					$filename_cccc_data = $this->lottery_data_m->get_combination_filename_cccc($combo_id);

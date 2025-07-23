@@ -8,7 +8,12 @@
             <i class="fa fa-list"></i> Combination Ticket Winners
         </h1>
         <h5 style="text-align:left">
-            <?php echo anchor('admin/prize/index/'.$filter->lottery_id, 'Back to Prize History', 'title="Back to Prize History"'); ?>
+            <?php 
+            // Use dynamic back navigation based on referrer
+            $back_link = isset($back_link) ? $back_link : 'admin/prize/index/'.$filter->lottery_id;
+            $back_text = isset($back_text) ? $back_text : 'Back to Prize History';
+            echo anchor($back_link, $back_text, 'title="' . $back_text . '"'); 
+            ?>
         </h5>
     </section>
 

@@ -477,6 +477,7 @@
 														? '<span class="badge badge-success">Active</span>' 
 														: '<span class="badge badge-danger">Expired</span>'; ?>
 											<i class="fa fa-eye fa-2x" title="Restore previous Combination Filter Settings" style="color:#007bff; cursor:pointer; margin:0 5px;" onclick="refreshFilter(<?= $combo_id ?>)"></i>
+											<i class="fa fa-money fa-2x" title="View Combination Ticket Winners" style="color:#28a745; cursor:pointer; margin:0 5px;" onclick="viewCombinationWinners(<?= $combo_id ?>)"></i>
 											<i class="fa fa-trash-o fa-2x" title="Delete this file and Combination Table Filtered Tickets" style="color:#dc3545; cursor:pointer; margin:0 5px;" onclick="deleteFilter(<?= $combo_id ?>, '<?= $file_name ?>')"></i>
 											<span style="color:#28a745; font-weight:bold;">Filtered Tickets: <?=$CCCC ?></span>
 										<?php endif; ?>
@@ -1254,6 +1255,20 @@
             window.location.href = '<?= base_url() ?>admin/predictions/refresh/<?= $lottery->id ?>?combo_id=' + comboId;
         }
     }
+    
+    // Function to view combination ticket winners
+    function viewCombinationWinners(comboId) {
+        // Use the filter record ID if available, otherwise show error
+        <?php if (!empty($filter_record_id)): ?>
+            var filterRecordId = <?= $filter_record_id ?>;
+            console.log('Navigating to combination winners with filter record ID:', filterRecordId);
+            // Add referrer parameter to indicate we came from prediction futures
+            window.location.href = '<?= base_url() ?>admin/prize/view_combination_tickets/' + filterRecordId + '?referrer=futures&lottery_id=<?= $lottery->id ?>&combo_id=<?= $combo_id ?>';
+        <?php else: ?>
+            alert('No saved filter found. Please save filtered tickets first before viewing combination winners.');
+        <?php endif; ?>
+    }
+    
     function deleteFilter(comboId, fileName) {
         if (confirm('You are about to delete the Combination Ticket file: ' + fileName + '. Do You want to Continue? (Y/N)')) {
             // Future implementation for delete functionality

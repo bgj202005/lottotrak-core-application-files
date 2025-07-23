@@ -561,7 +561,23 @@ class Prize extends Admin_Controller
             
             $admin_id = $this->session->userdata('id');
             
+            // Debug: Log the search criteria
+            log_message('info', "Prize::view_combination_tickets - Searching for filter_id: {$filter_id}, admin_id: {$admin_id}");
+            
         // Get filter details
+        $this->db->select('lcf.*, lp.lottery_name, lcfiles.file_name as original_filename, lcfiles.N, lcfiles.R');
+        $this->db->from('lottery_combination_filters lcf');
+        $this->db->join('lottery_profiles lp', 'lp.id = lcf.lottery_id', 'left');
+        $this->db->join('lottery_combination_files lcfiles', 'lcfiles.id = lcf.combo_id', 'left');
+        $this->db->where('lcf.id', $filter_id);
+        $this->db->where('lcf.user', 1);
+        $this->db->where('lcf.user_id', $admin_id);
+        
+        // Debug: Log the SQL query
+        $sql = $this->db->get_compiled_select();
+        log_message('info', "Prize::view_combination_tickets - SQL Query: " . $sql);
+        
+        // Reset and execute the query
         $this->db->select('lcf.*, lp.lottery_name, lcfiles.file_name as original_filename, lcfiles.N, lcfiles.R');
         $this->db->from('lottery_combination_filters lcf');
         $this->db->join('lottery_profiles lp', 'lp.id = lcf.lottery_id', 'left');
@@ -573,7 +589,7 @@ class Prize extends Admin_Controller
         $filter = $this->db->get()->row();
         
         if (!$filter) {
-            log_message('error', 'Filter not found or access denied for filter_id: ' . $filter_id);
+            log_message('error', 'Filter not found or access denied for filter_id: ' . $filter_id . ', admin_id: ' . $admin_id);
             show_error('Filter not found or access denied', 404);
         }
         
@@ -734,6 +750,22 @@ class Prize extends Admin_Controller
         $this->data['admins'] = $this->maintenance_m->logged_online(1);
         $this->data['visitors'] = $this->maintenance_m->active_visitors();
         $this->data['meta_title'] = 'Combination Ticket Winner Table - lottotrak';
+        
+        // Handle referrer-based navigation
+        $referrer = $this->input->get('referrer');
+        $lottery_id = $this->input->get('lottery_id');
+        $combo_id = $this->input->get('combo_id');
+        
+        if ($referrer === 'futures' && $lottery_id && $combo_id) {
+            // User came from prediction futures - set up back navigation to futures
+            $this->data['back_link'] = base_url('admin/predictions/refresh/' . $lottery_id . '?combo_id=' . $combo_id);
+            $this->data['back_text'] = 'Back to Prediction Futures';
+            log_message('info', "Prize::view_combination_tickets - Setting futures back navigation: lottery_id={$lottery_id}, combo_id={$combo_id}");
+        } else {
+            // Default back navigation to prize history
+            $this->data['back_link'] = base_url('admin/prize/' . $filter->lottery_id);
+            $this->data['back_text'] = 'Back to Prize History';
+        }
         
         $this->data['current'] = $this->uri->segment(2);
         $this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/view_combination_tickets/'.$filter_id);
