@@ -246,7 +246,7 @@ class Prize extends Admin_Controller
             }
             
             // Determine win category using standard logic for all other cases
-            $win_category = $this->determine_win_category($matches, $bonus_match, $prize_profile);
+            $win_category = $this->determine_win_category($matches, $bonus_match, $prize_profile, $extra_ball_included);
             if ($win_category) {
                 if (!isset($win_updates[$win_category])) {
                     $win_updates[$win_category] = 0;
@@ -444,7 +444,7 @@ class Prize extends Admin_Controller
      * @param object $prize_profile Prize profile
      * @return string|null Win category field name or null
      */
-    private function determine_win_category($matches, $bonus_match, $prize_profile)
+    private function determine_win_category($matches, $bonus_match, $prize_profile, $extra_ball_included = true)
     {
         // Check from highest to lowest prize category
         $prize_categories = array(9, 8, 7, 6, 5, 4, 3, 2, 1);
@@ -457,8 +457,8 @@ class Prize extends Admin_Controller
             $regular_field = $category . '_win';
             $extra_field = $category . '_win_extra';
             
-            // Check for extra win first (higher priority)
-            if ($bonus_match && 
+            // Check for extra win first (higher priority) - only if extra ball is included
+            if ($extra_ball_included && $bonus_match && 
                 property_exists($prize_profile, $extra_field) && 
                 !is_null($prize_profile->$extra_field) && 
                 $prize_profile->$extra_field == 1) {
@@ -475,8 +475,8 @@ class Prize extends Admin_Controller
             }
         }
         
-        // Check for extra-only category
-        if ($bonus_match && 
+        // Check for extra-only category - only if extra ball is included
+        if ($extra_ball_included && $bonus_match && 
             property_exists($prize_profile, 'extra') && 
             !is_null($prize_profile->extra) && 
             $prize_profile->extra == 1) {
@@ -1453,20 +1453,41 @@ class Prize extends Admin_Controller
         // Get prize profile to determine valid win categories
         $prize_profile = $this->get_lottery_prize_profile($filter->lottery_id);
         
+        // Get extra ball status for this lottery
+        $this->db->select('extra_ball');
+        $this->db->from('lottery_profiles');
+        $this->db->where('id', $filter->lottery_id);
+        $lottery_profile = $this->db->get()->row();
+        $extra_ball_included = ($lottery_profile && $lottery_profile->extra_ball == 1);
+        
         // Determine win category based on prize profile
         $category = 'Not a Winner';
         $color_class = 'not-a-winner';
         
         if ($prize_profile) {
-            $win_category = $this->determine_win_category($matches, $bonus_match, $prize_profile);
+            $win_category = $this->determine_win_category($matches, $bonus_match, $prize_profile, $extra_ball_included);
             
             if ($win_category) {
                 // Determine display category and color based on win category
-                if (strpos($win_category, '_win_extra') !== false || $win_category == 'extra') {
+                if ($win_category == 'extra') {
+                    // Pure bonus win (only bonus number, no main matches)
                     $category = 'BONUS WIN';
                     $color_class = 'bonus-win';
+                } elseif (strpos($win_category, '_win_extra') !== false) {
+                    // Main matches + bonus (e.g., "3_win_extra" = "3 Winners + Bonus")
+                    $match_number = (int)str_replace('_win_extra', '', $win_category);
+                    if ($match_number >= 6) {
+                        $category = $match_number . ' Winners + Bonus (JACKPOT)';
+                        $color_class = 'jackpot-win';
+                    } elseif ($match_number >= 4) {
+                        $category = $match_number . ' Winners + Bonus (MAJOR)';
+                        $color_class = 'major-win';
+                    } else {
+                        $category = $match_number . ' Winners + Bonus';
+                        $color_class = 'bonus-win';
+                    }
                 } else {
-                    // Extract number of matches from win category
+                    // Regular wins without bonus
                     $match_number = (int)str_replace('_win', '', $win_category);
                     if ($match_number >= 6) {
                         $category = 'JACKPOT WIN';
@@ -1563,7 +1584,7 @@ class Prize extends Admin_Controller
                 }
                 
                 // Determine win category using standard logic for all other cases
-                $win_category = $this->determine_win_category($matches, $bonus_match, $prize_profile);
+                $win_category = $this->determine_win_category($matches, $bonus_match, $prize_profile, $extra_ball_included);
                 if ($win_category) {
                     if (!isset($win_updates[$win_category])) {
                         $win_updates[$win_category] = 0;
@@ -1720,6 +1741,13 @@ class Prize extends Admin_Controller
             return 0;
         }
         
+        // Get extra ball status for this lottery
+        $this->db->select('extra_ball');
+        $this->db->from('lottery_profiles');
+        $this->db->where('id', $filter->lottery_id);
+        $lottery_profile = $this->db->get()->row();
+        $extra_ball_included = ($lottery_profile && $lottery_profile->extra_ball == 1);
+        
         // Extract drawn numbers and bonus number once
         $drawn_numbers = $this->extract_drawn_numbers_from_draw($draw_info);
         $bonus_number = $this->extract_bonus_number_from_draw($draw_info);
@@ -1747,7 +1775,7 @@ class Prize extends Admin_Controller
                         $bonus_match = !is_null($bonus_number) && in_array($bonus_number, $numbers);
                         
                         // Quick win category determination using prize profile
-                        if ($this->fast_determine_win_category($matches, $bonus_match, $prize_profile)) {
+                        if ($this->fast_determine_win_category($matches, $bonus_match, $prize_profile, $extra_ball_included)) {
                             $total_winners++;
                         }
                     }
@@ -1765,7 +1793,7 @@ class Prize extends Admin_Controller
      * @param object $prize_profile Prize profile
      * @return bool True if it's a winning combination
      */
-    private function fast_determine_win_category($matches, $bonus_match, $prize_profile)
+    private function fast_determine_win_category($matches, $bonus_match, $prize_profile, $extra_ball_included = true)
     {
         // Check from highest to lowest prize category
         $prize_categories = array(9, 8, 7, 6, 5, 4, 3, 2, 1);
@@ -1778,8 +1806,8 @@ class Prize extends Admin_Controller
             $regular_field = $category . '_win';
             $extra_field = $category . '_win_extra';
             
-            // Check for extra win first (higher priority)
-            if ($bonus_match && 
+            // Check for extra win first (higher priority) - only if extra ball is included
+            if ($extra_ball_included && $bonus_match && 
                 property_exists($prize_profile, $extra_field) && 
                 !is_null($prize_profile->$extra_field) && 
                 $prize_profile->$extra_field == 1) {
@@ -1796,8 +1824,8 @@ class Prize extends Admin_Controller
             }
         }
         
-        // Check for extra-only category
-        if ($bonus_match && 
+        // Check for extra-only category - only if extra ball is included
+        if ($extra_ball_included && $bonus_match && 
             property_exists($prize_profile, 'extra') && 
             !is_null($prize_profile->extra) && 
             $prize_profile->extra == 1) {

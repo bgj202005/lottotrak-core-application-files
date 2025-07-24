@@ -183,17 +183,41 @@
                                             $current_row_number = $base_offset + $index + 1;
                                             
                                             // Helper function to get sort value for results
-                                            $sort_values = array(
-                                                'Jackpot Winner' => 1,
-                                                'Major Winner' => 2,
-                                                'Minor Winner' => 3,
-                                                'Bonus Winner' => 4,
-                                                'Not a Winner' => 5,
-                                                'No Win' => 5,
-                                                'TBD (To Be Determined)' => 6,
-                                                'Expired' => 7
+                                            // Extract number of matches from category string
+                                            $matches = 0;
+                                            if (preg_match('/(\d+)\s+Match/', $ticket['win_result']['category'], $match_result)) {
+                                                $matches = (int)$match_result[1];
+                                            }
+                                            
+                                            // Base sort values for different categories
+                                            $base_sort_values = array(
+                                                'Jackpot Winner' => 1000,
+                                                'Major Winner' => 900,
+                                                'Minor Winner' => 800,
+                                                'Bonus Winner' => 700,
+                                                'Not a Winner' => 100,
+                                                'No Win' => 100,
+                                                'TBD (To Be Determined)' => 50,
+                                                'Expired' => 10
                                             );
-                                            $result_sort_value = isset($sort_values[$ticket['win_result']['category']]) ? $sort_values[$ticket['win_result']['category']] : 8;
+                                            
+                                            // Get base value for the category
+                                            $base_value = 0;
+                                            foreach ($base_sort_values as $key => $value) {
+                                                if (strpos($ticket['win_result']['category'], $key) !== false || $ticket['win_result']['category'] === $key) {
+                                                    $base_value = $value;
+                                                    break;
+                                                }
+                                            }
+                                            
+                                            // For "Not a Winner" categories with matches, add the number of matches
+                                            // This ensures 2 Matches (Not a Winner) > 1 Matches (Not a Winner)
+                                            if (strpos($ticket['win_result']['category'], 'Not a Winner') !== false && $matches > 0) {
+                                                $result_sort_value = $base_value + $matches;
+                                            } else {
+                                                // For other categories, return base value plus matches for fine-tuning
+                                                $result_sort_value = $base_value + $matches;
+                                            }
                                         ?>
                                             <tr class="<?php echo ($filter->active == 0) ? 'expired-row' : ''; ?>"
                                                 data-row-number="<?php echo sprintf('%02d', $current_row_number); ?>"
@@ -261,18 +285,10 @@
                                                         <span class="check-result-tbd">TBD (To Be Determined)</span>
                                                     <?php else: ?>
                                                         <?php
-                                                        // Use the win_result from controller, but we could enhance this
-                                                        // to properly reflect lottery_profile_prize table logic
+                                                        // Use the win_result from controller which now properly handles
+                                                        // lottery_profile_prize table logic and extra_ball_included status
                                                         $display_category = $ticket['win_result']['category'];
-                                                        
-                                                        // If showing "Bonus Win" but there are no main number matches,
-                                                        // this should actually be "Not a Winner" according to lottery rules
-                                                        if ($display_category == 'Bonus Win' && isset($ticket['calculated_winning_count']) && $ticket['calculated_winning_count'] == 0) {
-                                                            $display_category = 'Not a Winner';
-                                                            $color_class = 'not-a-winner';
-                                                        } else {
-                                                            $color_class = $ticket['win_result']['color_class'];
-                                                        }
+                                                        $color_class = $ticket['win_result']['color_class'];
                                                         ?>
                                                         <span class="result-<?php echo $color_class; ?>">
                                                             <?php echo $display_category; ?>
@@ -802,13 +818,6 @@ $(document).ready(function() {
                 var displayCategory = ticket.win_result.category;
                 var colorClass = ticket.win_result.color_class;
                 
-                // If showing "Bonus Win" but there are no main number matches,
-                // this should actually be "Not a Winner" according to lottery rules
-                if (displayCategory === 'Bonus Win' && winningCount === 0) {
-                    displayCategory = 'Not a Winner';
-                    colorClass = 'not-a-winner';
-                }
-                
                 row += '<span class="result-' + colorClass + '">' + displayCategory + '</span>';
             }
             
@@ -817,9 +826,6 @@ $(document).ready(function() {
             
             // Apply lottery_profile_prize table logic for sorting
             var finalCategory = ticket.win_result.category;
-            if (finalCategory === 'Bonus Win' && winningCount === 0) {
-                finalCategory = 'Not a Winner';
-            }
             
             // Create row element and set data attribute with corrected sort value
             var $row = $(row);
@@ -916,17 +922,42 @@ $(document).ready(function() {
     }
     
     function getResultSortValue(category) {
-        var sortValues = {
-            'Jackpot Winner': 1,
-            'Major Winner': 2,
-            'Minor Winner': 3,
-            'Bonus Winner': 4,
-            'Not a Winner': 5,
-            'No Win': 5,
-            'TBD (To Be Determined)': 6,
-            'Expired': 7
+        // Extract number of matches from category string
+        var matches = 0;
+        var matchResult = category.match(/(\d+)\s+Match/);
+        if (matchResult) {
+            matches = parseInt(matchResult[1]);
+        }
+        
+        // Base sort values for different categories
+        var baseSortValues = {
+            'Jackpot Winner': 1000,
+            'Major Winner': 900,
+            'Minor Winner': 800,
+            'Bonus Winner': 700,
+            'Not a Winner': 100,
+            'No Win': 100,
+            'TBD (To Be Determined)': 50,
+            'Expired': 10
         };
-        return sortValues[category] || 8;
+        
+        // Get base value for the category
+        var baseValue = 0;
+        for (var key in baseSortValues) {
+            if (category.includes(key) || category === key) {
+                baseValue = baseSortValues[key];
+                break;
+            }
+        }
+        
+        // For "Not a Winner" categories with matches, add the number of matches
+        // This ensures 2 Matches (Not a Winner) > 1 Matches (Not a Winner)
+        if (category.includes('Not a Winner') && matches > 0) {
+            return baseValue + matches;
+        }
+        
+        // For other categories, return base value plus matches for fine-tuning
+        return baseValue + matches;
     }
 });
 </script>
