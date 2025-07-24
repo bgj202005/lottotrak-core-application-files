@@ -784,7 +784,6 @@ class Prize_m extends MY_Model
         
         // Check if file exists
         if (!file_exists($file_path)) {
-            // Log missing file for debugging
             log_message('error', "Prize History: Combination file not found: {$file_path}");
             return false;
         }

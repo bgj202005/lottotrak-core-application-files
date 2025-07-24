@@ -561,23 +561,7 @@ class Prize extends Admin_Controller
             
             $admin_id = $this->session->userdata('id');
             
-            // Debug: Log the search criteria
-            log_message('info', "Prize::view_combination_tickets - Searching for filter_id: {$filter_id}, admin_id: {$admin_id}");
-            
         // Get filter details
-        $this->db->select('lcf.*, lp.lottery_name, lcfiles.file_name as original_filename, lcfiles.N, lcfiles.R');
-        $this->db->from('lottery_combination_filters lcf');
-        $this->db->join('lottery_profiles lp', 'lp.id = lcf.lottery_id', 'left');
-        $this->db->join('lottery_combination_files lcfiles', 'lcfiles.id = lcf.combo_id', 'left');
-        $this->db->where('lcf.id', $filter_id);
-        $this->db->where('lcf.user', 1);
-        $this->db->where('lcf.user_id', $admin_id);
-        
-        // Debug: Log the SQL query
-        $sql = $this->db->get_compiled_select();
-        log_message('info', "Prize::view_combination_tickets - SQL Query: " . $sql);
-        
-        // Reset and execute the query
         $this->db->select('lcf.*, lp.lottery_name, lcfiles.file_name as original_filename, lcfiles.N, lcfiles.R');
         $this->db->from('lottery_combination_filters lcf');
         $this->db->join('lottery_profiles lp', 'lp.id = lcf.lottery_id', 'left');
@@ -1247,45 +1231,22 @@ class Prize extends Admin_Controller
                         }
                     } else {
                         // No draw found on expected date, look for next available draw after filter_lastdate
-                        log_message('info', "DEBUG: No draw on expected date, looking for next available draw after {$filter_lastdate}");
                         
-                        // Query to find next available draw with detailed logging
+                        // Query to find next available draw
                         $this->db->select('*');
                         $this->db->from($table_name);
                         $this->db->where('draw_date >', $filter_lastdate);
                         $this->db->order_by('draw_date', 'ASC');
-                        $this->db->limit(5); // Get up to 5 draws for debugging
+                        $this->db->limit(5);
                         $next_draws_query = $this->db->get();
                         $next_draws = $next_draws_query->result();
                         
-                        log_message('info', "DEBUG: Found " . count($next_draws) . " draws after {$filter_lastdate}");
-                        
                         if ($next_draws) {
-                            foreach ($next_draws as $index => $draw) {
-                                log_message('info', "DEBUG: Draw " . ($index + 1) . ": ID={$draw->id}, Date={$draw->draw_date}, Extra={$draw->extra}");
-                            }
-                            
                             // Use the first (closest) draw
                             $next_available_draw = $next_draws[0];
-                            log_message('info', "DEBUG: Using next available draw on {$next_available_draw->draw_date}");
                             $next_available_draw->extra_ball_included = ($lottery_profile->extra_ball == 1);
                             return $next_available_draw;
                         } else {
-                            log_message('info', "DEBUG: No draws found after {$filter_lastdate}");
-                            
-                            // Let's also check what draws exist in the table for debugging
-                            $this->db->select('draw_date, extra');
-                            $this->db->from($table_name);
-                            $this->db->order_by('draw_date', 'DESC');
-                            $this->db->limit(10);
-                            $all_draws_query = $this->db->get();
-                            $all_draws = $all_draws_query->result();
-                            
-                            log_message('info', "DEBUG: Recent draws in table (last 10):");
-                            foreach ($all_draws as $draw) {
-                                log_message('info', "DEBUG: Available draw: {$draw->draw_date} (extra={$draw->extra})");
-                            }
-                            
                             return null; // Return null so the display mode will be set to TBD
                         }
                     }
@@ -1501,7 +1462,7 @@ class Prize extends Admin_Controller
                     }
                 }
             } else {
-                // No valid win category found, show matches for debugging
+                // No valid win category found
                 if ($matches > 0) {
                     $category = $matches . ' Matches (Not a Winner)';
                     $color_class = 'no-win';

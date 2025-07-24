@@ -147,6 +147,29 @@
                         </div>
                     </div>
 
+                    <!-- Number Highlighting Legend -->
+                    <div class="legend-container" style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h5 style="margin-bottom: 10px; color: #495057;"><strong>Number Highlighting Guide:</strong></h5>
+                                <div class="legend-items" style="display: flex; flex-wrap: wrap; align-items: center; gap: 15px;">
+                                    <div class="legend-item" style="display: flex; align-items: center; gap: 8px;">
+                                        <span class="combination-number" style="margin: 0;">00</span>
+                                        <span style="font-size: 14px; color: #6c757d;">Regular Number</span>
+                                    </div>
+                                    <div class="legend-item" style="display: flex; align-items: center; gap: 8px;">
+                                        <span class="combination-number winning-number" style="margin: 0; animation: none;">00</span>
+                                        <span style="font-size: 14px; color: #28a745; font-weight: bold;">Winning Number</span>
+                                    </div>
+                                    <div class="legend-item" style="display: flex; align-items: center; gap: 8px;">
+                                        <span class="combination-number bonus-number-match" style="margin: 0; animation: none;">00</span>
+                                        <span style="font-size: 14px; color: #fd7e14; font-weight: bold;">Bonus Number</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Combination Tickets Table Container -->
                     <div id="tickets-container">
                         <!-- Loading indicator -->
@@ -219,7 +242,23 @@
                                                 $result_sort_value = $base_value + $matches;
                                             }
                                         ?>
-                                            <tr class="<?php echo ($filter->active == 0) ? 'expired-row' : ''; ?>"
+                                            <?php
+                                            // Determine row class based on win category
+                                            $row_class = ($filter->active == 0) ? 'expired-row' : '';
+                                            $color_class = $ticket['win_result']['color_class'];
+                                            
+                                            // Add winner row highlighting classes
+                                            if ($color_class === 'jackpot-win') {
+                                                $row_class .= ' winner-row-jackpot';
+                                            } elseif ($color_class === 'major-win') {
+                                                $row_class .= ' winner-row-major';
+                                            } elseif ($color_class === 'minor-win') {
+                                                $row_class .= ' winner-row-minor';
+                                            } elseif ($color_class === 'bonus-win') {
+                                                $row_class .= ' winner-row-bonus';
+                                            }
+                                            ?>
+                                            <tr class="<?php echo trim($row_class); ?>"
                                                 data-row-number="<?php echo sprintf('%02d', $current_row_number); ?>"
                                                 data-combination="<?php echo htmlspecialchars(implode(' ', array_map(function($n) { return sprintf('%02d', $n); }, $ticket['numbers']))); ?>"
                                                 data-check-results="<?php echo $result_sort_value; ?>">
@@ -236,14 +275,19 @@
                                                         $is_bonus = false;
                                                         
                                                         // Check if this number matches any drawn numbers
-                                                        if ($draw_info && $filter->active == 1 && (!isset($display_mode) || $display_mode != 'tbd')) {
+                                                        if ($draw_info && (!isset($display_mode) || $display_mode != 'tbd')) {
                                                             // Check main numbers first
                                                             for ($i = 1; $i <= $filter->N; $i++) {
                                                                 $ball_field = 'ball' . $i;
-                                                                if (property_exists($draw_info, $ball_field) && $draw_info->$ball_field == $number) {
-                                                                    $is_winning = true;
-                                                                    $winning_count++;
-                                                                    break;
+                                                                if (property_exists($draw_info, $ball_field)) {
+                                                                    $drawn_number = $draw_info->$ball_field;
+                                                                    
+                                                                    // Try both strict and loose comparison
+                                                                    if ($drawn_number == $number || (int)$drawn_number == (int)$number) {
+                                                                        $is_winning = true;
+                                                                        $winning_count++;
+                                                                        break;
+                                                                    }
                                                                 }
                                                             }
                                                             
@@ -251,17 +295,21 @@
                                                             if (!$is_winning && $draw_info->extra_ball_included) {
                                                                 $bonus_fields = array('extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number');
                                                                 foreach ($bonus_fields as $field) {
-                                                                    if (property_exists($draw_info, $field) && $draw_info->$field == $number) {
-                                                                        $is_bonus = true;
-                                                                        $has_bonus = true;
-                                                                        break;
+                                                                    if (property_exists($draw_info, $field)) {
+                                                                        $bonus_number = $draw_info->$field;
+                                                                        
+                                                                        if ($bonus_number == $number || (int)$bonus_number == (int)$number) {
+                                                                            $is_bonus = true;
+                                                                            $has_bonus = true;
+                                                                            break;
+                                                                        }
                                                                     }
                                                                 }
                                                             }
                                                         }
                                                         
                                                         $number_class = '';
-                                                        if ($filter->active == 1 && (!isset($display_mode) || $display_mode != 'tbd')) {
+                                                        if ((!isset($display_mode) || $display_mode != 'tbd')) {
                                                             if ($is_winning) {
                                                                 $number_class = 'winning-number';
                                                             } elseif ($is_bonus) {
@@ -481,25 +529,55 @@
     display: inline-block;
     background-color: #f8f9fa;
     color: #333;
-    padding: 3px 8px;
-    margin: 1px;
-    border-radius: 3px;
-    min-width: 25px;
+    padding: 4px 10px;
+    margin: 2px;
+    border-radius: 6px;
+    min-width: 30px;
     text-align: center;
     font-weight: bold;
-    border: 1px solid #dee2e6;
+    border: 2px solid #dee2e6;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .winning-number {
-    background-color: #28a745 !important;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
     color: white !important;
-    border-color: #28a745 !important;
+    border-color: #20c997 !important;
+    box-shadow: 0 3px 8px rgba(40, 167, 69, 0.4) !important;
+    transform: scale(1.05) !important;
+    animation: winningPulse 2s infinite !important;
+    font-weight: 900 !important;
 }
 
 .bonus-number-match {
-    background-color: #ffc107 !important;
-    color: #333 !important;
-    border-color: #ffc107 !important;
+    background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%) !important;
+    color: #000 !important;
+    border-color: #fd7e14 !important;
+    box-shadow: 0 3px 8px rgba(255, 193, 7, 0.4) !important;
+    transform: scale(1.05) !important;
+    animation: bonusPulse 2s infinite !important;
+    font-weight: 900 !important;
+}
+
+/* Enhanced animations for winning numbers */
+@keyframes winningPulse {
+    0%, 100% {
+        box-shadow: 0 3px 8px rgba(40, 167, 69, 0.4);
+    }
+    50% {
+        box-shadow: 0 5px 15px rgba(40, 167, 69, 0.7);
+    }
+}
+
+@keyframes bonusPulse {
+    0%, 100% {
+        box-shadow: 0 3px 8px rgba(255, 193, 7, 0.4);
+    }
+    50% {
+        box-shadow: 0 5px 15px rgba(255, 193, 7, 0.7);
+    }
 }
 
 /* Result Styling */
@@ -511,21 +589,25 @@
     color: #28a745;
     font-weight: bold;
     font-size: 14px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .result-major-win {
     color: #17a2b8;
     font-weight: bold;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .result-minor-win {
     color: #ffc107;
     font-weight: bold;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .result-bonus-win {
     color: #6f42c1;
     font-weight: bold;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .result-no-win {
@@ -539,6 +621,48 @@
 .result-expired {
     color: #dc3545;
     font-weight: bold;
+}
+
+/* Enhanced row highlighting for winners */
+tr:has(.result-jackpot-win) {
+    background: linear-gradient(90deg, rgba(40, 167, 69, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+    border-left: 4px solid #28a745;
+}
+
+tr:has(.result-major-win) {
+    background: linear-gradient(90deg, rgba(23, 162, 184, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+    border-left: 4px solid #17a2b8;
+}
+
+tr:has(.result-minor-win) {
+    background: linear-gradient(90deg, rgba(255, 193, 7, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+    border-left: 4px solid #ffc107;
+}
+
+tr:has(.result-bonus-win) {
+    background: linear-gradient(90deg, rgba(111, 66, 193, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+    border-left: 4px solid #6f42c1;
+}
+
+/* Fallback row highlighting classes for better browser support */
+.winner-row-jackpot {
+    background: linear-gradient(90deg, rgba(40, 167, 69, 0.05) 0%, rgba(255, 255, 255, 0) 100%) !important;
+    border-left: 4px solid #28a745 !important;
+}
+
+.winner-row-major {
+    background: linear-gradient(90deg, rgba(23, 162, 184, 0.05) 0%, rgba(255, 255, 255, 0) 100%) !important;
+    border-left: 4px solid #17a2b8 !important;
+}
+
+.winner-row-minor {
+    background: linear-gradient(90deg, rgba(255, 193, 7, 0.05) 0%, rgba(255, 255, 255, 0) 100%) !important;
+    border-left: 4px solid #ffc107 !important;
+}
+
+.winner-row-bonus {
+    background: linear-gradient(90deg, rgba(111, 66, 193, 0.05) 0%, rgba(255, 255, 255, 0) 100%) !important;
+    border-left: 4px solid #6f42c1 !important;
 }
 
 .expired-row {
@@ -594,10 +718,21 @@
     }
     
     .combination-number {
-        min-width: 20px;
-        padding: 2px 5px;
-        font-size: 11px;
+        min-width: 25px;
+        padding: 3px 7px;
+        font-size: 12px;
+        margin: 1px;
     }
+    
+    /* Maintain enhanced styling on mobile */
+    .winning-number {
+        transform: scale(1.02) !important;
+    }
+    
+    .bonus-number-match {
+        transform: scale(1.02) !important;
+    }
+}
     
     .table-responsive {
         border: none;
@@ -758,7 +893,23 @@ $(document).ready(function() {
         
         $.each(tickets, function(index, ticket) {
             var currentRowNumber = baseOffset + index + 1;
-            var row = '<tr class="' + (filter.active == 0 ? 'expired-row' : '') + '"';
+            
+            // Determine row class based on win category
+            var rowClass = filter.active == 0 ? 'expired-row' : '';
+            var colorClass = ticket.win_result.color_class;
+            
+            // Add winner row highlighting classes
+            if (colorClass === 'jackpot-win') {
+                rowClass += ' winner-row-jackpot';
+            } else if (colorClass === 'major-win') {
+                rowClass += ' winner-row-major';
+            } else if (colorClass === 'minor-win') {
+                rowClass += ' winner-row-minor';
+            } else if (colorClass === 'bonus-win') {
+                rowClass += ' winner-row-bonus';
+            }
+            
+            var row = '<tr class="' + rowClass + '"';
             row += ' data-check-results="' + getResultSortValue(ticket.win_result.category) + '">';
             row += '<td class="text-center">' + String(currentRowNumber).padStart(2, '0') + '</td>';
             row += '<td class="combination-numbers">';
@@ -772,14 +923,19 @@ $(document).ready(function() {
                 var isWinning = false;
                 var isBonus = false;
                 
-                if (draw_info && filter.active == 1 && response.display_mode !== 'tbd') {
+                if (draw_info && response.display_mode !== 'tbd') {
                     // Check main numbers first
                     for (var j = 1; j <= filter.N; j++) {
                         var ballField = 'ball' + j;
-                        if (draw_info[ballField] && draw_info[ballField] == number) {
-                            isWinning = true;
-                            winningCount++;
-                            break;
+                        if (draw_info[ballField]) {
+                            var drawnNumber = draw_info[ballField];
+                            
+                            // Try both strict and loose comparison
+                            if (drawnNumber == number || parseInt(drawnNumber) == parseInt(number)) {
+                                isWinning = true;
+                                winningCount++;
+                                break;
+                            }
                         }
                     }
                     
@@ -787,16 +943,21 @@ $(document).ready(function() {
                     if (!isWinning && draw_info.extra_ball_included) {
                         var bonusFields = ['extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number'];
                         for (var k = 0; k < bonusFields.length; k++) {
-                            if (draw_info[bonusFields[k]] && draw_info[bonusFields[k]] == number) {
-                                isBonus = true;
-                                hasBonus = true;
-                                break;
+                            var field = bonusFields[k];
+                            if (draw_info[field]) {
+                                var bonusNumber = draw_info[field];
+                                
+                                if (bonusNumber == number || parseInt(bonusNumber) == parseInt(number)) {
+                                    isBonus = true;
+                                    hasBonus = true;
+                                    break;
+                                }
                             }
                         }
                     }
                 }
                 
-                if (filter.active == 1 && response.display_mode !== 'tbd') {
+                if (response.display_mode !== 'tbd') {
                     if (isWinning) {
                         numberClass = 'winning-number';
                     } else if (isBonus) {
