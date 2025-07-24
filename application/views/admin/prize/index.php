@@ -1,5 +1,3 @@
-<?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
-
 <link rel="stylesheet" href="<?php echo base_url('css/prize_history.css'); ?>">
 <style>
     /* Page Loading Overlay for AJAX */

@@ -1,5 +1,3 @@
-<?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
-
 <link rel="stylesheet" href="<?php echo base_url('css/prize_history.css'); ?>">
 
 <div class="content-wrapper">
@@ -18,7 +16,7 @@
     </section>
 
     <section class="content">
-        <div class="container mt-4">
+        <div class="col-xs-12">
             <!-- White Card -->
             <div class="card shadow-sm">
                 <div class="card-body">
@@ -134,7 +132,7 @@
                                 </div>
                             </div>
                             <div class="col-md-4 text-right">
-                                <!-- Combinations per page selector -->
+                                <!-- Bootstrap Table page size selector -->
                                 <div class="form-group">
                                     <label for="per_page_select">Combinations per page:</label>
                                     <select id="per_page_select" class="form-control" style="width: auto; display: inline-block;">
@@ -159,12 +157,16 @@
                         
                         <!-- Combination Tickets Table -->
                         <div class="table-responsive" id="tickets-table">
-                            <table class="table table-bordered table-striped" id="combinationTicketsTable">
+                            <table id="combinationTicketsTable" 
+                                   class="table table-bordered table-striped">
                                 <thead>
                                     <tr>
                                         <th style="width: 8%;">##</th>
                                         <th style="width: 60%;">Combination</th>
-                                        <th style="width: 32%;" class="text-center">Check Results</th>
+                                        <th style="width: 32%;" class="text-center sortable-check-results" data-sort="asc">
+                                            Check Results 
+                                            <span class="sort-icon">⇅</span>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody id="tickets-tbody">
@@ -179,33 +181,55 @@
                                         $base_offset = isset($offset) ? $offset : 0;
                                         foreach($tickets as $index => $ticket): 
                                             $current_row_number = $base_offset + $index + 1;
+                                            
+                                            // Helper function to get sort value for results
+                                            $sort_values = array(
+                                                'Jackpot Winner' => 1,
+                                                'Major Winner' => 2,
+                                                'Minor Winner' => 3,
+                                                'Bonus Winner' => 4,
+                                                'Not a Winner' => 5,
+                                                'No Win' => 5,
+                                                'TBD (To Be Determined)' => 6,
+                                                'Expired' => 7
+                                            );
+                                            $result_sort_value = isset($sort_values[$ticket['win_result']['category']]) ? $sort_values[$ticket['win_result']['category']] : 8;
                                         ?>
-                                            <tr class="<?php echo ($filter->active == 0) ? 'expired-row' : ''; ?>">
+                                            <tr class="<?php echo ($filter->active == 0) ? 'expired-row' : ''; ?>"
+                                                data-row-number="<?php echo sprintf('%02d', $current_row_number); ?>"
+                                                data-combination="<?php echo htmlspecialchars(implode(' ', array_map(function($n) { return sprintf('%02d', $n); }, $ticket['numbers']))); ?>"
+                                                data-check-results="<?php echo $result_sort_value; ?>">
                                                 <td class="text-center">
                                                     <?php echo sprintf('%02d', $current_row_number); ?>
                                                 </td>
                                                 <td class="combination-numbers">
                                                     <?php 
+                                                    $winning_count = 0;
+                                                    $has_bonus = false;
+                                                    
                                                     foreach($ticket['numbers'] as $number) {
                                                         $is_winning = false;
                                                         $is_bonus = false;
                                                         
                                                         // Check if this number matches any drawn numbers
                                                         if ($draw_info && $filter->active == 1 && (!isset($display_mode) || $display_mode != 'tbd')) {
+                                                            // Check main numbers first
                                                             for ($i = 1; $i <= $filter->N; $i++) {
                                                                 $ball_field = 'ball' . $i;
                                                                 if (property_exists($draw_info, $ball_field) && $draw_info->$ball_field == $number) {
                                                                     $is_winning = true;
+                                                                    $winning_count++;
                                                                     break;
                                                                 }
                                                             }
                                                             
-                                                            // Check bonus number
+                                                            // Check bonus number only if not already a main number match
                                                             if (!$is_winning && $draw_info->extra_ball_included) {
                                                                 $bonus_fields = array('extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number');
                                                                 foreach ($bonus_fields as $field) {
                                                                     if (property_exists($draw_info, $field) && $draw_info->$field == $number) {
                                                                         $is_bonus = true;
+                                                                        $has_bonus = true;
                                                                         break;
                                                                     }
                                                                 }
@@ -223,14 +247,35 @@
                                                         
                                                         echo '<span class="combination-number ' . $number_class . '">' . sprintf('%02d', $number) . '</span> ';
                                                     }
+                                                    
+                                                    // Store the winning analysis for proper prize determination
+                                                    // This should match the lottery_profile_prize table logic:
+                                                    // - Bonus wins only count when you have main matches + bonus
+                                                    // - Just bonus number alone = No Win
+                                                    $ticket['calculated_winning_count'] = $winning_count;
+                                                    $ticket['calculated_has_bonus'] = $has_bonus;
                                                     ?>
                                                 </td>
                                                 <td class="text-center check-results">
                                                     <?php if(isset($display_mode) && $display_mode == 'tbd'): ?>
                                                         <span class="check-result-tbd">TBD (To Be Determined)</span>
                                                     <?php else: ?>
-                                                        <span class="result-<?php echo $ticket['win_result']['color_class']; ?>">
-                                                            <?php echo $ticket['win_result']['category']; ?>
+                                                        <?php
+                                                        // Use the win_result from controller, but we could enhance this
+                                                        // to properly reflect lottery_profile_prize table logic
+                                                        $display_category = $ticket['win_result']['category'];
+                                                        
+                                                        // If showing "Bonus Win" but there are no main number matches,
+                                                        // this should actually be "Not a Winner" according to lottery rules
+                                                        if ($display_category == 'Bonus Win' && isset($ticket['calculated_winning_count']) && $ticket['calculated_winning_count'] == 0) {
+                                                            $display_category = 'Not a Winner';
+                                                            $color_class = 'not-a-winner';
+                                                        } else {
+                                                            $color_class = $ticket['win_result']['color_class'];
+                                                        }
+                                                        ?>
+                                                        <span class="result-<?php echo $color_class; ?>">
+                                                            <?php echo $display_category; ?>
                                                         </span>
                                                     <?php endif; ?>
                                                 </td>
@@ -542,6 +587,33 @@
         border: none;
     }
 }
+
+/* Custom Check Results Sorting */
+.sortable-check-results {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+.sortable-check-results:hover {
+    background-color: #f8f9fa;
+}
+
+.sort-icon {
+    font-size: 12px;
+    margin-left: 5px;
+    color: #6c757d;
+}
+
+.sortable-check-results.asc .sort-icon::before {
+    content: "↑";
+    color: #007bff;
+}
+
+.sortable-check-results.desc .sort-icon::before {
+    content: "↓";
+    color: #007bff;
+}
 </style>
 
 <script>
@@ -550,19 +622,57 @@ $(document).ready(function() {
     var currentPage = <?php echo $current_page; ?>;
     var totalPages = <?php echo $total_pages; ?>;
     
-    // Handle per page change
+    // Handle per page change - ORIGINAL FUNCTIONALITY RESTORED
     $('#per_page_select').change(function() {
         var per_page = $(this).val();
         loadPage(1, per_page);
     });
     
-    // Handle pagination clicks
+    // Handle pagination clicks - ORIGINAL FUNCTIONALITY RESTORED
     $(document).on('click', '.pagination-page, .pagination-nav', function() {
         var page = $(this).data('page');
         if (page && page != currentPage && page >= 1 && page <= totalPages) {
             loadPage(page, $('#per_page_select').val());
         }
     });
+    
+    // Custom Check Results Sorting - ONLY BOOTSTRAP TABLE FEATURE KEPT
+    $('.sortable-check-results').click(function() {
+        var $this = $(this);
+        var currentSort = $this.data('sort') || 'asc';
+        var newSort = currentSort === 'asc' ? 'desc' : 'asc';
+        
+        // Update sort indicator
+        $this.removeClass('asc desc').addClass(newSort).data('sort', newSort);
+        
+        // Update sort icon
+        var icon = newSort === 'asc' ? '↑' : '↓';
+        $this.find('.sort-icon').text(icon);
+        
+        // Sort the table rows
+        var $tbody = $('#tickets-tbody');
+        var rows = $tbody.find('tr').get();
+        
+        rows.sort(function(a, b) {
+            var aValue = parseInt($(a).data('check-results')) || 999;
+            var bValue = parseInt($(b).data('check-results')) || 999;
+            
+            if (newSort === 'asc') {
+                return aValue - bValue;
+            } else {
+                return bValue - aValue;
+            }
+        });
+        
+        // Re-append sorted rows
+        $tbody.empty();
+        $.each(rows, function(index, row) {
+            $tbody.append(row);
+        });
+        
+        console.log('Check Results sorted:', newSort);
+    });
+
     
     function loadPage(page, per_page) {
         // Show loading indicator
@@ -632,32 +742,38 @@ $(document).ready(function() {
         
         $.each(tickets, function(index, ticket) {
             var currentRowNumber = baseOffset + index + 1;
-            var row = '<tr class="' + (filter.active == 0 ? 'expired-row' : '') + '">';
+            var row = '<tr class="' + (filter.active == 0 ? 'expired-row' : '') + '"';
+            row += ' data-check-results="' + getResultSortValue(ticket.win_result.category) + '">';
             row += '<td class="text-center">' + String(currentRowNumber).padStart(2, '0') + '</td>';
             row += '<td class="combination-numbers">';
             
-            // Add combination numbers with highlighting
+            // Add combination numbers with highlighting and count matches
+            var winningCount = 0;
+            var hasBonus = false;
+            
             $.each(ticket.numbers, function(i, number) {
                 var numberClass = '';
                 var isWinning = false;
                 var isBonus = false;
                 
                 if (draw_info && filter.active == 1 && response.display_mode !== 'tbd') {
-                    // Check if number matches drawn numbers
+                    // Check main numbers first
                     for (var j = 1; j <= filter.N; j++) {
                         var ballField = 'ball' + j;
                         if (draw_info[ballField] && draw_info[ballField] == number) {
                             isWinning = true;
+                            winningCount++;
                             break;
                         }
                     }
                     
-                    // Check bonus number
+                    // Check bonus number only if not already a main number match
                     if (!isWinning && draw_info.extra_ball_included) {
                         var bonusFields = ['extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number'];
                         for (var k = 0; k < bonusFields.length; k++) {
                             if (draw_info[bonusFields[k]] && draw_info[bonusFields[k]] == number) {
                                 isBonus = true;
+                                hasBonus = true;
                                 break;
                             }
                         }
@@ -682,13 +798,33 @@ $(document).ready(function() {
             if (response.display_mode === 'tbd') {
                 row += '<span class="check-result-tbd">TBD (To Be Determined)</span>';
             } else {
-                row += '<span class="result-' + ticket.win_result.color_class + '">' + ticket.win_result.category + '</span>';
+                // Apply lottery_profile_prize table logic
+                var displayCategory = ticket.win_result.category;
+                var colorClass = ticket.win_result.color_class;
+                
+                // If showing "Bonus Win" but there are no main number matches,
+                // this should actually be "Not a Winner" according to lottery rules
+                if (displayCategory === 'Bonus Win' && winningCount === 0) {
+                    displayCategory = 'Not a Winner';
+                    colorClass = 'not-a-winner';
+                }
+                
+                row += '<span class="result-' + colorClass + '">' + displayCategory + '</span>';
             }
             
             row += '</td>';
             row += '</tr>';
             
-            tbody.append(row);
+            // Apply lottery_profile_prize table logic for sorting
+            var finalCategory = ticket.win_result.category;
+            if (finalCategory === 'Bonus Win' && winningCount === 0) {
+                finalCategory = 'Not a Winner';
+            }
+            
+            // Create row element and set data attribute with corrected sort value
+            var $row = $(row);
+            $row.attr('data-check-results', getResultSortValue(finalCategory));
+            tbody.append($row);
         });
     }
     
@@ -777,6 +913,20 @@ $(document).ready(function() {
             
             $('.drawn-numbers-display').html(numbersHtml);
         }
+    }
+    
+    function getResultSortValue(category) {
+        var sortValues = {
+            'Jackpot Winner': 1,
+            'Major Winner': 2,
+            'Minor Winner': 3,
+            'Bonus Winner': 4,
+            'Not a Winner': 5,
+            'No Win': 5,
+            'TBD (To Be Determined)': 6,
+            'Expired': 7
+        };
+        return sortValues[category] || 8;
     }
 });
 </script>
