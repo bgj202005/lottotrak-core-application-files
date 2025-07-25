@@ -14,7 +14,7 @@
 		<h2><?php echo empty($lottery->id) ? 'Add a new Lottery' : 'Edit Lottery: '.$lottery->lottery_name; ?></h2>
 		<?php if (!empty($message)) ?> <h3 class="bg-warning" style = "text-align:center;"><?=$message; ?></h3>
 		<div class="row">
-			<div class="col-sm-7" style ="width:100%;">
+			<div class="col-lg-7 col-md-12" style ="width:100%;">
 				<div class ="card">
 					<div class = "card-body">
 						<div class="form-group">
@@ -196,15 +196,16 @@
 									</div>
 								</div>
 								
-							<div style = "text-align: center;">
+							<div class="text-center">
+								<div class="d-flex flex-wrap justify-content-center">
 							<?php if ($lottery->id) // If $id
 								{ 
-									$extra = array('style' => 'margin-top:20px; padding:5px;', 'class' => 'btn btn-primary btn-lg btn-info');
+									$extra = array('style' => 'margin:10px 5px;', 'class' => 'btn btn-primary btn-lg btn-info');
 									echo form_submit('submit', 'Update Lottery Profile', $extra);
 								}
 								else
 								{
-									echo form_submit('submit', 'Create Lottery Profile', 'style = "padding:5px;" class="btn btn-primary btn-lg btn-info"');
+									echo form_submit('submit', 'Create Lottery Profile', 'style = "margin:10px 5px;" class="btn btn-primary btn-lg btn-info"');
 								}
 								$js = "location.href='".base_url()."admin/lotteries/prizes/".$lottery->id."'";
 								$class = ($lottery->id ? "btn btn-primary btn-lg btn-info" : "btn btn-secondary btn-lg disabled");
@@ -213,7 +214,7 @@
 									$attributes = array(
 										'class' 	=> "$class", 
 										'onClick' 	=> "$js", 
-										'style' 	=> "margin-left:20px; margin-top:20px; padding:5px;",
+										'style' 	=> "margin:10px 5px;",
 										'role'		=> 'button'
 									);
 								}
@@ -221,7 +222,7 @@
 								{
 									$attributes = array(
 										'class' 	=> "$class", 
-										'style' 	=> "margin-left:20px; margin-top:20px; padding:5px;",
+										'style' 	=> "margin:10px 5px;",
 										'role'		=> 'button',
 										'disabled'	=> 'disabled'
 									);
@@ -234,7 +235,7 @@
 									$attributes = array(
 										'class' 	=> "$class", 
 										'onClick' 	=> "$js", 
-										'style' 	=> "margin-left:20px; margin-top:20px; padding:5px;",
+										'style' 	=> "margin:10px 5px;",
 										'role'		=> 'button'
 									);
 								}
@@ -242,7 +243,7 @@
 								{
 									$attributes = array(
 										'class' 	=> "$class", 
-										'style' 	=> "margin-left:20px; margin-top:20px; padding:5px;",
+										'style' 	=> "margin:10px 5px;",
 										'role'		=> 'button',
 										'disabled'	=> 'disabled'
 									);
@@ -255,7 +256,7 @@
 									$attributes = array(
 										'class' 	=> "$class", 
 										'onClick' 	=> "$js", 
-										'style' 	=> "margin-top:20px; margin-left:20px; padding: 5px;",
+										'style' 	=> "margin:10px 5px;",
 										'role'		=> 'button'
 									);
 								}
@@ -263,7 +264,7 @@
 								{
 									$attributes = array(
 										'class' 	=> "$class", 
-										'style' 	=> "margin-top:20px; margin-left:20px; padding: 5px;",
+										'style' 	=> "margin:10px 5px;",
 										'role'		=> 'button',
 										'disabled'	=> 'disabled'
 									);
@@ -274,25 +275,26 @@
 								$attributes = array(
 									'class' 	=> "btn btn-primary btn-lg btn-info", 
 									'onClick' 	=> "$js", 
-									'style' 	=> "margin-top:20px; margin-left:5px; padding: 5px;"
+									'style' 	=> "margin:10px 5px;"
 								);
 								echo form_button('lotteries_list', 'Back to Lotteries List', $attributes); 
 								?>
+								</div>
 							</div>
 						</div>
 					</div>				
 				</div>
 			</div>
-			<div class="col-sm-5">
+			<div class="col-lg-5 col-md-12">
 				<!-- Last Draw Date field -->
 				<div class="card text-white bg-info mb-3" style="width: 100%;">
 					<div class="card-header">
-						<div class = "form group" style ="display:flex; flex-direction: row; justify-content: center; align-items: center; white-space:nowrap">
-						<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md', 'style' => 'margin-left:-25px;');
+						<div class = "form group d-flex flex-column flex-sm-row justify-content-center align-items-center">
+						<?php $extra = array('class' => 'col-form-label col-form-label-md mb-2 mb-sm-0', 'style' => 'white-space: nowrap;');
 										echo form_label('Last Draw Date:', 'last_draw_date_lb', $extra); ?>
 						<?php $extra = array('class' => 'datepicker', 'id' => 'formGroupInputLarge',
-											'maxlength' => '50', 'size' => '50', 'style'=> 'width:50%; margin-left:2em;'); ?>
-							<div class="input-group date" id="datepicker1" data-provide="datepicker"> 
+											'maxlength' => '50', 'size' => '50', 'style'=> 'width:100%; max-width: 200px;'); ?>
+							<div class="input-group date ml-sm-2" id="datepicker1" data-provide="datepicker"> 
 								<?php if (is_null($lottery->lastdate)): $lottery->lastdate = date('d-m-Y'); // Only on a New Lottery
 									  else: $lottery->lastdate = $lastdraw->draw_date; 
 								endif;
@@ -305,40 +307,54 @@
 							<?php echo form_error('lastdate', '<div class="bg-warning" style="margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 						</div>
 						<!-- Days of the Week for Draw -->
-						<h6>Days of the Draw?</h6>
-						<div class="form-group"> 
-							<?php $extra = array('class' => 'col-4 col-form-label col-form-label-sm');
-							echo form_label('Monday', 'day_monday_lb', $extra); 
-							echo form_checkbox('monday', set_value('monday', '1'), set_checkbox('monday', '1', (!empty($lottery->monday)))); 
-							echo form_label('Tuesday', 'day_tuesday_lb', $extra); 
-							echo form_checkbox('tuesday', '1', set_checkbox('tuesday', '1', (!empty($lottery->tuesday))));
-							echo form_label('Wednesday', 'day_wednesday_lb', $extra); 
-							echo form_checkbox('wednesday', '1', set_checkbox('wednesday', '1', (!empty($lottery->wednesday))));
-							echo form_label('Thursday', 'day_thursday_lb', $extra); 
-							echo form_checkbox('thursday', '1', set_checkbox('thursday', '1', (!empty($lottery->thursday))));
-							echo form_label('Friday', 'day_friday_lb', $extra); 
-							echo form_checkbox('friday', '1', set_checkbox('friday', '1', (!empty($lottery->friday))));
-							echo form_label('Saturday', 'day_saturday_lb', $extra); 
-							echo form_checkbox('saturday', '1', set_checkbox('saturday', '1', (!empty($lottery->saturday))));
-							echo form_label('Sunday', 'day_sunday_lb', $extra); 
-							echo form_checkbox('sunday', '1', set_checkbox('sunday', '1', (!empty($lottery->sunday)))); 
-							echo form_error('monday', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
+						<h6 class="mt-3">Days of the Draw?</h6>
+						<div class="form-group d-flex flex-wrap justify-content-center"> 
+							<?php $extra = array('class' => 'form-check-label mr-2 mb-1');
+							echo '<div class="form-check form-check-inline">';
+							echo form_checkbox('monday', set_value('monday', '1'), set_checkbox('monday', '1', (!empty($lottery->monday))), 'class="form-check-input"'); 
+							echo form_label('Mon', 'day_monday_lb', $extra); 
+							echo '</div>';
+							echo '<div class="form-check form-check-inline">';
+							echo form_checkbox('tuesday', '1', set_checkbox('tuesday', '1', (!empty($lottery->tuesday))), 'class="form-check-input"');
+							echo form_label('Tue', 'day_tuesday_lb', $extra); 
+							echo '</div>';
+							echo '<div class="form-check form-check-inline">';
+							echo form_checkbox('wednesday', '1', set_checkbox('wednesday', '1', (!empty($lottery->wednesday))), 'class="form-check-input"');
+							echo form_label('Wed', 'day_wednesday_lb', $extra); 
+							echo '</div>';
+							echo '<div class="form-check form-check-inline">';
+							echo form_checkbox('thursday', '1', set_checkbox('thursday', '1', (!empty($lottery->thursday))), 'class="form-check-input"');
+							echo form_label('Thu', 'day_thursday_lb', $extra); 
+							echo '</div>';
+							echo '<div class="form-check form-check-inline">';
+							echo form_checkbox('friday', '1', set_checkbox('friday', '1', (!empty($lottery->friday))), 'class="form-check-input"');
+							echo form_label('Fri', 'day_friday_lb', $extra); 
+							echo '</div>';
+							echo '<div class="form-check form-check-inline">';
+							echo form_checkbox('saturday', '1', set_checkbox('saturday', '1', (!empty($lottery->saturday))), 'class="form-check-input"');
+							echo form_label('Sat', 'day_saturday_lb', $extra); 
+							echo '</div>';
+							echo '<div class="form-check form-check-inline">';
+							echo form_checkbox('sunday', '1', set_checkbox('sunday', '1', (!empty($lottery->sunday))), 'class="form-check-input"'); 
+							echo form_label('Sun', 'day_sunday_lb', $extra); 
+							echo '</div>';
+							echo form_error('monday', '<div class="bg-warning w-100 mt-2 p-2 text-center text-white">', '</div>'); ?>
 						</div>
 					<?php echo form_close(); ?> <!-- </form> -->
 					</div>		
-					<div class="card-body">
-						<h5 class="card-title">Most Recent Draw:</h5>
+					<div class="card-body p-2 p-sm-3">
+						<h5 class="card-title text-center mb-3">Most Recent Draw:</h5>
 						<?php if (empty($lastdraw)) 
 						{ 
-							echo "<p>No Lottery Database exists. Please create profile first.</p>";
+							echo "<p class='text-center'>No Lottery Database exists. Please create profile first.</p>";
 						} 
 						elseif ($lastdraw==='nodraws')
 						{ 
-							echo "<p>Although, their is a Lottery Database.  There are no draws in the database.</p>";
+							echo "<p class='text-center'>Although, their is a Lottery Database.  There are no draws in the database.</p>";
 						}
 						else  
 						{ 
-							echo "<h5 class='card-subtitle mb-2 text-dark'>".date('l, M d, Y',strtotime(str_replace('/','-',$lastdraw->draw_date)))."</h5>";
+							echo "<div class='recent-draw-date card-subtitle mb-3 text-dark'>".date('l, M d, Y',strtotime(str_replace('/','-',$lastdraw->draw_date)))."</div>";
 							$c = intval($lottery->balls_drawn);
 							$s = $lastdraw->ball1." ".$lastdraw->ball2." ".$lastdraw->ball3;
 							switch($c)
@@ -363,7 +379,7 @@
 									break;
 							}				
 							if (isset($lastdraw->extra)) $s .= " + ".$lastdraw->extra;
-							echo "<h3 class ='card-subtitle mb-1 text-danger'>$s</h3>";
+							echo "<div class='recent-draw-numbers card-subtitle mb-2 text-danger'>$s</div>";
 						} ?>
 					</div>
 				</div>
