@@ -229,7 +229,7 @@
 													if (strpos($prize, "_points") !== false) continue; // Only process main categories
 													$points = isset($wins[$prize . '_points']) ? $wins[$prize . '_points'] : 0;
 													$points_total += $points;
-													$percentage = $total_winners > 0 ? round(($winners / $total_winners) * 100, 2) : 0;
+													$percentage = $lottery->last_drawn['range'] > 0 ? round(($winners / $lottery->last_drawn['range']) * 100, 2) : 0;
 													switch ($prize) {
 														case "9_win": $label = "9 out of $cd Winners"; break;
 														case "8_win_extra": $label = "8 out of $cd Winners + Extra"; break;
@@ -298,7 +298,7 @@
 													if (strpos($prize, "_points") !== false) continue;
 													$points = isset($positions[$prize . '_points']) ? $positions[$prize . '_points'] : 0;
 													$points_total_pos += $points;
-													$percentage = $total_winners_pos > 0 ? round(($winners / $total_winners_pos) * 100, 2) : 0;
+													$percentage = $lottery->last_drawn['range'] > 0 ? round(($winners / $lottery->last_drawn['range']) * 100, 2) : 0;
 													switch ($prize) {
 														case "9_win": $label = "9 out of $cd Winners"; break;
 														case "8_win_extra": $label = "8 out of $cd Winners + Extra"; break;
