@@ -6,7 +6,86 @@
 	  <script src="js/respond.min.js"></script>
 	<![endif]-->
 <!-- Bootstrap Form Helpers -->	
-<script src="<?php echo site_url('js/bootstrap-formhelpers.min.js');?>"></script>	
+<script src="<?php echo site_url('js/bootstrap-formhelpers.min.js');?>"></script>
+<style>
+/* Mobile-friendly responsive improvements */
+@media (max-width: 767px) {
+	.col-form-label {
+		text-align: left !important;
+		margin-bottom: 5px;
+		font-size: 14px;
+		white-space: normal !important;
+		word-wrap: break-word;
+	}
+	
+	.form-group.row {
+		margin-bottom: 15px;
+	}
+	
+	.card-body {
+		padding: 1rem 0.75rem;
+	}
+	
+	.form-control {
+		font-size: 14px;
+	}
+	
+	.btn {
+		font-size: 14px;
+		padding: 8px 12px;
+	}
+	
+	.table-responsive {
+		font-size: 14px;
+	}
+	
+	.progress {
+		height: 25px;
+	}
+	
+	.progress-bar {
+		font-size: 12px;
+	}
+	
+	h2 {
+		font-size: 1.5rem;
+		text-align: center;
+		margin-bottom: 1rem;
+	}
+	
+	h3 {
+		font-size: 1.25rem;
+	}
+	
+	.card-title {
+		font-size: 1rem;
+	}
+	
+	.card-text {
+		font-size: 0.9rem;
+	}
+}
+
+@media (max-width: 575px) {
+	.container {
+		padding-left: 10px;
+		padding-right: 10px;
+	}
+	
+	.col-form-label {
+		font-size: 13px;
+	}
+	
+	.form-control {
+		font-size: 13px;
+	}
+	
+	.btn {
+		font-size: 13px;
+		padding: 6px 10px;
+	}
+}
+</style>	
 <h5 style = "text-align:left"><?php echo anchor('admin/lotteries', 'Back to the Lotteries Dashboard', 'title="Back to Lotteries"'); ?></h5>
 <section>
 	<div class="container">
@@ -14,15 +93,15 @@
 			<h2><?php echo 'Import Lottery: '.$lottery->lottery_name; ?></h2>
 			<h3 style = "text-align:center;" id="import_message"></h3>
 			<div class="row">
-				<div class="col-9" style ="width:100%;">
+				<div class="col-lg-9 col-md-8 col-sm-12">
 					<div class = "card">
 						<div class = "card-body">
 							<div class="form-group">
 							<!-- Current Lottery Image -->
 							<div class="form-group form-group-lg row"> 
-								<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
+								<?php $extra = array('class' => 'col-lg-4 col-md-5 col-sm-12 col-form-label col-form-label-md');
 								echo form_label('Current Lottery Image Logo:', 'current_lottery_image_logo_lb', $extra); ?>
-								<div class="col-8">
+								<div class="col-lg-8 col-md-7 col-sm-12">
 										<?php if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') 
 											{
     											$image_info = getimagesize(base_url().'images/uploads/'.$lottery->lottery_image); 
@@ -39,57 +118,57 @@
 							</div>
 							<!-- Lottery Description  -->
 							<div class="form-group form-group-lg row"> 
-									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md', 'style' => 'white-space: nowrap;');
+									<?php $extra = array('class' => 'col-lg-4 col-md-5 col-sm-12 col-form-label col-form-label-md', 'style' => 'white-space: nowrap;');
 									echo form_label('Lottery Description:', 'lottery_descriptiuon_lb', $extra); ?>
-								<div class="col-8">
+								<div class="col-lg-8 col-md-7 col-sm-12">
 									<?php echo form_label(wordwrap($lottery->lottery_description, 60, '<br /> ', FALSE), 'lottery_description_lb', $extra); ?>
 								</div>
 							</div>
 							<!-- Current State or Province Field -->
 							<div class="form-group form-group-lg row"> 
-								<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
+								<?php $extra = array('class' => 'col-lg-4 col-md-5 col-sm-12 col-form-label col-form-label-md');
 								echo form_label('Current State / Province:', 'state_province', $extra); ?>
-								<div class="col-8" style="margin-top:10px;">
+								<div class="col-lg-8 col-md-7 col-sm-12" style="margin-top:10px;">
 									<span class="bfh-states col-form-label-lg" data-country="<?=$lottery->lottery_country_id; ?>" data-state="<?=$lottery->lottery_state_prov; ?>"></span></label>
 								</div>
 							</div>
 							<!-- Country Field -->
 							<div class="form-group form-group-lg row"> 
-								<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
+								<?php $extra = array('class' => 'col-lg-4 col-md-5 col-sm-12 col-form-label col-form-label-md');
 								echo form_label('Country', 'country_lb', $extra); ?>
-								<div class="col-8">
+								<div class="col-lg-8 col-md-7 col-sm-12">
 									<span id="countries_states2" class="bfh-selectbox bfh-countries col-form-label-lg" data-flags="true" data-country=<?=$lottery->lottery_country_id; ?> data-name="lottery_country_id">
 								</div>
 							</div>
 							<!-- Lottery Pick Game -->
 							<div class="form-group form-group-lg row"> 
-									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
+									<?php $extra = array('class' => 'col-lg-4 col-md-5 col-sm-12 col-form-label col-form-label-md');
 									echo form_label('Pick:', 'lottery_pick_lb', $extra); ?>
-								<div class="col-8">
+								<div class="col-lg-8 col-md-7 col-sm-12">
 									<?php echo form_label($lottery->balls_drawn, 'lottery_balls_drawn_lb', $extra); ?>
 								</div>
 							</div>
 							<!-- Lottery Range  -->
 							<div class="form-group form-group-lg row"> 
-									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
+									<?php $extra = array('class' => 'col-lg-4 col-md-5 col-sm-12 col-form-label col-form-label-md');
 									echo form_label('Lottery Range:', 'lottery_Range_lb', $extra); ?>
-								<div class="col-8">
+								<div class="col-lg-8 col-md-7 col-sm-12">
 									<?php echo form_label('From '.$lottery->minimum_ball.' To '.$lottery->maximum_ball, 'lottery_range_lb', $extra); ?>
 								</div>
 							</div>
 							<!-- Extra / Bonus Ball  -->
 							<div class="form-group form-group-lg row"> 
-									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
+									<?php $extra = array('class' => 'col-lg-4 col-md-5 col-sm-12 col-form-label col-form-label-md');
 									echo form_label('Extra / Bonus Ball?', 'extra_ball_lb', $extra); ?>
-								<div class="col-8">
+								<div class="col-lg-8 col-md-7 col-sm-12">
 									<?php echo form_label((!empty($lottery->extra_ball) ? 'YES' : 'NO'), 'extra_ball_lb', $extra); ?>
 								</div>
 							</div>
 							<!-- Draw Days  -->
 							<div class="form-group form-group-lg row"> 
-									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
+									<?php $extra = array('class' => 'col-lg-4 col-md-5 col-sm-12 col-form-label col-form-label-md');
 									echo form_label('Days of Draw:', 'draw_days_lb', $extra); ?>
-								<div class="col-8">
+								<div class="col-lg-8 col-md-7 col-sm-12">
 									<?php $s = '';
 										if ($lottery->monday) $s .= 'Mondays<br />';
 										if ($lottery->tuesday) $s .= 'Tuesdays<br />';
@@ -103,25 +182,25 @@
 							</div>
 							<!-- Allow Duplicates? / Extra / Bonus Balls  -->
 							<div class="form-group form-group-lg row"> 
-									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
+									<?php $extra = array('class' => 'col-lg-4 col-md-5 col-sm-12 col-form-label col-form-label-md');
 									echo form_label('Allow Duplicate Extra / Bonus Ball?', 'duplicate_extra_lb', $extra); ?>
-								<div class="col-8">
+								<div class="col-lg-8 col-md-7 col-sm-12">
 									<?php echo form_label((!empty($lottery->duplicate_extra_ball) ? 'YES' : 'NO'), 'duplicate_extra_ball_lb', $extra); ?>
 								</div>
 							</div>
 							<!-- Extra Ball Range  -->
 							<div class="form-group form-group-lg row"> 
-									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
+									<?php $extra = array('class' => 'col-lg-4 col-md-5 col-sm-12 col-form-label col-form-label-md');
 									echo form_label('Lottery Range:', 'Extra_Ball_Range_lb', $extra); ?>
-								<div class="col-8">
+								<div class="col-lg-8 col-md-7 col-sm-12">
 									<?php echo form_label('From '.$lottery->minimum_extra_ball.' To '.$lottery->maximum_extra_ball, 'lottery_extra_ball_range_lb', $extra); ?>
 								</div>
 							</div>
 							<!-- Allow importing Bonus / Extra ball as 0, if Bonus Draws? -->
 							<div class="form-group form-group-lg row"> 
-								<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
+								<?php $extra = array('class' => 'col-lg-4 col-md-5 col-sm-12 col-form-label col-form-label-md');
 								echo form_label('Allow Import of 0 Bonus / Extra Ball?', 'allow_zero_extra_lb', $extra); ?>
-								<div class="col-8">
+								<div class="col-lg-8 col-md-7 col-sm-12">
 									<?php echo form_checkbox('allow_zero_extra', set_value('allow_zero_extra', '1'), set_checkbox('allow_zero_extra', '1', (!empty($import_data[0]->zero_extra))), 'style = "margin:15px 0px 0px 15px;"'); ?>
 								</div>
 							</div>
@@ -129,22 +208,22 @@
 							<div class="form-group form-group-lg row">
 							<?php if(isset($import_data[0]->columns)) 
 									{
-										$extra = array('class' => 'col-4 col-form-label col-form-label-md', 'style' => 'white-space: nowrap;');
+										$extra = array('class' => 'col-lg-4 col-md-5 col-sm-12 col-form-label col-form-label-md', 'style' => 'white-space: nowrap;');
 										echo form_label('Last Columns Eliminated from Import:', 'last_lottery_columns_lb', $extra); ?>
-										<div class="col-8">
+										<div class="col-lg-8 col-md-7 col-sm-12">
 											<?php $removal = rtrim($import_data[0]->columns,",");
 											echo form_label($removal.' ', 'last_lottery_columns_imported_lb', $extra); ?>
 										</div> 
 								<?php }
-								$extra = array('class' => 'col-4 col-form-label col-form-label-md');
+								$extra = array('class' => 'col-lg-4 col-md-5 col-sm-12 col-form-label col-form-label-md');
 								echo form_label('CSV Column # (0-Based, No Spaces)', 'cvs_field_lb', $extra); ?>
-								<div class="col-8">
-									<div class="table-responsive" style = "width:80%">  
+								<div class="col-lg-8 col-md-7 col-sm-12">
+									<div class="table-responsive" style = "width:100%">  
                                			<table class="table table-bordered" id="dynamic_field">  
                                     		<tr>  
 												<td style = "width:65%">
 													<?php $extra = array('class' => 'form-control', 'id' => 'current_csv',
-													'maxlength' => '2', 'size' => '10', 'style'=> 'width:75%', 'placeholder' => 'Column # to Remove');  
+													'maxlength' => '2', 'size' => '10', 'style'=> 'width:100%', 'placeholder' => 'Column # to Remove');  
 													echo form_input('csv_field[]','', $extra); 
 													echo form_error('csv_field[]', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 												</td>
@@ -162,28 +241,28 @@
 							<div class="form-group form-group-lg row">
 							<?php if(isset($import_data[0]->csv_file)) 
 									{
-										$extra = array('class' => 'col-4 col-form-label col-form-label-md', 'style' => 'white-space: nowrap;');
+										$extra = array('class' => 'col-lg-4 col-md-5 col-sm-12 col-form-label col-form-label-md', 'style' => 'white-space: nowrap;');
 										echo form_label('Last Lottery CSV File Imported:', 'last_lottery_import_lb', $extra); ?>
-										<div class="col-8">
+										<div class="col-lg-8 col-md-7 col-sm-12">
 										<?= form_label($import_data[0]->csv_file, 'last_lottery_import_csv_lb', $extra); ?>
 										</div> 
 								<?php }
-								$extra = array('class' => 'col-4 col-form-label col-form-label-md');
+								$extra = array('class' => 'col-lg-4 col-md-5 col-sm-12 col-form-label col-form-label-md');
 								echo form_label('Lottery Import CSV File:', 'lottery_import_csv_file_lb', $extra); ?>
-								<div class="col-8">
+								<div class="col-lg-8 col-md-7 col-sm-12">
 										<?php $extra = array('class' => 'form-control', 'id' => 'lottery_upload_csv',
-										'accept' => '.csv', 'style'=> 'width:80%'); 
+										'accept' => '.csv', 'style'=> 'width:100%'); 
 										echo form_upload('lottery_upload_csv', set_value((isset($import_data[0]->csv_file) ? $import_data[0]->csv_file : '')), $extra); 
 										echo form_error('lottery_upload_csv', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 									</div>
 								</div>
 								<!-- Import from URL (Zip File or csv File -->
 								<div class="form-group form-group-lg row"> 
-									<?php $extra = array('class' => 'col-4 control-label col-form-label-md');
+									<?php $extra = array('class' => 'col-lg-4 col-md-5 col-sm-12 control-label col-form-label-md');
 									echo form_label('Import csv File (URL):', 'import_lottery_url_lb', $extra); ?>
-									<div class="col-8">
+									<div class="col-lg-8 col-md-7 col-sm-12">
 									<?php $extra = array('class' => 'form-control form-control-lg', 'id' => 'FormControlInput',
-										'maxlength' => '550', 'size' => '50', 'style'=> 'width:80%');
+										'maxlength' => '550', 'size' => '50', 'style'=> 'width:100%');
 										echo form_input('import_lottery_url',set_value('import_lottery_url', (isset($import_data[0]->csv_url) ? $import_data[0]->csv_url : '')), $extra); 
 										echo form_error('import_lottery_url', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 									</div>
@@ -196,7 +275,7 @@
 								</div>
 								<!-- Import Progress Bar for 0 to 100 % -->
 								<div class="form-group" id = "process" style = "display:none;"> 
-									<div class="col-8">
+									<div class="col-lg-8 col-md-10 col-sm-12">
 										<div class = "progress">
 											<div class = "progress-bar progress-bar-striped progress-bar-animated active" 
 											style = "width: 400%; display: inline-block; text-align:center; margin:5px;" role = "progressbar" 
@@ -206,12 +285,12 @@
 										</div>
 									</div>
 								</div>
-								<div style = "text-align: center;">
-									<?php echo form_submit('import', 'Begin Import / Upload', 'class="btn btn-primary btn-lg btn-info" id = "import"');
+								<div class="text-center">
+									<?php echo form_submit('import', 'Begin Import / Upload', 'class="btn btn-primary btn-lg btn-info mb-2" id = "import"');
 									$attributes = array(
 										'class' 	=> "btn btn-primary btn-lg btn-info", 
 										'id'		=> "lottery_list",
-										'style' 	=> "margin-left:20px;"
+										'style' 	=> "margin-left:10px;"
 									);
 									$data = array('type'  => 'hidden', 'name'  => 'import_click', 'id' => 'import_click', 'value' => '0');
 									echo form_input($data); 
@@ -222,8 +301,8 @@
 						</div>
 					</div>
 				</div>
-			<div class="col-3" style = "width:100%;">
-				<div class="card border-danger" style="max-width: 20rem; display:block;">					
+			<div class="col-lg-3 col-md-4 col-sm-12">
+				<div class="card border-danger mb-3" style="max-width: 100%; display:block;">					
 					<div class="card-header bg-transparent border-danger">Lottery Draw Import</div>
 						<div class="card-body text-danger">
 							<h5 class="card-title">
@@ -250,7 +329,7 @@
 					<div class="card-footer bg-transparent border-danger" id = "footer-on">Currently Imported: N/A</div>
 				</div>
 				<!-- Calculate/ReCalc Tile -->
-				<div class="card border-info mt-3" style="max-width: 20rem; display:block;">
+				<div class="card border-info mt-3" style="max-width: 100%; display:block;">
 					<div class="card-header bg-transparent border-info">Statistics Operations</div>
 					<div class="card-body text-info">
 						<h5 class="card-title">Calculate & ReCalc</h5>
@@ -288,7 +367,7 @@ $(document).ready(function() {
 
 	$('#add').click(function(){  
            i++;  
-           $('#dynamic_field').append('<tr id="row'+i+'"><td><input type="text" name="csv_field[]" value = "'+csv[0].value+'" style="width:90%" class="form-control field_list" /></td><td align="center"><button type="button" name="remove" id="'+i+'" class="btn btn-danger btn_remove text-center">X</button></td></tr>');
+           $('#dynamic_field').append('<tr id="row'+i+'"><td><input type="text" name="csv_field[]" value = "'+csv[0].value+'" style="width:100%" class="form-control field_list" /></td><td align="center"><button type="button" name="remove" id="'+i+'" class="btn btn-danger btn_remove text-center">X</button></td></tr>');
 		   $('#current_csv').val('');
 		   $('#current_csv').placeholder = "Column # to Remove";   
 	  });  
@@ -554,7 +633,7 @@ $(document).ready(function() {
 			// of your textbox
 			csv_field[i].value = columns[i];
 			count++;
-			if(i < columns.length-1) $('#dynamic_field').append('<tr id="row'+i+'"><td><input type="text" name="csv_field[]" value = "'+csv_field[i].value+'" style="width:90%" class="form-control field_list" /></td><td align="center"><button type="button" name="remove" id="'+i+'" class="btn btn-danger btn_remove text-center">X</button></td></tr>');
+			if(i < columns.length-1) $('#dynamic_field').append('<tr id="row'+i+'"><td><input type="text" name="csv_field[]" value = "'+csv_field[i].value+'" style="width:100%" class="form-control field_list" /></td><td align="center"><button type="button" name="remove" id="'+i+'" class="btn btn-danger btn_remove text-center">X</button></td></tr>');
 		} 
 	}
 })
