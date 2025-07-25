@@ -609,6 +609,7 @@ class Predictions extends Admin_Controller {
 			$this->data['lottery']->number_range = $this->predictions_m->get_range($this->data['lottery']->highlights['number_range']);
 			$this->data['lottery']->adjacents = $this->predictions_m->get_adjacents($this->data['lottery']->highlights['adjacents']);
 			$this->data['friends'] = $this->predictions_m->get_friends($id);
+			$this->data['friends_dropdown_options'] = $this->predictions_m->get_friends_dropdown_options($id);
 			// Grab the next draw date
 			$ld = $this->data['lottery']->last_drawn['draw_date'];	// Return last draw date
 			$day = $this->lotteries_m->return_day($ld);				// Returns the day of draw, Saturday, Sunday, etc.
@@ -1122,6 +1123,7 @@ class Predictions extends Admin_Controller {
 		$this->data['lottery']->number_range = $this->predictions_m->get_range($this->data['lottery']->highlights['number_range']);
 		$this->data['lottery']->adjacents = $this->predictions_m->get_adjacents($this->data['lottery']->highlights['adjacents']);
 		$this->data['friends'] = $this->predictions_m->get_friends($id);
+		$this->data['friends_dropdown_options'] = $this->predictions_m->get_friends_dropdown_options($id);
 		$this->data['combo_id'] = NULL; // Reset combo_id to NULL
 		// Get next draw date
 		$ld = $this->data['lottery']->last_drawn['draw_date'];
@@ -1174,6 +1176,7 @@ class Predictions extends Admin_Controller {
 		$this->data['h_w_c'] = $this->predictions_m->get_h_w_c($id);
 		$this->data['followers'] = $this->predictions_m->get_followers($id);
 		$this->data['friends'] = $this->predictions_m->get_friends($id);
+		$this->data['friends_dropdown_options'] = $this->predictions_m->get_friends_dropdown_options($id);
 
 		// Prepare dropdown options
 		$h_w_c_group = $this->predictions_m->get_h_w_c_range($id);
@@ -1622,6 +1625,8 @@ class Predictions extends Admin_Controller {
 		$this->data['lottery']->number_range = $this->predictions_m->get_range($this->data['lottery']->highlights['number_range']);
 		$this->data['lottery']->adjacents = $this->predictions_m->get_adjacents($this->data['lottery']->highlights['adjacents']);
 		$this->data['friends'] = $this->predictions_m->get_friends($id);
+		$this->data['friends_dropdown_options'] = $this->predictions_m->get_friends_dropdown_options($id);
+		
 		// Grab the next draw date
 		$ld = $this->data['lottery']->last_drawn['draw_date'];	// Return last draw date
 		$day = $this->lotteries_m->return_day($ld);				// Returns the day of draw, Saturday, Sunday, etc.

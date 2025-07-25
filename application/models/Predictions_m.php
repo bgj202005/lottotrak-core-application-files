@@ -262,6 +262,67 @@ class Predictions_m extends MY_Model
         $this->db->where('lottery_id', $lottery_id);
         return $this->db->get()->row_array();
     }
+    
+    /**
+     * Retrieves the friendship counts from the wins field and returns them sorted by largest occurrence first.
+     *
+     * @param int $lottery_id The ID of the lottery.
+     * @return array An array of friendship options with counts, sorted by largest occurrence first.
+     */
+    public function get_friends_dropdown_options($lottery_id)
+    {
+        $this->db->select('wins');
+        $this->db->from('lottery_friends');
+        $this->db->where('lottery_id', $lottery_id);
+        $result = $this->db->get()->row_array();
+        
+        $options = ['all' => 'ALL'];
+        
+        if ($result && !empty($result['wins'])) {
+            // Parse the wins field: "0,2121,259|..."
+            $wins_parts = explode('|', $result['wins']);
+            if (!empty($wins_parts[0])) {
+                $counts = explode(',', $wins_parts[0]);
+                
+                if (count($counts) >= 3) {
+                    $friendship_data = [
+                        'none' => ['count' => (int)$counts[0], 'label' => 'No Friends'],
+                        '1' => ['count' => (int)$counts[1], 'label' => '1-Way Friend'],
+                        '2' => ['count' => (int)$counts[2], 'label' => '2-Way Friends']
+                    ];
+                    
+                    // Sort by count (largest first)
+                    uasort($friendship_data, function($a, $b) {
+                        return $b['count'] - $a['count'];
+                    });
+                    
+                    // Build options array sorted by largest occurrence first
+                    foreach ($friendship_data as $key => $data) {
+                        if ($data['count'] > 0) { // Only include non-zero counts
+                            $options[$key] = $data['label'] . ' (' . $data['count'] . ')';
+                        }
+                    }
+                    
+                    // Also add any zero counts at the end
+                    foreach ($friendship_data as $key => $data) {
+                        if ($data['count'] == 0) {
+                            $options[$key] = $data['label'] . ' (' . $data['count'] . ')';
+                        }
+                    }
+                    
+                    return $options;
+                }
+            }
+        }
+        
+        // Fallback to default options if no wins data found
+        return [
+            'all' => 'ALL',
+            'none' => '0 Friends',
+            '1' => '1-Way',
+            '2' => '2-Way'
+        ];
+    }
 	/**
 	 * Retrieves and parses the h_w_c_range field for a lottery.
 	 * Returns an associative array: [ 'h-w-c' => total, ... ]

@@ -207,7 +207,7 @@
 										</tbody>
 									</table>
 								
-									<table class="table nonfriendtype">
+									<!-- <table class="table nonfriendtype">
 										<thead>
 											<tr>
 												<th class="text-center" colspan="2">Non-Friendship Occurrences</th>
@@ -218,8 +218,8 @@
 											</tr>
 										</thead>
 										<tbody>
-											<?php echo "<tr class='table-light'>"; 
-											echo "<tr class='table-light'>";
+											<?php //echo "<tr class='table-light'>"; 
+											/* echo "<tr class='table-light'>";
 											echo "<td class='text-center'>".$lottery->friend['0-friends']."</td>";
 											echo "<td class='text-center'>No Non-friends Drawn</td></tr>";
 											echo "<td class='text-center'>".$lottery->friend['1-friends']."</td>";
@@ -230,9 +230,9 @@
 											echo "<td class='text-center'>3 Non-Friend Drawn</td></tr>";
 											echo "<td class='text-center'>".$lottery->friend['4-friends']."</td>";
 											echo "<td class='text-center'>4 Non-Friends Drawn</td></tr>";
-											?>
+											*/ ?>  
 										</tbody>
-									</table>
+									</table> -->
 									</div>
 									<div class = "row justify-content-center">
 									<?php $row = 1; // Pagenation row 

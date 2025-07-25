@@ -2526,43 +2526,23 @@ class Statistics_m extends MY_Model
 			$w = (!$draws ? ' WHERE extra <> "0" ' : ' ');
 			$w .= (!empty($last)&&(!$draws) ? " AND draw_date <= '".$last."'" : "");
 			$w .= (!empty($last)&&($draws) ? " WHERE draw_date <= '".$last."'" : "");  
-			$b = 1; // Number 1 to Number N from the size of the Lottery
-			do
-			{
-				// Calculate
-				$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
-				// Execute Query
-				$query = $this->db->query($sql);
-				$row = $query->first_row('array'); // Doing the reverse to the first row because of the descending order.
-				do {
-					$blnExDup = ($bonus&&$duple&&($b==$row['extra']) ? TRUE : FALSE); 	// Has reached the extra number that is an independent and 
-																						// duplicate Extra ball (TRUE) or everything else is FALSE
-					if($this->is_drawn($b, $row, $max, $bonus)&&(!$blnExDup))			// Must always be FALSE to place on the friends list
-					{
-						// a hit has been found
-						$row = $query->next_row('array'); // Go to the next draw for examination
-						if(!is_null($row))
-						{
-							$relatives = $this->friends_hitcounts($relatives,$friends,$row,$bonus,$duple);
-							$nonassociates = $this->nonfriends($nonfriends, $b);
-							$nonrelatives = $this->nonfriends_hitcounts($nonrelatives,$nonassociates,$row,$bonus,$duple);
-						}
-					}
-					else
-					{
-						$row = $query->next_row('array');
-					}
-				} while(!is_null($row)); // Do until all draws complete
-			$b++;
-			unset($friendlist);		// Destroy the old friendlist
-			$query->free_result();	// Removes the Memory associated with the result resource ID
-		} while ($b<=$top);
+			// Get the draw range once and process each draw exactly once
+			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
+			$query = $this->db->query($sql);
+			
+		// Process each draw in the range exactly once
+		if($query->num_rows() > 0) {
+			foreach($query->result_array() as $row) {
+				// Count friendships for this draw only
+				$relatives = $this->friends_hitcounts($relatives,$friends,$row,$bonus,$duple);
+			}
+		}
+		
+		// Handle non-friends separately if needed
+		// TODO: Determine if non-friends counting is needed and implement correctly		$query->free_result();	// Removes the Memory associated with the result resource ID
 		unset($friends);		// Destroy the old friendlist
 		unset($nonfriends);
-		$query->free_result();	// Removes the Memory associated with the result resource ID
-	}
-
-	/**
+	}	/**
 	* Return the non existent friends after the current draw
 	* @param	array	$list		Associative Array of non followers and the counts
 	* @param	integer	$bl			Current Ball examined with the nonfriends. 
@@ -2590,7 +2570,9 @@ class Statistics_m extends MY_Model
 		unset($rw['draw_date']);		// Don't include
 		$elim = array(); // Associate elimination array in this format
 						 // $elim = array(6 = 38, 2 = 5); // For 2 - way friendships only
-		$blnfound = FALSE;	// no frienships at this point
+		$has_2way = FALSE;	// Track if any 2-way friendship found
+		$has_1way = FALSE;	// Track if any 1-way friendship found
+		
 		// $fr is the search array
 		foreach($rw as $position => $ball) // Interate the draw, duplicate extra is excluded
 		{
@@ -2598,24 +2580,33 @@ class Statistics_m extends MY_Model
 			{
 				$friend1 = $fr[$ball];		// Friend 1
 				$friend2 = $fr[$friend1];	// Friend 2
-				// Two way
+				// Two way - check if this creates a 2-way friendship
 				if((in_array($friend1,$rw)&&in_array($friend2,$rw))&&(!isset($elim[$ball])&&(!isset($elim[$friend1])))) 
 				{
-					++$rel['2-way']; 			// Two-way
+					$has_2way = TRUE;			// Found at least one 2-way friendship
 					$elim[$ball] = $friend1;	// Record this, so it is not duplicated, e.g. ball = friend2 
 					$elim[$friend1] = $ball;	// and friend2=ball
-					$blnfound = TRUE;
 				}
-				elseif((in_array($friend1,$rw))&&(!in_array($friend2,$rw))||(!in_array($friend1,$rw))&&(in_array($friend2,$rw))) 
+				elseif(!$has_2way && ((in_array($friend1,$rw))&&(!in_array($friend2,$rw))||(!in_array($friend1,$rw))&&(in_array($friend2,$rw)))) 
 				{
-					++$rel['1-way']; // One-way
-					$blnfound = TRUE;
+					$has_1way = TRUE; // Found at least one 1-way friendship
 				}
 			} 
 		}
-		if(!$blnfound) ++$rel['nofriends']; // no friends
-	unset($elim);
-	return $rel;	// Return the friendship relationship counts.
+		
+		// Priority-based counting: each draw gets counted exactly once
+		if($has_2way) {
+			++$rel['2-way']; 			// Count as one 2-way draw
+		}
+		elseif($has_1way) {
+			++$rel['1-way']; 			// Count as one 1-way draw
+		}
+		else {
+			++$rel['nofriends']; 		// Count as one no-friends draw
+		}
+		
+		unset($elim);
+		return $rel;	// Return the friendship relationship counts.
 	}
 
 	/**
@@ -2623,8 +2614,8 @@ class Statistics_m extends MY_Model
 	* Draws with only 1 non-friend in the draw, 2 non-friends in the draw, 3 non-friends in the draw
 	* or 4 non-friends in the draw
 	* @param	array	$nonrel		Associative Array of non relatives and the counts
-	* @param	array	$nonfl		index Array of current non followers
-	* @param	array	$rw			Current next row of drawn numbers. Compared with the current followers
+	* @param	array	$nonfl		index Array of current non friends
+	* @param	array	$rw			Current next row of drawn numbers. Compared with the current friends
 	* @param	boolean	$b			Extra / Bonus included in the hit count
 	* @param	boolean	$d			Duplicate Flag, 0 = No Duplicate lottery, 1 = Duplicate Extra Ball lottery
 	* @return	array	$nonrel		Return Associated Array of non relatives updated 

@@ -595,12 +595,15 @@
 														</div>
 													</td>
 													<td data-label="Friends">
-														<?= form_dropdown('friends_select', [
-															'all' => 'ALL',
-															'none' => '0 Friends',
-															'1' => '1-Way',
-															'2' => '2-Way'
-														], isset($selected_friends) ? $selected_friends : '', 'class="form-control" id="friends"') ?>
+														<?= form_dropdown('friends_select', 
+															isset($friends_dropdown_options) ? $friends_dropdown_options : [
+																'all' => 'ALL',
+																'none' => '0 Friends',
+																'1' => '1-Way',
+																'2' => '2-Way'
+															], 
+															isset($selected_friends) ? $selected_friends : '', 
+															'class="form-control" id="friends"') ?>
 													</td>
 													<td data-label="Trends">
 														<?= form_dropdown('trends', $lottery->trends, isset($selected_trends) ? $selected_trends : '', 'class="form-control"') ?>
