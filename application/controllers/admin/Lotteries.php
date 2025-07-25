@@ -207,6 +207,19 @@ class Lotteries extends Admin_Controller {
 		if(isset($this->data['lastdraw']->draw_date)) {
 			if((strtotime($this->data['lastdraw']->draw_date)!=(strtotime($this->data['lottery']->lastdate)))) $this->data['lottery']->lastdate=$this->data['lastdraw']->draw_date;
 		}
+		
+		// Calculate repeater numbers for display
+		$this->data['repeater_display'] = 'None (0)';
+		$this->data['max_last'] = 'N/A';
+		if ($id && isset($this->data['lastdraw']->draw_date) && $this->data['lastdraw'] !== 'nodraws') {
+			$repeaters = $this->get_repeater_numbers($this->data['lottery'], $this->data['lastdraw']);
+			if (!empty($repeaters)) {
+				sort($repeaters);
+				$this->data['repeater_display'] = implode(' ', $repeaters) . ' (' . count($repeaters) . ')';
+			}
+			// Calculate Max Last (maximum repeating last digits)
+			$this->data['max_last'] = $this->calculate_max_last($this->data['lottery'], $this->data['lastdraw']);
+		}
 		// Pass the retrieved values to the view
     	$this->data['lottery_country_id'] = $this->data['lottery']->lottery_country_id ?? 'CA'; // Default to Canada if not set
 	    $this->data['lottery_state_prov'] = $this->data['lottery']->lottery_state_prov ?? ''; // Default to empty if not set
@@ -1447,5 +1460,97 @@ class Lotteries extends Admin_Controller {
 	public function _duplicate_check($str, $lottery) 
 	{
 	return (intval($str)>$lottery['maximum_ball'] ? FALSE : TRUE);
+	}
+	
+	/**
+	 * Get repeater numbers from current draw compared to previous draw
+	 *
+	 * @param       obj $lottery    Lottery object
+	 * @param       obj $lastdraw   Last draw object
+	 * @return      array           Array of repeater numbers
+	 */
+	private function get_repeater_numbers($lottery, $lastdraw)
+	{
+		// Get the current draw numbers
+		$current_numbers = array();
+		$current_numbers[] = $lastdraw->ball1;
+		$current_numbers[] = $lastdraw->ball2;
+		$current_numbers[] = $lastdraw->ball3;
+		
+		$balls_count = intval($lottery->balls_drawn);
+		if ($balls_count >= 4 && isset($lastdraw->ball4)) $current_numbers[] = $lastdraw->ball4;
+		if ($balls_count >= 5 && isset($lastdraw->ball5)) $current_numbers[] = $lastdraw->ball5;
+		if ($balls_count >= 6 && isset($lastdraw->ball6)) $current_numbers[] = $lastdraw->ball6;
+		if ($balls_count >= 7 && isset($lastdraw->ball7)) $current_numbers[] = $lastdraw->ball7;
+		if ($balls_count >= 8 && isset($lastdraw->ball8)) $current_numbers[] = $lastdraw->ball8;
+		if ($balls_count >= 9 && isset($lastdraw->ball9)) $current_numbers[] = $lastdraw->ball9;
+		
+		// Get the lottery table name
+		$lottery_table = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+		
+		// Get the previous draw
+		$this->db->select('*');
+		$this->db->from($lottery_table);
+		$this->db->where('draw_date <', $lastdraw->draw_date);
+		$this->db->order_by('draw_date', 'DESC');
+		$this->db->limit(1);
+		$previous_draw_query = $this->db->get();
+		
+		if ($previous_draw_query->num_rows() > 0) {
+			$previous_draw = $previous_draw_query->row();
+			
+			// Get previous draw numbers
+			$previous_numbers = array();
+			$previous_numbers[] = $previous_draw->ball1;
+			$previous_numbers[] = $previous_draw->ball2;
+			$previous_numbers[] = $previous_draw->ball3;
+			
+			if ($balls_count >= 4 && isset($previous_draw->ball4)) $previous_numbers[] = $previous_draw->ball4;
+			if ($balls_count >= 5 && isset($previous_draw->ball5)) $previous_numbers[] = $previous_draw->ball5;
+			if ($balls_count >= 6 && isset($previous_draw->ball6)) $previous_numbers[] = $previous_draw->ball6;
+			if ($balls_count >= 7 && isset($previous_draw->ball7)) $previous_numbers[] = $previous_draw->ball7;
+			if ($balls_count >= 8 && isset($previous_draw->ball8)) $previous_numbers[] = $previous_draw->ball8;
+			if ($balls_count >= 9 && isset($previous_draw->ball9)) $previous_numbers[] = $previous_draw->ball9;
+			
+			// Find repeaters (numbers that appear in both draws)
+			return array_intersect($current_numbers, $previous_numbers);
+		}
+		
+		return array();
+	}
+	
+	/**
+	 * Calculate Max Last (maximum repeating last digits) for a draw
+	 *
+	 * @param       obj $lottery    Lottery object
+	 * @param       obj $lastdraw   Last draw object
+	 * @return      int             Maximum count of numbers ending with same digit
+	 */
+	private function calculate_max_last($lottery, $lastdraw)
+	{
+		// Get the current draw numbers
+		$draw_numbers = array();
+		$draw_numbers[] = $lastdraw->ball1;
+		$draw_numbers[] = $lastdraw->ball2;
+		$draw_numbers[] = $lastdraw->ball3;
+		
+		$balls_count = intval($lottery->balls_drawn);
+		if ($balls_count >= 4 && isset($lastdraw->ball4)) $draw_numbers[] = $lastdraw->ball4;
+		if ($balls_count >= 5 && isset($lastdraw->ball5)) $draw_numbers[] = $lastdraw->ball5;
+		if ($balls_count >= 6 && isset($lastdraw->ball6)) $draw_numbers[] = $lastdraw->ball6;
+		if ($balls_count >= 7 && isset($lastdraw->ball7)) $draw_numbers[] = $lastdraw->ball7;
+		if ($balls_count >= 8 && isset($lastdraw->ball8)) $draw_numbers[] = $lastdraw->ball8;
+		if ($balls_count >= 9 && isset($lastdraw->ball9)) $draw_numbers[] = $lastdraw->ball9;
+		
+		// Count occurrences of each last digit (0-9)
+		$last_digit_counts = array_fill(0, 10, 0);
+		
+		foreach ($draw_numbers as $number) {
+			$last_digit = $number % 10; // Get the last digit
+			$last_digit_counts[$last_digit]++;
+		}
+		
+		// Return the maximum count
+		return max($last_digit_counts);
 	}
 }

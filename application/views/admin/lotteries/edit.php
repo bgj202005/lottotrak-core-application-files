@@ -384,11 +384,62 @@
 					</div>
 				</div>
 				<div class="card text-white bg-dark mb-3" style="width: 100%;">
-					<div class="card-header">Optimized Win Snapshot</div>
-					<div class="card-body">
-						<h5 class="card-title">Panel title</h5>
-						<p>This card has supporting text below as a natural lead-in to additional content.</p>
-						<p><small>Last updated 3 mins ago</small></p>
+					<div class="card-header">Last Draw Statistics</div>
+					<div class="card-body p-2 p-sm-3">
+						<?php if (empty($lastdraw) || $lastdraw === 'nodraws') { ?>
+							<p class="text-center">No draw statistics available.</p>
+						<?php } else { ?>
+							<div class="row">
+								<div class="col-6 mb-2">
+									<div class="stat-item">
+										<small class="text-muted d-block">Sum</small>
+										<span class="stat-value"><?php echo isset($lastdraw->sum_draw) ? $lastdraw->sum_draw : 'N/A'; ?></span>
+									</div>
+								</div>
+								<div class="col-6 mb-2">
+									<div class="stat-item">
+										<small class="text-muted d-block">Digits Sum</small>
+										<span class="stat-value"><?php echo isset($lastdraw->sum_digits) ? $lastdraw->sum_digits : 'N/A'; ?></span>
+									</div>
+								</div>
+								<div class="col-6 mb-2">
+									<div class="stat-item">
+										<small class="text-muted d-block">Odd</small>
+										<span class="stat-value"><?php echo isset($lastdraw->odd) ? $lastdraw->odd : 'N/A'; ?></span>
+									</div>
+								</div>
+								<div class="col-6 mb-2">
+									<div class="stat-item">
+										<small class="text-muted d-block">Even</small>
+										<span class="stat-value"><?php echo isset($lastdraw->even) ? $lastdraw->even : 'N/A'; ?></span>
+									</div>
+								</div>
+								<div class="col-6 mb-2">
+									<div class="stat-item">
+										<small class="text-muted d-block">Range</small>
+										<span class="stat-value"><?php echo isset($lastdraw->range_draw) ? $lastdraw->range_draw : 'N/A'; ?></span>
+									</div>
+								</div>
+								<div class="col-6 mb-2">
+									<div class="stat-item">
+										<small class="text-muted d-block">Max Decade</small>
+										<span class="stat-value"><?php echo isset($lastdraw->repeat_decade) ? $lastdraw->repeat_decade : 'N/A'; ?></span>
+									</div>
+								</div>
+								<div class="col-6 mb-2">
+									<div class="stat-item">
+										<small class="text-muted d-block">Max Last</small>
+										<span class="stat-value"><?php echo isset($max_last) ? $max_last : 'N/A'; ?></span>
+									</div>
+								</div>
+								<div class="col-6 mb-2">
+									<div class="stat-item">
+										<small class="text-muted d-block">Repeaters</small>
+										<span class="stat-value"><?php echo isset($repeater_display) ? $repeater_display : 'None (0)'; ?></span>
+									</div>
+								</div>
+							</div>
+						<?php } ?>
 					</div>
 				</div>
 			</div>
