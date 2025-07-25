@@ -1553,4 +1553,84 @@ class Lotteries extends Admin_Controller {
 		// Return the maximum count
 		return max($last_digit_counts);
 	}
+
+	/**
+	 * AJAX endpoint for Calculate functionality
+	 *
+	 * @param int $id Lottery ID
+	 * @return void
+	 */
+	public function ajax_calculate($id)
+	{
+		header('Content-Type: application/json');
+		
+		try {
+			// Get lottery data
+			$lottery = $this->lotteries_m->get($id);
+			if (!$lottery) {
+				echo json_encode(['success' => false, 'message' => 'Lottery not found']);
+				return;
+			}
+			
+			// Redirect to statistics calculate - capture output
+			ob_start();
+			redirect('admin/statistics/calculate/' . $id);
+			$redirect_output = ob_get_clean();
+			
+			// Since redirect happens, we check session for success message
+			$message = $this->session->flashdata('message');
+			if ($message && strpos($message, 'Draw Statistics Complete and Up To-Date') !== false) {
+				echo json_encode(['success' => true, 'message' => 'Draw Statistics Complete and Up To-Date']);
+			} else {
+				echo json_encode(['success' => false, 'message' => $message ?: 'Unable to complete calculation']);
+			}
+		} catch (Exception $e) {
+			echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+		}
+	}
+
+	/**
+	 * AJAX endpoint for ReCalc functionality
+	 *
+	 * @param int $id Lottery ID
+	 * @return void
+	 */
+	public function ajax_recalc($id)
+	{
+		header('Content-Type: application/json');
+		
+		try {
+			// Get lottery data
+			$lottery = $this->lotteries_m->get($id);
+			if (!$lottery) {
+				echo json_encode(['success' => false, 'message' => 'Lottery not found']);
+				return;
+			}
+			
+			$last_date = '';
+			if ($lottery->last_draw !== 'nodraws' && !empty($lottery->last_draw->draw_date)) {
+				$last_date = date("M d, Y", strtotime(str_replace('/', '-', $lottery->last_draw->draw_date)));
+			}
+			
+			// Redirect to statistics recalc - capture output
+			ob_start();
+			redirect('admin/statistics/recalc/' . $id);
+			$redirect_output = ob_get_clean();
+			
+			// Check session for success message
+			$message = $this->session->flashdata('message');
+			if ($message && strpos($message, 'Hot - Warm - Cold, Followers and Friends Statistics have ALL been updated') !== false) {
+				echo json_encode([
+					'success' => true, 
+					'message' => 'The Hot - Warm - Cold, Followers and Friends Statistics have ALL been updated to the latest draw',
+					'lottery_name' => $lottery->lottery_name,
+					'last_date' => $last_date
+				]);
+			} else {
+				echo json_encode(['success' => false, 'message' => $message ?: 'Unable to complete recalculation']);
+			}
+		} catch (Exception $e) {
+			echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+		}
+	}
 }

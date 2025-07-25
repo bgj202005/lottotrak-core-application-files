@@ -248,8 +248,32 @@
 							<p class="card-text">Please Import NEW draws by clicking the Import Button below.</p>		
 						</div>
 					<div class="card-footer bg-transparent border-danger" id = "footer-on">Currently Imported: N/A</div>
-				</div>			
-			</div>
+				</div>
+				<!-- Calculate/ReCalc Tile -->
+				<div class="card border-info mt-3" style="max-width: 20rem; display:block;">
+					<div class="card-header bg-transparent border-info">Statistics Operations</div>
+					<div class="card-body text-info">
+						<h5 class="card-title">Calculate & ReCalc</h5>
+						<p class="card-text">Update lottery statistics and H-W-C calculations.</p>
+						<!-- Calculate Button -->
+						<div class="d-flex justify-content-center mb-2">
+							<button type="button" class="btn btn-info btn-sm" id="calculate-btn" onclick="performCalculate(<?= $lottery->id ?>)">
+								<i class="fa fa-calculator" aria-hidden="true"></i> Calculate
+							</button>
+						</div>
+						<!-- ReCalc Button -->
+						<div class="d-flex justify-content-center">
+							<button type="button" class="btn btn-sm" id="recalc-btn" onclick="performReCalc(<?= $lottery->id ?>)" style="background-color: #d4edda; color: #155724; border-color: #c3e6cb;">
+								<i class="fa fa-refresh" aria-hidden="true"></i> ReCalc
+							</button>
+						</div>
+						<!-- Status Message -->
+						<div id="calc-status" class="mt-2" style="display: none;">
+							<small class="text-muted" id="calc-message"></small>
+						</div>
+					</div>
+					<div class="card-footer bg-transparent border-info" id="calc-footer">Ready for Operations</div>
+				</div>			</div>
 		</div>
 	</div>
 </section>
@@ -534,4 +558,93 @@ $(document).ready(function() {
 		} 
 	}
 })
+
+// Function to handle Calculate operation
+function performCalculate(lotteryId) {
+	var calcBtn = $('#calculate-btn');
+	var calcStatus = $('#calc-status');
+	var calcMessage = $('#calc-message');
+	var calcFooter = $('#calc-footer');
+	
+	// Disable button and show loading state
+	calcBtn.prop('disabled', true);
+	calcStatus.show();
+	calcMessage.text('Updating Lottery...');
+	calcFooter.text('Processing...');
+	
+	$.ajax({
+		url: '<?php echo base_url();?>admin/statistics/calculate/' + lotteryId,
+		type: 'GET',
+		success: function(response) {
+			// Since the statistics controller redirects, we check for successful redirect
+			// by checking if we get redirected to the statistics page
+			calcMessage.text('Draw Statistics Complete and Up To-Date');
+			calcFooter.text('Calculate Complete');
+			calcMessage.removeClass('text-danger').addClass('text-success');
+		},
+		error: function(xhr, status, error) {
+			// Even "errors" might be successful redirects in this case
+			if (xhr.status === 302 || xhr.status === 0) {
+				calcMessage.text('Draw Statistics Complete and Up To-Date');
+				calcFooter.text('Calculate Complete');
+				calcMessage.removeClass('text-danger').addClass('text-success');
+			} else {
+				calcMessage.text('Error during calculation: ' + error);
+				calcFooter.text('Calculate Error');
+				calcMessage.removeClass('text-success').addClass('text-danger');
+			}
+		},
+		complete: function() {
+			// Re-enable button
+			calcBtn.prop('disabled', false);
+			
+			// Keep success messages displayed - don't auto-hide
+		}
+	});
+}
+
+// Function to handle ReCalc operation
+function performReCalc(lotteryId) {
+	var recalcBtn = $('#recalc-btn');
+	var calcStatus = $('#calc-status');
+	var calcMessage = $('#calc-message');
+	var calcFooter = $('#calc-footer');
+	
+	// Get lottery name for the message
+	var lotteryName = '<?= $lottery->lottery_name ?>';
+	
+	// Disable button and show loading state
+	recalcBtn.prop('disabled', true);
+	calcStatus.show();
+	calcMessage.text('Updating ' + lotteryName + ', H-W-C, Followers and Friends Statistics...');
+	calcFooter.text('Processing...');
+	
+	$.ajax({
+		url: '<?php echo base_url();?>admin/statistics/recalc/' + lotteryId,
+		type: 'GET',
+		success: function(response) {
+			calcMessage.text('The Hot - Warm - Cold, Followers and Friends Statistics have ALL been updated to the latest draw');
+			calcFooter.text('ReCalc Complete');
+			calcMessage.removeClass('text-danger').addClass('text-success');
+		},
+		error: function(xhr, status, error) {
+			// Even "errors" might be successful redirects in this case
+			if (xhr.status === 302 || xhr.status === 0) {
+				calcMessage.text('The Hot - Warm - Cold, Followers and Friends Statistics have ALL been updated to the latest draw');
+				calcFooter.text('ReCalc Complete');
+				calcMessage.removeClass('text-danger').addClass('text-success');
+			} else {
+				calcMessage.text('Error during recalculation: ' + error);
+				calcFooter.text('ReCalc Error');
+				calcMessage.removeClass('text-success').addClass('text-danger');
+			}
+		},
+		complete: function() {
+			// Re-enable button
+			recalcBtn.prop('disabled', false);
+			
+			// Keep success messages displayed - don't auto-hide
+		}
+	});
+}
 </script>
