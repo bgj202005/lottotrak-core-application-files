@@ -465,6 +465,34 @@
 								?>
 							</div>
 						</div>
+						
+						<!-- Saved Combinations Tile -->
+						<?php if (!empty($saved_combinations)): ?>
+						<div class="row" style="margin-bottom: 2em;">
+							<div class="col-md-12">
+								<div class="table-section" style="border:2px solid #17a2b8; border-radius:8px; padding:1em;">
+									<div class="table-title" style="font-weight:bold; font-size:1.2em; background:#e9ecef; border-bottom:1px solid #17a2b8; padding:0.5em 1em; border-radius:6px 6px 0 0; margin:-1em -1em 1em -1em;">
+										SAVED COMBINATIONS (<?= count($saved_combinations) ?>)
+									</div>
+									<div class="saved-combinations-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; margin-top: 10px;">
+										<?php foreach ($saved_combinations as $combo): ?>
+											<div class="combination-item" style="border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; background: #f8f9fa; display: flex; justify-content: space-between; align-items: center;">
+												<div style="font-weight: bold; font-size: 1em; flex-grow: 1;">
+													<?= htmlspecialchars($combo['display_filename']) ?>
+												</div>
+												<div>
+													<?= $combo['active'] 
+														? '<span class="badge badge-success">Active</span>' 
+														: '<span class="badge badge-danger">Expired</span>'; ?>
+												</div>
+											</div>
+										<?php endforeach; ?>
+									</div>
+								</div>
+							</div>
+						</div>
+						<?php endif; ?>
+						
 						<div class="row">
 							<div class="col-md-12">
 								<!-- First Table: Presets Control Panel -->

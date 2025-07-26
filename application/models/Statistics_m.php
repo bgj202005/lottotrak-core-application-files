@@ -321,7 +321,10 @@ class Statistics_m extends MY_Model
 		$n = 1;
 		do
 		{
-			$sum = $sum + intval($draw['ball'.$n]);
+			// Check if the ball key exists before accessing it
+			if (isset($draw['ball'.$n])) {
+				$sum = $sum + intval($draw['ball'.$n]);
+			}
 			$n++;
 			$max--;
 		} while($max>0);
@@ -340,7 +343,10 @@ class Statistics_m extends MY_Model
 		$n = 1;
 		do
 		{
-			$sum = (intval($draw['ball'.$n]) < 10 ? $sum+intval($draw['ball'.$n]): $sum+(intval(substr($draw['ball'.$n],0,1)))+(intval(substr($draw['ball'.$n],1,1))));
+			// Check if the ball key exists before accessing it
+			if (isset($draw['ball'.$n])) {
+				$sum = (intval($draw['ball'.$n]) < 10 ? $sum+intval($draw['ball'.$n]): $sum+(intval(substr($draw['ball'.$n],0,1)))+(intval(substr($draw['ball'.$n],1,1))));
+			}
 			$n++;
 			$max--;
 		} while($max>0);
@@ -359,7 +365,8 @@ class Statistics_m extends MY_Model
 		$n = 1;
 		do
 		{
-			if(!intval($draw['ball'.$n]%2)) $even++;
+			// Check if the ball key exists before accessing it
+			if (isset($draw['ball'.$n]) && !intval($draw['ball'.$n]%2)) $even++;
 			$n++;
 			$max--;
 		} while($max>0);
@@ -378,7 +385,8 @@ class Statistics_m extends MY_Model
 		$n = 1;
 		do
 		{
-			if(intval($draw['ball'.$n]%2)) $odd++;
+			// Check if the ball key exists before accessing it
+			if (isset($draw['ball'.$n]) && intval($draw['ball'.$n]%2)) $odd++;
 			$n++;
 			$max--;
 		} while($max>0);
@@ -420,15 +428,18 @@ class Statistics_m extends MY_Model
 
 		do
 		{
-			if(intval($draw['ball'.$n])<10) $decade1++;
-			elseif(intval($draw['ball'.$n])<20) $decade2++;
-			elseif(intval($draw['ball'.$n])<30) $decade3++;
-			elseif(intval($draw['ball'.$n])<40) $decade4++;
-			elseif(intval($draw['ball'.$n])<50) $decade5++;
-			elseif(intval($draw['ball'.$n])<60) $decade6++;
-			elseif(intval($draw['ball'.$n])<70) $decade7++;
-			elseif(intval($draw['ball'.$n])<80) $decade8++;
-			elseif(intval($draw['ball'.$n])<90) $decade9++;
+			// Check if the ball key exists before accessing it
+			if (isset($draw['ball'.$n])) {
+				if(intval($draw['ball'.$n])<10) $decade1++;
+				elseif(intval($draw['ball'.$n])<20) $decade2++;
+				elseif(intval($draw['ball'.$n])<30) $decade3++;
+				elseif(intval($draw['ball'.$n])<40) $decade4++;
+				elseif(intval($draw['ball'.$n])<50) $decade5++;
+				elseif(intval($draw['ball'.$n])<60) $decade6++;
+				elseif(intval($draw['ball'.$n])<70) $decade7++;
+				elseif(intval($draw['ball'.$n])<80) $decade8++;
+				elseif(intval($draw['ball'.$n])<90) $decade9++;
+			}
 			$n++;   
 			$max--;
 		} while($max>0);
@@ -467,17 +478,21 @@ class Statistics_m extends MY_Model
 		$eights = 0;	// How Many eights? 
 		$nines = 0;		// How Many nines?
 		do
-		{	if(intval($draw['ball'.$n])<9) $draw['ball'.$n] = '0'.$draw['ball'.$n];
-			if(substr($draw['ball'.$n],1,1)=='0') $zeros++;
-			if(substr($draw['ball'.$n],1,1)=='1') $ones++;
-			if(substr($draw['ball'.$n],1,1)=='2') $twos++;
-			if(substr($draw['ball'.$n],1,1)=='3') $threes++;
-			if(substr($draw['ball'.$n],1,1)=='4') $fours++;
-			if(substr($draw['ball'.$n],1,1)=='5') $fives++;
-			if(substr($draw['ball'.$n],1,1)=='6') $sixs++;
-			if(substr($draw['ball'.$n],1,1)=='7') $sevens++;
-			if(substr($draw['ball'.$n],1,1)=='8') $eights++;
-			if(substr($draw['ball'.$n],1,1)=='9') $nines++;
+		{	
+			// Check if the ball key exists before accessing it
+			if (isset($draw['ball'.$n])) {
+				if(intval($draw['ball'.$n])<9) $draw['ball'.$n] = '0'.$draw['ball'.$n];
+				if(substr($draw['ball'.$n],1,1)=='0') $zeros++;
+				if(substr($draw['ball'.$n],1,1)=='1') $ones++;
+				if(substr($draw['ball'.$n],1,1)=='2') $twos++;
+				if(substr($draw['ball'.$n],1,1)=='3') $threes++;
+				if(substr($draw['ball'.$n],1,1)=='4') $fours++;
+				if(substr($draw['ball'.$n],1,1)=='5') $fives++;
+				if(substr($draw['ball'.$n],1,1)=='6') $sixs++;
+				if(substr($draw['ball'.$n],1,1)=='7') $sevens++;
+				if(substr($draw['ball'.$n],1,1)=='8') $eights++;
+				if(substr($draw['ball'.$n],1,1)=='9') $nines++;
+			}
 			$n++;
 			$max--;
 		} while($max>0);

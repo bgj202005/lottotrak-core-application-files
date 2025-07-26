@@ -596,6 +596,11 @@ class Predictions extends Admin_Controller {
 			$this->data['position_points_options'] = $position_points_options;
 			$this->data['combo_id'] = NULL; // Initialize combo_id to NULL
 			$this->data['active'] = false; // Initialize active flag to false
+			
+			// Get all saved combination filters for the user
+			$user_id = $this->session->userdata('id');
+			$this->data['saved_combinations'] = $this->lottery_data_m->get_all_user_combination_filters($id, $user_id);
+			
 			$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
 			$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);
 			$this->data['lottery']->winning_digits = $this->predictions_m->get_digit_sums($this->data['lottery']->highlights['winning_digits']);
@@ -1382,8 +1387,51 @@ class Predictions extends Admin_Controller {
 			// Generate number series based on selections
 			$number_series = '';
 			if (!$hwc_checked && !$followers_checked) {
-				$this->session->set_flashdata('message', 'Either the H-W-C or Followers must be checked, they both can not be unchecked.');
-				redirect('admin/predictions');
+				$this->data['message'] = 'Either Hot - Warm - Cold checkbox or Follower checkbox predictions can be unchecked but not both.';
+				
+				// Load necessary lottery data for the view to work properly
+				$this->data['lottery'] = $this->lotteries_m->get($id);
+				$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+				$drawn = $this->data['lottery']->balls_drawn;
+				
+				// Get lottery highlights and historical data for filters
+				$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
+				$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);
+				$this->data['lottery']->winning_digits = $this->predictions_m->get_digit_sums($this->data['lottery']->highlights['winning_digits']);
+				$this->data['lottery']->winning_sums = $this->predictions_m->get_sums($this->data['lottery']->highlights['winning_sums']);
+				$this->data['lottery']->repeaters = $this->predictions_m->get_repeaters($this->data['lottery']->highlights['repeats']);
+				$this->data['lottery']->consecutives = $this->predictions_m->get_consecutives($this->data['lottery']->highlights['consecutives']);
+				$this->data['lottery']->parity = $this->predictions_m->get_parity($this->data['lottery']->highlights['parity']);
+				$this->data['lottery']->decades = $this->predictions_m->get_decade($tbl_name, $this->data['lottery']->highlights['range']);
+				$this->data['lottery']->last_digits = $this->predictions_m->get_last($tbl_name, $this->data['lottery']->highlights['range']);
+				$this->data['lottery']->number_range = $this->predictions_m->get_range($this->data['lottery']->highlights['number_range']);
+				$this->data['lottery']->adjacents = $this->predictions_m->get_adjacents($this->data['lottery']->highlights['adjacents']);
+				
+				// Get next draw date
+				$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);
+				$ld = $this->data['lottery']->last_drawn['draw_date'];
+				$day = $this->lotteries_m->return_day($ld);
+				$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
+				
+				// Set default values and display the form with error message
+				$this->data['combos_paginated'] = [];
+				$this->data['pagination'] = [
+					'current' => 1,
+					'total' => 1,
+					'per_page' => $per_page,
+					'total_records' => 0
+				];
+				
+				// Clean up
+				unset($this->data['lottery']->highlights);
+				$this->data['subview'] = 'admin/dashboard/predictions/futures';
+				$this->data['current'] = $this->uri->segment(2);
+				$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+				$this->data['users'] = $this->maintenance_m->logged_online(0);
+				$this->data['admins'] = $this->maintenance_m->logged_online(1);
+				$this->data['visitors'] = $this->maintenance_m->active_visitors();
+				$this->load->view('admin/_layout_main', $this->data);
+				return;
 			} elseif ($hwc_checked && !$followers_checked) {
 				$number_series = $this->predictions_m->hwc_only($id, $selections, $h_w_c_group);
 				if(!$number_series) { 
@@ -1408,26 +1456,47 @@ class Predictions extends Admin_Controller {
 			// Friends logic
 			if ($friends_checked) {
 				if ($selected_friends !== 'all') {
+					// Ensure $number_series is valid before processing
+					if (empty($number_series)) {
+						$this->session->set_flashdata('message', 'No number series available for Friends processing. Please select H-W-C or Followers first.');
+						redirect('admin/predictions');
+					}
 					$numbers = array_values(array_filter(array_map('trim', explode(',', $number_series))));
 					array_unshift($numbers, null);
 					unset($numbers[0]);
-					if($hwc_checked) {
-						$heat_map = $hwc_checked ? $this->predictions_m->get_heat_map($id) : [];
+					
+					if($hwc_checked && !$followers_checked) {
+						// H-W-C only with Friends
+						$heat_map = $this->predictions_m->get_heat_map($id);
 						if(empty($heat_map)) { 
 							$this->session->set_flashdata('message', 'Problem with the Heat Map, please try again.');
 							redirect('admin/predictions');
 						}
 						$numbers = $this->predictions_m->friend_search_hwc($id, $numbers, $selected_friends, $heat_map);
-					} elseif(!$hwc_checked&&$followers_checked) {
-						$followers_list = $followers_checked ? $this->predictions_m->get_followers_list($id, $followers_type, $follower_select) : [];
-						if(empty($followers_list)) { 
-							$this->session->set_flashdata('message', 'Problem with the Followers List, please try again.');
+					} elseif(!$hwc_checked && $followers_checked) {
+						// Followers only with Friends - use friends_only method for consistency
+						$numbers = $this->predictions_m->friends_only($id, $numbers, $selected_friends);
+					} elseif($hwc_checked && $followers_checked) {
+						// Both H-W-C and Followers with Friends - use H-W-C method
+						$heat_map = $this->predictions_m->get_heat_map($id);
+						if(empty($heat_map)) { 
+							$this->session->set_flashdata('message', 'Problem with the Heat Map, please try again.');
 							redirect('admin/predictions');
 						}
-						$numbers = $this->predictions_m->friend_search_followers($id, $numbers, $selected_friends, $followers_list);
+						$numbers = $this->predictions_m->friend_search_hwc($id, $numbers, $selected_friends, $heat_map);
+					} elseif(!$hwc_checked && !$followers_checked) {
+						// Friends-only processing
+						$numbers = $this->predictions_m->friends_only($id, $numbers, $selected_friends);
 					}
-					array_values($numbers); // Re-index the array from index 1 to index 0
-					$number_series = implode(',', $numbers);
+					
+					// Ensure $numbers is a valid array before processing
+					if (is_array($numbers) && !empty($numbers)) {
+						$numbers = array_values($numbers); // Re-index the array from index 1 to index 0
+						$number_series = implode(',', $numbers);
+					} else {
+						// Handle case where numbers is null or empty
+						$number_series = '';
+					}
 				}
 			}
 			// Validate combination file

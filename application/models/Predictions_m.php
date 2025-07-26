@@ -2022,7 +2022,7 @@ class Predictions_m extends MY_Model
 			'odd' => $this->statistics_m->lottery_draw_odd($combo,$max), // Implement as needed
 			'decade' => $this->statistics_m->lottery_draw_decade($combo,$max), // Implement as needed
 			'last' => $this->statistics_m->lottery_draw_last($combo,$max), // Implement as needed
-			'range' => !empty($combo_values) ? max($combo_values) - min($combo_values) : 0,
+			'range' => (!empty($combo_values) && count($combo_values) > 1) ? max($combo_values) - min($combo_values) : 0,
 		];
 	}
 	
@@ -2062,8 +2062,13 @@ class Predictions_m extends MY_Model
 		$numbers = array_values($combo);
 		sort($numbers, SORT_NUMERIC);
 		$consecutive_count = 0;
-		for ($i = 1; $i < $max; $i++) {
-			if ($numbers[$i] - $numbers[$i-1] == 1) {
+		$actual_count = count($numbers);
+		
+		// Use the smaller of max or actual count to avoid accessing non-existent indices
+		$loop_max = min($max, $actual_count);
+		
+		for ($i = 1; $i < $loop_max; $i++) {
+			if (isset($numbers[$i]) && isset($numbers[$i-1]) && $numbers[$i] - $numbers[$i-1] == 1) {
 				$consecutive_count++;
 			}
 		}
@@ -2626,5 +2631,119 @@ class Predictions_m extends MY_Model
 		} else {
 			return NULL; // return NULL if not found, or error
 		}
+	}
+
+	/**
+	 * Friends-only processing: filter numbers based on friendship relationships only
+	 * @param integer $lottery_id The lottery ID
+	 * @param array $selections The current number selections
+	 * @param string $friendship The friendship type ('none', '1', '2', 'all')
+	 * @return array The filtered selections
+	 */
+	public function friends_only($lottery_id, $selections, $friendship)
+	{
+		// Fetch wins field from DB
+		$row = $this->db->get_where('lottery_friends', ['lottery_id' => $lottery_id])->row_array();
+		if (!$row || empty($row['wins'])) {
+			return $selections;
+		}
+		
+		// Parse friendship string (after first '|')
+		$parts = explode('|', $row['wins']);
+		$friend_str = isset($parts[1]) ? $parts[1] : '';
+		if (!$friend_str) {
+			return $selections;
+		}
+		
+		// Parse friendships into 1-way and 2-way arrays
+		$oneway = [];
+		$twoway = [];
+		$friendships = array_filter(array_map('trim', explode(',', $friend_str)));
+		foreach ($friendships as $idx => $f) {
+			$ball = $idx + 1; // Ball number (1-based)
+			if (strpos($f, '<>') !== false) {
+				$friend = (int)trim(str_replace('<>', '', $f));
+				$twoway[] = [$ball, $friend];
+			} elseif (strpos($f, '>') !== false) {
+				$friend = (int)trim(str_replace('>', '', $f));
+				$oneway[] = [$ball, $friend];
+			}
+		}
+		
+		$twoway = $this->twoway_unique($twoway);
+		$result = $selections;
+		
+		// Get lottery information for replacement range
+		$lottery = $this->lotteries_m->get($lottery_id);
+		$max_number = $lottery ? $lottery->maximum_ball : 49; // Default to 49 if not found
+		
+		// Helper: Find random replacement from available numbers
+		$find_random_replacement = function($exclude, $max_number) {
+			$available = [];
+			for ($i = 1; $i <= $max_number; $i++) {
+				if (!in_array($i, $exclude)) {
+					$available[] = $i;
+				}
+			}
+			return !empty($available) ? $available[array_rand($available)] : null;
+		};
+		
+		// Process friendship types
+		if ($friendship === 'none') {
+			// Remove all friendships
+			$replaced_in_twoway = [];
+			foreach ($twoway as $pair) {
+				list($a, $b) = $pair;
+				if (in_array($a, $result) && in_array($b, $result)) {
+					$replace_idx = array_search($b, $result);
+					$replacement = $find_random_replacement($result, $max_number);
+					if ($replacement !== null) {
+						$replaced_in_twoway[] = $b;
+						$result[$replace_idx] = (string) $replacement;
+					}
+				}
+			}
+			
+			foreach ($oneway as $pair) {
+				list($a, $b) = $pair;
+				if (
+					in_array($a, $result) && in_array($b, $result) &&
+					!in_array($a, $replaced_in_twoway) && !in_array($b, $replaced_in_twoway)
+				) {
+					$replace_idx = array_search($b, $result);
+					$replacement = $find_random_replacement($result, $max_number);
+					if ($replacement !== null) {
+						$result[$replace_idx] = (string) $replacement;
+					}
+				}
+			}
+		} elseif ($friendship === '1') {
+			// Only allow 1-way friendships, remove 2-way
+			foreach ($twoway as $pair) {
+				list($a, $b) = $pair;
+				if (in_array($a, $result) && in_array($b, $result)) {
+					$replace_idx = array_search($b, $result);
+					$replacement = $find_random_replacement($result, $max_number);
+					if ($replacement !== null) {
+						$result[$replace_idx] = (string) $replacement;
+					}
+				}
+			}
+		} elseif ($friendship === '2') {
+			// Only allow 2-way friendships, remove 1-way
+			foreach ($oneway as $pair) {
+				list($a, $b) = $pair;
+				if (in_array($a, $result) && in_array($b, $result)) {
+					$replace_idx = array_search($b, $result);
+					$replacement = $find_random_replacement($result, $max_number);
+					if ($replacement !== null) {
+						$result[$replace_idx] = (string) $replacement;
+					}
+				}
+			}
+		}
+		// For 'all', return as-is (all friendships allowed)
+		
+		return $result;
 	}
 }

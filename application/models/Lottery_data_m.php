@@ -354,4 +354,41 @@ class Lottery_data_m extends MY_Model
             return false;
         }
     }
+    
+    /**
+     * Get all saved combination filters for a specific lottery and user
+     * @param int $lottery_id The lottery ID
+     * @param int $user_id The current user ID
+     * @return array Array of user's filters with truncated filenames
+     */
+    public function get_all_user_combination_filters($lottery_id, $user_id)
+    {
+        $this->db->select('combo_id, file_name, active');
+        $this->db->from('lottery_combination_filters');
+        $this->db->where('lottery_id', $lottery_id);
+        $this->db->where('file_name LIKE', '%ADMIN' . sprintf('%02d', $user_id));
+        $this->db->order_by('combo_id', 'DESC');
+        $query = $this->db->get();
+        
+        if ($query->num_rows() > 0) {
+            $results = $query->result_array();
+            
+            // Process each result to truncate the filename (remove ADMIN and user ID)
+            foreach ($results as &$result) {
+                $file_name = $result['file_name'];
+                
+                // Find the ADMIN position and truncate everything from ADMIN onwards
+                $admin_pos = strpos($file_name, 'ADMIN');
+                if ($admin_pos !== false) {
+                    $result['display_filename'] = substr($file_name, 0, $admin_pos);
+                } else {
+                    $result['display_filename'] = $file_name; // Fallback if no ADMIN found
+                }
+            }
+            
+            return $results;
+        }
+        
+        return [];
+    }
 }
