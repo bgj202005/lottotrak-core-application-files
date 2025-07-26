@@ -257,29 +257,28 @@ class Prize extends Admin_Controller
         
         // Update the filter's win record fields in database
         if (!empty($win_updates)) {
-            $update_data = array();
+            // Get all current win record values for this filter in one query
+            $this->db->select('*');
+            $this->db->from('lottery_combination_filters');
+            $this->db->where('id', $filter->id);
+            $current_query = $this->db->get();
+            $current_filter = $current_query->row();
             
-            // Add win record updates to existing values
-            foreach ($win_updates as $category => $count) {
-                // Get current value and add new wins
-                $this->db->select($category);
-                $this->db->from('lottery_combination_filters');
-                $this->db->where('id', $filter->id);
-                $current_query = $this->db->get();
-                $current_result = $current_query->row();
+            if ($current_filter) {
+                $update_data = array();
                 
-                if ($current_result) {
-                    $current_value = isset($current_result->$category) ? (int)$current_result->$category : 0;
-                    $update_data[$category] = $current_value + $count;
+                // Add win record updates to existing values
+                foreach ($win_updates as $category => $count) {
+                    $current_value = isset($current_filter->$category) ? (int)$current_filter->$category : 0;
+                    $new_value = $current_value + $count;
+                    $update_data[$category] = $new_value;
                 }
-            }
-            
-            // Update the filter record with new win counts
-            if (!empty($update_data)) {
-                $this->db->where('id', $filter->id);
-                $this->db->update('lottery_combination_filters', $update_data);
                 
-                log_message('info', "Auto-update: Filter {$filter->id} updated with draw from {$draw->draw_date}, win records updated");
+                // Update the filter record with new win counts
+                if (!empty($update_data)) {
+                    $this->db->where('id', $filter->id);
+                    $this->db->update('lottery_combination_filters', $update_data);
+                }
             }
         }
     }
