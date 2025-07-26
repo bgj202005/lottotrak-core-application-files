@@ -229,7 +229,7 @@
                                                             data-filter-id="<?php echo $record->id; ?>" 
                                                             data-filename="<?php echo htmlspecialchars($record->saved_filename); ?>"
                                                             style="color: #007bff; font-weight: bold; text-decoration: none;">
-                                                        <?php echo htmlspecialchars($record->saved_filename); ?>
+                                                        <?php echo htmlspecialchars(preg_replace('/ADMIN.*/', '', $record->saved_filename)); ?>
                                                     </button>
                                                 </td>
                                                 <td class="text-center"><?php echo number_format($record->actual_cccc); ?></td>
@@ -567,7 +567,7 @@ function showProgressBar(filename) {
     $('#progressModal').remove();
     $('.modal-backdrop').remove();
     $('body').removeClass('modal-open');
-    
+    filename = filename.replace(/ADMIN.*/, '');
     // Create professional progress overlay with original green styling
     var progressOverlay = $('<div id="progressOverlay" style="' +
         'position: fixed; top: 0; left: 0; width: 100%; height: 100%; ' +

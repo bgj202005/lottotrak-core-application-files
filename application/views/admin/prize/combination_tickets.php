@@ -119,7 +119,7 @@
                     <div class="table-info-header">
                         <div class="row">
                             <div class="col-md-8">
-                                <h4><strong>Saved Combination Table:</strong> <?php echo htmlspecialchars($filter->file_name); ?></h4>
+                                <h4><strong>Saved Combination Table:</strong> <?php echo htmlspecialchars(preg_replace('/ADMIN.*/', '', $filter->file_name)); ?></h4>
                                 <div class="table-stats">
                                     <span class="stat-item"><strong>Total Filtered:</strong> <?php echo number_format($total_tickets); ?></span>
                                     <span class="stat-separator">|</span>
