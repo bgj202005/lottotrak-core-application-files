@@ -1137,7 +1137,7 @@
 			// Check if we have the required data
 			if (comboId && fileName) {
 				// Use the same confirmation message as the trash can icon
-				if (confirm('You are about to delete the Combination Ticket file: ' + fileName + '. Do You want to Continue? (Y/N)')) {
+				if (confirm('You are about to delete the Combination Ticket file: ' + fileName.replace(/ADMIN.*/, '') + '. Do You want to Continue? (Y/N)')) {
 					window.location.href = '<?= base_url() ?>admin/predictions/delete_combo/' + comboId;
 				}
 			} else {
@@ -1312,7 +1312,7 @@
     }
     
     function deleteFilter(comboId, fileName) {
-        if (confirm('You are about to delete the Combination Ticket file: ' + fileName + '. This will REMOVE ALL winning data. Do You want to Continue? (Y/N)')) {
+        if (confirm('You are about to delete the Combination Ticket file: ' + fileName.replace(/ADMIN.*/, '') + '. This will REMOVE ALL winning data. Do You want to Continue? (Y/N)')) {
             // Future implementation for delete functionality
              window.location.href = '<?= base_url() ?>admin/predictions/delete_combo/' + comboId;
         }

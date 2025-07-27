@@ -1134,6 +1134,11 @@ class Predictions extends Admin_Controller {
 		$ld = $this->data['lottery']->last_drawn['draw_date'];
 		$day = $this->lotteries_m->return_day($ld);
 		$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
+		
+		// Get all saved combination filters for the user - ensure this is always available
+		$user_id = $this->session->userdata('id');
+		$this->data['saved_combinations'] = $this->lottery_data_m->get_all_user_combination_filters($id, $user_id);
+		
 		// Load the view with reset defaults
 		unset($this->data['lottery']->highlights);
 		$this->data['current'] = $this->uri->segment(2);
@@ -1412,6 +1417,10 @@ class Predictions extends Admin_Controller {
 				$ld = $this->data['lottery']->last_drawn['draw_date'];
 				$day = $this->lotteries_m->return_day($ld);
 				$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
+				
+				// Get all saved combination filters for the user - ensure this is always available
+				$user_id = $this->session->userdata('id');
+				$this->data['saved_combinations'] = $this->lottery_data_m->get_all_user_combination_filters($id, $user_id);
 				
 				// Set default values and display the form with error message
 				$this->data['combos_paginated'] = [];
@@ -1700,6 +1709,11 @@ class Predictions extends Admin_Controller {
 		$ld = $this->data['lottery']->last_drawn['draw_date'];	// Return last draw date
 		$day = $this->lotteries_m->return_day($ld);				// Returns the day of draw, Saturday, Sunday, etc.
 		$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
+		
+		// Get all saved combination filters for the user - ensure this is always available
+		$user_id = $this->session->userdata('id');
+		$this->data['saved_combinations'] = $this->lottery_data_m->get_all_user_combination_filters($id, $user_id);
+		
 		// Load the view
 		unset($this->data['lottery']->highlights);
 		$this->data['current'] = $this->uri->segment(2);
@@ -1860,7 +1874,7 @@ class Predictions extends Admin_Controller {
 			$pick_file_path = $pick_dir . $file_name . '.txt';
 			$success = $this->predictions_m->save_filtered_combinations_to_file($filepath, $number_array, $filters, $pick_file_path);
 			if ($success) {
-				$message = 'Combination Ticket File ' . $file_name . ' is Successfully Saved to the combinations/pick' . $R . ' Directory.';
+				$message = 'Combination Ticket File ' . preg_replace('/ADMIN.*/', '', $file_name) . ' is Successfully Saved to the combinations/pick' . $R . ' Directory.';
 				if ($is_ajax) {
 					$this->output
 						->set_content_type('application/json')
@@ -2230,6 +2244,10 @@ class Predictions extends Admin_Controller {
 						$this->data['filter_record_id'] = $record_id;
 						log_message('info', "Refresh method: Set filter_record_id to {$record_id} for dollar icon navigation");
 						
+						// Get all saved combination filters for the user - ensure this is always available
+						$user_id = $this->session->userdata('id');
+						$this->data['saved_combinations'] = $this->lottery_data_m->get_all_user_combination_filters($id, $user_id);
+						
 						// Load the futures view with existing filtered tickets
 						$this->data['subview'] = 'admin/dashboard/predictions/futures';
 						$this->load->view('admin/_layout_main', $this->data);
@@ -2368,7 +2386,7 @@ class Predictions extends Admin_Controller {
 			}
 			
 			// Set detailed success message
-			$message = 'Combination Table previously saved settings for "' . $combination_filter->file_name . '" have been successfully deleted from the database';
+			$message = 'Combination Table previously saved settings for "' . preg_replace('/ADMIN.*/', '', $combination_filter->file_name) . '" have been successfully deleted from the database';
 			if ($file_exists_before) {
 				if ($file_deleted) {
 					$message .= ' and the associated text file has been removed from the pick' . $lottery->balls_drawn . ' directory';
