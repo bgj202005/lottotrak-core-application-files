@@ -224,10 +224,20 @@
 										</div>
 								</div>
 								 <div class="form-group form-group-lg row">
+								  <div class="d-flex flex-wrap justify-content-center align-items-center" style="width: 100%;">
 								  <?php 
+								  // Add "Back to Combinations List" button
+								  $js = "location.href='".base_url()."admin/predictions/files/".$lottery->id."'";
+								  $back_attributes = array(
+										'class' => 'btn btn-secondary btn-lg',
+										'onClick' => "$js",
+										'style' => "margin:10px 5px; white-space: nowrap;",
+									);
+								  echo form_button('back_to_combinations', 'Back to Combinations List', $back_attributes);
+								  
 								  $extra = array(
 										'class' => 'btn btn-primary btn-lg btn-info',
-										'style' => "display: block; margin:20px 20px",
+										'style' => "margin:10px 5px; white-space: nowrap;",
 										'id' => 'submit',
 									);
 								   // Add the 'disabled' attribute only if $is_generated is true
@@ -235,22 +245,25 @@
 										$extra['disabled'] = 'disabled';
 									}
 								   echo form_submit('submit', 'Generate Full Wheel Combination', $extra);
+								   
 										$js = "location.href='".base_url()."admin/predictions/delete/$lottery->id/$filename";
 										$attributes = array(
 										'href' 		=> base_url()."admin/predictions/delete/'.$lottery->id.'/'.$filename",
-										'class' 	=> "btn btn-primary btn-lg btn-info",
+										'class' 	=> "btn btn-danger btn-lg",
 										'id'		=> 'delete',
-										'style' 	=> "padding:5px; margin: 0 auto; display: block; margin:20px 20px;"
+										'style' 	=> "margin:10px 5px; white-space: nowrap;"
 									);
 										echo form_button('delete', 'Delete File: <strong>'.$filename.'.txt</strong>', $attributes); 
+										
 										$js = "location.href='".base_url()."admin/predictions/'";
 										$attributes = array(
 										'class' 	=> "btn btn-primary btn-lg btn-info",
 										'onClick' 	=> "$js", 
-										'style' 	=> "padding:5px; margin: 0 auto; display: block; margin:20px 20px;"
+										'style' 	=> "margin:10px 5px; white-space: nowrap;"
 									);
 										echo form_button('prediction_list', 'Back to Prediction List', $attributes); 
 										echo form_close();?>
+								  </div>
 								</div>
 							</div>	
 						</div>
