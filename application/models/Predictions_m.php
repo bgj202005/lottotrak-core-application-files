@@ -160,6 +160,152 @@ class Predictions_m extends MY_Model
 		return $matching_tickets;
 	}
 	/**
+	 * Calculate detailed breakdown of winning tickets for different match scenarios
+	 * Based on nCr combinatorial mathematics for full coverage systems
+	 * 
+	 * @param int $numbers_picked Total numbers picked by user (e.g., 8)
+	 * @param int $balls_drawn Numbers drawn in lottery (e.g., 6)  
+	 * @param int $minimum_prize_match Minimum matches needed for a prize (usually 2)
+	 * @return array Detailed breakdown of winning tickets for each scenario
+	 */
+	public function calculate_detailed_breakdown($numbers_picked, $balls_drawn, $minimum_prize_match = 2) {
+		$breakdown = [];
+		
+		// Calculate total tickets generated (nCr where n=numbers_picked, r=balls_drawn)
+		$total_tickets = $this->combination($numbers_picked, $balls_drawn);
+		
+		// For each possible scenario (from all numbers correct down to minimum)
+		for ($correct_numbers = $balls_drawn; $correct_numbers >= $minimum_prize_match; $correct_numbers--) {
+			$scenario = [
+				'picked_correctly' => $correct_numbers,
+				'subprizes' => [],
+				'total_winning_tickets' => 0,
+				'non_winning_tickets' => 0,
+				'scenario_probability' => 0
+			];
+			
+			// Calculate sub-prizes for this scenario
+			for ($matches = $balls_drawn; $matches >= $minimum_prize_match; $matches--) {
+				$tickets = $this->calculate_scenario_tickets($numbers_picked, $balls_drawn, $correct_numbers, $matches);
+				
+				if ($tickets > 0) {
+					$percentage = round(($tickets / $total_tickets) * 100, 3);
+					$scenario['subprizes'][$matches] = [
+						'tickets' => $tickets,
+						'percentage' => $percentage
+					];
+					$scenario['total_winning_tickets'] += $tickets;
+				}
+			}
+			
+			// Calculate scenario probability (probability of having exactly this many correct numbers)
+			$scenario_total_tickets = $this->calculate_total_scenario_tickets($numbers_picked, $balls_drawn, $correct_numbers);
+			$scenario['scenario_probability'] = round(($scenario_total_tickets / $total_tickets) * 100, 3);
+			$scenario['non_winning_tickets'] = $scenario_total_tickets - $scenario['total_winning_tickets'];
+			
+			$breakdown[] = $scenario;
+		}
+		
+		return [
+			'breakdown' => $breakdown,
+			'total_tickets' => $total_tickets,
+			'numbers_picked' => $numbers_picked,
+			'balls_drawn' => $balls_drawn,
+			'minimum_prize_match' => $minimum_prize_match
+		];
+	}
+	
+	/**
+	 * Calculate total tickets possible for a scenario (all tickets where exactly X numbers are correct)
+	 * 
+	 * @param int $numbers_picked Total numbers picked
+	 * @param int $balls_drawn Numbers drawn in lottery
+	 * @param int $correct_in_picked How many of the drawn numbers are in user's picked numbers
+	 * @return int Total tickets possible for this scenario
+	 */
+	private function calculate_total_scenario_tickets($numbers_picked, $balls_drawn, $correct_in_picked) {
+		// For a scenario where exactly $correct_in_picked numbers are correct:
+		// We need to sum all possible winning ticket combinations for this scenario
+		
+		$total_scenario_tickets = 0;
+		$non_winning_in_picked = $numbers_picked - $correct_in_picked;
+		
+		// Sum all possible match levels for this scenario
+		for ($matches = $correct_in_picked; $matches >= 0; $matches--) {
+			$non_winning_needed = $balls_drawn - $matches;
+			
+			if ($non_winning_needed >= 0 && $non_winning_needed <= $non_winning_in_picked) {
+				$tickets = $this->calculate_scenario_tickets($numbers_picked, $balls_drawn, $correct_in_picked, $matches);
+				$total_scenario_tickets += $tickets;
+			}
+		}
+		
+		return $total_scenario_tickets;
+	}
+	
+	/**
+	 * Calculate tickets for a specific match scenario using combinatorial mathematics
+	 * 
+	 * @param int $numbers_picked Total numbers picked
+	 * @param int $balls_drawn Numbers drawn in lottery
+	 * @param int $correct_in_picked How many of the drawn numbers are in user's picked numbers
+	 * @param int $matches Required matches for this prize tier
+	 * @return int Number of tickets with exactly this many matches
+	 */
+	private function calculate_scenario_tickets($numbers_picked, $balls_drawn, $correct_in_picked, $matches) {
+		// If we need more matches than correct numbers available, return 0
+		if ($matches > $correct_in_picked) {
+			return 0;
+		}
+		
+		// Calculate non-winning numbers in picked set
+		$non_winning_in_picked = $numbers_picked - $correct_in_picked;
+		
+		// Numbers needed from non-winning set to complete the ticket
+		$non_winning_needed = $balls_drawn - $matches;
+		
+		// If we need more non-winning numbers than available, return 0
+		if ($non_winning_needed > $non_winning_in_picked) {
+			return 0;
+		}
+		
+		// Calculate using combinatorial formula
+		// C(correct_in_picked, matches) * C(non_winning_in_picked, non_winning_needed)
+		$winning_combinations = $this->combination($correct_in_picked, $matches);
+		$non_winning_combinations = $this->combination($non_winning_in_picked, $non_winning_needed);
+		
+		return $winning_combinations * $non_winning_combinations;
+	}
+	
+	/**
+	 * Calculate combinatorial nCr (n choose r)
+	 * 
+	 * @param int $n Total items
+	 * @param int $r Items to choose
+	 * @return int Result of nCr calculation
+	 */
+	public function combination($n, $r) {
+		if ($r > $n || $r < 0) {
+			return 0;
+		}
+		if ($r == 0 || $r == $n) {
+			return 1;
+		}
+		
+		// Use the more efficient calculation: C(n,r) = C(n, n-r)
+		if ($r > $n - $r) {
+			$r = $n - $r;
+		}
+		
+		$result = 1;
+		for ($i = 0; $i < $r; $i++) {
+			$result = $result * ($n - $i) / ($i + 1);
+		}
+		
+		return round($result);
+	}
+
+	/**
 	 * Returns the Lottery Prize Profile as an associative array.
 	 * This method retrieves the prize data for a given lottery ID and returns it
 	 * as an associative array. If no data exists, it returns FALSE.
