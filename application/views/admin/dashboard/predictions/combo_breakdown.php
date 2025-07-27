@@ -102,14 +102,12 @@
 											<th><?= $i; ?> Match<?= $i > 1 ? 'es' : ''; ?></th>
 										<?php endfor; ?>
 										<th>Non-Winners</th>
-										<th>Scenario Total %</th>
 									</tr>
 									<tr>
 										<?php for ($i = $pick_per_ticket; $i >= $minimum_prize_match; $i--): ?>
 											<th style="font-size:0.8em; font-weight:normal;">Tickets (% of Total)</th>
 										<?php endfor; ?>
 										<th style="font-size:0.8em; font-weight:normal;">Tickets</th>
-										<th style="font-size:0.8em; font-weight:normal;">Probability</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -146,12 +144,11 @@
 											
 											// Use the calculated non-winning tickets from the model
 											$non_winning_tickets = $scenario['non_winning_tickets'];
+											$non_winning_percentage = $breakdown_data['total_tickets'] > 0 ? round(($non_winning_tickets / $breakdown_data['total_tickets']) * 100, 2) : 0;
 											?>
 											<td>
-												<?= number_format($non_winning_tickets); ?>
-											</td>
-											<td class="percentage-cell">
-												<strong><?= $scenario['scenario_probability']; ?>%</strong>
+												<?= number_format($non_winning_tickets); ?><br>
+												<small class="percentage-cell">(<?= $non_winning_percentage; ?>%)</small>
 											</td>
 										</tr>
 									<?php endforeach; ?>
