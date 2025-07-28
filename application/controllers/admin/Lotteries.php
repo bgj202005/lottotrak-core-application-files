@@ -9,6 +9,7 @@ class Lotteries extends Admin_Controller {
 		 parent::__construct();
 		 $this->load->dbforge();
 		 $this->load->model('lotteries_m');
+		 $this->load->model('statistics_m');
 		 $this->load->helper('file');
 		 $this->load->library('image_lib');
 		 $this->load->library('pagination');
@@ -44,6 +45,14 @@ class Lotteries extends Admin_Controller {
 		} // End of Pagination
 		$this->db->limit($perpage, $offset);
 		$this->data['lotteries'] = $this->lotteries_m->get();
+		
+		// Fetch last draw data for each lottery
+		foreach($this->data['lotteries'] as $lottery) 
+		{
+			$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+			$lottery->last_date = $this->statistics_m->last_date($tbl_name);
+			$lottery->last_draw = $this->statistics_m->last_draw($tbl_name, $lottery->balls_drawn, $lottery->extra_ball);
+		}
 
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the lotteries menu
@@ -78,6 +87,14 @@ class Lotteries extends Admin_Controller {
 		} // End of Pagination
 		$this->db->limit($perpage, $offset);
 		$this->data['lotteries'] = $this->lotteries_m->get();
+		
+		// Fetch last draw data for each lottery
+		foreach($this->data['lotteries'] as $lottery) 
+		{
+			$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+			$lottery->last_date = $this->statistics_m->last_date($tbl_name);
+			$lottery->last_draw = $this->statistics_m->last_draw($tbl_name, $lottery->balls_drawn, $lottery->extra_ball);
+		}
 
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the lotteries menu
@@ -145,6 +162,7 @@ class Lotteries extends Admin_Controller {
 		}
 		$_POST['extra_ball'] = (is_null($this->input->post('extra_ball')) ? 0 : 1);
 		$_POST['duplicate_extra_ball'] = (is_null($this->input->post('duplicate_extra_ball')) ? 0 : 1);
+		$_POST['enabled'] = (is_null($this->input->post('enabled')) ? 0 : 1);
 
 		$rules = $this->lotteries_m->rules;
 		$this->form_validation->set_rules($rules);
@@ -177,7 +195,8 @@ class Lotteries extends Admin_Controller {
 					'saturday',
 					'sunday',
 					'firstdate',
-					'lastdate'
+					'lastdate',
+					'enabled'
 			) );
 
 			$data['lottery_image'] = (empty($data['lottery_image']) ? $_POST['image']: $data['lottery_image']);  // Only if not updating the image
@@ -187,7 +206,7 @@ class Lotteries extends Admin_Controller {
 				{
 					$data[$key] = intval($value);
 				}
-				if(is_null($value)||empty($value)&&($key!='lottery_state_prov'&&$key!='lottery_image')) $data[$key] = 0;  // Revert from NULL to 0 only or FALSE (int 0)
+				if(is_null($value)||empty($value)&&($key!='lottery_state_prov'&&$key!='lottery_image'&&$key!='enabled')) $data[$key] = 0;  // Revert from NULL to 0 only or FALSE (int 0)
 			}
 			$this->data['lottery'] = $this->lotteries_m->array_to_object($this->data['lottery'], $data);
 			$this->data['lottery']->id = $this->lotteries_m->save($data, $id);
@@ -1632,5 +1651,33 @@ class Lotteries extends Admin_Controller {
 		} catch (Exception $e) {
 			echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
 		}
+	}
+	
+	/**
+	 * Toggle enabled status of a lottery
+	 * 
+	 * @param int $id Lottery ID
+	 * @return void
+	 */
+	public function toggle_enabled($id) {
+		if (!$id) {
+			$this->session->set_flashdata('message', 'Invalid lottery ID.');
+			redirect('admin/lotteries');
+		}
+		
+		$lottery = $this->lotteries_m->get($id);
+		if (!$lottery) {
+			$this->session->set_flashdata('message', 'Lottery not found.');
+			redirect('admin/lotteries');
+		}
+		
+		// Toggle the enabled status
+		$new_status = ($lottery->enabled == 1) ? 0 : 1;
+		$data = array('enabled' => $new_status);
+		$this->lotteries_m->save($data, $id);
+		
+		$status_text = ($new_status == 1) ? 'made visible' : 'hidden';
+		$this->session->set_flashdata('message', 'Lottery "' . $lottery->lottery_name . '" has been ' . $status_text . '.');
+		redirect('admin/lotteries');
 	}
 }

@@ -40,6 +40,22 @@
 										echo form_error('lottery_description', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 									</div>
 								</div>
+								<!-- Enabled Field -->
+								<div class="form-group form-group-lg row"> 
+									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
+									echo form_label('Lottery Status', 'enabled_lb', $extra); ?>
+									<div class="col-8">
+										<div class="form-check form-check-inline" style="margin-top: 8px;">
+											<?php 
+											$checked = (isset($lottery->enabled) && $lottery->enabled == 1) ? TRUE : FALSE;
+											$extra = array('class' => 'form-check-input', 'id' => 'enabled', 'value' => '1');
+											echo form_checkbox('enabled', '1', $checked, $extra); ?>
+											<label class="form-check-label" for="enabled" style="margin-left: 5px;">
+												Lottery Visibility (uncheck to disable and hide from administration and frontend)
+											</label>
+										</div>
+									</div>
+								</div>
 								<!-- Current Lottery Image -->
 								<div class="form-group form-group-lg row"> 
 								<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');

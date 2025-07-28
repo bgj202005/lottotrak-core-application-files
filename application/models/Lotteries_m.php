@@ -208,7 +208,20 @@ class Lotteries_m extends MY_Model
 		$lottery->firstdate = NULL;
 		$lottery->lastdate = NULL;
 		$lottery->last_draw_date = '';
+		$lottery->enabled = 1; // Default to enabled
 		return $lottery;
+	}
+	
+	/**
+	 * Get enabled lotteries only
+	 * 
+	 * @param       int|null $id      Optional lottery ID
+	 * @param       bool     $single  Return single row
+	 * @return      mixed            Array of enabled lotteries or single lottery object
+	 */
+	public function get_enabled($id = NULL, $single = FALSE) {
+		$this->db->where('enabled', 1);
+		return $this->get($id, $single);
 	}
 	
 	

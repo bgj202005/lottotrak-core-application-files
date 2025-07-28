@@ -29,8 +29,8 @@ class Predictions extends Admin_Controller {
 	 */
 	public function index() 
 	{ 
-		// Fetch all lotteries from the database
-		$this->data['lotteries'] = $this->lotteries_m->get();
+		// Fetch only enabled lotteries from the database
+		$this->data['lotteries'] = $this->lotteries_m->get_enabled();
 		// Check if there is at least one generated file for each lottery
 		foreach ($this->data['lotteries'] as &$lottery) {
 			$lottery->has_generated_file = $this->predictions_m->has_generated_file($lottery->balls_drawn); // Check if a file exists
