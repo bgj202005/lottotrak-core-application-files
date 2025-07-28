@@ -126,12 +126,15 @@
 									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
 										echo form_label('Date of First Draw:', 'first_draw_date_lb', $extra); ?>
 									<div class="col-8">
-										<?php $extra = array('class' => 'datepicker', 'id' => 'formGroupInputLarge',
-												'maxlength' => '50', 'size' => '50', 'style'=> 'width:40%;'); ?>
-										<div class="input-group date" id="datepicker1" data-provide="datepicker"> 
-											<?php if (is_null($lottery->firstdate)): $lottery->firstdate = date('d-m-Y'); endif; // Only on a New Lottery
-											echo form_input('firstdate', set_value('firstdate', date("D, M-d-Y",strtotime(str_replace('/','-',$lottery->firstdate)))), $extra); ?>
-											<span class="input-group-addon"><i class="fa fa-calendar" style = "padding:5px;"></i></span>
+										<div class="form-group">
+											<div class="input-group" style="width: 300px;"> 
+												<?php $extra = array('maxlength' => '12', 'class' => 'form-control datepicker-input', 'style' => 'width: 250px;', 'id' => 'firstdate', 'placeholder' => 'dd-mm-yyyy', 'readonly' => 'readonly');
+												if (is_null($lottery->firstdate)): $lottery->firstdate = date('d-m-Y'); endif; // Only on a New Lottery
+												echo form_input('firstdate', set_value('firstdate', date("d-m-Y",strtotime(str_replace('/','-',$lottery->firstdate)))), $extra); ?>
+												<div class="input-group-append">
+													<span class="input-group-text calendar-trigger" data-target="#firstdate"><i class="fa fa-calendar"></i></span>
+												</div>
+											</div>
 											<?php echo form_error('firstdate', '<div class="bg-warning" style = "margin-top:10px; margin-bottom:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 										</div>
 									</div>
@@ -476,17 +479,168 @@
     </div>
 <?php endif; ?>
 <script type="text/javascript">
-$(function() {
-  $('.input-group').datepicker({
-	Default: 'D, M-d-yyyy',
-	format: 'D, M-d-yyyy',  
-    orientation: 'bottom auto',
-    todayBtn: "linked",
+$(document).ready(function() {
+  console.log('Document ready - starting lottery datepicker setup');
+  
+  // Enhanced datepicker initialization with proper view mode for lottery
+  $('#firstdate').datepicker({
+    format: 'dd-mm-yyyy',
     autoclose: true,
-    clearBtn: true
+    todayHighlight: true,
+    container: 'body', // Append to body to avoid z-index issues
+    orientation: 'bottom auto', // Smart positioning
+    startView: 0, // Start with days view (0=days, 1=months, 2=years)
+    minViewMode: 0, // Allow drilling down to days
+    maxViewMode: 2 // Allow going up to years
+  });
+  
+  console.log('Lottery datepicker initialized on firstdate field');
+  
+  // Handle calendar icon clicks
+  $('.calendar-trigger').click(function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    var targetId = $(this).attr('data-target');
+    var targetElement = $(targetId);
+    
+    console.log('Calendar trigger clicked for:', targetId);
+    
+    if (targetElement.length > 0) {
+      // Small delay to ensure proper positioning
+      setTimeout(function() {
+        targetElement.datepicker('show');
+        console.log('Datepicker shown for:', targetId);
+      }, 50);
+    }
+  });
+  
+  // Handle input field clicks
+  $('#firstdate').click(function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('Input field clicked: firstdate');
+    
+    // Small delay to ensure proper positioning
+    var self = this;
+    setTimeout(function() {
+      $(self).datepicker('show');
+    }, 50);
   });
 });
 </script>
+
+<style>
+/* Force datepicker to appear above all other elements with proper Bootstrap 3 styling */
+.datepicker,
+.datepicker-dropdown {
+  z-index: 99999 !important;
+  position: absolute !important;
+  background-color: #fff !important;
+  border: 1px solid #ccc !important;
+  border-radius: 4px !important;
+  box-shadow: 0 6px 12px rgba(0,0,0,.175) !important;
+  padding: 4px !important;
+  display: block !important;
+}
+
+/* Only show the active datepicker view, hide others */
+.datepicker > div {
+  display: none !important;
+}
+
+.datepicker > div.datepicker-days {
+  display: block !important;
+}
+
+.datepicker.days .datepicker-days {
+  display: block !important;
+}
+
+.datepicker.months .datepicker-months {
+  display: block !important;
+}
+
+.datepicker.years .datepicker-years {
+  display: block !important;
+}
+
+.datepicker table {
+  background-color: #fff !important;
+  margin: 0 !important;
+  width: 100% !important;
+  display: table !important;
+}
+
+.datepicker table tr {
+  display: table-row !important;
+}
+
+.datepicker table tr td,
+.datepicker table tr th {
+  background-color: #fff !important;
+  border: none !important;
+  display: table-cell !important;
+  text-align: center !important;
+  width: 30px !important;
+  height: 30px !important;
+  padding: 0 !important;
+  vertical-align: middle !important;
+}
+
+/* Make calendar trigger clickable */
+.calendar-trigger {
+  cursor: pointer !important;
+  user-select: none !important;
+  z-index: 1 !important;
+  position: relative !important;
+}
+
+.calendar-trigger:hover {
+  background-color: #e9ecef !important;
+}
+
+.calendar-trigger i {
+  pointer-events: none !important;
+}
+
+/* Make input fields clickable to open datepicker */
+.datepicker-input {
+  cursor: pointer !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Ensure input groups don't interfere with datepicker positioning */
+.input-group {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Bootstrap 3 datepicker specific fixes */
+.datepicker-dropdown:before,
+.datepicker-dropdown:after {
+  display: inline-block !important;
+}
+
+.datepicker table tr td.day:hover,
+.datepicker table tr td.focused {
+  background: #eeeeee !important;
+  cursor: pointer !important;
+}
+
+.datepicker table tr td.active,
+.datepicker table tr td.active.highlighted {
+  background-color: #428bca !important;
+  color: #fff !important;
+}
+
+.datepicker table tr td.today {
+  background-color: #ffdb99 !important;
+  color: #000 !important;
+}
+</style>
 <script>
 var balls_drawn  = document.getElementsByName("balls_drawn")[0].value;
 

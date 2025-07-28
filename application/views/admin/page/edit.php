@@ -1,5 +1,28 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed');
 echo validation_errors();
+
+// Display success message if it exists
+if (isset($success_message)) {
+    echo '<div class="alert alert-success alert-dismissible fade show" role="alert">';
+    echo $success_message;
+    echo '<button type="button" class="close" data-dismiss="alert" aria-label="Close">';
+    echo '<span aria-hidden="true">&times;</span>';
+    echo '</button>';
+    echo '</div>';
+}
+
+// Display error messages if they exist
+if (isset($errors) && !empty($errors)) {
+    echo '<div class="alert alert-danger alert-dismissible fade show" role="alert">';
+    foreach ($errors as $error) {
+        echo $error . '<br>';
+    }
+    echo '<button type="button" class="close" data-dismiss="alert" aria-label="Close">';
+    echo '<span aria-hidden="true">&times;</span>';
+    echo '</button>';
+    echo '</div>';
+}
+
 echo form_open(base_url()."admin/page/edit/".(!empty($page->id) ? $page->id : '')); ?>
 <h5 style = "text-align:left"><?php echo anchor('admin/page', 'Back to the Lottery Pages Dashboard', 'title="Back to Lottery Pages Dashboard"'); ?></h5>
 <h2><?php echo empty($page->id) ? 'Add a new page' : 'Edit page '.$page->title; ?></h2>
@@ -35,11 +58,15 @@ echo form_open(base_url()."admin/page/edit/".(!empty($page->id) ? $page->id : ''
 	</tr>
 	<tr>
 		<td>Title:</td>
-		<td><?php echo form_input('title', set_value('title', $page->title)); ?></td>
+		<td><?php echo form_input('title', set_value('title', $page->title), 'id="title"'); ?></td>
 	</tr>
 	<tr>
 		<td>Slug:</td>
-		<td><?php echo form_input('slug', set_value('slug', $page->slug)); ?></td>
+		<td><?php echo form_input('slug', set_value('slug', $page->slug), 'id="slug"'); ?></td>
+	</tr>
+	<tr>
+		<td>Order:</td>
+		<td><?php echo form_input('order', set_value('order', $page->order), 'type="number" min="0"'); ?></td>
 	</tr>
 	<tr>
 		<td>Page Content:</td>
@@ -134,6 +161,27 @@ $("#sel_template").change(function(){
 		}
 	});
 });
+
+// Auto-generate slug from title
+$("#title").on('keyup', function(){
+	// Only auto-generate if slug is empty or looks auto-generated
+	var currentSlug = $("#slug").val();
+	var title = $(this).val();
+	
+	if (title && (currentSlug === '' || currentSlug === generateSlug(title))) {
+		$("#slug").val(generateSlug(title));
+	}
+});
+
+// Function to generate URL-friendly slug
+function generateSlug(text) {
+	return text
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '')
+		.substring(0, 100);
+}
+
 });
 
 function disable() {

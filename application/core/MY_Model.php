@@ -46,6 +46,11 @@ class MY_Model extends CI_Model {
 	}
 	
 	public function save($data, $id = NULL) {
+		// Debug logging
+		log_message('debug', 'MY_Model->save() called with data: ' . print_r($data, true));
+		log_message('debug', 'MY_Model->save() called with ID: ' . ($id ? $id : 'NULL'));
+		log_message('debug', 'MY_Model->save() table name: ' . $this->_table_name);
+		
 		// Set Timestamps
 		if ($this->_time_stamps==TRUE) {
 			$now = date('Y-m-d H:i:s');
@@ -56,17 +61,34 @@ class MY_Model extends CI_Model {
 		// Insert
 		if ($id == NULL) {
 			!isset($data[$this->_primary_key])||$data[$this->_primary_key]=NULL;
+			log_message('debug', 'MY_Model->save() performing INSERT');
 			$this->db->set($data);
-			$this->db->insert($this->_table_name);
-			$id = $this->db->insert_id();
+			$insert_result = $this->db->insert($this->_table_name);
+			$insert_id = $this->db->insert_id();
+			
+			// Debug the insert
+			log_message('debug', 'MY_Model->save() insert result: ' . ($insert_result ? 'TRUE' : 'FALSE'));
+			log_message('debug', 'MY_Model->save() insert ID: ' . $insert_id);
+			$db_error = $this->db->error();
+			log_message('debug', 'MY_Model->save() DB error after insert: ' . print_r($db_error, true));
+			
+			$id = $insert_id;
 		// Update
 		} else {
 			$filter = $this->_primary_filter;
 			$id = $filter($id);
+			log_message('debug', 'MY_Model->save() performing UPDATE for ID: ' . $id);
 			$this->db->set($data);
 			$this->db->where($this->_primary_key, $id);
-			$this->db->update($this->_table_name);
+			$update_result = $this->db->update($this->_table_name);
+			
+			// Debug the update
+			log_message('debug', 'MY_Model->save() update result: ' . ($update_result ? 'TRUE' : 'FALSE'));
+			$db_error = $this->db->error();
+			log_message('debug', 'MY_Model->save() DB error after update: ' . print_r($db_error, true));
 		}
+		
+		log_message('debug', 'MY_Model->save() returning ID: ' . $id);
 		return $id;
 	}
 	

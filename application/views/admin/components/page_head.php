@@ -18,12 +18,12 @@
 <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
 <!-- End of Font Awesome -->
 <link href="<?php echo site_url('css/admin/admin.css');?>" rel="stylesheet">
-<link href="<?php echo site_url('css/admin/bootstrap-datepicker3.css');?>" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/css/bootstrap-datepicker3.min.css" rel="stylesheet">
 <?php if(isset($sortable) && $sortable ===TRUE): ?>
   	<script src="<?php echo site_url('js/jquery-ui.min.js');?>"></script>
     <script src="<?php echo site_url('js/jquery.mjs.nestedSortable.js');?>"></script> 
 <?php endif; ?>
-  <script src="<?php echo site_url('js/bootstrap-datepicker.js');?>"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/js/bootstrap-datepicker.min.js"></script>
  
 <!-- Load TinyMCE -->
 <script src="https://cdn.tiny.cloud/1/m0o7m7f3a0bazb6hfkqddm0ej4v4roygur9habrlfdkului7/tinymce/5/tinymce.min.js" referrerpolicy="origin"></script>

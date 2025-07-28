@@ -268,10 +268,6 @@
 										echo "<div class='row'><H1 style = 'text-align:left'>".$page_bottom_left->title."</H1></div>";
 										echo "<div class='row' style = 'margin-left:5%'>".$page_bottom_left->body."</div>"; 
 									}	?>
-								 	<!-- <h3 class="indent-bot">best software &amp; game <strong>selection</strong></h3>
-									<figure class="img-pos indent-bot float-sw2"><img src="<?php //echo base_url() ?>images/page1-img1.jpg" alt=""></figure>
-									<p class="bot-indent">Lorem ipsum dolor sit amet, consec tetuer adipiscing elit. Praesent vestibulum molestie lacus. Aenean nonummy hendrerit mauris. Phasellus porta. Fusce suscipit varius mi.</p>
-									<a class="link" href="#">Read more</a> -->
 								</div>
 							</div>
 					</div>
@@ -283,10 +279,6 @@
 										echo "<div class='row'><H1 style = 'text-align:left'>".$page_bottom_right->title."</H1></div>";
 										echo "<div class='row' style = 'margin-left:5%'>".$page_bottom_right->body."</div>"; 
 							}	?>
-							<!-- <h3 class="indent-bot">free download &amp; play <strong>start today!</strong></h3>
-							<figure class="img-pos indent-bot float-sw2"><img src="<?php echo base_url() ?>images/page1-img2.jpg" alt=""></figure>
-							<p class="bot-indent">Lorem ipsum dolor sit amet, consec tetuer adipiscing elit. Praesent vestibulum molestie lacus. Aenean nonummy hendrerit mauris. Phasellus porta. Fusce suscipit varius mi.</p>
-							<a class="link" href="#">Read more</a> -->
 						</div>
 					</div>
 			    </div>

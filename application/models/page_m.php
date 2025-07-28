@@ -34,7 +34,37 @@ class Page_m extends MY_Model
 		'body' => array(
 			'field' => 'body', 
 			'label' => 'Body', 
-			'rules' => 'trim|required'
+			'rules' => 'trim'
+		),
+		'order' => array(
+			'field' => 'order', 
+			'label' => 'Order', 
+			'rules' => 'trim|intval'
+		),
+		'raw' => array(
+			'field' => 'raw', 
+			'label' => 'Raw Content', 
+			'rules' => 'trim'
+		),
+		'position' => array(
+			'field' => 'position', 
+			'label' => 'Position', 
+			'rules' => 'trim'
+		),
+		'menu_item' => array(
+			'field' => 'menu_item', 
+			'label' => 'Menu Item', 
+			'rules' => 'trim|intval'
+		),
+		'description' => array(
+			'field' => 'description', 
+			'label' => 'Description', 
+			'rules' => 'trim|xss_clean'
+		),
+		'canonical' => array(
+			'field' => 'canonical', 
+			'label' => 'Canonical', 
+			'rules' => 'trim|intval'
 		)
 	);
 
@@ -66,12 +96,16 @@ class Page_m extends MY_Model
 		$page = new stdClass();
 		$page->title = '';
 		$page->slug = '';
+		$page->order = 0;
 		$page->body = '';
 		$page->raw = NULL;
-		$page->parent_id = 0;
-		$page->menu_id = 0; // New Menu Location 0 = Header, 1 = Footer Menu (Inside), 2 = Footer Menu (Outside)
 		$page->template = 'page';
 		$page->position = 'full_page';
+		$page->menu_item = 0;
+		$page->parent_id = 0;
+		$page->menu_id = 0; // New Menu Location 0 = Header, 1 = Footer Menu (Inside), 2 = Footer Menu (Outside)
+		$page->description = '';
+		$page->canonical = 0;
 		return $page;
 	}
 /*	public function get_archive_link(){
@@ -197,6 +231,10 @@ class Page_m extends MY_Model
 		$data->parent_id 	= $fields['parent_id'];
 		$data->menu_id 		= $fields['menu_id'];	
 		$data->template 	= $fields['template'];
+		$data->position 	= $fields['position'];
+		$data->menu_item 	= $fields['menu_item'];
+		$data->description 	= $fields['description'];
+		$data->canonical 	= $fields['canonical'];
 	}
 	/**
 	 * Takes the $placement field (top_section, bottom_left and bottom_right)

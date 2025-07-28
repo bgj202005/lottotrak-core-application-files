@@ -3,7 +3,7 @@ class Article_m extends MY_Model
 {
 	protected $_table_name = 'articles';
 	protected $_order_by = 'pubdate desc, id desc';
-	protected $_timestamps = TRUE;
+	protected $_timestamps = FALSE;
 	public $rules = array(
 		'pubdate' => array(
 			'field' => 'pubdate', 
@@ -18,7 +18,7 @@ class Article_m extends MY_Model
 		'slug' => array(
 			'field' => 'slug', 
 			'label' => 'Slug', 
-			'rules' => 'trim|required|max_length[100]|url_title|xss_clean'
+			'rules' => 'trim|max_length[100]|url_title|xss_clean'
 		), 
 		'body' => array(
 			'field' => 'body', 
@@ -33,8 +33,12 @@ class Article_m extends MY_Model
 		$article->title = '';
 		$article->slug = '';
 		$article->body = '';
-		$article->raw = NULL;
+		$article->raw = '';
+		$article->description = '';
+		$article->canonical = 0;
 		$article->pubdate = date('Y-m-d');
+		$article->modified = date('Y-m-d H:i:s');
+		$article->created = date('Y-m-d H:i:s');
 		return $article;
 	}
 	
@@ -53,7 +57,7 @@ class Article_m extends MY_Model
 	
 	public function set_published() {
 		
-		$this->db->where('pubdate <=', date('Y-m-d'));
+		$this->db->where('pubdate >=', date('Y-m-d'));
 	}
 
 	/**
@@ -68,5 +72,14 @@ class Article_m extends MY_Model
 		$data->slug  		= $fields['slug'];
 		$data->body  		= $fields['body'];
 		$data->pubdate	 	= $fields['pubdate'];
+		$data->modified	 	= isset($fields['modified']) ? $fields['modified'] : date('Y-m-d H:i:s');
+		$data->raw	 		= isset($fields['raw']) ? $fields['raw'] : '';
+		$data->description	= isset($fields['description']) ? $fields['description'] : '';
+		$data->canonical	= isset($fields['canonical']) ? $fields['canonical'] : 0;
+		
+		// Handle created field for new records
+		if (!isset($data->id) || empty($data->id)) {
+			$data->created = date('Y-m-d H:i:s');
+		}
 	}
 }

@@ -13,9 +13,6 @@ class Article extends Frontend_Controller {
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		if(!$this->data['maintenance']) 
 		{
-			// Fetch the 404, if not found
-			
-			//$this->db->where('pubdate <=', date('Y-m-d'));
 			
 			$this->article_m->set_published();
 			$this->data['article'] = $this->article_m->get($id);
