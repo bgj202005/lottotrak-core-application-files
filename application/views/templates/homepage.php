@@ -2,7 +2,7 @@
 <section id="content">
     <div class="content-inner  col-centered">
 	   <div class="row">
-            <div class="col-xs-12 col-md-8">
+            <div class="col-xs-12 col-md-9">
 				<?php if (strtolower($page->slug)=='home'&&$page->position=='top_home') 
 				{ 
 					echo "<div class='row'><H1 style = 'text-align:left'>".$page->title."</H1></div>";
@@ -255,7 +255,7 @@
 
 			</div>
 			<!--  Sidebar -->
-			<div class="col-xs-12 col-md-4 sidebar">
+			<div class="col-xs-12 col-md-3 sidebar">
 				<?php $this->load->view('sidebar'); ?>
 			</div>
 			<div class="row">

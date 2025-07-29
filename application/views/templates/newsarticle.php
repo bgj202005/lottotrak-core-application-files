@@ -2,7 +2,7 @@
 <section id="content">
     <div class="content-inner  col-centered">
         <div class = "row">
-            <div class="col-xs-12 col-md-8">
+            <div class="col-xs-12 col-md-9">
         	   <div class="row">
         	       <?php if($pagination): ?>
                         <section><?php echo $pagination; ?></section>
@@ -20,7 +20,7 @@
     		    </div>
     		</div>
     	    <!--  Sidebar -->
-    	    <div class="col-xs-12 col-md-4 sidebar">
+    	    <div class="col-xs-12 col-md-3 sidebar">
 				<?php $this->load->view('sidebar'); ?>
 			</div>
     	    <div class="wrapper">
