@@ -52,12 +52,13 @@ class Article_m extends MY_Model
 		$limit = (int) $limit;
 		$this->set_published();
 		$this->db->limit($limit);
+		$this->db->order_by('pubdate desc');
 		return parent::get();
 	}
 	
 	public function set_published() {
 		
-		$this->db->where('pubdate >=', date('Y-m-d'));
+		$this->db->where('pubdate <=', date('Y-m-d'));
 	}
 
 	/**
