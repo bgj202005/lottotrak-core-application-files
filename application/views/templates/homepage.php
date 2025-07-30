@@ -299,6 +299,15 @@
 				</div>
 			</div>
 			<?php endif; ?>
+			<div class="wrapper">
+				<div class="content-menu">
+					<?php echo get_footer_menu($footer_menu_inside, $maintenance); ?>
+					
+					<div class="clear"></div>
+					</div>
+				</div>
+				</div>
+			</div>
 		</div>
 	</div>
 </section>
