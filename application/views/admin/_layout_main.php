@@ -56,6 +56,40 @@
     </div><!-- /.navbar-collapse -->
   <!-- </div> --><!-- /.container-fluid -->
  </nav>
+ <style>
+	/* Mobile responsiveness for admin layout */
+	@media (max-width: 768px) {
+		.container-fluid {
+			padding: 5px !important;
+			max-width: 100vw !important;
+			overflow-x: hidden !important;
+		}
+		
+		.row {
+			margin: 0 !important;
+		}
+		
+		.col-md-8, .col-md-4 {
+			padding: 3px !important;
+			max-width: 100% !important;
+		}
+		
+		/* Stack admin sections on mobile */
+		.col-md-4 {
+			margin-top: 15px;
+		}
+	}
+	
+	@media (max-width: 576px) {
+		.container-fluid {
+			padding: 2px !important;
+		}
+		
+		.col-md-8, .col-md-4 {
+			padding: 1px !important;
+		}
+	}
+ </style>
     <div class = "container-fluid">
     	<div class = "row">
 		    <!--  Main Column -->
