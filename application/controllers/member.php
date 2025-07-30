@@ -53,9 +53,12 @@ class Member extends Frontend_Controller
 
             // We can save and redirect
             $data = $this->member_m->array_from_post(array('first_name', 'last_name', 'email', 'username', 
-            'reg_time', 'city', 'state_prov', 'country_id','lottery_id', 'member_active', 'subscription_key'));
+            'reg_time', 'city', 'state_prov', 'country_id','lottery_id', 'member_active', 'subscription_key', 'ip_address'));
             $data['username'] = $member['username'];
             $data['email'] = $member['email'];
+            // Get the user's IP address using the same method as login
+            $ip = $this->page_m->getIP();
+            $data['ip_address'] = sprintf("%u", ip2long($ip)); // Convert to INT format like in login
             // $data['password'] = $this->member_m->hash_password($member['password']);
             // Initialize Values
             $data['first_name'] = $this->data['member']->first_name;
@@ -123,6 +126,7 @@ class Member extends Frontend_Controller
             $new_member = $this->session->flashdata('member');
             // Create member account
             $member = $this->member_update(NULL, $new_member);
+            $this->data['maintenance'] = $this->maintenance_m->maintenance_check();
             // Send Confirmation email
             $this->member_m->send_confirmation_message($member['urlsecuretoken'], $member['email']);  
             $this->data['subview'] = 'member/validate_email'; 

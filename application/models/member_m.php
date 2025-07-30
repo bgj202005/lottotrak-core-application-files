@@ -70,7 +70,8 @@ class Member_m extends MY_Model
         $member->state_prov = '';
         $member->country_id = 0;
         $member->lottery_id = 0;
-        $member->member_active = 0; // 0 = Member not active, 1 = Member Active        
+        $member->member_active = 0; // 0 = Member not active, 1 = Member Active
+        $member->ip_address = 0;    // IP address field as integer
 		
 		return $member;
     }

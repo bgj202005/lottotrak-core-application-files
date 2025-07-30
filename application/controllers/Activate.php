@@ -85,6 +85,7 @@ class Activate extends Frontend_Controller {
         {
             $this->data['alert_message'] = "Can not verify the security token.";
         }
+    $this->data['maintenance'] = $this->maintenance_m->maintenance_check();
     // Default View
     $this->data['subview'] = 'member/activate';
     $this->load->view('_main_layout', $this->data); 
