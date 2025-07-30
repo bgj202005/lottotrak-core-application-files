@@ -2,6 +2,10 @@
 <section id="content">
     <div class="content-inner  col-centered">
         <div class="row">
+        	<!--  Left Sidebar -->
+        	<div class="col-xs-12 col-md-3 sidebar">
+				<?php $this->load->view('sidebar'); ?>
+			</div>
             <div class="col-xs-12 col-md-9">
                 <div class="row">
         			<article>
@@ -9,11 +13,7 @@
         				<?php echo $page->body; ?>
         			</article>
 	           </div>
-        	</div>https://localhost/lottotrak/admin/page
-        	<!--  Sidebar -->
-        	<div class="col-xs-12 col-md-3 sidebar">
-				<?php $this->load->view('sidebar'); ?>
-			</div>
+        	</div>
 			<div class="wrapper">
 				<div class="content-menu">
 					<?php echo get_footer_menu($footer_menu_inside, $maintenance); ?>

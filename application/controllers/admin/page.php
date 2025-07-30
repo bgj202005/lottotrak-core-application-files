@@ -346,11 +346,23 @@ class Page extends Admin_Controller {
 					'bottom_right' => 'Bottom Right',
 					'bottom_full' => 'Bottom Full Width'
 				);
+			case 'homepage_left':
+				return array(
+					'top_home' => 'Top Section', 
+					'bottom_left' => 'Bottom Left', 
+					'bottom_middle' => 'Bottom Middle', 
+					'bottom_right' => 'Bottom Right',
+					'bottom_full' => 'Bottom Full Width'
+				);
 			case 'sidebar':
 				return array('top_section' => 'Top', 'middle_section' => 'Middle', 'bottom_section' => 'Bottom');
 			case 'newsarticle':
 				return array('featured_article' => 'featured', 'archived_article' => 'archived');
+			case 'article_left':
+				return array('featured_article' => 'featured', 'archived_article' => 'archived');
 			case 'page':
+				return array('full_page' => 'Full Page');
+			case 'page_left':
 				return array('full_page' => 'Full Page');
 		}
 	}
@@ -373,6 +385,29 @@ class Page extends Admin_Controller {
 		switch($template)
 		{
 			case 'homepage' :
+				$position_arr[] = array(
+									array(
+										'id' => 'top_home', 
+										'name' => 'Top Section'
+									),
+									array(
+										'id' => 'bottom_left', 
+										'name' => 'Bottom Left'
+									), 
+									array(
+										'id' => 'bottom_middle', 
+										'name' => 'Bottom Middle'
+									),
+									array(
+										'id' => 'bottom_right', 
+										'name' => 'Bottom Right'
+									),
+									array(
+										'id' => 'bottom_full', 
+										'name' => 'Bottom Full Width'
+									));
+			break;
+			case 'homepage_left' :
 				$position_arr[] = array(
 									array(
 										'id' => 'top_home', 
@@ -420,12 +455,30 @@ class Page extends Admin_Controller {
 										'name' => 'Archived Article'
 									));
 			break;
+			case 'article_left':
+				$position_arr[] = array(
+									array(
+										'id' => 'featured_article', 
+										'name' => 'Featured Article'
+									), 
+									array(
+										'id' => 'archived_article', 
+										'name' => 'Archived Article'
+									));
+			break;
 			case 'page':
 				$position_arr[] = array(
 									array(
 										'id' =>'page', 
 										'name' => 'Full Page'
 									));	
+			break;
+			case 'page_left':
+				$position_arr[] = array(
+									array(
+										'id' =>'page', 
+										'name' => 'Full Page'
+									));
 
 		} 
 		// encoding array to json format

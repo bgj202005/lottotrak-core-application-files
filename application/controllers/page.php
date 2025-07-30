@@ -24,7 +24,7 @@ class Page extends Frontend_Controller {
 				if (!is_null($this->data['page']->raw)) $this->data['page']->raw = stripslashes($this->data['page']->raw); // Remove the slashes from the database.
 				if (!is_null($this->data['page']->description)) $this->data['page']->description = stripslashes($this->data['page']->description);
 				/* (!empty($this->data['page'])) || show_404(current_url()); */ // Depreciated in PHP 7.2 count($this->data['page'])
-					if($this->data['page']->template=='homepage')  // Include Bottom Left & Bottom Right Positions
+					if($this->data['page']->template=='homepage' || $this->data['page']->template=='homepage_left')  // Include Bottom Left & Bottom Right Positions
 					{
 						$this->data['page_bottom_left'] = $this->page_m->home_pages('bottom_left');
 						if ($this->data['page_bottom_left']) {
@@ -126,6 +126,44 @@ class Page extends Frontend_Controller {
 		//$this->db->order_by("'pubdate' desc");
 		$this->db->limit($perpage, $offset);
 		
+		$this->data ['articles'] = $this->article_m->get();
+	}
+
+	// Left sidebar template methods
+	private function _homepage_left() {
+		$this->article_m->set_published();
+		$this->db->limit(6);
+		$this->data['articles'] = $this->article_m->get();
+	}
+
+	private function _page_left() {
+		$this->data['recent_news'] = $this->article_m->get_recent();
+	}
+
+	private function _article_left() {
+		$this->data['recent_news'] = $this->article_m->get_recent();
+		$this->article_m->set_published();
+		$count = $this->db->count_all_results('articles');
+
+		$perpage = 4;
+		if ($count > $perpage) {
+			$this->load->library('pagination');
+			$config['base_url'] = site_url($this->uri->segment(1).'/');
+			$config['total_rows'] = $count;
+			$config['per_page'] = $perpage;
+			$config['url_segment'] = 2;
+				
+			$this->pagination->initialize($config);
+			$this->data['pagination'] = $this->pagination->create_links();
+			$offset = $this->uri->segment(2);
+		}
+		else {
+			$this->data['pagination'] = '';
+			$offset = 0;
+		}
+		
+		$this->article_m->set_published();
+		$this->db->limit($perpage, $offset);
 		$this->data ['articles'] = $this->article_m->get();
 	}
 	

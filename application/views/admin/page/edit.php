@@ -46,8 +46,16 @@ echo form_open(base_url()."admin/page/edit/".(!empty($page->id) ? $page->id : ''
 	<tr>
 		<td>Template:</td>
 		<td><?php $extra = array('id' => 'sel_template'); 
-			echo form_dropdown('template', array('homepage' => 'Home Page', 'page' => 'Page',
-			'newsarticle' => 'News Article', 'sidebar' => 'Right Sidebar'), $this->input->post('template') 
+			echo form_dropdown('template', array(
+				'homepage' => 'Home Page (Default)', 
+				'page' => 'Page (Default)',
+				'article' => 'Article (Default)', 
+				'newsarticle' => 'News Article', 
+				'sidebar' => 'Sidebar',
+				'homepage_left' => 'Home Page (Left Sidebar)',
+				'page_left' => 'Page (Left Sidebar)',
+				'article_left' => 'Article (Left Sidebar)'
+			), $this->input->post('template') 
 				? $this->input->post('template') : $page->template, $extra); ?></td>
 	</tr>
 	<tr>
