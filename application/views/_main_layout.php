@@ -26,7 +26,7 @@ if(isset($page_m) && is_object($page_m)) {
               { ?>
               <div class="col-lg-2 col-md-2 col-sm-12 desktop-auth-buttons">
                 <ul id="login_container" class="d-flex justify-content-center justify-content-lg-end align-items-center flex-wrap">
-                  <li class="mr-2 mb-1"><span class="text-white">Welcome <?=$this->session->userdata('member_first_name'); ?></span></li> 
+                  <li class="mr-2 mb-1"><span class="text-white">Welcome <span class="user-name"><?=$this->session->userdata('member_first_name'); ?></span></span></li> 
                   <li><div class="sm sm-clean"><?php echo anchor('member/logout/', '<i class="fa fa-power-off"></i> logout', 'class="btn btn-outline-light btn-sm"')?></div></li>
                 </ul>
                 </div>
