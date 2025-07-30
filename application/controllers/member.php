@@ -336,6 +336,7 @@ class Member extends Frontend_Controller
                 $this->session->set_flashdata('error', '<div class="alert alert-danger" role="alert">Your Password has not been updated. Please try again.</div>');
             }
         }
+            $this->data['maintenance'] = $this->maintenance_m->maintenance_check();
             $this->load->view('_main_layout', $this->data);
             $this->session->unset_userdata('member_name'); // Logout only the member on the front end but any other members/admins are untouched
             $this->session->unset_userdata('member_email');
