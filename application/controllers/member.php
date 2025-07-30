@@ -288,7 +288,8 @@ class Member extends Frontend_Controller
 	            $this->data['subview'] = 'member/update_password';
 	            $this->data['message'] = '<div class="alert alert-danger" role="alert">There was a problem with your link. Please click it again or request to reset you password again.</div>';
 	        }
-	        	$this->load->view('_main_layout', $this->data);
+	        	$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+                $this->load->view('_main_layout', $this->data);
 	    	}
 		}
 	

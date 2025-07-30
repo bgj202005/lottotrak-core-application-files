@@ -22,7 +22,6 @@
 					</div>
 				</div>
 			</div>
-	
 			<!--  Sidebar -->
 			<div class="col-xs-12 col-md-4 sidebar">
 				<?php $this->load->view('sidebar'); ?>
