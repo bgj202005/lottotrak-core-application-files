@@ -258,39 +258,50 @@
 			<div class="col-xs-12 col-md-3 sidebar">
 				<?php $this->load->view('sidebar'); ?>
 			</div>
-			<div class="row">
-				<div class="col-md-4">
-					<div class="wrapper">
-						<div class="wrapper indent-bot4">
-								 <div class="left-pad">
-								 <?php if ($page_bottom_left) 
-									{ 
-										echo "<div class='row'><H1 style = 'text-align:left'>".$page_bottom_left->title."</H1></div>";
-										echo "<div class='row' style = 'margin-left:5%'>".$page_bottom_left->body."</div>"; 
-									}	?>
-								</div>
-							</div>
-					</div>
-				</div>
-					<div class="col-md-4">
-						<div class="left-pad">
-						<?php if ($page_bottom_right) 
-									{ 
-										echo "<div class='row'><H1 style = 'text-align:left'>".$page_bottom_right->title."</H1></div>";
-										echo "<div class='row' style = 'margin-left:5%'>".$page_bottom_right->body."</div>"; 
-							}	?>
-						</div>
-					</div>
-			    </div>
-			</div>
-			<div class="wrapper">
-				<div class="content-menu">
-					<?php echo get_footer_menu($footer_menu_inside, $maintenance); ?>
-					<div class="clear"></div>
+		</div>
+
+		<!-- Bottom Sections -->
+		<div class="row bottom-sections">
+			<!-- Bottom Full Width Section (takes full width if content exists) -->
+			<?php if ($page_bottom_full && !empty($page_bottom_full->body)) : ?>
+			<div class="col-12 bottom-section-full">
+				<div class="bottom-full-content">
+					<?php 
+						echo "<div class='bottom-section-title'><h2>".$page_bottom_full->title."</h2></div>";
+						echo "<div class='bottom-section-body'>".$page_bottom_full->body."</div>"; 
+					?>
 				</div>
 			</div>
-          </div>
-	</section>
+			<?php else : ?>
+			<!-- Three Column Bottom Layout (only if bottom_full is empty) -->
+			<div class="col-md-4 bottom-section-left">
+				<div class="bottom-left-content">
+					<?php if ($page_bottom_left && !empty($page_bottom_left->body)) : 
+						echo "<div class='bottom-section-title'><h3>".$page_bottom_left->title."</h3></div>";
+						echo "<div class='bottom-section-body'>".$page_bottom_left->body."</div>"; 
+					endif; ?>
+				</div>
+			</div>
+			<div class="col-md-4 bottom-section-middle">
+				<div class="bottom-middle-content">
+					<?php if ($page_bottom_middle && !empty($page_bottom_middle->body)) : 
+						echo "<div class='bottom-section-title'><h3>".$page_bottom_middle->title."</h3></div>";
+						echo "<div class='bottom-section-body'>".$page_bottom_middle->body."</div>"; 
+					endif; ?>
+				</div>
+			</div>
+			<div class="col-md-4 bottom-section-right">
+				<div class="bottom-right-content">
+					<?php if ($page_bottom_right && !empty($page_bottom_right->body)) : 
+						echo "<div class='bottom-section-title'><h3>".$page_bottom_right->title."</h3></div>";
+						echo "<div class='bottom-section-body'>".$page_bottom_right->body."</div>"; 
+					endif; ?>
+				</div>
+			</div>
+			<?php endif; ?>
+		</div>
+	</div>
+</section>
 <script>
 $('#nav-wins a').on('click', function (e) {
   e.preventDefault()
@@ -304,5 +315,6 @@ $('#nav-last-win a').on('click', function (e) {
   e.preventDefault()
   $(this).tab('show')
 })
+
 
 </script>

@@ -339,7 +339,13 @@ class Page extends Admin_Controller {
 		switch($tpl)
 		{
 			case 'homepage':
-				return array('top_home' => 'Top Section', 'bottom_left' => 'Bottom Left', 'bottom_right' => 'Bottom Right');
+				return array(
+					'top_home' => 'Top Section', 
+					'bottom_left' => 'Bottom Left', 
+					'bottom_middle' => 'Bottom Middle', 
+					'bottom_right' => 'Bottom Right',
+					'bottom_full' => 'Bottom Full Width'
+				);
 			case 'sidebar':
 				return array('top_section' => 'Top', 'middle_section' => 'Middle', 'bottom_section' => 'Bottom');
 			case 'newsarticle':
@@ -369,7 +375,7 @@ class Page extends Admin_Controller {
 			case 'homepage' :
 				$position_arr[] = array(
 									array(
-										'id' => 'top_section', 
+										'id' => 'top_home', 
 										'name' => 'Top Section'
 									),
 									array(
@@ -377,8 +383,16 @@ class Page extends Admin_Controller {
 										'name' => 'Bottom Left'
 									), 
 									array(
+										'id' => 'bottom_middle', 
+										'name' => 'Bottom Middle'
+									),
+									array(
 										'id' => 'bottom_right', 
 										'name' => 'Bottom Right'
+									),
+									array(
+										'id' => 'bottom_full', 
+										'name' => 'Bottom Full Width'
 									));
 			break;
 			case 'sidebar':

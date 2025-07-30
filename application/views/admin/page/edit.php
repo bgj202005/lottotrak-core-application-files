@@ -190,4 +190,9 @@ function disable() {
 	 document.getElementById("parent_id").disabled=true;
   } else document.getElementById("parent_id").disabled=false;
 }
+tinymce.init({
+   images_dataimg_filter: function(img) {
+      return img.hasAttribute('internal-blob');
+  }
+});
 </script>

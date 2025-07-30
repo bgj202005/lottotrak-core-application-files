@@ -27,9 +27,24 @@ class Page extends Frontend_Controller {
 					if($this->data['page']->template=='homepage')  // Include Bottom Left & Bottom Right Positions
 					{
 						$this->data['page_bottom_left'] = $this->page_m->home_pages('bottom_left');
-						$this->data['page_bottom_left']->body = stripslashes($this->data['page_bottom_left']->body); // Remove the slashes from the database.
+						if ($this->data['page_bottom_left']) {
+							$this->data['page_bottom_left']->body = stripslashes($this->data['page_bottom_left']->body);
+						}
+						
+						$this->data['page_bottom_middle'] = $this->page_m->home_pages('bottom_middle');
+						if ($this->data['page_bottom_middle']) {
+							$this->data['page_bottom_middle']->body = stripslashes($this->data['page_bottom_middle']->body);
+						}
+						
 						$this->data['page_bottom_right'] = $this->page_m->home_pages('bottom_right');
-						$this->data['page_bottom_right']->body = stripslashes($this->data['page_bottom_right']->body); // Remove the slashes from the database.
+						if ($this->data['page_bottom_right']) {
+							$this->data['page_bottom_right']->body = stripslashes($this->data['page_bottom_right']->body);
+						}
+						
+						$this->data['page_bottom_full'] = $this->page_m->home_pages('bottom_full');
+						if ($this->data['page_bottom_full']) {
+							$this->data['page_bottom_full']->body = stripslashes($this->data['page_bottom_full']->body);
+						}
 					} 
 					$this->data['sidebar_top'] = $this->page_m->side_bar('top_section');
 					$this->data['sidebar_top']->body = stripslashes($this->data['sidebar_top']->body); // Remove the slashes from the database.
