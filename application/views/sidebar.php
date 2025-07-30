@@ -1,10 +1,10 @@
         <section class="sidebar-section">
             <h2 class="sidebar-title">Latest Lottery News</h2>
-            <div class="news-archive-link">
-                <?php echo anchor($news_article_link, '+ News archive', 'class="btn btn-outline-light btn-sm"'); ?>
-            </div>
             <div class="news-links">
                 <?php echo article_links($recent_news); ?>
+            </div>
+            <div class="news-archive-link">
+                <?php echo anchor($news_article_link, '+ News archive', 'class="btn btn-outline-light btn-sm"'); ?>
             </div>
         </section>
         <div class="sidebar-content">

@@ -119,7 +119,7 @@ if(isset($page_m) && is_object($page_m)) {
 				</div>
           <!-- The Register Modal -->
           <div class="modal fade seminor-login-modal" data-backdrop="static" id="sem-reg">
-            <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-dialog modal-dialog-centered modal-md">
               <div class="modal-content">
                 <!-- The Register Account Modal -->
                 <div class="modal-body seminor-login-modal-body">
@@ -158,7 +158,7 @@ if(isset($page_m) && is_object($page_m)) {
           </div>
             <!-- The Login Modal -->
           <div class="modal fade seminor-login-modal" data-backdrop="static" id="sem-login">
-            <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-dialog modal-dialog-centered modal-md">
               <div class="modal-content">
                   <!-- Modal body -->
                   <div class="modal-body seminor-login-modal-body">
@@ -199,7 +199,7 @@ if(isset($page_m) && is_object($page_m)) {
             </div>
               <!-- The Forgot Password Modal -->
           <div class="modal fade seminor-login-modal" data-backdrop="static" id="sem-forgotpassword">
-            <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-dialog modal-dialog-centered modal-md">
               <div class="modal-content">
                   <!-- Modal body -->
                   <div class="modal-body seminor-login-modal-body">

@@ -138,7 +138,8 @@ class Member extends Frontend_Controller
     {
         if ($this->session->flashdata('token')=='validate') 
         {
- 
+            $this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+
             // Setup View
             $this->data['subview'] = 'member/validate_forgotpassword'; 
             $this->load->view('_main_layout', $this->data);
