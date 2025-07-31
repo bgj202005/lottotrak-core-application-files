@@ -5,17 +5,40 @@
             <div class="col-xs-12 col-md-9">
         	   <div class="row">
         	       <?php if($pagination): ?>
-                        <section><?php echo $pagination; ?></section>
+                        <section class="pagination-section"><?php echo $pagination; ?></section>
         			<?php endif; ?>
         		</div>
-       			<div class = "row">	
+       			<div class="row article-listing">	
         				<?php if (count($articles)): foreach ($articles as $article): ?>
-        				    <article><?php echo get_excerpt($article); ?><hr></article>
+        				    <article class="lottery-article-preview">
+        				    	<header class="article-preview-header">
+        				    		<h2 class="article-preview-title">
+        				    			<a href="<?php echo site_url('article/view/'.$article->id); ?>">
+        				    				<?php echo e($article->title); ?>
+        				    			</a>
+        				    		</h2>
+        				    		<p class="article-preview-date">
+        				    			<i class="fa fa-calendar"></i>
+        				    			<time datetime="<?php echo date('Y-m-d', strtotime($article->pubdate)); ?>">
+        				    				<?php echo date('F j, Y', strtotime($article->pubdate)); ?>
+        				    			</time>
+        				    		</p>
+        				    	</header>
+        				    	<div class="article-preview-content">
+        				    		<?php echo get_excerpt($article); ?>
+        				    	</div>
+        				    	<footer class="article-preview-footer">
+        				    		<a href="<?php echo site_url('article/view/'.$article->id); ?>" class="read-more-btn">
+        				    			Read Full Article <i class="fa fa-arrow-right"></i>
+        				    		</a>
+        				    	</footer>
+        				    </article>
+        				    <hr class="article-divider">
         				<?php  endforeach; endif;?>
         		</div>
     			<div class="row">
         			<?php if($pagination): ?>
-        				<section><?php echo $pagination; ?></section>
+        				<section class="pagination-section"><?php echo $pagination; ?></section>
         			<?php endif; ?>
     		    </div>
     		</div>
