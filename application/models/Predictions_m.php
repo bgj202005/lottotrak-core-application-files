@@ -1318,6 +1318,124 @@ class Predictions_m extends MY_Model
 	}
 	return implode(',', $selected);
 	}
+	
+	/**
+	 * Remove or allow friends in $selections with friendship status information.
+	 * @param int $lottery_id		Lottery/game id
+	 * @param array $selections  	Array of selected numbers as strings, e.g. ['1', '2', '3']
+	 * @param string $friendship 	'ALL', 'none', '1', or '2'
+	 * @param array $heat_map 		['H' => [num => count,...], 'W' => [...], 'C' => [...]]
+	 * @return array 				['numbers' => filtered_numbers, 'friendship_status' => status_info]
+	 */
+	public function friend_search_hwc_with_status($lottery_id, $selections, $friendship, $heat_map)
+	{
+		// Get the filtered numbers using the existing method
+		$filtered_numbers = $this->friend_search_hwc($lottery_id, $selections, $friendship, $heat_map);
+		
+		// Initialize status information
+		$status = [
+			'requested_type' => $friendship,
+			'found_friendships' => [],
+			'warning_message' => null
+		];
+		
+		// Check what friendships actually exist in the final result
+		$friendship_analysis = $this->analyze_friendships($lottery_id, $filtered_numbers);
+		$status['found_friendships'] = $friendship_analysis;
+		
+		// Generate appropriate warning message based on what was requested vs found
+		if ($friendship === 'none') {
+			if ($friendship_analysis['has_1way'] || $friendship_analysis['has_2way']) {
+				$status['warning_message'] = 'Warning: Some friendships may still exist in the combination despite selecting "No Friends".';
+			}
+		} elseif ($friendship === '1') {
+			if (!$friendship_analysis['has_1way']) {
+				$status['warning_message'] = 'Warning: No 1-way friendships were found in the current combination.';
+			}
+			if ($friendship_analysis['has_2way']) {
+				$status['warning_message'] = 'Warning: Some 2-way friendships may still exist despite selecting "1-way Friends Only".';
+			}
+		} elseif ($friendship === '2') {
+			if (!$friendship_analysis['has_2way']) {
+				$status['warning_message'] = 'Warning: No 2-way friendships were found in the current combination.';
+			}
+			if ($friendship_analysis['has_1way']) {
+				$status['warning_message'] = 'Warning: Some 1-way friendships may still exist despite selecting "2-way Friends Only".';
+			}
+		}
+		
+		return [
+			'numbers' => $filtered_numbers,
+			'friendship_status' => $status
+		];
+	}
+	
+	/**
+	 * Analyze friendships in a given set of numbers.
+	 * @param int $lottery_id		Lottery/game id
+	 * @param array $numbers  		Array of numbers to analyze
+	 * @return array 				Friendship analysis results
+	 */
+	public function analyze_friendships($lottery_id, $numbers)
+	{
+		$analysis = [
+			'has_1way' => false,
+			'has_2way' => false,
+			'oneway_pairs' => [],
+			'twoway_pairs' => []
+		];
+		
+		// Fetch friendship data
+		$row = $this->db->get_where('lottery_friends', ['lottery_id' => $lottery_id])->row_array();
+		if (!$row || empty($row['wins'])) {
+			return $analysis;
+		}
+		
+		// Parse friendship string (after first '|')
+		$parts = explode('|', $row['wins']);
+		$friend_str = isset($parts[1]) ? $parts[1] : '';
+		if (!$friend_str) {
+			return $analysis;
+		}
+		
+		// Parse friendships into 1-way and 2-way arrays
+		$oneway = [];
+		$twoway = [];
+		$friendships = array_filter(array_map('trim', explode(',', $friend_str)));
+		foreach ($friendships as $idx => $f) {
+			$ball = $idx + 1; // Ball number (1-based)
+			if (strpos($f, '<>') !== false) {
+				$friend = (int)trim(str_replace('<>', '', $f));
+				$twoway[] = [$ball, $friend];
+			} elseif (strpos($f, '>') !== false) {
+				$friend = (int)trim(str_replace('>', '', $f));
+				$oneway[] = [$ball, $friend];
+			}
+		}
+		
+		$twoway = $this->twoway_unique($twoway);
+		
+		// Check for 1-way friendships in the current numbers
+		foreach ($oneway as $pair) {
+			list($a, $b) = $pair;
+			if (in_array($a, $numbers) && in_array($b, $numbers)) {
+				$analysis['has_1way'] = true;
+				$analysis['oneway_pairs'][] = [$a, $b];
+			}
+		}
+		
+		// Check for 2-way friendships in the current numbers
+		foreach ($twoway as $pair) {
+			list($a, $b) = $pair;
+			if (in_array($a, $numbers) && in_array($b, $numbers)) {
+				$analysis['has_2way'] = true;
+				$analysis['twoway_pairs'][] = [$a, $b];
+			}
+		}
+		
+		return $analysis;
+	}
+	
 	/**
 	 * Remove or allow friends in $selections based on $friendship, selection rules, and H-W-C heat map.
 	 * @param int $lottery_id		Lottery/game id
@@ -1522,6 +1640,9 @@ class Predictions_m extends MY_Model
 				}
 			}
 		}
+		
+		// Always return the result, even if no friendships were found or created
+		return $result;
 	}
 	/**
 	 * Helper function to ensure unique pairs in a two-way friendship array.
@@ -2777,6 +2898,56 @@ class Predictions_m extends MY_Model
 		} else {
 			return NULL; // return NULL if not found, or error
 		}
+	}
+
+	/**
+	 * Friends-only processing with status information
+	 * @param integer $lottery_id The lottery ID
+	 * @param array $selections The current number selections
+	 * @param string $friendship The friendship type ('none', '1', '2', 'all')
+	 * @return array ['numbers' => filtered_numbers, 'friendship_status' => status_info]
+	 */
+	public function friends_only_with_status($lottery_id, $selections, $friendship)
+	{
+		// Get the filtered numbers using the existing method
+		$filtered_numbers = $this->friends_only($lottery_id, $selections, $friendship);
+		
+		// Initialize status information
+		$status = [
+			'requested_type' => $friendship,
+			'found_friendships' => [],
+			'warning_message' => null
+		];
+		
+		// Check what friendships actually exist in the final result
+		$friendship_analysis = $this->analyze_friendships($lottery_id, $filtered_numbers);
+		$status['found_friendships'] = $friendship_analysis;
+		
+		// Generate appropriate warning message based on what was requested vs found
+		if ($friendship === 'none') {
+			if ($friendship_analysis['has_1way'] || $friendship_analysis['has_2way']) {
+				$status['warning_message'] = 'Warning: Some friendships may still exist in the combination despite selecting "No Friends".';
+			}
+		} elseif ($friendship === '1') {
+			if (!$friendship_analysis['has_1way']) {
+				$status['warning_message'] = 'Warning: No 1-way friendships were found in the current combination.';
+			}
+			if ($friendship_analysis['has_2way']) {
+				$status['warning_message'] = 'Warning: Some 2-way friendships may still exist despite selecting "1-way Friends Only".';
+			}
+		} elseif ($friendship === '2') {
+			if (!$friendship_analysis['has_2way']) {
+				$status['warning_message'] = 'Warning: No 2-way friendships were found in the current combination.';
+			}
+			if ($friendship_analysis['has_1way']) {
+				$status['warning_message'] = 'Warning: Some 1-way friendships may still exist despite selecting "2-way Friends Only".';
+			}
+		}
+		
+		return [
+			'numbers' => $filtered_numbers,
+			'friendship_status' => $status
+		];
 	}
 
 	/**

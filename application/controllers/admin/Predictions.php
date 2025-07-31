@@ -1432,6 +1432,7 @@ class Predictions extends Admin_Controller {
 				}
 			} 
 			// Friends logic
+			$friendship_warning = null; // Initialize friendship warning message
 			if ($friends_checked) {
 				if ($selected_friends !== 'all') {
 					// Ensure $number_series is valid before processing
@@ -1450,10 +1451,14 @@ class Predictions extends Admin_Controller {
 							$this->session->set_flashdata('message', 'Problem with the Heat Map, please try again.');
 							redirect('admin/predictions');
 						}
-						$numbers = $this->predictions_m->friend_search_hwc($id, $numbers, $selected_friends, $heat_map);
+						$result = $this->predictions_m->friend_search_hwc_with_status($id, $numbers, $selected_friends, $heat_map);
+						$numbers = $result['numbers'];
+						$friendship_warning = $result['friendship_status']['warning_message'];
 					} elseif(!$hwc_checked && $followers_checked) {
 						// Followers only with Friends - use friends_only method for consistency
-						$numbers = $this->predictions_m->friends_only($id, $numbers, $selected_friends);
+						$result = $this->predictions_m->friends_only_with_status($id, $numbers, $selected_friends);
+						$numbers = $result['numbers'];
+						$friendship_warning = $result['friendship_status']['warning_message'];
 					} elseif($hwc_checked && $followers_checked) {
 						// Both H-W-C and Followers with Friends - use H-W-C method
 						$heat_map = $this->predictions_m->get_heat_map($id);
@@ -1461,10 +1466,14 @@ class Predictions extends Admin_Controller {
 							$this->session->set_flashdata('message', 'Problem with the Heat Map, please try again.');
 							redirect('admin/predictions');
 						}
-						$numbers = $this->predictions_m->friend_search_hwc($id, $numbers, $selected_friends, $heat_map);
+						$result = $this->predictions_m->friend_search_hwc_with_status($id, $numbers, $selected_friends, $heat_map);
+						$numbers = $result['numbers'];
+						$friendship_warning = $result['friendship_status']['warning_message'];
 					} elseif(!$hwc_checked && !$followers_checked) {
 						// Friends-only processing
-						$numbers = $this->predictions_m->friends_only($id, $numbers, $selected_friends);
+						$result = $this->predictions_m->friends_only_with_status($id, $numbers, $selected_friends);
+						$numbers = $result['numbers'];
+						$friendship_warning = $result['friendship_status']['warning_message'];
 					}
 					
 					// Ensure $numbers is a valid array before processing
@@ -1569,6 +1578,35 @@ class Predictions extends Admin_Controller {
 				$this->data['selected_adjacents'] = $futures_form['selected_adjacents'];				// adjacents setting
 			$number_array = $this->session->userdata('futures_number_array');
 			$combination_file = $this->session->userdata('combination_file_name'); // Use parsed filename
+			
+			// Check for friendship warnings in GET requests (when viewing existing results)
+			$friendship_warning = null;
+			if ($number_array && $futures_form['selected_friends_checkbox'] === 'on' && $futures_form['selected_friends'] !== 'all') {
+				// Analyze the current number array for friendship warnings
+				$friendship_analysis = $this->predictions_m->analyze_friendships($id, $number_array);
+				$selected_friends = $futures_form['selected_friends'];
+				
+				// Generate appropriate warning message based on what was requested vs found
+				if ($selected_friends === 'none') {
+					if ($friendship_analysis['has_1way'] || $friendship_analysis['has_2way']) {
+						$friendship_warning = 'Warning: Some friendships may still exist in the combination despite selecting "No Friends".';
+					}
+				} elseif ($selected_friends === '1') {
+					if (!$friendship_analysis['has_1way']) {
+						$friendship_warning = 'Warning: No 1-way friendships were found in the current combination.';
+					}
+					if ($friendship_analysis['has_2way']) {
+						$friendship_warning = 'Warning: Some 2-way friendships may still exist despite selecting "1-way Friends Only".';
+					}
+				} elseif ($selected_friends === '2') {
+					if (!$friendship_analysis['has_2way']) {
+						$friendship_warning = 'Warning: No 2-way friendships were found in the current combination.';
+					}
+					if ($friendship_analysis['has_1way']) {
+						$friendship_warning = 'Warning: Some 1-way friendships may still exist despite selecting "2-way Friends Only".';
+					}
+				}
+			}
     		$combo_id = $this->session->userdata('combination_file_id'); // Get combo_id
 			$this->data['combo_id'] = ($this->lottery_data_m->validate_combo_id($combo_id) ? $combo_id : NULL); 
 			$this->data['active'] = $this->combination_filters_m->get_active_flag($combo_id);
@@ -1682,6 +1720,11 @@ class Predictions extends Admin_Controller {
 		// Get all saved combination filters for the user - ensure this is always available
 		$user_id = $this->session->userdata('id');
 		$this->data['saved_combinations'] = $this->lottery_data_m->get_all_user_combination_filters($id, $user_id);
+		
+		// Add friendship warning if it exists
+		if (isset($friendship_warning) && !empty($friendship_warning)) {
+			$this->data['friendship_warning'] = $friendship_warning;
+		}
 		
 		// Load the view
 		unset($this->data['lottery']->highlights);

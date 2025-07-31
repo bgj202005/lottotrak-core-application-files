@@ -390,6 +390,17 @@
 						<?php endif; ?>
 						
 						<?php if (!empty($message)) ?> <h3 class="bg-warning" style = "text-align:center;"><?=$message; ?></h3>
+						
+						<!-- Friendship Warning Messages -->
+						<?php if (!empty($friendship_warning)): ?>
+							<div class="alert alert-info alert-dismissible fade show" role="alert">
+								<i class="fas fa-info-circle"></i> <?= $friendship_warning ?>
+								<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+									<span aria-hidden="true">&times;</span>
+								</button>
+							</div>
+						<?php endif; ?>
+						
 						<?php echo validation_errors('<H2><div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">','</div></H2>'); ?>
 						<?php echo form_open(base_url().'admin/predictions/combination/'.$lottery->id); ?>
 						<hr>
