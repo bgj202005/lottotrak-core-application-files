@@ -9,7 +9,7 @@
         				<?php echo $page->body; ?>
         			</article>
 	           </div>
-        	</div>https://localhost/lottotrak/admin/page
+        	</div>
         	<!--  Sidebar -->
         	<div class="col-xs-12 col-md-3 sidebar">
 				<?php $this->load->view('sidebar'); ?>
