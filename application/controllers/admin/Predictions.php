@@ -1210,9 +1210,10 @@ class Predictions extends Admin_Controller {
 			$this->session->set_userdata('combination_file_id', $combo_id);
 			$this->session->set_userdata('combination_file_name', $combination_file);
 			if ($session_data) {
-				$hwc_checked = $session_data['selected_hwc'];
-				$followers_checked = $session_data['selected_followers'];
-				$friends_checked = $session_data['selected_friends_checkbox'];
+				// Use POST values if available, otherwise fall back to session values
+				$hwc_checked = $this->input->post('hwc') ? (($this->input->post('hwc') == '1') ? true : false) : $session_data['selected_hwc'];
+				$followers_checked = $this->input->post('followers') ? (($this->input->post('followers') == '1') ? true : false) : $session_data['selected_followers'];
+				$friends_checked = $this->input->post('friends') ? (($this->input->post('friends') == '1') ? true : false) : $session_data['selected_friends_checkbox'];
  				$h_w_c_group = ($this->input->post('h_w_c_group') ? $this->input->post('h_w_c_group') : $this->session->userdata('selected_h_w_c_group'));
 				$followers_type = ($this->input->post('followers_type') ? $this->input->post('followers_type') : $this->session->userdata('selected_followers_type'));
 				$selected_ball_points = ($this->input->post('ball_points') ? $this->input->post('ball_points') : $this->session->userdata('selected_ball_points'));
@@ -1255,9 +1256,10 @@ class Predictions extends Admin_Controller {
 				$this->data['disable_combination_dropdown'] = true;
 			} else {
 				// Get all POST values and save to session for future pagination
-				$hwc_checked = $this->input->post('hwc') ? true : false;
-				$followers_checked = $this->input->post('followers') ? true : false;
-				$friends_checked = $this->input->post('friends') ? true : false;
+				$hwc_checked = ($this->input->post('hwc') == '1') ? true : false;
+				$followers_checked = ($this->input->post('followers') == '1') ? true : false;
+				$friends_checked = ($this->input->post('friends') == '1') ? true : false;
+				
 				$h_w_c_group = $this->input->post('h_w_c_group', TRUE);
 				$followers_type = $this->input->post('followers_type', TRUE);
 				$selected_ball_points = $this->input->post('ball_points', TRUE);
@@ -1360,8 +1362,51 @@ class Predictions extends Admin_Controller {
 			$this->data['enable_generate_button'] = true; 		// or false
 			// Generate number series based on selections
 			$number_series = '';
+			
 			if (!$hwc_checked && !$followers_checked) {
 				$this->data['message'] = 'Either Hot - Warm - Cold checkbox or Follower checkbox predictions can be unchecked but not both.';
+				
+				// Preserve form values so user can make corrections
+				$this->data['selected_h_w_c_group'] = $h_w_c_group;				// H - W- C Group Selected
+				$this->data['selected_followers_type'] = $followers_type;	  	// or 'position' as your default
+				$this->data['selected_hwc'] = $hwc_checked; 					// preset value for H-W-C
+				$this->data['selected_followers'] = $followers_checked; 		// preset value for Followers
+				$this->data['selected_friends_checkbox'] = $friends_checked; 	// preset value for Friends
+				$this->data['selected_friends'] = $selected_friends; 			// preset value for Friends choices
+				$this->data['selected_wheeling'] = $combination_file; 			// preset value for the Combination File (wheeling file)
+				$this->data['combo_id'] = ($this->lottery_data_m->validate_combo_id($combo_id) ? $combo_id : NULL);
+				$this->data['active'] = $this->combination_filters_m->get_active_flag($combo_id);	
+				
+				// Get filter record ID for Prize controller navigation
+				$this->data['filter_record_id'] = NULL;
+				if ($combo_id) {
+					$saved_settings = $this->combination_filters_m->get_saved_settings($combo_id);
+					if ($saved_settings && isset($saved_settings['id'])) {
+						$this->data['filter_record_id'] = $saved_settings['id'];
+					}
+				}
+				
+				// Get filename and CCCC data for futures view
+				if ($combo_id && $this->data['combo_id']) {
+					$filename_cccc_data = $this->lottery_data_m->get_combination_filename_cccc($combo_id);
+					if ($filename_cccc_data) {
+						$this->data['file_name'] = $filename_cccc_data['file_name'];
+						$this->data['CCCC'] = $filename_cccc_data['CCCC'];
+					}
+				}
+				$this->data['selected_ball_points'] = $selected_ball_points;
+				$this->data['selected_position_points'] = $selected_position_points;
+				//Actual Win History Filtering
+				$this->data['selected_trends'] = $selected_trends; 					// trends setting
+				$this->data['selected_winning_sums'] = $selected_winning_sums;  	// sums setting
+				$this->data['selected_winning_digits'] = $selected_winning_digits; 	// digit sums setting
+				$this->data['selected_repeaters'] = $selected_repeaters; 			// repeaters setting
+				$this->data['selected_consecutives'] = $selected_consecutives;  	// consecutives setting
+				$this->data['selected_parity'] = $selected_parity;					// parity (odd / even) setting
+				$this->data['selected_decades'] = $selected_decades;				// decades setting
+				$this->data['selected_last_digits'] = $selected_last_digits; 		// last digits setting
+				$this->data['selected_number_range'] = $selected_number_range;		// number range setting
+				$this->data['selected_adjacents'] = $selected_adjacents;			// adjacents setting
 				
 				// Load necessary lottery data for the view to work properly
 				$this->data['lottery'] = $this->lotteries_m->get($id);
@@ -1380,6 +1425,10 @@ class Predictions extends Admin_Controller {
 				$this->data['lottery']->last_digits = $this->predictions_m->get_last($tbl_name, $this->data['lottery']->highlights['range']);
 				$this->data['lottery']->number_range = $this->predictions_m->get_range($this->data['lottery']->highlights['number_range']);
 				$this->data['lottery']->adjacents = $this->predictions_m->get_adjacents($this->data['lottery']->highlights['adjacents']);
+				
+				// Add friends data (essential for the form to work)
+				$this->data['friends'] = $this->predictions_m->get_friends($id);
+				$this->data['friends_dropdown_options'] = $this->predictions_m->get_friends_dropdown_options($id);
 				
 				// Get next draw date
 				$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);
@@ -1400,14 +1449,16 @@ class Predictions extends Admin_Controller {
 					'total_records' => 0
 				];
 				
-				// Clean up
+				// Clean up and load view with all necessary data
 				unset($this->data['lottery']->highlights);
-				$this->data['subview'] = 'admin/dashboard/predictions/futures';
 				$this->data['current'] = $this->uri->segment(2);
+				$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/futures'.'/'.$id);
 				$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 				$this->data['users'] = $this->maintenance_m->logged_online(0);
 				$this->data['admins'] = $this->maintenance_m->logged_online(1);
 				$this->data['visitors'] = $this->maintenance_m->active_visitors();
+				$this->data['predictions'] = $this;	 // Access the methods in the view (essential for form functionality)
+				$this->data['subview'] = 'admin/dashboard/predictions/futures';
 				$this->load->view('admin/_layout_main', $this->data);
 				return;
 			} elseif ($hwc_checked && !$followers_checked) {

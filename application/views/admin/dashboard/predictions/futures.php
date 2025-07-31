@@ -400,7 +400,6 @@
 								</button>
 							</div>
 						<?php endif; ?>
-						
 						<?php echo validation_errors('<H2><div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">','</div></H2>'); ?>
 						<?php echo form_open(base_url().'admin/predictions/combination/'.$lottery->id); ?>
 						<hr>
@@ -544,7 +543,12 @@
 														<!-- H-W-C -->
 														<td data-label="H-W-C">
 															<?php
-															$js = 'id="hwc-checkbox" class="preset-checkbox" disabled';
+															// Don't render as disabled if there's an error message - let JavaScript handle it
+															$disabled_attr = '';
+															if (empty($message) || strpos($message, 'Either Hot - Warm - Cold checkbox or Follower checkbox') === false) {
+																$disabled_attr = 'disabled';
+															}
+															$js = 'id="hwc-checkbox" class="preset-checkbox" ' . $disabled_attr;
 															echo form_checkbox('hwc', '1', !empty($selected_hwc), $js);
 															?>
 														</td>
@@ -554,7 +558,12 @@
 														<!-- Followers -->
 														<td data-label="Followers">
 															<?php
-															$js = 'id="followers-checkbox" class="preset-checkbox" disabled';
+															// Don't render as disabled if there's an error message - let JavaScript handle it
+															$disabled_attr = '';
+															if (empty($message) || strpos($message, 'Either Hot - Warm - Cold checkbox or Follower checkbox') === false) {
+																$disabled_attr = 'disabled';
+															}
+															$js = 'id="followers-checkbox" class="preset-checkbox" ' . $disabled_attr;
 															echo form_checkbox('followers', '1', !empty($selected_followers), $js);
 															?>
 														</td>
@@ -564,7 +573,12 @@
 														<!-- Friends -->
 														<td data-label="Friends">
 															<?php
-															$js = 'id="friends-checkbox" class="preset-checkbox" disabled';
+															// Don't render as disabled if there's an error message - let JavaScript handle it
+															$disabled_attr = '';
+															if (empty($message) || strpos($message, 'Either Hot - Warm - Cold checkbox or Follower checkbox') === false) {
+																$disabled_attr = 'disabled';
+															}
+															$js = 'id="friends-checkbox" class="preset-checkbox" ' . $disabled_attr;
 															echo form_checkbox('friends', '1', !empty($selected_friends_checkbox), $js);
 															?>
 														</td>
@@ -1225,11 +1239,14 @@
                     option.classList.remove('disabled');
                     option.classList.add('enabled');
                 });
+                // Ensure checkboxes are interactive after enabling
+                enableCheckboxInteraction();
             } else {
                 // Disable the checkboxes and grey out the checkmarks
                 presetCheckboxes.forEach(checkbox => {
                     checkbox.disabled = true;
-                    checkbox.checked = true; // Uncheck the checkbox
+                    // DON'T uncheck the checkbox when disabled - preserve user selection
+                    // checkbox.checked = false; // Uncheck the checkbox when disabled
                 });
                 presetOptions.forEach(option => {
                     option.classList.remove('enabled');
@@ -1237,6 +1254,53 @@
                 });
             }
         });
+		
+		// Initialize checkboxes state on page load - especially important for error messages
+		function initializeCheckboxState() {
+			if (combinationDropdown && combinationDropdown.value) {
+				// Enable the checkboxes and checkmarks since a combination is selected
+				presetCheckboxes.forEach(checkbox => {
+					checkbox.disabled = false;
+				});
+				presetOptions.forEach(option => {
+					option.classList.remove('disabled');
+					option.classList.add('enabled');
+				});
+			}
+		}
+		
+		// Ensure checkboxes respond to clicks after being enabled
+		function enableCheckboxInteraction() {
+			presetCheckboxes.forEach(checkbox => {
+				if (!checkbox.disabled) {
+					// Force re-enable interactivity
+					checkbox.style.pointerEvents = 'auto';
+					checkbox.removeAttribute('readonly');
+				}
+			});
+		}
+		
+		// Special handling for error cases - ensure checkboxes are functional
+		<?php if (!empty($message) && strpos($message, 'Either Hot - Warm - Cold checkbox or Follower checkbox') !== false): ?>
+		// We have the specific error, ensure checkboxes are definitely enabled and functional
+		setTimeout(function() {
+			if (combinationDropdown && combinationDropdown.value) {
+				presetCheckboxes.forEach(checkbox => {
+					checkbox.disabled = false;
+					checkbox.style.pointerEvents = 'auto';
+					checkbox.removeAttribute('readonly');
+				});
+				presetOptions.forEach(option => {
+					option.classList.remove('disabled');
+					option.classList.add('enabled');
+				});
+			}
+		}, 100);
+		<?php endif; ?>
+		
+		// Call initialization when page loads
+		initializeCheckboxState();
+		enableCheckboxInteraction();
 		
 		// Initialize Bootstrap Table for Generated Combination Tickets
 		<?php if (!empty($combos_paginated)): ?>
