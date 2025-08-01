@@ -1042,6 +1042,9 @@
 					// Insert message at the top of the form
 					form.insertBefore(messageDiv, form.firstChild);
 					
+					// Update the active flag since we just saved an active filter
+					isActive = true;
+					
 					// Grey out and disable Save Filtered Tickets button (requirement 6)
 					saveBtn.disabled = true;
 					saveBtn.style.opacity = '0.5';
@@ -1368,8 +1371,6 @@
         <?php if (!empty($filter_record_id)): ?>
             var filterRecordId = <?= $filter_record_id ?>;
             var isActive = <?= $active ? 'true' : 'false' ?>;
-            
-            console.log('Navigating to combination winners with filter record ID:', filterRecordId, 'Active:', isActive);
             
             // Show warning for expired filters but still allow navigation
             if (!isActive) {
