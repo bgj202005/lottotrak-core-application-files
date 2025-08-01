@@ -1211,9 +1211,10 @@ class Predictions extends Admin_Controller {
 			$this->session->set_userdata('combination_file_name', $combination_file);
 			if ($session_data) {
 				// Use POST values if available, otherwise fall back to session values
-				$hwc_checked = $this->input->post('hwc') ? (($this->input->post('hwc') == '1') ? true : false) : $session_data['selected_hwc'];
-				$followers_checked = $this->input->post('followers') ? (($this->input->post('followers') == '1') ? true : false) : $session_data['selected_followers'];
-				$friends_checked = $this->input->post('friends') ? (($this->input->post('friends') == '1') ? true : false) : $session_data['selected_friends_checkbox'];
+				// For checkboxes, if form was submitted but checkbox not present in POST, it means unchecked
+				$hwc_checked = ($this->input->post() && !$this->input->post('hwc')) ? false : ($this->input->post('hwc') ? (($this->input->post('hwc') == '1') ? true : false) : $session_data['selected_hwc']);
+				$followers_checked = ($this->input->post() && !$this->input->post('followers')) ? false : ($this->input->post('followers') ? (($this->input->post('followers') == '1') ? true : false) : $session_data['selected_followers']);
+				$friends_checked = ($this->input->post() && !$this->input->post('friends')) ? false : ($this->input->post('friends') ? (($this->input->post('friends') == '1') ? true : false) : $session_data['selected_friends_checkbox']);
  				$h_w_c_group = ($this->input->post('h_w_c_group') ? $this->input->post('h_w_c_group') : $this->session->userdata('selected_h_w_c_group'));
 				$followers_type = ($this->input->post('followers_type') ? $this->input->post('followers_type') : $this->session->userdata('selected_followers_type'));
 				$selected_ball_points = ($this->input->post('ball_points') ? $this->input->post('ball_points') : $this->session->userdata('selected_ball_points'));
