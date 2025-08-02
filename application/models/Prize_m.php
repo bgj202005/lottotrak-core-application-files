@@ -72,8 +72,8 @@ class Prize_m extends MY_Model
             // Determine if record is active or expired
             $record->is_active = ($record->active == 1) ? 'YES' : 'EXPIRED';
             
-            // Calculate actual win records by comparing tickets to drawn numbers
-            $record->win_records = $this->calculate_actual_win_records($record);
+            // Use stored win records from database instead of recalculating
+            $record->win_records = $this->get_stored_win_records($record);
             
             // Add row number
             $record->row_number = $offset + $key + 1;
@@ -96,6 +96,46 @@ class Prize_m extends MY_Model
             '5_win', '5_win_extra', '6_win', '6_win_extra', '7_win', '7_win_extra',
             '8_win', '8_win_extra', '9_win', '9_win_extra', 'extra'
         );
+    }
+
+    /**
+     * Get stored win records from database for a filter record
+     * @param object $record Filter record from lottery_combination_filters
+     * @return object Win records with actual database values
+     */
+    public function get_stored_win_records($record)
+    {
+        $win_records = (object) array();
+        
+        // Define all possible win categories (1 through 9)
+        $categories = array(1, 2, 3, 4, 5, 6, 7, 8, 9);
+        
+        foreach ($categories as $category) {
+            // Regular win field: e.g., '3_win' -> 'win_3'
+            $regular_field = $category . '_win';
+            if (property_exists($record, $regular_field)) {
+                $win_records->{'win_' . $category} = (int) $record->$regular_field;
+            } else {
+                $win_records->{'win_' . $category} = 0;
+            }
+            
+            // Extra win field: e.g., '3_win_extra' -> 'win_3_extra'  
+            $extra_field = $category . '_win_extra';
+            if (property_exists($record, $extra_field)) {
+                $win_records->{'win_' . $category . '_extra'} = (int) $record->$extra_field;
+            } else {
+                $win_records->{'win_' . $category . '_extra'} = 0;
+            }
+        }
+        
+        // Handle special 'extra' field if it exists
+        if (property_exists($record, 'extra')) {
+            $win_records->win_extra = (int) $record->extra;
+        } else {
+            $win_records->win_extra = 0;
+        }
+        
+        return $win_records;
     }
 
     /**
@@ -533,7 +573,7 @@ class Prize_m extends MY_Model
         // For expired filters, return the stored win records from database instead of calculating
         if ($record->active != 1) {
             // Get stored win records from the filter record itself
-            $stored_records = $this->get_stored_win_records($record, $prize_profile);
+            $stored_records = $this->get_stored_win_records_with_profile($record, $prize_profile);
             return $stored_records;
         }
         
@@ -806,7 +846,7 @@ class Prize_m extends MY_Model
      * @param object $prize_profile Prize profile for available categories
      * @return object Win record counts from database
      */
-    private function get_stored_win_records($record, $prize_profile)
+    private function get_stored_win_records_with_profile($record, $prize_profile)
     {
         $win_records = (object) array();
         
