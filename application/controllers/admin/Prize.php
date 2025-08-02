@@ -593,6 +593,7 @@ class Prize extends Admin_Controller
         // Only expire when returning to Prize History, not when viewing tickets
         $should_process_wins = false;
         $next_draw_date = null;
+        $next_draw_date_for_js = null; // Initialize JS-parseable date format
         $display_mode = 'normal'; // 'normal', 'tbd', or 'results'
         
         // Always calculate expected next draw date for active filters, regardless of whether draw_info exists
@@ -629,9 +630,11 @@ class Prize extends Admin_Controller
             if (!$next_draw_date_mysql) {
                 log_message('error', "Date conversion failed for: {$expected_next_draw_date}. Using raw date instead.");
                 $next_draw_date = $expected_next_draw_date; // Use the raw date as fallback
+                $next_draw_date_for_js = null; // No reliable JS format available
             } else {
-                // Set the expected next draw date for display (always use MySQL format for consistency)
-                $next_draw_date = $next_draw_date_mysql;
+                // Set the expected next draw date for display (user-friendly format)
+                $next_draw_date = $expected_next_draw_date;
+                $next_draw_date_for_js = $next_draw_date_mysql; // MySQL format for JavaScript parsing
             }
             // Now check if we have draw info and if it matches the expected date
             if ($draw_info) {
@@ -640,10 +643,13 @@ class Prize extends Admin_Controller
                     // There's a draw on the expected next date - show the results
                     $should_process_wins = true;
                     $display_mode = 'results';
+                    // Keep user-friendly format for display, JS format already set above
                 } else {
                     // Draw info exists but not for expected date - this shouldn't happen with new logic
                     $display_mode = 'results';
-                    $next_draw_date = $draw_info->draw_date; // Use the actual draw date
+                    // Convert MySQL date to user-friendly format for consistent display
+                    $next_draw_date = date('l, F j, Y', strtotime($draw_info->draw_date));
+                    $next_draw_date_for_js = $draw_info->draw_date; // MySQL format for JavaScript parsing
                 }
             } else {
                 // No draw info at all - show TBD for expected next draw
@@ -661,17 +667,20 @@ class Prize extends Admin_Controller
                     // Show results for the exact date the prediction was made for
                     $display_mode = 'results';
                     $draw_info = $exact_date_draw; // Use the draw from the exact prediction date
-                    $next_draw_date = $exact_date_draw->draw_date;
+                    // Convert MySQL date to user-friendly format for consistent display
+                    $next_draw_date = date('l, F j, Y', strtotime($exact_date_draw->draw_date));
                 } else {
                     // No draw found on the exact date - show TBD
                     $display_mode = 'tbd';
-                    $next_draw_date = $filter->lastdate;
+                    // Convert filter lastdate to user-friendly format
+                    $next_draw_date = date('l, F j, Y', strtotime($filter->lastdate));
                 }
             } else {
                 // No lastdate available - fallback to any available draw info
                 if ($draw_info) {
                     $display_mode = 'results';
-                    $next_draw_date = $draw_info->draw_date;
+                    // Convert MySQL date to user-friendly format for consistent display
+                    $next_draw_date = date('l, F j, Y', strtotime($draw_info->draw_date));
                 } else {
                     $display_mode = 'tbd';
                     $next_draw_date = 'Unknown';
@@ -855,6 +864,7 @@ class Prize extends Admin_Controller
             // Determine display mode for AJAX response and process wins if needed
             $display_mode = 'normal';
             $next_draw_date = null;
+            $next_draw_date_for_js = null; // Initialize JS-parseable date format
             $should_process_wins = false;
             
             // Always calculate expected next draw date for active filters, regardless of whether draw_info exists
@@ -880,8 +890,9 @@ class Prize extends Admin_Controller
                     // Convert expected date to MySQL format for comparison
                     $next_draw_date_mysql = $this->convert_to_mysql_date($expected_next_draw_date);
                     
-                    // Set the expected next draw date for display
+                    // Set the expected next draw date for display (keep user-friendly format)  
                     $next_draw_date = $expected_next_draw_date;
+                    $next_draw_date_for_js = $next_draw_date_mysql; // MySQL format for JavaScript parsing
                     
                     // Now check if we have draw info and if it matches the expected date
                     if ($draw_info) {
@@ -890,14 +901,19 @@ class Prize extends Admin_Controller
                             // There's a draw on the expected next date - show the results
                             $display_mode = 'results';
                             $should_process_wins = true;
+                            // Keep the user-friendly format for display, don't change to MySQL format
                         } else {
                             // Draw info exists but not for expected date - this shouldn't happen with new logic
                             $display_mode = 'results';
-                            $next_draw_date = $draw_info->draw_date; // Use the actual draw date
+                            // Convert MySQL date back to user-friendly format for consistent display
+                            $next_draw_date = date('l, F j, Y', strtotime($draw_info->draw_date));
+                            $next_draw_date_for_js = $draw_info->draw_date; // MySQL format for JavaScript parsing
                         }
                     } else {
                         // No draw info at all - show TBD for expected next draw
                         $display_mode = 'tbd';
+                        // Keep the user-friendly format and set JS format
+                        $next_draw_date_for_js = $next_draw_date_mysql; // MySQL format for JavaScript parsing
                     }
                 }
             } else {
@@ -910,20 +926,27 @@ class Prize extends Admin_Controller
                         // Show results for the exact date the prediction was made for
                         $display_mode = 'results';
                         $draw_info = $exact_date_draw; // Use the draw from the exact prediction date
-                        $next_draw_date = $exact_date_draw->draw_date;
+                        // Convert MySQL date to user-friendly format for consistent display
+                        $next_draw_date = date('l, F j, Y', strtotime($exact_date_draw->draw_date));
+                        $next_draw_date_for_js = $exact_date_draw->draw_date; // MySQL format for JavaScript parsing
                     } else {
                         // No draw found on the exact date - show TBD
                         $display_mode = 'tbd';
-                        $next_draw_date = $filter->lastdate;
+                        // Convert filter lastdate to user-friendly format
+                        $next_draw_date = date('l, F j, Y', strtotime($filter->lastdate));
+                        $next_draw_date_for_js = $filter->lastdate; // MySQL format for JavaScript parsing
                     }
                 } else {
                     // No lastdate available - fallback to any available draw info
                     if ($draw_info) {
                         $display_mode = 'results';
-                        $next_draw_date = $draw_info->draw_date;
+                        // Convert MySQL date to user-friendly format for consistent display
+                        $next_draw_date = date('l, F j, Y', strtotime($draw_info->draw_date));
+                        $next_draw_date_for_js = $draw_info->draw_date; // MySQL format for JavaScript parsing
                     } else {
                         $display_mode = 'tbd';
                         $next_draw_date = 'Unknown';
+                        $next_draw_date_for_js = null; // No valid date available
                     }
                 }
             }
@@ -979,7 +1002,8 @@ class Prize extends Admin_Controller
                 'filter' => $filter,
                 'draw_info' => $draw_info,
                 'display_mode' => $display_mode,
-                'next_draw_date' => $next_draw_date
+                'next_draw_date' => $next_draw_date,
+                'next_draw_date_for_js' => $next_draw_date_for_js // MySQL format for reliable JavaScript parsing
             ]);
             
         } catch (Exception $e) {
