@@ -1413,6 +1413,14 @@ class Prize extends Admin_Controller
         // Get prize profile to determine valid win categories
         $prize_profile = $this->get_lottery_prize_profile($filter->lottery_id);
         
+        // Get the required number of matches for top prize (from combination file R value)
+        $this->db->select('R');
+        $this->db->from('lottery_combination_files');
+        $this->db->where('id', $filter->combo_id);
+        $file_query = $this->db->get();
+        $file_record = $file_query->row();
+        $required_matches_for_top_prize = $file_record ? (int)$file_record->R : 0;
+        
         // Get extra ball status for this lottery
         $this->db->select('extra_ball');
         $this->db->from('lottery_profiles');
@@ -1434,14 +1442,12 @@ class Prize extends Admin_Controller
                     $category = 'BONUS WIN';
                     $color_class = 'bonus-win';
                 } elseif (strpos($win_category, '_win_extra') !== false) {
-                    // Main matches + bonus (e.g., "3_win_extra" = "3 Winners + Bonus")
+                    // Main matches + bonus (e.g., "6_win_extra" = "6 Winners + Bonus")
                     $match_number = (int)str_replace('_win_extra', '', $win_category);
-                    if ($match_number >= 6) {
-                        $category = $match_number . ' Winners + Bonus (JACKPOT)';
+                    if ($match_number == ($required_matches_for_top_prize - 1)) {
+                        // Second-highest prize with bonus (MAJOR PRIZE)
+                        $category = $match_number . ' Winners + Bonus (MAJOR PRIZE)';
                         $color_class = 'jackpot-win';
-                    } elseif ($match_number >= 4) {
-                        $category = $match_number . ' Winners + Bonus (MAJOR)';
-                        $color_class = 'major-win';
                     } else {
                         $category = $match_number . ' Winners + Bonus';
                         $color_class = 'bonus-win';
@@ -1449,12 +1455,10 @@ class Prize extends Admin_Controller
                 } else {
                     // Regular wins without bonus
                     $match_number = (int)str_replace('_win', '', $win_category);
-                    if ($match_number >= 6) {
-                        $category = 'JACKPOT WIN';
+                    if ($match_number == $required_matches_for_top_prize) {
+                        // Top prize (MAJOR PRIZE)
+                        $category = $match_number . ' Winners (MAJOR PRIZE)';
                         $color_class = 'jackpot-win';
-                    } elseif ($match_number >= 4) {
-                        $category = 'MAJOR WIN';
-                        $color_class = 'major-win';
                     } else {
                         $category = $match_number . ' Winning Numbers';
                         $color_class = 'minor-win';
