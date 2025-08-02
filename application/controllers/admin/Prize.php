@@ -1433,7 +1433,26 @@ class Prize extends Admin_Controller
         $color_class = 'not-a-winner';
         
         if ($prize_profile) {
-            $win_category = $this->determine_win_category($matches, $bonus_match, $prize_profile, $extra_ball_included);
+            // Special rule for extra number validation when extra is included (same as auto-update logic)
+            if ($extra_ball_included) {
+                // For top prize, must have exact matches AND must match the exact bonus number
+                if ($matches == $required_matches_for_top_prize && $bonus_match) {
+                    $win_category = $required_matches_for_top_prize . '_win_extra';
+                    if (property_exists($prize_profile, $win_category) && $prize_profile->$win_category == 1) {
+                        // This is a top prize win with extra number - skip normal determination
+                        $win_category = $required_matches_for_top_prize . '_win_extra';
+                    } else {
+                        // Use normal determination
+                        $win_category = $this->determine_win_category($matches, $bonus_match, $prize_profile, $extra_ball_included);
+                    }
+                } else {
+                    // Use normal determination for all other cases
+                    $win_category = $this->determine_win_category($matches, $bonus_match, $prize_profile, $extra_ball_included);
+                }
+            } else {
+                // No extra ball - use normal determination
+                $win_category = $this->determine_win_category($matches, $bonus_match, $prize_profile, $extra_ball_included);
+            }
             
             if ($win_category) {
                 // Determine display category and color based on win category
