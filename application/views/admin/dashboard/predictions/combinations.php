@@ -57,6 +57,11 @@
 					<div class="card mt-3 tab-card">
 						<div class="card-header tab-card-header">
 							<H1 style = "text-align:center;">Combinations Calculator</H1>
+							<?php if($lottery->duplicate_extra_ball && $lottery->extra_ball): ?>
+								<div class="alert alert-info" style="text-align: center; margin: 15px 0;">
+									<strong>Independent Extra / Bonus (duplicate) numbers:</strong> <?php echo $lottery->minimum_extra_ball; ?> - <?php echo $lottery->maximum_extra_ball; ?>
+								</div>
+							<?php endif; ?>
 						</div>
 						<div class="tab-content" id="myTabContent">
 							<?php if (!empty($message)) ?> <h3 class="bg-warning" style = "margin: 15px; text-align:center;"><?=$message; ?></h3>
@@ -91,6 +96,17 @@
 									echo form_hidden('combinations', $combinations);
 									echo form_label($combinations.' Combinations', 'lottery_combinations_lb', $extra); ?>
 								</div>
+								<?php if($lottery->duplicate_extra_ball && $lottery->extra_ball): ?>
+								<div class="alert alert-success" style="margin: 20px 0;">
+									<h4>Special Calculation for Independent Extra Ball Lottery:</h4>
+									<p>This lottery has an independent extra/bonus ball (<?php echo $lottery->minimum_extra_ball; ?> to <?php echo $lottery->maximum_extra_ball; ?>). 
+									The calculation multiplies the main combinations by the number of possible extra balls.</p>
+									<p><strong>Formula:</strong> Main combinations × Extra ball possibilities = Total combinations</p>
+									<?php if(isset($main_combinations) && isset($extra_balls_count)): ?>
+									<p><strong>Calculation:</strong> <?php echo $main_combinations; ?> × <?php echo $extra_balls_count; ?> = <?php echo $combinations; ?> total unique tickets</p>
+									<?php endif; ?>
+								</div>
+								<?php endif; ?>
 								<?php } ?>
 								<div class="form-group form-group-lg row">
 									<?php $extra = array('class' => 'btn btn-primary btn-lg btn-info', 

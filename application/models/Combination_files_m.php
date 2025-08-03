@@ -49,11 +49,12 @@ class Combination_files_m extends MY_Model
      */
     public function lottery_combination_record($name)
     {
-        $sql = "SELECT * FROM `lottery_combination_files` WHERE `file_name`=".$name." LIMIT 1";
-        $result = $this->db->query($sql);
+        $result = $this->db->where('file_name', $name)
+                           ->limit(1)
+                           ->get('lottery_combination_files');
         
         if (empty($result->row())) return FALSE;
-        return $result->result_object;
+        return $result->row();
     }
     
     /** 

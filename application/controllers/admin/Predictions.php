@@ -81,6 +81,8 @@ class Predictions extends Admin_Controller {
 		$this->data['message'] = '';			// Defaulted to No Error Messages
 		$this->data['save'] = FALSE;			// Default is always greyed out for a Save Filename
 		$this->data['combinations'] = (int) 0; 	// Default to 0
+		$this->data['main_combinations'] = null;	// Default to null
+		$this->data['extra_balls_count'] = null;	// Default to null
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		$this->data['lottery']->predict = $this->input->post('ball_predict', TRUE);
 		$this->data['lottery']->pick = $this->input->post('lottery_balls_drawn', TRUE);
@@ -90,7 +92,20 @@ class Predictions extends Admin_Controller {
 			$this->form_validation->set_rules($combo_rules);
 				if ($this->form_validation->run() == TRUE) 
 		{
-			$this->data['combinations'] = $this->math_utilities_m->bcComb_N_R($this->data['lottery']->predict, $this->data['lottery']->pick);
+			// Check if this is a lottery with independent extra balls
+			if($this->data['lottery']->duplicate_extra_ball && $this->data['lottery']->extra_ball) {
+				// Special calculation for lotteries with independent extra balls
+				$main_combinations = $this->math_utilities_m->bcComb_N_R($this->data['lottery']->predict, $this->data['lottery']->pick);
+				$extra_balls_count = ($this->data['lottery']->maximum_extra_ball - $this->data['lottery']->minimum_extra_ball) + 1;
+				$this->data['combinations'] = $main_combinations * $extra_balls_count;
+				$this->data['main_combinations'] = $main_combinations;
+				$this->data['extra_balls_count'] = $extra_balls_count;
+			} else {
+				// Standard calculation for regular lotteries
+				$this->data['combinations'] = $this->math_utilities_m->bcComb_N_R($this->data['lottery']->predict, $this->data['lottery']->pick);
+				$this->data['main_combinations'] = null;
+				$this->data['extra_balls_count'] = null;
+			}
 			$this->data['save'] = TRUE;
 			$this->data['message'] = "Combination Calculation is complete.";
 		}
@@ -116,6 +131,8 @@ class Predictions extends Admin_Controller {
 	{
 		$this->data['message'] = '';	// Defaulted to No Error Messages
 		$this->data['save'] = TRUE; 	// Default is always greyed out for a Save Filename
+		$this->data['main_combinations'] = null;	// Default to null
+		$this->data['extra_balls_count'] = null;	// Default to null
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		$this->data['lottery']->predict = $this->input->post('ball_predict', TRUE);
 		$this->data['lottery']->pick = $this->input->post('lottery_balls_drawn', TRUE);
@@ -123,6 +140,11 @@ class Predictions extends Admin_Controller {
 		$file_name = (intval($this->data['lottery']->pick) < 10 ? '0' : '') . intval($this->data['lottery']->pick);
 		$file_name .= (intval($this->data['lottery']->predict) < 10 ? '0' : '') . intval($this->data['lottery']->predict);
 		$file_name .= intval($this->data['combinations']); // No leading zero for tickets
+		
+		// Add 'E' suffix at the end for lotteries with independent extra balls
+		if($this->data['lottery']->duplicate_extra_ball && $this->data['lottery']->extra_ball) {
+			$file_name .= 'E';
+		}
 		
 	$path = $this->combination_files_m->full_path($file_name);
 
