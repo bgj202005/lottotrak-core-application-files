@@ -164,6 +164,11 @@
 					<div class="card mt-3 tab-card">
 						<div class="card-header tab-card-header">
 							<H1 style = "text-align:center;">Generate Combinations for <?=$lottery->lottery_name;?></H1>
+							<?php if($lottery->duplicate_extra_ball && $lottery->extra_ball): ?>
+								<div class="alert alert-info" style="text-align: center; margin: 15px 0;">
+									<strong>Independent Extra / Bonus (duplicate) numbers:</strong> <?php echo $lottery->minimum_extra_ball; ?> - <?php echo $lottery->maximum_extra_ball; ?>
+								</div>
+							<?php endif; ?>
 						</div>
 						<div class="tab-content" id="myTabContent">
 							<?php if (!empty($message)) ?> <span id="message"></span>

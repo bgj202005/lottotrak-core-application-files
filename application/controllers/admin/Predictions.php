@@ -275,10 +275,10 @@ class Predictions extends Admin_Controller {
 			redirect('admin/predictions/generate/' . $id);
 			return;
 		}
-		$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; 		//Calculated Combinations
-		$this->data['predict']=$this->data['lottery']->generate[0]->N;				//Number of Predictions
-		$this->data['pick']=$this->data['lottery']->generate[0]->R;					// Pick Game
-		$this->data['filename']=$this->data['lottery']->generate[0]->file_name;		// File name of text file
+		$this->data['combinations']=$this->data['lottery']->generate->CCCC; 		//Calculated Combinations
+		$this->data['predict']=$this->data['lottery']->generate->N;				//Number of Predictions
+		$this->data['pick']=$this->data['lottery']->generate->R;					// Pick Game
+		$this->data['filename']=$this->data['lottery']->generate->file_name;		// File name of text file
 		// Read the content of the file
     	$file_path = $this->combination_files_m->full_path($file_name);
 		if (file_exists($file_path)) {
@@ -316,16 +316,34 @@ class Predictions extends Admin_Controller {
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		$file_name = $this->input->post('filename', TRUE);  // POST value from radio selection
 		$this->data['lottery']->generate = $this->combination_files_m->lottery_combination_record($file_name);
-		$this->data['combinations']=$this->data['lottery']->generate[0]->CCCC; 	//Calculated Combinations
-		$this->data['predict']=$this->data['lottery']->generate[0]->N;			//Number of Predictions
-		$this->data['pick']=$this->data['lottery']->generate[0]->R;				// Pick Game
-		$this->data['filename']=$this->data['lottery']->generate[0]->file_name;		// File name of text file
+		$this->data['combinations']=$this->data['lottery']->generate->CCCC; 	//Calculated Combinations
+		$this->data['predict']=$this->data['lottery']->generate->N;			//Number of Predictions
+		$this->data['pick']=$this->data['lottery']->generate->R;				// Pick Game
+		$this->data['filename']=$this->data['lottery']->generate->file_name;		// File name of text file
 		unset($this->data['lottery']->generate);
 		//$this->data['subview'] = 'admin/dashboard/predictions/generate';
-		$predict[] = array();	// declare a blank number prediction array
-		$combinations[] = array();
 		$predict = $this->number_generation_m->wheeled($this->data['predict']);
-		$combinations = $this->math_combinatorics->combinations($predict, $this->data['pick']); // Based on the pick game 
+		
+		// Check if this is a lottery with independent extra balls
+		if($this->data['lottery']->duplicate_extra_ball && $this->data['lottery']->extra_ball) {
+			// Special generation for lotteries with independent extra balls
+			$main_combinations = $this->math_combinatorics->combinations($predict, $this->data['pick']); // Main combinations
+			$combinations = array();
+			
+			// Generate combinations with each possible extra ball
+			for($extra = $this->data['lottery']->minimum_extra_ball; $extra <= $this->data['lottery']->maximum_extra_ball; $extra++) {
+				foreach($main_combinations as $main_combo) {
+					// Add the extra ball to each main combination
+					$full_combo = $main_combo;
+					$full_combo[] = $extra; // Add extra ball as the last number
+					$combinations[] = $full_combo;
+				}
+			}
+		} else {
+			// Standard generation for regular lotteries
+			$combinations = $this->math_combinatorics->combinations($predict, $this->data['pick']); // Based on the pick game 
+		}
+		
 		$this->data['combinations'] = count($combinations);
 	if(!$this->combination_files_m->combs_already($this->data['filename'], $this->data['combinations']))
 	{
