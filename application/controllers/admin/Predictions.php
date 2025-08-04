@@ -313,8 +313,18 @@ class Predictions extends Admin_Controller {
 	{
 		$message = "";							// Defaulted to No Error Messages
 		$error = FALSE;
+		
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		$file_name = $this->input->post('filename', TRUE);  // POST value from radio selection
+		
+		// Reset ALL session variables for this file at the start of new generation
+		$percent_key = 'percent_' . $file_name;
+		$offset_key = 'offset_' . $file_name;
+		$complete_key = 'complete_' . $file_name;
+		
+		$this->session->unset_userdata($percent_key);
+		$this->session->unset_userdata($offset_key);
+		$this->session->unset_userdata($complete_key);
 		$this->data['lottery']->generate = $this->combination_files_m->lottery_combination_record($file_name);
 		$this->data['combinations']=$this->data['lottery']->generate->CCCC; 	//Calculated Combinations
 		$this->data['predict']=$this->data['lottery']->generate->N;			//Number of Predictions
@@ -393,23 +403,44 @@ class Predictions extends Admin_Controller {
 		$fp = fopen($this->combination_files_m->full_path($name), "r");
 		$combotext = '';
 		$processed_combinations = 20; // Process 20 combinations at a time
+		
+		// Use file-specific session keys to prevent conflicts
+		$percent_key = 'percent_' . $name;
+		$offset_key = 'offset_' . $name;
+		$complete_key = 'complete_' . $name;
+		
+		// Check if already completed
+		if ($this->session->userdata($complete_key)) {
+			fclose($fp);
+			$output = array(
+				'success' => true,
+				'combotext' => '',
+				'percent' => 100
+			);
+			echo json_encode($output);
+			return;
+		}
+		
 		// Initialize session variables if not already set
-		if (!$this->session->userdata('percent')) {
+		if (!$this->session->userdata($percent_key)) {
 			$percent = 0; // Start with 0%
 			$offset = 0;
 		} else {
-			$percent = $this->session->userdata('percent');
-			$offset = $this->session->userdata('offset');
+			$percent = $this->session->userdata($percent_key);
+			$offset = $this->session->userdata($offset_key);
 		}
-		// Calculate remaining combinations
-		$remaining_combinations = $combs - ($percent / 100 * $combs);
-		$interval = ($remaining_combinations < $processed_combinations) ? $remaining_combinations : $processed_combinations;
+		
+		// Calculate how many combinations we've processed so far
+		$processed_so_far = ($percent / 100) * $combs;
+		$remaining_combinations = $combs - $processed_so_far;
+		$interval = min($processed_combinations, $remaining_combinations);
 
 		// If there are no remaining combinations, complete immediately
-		if ($remaining_combinations <= 0) {
+		if ($remaining_combinations <= 0 || $percent >= 100) {
 			$percent = 100;
-			$this->session->unset_userdata('percent');
-			$this->session->unset_userdata('offset');
+			$this->session->set_userdata($complete_key, true);
+			$this->session->unset_userdata($percent_key);
+			$this->session->unset_userdata($offset_key);
 			fclose($fp);
 
 			$output = array(
@@ -427,24 +458,35 @@ class Predictions extends Admin_Controller {
 			$combotext .= fgets($fp);
 			$i--;
 		}
-		$offset = ftell($fp); // Update the file pointer offset
-		$percent += ($interval / $combs) * 100; // Calculate progress percentage
-
-		if ($percent > 100) {
-			$percent = 100; // Ensure progress does not exceed 100%
+		$new_offset = ftell($fp); // Update the file pointer offset
+		
+		// Calculate new percentage based on actual progress
+		$new_processed = $processed_so_far + $interval;
+		$new_percent = ($new_processed / $combs) * 100;
+		
+		// Ensure we don't exceed 100%
+		if ($new_percent >= 100 || $new_processed >= $combs) {
+			$new_percent = 100;
+			// Mark as complete and clear session data
+			$this->session->set_userdata($complete_key, true);
+			$this->session->unset_userdata($percent_key);
+			$this->session->unset_userdata($offset_key);
+		} else {
+			// Update session data only if not complete
+			$newdata = array(
+				$percent_key => $new_percent,
+				$offset_key => $new_offset
+			);
+			$this->session->set_userdata($newdata);
 		}
-		// Update session data
-		$newdata = array(
-			'percent' => $percent,
-			'offset' => $offset
-		);
-		$this->session->set_userdata($newdata);
+		
 		fclose($fp); // Close the file pointer
+		
 		// Return the output
 		$output = array(
 			'success' => true,
 			'combotext' => $combotext,
-			'percent' => $percent // Return the updated progress percentage
+			'percent' => $new_percent // Return the updated progress percentage
 		);
 
 		echo json_encode($output);

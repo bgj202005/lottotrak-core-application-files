@@ -308,6 +308,10 @@ $(document).ready(function () {
             clearInterval(clear_timer);
 			clear_timer = null; // Reset clear_timer to null
         }
+		
+		// Clear the combinations textarea at the start of new generation
+		$("#combinations").val('');
+		
         $.ajax({
             type: "POST",
             url: URL,
@@ -336,24 +340,32 @@ $(document).ready(function () {
 
     // Function to process combinations in chunks
     function combination() {
-		if (is_complete) return; // Stop further updates if already complete
+		if (is_complete) {
+			console.log("Already complete, stopping function");
+			return; // Stop further updates if already complete
+		}
+		
 		$.ajax({
 			url: URL_counter,
 			dataType: "json",
 			success: function (data) {
 				if (data.success) {
 					progress = Math.min(data.percent, 100); // Cap progress at 100%
-					console.log("Progress:", progress); // Debugging log
+					console.log("Progress:", progress, "Data percent:", data.percent); // Enhanced debugging log
 					$('.progress-value').html('<p>' + Math.round(progress) + '%</p>');
+					
 					// Append new combinations without extra spaces
-					if (data.combotext.trim() !== '') {
+					if (data.combotext && data.combotext.trim() !== '') {
+						console.log("Adding combinations text, length:", data.combotext.trim().length);
 						$("#combinations").val(function (index, value) {
 							return value + data.combotext.trim() + '\n';
 						});
 					}
+					
 					updateProgressCircle(progress);
+					
 					if (progress >= 100) {
-						console.log("Timer cleared"); // Debugging log
+						console.log("Reached 100%, clearing timer and marking complete");
 						clearInterval(clear_timer); // Stop the timer
                         clear_timer = null; // Reset clear_timer to null
 						$('#message').html('<h3 class="bg-warning" style="margin: 15px; text-align:center;">The Data File has ADDED the Combinations to the <?=$filename;?>.txt file.</h3>');
@@ -361,8 +373,16 @@ $(document).ready(function () {
 						is_complete = true; // Mark as complete
 					}
 				} else if (data.error) {
+					console.log("Error received:", data.error);
+					clearInterval(clear_timer);
+					clear_timer = null;
 					$('#message').html('<h3 class="bg-warning" style="margin: 15px; text-align:center;">' + data.error + '</h3>');
 				}
+			},
+			error: function(xhr, status, error) {
+				console.log("AJAX error:", error);
+				clearInterval(clear_timer);
+				clear_timer = null;
 			}
 		});
 	}

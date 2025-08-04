@@ -142,7 +142,9 @@ class Combination_files_m extends MY_Model
     {
         $success = TRUE;
         $returned_path = $this->full_path($name); 
-        $fp = fopen($returned_path, 'a');
+        
+        // Open file in write mode to truncate/clear existing content
+        $fp = fopen($returned_path, 'w');
         if($fp)	
         {
             foreach($combs_array as $combo => $key)
