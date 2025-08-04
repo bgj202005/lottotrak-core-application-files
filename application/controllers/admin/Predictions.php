@@ -799,30 +799,62 @@ class Predictions extends Admin_Controller {
 		// Decode the file name
 		$pick_per_ticket = (int)substr($file_name, 0, 2); // First two digits - numbers drawn in lottery
 		$numbers_to_pick = (int)substr($file_name, 2, 2); // Next two digits - numbers user picks
-    	$tickets = (int)substr($file_name, 4); // Remaining digits - total tickets
+		
+		// Check if this is an independent extra ball file (ends with E)
+		$is_extra_ball_file = (substr($file_name, -1) === 'E');
+		
+		if ($is_extra_ball_file) {
+			// Remove the 'E' and extract ticket count
+			$tickets = (int)substr($file_name, 4, -1); // Everything after position 4, excluding the 'E'
+		} else {
+			$tickets = (int)substr($file_name, 4); // Remaining digits - total tickets
+		}
 		
 		// Fetch the lottery details
 		$lottery = $this->lotteries_m->get($id);
     	
+		// Check if this is an independent extra ball lottery (define early)
+		$is_independent_extra_ball = ($lottery->duplicate_extra_ball && $lottery->extra_ball);
+		
 		// Fetch the prize tiers for the lottery to determine minimum prize match
 		$prizes_data = $this->predictions_m->prizes_data_array($id);
 		
-		// Determine minimum matches needed for a prize (usually 2)
+		// Determine minimum matches needed for a prize (default 2)
 		$minimum_prize_match = 2;
 		
 		// Check for minimum prize match from lottery prizes
 		if ($prizes_data) {
-			if (isset($prizes_data['1_win']) && $prizes_data['1_win'] == 1) {
-				$minimum_prize_match = 1;
-			} elseif (isset($prizes_data['2_win']) && $prizes_data['2_win'] == 1) {
-				$minimum_prize_match = 2;
-			} elseif (isset($prizes_data['3_win']) && $prizes_data['3_win'] == 1) {
-				$minimum_prize_match = 3;
+			// For independent extra ball lotteries, the logic is different:
+			// - Regular matches need to meet the standard minimum (usually 2)
+			// - Extra ball combinations (including "Extra only") are always prizes
+			if ($is_independent_extra_ball) {
+				// For extra ball lotteries, check what the minimum regular match prize is
+				if (isset($prizes_data['2_win']) && !is_null($prizes_data['2_win']) && $prizes_data['2_win'] == 1) {
+					$minimum_prize_match = 2; // 2 matches alone is a prize
+				} elseif (isset($prizes_data['3_win']) && !is_null($prizes_data['3_win']) && $prizes_data['3_win'] == 1) {
+					$minimum_prize_match = 3; // 3 matches alone is a prize
+				} elseif (isset($prizes_data['4_win']) && !is_null($prizes_data['4_win']) && $prizes_data['4_win'] == 1) {
+					$minimum_prize_match = 4; // 4 matches alone is a prize
+				} elseif (isset($prizes_data['5_win']) && !is_null($prizes_data['5_win']) && $prizes_data['5_win'] == 1) {
+					$minimum_prize_match = 5; // 5 matches alone is a prize
+				}
+				// Note: 1_win being NULL means "1 match alone" is NOT a prize
+				// But "1 + Extra" is still a valid prize, handled separately
+			} else {
+				// Regular lottery logic
+				if (isset($prizes_data['1_win']) && !is_null($prizes_data['1_win']) && $prizes_data['1_win'] == 1) {
+					$minimum_prize_match = 1;
+				} elseif (isset($prizes_data['2_win']) && !is_null($prizes_data['2_win']) && $prizes_data['2_win'] == 1) {
+					$minimum_prize_match = 2;
+				} elseif (isset($prizes_data['3_win']) && !is_null($prizes_data['3_win']) && $prizes_data['3_win'] == 1) {
+					$minimum_prize_match = 3;
+				} elseif (isset($prizes_data['4_win']) && !is_null($prizes_data['4_win']) && $prizes_data['4_win'] == 1) {
+					$minimum_prize_match = 4;
+				} elseif (isset($prizes_data['5_win']) && !is_null($prizes_data['5_win']) && $prizes_data['5_win'] == 1) {
+					$minimum_prize_match = 5;
+				}
 			}
 		}
-		
-		// Check if this is an independent extra ball lottery
-		$is_independent_extra_ball = ($lottery->duplicate_extra_ball && $lottery->extra_ball);
 		
 		// Calculate extra ball range for probability calculations
 		$extra_ball_range = 1;
@@ -836,14 +868,13 @@ class Predictions extends Admin_Controller {
 			$pick_per_ticket, 
 			$minimum_prize_match,
 			$is_independent_extra_ball,
-			$extra_ball_range
+			$extra_ball_range,
+			$tickets  // Pass the actual ticket count from the file
 		);
 		
-		// Verify our calculations match the expected total tickets
-		$expected_tickets = $this->predictions_m->combination($numbers_to_pick, $pick_per_ticket);
-		if ($expected_tickets != $tickets) {
-			$this->session->set_flashdata('message', '<div class="alert alert-warning">File name parsing may be incorrect. Expected ' . $expected_tickets . ' tickets, but file indicates ' . $tickets . ' tickets.</div>');
-		}
+		// Remove the incorrect validation message - the filename parsing is correct
+		// For independent extra ball files like 050642E.txt: 05=drawn, 06=picked, 42=tickets, E=independent extra ball
+		// The ticket count in the filename represents the total tickets in the file, not a calculated expectation
 		
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/combo_statistics'.($id ? '/'.$id : '').($file_name ? '/'.$file_name : ''));

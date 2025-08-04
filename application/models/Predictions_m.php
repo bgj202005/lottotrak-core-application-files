@@ -168,64 +168,131 @@ class Predictions_m extends MY_Model
 	 * @param int $minimum_prize_match Minimum matches needed for a prize (usually 2)
 	 * @return array Detailed breakdown of winning tickets for each scenario
 	 */
-	public function calculate_detailed_breakdown($numbers_picked, $balls_drawn, $minimum_prize_match = 2, $is_independent_extra_ball = false, $extra_ball_range = 7) {
+	public function calculate_detailed_breakdown($numbers_picked, $balls_drawn, $minimum_prize_match = 2, $is_independent_extra_ball = false, $extra_ball_range = 7, $actual_tickets = null) {
 		$breakdown = [];
 		
-		// Calculate total tickets generated (nCr where n=numbers_picked, r=balls_drawn)
-		$total_tickets = $this->combination($numbers_picked, $balls_drawn);
+		// Use actual ticket count from file
+		$total_tickets = $actual_tickets ?? 1000; // Default if not provided
 		
-		// For each possible scenario (from all numbers correct down to minimum)
-		for ($correct_numbers = $balls_drawn; $correct_numbers >= $minimum_prize_match; $correct_numbers--) {
+		// For independent extra ball lotteries, work backwards from actual ticket count
+		if ($is_independent_extra_ball && $actual_tickets !== null) {
+			// Calculate base combinations (half of total for independent extra ball)
+			$base_combinations = $actual_tickets / 2;
+			
+			// Find numbers_picked that generates close to this many base combinations
+			for ($n = $balls_drawn; $n <= 50; $n++) {
+				if ($this->combination($n, $balls_drawn) >= $base_combinations) {
+					$numbers_picked = $n;
+					break;
+				}
+			}
+		}
+		
+		// For each possible scenario (from all correct down to 0)
+		for ($correct_numbers = $balls_drawn; $correct_numbers >= 0; $correct_numbers--) {
 			$scenario = [
 				'picked_correctly' => $correct_numbers,
 				'subprizes' => [],
-				'extra_ball_subprizes' => [], // New for independent extra ball lotteries
+				'extra_ball_subprizes' => [],
 				'total_winning_tickets' => 0,
 				'non_winning_tickets' => 0,
 				'scenario_probability' => 0
 			];
 			
-			// Calculate regular sub-prizes for this scenario
-			for ($matches = $balls_drawn; $matches >= $minimum_prize_match; $matches--) {
-				$tickets = $this->calculate_scenario_tickets($numbers_picked, $balls_drawn, $correct_numbers, $matches);
-				
-				if ($tickets > 0) {
-					$percentage = round(($tickets / $total_tickets) * 100, 3);
-					$scenario['subprizes'][$matches] = [
-						'tickets' => $tickets,
-						'percentage' => $percentage
-					];
-					$scenario['total_winning_tickets'] += $tickets;
-				}
+			// Calculate base scenario tickets using mathematical model
+			$base_scenario_tickets = $this->calculate_total_scenario_tickets($numbers_picked, $balls_drawn, $correct_numbers);
+			
+			// For independent extra ball, double the base (with/without extra ball)
+			if ($is_independent_extra_ball) {
+				$base_scenario_tickets *= 2;
 			}
 			
-			// Calculate extra ball combinations for independent extra ball lotteries
+			// Calculate what proportion this scenario represents of the total
+			$total_base_tickets = $is_independent_extra_ball ? 
+				($this->combination($numbers_picked, $balls_drawn) * 2) : 
+				$this->combination($numbers_picked, $balls_drawn);
+			
+			$scenario_proportion = ($total_base_tickets > 0) ? ($base_scenario_tickets / $total_base_tickets) : 0;
+			
+			// Apply this proportion to the actual file size
+			$scenario_total_tickets = round($total_tickets * $scenario_proportion);
+			
 			if ($is_independent_extra_ball) {
-				for ($matches = $balls_drawn; $matches >= 1; $matches--) {
-					// For independent extra ball, we calculate combinations that include the extra ball
-					// The extra ball has a probability of 1/extra_ball_range
+				// Calculate regular prizes (without extra ball) - only for valid prize levels
+				for ($matches = $correct_numbers; $matches >= $minimum_prize_match; $matches--) {
 					$base_tickets = $this->calculate_scenario_tickets($numbers_picked, $balls_drawn, $correct_numbers, $matches);
+					$proportion = ($total_base_tickets > 0) ? ($base_tickets / $total_base_tickets) : 0;
+					$tickets = round($total_tickets * $proportion);
 					
-					if ($base_tickets > 0) {
-						// Calculate extra ball tickets based on actual extra ball range
-						$extra_ball_tickets = round($base_tickets / $extra_ball_range);
-						$percentage = round(($extra_ball_tickets / $total_tickets) * 100, 3);
-						
-						$scenario['extra_ball_subprizes'][$matches] = [
-							'tickets' => $extra_ball_tickets,
+					if ($tickets > 0) {
+						$percentage = round(($tickets / $total_tickets) * 100, 3);
+						$scenario['subprizes'][$matches] = [
+							'tickets' => $tickets,
 							'percentage' => $percentage
 						];
-						$scenario['total_winning_tickets'] += $extra_ball_tickets;
+						$scenario['total_winning_tickets'] += $tickets;
+					}
+				}
+				
+				// Calculate extra ball prizes (with extra ball) - start from 1
+				for ($matches = $correct_numbers; $matches >= 1; $matches--) {
+					$base_tickets = $this->calculate_scenario_tickets($numbers_picked, $balls_drawn, $correct_numbers, $matches);
+					$proportion = ($total_base_tickets > 0) ? ($base_tickets / $total_base_tickets) : 0;
+					$tickets = round($total_tickets * $proportion);
+					
+					if ($tickets > 0) {
+						$percentage = round(($tickets / $total_tickets) * 100, 3);
+						$scenario['extra_ball_subprizes'][$matches] = [
+							'tickets' => $tickets,
+							'percentage' => $percentage
+						];
+						$scenario['total_winning_tickets'] += $tickets;
+					}
+				}
+				
+				// Add "Extra only" (0 main matches + extra ball) if this is the 0-correct scenario
+				if ($correct_numbers == 0) {
+					$base_tickets = $this->calculate_scenario_tickets($numbers_picked, $balls_drawn, 0, 0);
+					$proportion = ($total_base_tickets > 0) ? ($base_tickets / $total_base_tickets) : 0;
+					$tickets = round($total_tickets * $proportion);
+					
+					if ($tickets > 0) {
+						$percentage = round(($tickets / $total_tickets) * 100, 3);
+						$scenario['extra_ball_subprizes'][0] = [
+							'tickets' => $tickets,
+							'percentage' => $percentage
+						];
+						$scenario['total_winning_tickets'] += $tickets;
+					}
+				}
+			} else {
+				// Regular lottery logic - only for valid prize levels
+				for ($matches = $correct_numbers; $matches >= $minimum_prize_match; $matches--) {
+					$base_tickets = $this->calculate_scenario_tickets($numbers_picked, $balls_drawn, $correct_numbers, $matches);
+					$proportion = ($total_base_tickets > 0) ? ($base_tickets / $total_base_tickets) : 0;
+					$tickets = round($total_tickets * $proportion);
+					
+					if ($tickets > 0) {
+						$percentage = round(($tickets / $total_tickets) * 100, 3);
+						$scenario['subprizes'][$matches] = [
+							'tickets' => $tickets,
+							'percentage' => $percentage
+						];
+						$scenario['total_winning_tickets'] += $tickets;
 					}
 				}
 			}
 			
-			// Calculate scenario probability (probability of having exactly this many correct numbers)
-			$scenario_total_tickets = $this->calculate_total_scenario_tickets($numbers_picked, $balls_drawn, $correct_numbers, $is_independent_extra_ball, $extra_ball_range);
+			// Calculate scenario probability and non-winning tickets
 			$scenario['scenario_probability'] = round(($scenario_total_tickets / $total_tickets) * 100, 3);
-			$scenario['non_winning_tickets'] = $scenario_total_tickets - $scenario['total_winning_tickets'];
 			
-			$breakdown[] = $scenario;
+			// Ensure the row totals exactly match the scenario total
+			$scenario['non_winning_tickets'] = max(0, $scenario_total_tickets - $scenario['total_winning_tickets']);
+			
+			// Only include scenarios that have tickets
+			if ($scenario_total_tickets > 0) {
+				$breakdown[] = $scenario;
+			}
 		}
 		
 		return [
@@ -240,36 +307,23 @@ class Predictions_m extends MY_Model
 	}
 	
 	/**
-	 * Calculate total tickets possible for a scenario (all tickets where exactly X numbers are correct)
+	 * Calculate total tickets for a specific scenario (exactly X numbers correct)
 	 * 
 	 * @param int $numbers_picked Total numbers picked
 	 * @param int $balls_drawn Numbers drawn in lottery
 	 * @param int $correct_in_picked How many of the drawn numbers are in user's picked numbers
-	 * @param bool $is_independent_extra_ball Whether this lottery has independent extra ball
-	 * @param int $extra_ball_range The range of extra ball numbers (e.g., 7 for 1-7)
-	 * @return int Total tickets possible for this scenario
+	 * @return int Total tickets with exactly this many correct numbers
 	 */
-	private function calculate_total_scenario_tickets($numbers_picked, $balls_drawn, $correct_in_picked, $is_independent_extra_ball = false, $extra_ball_range = 7) {
-		// For a scenario where exactly $correct_in_picked numbers are correct:
-		// We need to sum all possible winning ticket combinations for this scenario
+	private function calculate_total_scenario_tickets($numbers_picked, $balls_drawn, $correct_in_picked) {
+		// This calculates all possible tickets where exactly $correct_in_picked numbers are correct
+		// It sums up all the individual ticket types for this scenario
 		
 		$total_scenario_tickets = 0;
-		$non_winning_in_picked = $numbers_picked - $correct_in_picked;
 		
 		// Sum all possible match levels for this scenario
 		for ($matches = $correct_in_picked; $matches >= 0; $matches--) {
-			$non_winning_needed = $balls_drawn - $matches;
-			
-			if ($non_winning_needed >= 0 && $non_winning_needed <= $non_winning_in_picked) {
-				$tickets = $this->calculate_scenario_tickets($numbers_picked, $balls_drawn, $correct_in_picked, $matches);
-				$total_scenario_tickets += $tickets;
-				
-				// For independent extra ball lotteries, we also need to account for extra ball combinations
-				if ($is_independent_extra_ball && $matches >= 1) {
-					$extra_ball_tickets = round($tickets / $extra_ball_range);
-					$total_scenario_tickets += $extra_ball_tickets;
-				}
-			}
+			$tickets = $this->calculate_scenario_tickets($numbers_picked, $balls_drawn, $correct_in_picked, $matches);
+			$total_scenario_tickets += $tickets;
 		}
 		
 		return $total_scenario_tickets;
