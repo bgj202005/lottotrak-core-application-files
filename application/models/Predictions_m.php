@@ -214,11 +214,12 @@ class Predictions_m extends MY_Model
 			
 			$scenario_proportion = ($total_base_tickets > 0) ? ($base_scenario_tickets / $total_base_tickets) : 0;
 			
-			// Apply this proportion to the actual file size
+			// Apply this proportion to the actual file size - exact calculation
 			$scenario_total_tickets = round($total_tickets * $scenario_proportion);
 			
 			if ($is_independent_extra_ball) {
-				// Calculate regular prizes (without extra ball) - only for valid prize levels
+				// Calculate regular prizes (without extra ball) - exact mathematical calculation
+				$regular_winning_total = 0;
 				for ($matches = $correct_numbers; $matches >= $minimum_prize_match; $matches--) {
 					$base_tickets = $this->calculate_scenario_tickets($numbers_picked, $balls_drawn, $correct_numbers, $matches);
 					$proportion = ($total_base_tickets > 0) ? ($base_tickets / $total_base_tickets) : 0;
@@ -230,11 +231,12 @@ class Predictions_m extends MY_Model
 							'tickets' => $tickets,
 							'percentage' => $percentage
 						];
-						$scenario['total_winning_tickets'] += $tickets;
+						$regular_winning_total += $tickets;
 					}
 				}
 				
-				// Calculate extra ball prizes (with extra ball) - start from 1
+				// Calculate extra ball prizes (with extra ball) - exact mathematical calculation
+				$extra_winning_total = 0;
 				for ($matches = $correct_numbers; $matches >= 1; $matches--) {
 					$base_tickets = $this->calculate_scenario_tickets($numbers_picked, $balls_drawn, $correct_numbers, $matches);
 					$proportion = ($total_base_tickets > 0) ? ($base_tickets / $total_base_tickets) : 0;
@@ -246,7 +248,7 @@ class Predictions_m extends MY_Model
 							'tickets' => $tickets,
 							'percentage' => $percentage
 						];
-						$scenario['total_winning_tickets'] += $tickets;
+						$extra_winning_total += $tickets;
 					}
 				}
 				
@@ -262,9 +264,12 @@ class Predictions_m extends MY_Model
 							'tickets' => $tickets,
 							'percentage' => $percentage
 						];
-						$scenario['total_winning_tickets'] += $tickets;
+						$extra_winning_total += $tickets;
 					}
 				}
+				
+				// Set total winning tickets (this will be corrected later in non-winning calculation)
+				$scenario['total_winning_tickets'] = $regular_winning_total + $extra_winning_total;
 			} else {
 				// Regular lottery logic - only for valid prize levels
 				for ($matches = $correct_numbers; $matches >= $minimum_prize_match; $matches--) {
@@ -286,8 +291,19 @@ class Predictions_m extends MY_Model
 			// Calculate scenario probability and non-winning tickets
 			$scenario['scenario_probability'] = round(($scenario_total_tickets / $total_tickets) * 100, 3);
 			
-			// Ensure the row totals exactly match the scenario total
-			$scenario['non_winning_tickets'] = max(0, $scenario_total_tickets - $scenario['total_winning_tickets']);
+			if ($is_independent_extra_ball) {
+				// For independent extra ball, each row shows the full scenario
+				// Calculate non-winning for regular scenario (full scenario - regular wins only)
+				$scenario['regular_non_winning'] = max(0, $scenario_total_tickets - $regular_winning_total);
+				$scenario['non_winning_tickets'] = $scenario['regular_non_winning'];
+				
+				// Calculate non-winning for extra scenario (full scenario - extra wins only)
+				$scenario['extra_non_winning'] = max(0, $scenario_total_tickets - $extra_winning_total);
+				
+			} else {
+				// Ensure the row totals exactly match the scenario total
+				$scenario['non_winning_tickets'] = max(0, $scenario_total_tickets - $scenario['total_winning_tickets']);
+			}
 			
 			// Only include scenarios that have tickets
 			if ($scenario_total_tickets > 0) {

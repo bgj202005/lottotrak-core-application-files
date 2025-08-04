@@ -222,6 +222,13 @@
 								</thead>
 								<tbody>
 									<?php foreach ($breakdown_data['breakdown'] as $scenario): ?>
+										<?php 
+										// Skip scenarios below minimum prize match for regular lotteries
+										if (!$is_independent_extra_ball && $scenario['picked_correctly'] < $breakdown_data['minimum_prize_match']) {
+											continue;
+										}
+										?>
+										
 										<?php if ($is_independent_extra_ball): ?>
 											<!-- Row for main numbers only (without extra ball) -->
 											<tr>
@@ -316,10 +323,15 @@
 													</td>
 												<?php endif; ?>
 												
-												<!-- Empty non-winning for extra row -->
-												<td class="subprize-cell" style="background-color: #f8f9fa;">
-													-<br>
-													<small class="percentage-cell">-</small>
+												<!-- Empty non-winning for extra row - show extra scenario non-winning -->
+												<td class="subprize-cell">
+													<?php if (isset($scenario['extra_non_winning'])): ?>
+														<?= number_format($scenario['extra_non_winning']); ?><br>
+														<small class="percentage-cell"><?= round(($scenario['extra_non_winning'] / $breakdown_data['total_tickets']) * 100, 3); ?>%</small>
+													<?php else: ?>
+														-<br>
+														<small class="percentage-cell">-</small>
+													<?php endif; ?>
 												</td>
 											</tr>
 											
