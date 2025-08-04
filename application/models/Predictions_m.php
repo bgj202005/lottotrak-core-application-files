@@ -168,7 +168,7 @@ class Predictions_m extends MY_Model
 	 * @param int $minimum_prize_match Minimum matches needed for a prize (usually 2)
 	 * @return array Detailed breakdown of winning tickets for each scenario
 	 */
-	public function calculate_detailed_breakdown($numbers_picked, $balls_drawn, $minimum_prize_match = 2) {
+	public function calculate_detailed_breakdown($numbers_picked, $balls_drawn, $minimum_prize_match = 2, $is_independent_extra_ball = false, $extra_ball_range = 7) {
 		$breakdown = [];
 		
 		// Calculate total tickets generated (nCr where n=numbers_picked, r=balls_drawn)
@@ -179,12 +179,13 @@ class Predictions_m extends MY_Model
 			$scenario = [
 				'picked_correctly' => $correct_numbers,
 				'subprizes' => [],
+				'extra_ball_subprizes' => [], // New for independent extra ball lotteries
 				'total_winning_tickets' => 0,
 				'non_winning_tickets' => 0,
 				'scenario_probability' => 0
 			];
 			
-			// Calculate sub-prizes for this scenario
+			// Calculate regular sub-prizes for this scenario
 			for ($matches = $balls_drawn; $matches >= $minimum_prize_match; $matches--) {
 				$tickets = $this->calculate_scenario_tickets($numbers_picked, $balls_drawn, $correct_numbers, $matches);
 				
@@ -198,8 +199,29 @@ class Predictions_m extends MY_Model
 				}
 			}
 			
+			// Calculate extra ball combinations for independent extra ball lotteries
+			if ($is_independent_extra_ball) {
+				for ($matches = $balls_drawn; $matches >= 1; $matches--) {
+					// For independent extra ball, we calculate combinations that include the extra ball
+					// The extra ball has a probability of 1/extra_ball_range
+					$base_tickets = $this->calculate_scenario_tickets($numbers_picked, $balls_drawn, $correct_numbers, $matches);
+					
+					if ($base_tickets > 0) {
+						// Calculate extra ball tickets based on actual extra ball range
+						$extra_ball_tickets = round($base_tickets / $extra_ball_range);
+						$percentage = round(($extra_ball_tickets / $total_tickets) * 100, 3);
+						
+						$scenario['extra_ball_subprizes'][$matches] = [
+							'tickets' => $extra_ball_tickets,
+							'percentage' => $percentage
+						];
+						$scenario['total_winning_tickets'] += $extra_ball_tickets;
+					}
+				}
+			}
+			
 			// Calculate scenario probability (probability of having exactly this many correct numbers)
-			$scenario_total_tickets = $this->calculate_total_scenario_tickets($numbers_picked, $balls_drawn, $correct_numbers);
+			$scenario_total_tickets = $this->calculate_total_scenario_tickets($numbers_picked, $balls_drawn, $correct_numbers, $is_independent_extra_ball, $extra_ball_range);
 			$scenario['scenario_probability'] = round(($scenario_total_tickets / $total_tickets) * 100, 3);
 			$scenario['non_winning_tickets'] = $scenario_total_tickets - $scenario['total_winning_tickets'];
 			
@@ -211,7 +233,9 @@ class Predictions_m extends MY_Model
 			'total_tickets' => $total_tickets,
 			'numbers_picked' => $numbers_picked,
 			'balls_drawn' => $balls_drawn,
-			'minimum_prize_match' => $minimum_prize_match
+			'minimum_prize_match' => $minimum_prize_match,
+			'is_independent_extra_ball' => $is_independent_extra_ball,
+			'extra_ball_range' => $extra_ball_range
 		];
 	}
 	
@@ -221,9 +245,11 @@ class Predictions_m extends MY_Model
 	 * @param int $numbers_picked Total numbers picked
 	 * @param int $balls_drawn Numbers drawn in lottery
 	 * @param int $correct_in_picked How many of the drawn numbers are in user's picked numbers
+	 * @param bool $is_independent_extra_ball Whether this lottery has independent extra ball
+	 * @param int $extra_ball_range The range of extra ball numbers (e.g., 7 for 1-7)
 	 * @return int Total tickets possible for this scenario
 	 */
-	private function calculate_total_scenario_tickets($numbers_picked, $balls_drawn, $correct_in_picked) {
+	private function calculate_total_scenario_tickets($numbers_picked, $balls_drawn, $correct_in_picked, $is_independent_extra_ball = false, $extra_ball_range = 7) {
 		// For a scenario where exactly $correct_in_picked numbers are correct:
 		// We need to sum all possible winning ticket combinations for this scenario
 		
@@ -237,6 +263,12 @@ class Predictions_m extends MY_Model
 			if ($non_winning_needed >= 0 && $non_winning_needed <= $non_winning_in_picked) {
 				$tickets = $this->calculate_scenario_tickets($numbers_picked, $balls_drawn, $correct_in_picked, $matches);
 				$total_scenario_tickets += $tickets;
+				
+				// For independent extra ball lotteries, we also need to account for extra ball combinations
+				if ($is_independent_extra_ball && $matches >= 1) {
+					$extra_ball_tickets = round($tickets / $extra_ball_range);
+					$total_scenario_tickets += $extra_ball_tickets;
+				}
 			}
 		}
 		

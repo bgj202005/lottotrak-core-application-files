@@ -821,11 +821,22 @@ class Predictions extends Admin_Controller {
 			}
 		}
 		
+		// Check if this is an independent extra ball lottery
+		$is_independent_extra_ball = ($lottery->duplicate_extra_ball && $lottery->extra_ball);
+		
+		// Calculate extra ball range for probability calculations
+		$extra_ball_range = 1;
+		if ($is_independent_extra_ball && isset($lottery->minimum_extra_ball) && isset($lottery->maximum_extra_ball)) {
+			$extra_ball_range = ($lottery->maximum_extra_ball - $lottery->minimum_extra_ball) + 1;
+		}
+		
 		// Calculate detailed breakdown using combinatorial mathematics
 		$breakdown_data = $this->predictions_m->calculate_detailed_breakdown(
 			$numbers_to_pick, 
 			$pick_per_ticket, 
-			$minimum_prize_match
+			$minimum_prize_match,
+			$is_independent_extra_ball,
+			$extra_ball_range
 		);
 		
 		// Verify our calculations match the expected total tickets
@@ -847,6 +858,8 @@ class Predictions extends Admin_Controller {
 		$this->data['tickets'] = $tickets;
 		$this->data['breakdown_data'] = $breakdown_data;
 		$this->data['minimum_prize_match'] = $minimum_prize_match;
+		$this->data['is_independent_extra_ball'] = $is_independent_extra_ball;
+		$this->data['extra_ball_range'] = $extra_ball_range;
 		
 		// Add navigation links
 		$this->data['back_to_dashboard'] = base_url('admin/predictions');

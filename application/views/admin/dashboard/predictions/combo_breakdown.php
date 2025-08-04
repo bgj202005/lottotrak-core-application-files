@@ -52,7 +52,16 @@
 </style>
 
 <h2 class="text-center">Winning Statistics - Detailed Breakdown</h2>
-<h2><?php echo 'Lottery: '.$lottery->lottery_name; ?></h2>	
+<h2><?php echo 'Lottery: '.$lottery->lottery_name; ?></h2>
+
+<?php if ($is_independent_extra_ball): ?>
+<div class="alert alert-info">
+	<h5><i class="fa fa-star"></i> Independent Extra Ball Lottery (Pick <?= $pick_per_ticket; ?>)</h5>
+	<p>This lottery has an <strong>independent extra ball</strong> drawn from a range of <?= $extra_ball_range; ?> numbers, which means the extra ball can duplicate main numbers. Additional prize tiers with extra ball matches are shown in <span style="color: #28a745; font-weight: bold;">green columns</span> below.</p>
+	<p><strong>Applies to:</strong> Pick 6, Pick 7, Pick 8, and Pick 9 lotteries with independent extra ball enabled.</p>
+</div>
+<?php endif; ?>
+
 <h5 style="text-align:left"><?php echo anchor('admin/predictions', 'Back to Predictions Dashboard', 'title="Back to Predictions"'); ?></h5>
 
 <section>
@@ -85,10 +94,16 @@
 							<ul>
 								<li><strong>Picked Correctly:</strong> How many of the <?= $pick_per_ticket; ?> drawn numbers are in your <?= $numbers_to_pick; ?> selected numbers</li>
 								<li><strong>Sub-prizes:</strong> Number of tickets that win various prize tiers for that scenario</li>
+								<?php if ($is_independent_extra_ball): ?>
+								<li><strong>Extra Ball Prizes:</strong> <span style="color: #28a745; font-weight: bold;">Green columns</span> show combinations that also match the independent extra ball (1 in <?= $extra_ball_range; ?> chance)</li>
+								<?php endif; ?>
 								<li><strong>Percentage:</strong> Probability of each outcome as a percentage of total tickets</li>
 								<li><strong>Total Tickets:</strong> <?= number_format($breakdown_data['total_tickets']); ?> (using formula C(<?= $numbers_to_pick; ?>,<?= $pick_per_ticket; ?>))</li>
 							</ul>
 							<p><strong>Interpretation:</strong> If <?= $scenario['picked_correctly'] ?? $pick_per_ticket; ?> of the drawn numbers match your selection, the table shows how many tickets win at different prize levels.</p>
+							<?php if ($is_independent_extra_ball): ?>
+							<p><strong>Independent Extra Ball:</strong> The extra ball is drawn from a range of <?= $extra_ball_range; ?> numbers and can duplicate main numbers. This creates additional prize tiers (e.g., <?= $pick_per_ticket; ?>+Extra, <?= $pick_per_ticket - 1; ?>+Extra, etc.) with better payouts than regular matches.</p>
+							<?php endif; ?>
 						</div>
 						
 						<div class="table-responsive">
@@ -97,16 +112,32 @@
 									<tr>
 										<th rowspan="2" style="vertical-align:middle;">Picked Correctly<br><small>(Out of <?= $numbers_to_pick; ?>)</small></th>
 										<?php 
-										// Create header for each possible match level
+										// Create header for regular matches
 										for ($i = $pick_per_ticket; $i >= $minimum_prize_match; $i--): ?>
 											<th><?= $i; ?> Match<?= $i > 1 ? 'es' : ''; ?></th>
-										<?php endfor; ?>
+										<?php endfor; 
+										
+										// Create header for extra ball matches if independent extra ball lottery
+										if ($is_independent_extra_ball):
+											for ($i = $pick_per_ticket; $i >= 1; $i--): ?>
+												<th style="background-color: #28a745; color: white;"><?= $i; ?>+Extra</th>
+											<?php endfor;
+										endif; ?>
 										<th>Non-Winners</th>
 									</tr>
 									<tr>
-										<?php for ($i = $pick_per_ticket; $i >= $minimum_prize_match; $i--): ?>
+										<?php 
+										// Regular match sub-headers
+										for ($i = $pick_per_ticket; $i >= $minimum_prize_match; $i--): ?>
 											<th style="font-size:0.8em; font-weight:normal;">Tickets (% of Total)</th>
-										<?php endfor; ?>
+										<?php endfor; 
+										
+										// Extra ball match sub-headers
+										if ($is_independent_extra_ball):
+											for ($i = $pick_per_ticket; $i >= 1; $i--): ?>
+												<th style="font-size:0.8em; font-weight:normal; background-color: #28a745; color: white;">Tickets (% of Total)</th>
+											<?php endfor;
+										endif; ?>
 										<th style="font-size:0.8em; font-weight:normal;">Tickets</th>
 									</tr>
 								</thead>
@@ -118,6 +149,8 @@
 											</td>
 											<?php 
 											$row_total_percentage = 0;
+											
+											// Display regular match columns
 											for ($match_level = $pick_per_ticket; $match_level >= $minimum_prize_match; $match_level--): 
 												if (isset($scenario['subprizes'][$match_level])): 
 													$tickets = $scenario['subprizes'][$match_level]['tickets'];
@@ -136,10 +169,38 @@
 												<?php endif; 
 											endfor; 
 											
+											// Display extra ball match columns for independent extra ball lotteries
+											if ($is_independent_extra_ball):
+												for ($match_level = $pick_per_ticket; $match_level >= 1; $match_level--): 
+													if (isset($scenario['extra_ball_subprizes'][$match_level])): 
+														$tickets = $scenario['extra_ball_subprizes'][$match_level]['tickets'];
+														$percentage = $scenario['extra_ball_subprizes'][$match_level]['percentage'];
+														$row_total_percentage += $percentage;
+													?>
+														<td class="subprize-cell" style="background-color: #d4edda;">
+															<?= number_format($tickets); ?><br>
+															<small class="percentage-cell">(<?= $percentage; ?>%)</small>
+														</td>
+													<?php else: ?>
+														<td class="subprize-cell" style="background-color: #d4edda;">
+															0<br>
+															<small class="percentage-cell">(0%)</small>
+														</td>
+													<?php endif; 
+												endfor;
+											endif;
+											
 											// Calculate non-winning tickets for this scenario
 											$total_scenario_tickets = 0;
 											foreach ($scenario['subprizes'] as $subprize) {
 												$total_scenario_tickets += $subprize['tickets'];
+											}
+											
+											// Add extra ball tickets to total if applicable
+											if ($is_independent_extra_ball && isset($scenario['extra_ball_subprizes'])) {
+												foreach ($scenario['extra_ball_subprizes'] as $subprize) {
+													$total_scenario_tickets += $subprize['tickets'];
+												}
 											}
 											
 											// Use the calculated non-winning tickets from the model
@@ -161,6 +222,9 @@
 							<div class="alert alert-secondary">
 								<p><strong>Combinatorial Formula:</strong> nCr = n! / (r! × (n-r)!)</p>
 								<p><strong>For each scenario:</strong> C(correct_numbers, matches) × C(non_winning_numbers, remaining_positions)</p>
+								<?php if ($is_independent_extra_ball): ?>
+								<p><strong>Extra Ball Formula:</strong> (Base tickets) × (1/<?= $extra_ball_range; ?>) - probability of matching the independent extra ball</p>
+								<?php endif; ?>
 								<p><strong>Total Tickets:</strong> C(<?= $numbers_to_pick; ?>, <?= $pick_per_ticket; ?>) = <?= number_format($breakdown_data['total_tickets']); ?></p>
 								
 								<?php if (!empty($breakdown_data['breakdown'])): 
@@ -172,6 +236,13 @@
 									<?php foreach ($example['subprizes'] as $matches => $data): ?>
 									<li><?= $matches; ?> matches: C(<?= $example['picked_correctly']; ?>, <?= $matches; ?>) × C(<?= $numbers_to_pick - $example['picked_correctly']; ?>, <?= $pick_per_ticket - $matches; ?>) = <?= number_format($data['tickets']); ?> tickets (<?= $data['percentage']; ?>%)</li>
 									<?php endforeach; ?>
+									
+									<?php if ($is_independent_extra_ball && !empty($example['extra_ball_subprizes'])): ?>
+									<li style="color: #28a745; font-weight: bold;">Extra Ball Combinations:</li>
+									<?php foreach ($example['extra_ball_subprizes'] as $matches => $data): ?>
+									<li style="color: #28a745;"><?= $matches; ?>+Extra: <?= number_format($data['tickets']); ?> tickets (<?= $data['percentage']; ?>%) - Base tickets ÷ <?= $extra_ball_range; ?></li>
+									<?php endforeach; ?>
+									<?php endif; ?>
 								</ul>
 								<?php endif; ?>
 							</div>
