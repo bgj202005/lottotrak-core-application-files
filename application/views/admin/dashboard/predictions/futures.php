@@ -157,10 +157,10 @@
 
 	#futures-filter-table select.form-control,
 	#futures-filter-table select {
-		font-size: 0.90em;
-		padding: 0.1em 0.3em;
-		min-width: 65px;  /* Increased to fit most dropdown text */
-		max-width: 90px;  /* Allow to expand as needed */
+		font-size: 1.19em; /* Increased by additional 10% from 1.08em (32% total increase) */
+		padding: 0.13em 0.40em; /* Increased by additional 10% */
+		min-width: 86px;  /* Increased by additional 10% from 78px */
+		max-width: 119px;  /* Increased by additional 10% from 108px */
 		text-overflow: ellipsis;
 		overflow: hidden;
 		white-space: nowrap;
@@ -198,14 +198,14 @@
 	}
 	
 	/* Specific column width optimization for filtering table with extra ball */
-	#futures-filter-table.with-extra-ball th:nth-child(1) { width: 8%; }   /* H-W-C Selection */
-	#futures-filter-table.with-extra-ball th:nth-child(2) { width: 8%; }   /* Extra Ball Filter */
-	#futures-filter-table.with-extra-ball th:nth-child(3) { width: 7%; }   /* After Ball */
-	#futures-filter-table.with-extra-ball th:nth-child(4) { width: 7%; }   /* Position */
-	#futures-filter-table.with-extra-ball th:nth-child(5) { width: 6%; }   /* Friends */
-	#futures-filter-table.with-extra-ball th:nth-child(6) { width: 6%; }   /* Trends */
-	#futures-filter-table.with-extra-ball th:nth-child(7) { width: 6%; }   /* Sums */
-	#futures-filter-table.with-extra-ball th:nth-child(8) { width: 6%; }   /* Digit Sums */
+	#futures-filter-table.with-extra-ball th:nth-child(1) { width: 6%; }   /* H-W-C Selection */
+	#futures-filter-table.with-extra-ball th:nth-child(2) { width: 6%; }   /* Extra Ball Filter */
+	#futures-filter-table.with-extra-ball th:nth-child(3) { width: 6%; }   /* After Ball */
+	#futures-filter-table.with-extra-ball th:nth-child(4) { width: 6%; }   /* Position */
+	#futures-filter-table.with-extra-ball th:nth-child(5) { width: 5%; }   /* Friends */
+	#futures-filter-table.with-extra-ball th:nth-child(6) { width: 5%; }   /* Trends */
+	#futures-filter-table.with-extra-ball th:nth-child(7) { width: 5%; }   /* Sums */
+	#futures-filter-table.with-extra-ball th:nth-child(8) { width: 5%; }   /* Digit Sums */
 	#futures-filter-table.with-extra-ball th:nth-child(9) { width: 6%; }   /* Repeaters */
 	#futures-filter-table.with-extra-ball th:nth-child(10) { width: 6%; }  /* Consecutives */
 	#futures-filter-table.with-extra-ball th:nth-child(11) { width: 6%; }  /* Odd/Even */
@@ -214,8 +214,28 @@
 	#futures-filter-table.with-extra-ball th:nth-child(14) { width: 6%; }  /* Range */
 	#futures-filter-table.with-extra-ball th:nth-child(15) { width: 6%; }  /* Adjacent */
 	
+	/* Special compact styling for extra ball tables */
+	#futures-filter-table.with-extra-ball select {
+		font-size: 0.92em !important; /* Increased by additional 10% from 0.84em (32% total increase) */
+		padding: 0.20rem 0.40rem !important; /* Increased by additional 10% */
+		max-width: 100%;
+		min-width: 0;
+		min-height: 31px; /* Added minimum height for better usability, increased by 10% */
+	}
+	
+	#futures-filter-table.with-extra-ball td {
+		padding: 0.2rem !important;
+		font-size: 0.75em;
+	}
+	
+	#futures-filter-table.with-extra-ball th {
+		padding: 0.3rem 0.2rem !important;
+		font-size: 0.8em;
+		line-height: 1.1;
+	}
+	
 	/* Regular table without extra ball column */
-	#futures-filter-table:not(.with-extra-ball) th:nth-child(1) { width: 9%; }   /* H-W-C Selection */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(1) { width: 8%; }   /* H-W-C Selection */
 	#futures-filter-table:not(.with-extra-ball) th:nth-child(2) { width: 8%; }   /* After Ball */
 	#futures-filter-table:not(.with-extra-ball) th:nth-child(3) { width: 8%; }   /* Position */
 	#futures-filter-table:not(.with-extra-ball) th:nth-child(4) { width: 7%; }   /* Friends */
@@ -232,15 +252,67 @@
 	
 	/* Make sure dropdown menus stay within the green border */
 	.table-section .table-responsive {
-		overflow: visible;
+		overflow-x: auto;
+		overflow-y: visible;
 		position: relative;
 		z-index: 1;
+		max-width: 100%;
 	}
 	
 	/* Adjust dropdown positioning to stay within container */
 	.table-section select.form-control {
 		position: relative;
 		z-index: 10;
+		max-width: 100%;
+		width: 100%;
+		box-sizing: border-box;
+		font-size: 0.85em;
+		padding: 0.25rem 0.5rem;
+	}
+	
+	/* Ensure the filtering table dropdowns don't overflow */
+	#futures-filter-table td {
+		position: relative;
+		overflow: visible;
+		padding: 0.3rem !important;
+		max-width: 0; /* Force content to respect column widths */
+	}
+	
+	#futures-filter-table select {
+		max-width: 100%;
+		width: 100%;
+		box-sizing: border-box;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+		font-size: 1.06em; /* Increased by additional 10% from 0.96em (32% total increase) */
+		padding: 0.26rem 0.53rem; /* Increased by additional 10% */
+		border: 1px solid #ced4da;
+		border-radius: 0.25rem;
+		min-width: 0; /* Allow shrinking below content width */
+		min-height: 35px; /* Increased dropdown height by additional 10% */
+	}
+	
+	/* Better table container for filtering table */
+	.table-section:has(#futures-filter-table) {
+		overflow: hidden !important;
+		position: relative;
+		max-width: 100%;
+	}
+	
+	.table-section:has(#futures-filter-table) .table-responsive {
+		overflow-x: auto;
+		overflow-y: visible;
+		margin: 0;
+		padding: 0;
+		max-width: 100%;
+	}
+	
+	/* Ensure table itself doesn't exceed container */
+	#futures-filter-table {
+		max-width: 100% !important;
+		width: 100% !important;
+		table-layout: fixed !important;
+		margin: 0 !important;
 	}
 	@media (max-width: 991px) {
 		.table-responsive {
@@ -260,6 +332,18 @@
 		#futures-filter-table select {
 			font-size: 0.7em;
 			padding: 0.08em 0.2em;
+		}
+		
+		/* Even more compact for extra ball tables on mobile */
+		#futures-filter-table.with-extra-ball th,
+		#futures-filter-table.with-extra-ball td {
+			font-size: 0.6em !important;
+			padding: 0.1em !important;
+		}
+		#futures-filter-table.with-extra-ball select {
+			font-size: 0.79em !important; /* Increased by additional 10% from 0.72em (32% total increase) */
+			padding: 0.07em 0.13em !important; /* Increased by additional 10% */
+			min-height: 26px; /* Added minimum height for mobile, increased by 10% */
 		}
 	}
 	@media (max-width: 767px) {
@@ -281,7 +365,31 @@
 	.d-flex {
     display: flex;
     align-items: center;
-    gap: 0.3em;
+    gap: 0.2em;
+	}
+	
+	/* Compress spacing for radio button + dropdown combinations */
+	.d-flex input[type="radio"] {
+		margin-right: 0.1em;
+		flex-shrink: 0;
+		transform: scale(0.8); /* Make radio buttons smaller for extra ball tables */
+	}
+	
+	.d-flex select {
+		flex: 1;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	
+	/* Special handling for extra ball table radio/dropdown combos */
+	#futures-filter-table.with-extra-ball .d-flex {
+		gap: 0.1em;
+	}
+	
+	#futures-filter-table.with-extra-ball .d-flex input[type="radio"] {
+		transform: scale(0.7);
+		margin-right: 0.05em;
 	}
 	
 	/* Styling for independent extra ball display */
@@ -389,6 +497,23 @@
 		border-color: #007bff;
 		box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 		outline: 0;
+	}
+	
+	/* Fix for filtering table layout */
+	#futures-filter-table {
+		max-width: 100% !important;
+		width: 100% !important;
+		display: table !important;
+		table-layout: fixed !important;
+		margin: 0 !important;
+	}
+	
+	/* Ensure the table section contains its content properly */
+	.table-section {
+		overflow: hidden;
+		position: relative;
+		max-width: 100%;
+		box-sizing: border-box;
 	}
 	
 	/* Button state styling */
@@ -695,14 +820,14 @@
 						<div class="row">
 							<div class="col-md-12">
 								<!-- Second Table: Actual Win History Filtering -->
-								<div class="table-section" style="border:2px solid #28a745; border-radius:8px; margin-bottom:2em; padding:1em;">
+								<div class="table-section" style="border:2px solid #28a745; border-radius:8px; margin-bottom:2em; padding:1em; overflow: hidden; position: relative;">
 									<div class="table-title" style="font-weight:bold; font-size:1.2em; background:#f8f9fa; border-bottom:1px solid #28a745; padding:0.5em 1em; border-radius:6px 6px 0 0; margin:-1em -1em 1em -1em;">
 										Actual Win History Filtering for <?= htmlspecialchars($lottery->next_draw_date); ?>
 									</div>
 									
-									<!-- Move .table-responsive OUTSIDE the table for proper scrolling -->
-									<div class="table-responsive">
-										<table class="table table-bordered<?php echo (isset($is_independent_extra_ball) && $is_independent_extra_ball) ? ' with-extra-ball' : ''; ?>" id="futures-filter-table">
+									<!-- Table responsive container -->
+									<div class="table-responsive" style="overflow-x: auto; overflow-y: visible; max-width: 100%;">
+										<table class="table table-bordered<?php echo (isset($is_independent_extra_ball) && $is_independent_extra_ball) ? ' with-extra-ball' : ''; ?>" id="futures-filter-table" style="white-space: nowrap; margin: 0; width: 100%; max-width: 100%;">
 											<thead>
 												<tr>
 													<th>H-W-C</th>
@@ -716,7 +841,7 @@
 													<th>Sums</th>
 													<th>Digit Sums</th>
 													<th>Repeaters</th>
-													<th>Consecutive</th>
+													<th>Consecutives</th>
 													<th>Odd/Even</th>
 													<th>Decades</th>
 													<th>Last</th>
@@ -741,7 +866,7 @@
 													</td>
 													<?php endif; ?>
 													<td data-label="After Ball">
-														<div class="d-flex align-items-center" style="gap:0.3em;">
+														<div class="d-flex align-items-center" style="gap:0.2em;">
 															<?= form_radio([
 																	'name' => 'followers_type',
 																	'id' => 'after_ball_radio',
@@ -752,7 +877,7 @@
 														</div>
 													</td>
 													<td data-label="Position">
-														<div class="d-flex align-items-center" style="gap:0.3em;">
+														<div class="d-flex align-items-center" style="gap:0.2em;">
 															<?= form_radio([
 																'name' => 'followers_type',
 																'id' => 'position_radio',
@@ -914,7 +1039,7 @@
 															sort($main_numbers, SORT_NUMERIC);
 															$main_numbers_str = implode(' ', $main_numbers);
 															$extra_number = $item['combo']['extra'];
-															echo '<span class="main-numbers">' . $main_numbers_str . '</span> <span class="extra-separator">+</span> <span class="extra-ball">' . $extra_number . '</span>';
+															echo '<span class="main-numbers">' . $main_numbers_str . '</span> <span class="extra-separator">Extra</span> <span class="extra-ball">' . $extra_number . '</span>';
 														} else {
 															// For regular lotteries, show numbers normally
 															$ticket_numbers = array_values($item['combo']);
@@ -938,16 +1063,28 @@
 									</table>
 								</div>
 								
+								<?php 
+								// Get pagination data
+								$actual_results_count = count($combos_paginated); // Results on current page
+								$total_filtered_results = $pagination['total_filtered'] ?? 0; // Total results across all pages
+								$per_page = $pagination['per_page'] ?? 10;
+								$total_pages = $pagination['total'] ?? 1;
+								
+								// Show pagination only if total filtered results exceed per_page limit
+								// This ensures pagination appears when you have multiple pages, even if last page has fewer results
+								$should_show_pagination = ($total_filtered_results > $per_page) && ($total_pages > 1);
+								
+								if ($should_show_pagination): 
+								?>
 								<!-- Pagination Info Display -->
 								<div class="row mt-3 mb-2">
 									<div class="col-sm-6">
 										<div class="pagination-info">
 											<?php 
-											$total_filtered = $pagination['total_filtered'] ?? 0;
-											$start = $total_filtered > 0 ? (($pagination['current']-1) * $pagination['per_page']) + 1 : 0;
-											$end = $total_filtered > 0 ? min($pagination['current'] * $pagination['per_page'], $total_filtered) : 0;
+											$start = $total_filtered_results > 0 ? (($pagination['current']-1) * $pagination['per_page']) + 1 : 0;
+											$end = $total_filtered_results > 0 ? min($pagination['current'] * $pagination['per_page'], $total_filtered_results) : 0;
 											?>
-											Showing <?= $start ?> to <?= $end ?> of <?= $total_filtered ?> entries
+											Showing <?= $start ?> to <?= $end ?> of <?= $total_filtered_results ?> entries
 										</div>
 									</div>
 									<div class="col-sm-6 text-right">
@@ -1017,6 +1154,7 @@
 										</li>
 									</ul>
 								</nav>
+								<?php endif; // End pagination condition ?>
 							</div>
 						<?php endif; ?>
 					</div>

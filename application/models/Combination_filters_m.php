@@ -74,14 +74,38 @@ class Combination_filters_m extends MY_Model
                         if (!empty($line)) {
                             $positions = array_map('intval', explode(' ', $line));
                             $combo_numbers = [];
-                            foreach ($positions as $pos) {
-                                if ($pos > 0 && isset($number_array[$pos - 1])) {
-                                    $combo_numbers[] = $number_array[$pos - 1];
+                            $extra_ball_number = null;
+                            
+                            // For independent extra ball lotteries, treat last number differently
+                            if (!empty($filter_select['duplicate_extra_ball']) && !empty($filter_select['extra_ball'])) {
+                                // Last number is the actual extra ball, keep it as-is
+                                $extra_ball_number = array_pop($positions);
+                                
+                                // Process remaining positions as usual (insert generated numbers)
+                                foreach ($positions as $pos) {
+                                    if ($pos > 0 && isset($number_array[$pos - 1])) {
+                                        $combo_numbers[] = $number_array[$pos - 1];
+                                    }
+                                }
+                            } else {
+                                // Regular lottery - all positions are for main numbers
+                                foreach ($positions as $pos) {
+                                    if ($pos > 0 && isset($number_array[$pos - 1])) {
+                                        $combo_numbers[] = $number_array[$pos - 1];
+                                    }
                                 }
                             }
+                            
                             if (!empty($combo_numbers)) {
                                 sort($combo_numbers, SORT_NUMERIC);
-                                $combinations[] = $combo_numbers;
+                                $combo_data = $combo_numbers;
+                                
+                                // Add extra ball if this is an independent extra ball lottery
+                                if ($extra_ball_number !== null) {
+                                    $combo_data['extra'] = $extra_ball_number;
+                                }
+                                
+                                $combinations[] = $combo_data;
                             }
                         }
                     }
@@ -139,9 +163,25 @@ class Combination_filters_m extends MY_Model
                 // Parse combination
                 $positions = array_map('intval', explode(' ', $line));
                 $combo_numbers = [];
-                foreach ($positions as $pos) {
-                    if ($pos > 0 && isset($number_array[$pos - 1])) {
-                        $combo_numbers[] = $number_array[$pos - 1];
+                $extra_ball_number = null;
+                
+                // For independent extra ball lotteries, treat last number differently
+                if (!empty($filter_select['duplicate_extra_ball']) && !empty($filter_select['extra_ball'])) {
+                    // Last number is the actual extra ball, keep it as-is
+                    $extra_ball_number = array_pop($positions);
+                    
+                    // Process remaining positions as usual (insert generated numbers)
+                    foreach ($positions as $pos) {
+                        if ($pos > 0 && isset($number_array[$pos - 1])) {
+                            $combo_numbers[] = $number_array[$pos - 1];
+                        }
+                    }
+                } else {
+                    // Regular lottery - all positions are for main numbers
+                    foreach ($positions as $pos) {
+                        if ($pos > 0 && isset($number_array[$pos - 1])) {
+                            $combo_numbers[] = $number_array[$pos - 1];
+                        }
                     }
                 }
                 
@@ -153,10 +193,22 @@ class Combination_filters_m extends MY_Model
                     $combo['ball'.($idx+1)] = $num;
                 }
                 
+                // Add extra ball for independent extra ball lotteries
+                if ($extra_ball_number !== null) {
+                    $combo['extra'] = $extra_ball_number;
+                }
+                
                 // Check if combination passes all filters
                 if ($this->passes_all_filters($combo, $filter_select)) {
                     if ($count >= $skip_count) {
-                        $combinations[] = $combo_numbers;
+                        $combo_result = $combo_numbers;
+                        
+                        // Add extra ball to result if present
+                        if ($extra_ball_number !== null) {
+                            $combo_result['extra'] = $extra_ball_number;
+                        }
+                        
+                        $combinations[] = $combo_result;
                         if (count($combinations) >= $per_page) {
                             break;
                         }
@@ -220,9 +272,25 @@ class Combination_filters_m extends MY_Model
                 // Parse combination
                 $positions = array_map('intval', explode(' ', $line));
                 $combo_numbers = [];
-                foreach ($positions as $pos) {
-                    if ($pos > 0 && isset($number_array[$pos - 1])) {
-                        $combo_numbers[] = $number_array[$pos - 1];
+                $extra_ball_number = null;
+                
+                // For independent extra ball lotteries, treat last number differently
+                if (!empty($filter_select['duplicate_extra_ball']) && !empty($filter_select['extra_ball'])) {
+                    // Last number is the actual extra ball, keep it as-is
+                    $extra_ball_number = array_pop($positions);
+                    
+                    // Process remaining positions as usual (insert generated numbers)
+                    foreach ($positions as $pos) {
+                        if ($pos > 0 && isset($number_array[$pos - 1])) {
+                            $combo_numbers[] = $number_array[$pos - 1];
+                        }
+                    }
+                } else {
+                    // Regular lottery - all positions are for main numbers
+                    foreach ($positions as $pos) {
+                        if ($pos > 0 && isset($number_array[$pos - 1])) {
+                            $combo_numbers[] = $number_array[$pos - 1];
+                        }
                     }
                 }
                 
@@ -232,6 +300,11 @@ class Combination_filters_m extends MY_Model
                 $combo = [];
                 foreach ($combo_numbers as $idx => $num) {
                     $combo['ball'.($idx+1)] = $num;
+                }
+                
+                // Add extra ball for independent extra ball lotteries
+                if ($extra_ball_number !== null) {
+                    $combo['extra'] = $extra_ball_number;
                 }
                 
                 // Check if combination passes all filters
@@ -326,7 +399,8 @@ class Combination_filters_m extends MY_Model
         $filter_keys = [
             'selected_winning_sums', 'selected_winning_digits', 'selected_repeaters',
             'selected_consecutives', 'selected_parity', 'selected_decades',
-            'selected_last_digits', 'selected_number_range', 'selected_adjacents'
+            'selected_last_digits', 'selected_number_range', 'selected_adjacents',
+            'selected_extra_ball'
         ];
         
         foreach ($filter_keys as $key) {
@@ -492,6 +566,19 @@ class Combination_filters_m extends MY_Model
             
             $allowed_adjacents = explode(',', $filter_select['selected_adjacents']);
             if (!in_array($adjacent_count, $allowed_adjacents)) {
+                return false;
+            }
+        }
+        
+        // Filter by selected extra ball (for independent extra ball lotteries)
+        if (isset($filter_select['selected_extra_ball']) && 
+            $filter_select['selected_extra_ball'] !== 'ALL' && 
+            !empty($filter_select['duplicate_extra_ball']) && 
+            !empty($filter_select['extra_ball'])) {
+            
+            // Check if this combination has the selected extra ball
+            $selected_extra_ball = (int)$filter_select['selected_extra_ball'];
+            if (isset($combo['extra']) && (int)$combo['extra'] !== $selected_extra_ball) {
                 return false;
             }
         }

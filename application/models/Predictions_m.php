@@ -2155,9 +2155,25 @@ class Predictions_m extends MY_Model
 					// Parse and process combination
 					$positions = array_map('intval', explode(' ', $line));
 					$combo_numbers = [];
-					foreach ($positions as $pos) {
-						if ($pos > 0 && isset($number_array[$pos - 1])) {
-							$combo_numbers[] = $number_array[$pos - 1];
+					$extra_ball_number = null;
+					
+					// For independent extra ball lotteries, treat last number differently
+					if (!empty($filter_select['duplicate_extra_ball']) && !empty($filter_select['extra_ball'])) {
+						// Last number is the actual extra ball, keep it as-is
+						$extra_ball_number = array_pop($positions);
+						
+						// Process remaining positions as usual (insert generated numbers)
+						foreach ($positions as $pos) {
+							if ($pos > 0 && isset($number_array[$pos - 1])) {
+								$combo_numbers[] = $number_array[$pos - 1];
+							}
+						}
+					} else {
+						// Regular lottery - all positions are for main numbers
+						foreach ($positions as $pos) {
+							if ($pos > 0 && isset($number_array[$pos - 1])) {
+								$combo_numbers[] = $number_array[$pos - 1];
+							}
 						}
 					}
 					
@@ -2171,8 +2187,14 @@ class Predictions_m extends MY_Model
 					
 					// Add extra ball for independent extra ball lotteries
 					if (!empty($filter_select['duplicate_extra_ball']) && !empty($filter_select['extra_ball'])) {
-						$max_ball = $filter_select['max_ball'] ?? 50; // Default to 50 if not set
-						$combo['extra'] = $this->assign_extra_ball($combo_numbers, $max_ball);
+						if ($extra_ball_number !== null) {
+							// Use the actual extra ball number from the combination file
+							$combo['extra'] = $extra_ball_number;
+						} else {
+							// Fallback to generated extra ball (for backward compatibility)
+							$max_ball = $filter_select['max_ball'] ?? 50;
+							$combo['extra'] = $this->assign_extra_ball($combo_numbers, $max_ball);
+						}
 					}
 					
 					// Create combo data with stats if available
@@ -2200,10 +2222,27 @@ class Predictions_m extends MY_Model
 					// Parse combination
 					$positions = array_map('intval', explode(' ', $line));
 					$combo_numbers = [];
-					foreach ($positions as $pos) {
-						// Validate position index
-						if ($pos > 0 && isset($number_array[$pos - 1])) {
-							$combo_numbers[] = $number_array[$pos - 1];
+					$extra_ball_number = null;
+					
+					// For independent extra ball lotteries, treat last number differently
+					if (!empty($filter_select['duplicate_extra_ball']) && !empty($filter_select['extra_ball'])) {
+						// Last number is the actual extra ball, keep it as-is
+						$extra_ball_number = array_pop($positions);
+						
+						// Process remaining positions as usual (insert generated numbers)
+						foreach ($positions as $pos) {
+							// Validate position index
+							if ($pos > 0 && isset($number_array[$pos - 1])) {
+								$combo_numbers[] = $number_array[$pos - 1];
+							}
+						}
+					} else {
+						// Regular lottery - all positions are for main numbers
+						foreach ($positions as $pos) {
+							// Validate position index
+							if ($pos > 0 && isset($number_array[$pos - 1])) {
+								$combo_numbers[] = $number_array[$pos - 1];
+							}
 						}
 					}
 					
@@ -2220,8 +2259,14 @@ class Predictions_m extends MY_Model
 					
 					// Add extra ball for independent extra ball lotteries
 					if (!empty($filter_select['duplicate_extra_ball']) && !empty($filter_select['extra_ball'])) {
-						$max_ball = $filter_select['max_ball'] ?? 50; // Default to 50 if not set
-						$combo['extra'] = $this->assign_extra_ball($combo_numbers, $max_ball);
+						if ($extra_ball_number !== null) {
+							// Use the actual extra ball number from the combination file
+							$combo['extra'] = $extra_ball_number;
+						} else {
+							// Fallback to generated extra ball (for backward compatibility)
+							$max_ball = $filter_select['max_ball'] ?? 50;
+							$combo['extra'] = $this->assign_extra_ball($combo_numbers, $max_ball);
+						}
 					}
 					
 					// Apply trend filter if specified
@@ -2863,11 +2908,12 @@ class Predictions_m extends MY_Model
 		$filter_keys = [
 			'selected_winning_sums', 'selected_winning_digits', 'selected_repeaters',
 			'selected_consecutives', 'selected_parity', 'selected_decades',
-			'selected_last_digits', 'selected_number_range', 'selected_adjacents'
+			'selected_last_digits', 'selected_number_range', 'selected_adjacents',
+			'selected_extra_ball'
 		];
 		
 		foreach ($filter_keys as $key) {
-			if ($filter_select[$key] !== 'ALL') {
+			if (isset($filter_select[$key]) && $filter_select[$key] !== 'ALL') {
 				return true;
 			}
 		}

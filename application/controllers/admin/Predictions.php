@@ -1278,6 +1278,14 @@ class Predictions extends Admin_Controller {
 		$drawn = $this->data['lottery']->balls_drawn;
 		$this->data['country_code'] = $this->lottery_data_m->get_lottery_country($id);
 		$this->data['state_prov_code'] = $this->lottery_data_m->get_lottery_state_prov($id);
+		$this->data['is_independent_extra_ball'] = ($this->data['lottery']->duplicate_extra_ball && $this->data['lottery']->extra_ball);
+		
+		// Fetch extra ball occurrences for independent extra ball lotteries
+		if ($this->data['lottery']->duplicate_extra_ball == 1) {
+			$this->data['extra_ball_occurrences'] = $this->lottery_data_m->get_extra_ball_occurrences($id);
+		} else {
+			$this->data['extra_ball_occurrences'] = [];
+		}
 		$this->data['combination_files'] = $this->predictions_m->get_combination_files($id);
 		
 		// Sort combination files numerically
@@ -1354,6 +1362,10 @@ class Predictions extends Admin_Controller {
 				$friends_checked = ($this->input->post() && !$this->input->post('friends')) ? false : ($this->input->post('friends') ? (($this->input->post('friends') == '1') ? true : false) : $session_data['selected_friends_checkbox']);
  				$h_w_c_group = ($this->input->post('h_w_c_group') ? $this->input->post('h_w_c_group') : $this->session->userdata('selected_h_w_c_group'));
 				$selected_extra_ball = ($this->input->post('extra_ball_filter') ? $this->input->post('extra_ball_filter') : $this->session->userdata('selected_extra_ball'));
+				// Set default value for extra ball filter if not set (for regular lotteries)
+				if (empty($selected_extra_ball)) {
+					$selected_extra_ball = 'ALL';
+				}
 				$followers_type = ($this->input->post('followers_type') ? $this->input->post('followers_type') : $this->session->userdata('selected_followers_type'));
 				$selected_ball_points = ($this->input->post('ball_points') ? $this->input->post('ball_points') : $this->session->userdata('selected_ball_points'));
 				$selected_position_points = ($this->input->post('position_points') ? $this->input->post('position_points') : $this->session->userdata('selected_position_points'));
@@ -1402,6 +1414,10 @@ class Predictions extends Admin_Controller {
 				
 				$h_w_c_group = $this->input->post('h_w_c_group', TRUE);
 				$selected_extra_ball = $this->input->post('extra_ball_filter', TRUE);
+				// Set default value for extra ball filter if not set (for regular lotteries)
+				if (empty($selected_extra_ball)) {
+					$selected_extra_ball = 'ALL';
+				}
 				$followers_type = $this->input->post('followers_type', TRUE);
 				$selected_ball_points = $this->input->post('ball_points', TRUE);
 				$selected_position_points = $this->input->post('position_points', TRUE);
@@ -1853,7 +1869,7 @@ class Predictions extends Admin_Controller {
 					'selected_last_digits' => $futures_form['selected_last_digits'],
 					'selected_number_range' => $futures_form['selected_number_range'],
 					'selected_adjacents' => $futures_form['selected_adjacents'],
-					'selected_extra_ball' => $futures_form['selected_extra_ball'],
+					'selected_extra_ball' => isset($futures_form['selected_extra_ball']) ? $futures_form['selected_extra_ball'] : 'ALL',
 					'drawn' => $drawn,
 					'lottery_last_drawn' => $this->data['lottery']->last_drawn,
 					'extra_ball' => $this->data['lottery']->extra_ball,
