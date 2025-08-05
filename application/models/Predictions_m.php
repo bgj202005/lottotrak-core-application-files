@@ -2169,6 +2169,12 @@ class Predictions_m extends MY_Model
 						$combo['ball'.($idx+1)] = $num;
 					}
 					
+					// Add extra ball for independent extra ball lotteries
+					if (!empty($filter_select['duplicate_extra_ball']) && !empty($filter_select['extra_ball'])) {
+						$max_ball = $filter_select['max_ball'] ?? 50; // Default to 50 if not set
+						$combo['extra'] = $this->assign_extra_ball($combo_numbers, $max_ball);
+					}
+					
 					// Create combo data with stats if available
 					$combo_data = ['combo' => $combo];
 					if (!empty($filter_select) && isset($filter_select['drawn']) && isset($filter_select['lottery_last_drawn'])) {
@@ -2210,6 +2216,12 @@ class Predictions_m extends MY_Model
 					$combo = [];
 					foreach ($combo_numbers as $idx => $num) {
 						$combo['ball'.($idx+1)] = $num;
+					}
+					
+					// Add extra ball for independent extra ball lotteries
+					if (!empty($filter_select['duplicate_extra_ball']) && !empty($filter_select['extra_ball'])) {
+						$max_ball = $filter_select['max_ball'] ?? 50; // Default to 50 if not set
+						$combo['extra'] = $this->assign_extra_ball($combo_numbers, $max_ball);
 					}
 					
 					// Apply trend filter if specified
@@ -2350,6 +2362,20 @@ class Predictions_m extends MY_Model
 				}
 			}
 		}
+		
+		// Filter by selected extra ball (for independent extra ball lotteries)
+		if (isset($filter_select['selected_extra_ball']) && 
+			$filter_select['selected_extra_ball'] !== 'ALL' && 
+			!empty($filter_select['duplicate_extra_ball']) && 
+			!empty($filter_select['extra_ball'])) {
+			
+			// Check if this combination has the selected extra ball
+			$selected_extra_ball = (int)$filter_select['selected_extra_ball'];
+			if (isset($combo['extra']) && (int)$combo['extra'] !== $selected_extra_ball) {
+				return false;
+			}
+		}
+		
 		return true;
 	}
 	/**
@@ -3164,5 +3190,25 @@ class Predictions_m extends MY_Model
 		// For 'all', return as-is (all friendships allowed)
 		
 		return $result;
+	}
+	
+	/**
+	 * Assign an extra ball to a combination for independent extra ball lotteries
+	 * 
+	 * @param array $combo_numbers Main numbers in the combination
+	 * @param int $max_ball Maximum ball number available
+	 * @return int The assigned extra ball number
+	 */
+	private function assign_extra_ball($combo_numbers, $max_ball)
+	{
+		// For independent extra ball lotteries, we can assign any number from 1 to max_ball
+		// Use a weighted random approach based on combination characteristics
+		
+		// Simple deterministic method based on combination numbers
+		// This ensures the same combination always gets the same extra ball
+		$sum = array_sum($combo_numbers);
+		$extra_ball = ($sum % $max_ball) + 1;
+		
+		return $extra_ball;
 	}
 }

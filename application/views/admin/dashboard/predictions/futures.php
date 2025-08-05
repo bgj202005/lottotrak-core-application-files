@@ -181,6 +181,67 @@
     	margin: 0;
     	padding: 0;
 	}
+	
+	/* Ensure the table section with green border contains all its content */
+	.table-section {
+		overflow: visible !important;
+		position: relative;
+		box-sizing: border-box;
+	}
+	
+	/* Ensure the filtering table stays within its container */
+	#futures-filter-table {
+		width: 100%;
+		table-layout: auto;
+		margin: 0 auto;
+		overflow: visible;
+	}
+	
+	/* Specific column width optimization for filtering table with extra ball */
+	#futures-filter-table.with-extra-ball th:nth-child(1) { width: 8%; }   /* H-W-C Selection */
+	#futures-filter-table.with-extra-ball th:nth-child(2) { width: 8%; }   /* Extra Ball Filter */
+	#futures-filter-table.with-extra-ball th:nth-child(3) { width: 7%; }   /* After Ball */
+	#futures-filter-table.with-extra-ball th:nth-child(4) { width: 7%; }   /* Position */
+	#futures-filter-table.with-extra-ball th:nth-child(5) { width: 6%; }   /* Friends */
+	#futures-filter-table.with-extra-ball th:nth-child(6) { width: 6%; }   /* Trends */
+	#futures-filter-table.with-extra-ball th:nth-child(7) { width: 6%; }   /* Sums */
+	#futures-filter-table.with-extra-ball th:nth-child(8) { width: 6%; }   /* Digit Sums */
+	#futures-filter-table.with-extra-ball th:nth-child(9) { width: 6%; }   /* Repeaters */
+	#futures-filter-table.with-extra-ball th:nth-child(10) { width: 6%; }  /* Consecutives */
+	#futures-filter-table.with-extra-ball th:nth-child(11) { width: 6%; }  /* Odd/Even */
+	#futures-filter-table.with-extra-ball th:nth-child(12) { width: 6%; }  /* Decades */
+	#futures-filter-table.with-extra-ball th:nth-child(13) { width: 5%; }  /* Last */
+	#futures-filter-table.with-extra-ball th:nth-child(14) { width: 6%; }  /* Range */
+	#futures-filter-table.with-extra-ball th:nth-child(15) { width: 6%; }  /* Adjacent */
+	
+	/* Regular table without extra ball column */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(1) { width: 9%; }   /* H-W-C Selection */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(2) { width: 8%; }   /* After Ball */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(3) { width: 8%; }   /* Position */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(4) { width: 7%; }   /* Friends */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(5) { width: 7%; }   /* Trends */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(6) { width: 7%; }   /* Sums */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(7) { width: 7%; }   /* Digit Sums */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(8) { width: 7%; }   /* Repeaters */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(9) { width: 7%; }   /* Consecutives */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(10) { width: 7%; }  /* Odd/Even */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(11) { width: 7%; }  /* Decades */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(12) { width: 6%; }  /* Last */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(13) { width: 7%; }  /* Range */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(14) { width: 7%; }  /* Adjacent */
+	
+	/* Make sure dropdown menus stay within the green border */
+	.table-section .table-responsive {
+		overflow: visible;
+		position: relative;
+		z-index: 1;
+	}
+	
+	/* Adjust dropdown positioning to stay within container */
+	.table-section select.form-control {
+		position: relative;
+		z-index: 10;
+	}
 	@media (max-width: 991px) {
 		.table-responsive {
 			overflow-x: auto;
@@ -221,6 +282,45 @@
     display: flex;
     align-items: center;
     gap: 0.3em;
+	}
+	
+	/* Styling for independent extra ball display */
+	.main-numbers {
+		font-weight: bold;
+		color: #333;
+	}
+	
+	.extra-separator {
+		font-weight: bold;
+		color: #28a745;
+		margin: 0 0.3em;
+		font-size: 1.1em;
+	}
+	
+	.extra-ball {
+		font-weight: bold;
+		color: #dc3545;
+		background-color: #fff2f2;
+		padding: 0.1em 0.4em;
+		border-radius: 4px;
+		border: 1px solid #dc3545;
+		font-size: 0.95em;
+	}
+	
+	/* Mobile responsive adjustments for extra ball display */
+	@media (max-width: 768px) {
+		.main-numbers, .extra-ball {
+			font-size: 0.85em;
+		}
+		
+		.extra-separator {
+			margin: 0 0.2em;
+			font-size: 1em;
+		}
+		
+		.extra-ball {
+			padding: 0.05em 0.3em;
+		}
 	}
 	#h_w_c_group.greyed-out {
     background-color: #444 !important;
@@ -598,13 +698,17 @@
 								<div class="table-section" style="border:2px solid #28a745; border-radius:8px; margin-bottom:2em; padding:1em;">
 									<div class="table-title" style="font-weight:bold; font-size:1.2em; background:#f8f9fa; border-bottom:1px solid #28a745; padding:0.5em 1em; border-radius:6px 6px 0 0; margin:-1em -1em 1em -1em;">
 										Actual Win History Filtering for <?= htmlspecialchars($lottery->next_draw_date); ?>
-									</div>		
+									</div>
+									
 									<!-- Move .table-responsive OUTSIDE the table for proper scrolling -->
 									<div class="table-responsive">
-										<table class="table table-bordered" id="futures-filter-table">
+										<table class="table table-bordered<?php echo (isset($is_independent_extra_ball) && $is_independent_extra_ball) ? ' with-extra-ball' : ''; ?>" id="futures-filter-table">
 											<thead>
 												<tr>
 													<th>H-W-C</th>
+													<?php if (isset($is_independent_extra_ball) && $is_independent_extra_ball): ?>
+													<th>Extra Ball</th>
+													<?php endif; ?>
 													<th>After Ball</th>
 													<th>Position</th>
 													<th>Friends</th>
@@ -612,7 +716,7 @@
 													<th>Sums</th>
 													<th>Digit Sums</th>
 													<th>Repeaters</th>
-													<th>Consecutives</th>
+													<th>Consecutive</th>
 													<th>Odd/Even</th>
 													<th>Decades</th>
 													<th>Last</th>
@@ -622,9 +726,20 @@
 											</thead>
 											<tbody>
 												<tr>
-													<td data-label="H-W-C">
+													<td data-label="H-W-C Selection">
 														<?= form_dropdown('h_w_c_group', $h_w_c_group, isset($selected_h_w_c_group) ? $selected_h_w_c_group : '', 'class="form-control" id="h_w_c_group"') ?>
 													</td>
+													<?php if (isset($is_independent_extra_ball) && $is_independent_extra_ball): ?>
+													<td data-label="Extra Ball Filter">
+														<?php 
+														$extra_ball_options = ['ALL' => 'ALL'];
+														foreach ($extra_ball_occurrences as $occurrence) {
+															$extra_ball_options[$occurrence['value']] = $occurrence['display'];
+														}
+														?>
+														<?= form_dropdown('extra_ball_filter', $extra_ball_options, isset($selected_extra_ball) ? $selected_extra_ball : 'ALL', 'class="form-control" id="extra_ball_filter"') ?>
+													</td>
+													<?php endif; ?>
 													<td data-label="After Ball">
 														<div class="d-flex align-items-center" style="gap:0.3em;">
 															<?= form_radio([
@@ -788,9 +903,24 @@
 													<td class="nowrap"><?= (($pagination['current']-1)*$pagination['per_page'])+$idx+1 ?></td>
 													<td class="nowrap">
 														<?php
+														if (isset($is_independent_extra_ball) && $is_independent_extra_ball && isset($item['combo']['extra'])) {
+															// For independent extra ball lotteries, show main numbers + separated extra ball
+															$main_numbers = [];
+															foreach ($item['combo'] as $key => $value) {
+																if ($key !== 'extra') {
+																	$main_numbers[] = $value;
+																}
+															}
+															sort($main_numbers, SORT_NUMERIC);
+															$main_numbers_str = implode(' ', $main_numbers);
+															$extra_number = $item['combo']['extra'];
+															echo '<span class="main-numbers">' . $main_numbers_str . '</span> <span class="extra-separator">+</span> <span class="extra-ball">' . $extra_number . '</span>';
+														} else {
+															// For regular lotteries, show numbers normally
 															$ticket_numbers = array_values($item['combo']);
 															sort($ticket_numbers, SORT_NUMERIC);
 															echo implode(' ', $ticket_numbers);
+														}
 														?>
 													</td>
 													<td><?= $item['sum'] ?></td>

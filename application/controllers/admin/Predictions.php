@@ -635,6 +635,16 @@ class Predictions extends Admin_Controller {
 			$h_w_c_group_options[$value] = $group;
 		}
 	$this->data['h_w_c_group'] = $h_w_c_group_options;
+	
+	// Fetch extra ball occurrences for independent extra ball lotteries only
+	if ($this->data['lottery']->duplicate_extra_ball == 1) {
+		$this->data['extra_ball_occurrences'] = $this->lottery_data_m->get_extra_ball_occurrences($id);
+		$this->data['is_independent_extra_ball'] = true;
+	} else {
+		$this->data['extra_ball_occurrences'] = [];
+		$this->data['is_independent_extra_ball'] = false;
+	}
+	
 	$this->data['followers'] = $this->lottery_data_m->get_followers($id);
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 			// 1. Check for a record for the current lottery in the followers table
@@ -709,6 +719,7 @@ class Predictions extends Admin_Controller {
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
 		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
 		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	
+		$this->data['is_independent_extra_ball'] = ($this->data['lottery']->duplicate_extra_ball && $this->data['lottery']->extra_ball);
 		$this->data['subview'] = 'admin/dashboard/predictions/futures';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -1342,6 +1353,7 @@ class Predictions extends Admin_Controller {
 				$followers_checked = ($this->input->post() && !$this->input->post('followers')) ? false : ($this->input->post('followers') ? (($this->input->post('followers') == '1') ? true : false) : $session_data['selected_followers']);
 				$friends_checked = ($this->input->post() && !$this->input->post('friends')) ? false : ($this->input->post('friends') ? (($this->input->post('friends') == '1') ? true : false) : $session_data['selected_friends_checkbox']);
  				$h_w_c_group = ($this->input->post('h_w_c_group') ? $this->input->post('h_w_c_group') : $this->session->userdata('selected_h_w_c_group'));
+				$selected_extra_ball = ($this->input->post('extra_ball_filter') ? $this->input->post('extra_ball_filter') : $this->session->userdata('selected_extra_ball'));
 				$followers_type = ($this->input->post('followers_type') ? $this->input->post('followers_type') : $this->session->userdata('selected_followers_type'));
 				$selected_ball_points = ($this->input->post('ball_points') ? $this->input->post('ball_points') : $this->session->userdata('selected_ball_points'));
 				$selected_position_points = ($this->input->post('position_points') ? $this->input->post('position_points') : $this->session->userdata('selected_position_points'));
@@ -1359,6 +1371,7 @@ class Predictions extends Admin_Controller {
 				$selected_adjacents = $this->input->post('adjacents', TRUE);
 				$session_data = [
 					'selected_h_w_c_group'      => $h_w_c_group,
+					'selected_extra_ball'       => $selected_extra_ball,
 					'selected_followers_type'   => $followers_type,
 					'selected_ball_points'      => $selected_ball_points,
 					'selected_position_points'  => $selected_position_points,
@@ -1388,6 +1401,7 @@ class Predictions extends Admin_Controller {
 				$friends_checked = ($this->input->post('friends') == '1') ? true : false;
 				
 				$h_w_c_group = $this->input->post('h_w_c_group', TRUE);
+				$selected_extra_ball = $this->input->post('extra_ball_filter', TRUE);
 				$followers_type = $this->input->post('followers_type', TRUE);
 				$selected_ball_points = $this->input->post('ball_points', TRUE);
 				$selected_position_points = $this->input->post('position_points', TRUE);
@@ -1415,6 +1429,7 @@ class Predictions extends Admin_Controller {
 				$this->data['enable_save_filtered_button'] = true;
 				$session_data = [
 					'selected_h_w_c_group'      => $h_w_c_group,
+					'selected_extra_ball'       => $selected_extra_ball,
 					'selected_followers_type'   => $followers_type,
 					'selected_ball_points'      => $selected_ball_points,
 					'selected_position_points'  => $selected_position_points,
@@ -1439,6 +1454,7 @@ class Predictions extends Admin_Controller {
 			}
 				 // LOTTERY PROFILE STATISTICS PRESETS Settings
 				$this->data['selected_h_w_c_group'] = $h_w_c_group;				// H - W- C Group Selected
+				$this->data['selected_extra_ball'] = $selected_extra_ball;		// Extra Ball Filter Selected
 				$this->data['selected_followers_type'] = $followers_type;	  	// or 'position' as your default
 				$this->data['selected_hwc'] = $hwc_checked; 					// preset value for H-W-C
 				$this->data['selected_followers'] = $followers_checked; 		// preset value for Followers
@@ -1697,9 +1713,12 @@ class Predictions extends Admin_Controller {
 					'selected_last_digits' => $selected_last_digits,
 					'selected_number_range' => $selected_number_range,
 					'selected_adjacents' => $selected_adjacents,
+					'selected_extra_ball' => $selected_extra_ball,
 					'drawn' => $drawn,
 					'lottery_last_drawn' => $this->data['lottery']->last_drawn,
 					'extra_ball' => $this->data['lottery']->extra_ball,
+					'duplicate_extra_ball' => $this->data['lottery']->duplicate_extra_ball,
+					'max_ball' => $this->data['lottery']->maximum_ball,
 					'lottery_highlights' => $this->data['lottery']->highlights
 				];
 				$combos_paginated = $this->predictions_m->insert_number_combination($filepath, $number_array, $page, $per_page, $filters);
@@ -1834,9 +1853,12 @@ class Predictions extends Admin_Controller {
 					'selected_last_digits' => $futures_form['selected_last_digits'],
 					'selected_number_range' => $futures_form['selected_number_range'],
 					'selected_adjacents' => $futures_form['selected_adjacents'],
+					'selected_extra_ball' => $futures_form['selected_extra_ball'],
 					'drawn' => $drawn,
 					'lottery_last_drawn' => $this->data['lottery']->last_drawn,
 					'extra_ball' => $this->data['lottery']->extra_ball,
+					'duplicate_extra_ball' => $this->data['lottery']->duplicate_extra_ball,
+					'max_ball' => $this->data['lottery']->maximum_ball,
 					'lottery_highlights' => $this->data['lottery']->highlights
 				];
 				$updated_combinations = $this->predictions_m->insert_number_combination($filepath, $number_array, $page, $per_page, $filters);

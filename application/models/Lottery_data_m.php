@@ -391,4 +391,54 @@ class Lottery_data_m extends MY_Model
         
         return [];
     }
+
+    /**
+     * Get extra ball occurrences for independent extra ball lotteries
+     * @param int $lottery_id Lottery ID
+     * @return array Extra ball numbers with their occurrence counts, sorted by count (highest first)
+     */
+    public function get_extra_ball_occurrences($lottery_id)
+    {
+        // Get the dupextra data from lottery_h_w_c table
+        $this->db->select('dupextra');
+        $this->db->from('lottery_h_w_c');
+        $this->db->where('lottery_id', $lottery_id);
+        $query = $this->db->get();
+        
+        if ($query->num_rows() == 0) {
+            return [];
+        }
+        
+        $row = $query->row();
+        $dupextra = $row->dupextra;
+        
+        if (empty($dupextra)) {
+            return [];
+        }
+        
+        // Parse the dupextra string (format: "2=19,6=17,1=14,3=13,5=13,4=12,7=12")
+        $extra_balls = [];
+        $pairs = explode(',', $dupextra);
+        
+        foreach ($pairs as $pair) {
+            if (strpos($pair, '=') !== false) {
+                list($number, $count) = explode('=', $pair);
+                $extra_balls[] = [
+                    'value' => trim($number),
+                    'display' => trim($number) . ' (' . trim($count) . ')',
+                    'count' => intval(trim($count))
+                ];
+            }
+        }
+        
+        // Sort by count (highest first), then by number (lowest first) for ties
+        usort($extra_balls, function($a, $b) {
+            if ($a['count'] == $b['count']) {
+                return intval($a['value']) - intval($b['value']);
+            }
+            return $b['count'] - $a['count'];
+        });
+        
+        return $extra_balls;
+    }
 }
