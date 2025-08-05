@@ -116,7 +116,47 @@
         color: black;
     }
     .table-responsive {
-        overflow-x: hidden;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    }
+    
+    /* Ensure table maintains minimum width on mobile for all columns to be visible */
+    @media (max-width: 768px) {
+        .breakdown-table {
+            min-width: 800px; /* Increased for independent extra ball tables */
+        }
+        
+        /* For independent extra ball lotteries, need even more width */
+        <?php if ($is_independent_extra_ball): ?>
+        .breakdown-table {
+            min-width: 1000px;
+        }
+        <?php endif; ?>
+    }
+    
+    @media (max-width: 576px) {
+        .breakdown-table {
+            min-width: 700px; /* Increased minimum width for phone size */
+        }
+        
+        /* For independent extra ball lotteries, need even more width on phones */
+        <?php if ($is_independent_extra_ball): ?>
+        .breakdown-table {
+            min-width: 900px;
+        }
+        <?php endif; ?>
+        
+        /* Add horizontal scroll indicator for mobile users */
+        .table-responsive::after {
+            content: "← Swipe to see all columns →";
+            display: block;
+            text-align: center;
+            font-size: 0.7rem;
+            color: #6c757d;
+            padding: 5px;
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
     }
 </style>
 
