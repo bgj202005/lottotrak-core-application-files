@@ -162,27 +162,6 @@
 					</div>
 					
 					<div class="card-body">
-						<div class="alert alert-info">
-							<h5><i class="fa fa-info-circle"></i> Understanding the Breakdown</h5>
-							<p><strong>Example:</strong> Pick <?= $pick_per_ticket; ?> lottery, select <?= $numbers_to_pick; ?> numbers (Full Coverage):</p>
-							<ul class="mb-2">
-								<?php if ($is_independent_extra_ball): ?>
-								<li><strong>Left Column:</strong> Shows scenarios by number of correct main numbers picked</li>
-								<li><strong>Regular Columns:</strong> Prizes for main numbers only (without extra ball)</li>
-								<li><strong>Green Columns:</strong> Prizes for main numbers + extra ball (e.g., "1+E" = 1 main + extra)</li>
-								<li><strong>Yellow Column:</strong> "Extra Only" prize (no main numbers, just extra ball)</li>
-								<?php else: ?>
-								<li><strong>Left Column:</strong> How many drawn numbers match your selection</li>
-								<li><strong>Prize Columns:</strong> Tickets winning each prize tier</li>
-								<?php endif; ?>
-								<li><strong>Non-Win:</strong> Tickets that don't win any prize</li>
-								<li><strong>Total:</strong> <?= number_format($breakdown_data['total_tickets']); ?> tickets (C(<?= $numbers_to_pick; ?>,<?= $pick_per_ticket; ?>)<?= $is_independent_extra_ball ? ' × 2' : ''; ?>)</li>
-							</ul>
-							<?php if ($is_independent_extra_ball): ?>
-							<p><strong>Extra Ball:</strong> Range 1-<?= $extra_ball_range; ?>, creates prizes like <?= $pick_per_ticket; ?>+E, <?= $pick_per_ticket - 1; ?>+E, etc.</p>
-							<?php endif; ?>
-						</div>
-						
 						<div class="table-responsive">
 							<table class="table table-striped table-hover table-bordered breakdown-table table-sm">
 								<thead>
@@ -370,6 +349,45 @@
 									<?php endforeach; ?>
 								</tbody>
 							</table>
+						</div>
+						
+						<!-- Understanding the Breakdown Section -->
+						<div class="mt-4">
+							<h5><i class="fas fa-info-circle"></i> Understanding the Breakdown</h5>
+							<div class="alert alert-info">
+								<?php if ($is_independent_extra_ball): ?>
+									<p><strong>Example:</strong> Pick <?= $pick_per_ticket; ?> lottery, select <?= $breakdown_data['numbers_picked']; ?> numbers (Full Coverage):</p>
+									<ul class="mb-3">
+										<li><strong>Left Column:</strong> Shows scenarios by number of correct main numbers picked</li>
+										<li><strong>Regular Columns:</strong> Prizes for main numbers only (without extra ball)</li>
+										<li><strong>Green Columns:</strong> Prizes for main numbers + extra ball (e.g., "1+E" = 1 main + extra)</li>
+										<li><strong>Yellow Column:</strong> "Extra Only" prize (no main numbers, just extra ball)</li>
+										<li><strong>Non-Win:</strong> Tickets that don't win any prize</li>
+										<li><strong>Total:</strong> <?= number_format($breakdown_data['total_tickets']); ?> tickets (C(<?= $breakdown_data['numbers_picked']; ?>,<?= $pick_per_ticket; ?>) × 2)</li>
+										<li><strong>Extra Ball:</strong> Range 1-<?= $breakdown_data['extra_ball_range']; ?>, creates prizes like <?= $pick_per_ticket; ?>+E, <?= $pick_per_ticket-1; ?>+E, etc.</li>
+									</ul>
+								<?php else: ?>
+									<p><strong>Example:</strong> Pick <?= $pick_per_ticket; ?> lottery, select <?= $breakdown_data['numbers_picked']; ?> numbers (Full Coverage):</p>
+									<ul class="mb-3">
+										<li><strong>Left Column:</strong> Shows scenarios by number of correct main numbers picked</li>
+										<li><strong>Prize Columns:</strong> Shows winning tickets for each match level (<?= $pick_per_ticket; ?> match, <?= $pick_per_ticket-1; ?> match, etc.)</li>
+										<li><strong>Non-Win:</strong> Tickets that don't win any prize</li>
+										<li><strong>Total:</strong> <?= number_format($breakdown_data['total_tickets']); ?> tickets (C(<?= $breakdown_data['numbers_picked']; ?>,<?= $pick_per_ticket; ?>))</li>
+										<li><strong>Minimum Prize:</strong> Requires at least <?= $breakdown_data['minimum_prize_match']; ?> correct numbers to win</li>
+									</ul>
+								<?php endif; ?>
+								
+								<div class="alert alert-light mt-3">
+									<small class="text-muted">
+										<strong>Note:</strong> Each row represents a different scenario based on how many of your selected numbers match the drawn numbers. 
+										<?php if ($is_independent_extra_ball): ?>
+											The extra ball is independent and can duplicate main numbers, creating additional winning opportunities.
+										<?php else: ?>
+											Only scenarios at or above the minimum prize match level are shown.
+										<?php endif; ?>
+									</small>
+								</div>
+							</div>
 						</div>
 						
 						<div class="mt-4">
