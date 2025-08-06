@@ -284,31 +284,14 @@
                                 <div class="col-sm-12">
                                     <div class="text-center">
                                         <ul class="pagination">
-                                            <!-- First Page -->
+                                            <!-- Previous Page Links -->
                                             <?php if($current_page > 1): ?>
                                                 <li><a href="#" data-page="1">&laquo;&laquo;</a></li>
-                                                <li><a href="#" data-page="<?php echo $current_page - 1; ?>">&laquo;</a></li>
+                                                <li><a href="#" data-page="<?php echo $current_page - 1; ?>">&laquo; Previous</a></li>
                                             <?php endif; ?>
-                                            <!-- Page Numbers -->
-                                            <?php 
-                                            $start_page = max(1, $current_page - 2);
-                                            $end_page = min($total_pages, $current_page + 2);
-                                            for($i = $start_page; $i <= $end_page; $i++): 
-                                            ?>
-                                                <li class="<?php echo ($i == $current_page) ? 'active' : ''; ?>">
-                                                    <a href="#" data-page="<?php echo $i; ?>"><?php echo $i; ?></a>
-                                                </li>
-                                            <?php endfor; ?>
-                                            <!-- Show ellipsis if needed -->
-                                            <?php if($end_page < $total_pages): ?>
-                                                <?php if($end_page < $total_pages - 1): ?>
-                                                    <li class="disabled"><span>...</span></li>
-                                                <?php endif; ?>
-                                                <li><a href="#" data-page="<?php echo $total_pages; ?>"><?php echo $total_pages; ?></a></li>
-                                            <?php endif; ?>
-                                            <!-- Next Page -->
+                                            <!-- Next Page Links -->
                                             <?php if($current_page < $total_pages): ?>
-                                                <li><a href="#" data-page="<?php echo $current_page + 1; ?>">&raquo;</a></li>
+                                                <li><a href="#" data-page="<?php echo $current_page + 1; ?>">Next &raquo;</a></li>
                                                 <li><a href="#" data-page="<?php echo $total_pages; ?>">&raquo;&raquo;</a></li>
                                             <?php endif; ?>
                                         </ul>
