@@ -270,36 +270,60 @@
                                                     $winning_count = 0;
                                                     $has_bonus = false;
                                                     
-                                                    foreach($ticket['numbers'] as $number) {
-                                                        $is_winning = false;
-                                                        $is_bonus = false;
-                                                        
-                                                        // Check if this number matches any drawn numbers
-                                                        if ($draw_info && (!isset($display_mode) || $display_mode != 'tbd')) {
-                                                            // Check main numbers first
-                                                            for ($i = 1; $i <= $filter->N; $i++) {
-                                                                $ball_field = 'ball' . $i;
-                                                                if (property_exists($draw_info, $ball_field)) {
-                                                                    $drawn_number = $draw_info->$ball_field;
-                                                                    
-                                                                    // Try both strict and loose comparison
-                                                                    if ($drawn_number == $number || (int)$drawn_number == (int)$number) {
-                                                                        $is_winning = true;
-                                                                        $winning_count++;
-                                                                        break;
+                                                    // Check if this is an independent extra ball lottery
+                                                    $is_independent_extra_ball = isset($ticket['is_independent_extra_ball']) && $ticket['is_independent_extra_ball'];
+                                                    
+                                                    if ($is_independent_extra_ball && isset($ticket['main_numbers']) && isset($ticket['extra_ball'])) {
+                                                        // Display main numbers
+                                                        foreach($ticket['main_numbers'] as $number) {
+                                                            $is_winning = false;
+                                                            $is_bonus = false;
+                                                            
+                                                            // Check if this number matches any drawn numbers
+                                                            if ($draw_info && (!isset($display_mode) || $display_mode != 'tbd')) {
+                                                                // Check main numbers first
+                                                                for ($i = 1; $i <= $filter->N; $i++) {
+                                                                    $ball_field = 'ball' . $i;
+                                                                    if (property_exists($draw_info, $ball_field)) {
+                                                                        $drawn_number = $draw_info->$ball_field;
+                                                                        
+                                                                        // Try both strict and loose comparison
+                                                                        if ($drawn_number == $number || (int)$drawn_number == (int)$number) {
+                                                                            $is_winning = true;
+                                                                            $winning_count++;
+                                                                            break;
+                                                                        }
                                                                     }
                                                                 }
                                                             }
                                                             
-                                                            // Check bonus number only if not already a main number match
-                                                            if (!$is_winning && $draw_info->extra_ball_included) {
+                                                            $number_class = '';
+                                                            if ((!isset($display_mode) || $display_mode != 'tbd')) {
+                                                                if ($is_winning) {
+                                                                    $number_class = 'winning-number';
+                                                                }
+                                                            }
+                                                            
+                                                            echo '<span class="combination-number ' . $number_class . '">' . sprintf('%02d', $number) . '</span> ';
+                                                        }
+                                                        
+                                                        // Add separator and extra ball
+                                                        echo '<span style="color: #666; font-weight: bold; margin: 0 5px;">+</span>';
+                                                        
+                                                        // Display extra ball
+                                                        $extra_number = $ticket['extra_ball'];
+                                                        $is_extra_winning = false;
+                                                        
+                                                        // Check if extra ball matches
+                                                        if ($draw_info && (!isset($display_mode) || $display_mode != 'tbd')) {
+                                                            if ($draw_info->extra_ball_included) {
                                                                 $bonus_fields = array('extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number');
                                                                 foreach ($bonus_fields as $field) {
                                                                     if (property_exists($draw_info, $field)) {
                                                                         $bonus_number = $draw_info->$field;
                                                                         
-                                                                        if ($bonus_number == $number || (int)$bonus_number == (int)$number) {
-                                                                            $is_bonus = true;
+                                                                        if ($bonus_number == $extra_number || (int)$bonus_number == (int)$extra_number) {
+                                                                            $is_extra_winning = true;
                                                                             $has_bonus = true;
                                                                             break;
                                                                         }
@@ -308,16 +332,66 @@
                                                             }
                                                         }
                                                         
-                                                        $number_class = '';
+                                                        $extra_class = '';
                                                         if ((!isset($display_mode) || $display_mode != 'tbd')) {
-                                                            if ($is_winning) {
-                                                                $number_class = 'winning-number';
-                                                            } elseif ($is_bonus) {
-                                                                $number_class = 'bonus-number-match';
+                                                            if ($is_extra_winning) {
+                                                                $extra_class = 'bonus-number-match';
                                                             }
                                                         }
                                                         
-                                                        echo '<span class="combination-number ' . $number_class . '">' . sprintf('%02d', $number) . '</span> ';
+                                                        echo '<span class="combination-number ' . $extra_class . '">' . sprintf('%02d', $extra_number) . '</span>';
+                                                        
+                                                    } else {
+                                                        // Regular lottery display (existing logic)
+                                                        foreach($ticket['numbers'] as $number) {
+                                                            $is_winning = false;
+                                                            $is_bonus = false;
+                                                            
+                                                            // Check if this number matches any drawn numbers
+                                                            if ($draw_info && (!isset($display_mode) || $display_mode != 'tbd')) {
+                                                                // Check main numbers first
+                                                                for ($i = 1; $i <= $filter->N; $i++) {
+                                                                    $ball_field = 'ball' . $i;
+                                                                    if (property_exists($draw_info, $ball_field)) {
+                                                                        $drawn_number = $draw_info->$ball_field;
+                                                                        
+                                                                        // Try both strict and loose comparison
+                                                                        if ($drawn_number == $number || (int)$drawn_number == (int)$number) {
+                                                                            $is_winning = true;
+                                                                            $winning_count++;
+                                                                            break;
+                                                                        }
+                                                                    }
+                                                                }
+                                                                
+                                                                // Check bonus number only if not already a main number match
+                                                                if (!$is_winning && $draw_info->extra_ball_included) {
+                                                                    $bonus_fields = array('extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number');
+                                                                    foreach ($bonus_fields as $field) {
+                                                                        if (property_exists($draw_info, $field)) {
+                                                                            $bonus_number = $draw_info->$field;
+                                                                            
+                                                                            if ($bonus_number == $number || (int)$bonus_number == (int)$number) {
+                                                                                $is_bonus = true;
+                                                                                $has_bonus = true;
+                                                                                break;
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                            
+                                                            $number_class = '';
+                                                            if ((!isset($display_mode) || $display_mode != 'tbd')) {
+                                                                if ($is_winning) {
+                                                                    $number_class = 'winning-number';
+                                                                } elseif ($is_bonus) {
+                                                                    $number_class = 'bonus-number-match';
+                                                                }
+                                                            }
+                                                            
+                                                            echo '<span class="combination-number ' . $number_class . '">' . sprintf('%02d', $number) . '</span> ';
+                                                        }
                                                     }
                                                     
                                                     // Store the winning analysis for proper prize determination
@@ -918,37 +992,59 @@ $(document).ready(function() {
             var winningCount = 0;
             var hasBonus = false;
             
-            $.each(ticket.numbers, function(i, number) {
-                var numberClass = '';
-                var isWinning = false;
-                var isBonus = false;
-                
-                if (draw_info && response.display_mode !== 'tbd') {
-                    // Check main numbers first
-                    for (var j = 1; j <= filter.N; j++) {
-                        var ballField = 'ball' + j;
-                        if (draw_info[ballField]) {
-                            var drawnNumber = draw_info[ballField];
-                            
-                            // Try both strict and loose comparison
-                            if (drawnNumber == number || parseInt(drawnNumber) == parseInt(number)) {
-                                isWinning = true;
-                                winningCount++;
-                                break;
+            // Check if this is an independent extra ball lottery
+            var isIndependentExtraBall = ticket.is_independent_extra_ball && ticket.main_numbers && ticket.extra_ball !== undefined;
+            
+            if (isIndependentExtraBall) {
+                // Display main numbers
+                $.each(ticket.main_numbers, function(i, number) {
+                    var numberClass = '';
+                    var isWinning = false;
+                    
+                    if (draw_info && response.display_mode !== 'tbd') {
+                        // Check main numbers first
+                        for (var j = 1; j <= filter.N; j++) {
+                            var ballField = 'ball' + j;
+                            if (draw_info[ballField]) {
+                                var drawnNumber = draw_info[ballField];
+                                
+                                // Try both strict and loose comparison
+                                if (drawnNumber == number || parseInt(drawnNumber) == parseInt(number)) {
+                                    isWinning = true;
+                                    winningCount++;
+                                    break;
+                                }
                             }
                         }
                     }
                     
-                    // Check bonus number only if not already a main number match
-                    if (!isWinning && draw_info.extra_ball_included) {
+                    if (response.display_mode !== 'tbd') {
+                        if (isWinning) {
+                            numberClass = 'winning-number';
+                        }
+                    }
+                    
+                    row += '<span class="combination-number ' + numberClass + '">' + String(number).padStart(2, '0') + '</span> ';
+                });
+                
+                // Add separator and extra ball
+                row += '<span style="color: #666; font-weight: bold; margin: 0 5px;">+</span>';
+                
+                // Display extra ball
+                var extraNumber = ticket.extra_ball;
+                var extraClass = '';
+                var isExtraWinning = false;
+                
+                if (draw_info && response.display_mode !== 'tbd') {
+                    if (draw_info.extra_ball_included) {
                         var bonusFields = ['extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number'];
                         for (var k = 0; k < bonusFields.length; k++) {
                             var field = bonusFields[k];
                             if (draw_info[field]) {
                                 var bonusNumber = draw_info[field];
                                 
-                                if (bonusNumber == number || parseInt(bonusNumber) == parseInt(number)) {
-                                    isBonus = true;
+                                if (bonusNumber == extraNumber || parseInt(bonusNumber) == parseInt(extraNumber)) {
+                                    isExtraWinning = true;
                                     hasBonus = true;
                                     break;
                                 }
@@ -958,15 +1054,65 @@ $(document).ready(function() {
                 }
                 
                 if (response.display_mode !== 'tbd') {
-                    if (isWinning) {
-                        numberClass = 'winning-number';
-                    } else if (isBonus) {
-                        numberClass = 'bonus-number-match';
+                    if (isExtraWinning) {
+                        extraClass = 'bonus-number-match';
                     }
                 }
                 
-                row += '<span class="combination-number ' + numberClass + '">' + String(number).padStart(2, '0') + '</span> ';
-            });
+                row += '<span class="combination-number ' + extraClass + '">' + String(extraNumber).padStart(2, '0') + '</span>';
+                
+            } else {
+                // Regular lottery display (existing logic)
+                $.each(ticket.numbers, function(i, number) {
+                    var numberClass = '';
+                    var isWinning = false;
+                    var isBonus = false;
+                    
+                    if (draw_info && response.display_mode !== 'tbd') {
+                        // Check main numbers first
+                        for (var j = 1; j <= filter.N; j++) {
+                            var ballField = 'ball' + j;
+                            if (draw_info[ballField]) {
+                                var drawnNumber = draw_info[ballField];
+                                
+                                // Try both strict and loose comparison
+                                if (drawnNumber == number || parseInt(drawnNumber) == parseInt(number)) {
+                                    isWinning = true;
+                                    winningCount++;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Check bonus number only if not already a main number match
+                        if (!isWinning && draw_info.extra_ball_included) {
+                            var bonusFields = ['extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number'];
+                            for (var k = 0; k < bonusFields.length; k++) {
+                                var field = bonusFields[k];
+                                if (draw_info[field]) {
+                                    var bonusNumber = draw_info[field];
+                                    
+                                    if (bonusNumber == number || parseInt(bonusNumber) == parseInt(number)) {
+                                        isBonus = true;
+                                        hasBonus = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (response.display_mode !== 'tbd') {
+                        if (isWinning) {
+                            numberClass = 'winning-number';
+                        } else if (isBonus) {
+                            numberClass = 'bonus-number-match';
+                        }
+                    }
+                    
+                    row += '<span class="combination-number ' + numberClass + '">' + String(number).padStart(2, '0') + '</span> ';
+                });
+            }
             
             row += '</td>';
             row += '<td class="text-center check-results">';

@@ -487,6 +487,60 @@ class Prize extends Admin_Controller
     }
     
     /**
+     * Determine win category for independent extra ball lotteries (like Daily Grand)
+     * @param int $main_matches Number of main number matches (e.g., 0-5 for Daily Grand)
+     * @param bool $extra_matches Whether the extra ball matches
+     * @param object $prize_profile Prize profile
+     * @return string|null Win category field name or null
+     */
+    private function determine_independent_extra_ball_win($main_matches, $extra_matches, $prize_profile)
+    {
+        // For Daily Grand: 5 main numbers (1-49) + 1 extra ball (1-7)
+        // Prize structure based on main matches + extra ball match
+        
+        // PRIORITY 1: Check for extra ball wins first (if extra ball matches)
+        if ($extra_matches) {
+            // Check from highest to lowest main matches for extra ball wins
+            for ($i = $main_matches; $i >= 0; $i--) {
+                if ($i >= 1) {
+                    // Check for main matches + extra ball win (e.g., 1_win_extra, 2_win_extra, etc.)
+                    $extra_win_field = $i . '_win_extra';
+                    if (property_exists($prize_profile, $extra_win_field) && 
+                        !is_null($prize_profile->$extra_win_field) && 
+                        $prize_profile->$extra_win_field == 1) {
+                        
+                        return $extra_win_field;
+                    }
+                } else {
+                    // Check for extra ball only win (no main matches)
+                    if (property_exists($prize_profile, 'extra') && 
+                        !is_null($prize_profile->extra) && 
+                        $prize_profile->extra == 1) {
+                        
+                        return 'extra';
+                    }
+                }
+            }
+        }
+        
+        // PRIORITY 2: Check for regular main number wins (without extra ball)
+        if ($main_matches >= 1) {
+            // Check from highest to lowest main matches for regular wins
+            for ($i = $main_matches; $i >= 1; $i--) {
+                $main_win_field = $i . '_win';
+                if (property_exists($prize_profile, $main_win_field) && 
+                    !is_null($prize_profile->$main_win_field) && 
+                    $prize_profile->$main_win_field == 1) {
+                    
+                    return $main_win_field;
+                }
+            }
+        }
+        
+        return null; // No win category matched
+    }
+    
+    /**
      * Reset win records for a specific filter
      */
     public function reset_win_record()
@@ -1088,30 +1142,30 @@ class Prize extends Admin_Controller
         
         if ($file_content) {
             $lines = explode("\n", $file_content);
-            $line_count = 0;
-            $current_offset = 0;
+            $valid_line_count = 0; // Count of valid lines processed
+            $returned_tickets = 0; // Count of tickets returned for this page
             
             foreach ($lines as $line) {
                 $line = trim($line);
                 if (!empty($line)) {
-                    // Skip lines until we reach our offset
-                    if ($current_offset < $offset) {
-                        $current_offset++;
-                        continue;
-                    }
-                    
-                    // Stop if we've collected enough tickets for this page
-                    if ($line_count >= $per_page) {
-                        break;
-                    }
-                    
                     $numbers = preg_split('/[\s,]+/', $line);
                     $numbers = array_map('intval', array_filter($numbers, 'is_numeric'));
                     
-                    // Validate the expected number count for this lottery type
+                    // Only process lines with the expected number count
                     if (count($numbers) == $expected_numbers_per_line) {
+                        // Skip valid lines until we reach our offset
+                        if ($valid_line_count < $offset) {
+                            $valid_line_count++;
+                            continue;
+                        }
+                        
+                        // Stop if we've collected enough tickets for this page
+                        if ($returned_tickets >= $per_page) {
+                            break;
+                        }
+                        
                         $ticket_data = array(
-                            'ticket_number' => $current_offset + 1,
+                            'ticket_number' => $valid_line_count + 1,
                             'numbers' => $numbers,
                             'is_independent_extra_ball' => $is_independent_extra_ball
                         );
@@ -1123,9 +1177,9 @@ class Prize extends Admin_Controller
                         }
                         
                         $tickets[] = $ticket_data;
-                        $line_count++;
+                        $valid_line_count++;
+                        $returned_tickets++;
                     }
-                    $current_offset++;
                 }
             }
         }
@@ -1487,9 +1541,26 @@ class Prize extends Admin_Controller
         if ($prize_profile) {
             // Handle independent extra ball lotteries (like Daily Grand)
             if ($is_independent_extra_ball) {
-                // For independent extra ball: total match count includes the extra ball
-                // No separate bonus matching needed since extra ball is part of main numbers
-                $win_category = $this->determine_win_category($matches, false, $prize_profile, false);
+                // For independent extra ball lotteries, we need to separate main number matches from extra ball matches
+                // Extract main numbers and extra ball from ticket
+                $main_numbers = array_slice($ticket_numbers, 0, $required_matches_for_top_prize); // First 5 for Daily Grand
+                $extra_ball = end($ticket_numbers); // Last number is the extra ball
+                
+                // Count main number matches against drawn main numbers
+                $drawn_main_numbers = array_slice($this->extract_drawn_numbers_from_draw($draw_info), 0, $required_matches_for_top_prize);
+                $main_matches = 0;
+                foreach ($main_numbers as $number) {
+                    if (in_array($number, $drawn_main_numbers)) {
+                        $main_matches++;
+                    }
+                }
+                
+                // Check if extra ball matches (separate from main numbers)
+                $drawn_extra = $this->extract_bonus_number_from_draw($draw_info);
+                $extra_matches = ($drawn_extra && $extra_ball == $drawn_extra);
+                
+                // Determine win category for independent extra ball lottery
+                $win_category = $this->determine_independent_extra_ball_win($main_matches, $extra_matches, $prize_profile);
             } else if ($extra_ball_included) {
                 // For regular extra ball lotteries
                 // Special rule for extra number validation when extra is included (same as auto-update logic)
@@ -1513,38 +1584,103 @@ class Prize extends Admin_Controller
             
             if ($win_category) {
                 // Determine display category and color based on win category
-                if ($win_category == 'extra') {
-                    // Pure bonus win (only bonus number, no main matches)
-                    $category = 'BONUS WIN';
-                    $color_class = 'bonus-win';
-                } elseif (strpos($win_category, '_win_extra') !== false) {
-                    // Main matches + bonus (e.g., "6_win_extra" = "6 Winners + Bonus")
-                    $match_number = (int)str_replace('_win_extra', '', $win_category);
-                    if ($match_number == ($required_matches_for_top_prize - 1)) {
-                        // Second-highest prize with bonus (MAJOR PRIZE)
-                        $category = $match_number . ' Winners + Bonus (MAJOR PRIZE)';
-                        $color_class = 'jackpot-win';
-                    } else {
-                        $category = $match_number . ' Winners + Bonus';
+                if ($is_independent_extra_ball) {
+                    // For independent extra ball lotteries, show main matches and extra separately
+                    if ($win_category == 'extra') {
+                        // Only extra ball matched
+                        $category = 'Extra / Bonus Winner';
                         $color_class = 'bonus-win';
+                    } elseif (strpos($win_category, '_win_extra') !== false) {
+                        // Main matches + extra ball (e.g., "2_win_extra" = "2 + Extra Winner")
+                        $match_number = (int)str_replace('_win_extra', '', $win_category);
+                        if ($match_number == $required_matches_for_top_prize) {
+                            // Top prize with extra (GRAND PRIZE)
+                            $category = $match_number . ' + Extra Winner (GRAND PRIZE)';
+                            $color_class = 'jackpot-win';
+                        } else {
+                            // All other cases including 1, 2, 3, etc.
+                            $category = $match_number . ' + Extra Winner';
+                            $color_class = 'bonus-win';
+                        }
+                    } else {
+                        // Regular main number wins without extra
+                        $match_number = (int)str_replace('_win', '', $win_category);
+                        $category = $match_number . ' Main Numbers';
+                        $color_class = 'minor-win';
                     }
                 } else {
-                    // Regular wins without bonus
-                    $match_number = (int)str_replace('_win', '', $win_category);
-                    if ($match_number == $required_matches_for_top_prize) {
-                        // Top prize (MAJOR PRIZE)
-                        $category = $match_number . ' Winners (MAJOR PRIZE)';
-                        $color_class = 'jackpot-win';
+                    // For regular lotteries (existing logic)
+                    if ($win_category == 'extra') {
+                        // Pure bonus win (only bonus number, no main matches)
+                        $category = 'Extra / Bonus Winner';
+                        $color_class = 'bonus-win';
+                    } elseif (strpos($win_category, '_win_extra') !== false) {
+                        // Main matches + bonus (e.g., "6_win_extra" = "6 Winners + Bonus")
+                        $match_number = (int)str_replace('_win_extra', '', $win_category);
+                        if ($match_number == ($required_matches_for_top_prize - 1)) {
+                            // Second-highest prize with bonus (MAJOR PRIZE)
+                            $category = $match_number . ' Winners + Bonus (MAJOR PRIZE)';
+                            $color_class = 'jackpot-win';
+                        } else {
+                            $category = $match_number . ' Winners + Bonus';
+                            $color_class = 'bonus-win';
+                        }
                     } else {
-                        $category = $match_number . ' Winning Numbers';
-                        $color_class = 'minor-win';
+                        // Regular wins without bonus
+                        $match_number = (int)str_replace('_win', '', $win_category);
+                        if ($match_number == $required_matches_for_top_prize) {
+                            // Top prize (MAJOR PRIZE)
+                            $category = $match_number . ' Winners (MAJOR PRIZE)';
+                            $color_class = 'jackpot-win';
+                        } else {
+                            $category = $match_number . ' Winning Numbers';
+                            $color_class = 'minor-win';
+                        }
                     }
                 }
             } else {
                 // No valid win category found
-                if ($matches > 0) {
-                    $category = $matches . ' Matches (Not a Winner)';
-                    $color_class = 'no-win';
+                if ($is_independent_extra_ball) {
+                    // For independent extra ball, show separate counts
+                    $main_numbers = array_slice($ticket_numbers, 0, $required_matches_for_top_prize);
+                    $extra_ball = end($ticket_numbers);
+                    $drawn_main_numbers = array_slice($this->extract_drawn_numbers_from_draw($draw_info), 0, $required_matches_for_top_prize);
+                    $drawn_extra = $this->extract_bonus_number_from_draw($draw_info);
+                    
+                    $main_matches = 0;
+                    foreach ($main_numbers as $number) {
+                        if (in_array($number, $drawn_main_numbers)) {
+                            $main_matches++;
+                        }
+                    }
+                    $extra_matches = ($drawn_extra && $extra_ball == $drawn_extra);
+                    
+                    if ($main_matches > 0 && $extra_matches) {
+                        // Both main and extra matches but not a winner
+                        $category = $main_matches . ' Main + Extra (not a Winner!)';
+                        $color_class = 'no-win';
+                    } elseif ($main_matches > 0) {
+                        // Only main matches, no extra
+                        $category = $main_matches . ' Main (not a Winner!)';
+                        $color_class = 'no-win';
+                    } elseif ($extra_matches) {
+                        // Only extra matches, no main
+                        $category = 'Extra Only (not a Winner!)';
+                        $color_class = 'no-win';
+                    } else {
+                        // No matches at all
+                        $category = 'No Matches';
+                        $color_class = 'no-win';
+                    }
+                } else {
+                    // Regular lottery display
+                    if ($matches > 0) {
+                        $category = $matches . ' Matches (not a Winner!)';
+                        $color_class = 'no-win';
+                    } else {
+                        $category = 'No Matches';
+                        $color_class = 'no-win';
+                    }
                 }
             }
         } else {
@@ -1553,12 +1689,36 @@ class Prize extends Admin_Controller
             $color_class = 'no-win';
         }
         
-        return array(
+        // Prepare return data with separate match information for independent extra ball
+        $return_data = array(
             'category' => $category,
             'color_class' => $color_class,
             'matches' => $matches,
             'bonus_match' => $bonus_match
         );
+        
+        // Add detailed match information for independent extra ball lotteries
+        if ($is_independent_extra_ball && $draw_info) {
+            $main_numbers = array_slice($ticket_numbers, 0, $required_matches_for_top_prize);
+            $extra_ball = end($ticket_numbers);
+            $drawn_main_numbers = array_slice($this->extract_drawn_numbers_from_draw($draw_info), 0, $required_matches_for_top_prize);
+            $drawn_extra = $this->extract_bonus_number_from_draw($draw_info);
+            
+            $main_matches = 0;
+            foreach ($main_numbers as $number) {
+                if (in_array($number, $drawn_main_numbers)) {
+                    $main_matches++;
+                }
+            }
+            $extra_matches = ($drawn_extra && $extra_ball == $drawn_extra);
+            
+            $return_data['main_matches'] = $main_matches;
+            $return_data['extra_matches'] = $extra_matches;
+            $return_data['main_numbers'] = $main_numbers;
+            $return_data['extra_ball'] = $extra_ball;
+        }
+        
+        return $return_data;
     }
     
     /**
@@ -1589,12 +1749,13 @@ class Prize extends Admin_Controller
             $file_record = $file_query->row();
             $required_matches_for_top_prize = $file_record ? (int)$file_record->R : 0;
             
-            // Get lottery profile for extra ball information
-            $this->db->select('extra_ball');
+            // Get lottery profile for extra ball information including independent extra ball support
+            $this->db->select('extra_ball, duplicate_extra_ball');
             $this->db->from('lottery_profiles');
             $this->db->where('id', $filter->lottery_id);
             $lottery_profile = $this->db->get()->row();
             $extra_ball_included = ($lottery_profile && $lottery_profile->extra_ball == 1);
+            $is_independent_extra_ball = ($lottery_profile && $lottery_profile->duplicate_extra_ball == 1 && $lottery_profile->extra_ball == 1);
             
             // Skip if extra is included and extra number is 0
             if ($this->should_skip_draw($draw_info, $extra_ball_included)) {
@@ -1605,26 +1766,51 @@ class Prize extends Admin_Controller
             // Process each combination ticket against this draw
             $win_updates = array();
             foreach ($combination_tickets as $ticket) {
-                $matches = $this->count_ticket_matches($ticket, $draw_info);
-                $bonus_match = $this->check_bonus_match_for_ticket($ticket, $draw_info);
-                
-                // Special rule for extra number validation when extra is included
-                if ($extra_ball_included) {
-                    // For top prize, must have exact matches AND must match the exact bonus number
-                    if ($matches == $required_matches_for_top_prize && $bonus_match) {
-                        $win_category = $required_matches_for_top_prize . '_win_extra';
-                        if (property_exists($prize_profile, $win_category) && $prize_profile->$win_category == 1) {
-                            if (!isset($win_updates[$win_category])) {
-                                $win_updates[$win_category] = 0;
-                            }
-                            $win_updates[$win_category]++;
-                            continue; // Skip regular win category determination for this ticket
+                if ($is_independent_extra_ball) {
+                    // For independent extra ball lotteries, separate main and extra ball processing
+                    $main_numbers = array_slice($ticket, 0, $required_matches_for_top_prize);
+                    $extra_ball = end($ticket);
+                    
+                    // Count main number matches
+                    $drawn_main_numbers = array_slice($this->extract_drawn_numbers_from_draw($draw_info), 0, $required_matches_for_top_prize);
+                    $main_matches = 0;
+                    foreach ($main_numbers as $number) {
+                        if (in_array($number, $drawn_main_numbers)) {
+                            $main_matches++;
                         }
                     }
+                    
+                    // Check extra ball match
+                    $drawn_extra = $this->extract_bonus_number_from_draw($draw_info);
+                    $extra_matches = ($drawn_extra && $extra_ball == $drawn_extra);
+                    
+                    // Determine win category for independent extra ball
+                    $win_category = $this->determine_independent_extra_ball_win($main_matches, $extra_matches, $prize_profile);
+                } else {
+                    // For regular lotteries (existing logic)
+                    $matches = $this->count_ticket_matches($ticket, $draw_info);
+                    $bonus_match = $this->check_bonus_match_for_ticket($ticket, $draw_info);
+                    
+                    // Special rule for extra number validation when extra is included
+                    if ($extra_ball_included) {
+                        // For top prize, must have exact matches AND must match the exact bonus number
+                        if ($matches == $required_matches_for_top_prize && $bonus_match) {
+                            $win_category = $required_matches_for_top_prize . '_win_extra';
+                            if (property_exists($prize_profile, $win_category) && $prize_profile->$win_category == 1) {
+                                if (!isset($win_updates[$win_category])) {
+                                    $win_updates[$win_category] = 0;
+                                }
+                                $win_updates[$win_category]++;
+                                continue; // Skip regular win category determination for this ticket
+                            }
+                        }
+                    }
+                    
+                    // Determine win category using standard logic for all other cases
+                    $win_category = $this->determine_win_category($matches, $bonus_match, $prize_profile, $extra_ball_included);
                 }
                 
-                // Determine win category using standard logic for all other cases
-                $win_category = $this->determine_win_category($matches, $bonus_match, $prize_profile, $extra_ball_included);
+                // Add win to updates if a category was determined
                 if ($win_category) {
                     if (!isset($win_updates[$win_category])) {
                         $win_updates[$win_category] = 0;
@@ -1781,12 +1967,13 @@ class Prize extends Admin_Controller
             return 0;
         }
         
-        // Get extra ball status for this lottery
-        $this->db->select('extra_ball');
+        // Get extra ball status for this lottery including independent extra ball support
+        $this->db->select('extra_ball, duplicate_extra_ball');
         $this->db->from('lottery_profiles');
         $this->db->where('id', $filter->lottery_id);
         $lottery_profile = $this->db->get()->row();
         $extra_ball_included = ($lottery_profile && $lottery_profile->extra_ball == 1);
+        $is_independent_extra_ball = ($lottery_profile && $lottery_profile->duplicate_extra_ball == 1 && $lottery_profile->extra_ball == 1);
         
         // Extract drawn numbers and bonus number once
         $drawn_numbers = $this->extract_drawn_numbers_from_draw($draw_info);
@@ -1794,6 +1981,14 @@ class Prize extends Admin_Controller
         
         if (empty($drawn_numbers)) {
             return 0;
+        }
+        
+        // For independent extra ball lotteries, we need separate drawn numbers
+        $drawn_main_numbers = null;
+        $drawn_extra = null;
+        if ($is_independent_extra_ball) {
+            $drawn_main_numbers = array_slice($drawn_numbers, 0, $expected_picks);
+            $drawn_extra = $this->extract_bonus_number_from_draw($draw_info);
         }
         
         // Count winners in the entire file with optimized logic
@@ -1809,14 +2004,32 @@ class Prize extends Admin_Controller
                     $numbers = preg_split('/[\s,]+/', $line);
                     $numbers = array_map('intval', array_filter($numbers, 'is_numeric'));
                     
-                    if (count($numbers) == $expected_picks) {
-                        // Quick match calculation using array_intersect
-                        $matches = count(array_intersect($numbers, $drawn_numbers));
-                        $bonus_match = !is_null($bonus_number) && in_array($bonus_number, $numbers);
-                        
-                        // Quick win category determination using prize profile
-                        if ($this->fast_determine_win_category($matches, $bonus_match, $prize_profile, $extra_ball_included)) {
-                            $total_winners++;
+                    // For independent extra ball, expect picks + 1 numbers
+                    $expected_numbers = $is_independent_extra_ball ? $expected_picks + 1 : $expected_picks;
+                    
+                    if (count($numbers) == $expected_numbers) {
+                        if ($is_independent_extra_ball) {
+                            // Separate main numbers and extra ball
+                            $main_numbers = array_slice($numbers, 0, $expected_picks);
+                            $extra_ball = end($numbers);
+                            
+                            // Count main matches and check extra match
+                            $main_matches = count(array_intersect($main_numbers, $drawn_main_numbers));
+                            $extra_matches = ($drawn_extra && $extra_ball == $drawn_extra);
+                            
+                            // Check if this is a winning combination for independent extra ball
+                            if ($this->fast_determine_independent_extra_ball_win($main_matches, $extra_matches, $prize_profile)) {
+                                $total_winners++;
+                            }
+                        } else {
+                            // Regular lottery logic
+                            $matches = count(array_intersect($numbers, $drawn_numbers));
+                            $bonus_match = !is_null($bonus_number) && in_array($bonus_number, $numbers);
+                            
+                            // Quick win category determination using prize profile
+                            if ($this->fast_determine_win_category($matches, $bonus_match, $prize_profile, $extra_ball_included)) {
+                                $total_winners++;
+                            }
                         }
                     }
                 }
@@ -1871,6 +2084,57 @@ class Prize extends Admin_Controller
             $prize_profile->extra == 1) {
             
             return true;
+        }
+        
+        return false; // No win category matched
+    }
+    
+    /**
+     * Fast win category determination for independent extra ball lotteries (optimized version)
+     * @param int $main_matches Number of main number matches
+     * @param bool $extra_matches Whether extra ball matches
+     * @param object $prize_profile Prize profile
+     * @return bool True if it's a winning combination
+     */
+    private function fast_determine_independent_extra_ball_win($main_matches, $extra_matches, $prize_profile)
+    {
+        // PRIORITY 1: Check for extra ball wins first (if extra ball matches)
+        if ($extra_matches) {
+            // Check from highest to lowest main matches for extra ball wins
+            for ($i = $main_matches; $i >= 0; $i--) {
+                if ($i >= 1) {
+                    // Check for main matches + extra ball win (e.g., 1_win_extra, 2_win_extra, etc.)
+                    $extra_win_field = $i . '_win_extra';
+                    if (property_exists($prize_profile, $extra_win_field) && 
+                        !is_null($prize_profile->$extra_win_field) && 
+                        $prize_profile->$extra_win_field == 1) {
+                        
+                        return true;
+                    }
+                } else {
+                    // Check for extra ball only win (no main matches)
+                    if (property_exists($prize_profile, 'extra') && 
+                        !is_null($prize_profile->extra) && 
+                        $prize_profile->extra == 1) {
+                        
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        // PRIORITY 2: Check for regular main number wins (without extra ball)
+        if ($main_matches >= 1) {
+            // Check from highest to lowest main matches for regular wins
+            for ($i = $main_matches; $i >= 1; $i--) {
+                $main_win_field = $i . '_win';
+                if (property_exists($prize_profile, $main_win_field) && 
+                    !is_null($prize_profile->$main_win_field) && 
+                    $prize_profile->$main_win_field == 1) {
+                    
+                    return true;
+                }
+            }
         }
         
         return false; // No win category matched
