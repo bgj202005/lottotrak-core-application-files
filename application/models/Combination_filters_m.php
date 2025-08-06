@@ -406,8 +406,8 @@ class Combination_filters_m extends MY_Model
                     $all_numbers[] = $extra_ball_number;
                     $output_line = implode(' ', $all_numbers);
                 } else {
-                    // Keep original format for regular lotteries
-                    $output_line = $line;
+                    // For regular lotteries, output the substituted numbers
+                    $output_line = implode(' ', $combo_numbers);
                 }
                 
                 fwrite($output_handle, $output_line . "\n");
