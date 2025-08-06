@@ -2021,6 +2021,7 @@ class Predictions extends Admin_Controller {
 			'drawn' => $drawn,
 			'lottery_last_drawn' => $this->data['lottery']->last_drawn,
 			'extra_ball' => $this->data['lottery']->extra_ball,
+			'duplicate_extra_ball' => $this->data['lottery']->duplicate_extra_ball,
 			'lottery_highlights' => $this->data['lottery']->highlights
 		];
 		
@@ -2100,7 +2101,7 @@ class Predictions extends Admin_Controller {
 			}
 			// Save filtered combinations to file
 			$pick_file_path = $pick_dir . $file_name . '.txt';
-			$success = $this->predictions_m->save_filtered_combinations_to_file($filepath, $number_array, $filters, $pick_file_path);
+			$success = $this->combination_filters_m->save_filtered_combinations_to_file($filepath, $number_array, $filters, $pick_file_path);
 			if ($success) {
 				$message = 'Combination Ticket File ' . preg_replace('/ADMIN.*/', '', $file_name) . ' is Successfully Saved to the combinations/pick' . $R . ' Directory.';
 				if ($is_ajax) {

@@ -361,9 +361,25 @@ class Combination_filters_m extends MY_Model
             // Parse combination
             $positions = array_map('intval', explode(' ', $line));
             $combo_numbers = [];
-            foreach ($positions as $pos) {
-                if ($pos > 0 && isset($number_array[$pos - 1])) {
-                    $combo_numbers[] = $number_array[$pos - 1];
+            $extra_ball_number = null;
+            
+            // For independent extra ball lotteries, handle last position as extra ball
+            if (!empty($filters['duplicate_extra_ball']) && !empty($filters['extra_ball'])) {
+                // Last position is the actual extra ball number
+                $extra_ball_number = array_pop($positions);
+                
+                // Process remaining positions normally
+                foreach ($positions as $pos) {
+                    if ($pos > 0 && isset($number_array[$pos - 1])) {
+                        $combo_numbers[] = $number_array[$pos - 1];
+                    }
+                }
+            } else {
+                // Regular lottery - all positions are for main numbers
+                foreach ($positions as $pos) {
+                    if ($pos > 0 && isset($number_array[$pos - 1])) {
+                        $combo_numbers[] = $number_array[$pos - 1];
+                    }
                 }
             }
             
@@ -375,9 +391,26 @@ class Combination_filters_m extends MY_Model
                 $combo['ball'.($idx+1)] = $num;
             }
             
+            // Add extra ball to combo for filtering purposes
+            if ($extra_ball_number !== null) {
+                $combo['extra'] = $extra_ball_number;
+            }
+            
             // Check if combination passes all filters
             if ($this->passes_all_filters($combo, $filters)) {
-                fwrite($output_handle, $line . "\n");
+                // For lotteries with independent extra ball (duplicate_extra_ball = 1),
+                // format the output to include the extra ball as part of the number sequence
+                if (!empty($filters['duplicate_extra_ball']) && !empty($filters['extra_ball'])) {
+                    // Append extra ball to main numbers: "8 18 20 32 49 1"
+                    $all_numbers = $combo_numbers;
+                    $all_numbers[] = $extra_ball_number;
+                    $output_line = implode(' ', $all_numbers);
+                } else {
+                    // Keep original format for regular lotteries
+                    $output_line = $line;
+                }
+                
+                fwrite($output_handle, $output_line . "\n");
                 $saved_count++;
             }
         }
