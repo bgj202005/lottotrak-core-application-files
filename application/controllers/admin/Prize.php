@@ -560,8 +560,8 @@ class Prize extends Admin_Controller
             
             $admin_id = $this->session->userdata('id');
             
-        // Get filter details
-        $this->db->select('lcf.*, lp.lottery_name, lcfiles.file_name as original_filename, lcfiles.N, lcfiles.R');
+        // Get filter details including lottery configuration for independent extra ball support
+        $this->db->select('lcf.*, lp.lottery_name, lp.duplicate_extra_ball, lp.extra_ball, lp.balls_drawn, lcfiles.file_name as original_filename, lcfiles.N, lcfiles.R');
         $this->db->from('lottery_combination_filters lcf');
         $this->db->join('lottery_profiles lp', 'lp.id = lcf.lottery_id', 'left');
         $this->db->join('lottery_combination_files lcfiles', 'lcfiles.id = lcf.combo_id', 'left');
@@ -1065,6 +1065,14 @@ class Prize extends Admin_Controller
         
         $expected_picks = (int)$file_record->R;
         
+        // For independent extra ball lotteries (duplicate_extra_ball = 1),
+        // the file contains main numbers + extra ball, so actual count is picks + 1
+        $is_independent_extra_ball = (!empty($filter->duplicate_extra_ball) && !empty($filter->extra_ball));
+        $expected_numbers_per_line = $expected_picks;
+        if ($is_independent_extra_ball) {
+            $expected_numbers_per_line = $expected_picks + 1; // Main numbers + independent extra ball
+        }
+        
         // Build file path - the filtered combination file is saved in pick{R} directory
         $pick_dir = 'pick' . $expected_picks;
         $file_path = FCPATH . 'combinations/' . $pick_dir . '/' . $filter->file_name . '.txt';
@@ -1100,11 +1108,21 @@ class Prize extends Admin_Controller
                     $numbers = preg_split('/[\s,]+/', $line);
                     $numbers = array_map('intval', array_filter($numbers, 'is_numeric'));
                     
-                    if (count($numbers) == $expected_picks) {
-                        $tickets[] = array(
+                    // Validate the expected number count for this lottery type
+                    if (count($numbers) == $expected_numbers_per_line) {
+                        $ticket_data = array(
                             'ticket_number' => $current_offset + 1,
-                            'numbers' => $numbers
+                            'numbers' => $numbers,
+                            'is_independent_extra_ball' => $is_independent_extra_ball
                         );
+                        
+                        // For independent extra ball lotteries, separate main numbers and extra ball
+                        if ($is_independent_extra_ball) {
+                            $ticket_data['main_numbers'] = array_slice($numbers, 0, $expected_picks);
+                            $ticket_data['extra_ball'] = $numbers[$expected_picks]; // Last number is the extra ball
+                        }
+                        
+                        $tickets[] = $ticket_data;
                         $line_count++;
                     }
                     $current_offset++;
@@ -1133,6 +1151,14 @@ class Prize extends Admin_Controller
         
         $expected_picks = (int)$file_record->R;
         
+        // For independent extra ball lotteries (duplicate_extra_ball = 1),
+        // the file contains main numbers + extra ball, so actual count is picks + 1
+        $is_independent_extra_ball = (!empty($filter->duplicate_extra_ball) && !empty($filter->extra_ball));
+        $expected_numbers_per_line = $expected_picks;
+        if ($is_independent_extra_ball) {
+            $expected_numbers_per_line = $expected_picks + 1; // Main numbers + independent extra ball
+        }
+        
         // Build file path - the filtered combination file is saved in pick{R} directory
         $pick_dir = 'pick' . $expected_picks;
         $file_path = FCPATH . 'combinations/' . $pick_dir . '/' . $filter->file_name . '.txt';
@@ -1153,7 +1179,8 @@ class Prize extends Admin_Controller
                     $numbers = preg_split('/[\s,]+/', $line);
                     $numbers = array_filter($numbers, 'is_numeric');
                     
-                    if (count($numbers) == $expected_picks) {
+                    // Validate the expected number count for this lottery type
+                    if (count($numbers) == $expected_numbers_per_line) {
                         $count++;
                     }
                 }
@@ -1445,21 +1472,27 @@ class Prize extends Admin_Controller
         $file_record = $file_query->row();
         $required_matches_for_top_prize = $file_record ? (int)$file_record->R : 0;
         
-        // Get extra ball status for this lottery
-        $this->db->select('extra_ball');
+        // Get extra ball status for this lottery including independent extra ball support
+        $this->db->select('extra_ball, duplicate_extra_ball');
         $this->db->from('lottery_profiles');
         $this->db->where('id', $filter->lottery_id);
         $lottery_profile = $this->db->get()->row();
         $extra_ball_included = ($lottery_profile && $lottery_profile->extra_ball == 1);
+        $is_independent_extra_ball = ($lottery_profile && $lottery_profile->duplicate_extra_ball == 1 && $lottery_profile->extra_ball == 1);
         
         // Determine win category based on prize profile
         $category = 'Not a Winner';
         $color_class = 'not-a-winner';
         
         if ($prize_profile) {
-            // Special rule for extra number validation when extra is included (same as auto-update logic)
-            if ($extra_ball_included) {
-                // For top prize, must have exact matches AND must match the exact bonus number
+            // Handle independent extra ball lotteries (like Daily Grand)
+            if ($is_independent_extra_ball) {
+                // For independent extra ball: total match count includes the extra ball
+                // No separate bonus matching needed since extra ball is part of main numbers
+                $win_category = $this->determine_win_category($matches, false, $prize_profile, false);
+            } else if ($extra_ball_included) {
+                // For regular extra ball lotteries
+                // Special rule for extra number validation when extra is included (same as auto-update logic)
                 if ($matches == $required_matches_for_top_prize && $bonus_match) {
                     $win_category = $required_matches_for_top_prize . '_win_extra';
                     if (property_exists($prize_profile, $win_category) && $prize_profile->$win_category == 1) {
