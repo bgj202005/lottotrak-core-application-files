@@ -232,7 +232,7 @@
 								  <div class="d-flex flex-wrap justify-content-center align-items-center" style="width: 100%;">
 								  <?php 
 								  // Add "Back to Combinations List" button
-								  $js = "location.href='".base_url()."admin/predictions/files/".$lottery->id."'";
+								  $js = "location.href='".base_url()."admin/predictions/generate/".$lottery->id."'";
 								  $back_attributes = array(
 										'class' => 'btn btn-secondary btn-lg',
 										'onClick' => "$js",
