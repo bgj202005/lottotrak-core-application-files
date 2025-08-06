@@ -141,10 +141,8 @@ class Predictions extends Admin_Controller {
 		$file_name .= (intval($this->data['lottery']->predict) < 10 ? '0' : '') . intval($this->data['lottery']->predict);
 		$file_name .= intval($this->data['combinations']); // No leading zero for tickets
 		
-		// Add 'E' suffix at the end for lotteries with independent extra balls
-		if($this->data['lottery']->duplicate_extra_ball && $this->data['lottery']->extra_ball) {
-			$file_name .= 'E';
-		}
+		// No 'E' suffix needed for independent extra ball lotteries (duplicate_extra_ball = 1)
+		// They are handled internally without requiring filename distinction
 		
 	$path = $this->combination_files_m->full_path($file_name);
 
