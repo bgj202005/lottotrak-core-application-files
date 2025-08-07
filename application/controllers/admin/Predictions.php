@@ -338,14 +338,22 @@ class Predictions extends Admin_Controller {
 			$main_combinations = $this->math_combinatorics->combinations($predict, $this->data['pick']); // Main combinations
 			$combinations = array();
 			
-			// Generate combinations with each possible extra ball
-			for($extra = $this->data['lottery']->minimum_extra_ball; $extra <= $this->data['lottery']->maximum_extra_ball; $extra++) {
-				foreach($main_combinations as $main_combo) {
-					// Add the extra ball to each main combination
-					$full_combo = $main_combo;
-					$full_combo[] = $extra; // Add extra ball as the last number
-					$combinations[] = $full_combo;
+			// Check if minimum and maximum extra ball values are set
+			if (!isset($this->data['lottery']->minimum_extra_ball) || !isset($this->data['lottery']->maximum_extra_ball)) {
+				log_message('error', "Missing minimum_extra_ball or maximum_extra_ball for lottery ID: " . $this->data['lottery']->id);
+				$message = "Error: Lottery configuration missing minimum_extra_ball or maximum_extra_ball values.";
+				$error = TRUE;
+			} else {
+				// Generate combinations with each possible extra ball
+				for($extra = $this->data['lottery']->minimum_extra_ball; $extra <= $this->data['lottery']->maximum_extra_ball; $extra++) {
+					foreach($main_combinations as $main_combo) {
+						// Add the extra ball to each main combination
+						$full_combo = $main_combo;
+						$full_combo[] = $extra; // Add extra ball as the last number
+						$combinations[] = $full_combo;
+					}
 				}
+				log_message('info', "Generated " . count($combinations) . " total combinations for independent extra ball lottery");
 			}
 		} else {
 			// Standard generation for regular lotteries
@@ -353,25 +361,33 @@ class Predictions extends Admin_Controller {
 		}
 		
 		$this->data['combinations'] = count($combinations);
-	if(!$this->combination_files_m->combs_already($this->data['filename'], $this->data['combinations']))
-	{
-		if(!$this->combination_files_m->text_combs_save($this->data['filename'],$combinations)) //Separate into the proper format and save to the text file
-			{
-			//$this->data['message'] = "An error has occurred to convert the combinations to a text file.";
-				$message = "An error has occurred to convert the combinations to a text file.";
-				$error = TRUE;
-			}
-			else 
-			{
-				$error = FALSE;
-				//$message = "The Data File has ADDED the Combinations to the ".$this->data['filename'].".txt file.";
-			}
-		}
-		else
-		{
-			//$this->data['message'] = "This Combination File:".$this->data['filename'].".txt ALREADY have the combinations added to the file.";
-			$message = "This Combination File:".$this->data['filename'].".txt ALREADY have the combinations added to the file.";
+		
+		// Additional check to prevent saving empty files
+		if ($this->data['combinations'] == 0) {
+			log_message('error', "No combinations generated for file: " . $this->data['filename']);
+			$message = "Error: No combinations were generated. Check lottery configuration.";
 			$error = TRUE;
+		} else {
+			if(!$this->combination_files_m->combs_already($this->data['filename'], $this->data['combinations']))
+			{
+				if(!$this->combination_files_m->text_combs_save($this->data['filename'],$combinations)) //Separate into the proper format and save to the text file
+					{
+					//$this->data['message'] = "An error has occurred to convert the combinations to a text file.";
+						$message = "An error has occurred to convert the combinations to a text file.";
+						$error = TRUE;
+					}
+					else 
+					{
+						$error = FALSE;
+						//$message = "The Data File has ADDED the Combinations to the ".$this->data['filename'].".txt file.";
+					}
+				}
+				else
+				{
+					//$this->data['message'] = "This Combination File:".$this->data['filename'].".txt ALREADY have the combinations added to the file.";
+					$message = "This Combination File:".$this->data['filename'].".txt ALREADY have the combinations added to the file.";
+					$error = TRUE;
+				}
 		}
 		if($error)
 		{
@@ -1960,33 +1976,49 @@ class Predictions extends Admin_Controller {
 	 */
 	public function combination_save($id)
 	{
-		// Check if this is an AJAX request
-		$is_ajax = $this->input->is_ajax_request();
+		// Start output buffering to catch any unexpected output
+		if ($this->input->is_ajax_request()) {
+			ob_start();
+		}
 		
-		$this->data['message'] = '';
-		$this->data['lottery'] = $this->lotteries_m->get($id);
-		
-		// Get session data
-		$session_data = $this->session->userdata('futures_form');
-		$number_array = $this->session->userdata('futures_number_array');
-		$combination_file = $this->session->userdata('combination_file_name'); // Use parsed filename
-    	$combo_id = $this->session->userdata('combination_file_id'); // Use stored combo_id
+		try {
+			// Check if this is an AJAX request
+			$is_ajax = $this->input->is_ajax_request();
+			
+			log_message('info', "Combination_save: Starting save process for lottery_id: {$id}, is_ajax: " . ($is_ajax ? 'true' : 'false'));
+			
+			$this->data['message'] = '';
+			$this->data['lottery'] = $this->lotteries_m->get($id);
+			
+			// Get session data
+			$session_data = $this->session->userdata('futures_form');
+			$number_array = $this->session->userdata('futures_number_array');
+			$combination_file = $this->session->userdata('combination_file_name'); // Use parsed filename
+			$combo_id = $this->session->userdata('combination_file_id'); // Use stored combo_id
 
-		if (!$session_data || !$number_array || !$combination_file || !$combo_id) {
-			$message = 'Session data not found. Please generate tickets first.';
-			if ($is_ajax) {
-				$this->output
-					->set_content_type('application/json')
-					->set_output(json_encode([
-						'success' => false,
-						'message' => $message
-					]));
+			log_message('info', "Combination_save: Session data check - session_data: " . ($session_data ? 'exists' : 'missing') . 
+				", number_array: " . ($number_array ? 'exists' : 'missing') . 
+				", combination_file: " . ($combination_file ? $combination_file : 'missing') . 
+				", combo_id: " . ($combo_id ? $combo_id : 'missing'));
+
+			if (!$session_data || !$number_array || !$combination_file || !$combo_id) {
+				$message = 'Session data not found. Please generate tickets first.';
+				log_message('error', "Combination_save: Session validation failed - {$message}");
+				if ($is_ajax) {
+					// Clean output buffer and send clean JSON
+					ob_clean();
+					$this->output
+						->set_content_type('application/json')
+						->set_output(json_encode([
+							'success' => false,
+							'message' => $message
+						]));
+					return;
+				}
+				$this->session->set_flashdata('message', '<div class="alert alert-danger">' . $message . '</div>');
+				redirect('admin/predictions/futures/' . $id);
 				return;
 			}
-			$this->session->set_flashdata('message', '<div class="alert alert-danger">' . $message . '</div>');
-			redirect('admin/predictions/futures/' . $id);
-			return;
-		}
 		// Get the filtered combinations count
 		$drawn = $this->data['lottery']->balls_drawn;
 		$filepath = FCPATH . 'combinations/' . basename($combination_file) . '.txt';
@@ -2091,18 +2123,31 @@ class Predictions extends Admin_Controller {
 		];
 		// Save to database
 		$saved = $this->predictions_m->save_combination_filter($save_data);
+		log_message('info', "Combination_save: Database save result: " . ($saved ? 'success' : 'failed'));
+		
 		if ($saved) {
 			// Create Pick subdirectory in combinations directory if it doesn't exist
 			$pick_dir = FCPATH . 'combinations/pick' . $R . '/';
 			if (!is_dir($pick_dir)) {
 				mkdir($pick_dir, 0755, true);
+				log_message('info', "Combination_save: Created directory: {$pick_dir}");
 			}
 			// Save filtered combinations to file
 			$pick_file_path = $pick_dir . $file_name . '.txt';
+			log_message('info', "Combination_save: Attempting to save filtered combinations to: {$pick_file_path}");
+			log_message('info', "Combination_save: Source file path: {$filepath}");
+			log_message('info', "Combination_save: Number array size: " . (is_array($number_array) ? count($number_array) : 'not an array'));
+			log_message('info', "Combination_save: Filter array keys: " . implode(', ', array_keys($filters)));
+			
 			$success = $this->combination_filters_m->save_filtered_combinations_to_file($filepath, $number_array, $filters, $pick_file_path);
+			log_message('info', "Combination_save: File save result: " . ($success ? 'success' : 'failed'));
+			
 			if ($success) {
 				$message = 'Combination Ticket File ' . preg_replace('/ADMIN.*/', '', $file_name) . ' is Successfully Saved to the combinations/pick' . $R . ' Directory.';
+				log_message('info', "Combination_save: Success - {$message}");
 				if ($is_ajax) {
+					// Clean output buffer and send clean JSON
+					ob_clean();
 					$this->output
 						->set_content_type('application/json')
 						->set_output(json_encode([
@@ -2114,7 +2159,10 @@ class Predictions extends Admin_Controller {
 				$this->session->set_flashdata('message', '<div class="alert alert-success">' . $message . '</div>');
 			} else {
 				$message = 'Combination Ticket File ' . $file_name . ' has not been Saved to the combinations/pick' . $R . ' Directory.';
+				log_message('error', "Combination_save: File save failed - {$message}");
 				if ($is_ajax) {
+					// Clean output buffer and send clean JSON
+					ob_clean();
 					$this->output
 						->set_content_type('application/json')
 						->set_output(json_encode([
@@ -2127,7 +2175,10 @@ class Predictions extends Admin_Controller {
 			}
 		} else {
 			$message = 'Failed to save combination filter data to database.';
+			log_message('error', "Combination_save: Database save failed - {$message}");
 			if ($is_ajax) {
+				// Clean output buffer and send clean JSON
+				ob_clean();
 				$this->output
 					->set_content_type('application/json')
 					->set_output(json_encode([
@@ -2140,6 +2191,46 @@ class Predictions extends Admin_Controller {
 		}
 		// For non-AJAX requests, redirect back to futures page with message
 		redirect('admin/predictions/futures/' . $id);
+		
+		} catch (Exception $e) {
+			$error_message = 'Exception in combination_save: ' . $e->getMessage();
+			log_message('error', $error_message);
+			log_message('error', 'Exception stack trace: ' . $e->getTraceAsString());
+			
+			if ($this->input->is_ajax_request()) {
+				// Clean output buffer and send clean JSON
+				ob_clean();
+				$this->output
+					->set_content_type('application/json')
+					->set_output(json_encode([
+						'success' => false,
+						'message' => 'An error occurred while saving. Please check the logs for details.',
+						'debug' => ENVIRONMENT === 'development' ? $error_message : null
+					]));
+				return;
+			}
+			$this->session->set_flashdata('message', '<div class="alert alert-danger">' . $error_message . '</div>');
+			redirect('admin/predictions/futures/' . $id);
+		} catch (Error $e) {
+			$error_message = 'Fatal error in combination_save: ' . $e->getMessage();
+			log_message('error', $error_message);
+			log_message('error', 'Fatal error stack trace: ' . $e->getTraceAsString());
+			
+			if ($this->input->is_ajax_request()) {
+				// Clean output buffer and send clean JSON
+				ob_clean();
+				$this->output
+					->set_content_type('application/json')
+					->set_output(json_encode([
+						'success' => false,
+						'message' => 'A fatal error occurred while saving. Please check the logs for details.',
+						'debug' => ENVIRONMENT === 'development' ? $error_message : null
+					]));
+				return;
+			}
+			$this->session->set_flashdata('message', '<div class="alert alert-danger">' . $error_message . '</div>');
+			redirect('admin/predictions/futures/' . $id);
+		}
 	}
 	/**
 	 * Refresh method to restore previously saved combination filter settings

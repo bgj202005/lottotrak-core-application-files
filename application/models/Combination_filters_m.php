@@ -98,11 +98,16 @@ class Combination_filters_m extends MY_Model
                             
                             if (!empty($combo_numbers)) {
                                 sort($combo_numbers, SORT_NUMERIC);
-                                $combo_data = $combo_numbers;
                                 
-                                // Add extra ball if this is an independent extra ball lottery
+                                // For independent extra ball lotteries, return structured data
                                 if ($extra_ball_number !== null) {
-                                    $combo_data['extra'] = $extra_ball_number;
+                                    $combo_data = array(
+                                        'main_numbers' => $combo_numbers,
+                                        'extra_ball' => $extra_ball_number
+                                    );
+                                } else {
+                                    // Regular lottery - return just the numbers
+                                    $combo_data = $combo_numbers;
                                 }
                                 
                                 $combinations[] = $combo_data;
@@ -201,11 +206,15 @@ class Combination_filters_m extends MY_Model
                 // Check if combination passes all filters
                 if ($this->passes_all_filters($combo, $filter_select)) {
                     if ($count >= $skip_count) {
-                        $combo_result = $combo_numbers;
-                        
-                        // Add extra ball to result if present
+                        // For independent extra ball lotteries, return structured data
                         if ($extra_ball_number !== null) {
-                            $combo_result['extra'] = $extra_ball_number;
+                            $combo_result = array(
+                                'main_numbers' => $combo_numbers,
+                                'extra_ball' => $extra_ball_number
+                            );
+                        } else {
+                            // Regular lottery - return just the numbers
+                            $combo_result = $combo_numbers;
                         }
                         
                         $combinations[] = $combo_result;
@@ -338,6 +347,7 @@ class Combination_filters_m extends MY_Model
     public function save_filtered_combinations_to_file($filepath, $number_array, $filters, $output_file_path)
     {
         if (!file_exists($filepath)) {
+            log_message('error', "save_filtered_combinations_to_file: Source file not found: {$filepath}");
             return false;
         }
 
@@ -347,21 +357,34 @@ class Combination_filters_m extends MY_Model
         if (!$handle || !$output_handle) {
             if ($handle) fclose($handle);
             if ($output_handle) fclose($output_handle);
+            log_message('error', "save_filtered_combinations_to_file: Could not open files - source: {$filepath}, output: {$output_file_path}");
             return false;
         }
 
         $line_count = 0;
         $saved_count = 0;
+        $processed_count = 0;
 
         while (($line = fgets($handle)) !== false) {
             $line_count++;
             $line = trim($line);
             if (empty($line)) continue;
             
+            $processed_count++;
+            
             // Parse combination
             $positions = array_map('intval', explode(' ', $line));
             $combo_numbers = [];
             $extra_ball_number = null;
+            
+            // Debug logging for first few combinations
+            static $conversion_debug_count = 0;
+            if ($conversion_debug_count < 3) {
+                log_message('debug', "CONVERSION DEBUG #{$conversion_debug_count}: Raw line: '{$line}'");
+                log_message('debug', "CONVERSION DEBUG #{$conversion_debug_count}: Positions: " . print_r($positions, true));
+                log_message('debug', "CONVERSION DEBUG #{$conversion_debug_count}: Number array (first 10): " . print_r(array_slice($number_array, 0, 10, true), true));
+                $conversion_debug_count++;
+            }
             
             // For independent extra ball lotteries, handle last position as extra ball
             if (!empty($filters['duplicate_extra_ball']) && !empty($filters['extra_ball'])) {
@@ -396,6 +419,14 @@ class Combination_filters_m extends MY_Model
                 $combo['extra'] = $extra_ball_number;
             }
             
+            // Debug logging for first few converted combinations
+            static $combo_debug_count = 0;
+            if ($combo_debug_count < 3) {
+                log_message('debug', "COMBO DEBUG #{$combo_debug_count}: Final combo array: " . print_r($combo, true));
+                log_message('debug', "COMBO DEBUG #{$combo_debug_count}: Sum: " . array_sum(array_values(array_filter($combo, function($key) { return $key !== 'extra'; }, ARRAY_FILTER_USE_KEY))));
+                $combo_debug_count++;
+            }
+            
             // Check if combination passes all filters
             if ($this->passes_all_filters($combo, $filters)) {
                 // For lotteries with independent extra ball (duplicate_extra_ball = 1),
@@ -417,6 +448,14 @@ class Combination_filters_m extends MY_Model
 
         fclose($handle);
         fclose($output_handle);
+        
+        // Log the filtering results for debugging
+        log_message('info', "save_filtered_combinations_to_file: Processed {$processed_count} combinations, saved {$saved_count} to {$output_file_path}");
+        
+        // If no combinations were saved, log the filter criteria for debugging
+        if ($saved_count == 0) {
+            log_message('warning', "save_filtered_combinations_to_file: No combinations passed filters. Filters: " . print_r($filters, true));
+        }
 
         return true;
     }
@@ -454,6 +493,16 @@ class Combination_filters_m extends MY_Model
      */
     private function passes_all_filters($combo, $filters)
     {
+        // For independent extra ball lotteries, separate main numbers from extra ball for filtering
+        $main_numbers = $combo;
+        if (!empty($filters['duplicate_extra_ball']) && !empty($filters['extra_ball']) && isset($combo['extra'])) {
+            // Remove extra ball from main numbers for trend filtering calculations
+            unset($main_numbers['extra']);
+        }
+        
+        // Convert associative array (ball1, ball2, etc.) to indexed array of values for trend calculations
+        $main_numbers_values = array_values($main_numbers);
+        
         // Apply trend filter if specified
         if (!empty($filters['selected_trends']) && $filters['selected_trends'] !== 'ALL') {
             $drawn = $filters['drawn'] ?? 0;
@@ -467,11 +516,13 @@ class Combination_filters_m extends MY_Model
                     $last_drawn_numbers[] = (int)$last_drawn['ball' . $i];
                 }
             }
+            // For independent extra ball lotteries, include extra ball in trend matching
+            // but use it separately from main number matching
             if ($extra_ball && isset($last_drawn['extra'])) {
                 $last_drawn_numbers[] = (int)$last_drawn['extra'];
             }
             
-            if (!$this->check_trend_match($combo, $last_drawn_numbers, $filters['selected_trends'])) {
+            if (!$this->check_trend_match($main_numbers_values, $last_drawn_numbers, $filters['selected_trends'])) {
                 return false;
             }
         }
@@ -489,11 +540,39 @@ class Combination_filters_m extends MY_Model
      */
     private function apply_other_filters($combo, $filter_select)
     {
+        // For independent extra ball lotteries, separate main numbers from extra ball
+        $main_numbers = $combo;
+        $has_extra_ball = false;
+        if (!empty($filter_select['duplicate_extra_ball']) && !empty($filter_select['extra_ball']) && isset($combo['extra'])) {
+            $has_extra_ball = true;
+            // Remove extra ball from main numbers for filtering calculations
+            unset($main_numbers['extra']);
+        }
+        
+        // Convert associative array (ball1, ball2, etc.) to indexed array of values for calculations
+        $main_numbers_values = array_values($main_numbers);
+        
         // Check winning sums filter
         if (!empty($filter_select['selected_winning_sums']) && $filter_select['selected_winning_sums'] !== 'ALL') {
-            $sum = array_sum($combo);
+            $sum = array_sum($main_numbers_values); // Use only main numbers for sum calculation
             $allowed_sums = explode(',', $filter_select['selected_winning_sums']);
+            
+            // Enhanced debugging - log all filter values on first iteration
+            static $first_filter_debug = true;
+            if ($first_filter_debug) {
+                log_message('debug', "FILTER DEBUG - All filter values: " . print_r($filter_select, true));
+                log_message('debug', "FILTER DEBUG - Sum filter raw value: '{$filter_select['selected_winning_sums']}'");
+                log_message('debug', "FILTER DEBUG - Allowed sums array: " . print_r($allowed_sums, true));
+                $first_filter_debug = false;
+            }
+            
             if (!in_array($sum, $allowed_sums)) {
+                // Log first few failed sum checks for debugging
+                static $sum_debug_count = 0;
+                if ($sum_debug_count < 5) {
+                    log_message('debug', "Sum filter failed: calculated sum {$sum}, allowed sums: " . implode(',', $allowed_sums) . ", main numbers: " . implode(',', $main_numbers_values));
+                    $sum_debug_count++;
+                }
                 return false;
             }
         }
@@ -502,7 +581,7 @@ class Combination_filters_m extends MY_Model
         if (!empty($filter_select['selected_winning_digits']) && $filter_select['selected_winning_digits'] !== 'ALL') {
             $digit_sum = array_sum(array_map(function($num) {
                 return array_sum(str_split($num));
-            }, $combo));
+            }, $main_numbers_values)); // Use only main numbers for digit sum
             $allowed_digits = explode(',', $filter_select['selected_winning_digits']);
             if (!in_array($digit_sum, $allowed_digits)) {
                 return false;
@@ -515,7 +594,7 @@ class Combination_filters_m extends MY_Model
             $max = $lottery_highlights['range'] ?? 49;
             $last_draw = $filter_select['lottery_last_drawn'] ?? [];
             
-            if (!$this->is_repeater($combo, $max, $last_draw)) {
+            if (!$this->is_repeater($main_numbers_values, $max, $last_draw)) { // Use main numbers only
                 return false;
             }
         }
@@ -525,7 +604,7 @@ class Combination_filters_m extends MY_Model
             $lottery_highlights = $filter_select['lottery_highlights'] ?? [];
             $max = $lottery_highlights['range'] ?? 49;
             
-            if (!$this->has_consecutive($combo, $max)) {
+            if (!$this->has_consecutive($main_numbers_values, $max)) { // Use main numbers only
                 return false;
             }
         }
@@ -534,7 +613,7 @@ class Combination_filters_m extends MY_Model
         if (!empty($filter_select['selected_parity']) && $filter_select['selected_parity'] !== 'ALL') {
             $even_count = 0;
             $odd_count = 0;
-            foreach ($combo as $number) {
+            foreach ($main_numbers_values as $number) { // Use main numbers only for parity calculation
                 if ($number % 2 == 0) {
                     $even_count++;
                 } else {
@@ -553,7 +632,7 @@ class Combination_filters_m extends MY_Model
         if (!empty($filter_select['selected_decades']) && $filter_select['selected_decades'] !== 'ALL') {
             $lottery_highlights = $filter_select['lottery_highlights'] ?? [];
             $max = $lottery_highlights['range'] ?? 49;
-            $decade_counts = $this->count_decade_numbers($combo, $max);
+            $decade_counts = $this->count_decade_numbers($main_numbers_values, $max); // Use main numbers only
             
             $allowed_decades = explode(',', $filter_select['selected_decades']);
             $combo_decade_pattern = implode('-', $decade_counts);
@@ -566,7 +645,7 @@ class Combination_filters_m extends MY_Model
         if (!empty($filter_select['selected_last_digits']) && $filter_select['selected_last_digits'] !== 'ALL') {
             $lottery_highlights = $filter_select['lottery_highlights'] ?? [];
             $max = $lottery_highlights['range'] ?? 49;
-            $last_digit_counts = $this->count_last_digit_numbers($combo, $max);
+            $last_digit_counts = $this->count_last_digit_numbers($main_numbers_values, $max); // Use main numbers only
             
             $allowed_last_digits = explode(',', $filter_select['selected_last_digits']);
             $combo_last_digit_pattern = implode('-', $last_digit_counts);
@@ -577,8 +656,8 @@ class Combination_filters_m extends MY_Model
         
         // Check number range filter
         if (!empty($filter_select['selected_number_range']) && $filter_select['selected_number_range'] !== 'ALL') {
-            $min_number = min($combo);
-            $max_number = max($combo);
+            $min_number = min($main_numbers_values); // Use main numbers only
+            $max_number = max($main_numbers_values); // Use main numbers only
             $range = $max_number - $min_number;
             
             $allowed_ranges = explode(',', $filter_select['selected_number_range']);
@@ -590,9 +669,10 @@ class Combination_filters_m extends MY_Model
         // Check adjacents filter
         if (!empty($filter_select['selected_adjacents']) && $filter_select['selected_adjacents'] !== 'ALL') {
             $adjacent_count = 0;
-            sort($combo);
-            for ($i = 0; $i < count($combo) - 1; $i++) {
-                if ($combo[$i + 1] - $combo[$i] == 1) {
+            $sorted_main = $main_numbers_values; // Use main numbers only
+            sort($sorted_main);
+            for ($i = 0; $i < count($sorted_main) - 1; $i++) {
+                if ($sorted_main[$i + 1] - $sorted_main[$i] == 1) {
                     $adjacent_count++;
                 }
             }

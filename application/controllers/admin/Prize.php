@@ -1106,6 +1106,9 @@ class Prize extends Admin_Controller
      */
     private function get_paginated_combination_tickets($filter, $per_page, $offset)
     {
+        // Load the combination filters model
+        $this->load->model('Combination_filters_m', 'combination_filters_m');
+        
         // Get file info including R (picks) from combination files
         $this->db->select('file_name, R');
         $this->db->from('lottery_combination_files');
@@ -1137,6 +1140,65 @@ class Prize extends Admin_Controller
             return array();
         }
         
+        // Check if any filters are applied
+        $has_filters = $this->has_active_filters($filter);
+        
+        if ($has_filters) {
+            // Use filtering model when filters are applied
+            $page = ($offset / $per_page) + 1;
+            $number_array = $this->get_generated_numbers($filter->lottery_id);
+            $filter_data = $this->build_filter_array($filter);
+            
+            $combinations = $this->combination_filters_m->get_filtered_combinations(
+                $file_path, 
+                $number_array, 
+                $filter_data, 
+                $page, 
+                $per_page
+            );
+            
+            // Convert to ticket format
+            $tickets = array();
+            foreach ($combinations as $index => $combo) {
+                $ticket_number = $offset + $index + 1;
+                
+                if (is_array($combo) && isset($combo['main_numbers']) && isset($combo['extra_ball'])) {
+                    // Independent extra ball lottery with structured data
+                    $main_numbers = $combo['main_numbers'];
+                    $extra_ball = $combo['extra_ball'];
+                    
+                    $all_numbers = array_values($main_numbers);
+                    $all_numbers[] = $extra_ball;
+                    
+                    $tickets[] = array(
+                        'ticket_number' => $ticket_number,
+                        'numbers' => $all_numbers,
+                        'main_numbers' => array_values($main_numbers),
+                        'extra_ball' => $extra_ball,
+                        'is_independent_extra_ball' => true
+                    );
+                } else {
+                    // Regular lottery - combo is just an array of numbers
+                    $numbers = is_array($combo) ? array_values($combo) : $combo;
+                    $tickets[] = array(
+                        'ticket_number' => $ticket_number,
+                        'numbers' => $numbers,
+                        'is_independent_extra_ball' => $is_independent_extra_ball
+                    );
+                    
+                    // For independent extra ball lotteries without structured data (fallback)
+                    if ($is_independent_extra_ball && is_array($numbers) && count($numbers) > $expected_picks) {
+                        $tickets[count($tickets) - 1]['main_numbers'] = array_slice($numbers, 0, $expected_picks);
+                        $tickets[count($tickets) - 1]['extra_ball'] = $numbers[$expected_picks];
+                    }
+                }
+            }
+            
+            log_message('info', "get_paginated_combination_tickets: Using filtered results for {$filter->file_name}, returned " . count($tickets) . " tickets");
+            return $tickets;
+        }
+        
+        // Fallback to direct file reading when no filters are applied
         // Read and parse the file with pagination
         $tickets = array();
         $file_content = file_get_contents($file_path);
@@ -1184,8 +1246,8 @@ class Prize extends Admin_Controller
                     }
                     
                     $tickets[] = $ticket_data;
-                    $valid_line_count++;
                     $returned_tickets++;
+                    $valid_line_count++; // Only increment AFTER adding ticket to avoid double counting
                 } else {
                     $skipped_lines++;
                     log_message('debug', "Skipped line {$line_num} in {$filter->file_name}: expected {$expected_numbers_per_line} numbers, got " . count($numbers));
@@ -1203,6 +1265,9 @@ class Prize extends Admin_Controller
      */
     private function count_combination_tickets($filter)
     {
+        // Load the combination filters model
+        $this->load->model('Combination_filters_m', 'combination_filters_m');
+        
         // Get file info including R (picks) from combination files
         $this->db->select('file_name, R');
         $this->db->from('lottery_combination_files');
@@ -1234,6 +1299,25 @@ class Prize extends Admin_Controller
             return 0;
         }
         
+        // Check if any filters are applied
+        $has_filters = $this->has_active_filters($filter);
+        
+        if ($has_filters) {
+            // Use filtering model when filters are applied
+            $number_array = $this->get_generated_numbers($filter->lottery_id);
+            $filter_data = $this->build_filter_array($filter);
+            
+            $count = $this->combination_filters_m->get_filtered_combinations_count(
+                $file_path, 
+                $number_array, 
+                $filter_data
+            );
+            
+            log_message('info', "count_combination_tickets: Using filtered count for {$filter->file_name}: {$count} combinations");
+            return $count;
+        }
+        
+        // Fallback to direct file counting when no filters are applied
         // Count lines in file
         $file_content = file_get_contents($file_path);
         $count = 0;
@@ -2163,5 +2247,103 @@ class Prize extends Admin_Controller
         }
         
         return false; // No win category matched
+    }
+    
+    /**
+     * Check if the filter has any active filters applied
+     */
+    private function has_active_filters($filter)
+    {
+        $filter_fields = [
+            'selected_trends', 'selected_winning_sums', 'selected_winning_digits',
+            'selected_repeaters', 'selected_consecutives', 'selected_parity',
+            'selected_decades', 'selected_last_digits', 'selected_number_range',
+            'selected_adjacents', 'selected_extra_ball'
+        ];
+        
+        foreach ($filter_fields as $field) {
+            if (isset($filter->$field) && !empty($filter->$field) && $filter->$field !== 'ALL') {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Build filter array from database filter record
+     */
+    private function build_filter_array($filter)
+    {
+        $filter_data = array(
+            'duplicate_extra_ball' => $filter->duplicate_extra_ball ?? 0,
+            'extra_ball' => $filter->extra_ball ?? 0,
+            'drawn' => $filter->balls_drawn ?? 0,
+            'selected_trends' => $filter->selected_trends ?? 'ALL',
+            'selected_winning_sums' => $filter->selected_winning_sums ?? 'ALL',
+            'selected_winning_digits' => $filter->selected_winning_digits ?? 'ALL',
+            'selected_repeaters' => $filter->selected_repeaters ?? 'ALL',
+            'selected_consecutives' => $filter->selected_consecutives ?? 'ALL',
+            'selected_parity' => $filter->selected_parity ?? 'ALL',
+            'selected_decades' => $filter->selected_decades ?? 'ALL',
+            'selected_last_digits' => $filter->selected_last_digits ?? 'ALL',
+            'selected_number_range' => $filter->selected_number_range ?? 'ALL',
+            'selected_adjacents' => $filter->selected_adjacents ?? 'ALL',
+            'selected_extra_ball' => $filter->selected_extra_ball ?? 'ALL'
+        );
+        
+        // Add lottery-specific data
+        if (!empty($filter->lottery_id)) {
+            $filter_data['lottery_highlights'] = $this->get_lottery_highlights($filter->lottery_id);
+            $filter_data['lottery_last_drawn'] = $this->get_latest_draw_numbers($filter->lottery_id);
+        }
+        
+        return $filter_data;
+    }
+    
+    /**
+     * Get generated numbers for a lottery
+     */
+    private function get_generated_numbers($lottery_id)
+    {
+        // This should load the generated numbers that were used to create the combinations
+        // For now, return a simple range - this may need to be enhanced based on your system
+        $this->db->select('range');
+        $this->db->from('lottery_profiles');
+        $this->db->where('id', $lottery_id);
+        $lottery = $this->db->get()->row();
+        
+        if ($lottery && !empty($lottery->range)) {
+            $range = (int)$lottery->range;
+            return range(1, $range);
+        }
+        
+        // Fallback to default range
+        return range(1, 49);
+    }
+    
+    /**
+     * Get lottery highlights for filtering
+     */
+    private function get_lottery_highlights($lottery_id)
+    {
+        $this->db->select('range');
+        $this->db->from('lottery_profiles');
+        $this->db->where('id', $lottery_id);
+        $lottery = $this->db->get()->row();
+        
+        return array(
+            'range' => $lottery ? (int)$lottery->range : 49
+        );
+    }
+    
+    /**
+     * Get latest draw numbers for lottery
+     */
+    private function get_latest_draw_numbers($lottery_id)
+    {
+        // This method should return the latest draw numbers for trend filtering
+        // Implementation would depend on your lottery data structure
+        return array(); // Placeholder - implement based on your draw data structure
     }
 }

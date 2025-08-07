@@ -5,6 +5,36 @@ class Lotteries_m extends MY_Model
 {
 	protected $_table_name = 'lottery_profiles';
 	protected $_order_by = 'id';
+	
+	/**
+	 * Override parent get method to handle database queries
+	 */
+	public function get($id = NULL, $single = FALSE) {
+		
+		if ($id != NULL) {
+			$filter = $this->_primary_filter;
+			$id = $filter($id);
+			$this->db->where($this->_primary_key, $id);
+			$method = 'row';
+		} elseif ($single == TRUE) {
+			$method = 'row';
+		} else {
+			$method = 'result';
+		}
+	   
+	   if (!is_array($this->db->order_by('id'))) {  // Depreciated in PHP 7.2 count($this->db->order_by('id')
+	   		$this->db->order_by($this->_order_by);
+	}
+		return $this->db->get($this->_table_name)->$method();
+	}
+	
+	/**
+	 * Override parent save method to handle database saves
+	 */
+	public function save($data, $id = NULL) {
+		return parent::save($data, $id);
+	}
+	
 	public $rules = array(
         'lottery_name' => array(
             'field' => 'lottery_name',
