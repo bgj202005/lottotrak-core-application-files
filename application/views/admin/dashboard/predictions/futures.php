@@ -157,10 +157,10 @@
 
 	#futures-filter-table select.form-control,
 	#futures-filter-table select {
-		font-size: 1.19em; /* Increased by additional 10% from 1.08em (32% total increase) */
-		padding: 0.13em 0.40em; /* Increased by additional 10% */
-		min-width: 86px;  /* Increased by additional 10% from 78px */
-		max-width: 119px;  /* Increased by additional 10% from 108px */
+		font-size: 1.02em; /* Reduced by additional 5% from 1.07em (1.07 * 0.95 = 1.0165) */
+		padding: 0.12em 0.36em; /* Reduced by 10% from 0.13em and 0.40em */
+		min-width: 77px;  /* Reduced by 10% from 86px */
+		max-width: 107px;  /* Reduced by 10% from 119px */
 		text-overflow: ellipsis;
 		overflow: hidden;
 		white-space: nowrap;
@@ -500,19 +500,33 @@
 	}
 	
 	<?php if (!empty($lottery) && $lottery->duplicate_extra_ball == 0): ?>
-	/* Reduce Win History Filtering dropdown sizes by 20% total for regular lotteries (duplicate_extra_ball = 0) */
-	.filter-control select {
-		font-size: 0.68em; /* 0.85em * 0.8 = 0.68em (20% total reduction) */
-		padding: 0.16em 0.4em; /* 0.2em * 0.8 = 0.16em, 0.5em * 0.8 = 0.4em */
-		width: 80%; /* Reduce width by 20% total */
+	/* Reduce Win History Filtering dropdown sizes for regular lotteries (duplicate_extra_ball = 0) */
+	#futures-filter-table .form-control {
+		font-size: 0.9em !important; /* Additional 10% reduction for regular lotteries */
+		padding: 0.1em 0.3em !important; /* Reduced padding */
+		min-width: 65px !important; /* Smaller minimum width */
+		max-width: 85px !important; /* Smaller maximum width */
 	}
-	.filter-control input {
-		font-size: 0.68em; /* 0.85em * 0.8 = 0.68em (20% total reduction) */
-		padding: 0.16em 0.4em; /* 0.2em * 0.8 = 0.16em, 0.5em * 0.8 = 0.4em */
-		width: 80%; /* Reduce width by 20% total */
+	
+	/* Specific styling for After Ball dropdown to show Position radio button */
+	#futures-filter-table td[data-label="After Ball"] .form-control,
+	#futures-filter-table td:nth-child(2) .form-control {
+		max-width: 70px !important; /* Even smaller for After Ball to prevent hiding Position radio */
+		width: 70% !important; /* Reduce width to create space */
 	}
-	.filter-control {
-		padding: 0.24em !important; /* 0.3em * 0.8 = 0.24em (20% total reduction) */
+	
+	/* Ensure Position radio button is visible */
+	#futures-filter-table input[type="radio"] {
+		display: inline-block !important;
+		visibility: visible !important;
+		margin-left: 0.3em !important;
+		margin-right: 0.3em !important;
+	}
+	
+	/* Improve spacing for radio button containers */
+	#futures-filter-table .d-flex {
+		gap: 0.2em !important;
+		justify-content: flex-start !important;
 	}
 	<?php endif; ?>
 	
