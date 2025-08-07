@@ -2921,22 +2921,46 @@ class Predictions_m extends MY_Model
 	}
 	/**
 	 * Save combination filter data to lottery_combination_filters table
-	 * Updates existing record if combo_id exists, otherwise inserts new record
+	 * Updates existing record if file_name, user_id and lottery_id exists, otherwise inserts new record
+	 * Preserves existing win records when updating configuration settings
 	 *
 	 * @param array $data Data to save
 	 * @return bool True on success, false on failure
 	 */
 	public function save_combination_filter($data)
 	{
-		// Check if a record with this combo_id already exists
-		if (isset($data['combo_id'])) {
-			$this->db->where('combo_id', $data['combo_id']);
+		// Check if a record with the same file_name, user_id and lottery_id already exists
+		if (isset($data['file_name']) && isset($data['user_id']) && isset($data['lottery_id'])) {
+			$this->db->where('file_name', $data['file_name']);
+			$this->db->where('user_id', $data['user_id']);
+			$this->db->where('lottery_id', $data['lottery_id']);
+			$this->db->where('user', 1); // Admin user
 			$existing = $this->db->get('lottery_combination_filters')->row();
 			
 			if ($existing) {
-				// Update existing record
-				$this->db->where('combo_id', $data['combo_id']);
-				return $this->db->update('lottery_combination_filters', $data);
+				// Preserve existing win records - only update configuration settings
+				$update_data = $data;
+				
+				// Remove win record fields from update data to preserve existing values
+				$win_fields = [
+					'extra', '1_win', '1_win_extra', '2_win', '2_win_extra', 
+					'3_win', '3_win_extra', '4_win', '4_win_extra', '5_win', '5_win_extra',
+					'6_win', '6_win_extra', '7_win', '7_win_extra', '8_win', '8_win_extra',
+					'9_win', '9_win_extra'
+				];
+				
+				foreach ($win_fields as $field) {
+					if (isset($update_data[$field])) {
+						unset($update_data[$field]);
+					}
+				}
+				
+				// Update existing record with configuration settings only
+				$this->db->where('file_name', $data['file_name']);
+				$this->db->where('user_id', $data['user_id']);
+				$this->db->where('lottery_id', $data['lottery_id']);
+				$this->db->where('user', 1);
+				return $this->db->update('lottery_combination_filters', $update_data);
 			}
 		}
 		
