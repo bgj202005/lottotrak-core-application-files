@@ -888,7 +888,7 @@ class Prize extends Admin_Controller
             }
             
             // Get filter details
-            $this->db->select('lcf.*, lp.lottery_name, lcfiles.file_name as original_filename, lcfiles.N, lcfiles.R');
+            $this->db->select('lcf.*, lp.lottery_name, lp.duplicate_extra_ball, lp.extra_ball, lp.balls_drawn, lcfiles.file_name as original_filename, lcfiles.N, lcfiles.R');
             $this->db->from('lottery_combination_filters lcf');
             $this->db->join('lottery_profiles lp', 'lp.id = lcf.lottery_id', 'left');
             $this->db->join('lottery_combination_files lcfiles', 'lcfiles.id = lcf.combo_id', 'left');
@@ -1114,6 +1114,7 @@ class Prize extends Admin_Controller
         $file_record = $file_query->row();
         
         if (!$file_record) {
+            log_message('error', "get_paginated_combination_tickets: No file record found for combo_id {$filter->combo_id}");
             return array();
         }
         
@@ -1144,51 +1145,61 @@ class Prize extends Admin_Controller
             $lines = explode("\n", $file_content);
             $valid_line_count = 0; // Count of valid lines processed
             $returned_tickets = 0; // Count of tickets returned for this page
+            $total_lines = count($lines);
+            $skipped_lines = 0;
             
-            foreach ($lines as $line) {
+            foreach ($lines as $line_num => $line) {
                 $line = trim($line);
-                if (!empty($line)) {
-                    $numbers = preg_split('/[\s,]+/', $line);
-                    $numbers = array_map('intval', array_filter($numbers, 'is_numeric'));
-                    
-                    // Only process lines with the expected number count
-                    if (count($numbers) == $expected_numbers_per_line) {
-                        // Skip valid lines until we reach our offset
-                        if ($valid_line_count < $offset) {
-                            $valid_line_count++;
-                            continue;
-                        }
-                        
-                        // Stop if we've collected enough tickets for this page
-                        if ($returned_tickets >= $per_page) {
-                            break;
-                        }
-                        
-                        $ticket_data = array(
-                            'ticket_number' => $valid_line_count + 1,
-                            'numbers' => $numbers,
-                            'is_independent_extra_ball' => $is_independent_extra_ball
-                        );
-                        
-                        // For independent extra ball lotteries, separate main numbers and extra ball
-                        if ($is_independent_extra_ball) {
-                            $ticket_data['main_numbers'] = array_slice($numbers, 0, $expected_picks);
-                            $ticket_data['extra_ball'] = $numbers[$expected_picks]; // Last number is the extra ball
-                        }
-                        
-                        $tickets[] = $ticket_data;
+                if (empty($line)) {
+                    $skipped_lines++;
+                    continue;
+                }
+                
+                $numbers = preg_split('/[\s,]+/', $line);
+                $numbers = array_map('intval', array_filter($numbers, 'is_numeric'));
+                
+                // Only process lines with the expected number count
+                if (count($numbers) == $expected_numbers_per_line) {
+                    // Skip valid lines until we reach our offset
+                    if ($valid_line_count < $offset) {
                         $valid_line_count++;
-                        $returned_tickets++;
+                        continue;
                     }
+                    
+                    // Stop if we've collected enough tickets for this page
+                    if ($returned_tickets >= $per_page) {
+                        break;
+                    }
+                    
+                    $ticket_data = array(
+                        'ticket_number' => $valid_line_count + 1,
+                        'numbers' => $numbers,
+                        'is_independent_extra_ball' => $is_independent_extra_ball
+                    );
+                    
+                    // For independent extra ball lotteries, separate main numbers and extra ball
+                    if ($is_independent_extra_ball) {
+                        $ticket_data['main_numbers'] = array_slice($numbers, 0, $expected_picks);
+                        $ticket_data['extra_ball'] = $numbers[$expected_picks]; // Last number is the extra ball
+                    }
+                    
+                    $tickets[] = $ticket_data;
+                    $valid_line_count++;
+                    $returned_tickets++;
+                } else {
+                    $skipped_lines++;
+                    log_message('debug', "Skipped line {$line_num} in {$filter->file_name}: expected {$expected_numbers_per_line} numbers, got " . count($numbers));
                 }
             }
+            
+            log_message('info', "get_paginated_combination_tickets: File {$filter->file_name} - Total lines: {$total_lines}, Valid: {$valid_line_count}, Skipped: {$skipped_lines}, Returned: {$returned_tickets}, Offset: {$offset}, Per page: {$per_page}, Expected numbers per line: {$expected_numbers_per_line}, Is independent extra ball: " . ($is_independent_extra_ball ? 'YES' : 'NO'));
         }
         
         return $tickets;
     }
     
     /**
-     * Count total combination tickets for a filter
+     * Count total combination tickets for a filter (with detailed logging)
      */
     private function count_combination_tickets($filter)
     {
@@ -1200,6 +1211,7 @@ class Prize extends Admin_Controller
         $file_record = $file_query->row();
         
         if (!$file_record) {
+            log_message('error', "count_combination_tickets: No file record found for combo_id {$filter->combo_id}");
             return 0;
         }
         
@@ -1218,6 +1230,7 @@ class Prize extends Admin_Controller
         $file_path = FCPATH . 'combinations/' . $pick_dir . '/' . $filter->file_name . '.txt';
         
         if (!file_exists($file_path)) {
+            log_message('error', "count_combination_tickets: File not found: {$file_path}");
             return 0;
         }
         
@@ -1227,18 +1240,30 @@ class Prize extends Admin_Controller
         
         if ($file_content) {
             $lines = explode("\n", $file_content);
-            foreach ($lines as $line) {
+            $total_lines = count($lines);
+            $empty_lines = 0;
+            $invalid_lines = 0;
+            
+            foreach ($lines as $line_index => $line) {
                 $line = trim($line);
-                if (!empty($line)) {
-                    $numbers = preg_split('/[\s,]+/', $line);
-                    $numbers = array_filter($numbers, 'is_numeric');
-                    
-                    // Validate the expected number count for this lottery type
-                    if (count($numbers) == $expected_numbers_per_line) {
-                        $count++;
-                    }
+                if (empty($line)) {
+                    $empty_lines++;
+                    continue;
+                }
+                
+                $numbers = preg_split('/[\s,]+/', $line);
+                $numbers = array_filter($numbers, 'is_numeric');
+                
+                // Validate the expected number count for this lottery type
+                if (count($numbers) == $expected_numbers_per_line) {
+                    $count++;
+                } else {
+                    $invalid_lines++;
+                    log_message('debug', "count_combination_tickets: Invalid line {$line_index} in {$filter->file_name}: expected {$expected_numbers_per_line} numbers, got " . count($numbers) . " - Line: {$line}");
                 }
             }
+            
+            log_message('info', "count_combination_tickets: File {$filter->file_name} - Total lines: {$total_lines}, Valid combinations: {$count}, Empty lines: {$empty_lines}, Invalid lines: {$invalid_lines}, Expected numbers per line: {$expected_numbers_per_line}, Is independent extra ball: " . ($is_independent_extra_ball ? 'YES' : 'NO'));
         }
         
         return $count;

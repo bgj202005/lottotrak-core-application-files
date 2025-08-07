@@ -499,6 +499,23 @@
 		outline: 0;
 	}
 	
+	<?php if (!empty($lottery) && $lottery->duplicate_extra_ball == 0): ?>
+	/* Reduce Win History Filtering dropdown sizes by 20% total for regular lotteries (duplicate_extra_ball = 0) */
+	.filter-control select {
+		font-size: 0.68em; /* 0.85em * 0.8 = 0.68em (20% total reduction) */
+		padding: 0.16em 0.4em; /* 0.2em * 0.8 = 0.16em, 0.5em * 0.8 = 0.4em */
+		width: 80%; /* Reduce width by 20% total */
+	}
+	.filter-control input {
+		font-size: 0.68em; /* 0.85em * 0.8 = 0.68em (20% total reduction) */
+		padding: 0.16em 0.4em; /* 0.2em * 0.8 = 0.16em, 0.5em * 0.8 = 0.4em */
+		width: 80%; /* Reduce width by 20% total */
+	}
+	.filter-control {
+		padding: 0.24em !important; /* 0.3em * 0.8 = 0.24em (20% total reduction) */
+	}
+	<?php endif; ?>
+	
 	/* Fix for filtering table layout */
 	#futures-filter-table {
 		max-width: 100% !important;
