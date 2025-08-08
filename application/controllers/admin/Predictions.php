@@ -1351,6 +1351,64 @@ class Predictions extends Admin_Controller {
 		$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
 		$per_page = $this->input->post('per_page') ?: $this->input->get('per_page');
 		if (!$per_page) $per_page = 10;
+		
+		// Load saved filter settings for GET requests (when page first loads)
+		if ($this->input->method() !== 'post') {
+			// First, try to load from session data
+			$session_data = $this->session->userdata('futures_form');
+			
+			if ($session_data) {
+				// Load from session if available
+				$this->data['selected_h_w_c_group'] = $session_data['selected_h_w_c_group'] ?? 'ALL';
+				$this->data['selected_extra_ball'] = $session_data['selected_extra_ball'] ?? 'ALL';
+				$this->data['selected_followers_type'] = $session_data['selected_followers_type'] ?? 'after_ball';
+				$this->data['selected_hwc'] = $session_data['selected_hwc'] ?? false;
+				$this->data['selected_followers'] = $session_data['selected_followers'] ?? false;
+				$this->data['selected_friends_checkbox'] = $session_data['selected_friends_checkbox'] ?? false;
+				$this->data['selected_friends'] = $session_data['selected_friends'] ?? '';
+				$this->data['selected_wheeling'] = $session_data['selected_wheeling'] ?? '';
+			} else {
+				// If no session data, try database as fallback
+				$user_id = $this->session->userdata('id');
+				$this->db->where('lottery_id', $id);
+				$this->db->where('user_id', $user_id);
+				$this->db->order_by('id', 'DESC');
+				$this->db->limit(1);
+				$query = $this->db->get('lottery_combination_filters');
+				
+				if ($query->num_rows() > 0) {
+					$saved_filters = $query->row_array();
+					$this->data['selected_h_w_c_group'] = $saved_filters['h_w_c_group'] ?? 'ALL';
+					$this->data['selected_extra_ball'] = $saved_filters['extra_balls'] ?? 'ALL'; // Load from database column
+					$this->data['selected_followers_type'] = $saved_filters['follower_type'] ?? 'after_ball';
+					$this->data['selected_hwc'] = (bool)($saved_filters['hwc'] ?? false);
+					$this->data['selected_followers'] = (bool)($saved_filters['followers'] ?? false);
+					$this->data['selected_friends_checkbox'] = (bool)($saved_filters['friends'] ?? false);
+					$this->data['selected_friends'] = $saved_filters['selected_friends'] ?? '';
+					$this->data['selected_wheeling'] = $saved_filters['file_name'] ?? '';
+				} else {
+					// Set defaults if no saved settings
+					$this->data['selected_h_w_c_group'] = 'ALL';
+					$this->data['selected_extra_ball'] = 'ALL';
+					$this->data['selected_followers_type'] = 'after_ball';
+					$this->data['selected_hwc'] = false;
+					$this->data['selected_followers'] = false;
+					$this->data['selected_friends_checkbox'] = false;
+					$this->data['selected_friends'] = '';
+					$this->data['selected_wheeling'] = '';
+				}
+			}
+			
+			// Set default pagination for GET requests with saved settings
+			$this->data['combos_paginated'] = [];
+			$this->data['pagination'] = [
+				'current' => 1,
+				'total' => 1,
+				'per_page' => $per_page,
+				'total_filtered' => 0
+			];
+		}
+		
 		// --- POST: Generate and Save Everything to Session ---
 		if ($this->input->method() === 'post') {
 			// Check if futures_form session is set
@@ -1930,47 +1988,6 @@ class Predictions extends Admin_Controller {
 			$this->data['disable_generate_button'] = false; 	// or false
 		}
 		
-		// Ensure these variables are always set for the view
-		if (!isset($this->data['selected_h_w_c_group'])) {
-			// Try to load from the most recent saved filter for this user and lottery
-			$user_id = $this->session->userdata('id');
-			$this->db->where('lottery_id', $id);
-			$this->db->where('user_id', $user_id);
-			$this->db->order_by('id', 'DESC');
-			$this->db->limit(1);
-			$query = $this->db->get('lottery_combination_filters');
-			
-			if ($query->num_rows() > 0) {
-				$saved_filters = $query->row_array();
-				$this->data['selected_h_w_c_group'] = $saved_filters['h_w_c_group'] ?? 'ALL';
-				$this->data['selected_extra_ball'] = $saved_filters['extra_ball_filter'] ?? 'ALL';
-			} else {
-				$this->data['selected_h_w_c_group'] = 'ALL';
-				$this->data['selected_extra_ball'] = 'ALL';
-			}
-		}
-		if (!isset($this->data['selected_extra_ball'])) {
-			$this->data['selected_extra_ball'] = 'ALL';
-		}
-		if (!isset($this->data['selected_followers_type'])) {
-			$this->data['selected_followers_type'] = 'after_ball';
-		}
-		if (!isset($this->data['selected_hwc'])) {
-			$this->data['selected_hwc'] = false;
-		}
-		if (!isset($this->data['selected_followers'])) {
-			$this->data['selected_followers'] = false;
-		}
-		if (!isset($this->data['selected_friends_checkbox'])) {
-			$this->data['selected_friends_checkbox'] = false;
-		}
-		if (!isset($this->data['selected_friends'])) {
-			$this->data['selected_friends'] = '';
-		}
-		if (!isset($this->data['selected_wheeling'])) {
-			$this->data['selected_wheeling'] = '';
-		}
-		
 		$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
 		$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);
 		$this->data['lottery']->winning_digits = $this->predictions_m->get_digit_sums($this->data['lottery']->highlights['winning_digits']);
@@ -2127,6 +2144,7 @@ class Predictions extends Admin_Controller {
 			'followers' => $session_data['selected_followers'] ? 1 : 0,
 			'friends' => $session_data['selected_friends_checkbox'] ? 1 : 0,
 			'h_w_c_group' => $session_data['selected_h_w_c_group'],
+			'extra_balls' => $session_data['selected_extra_ball'], // Store extra ball filter for independent extra ball lotteries
 			'follower_type' => $session_data['selected_followers_type'],
 			'ball_points' => $session_data['selected_ball_points'],
 			'position_points' => $session_data['selected_position_points'],
@@ -2408,6 +2426,7 @@ class Predictions extends Admin_Controller {
 		$this->data['selected_followers'] = (bool)$saved_settings['followers'];
 		$this->data['selected_friends_checkbox'] = (bool)$saved_settings['friends'];
 		$this->data['selected_h_w_c_group'] = $saved_settings['h_w_c_group'];
+		$this->data['selected_extra_ball'] = $saved_settings['extra_balls'] ?? 'ALL'; // Restore extra ball filter, default to ALL if null
 		$this->data['selected_ball_points'] = $saved_settings['ball_points'];
 		$this->data['selected_position_points'] = $saved_settings['position_points'];
 		$this->data['selected_friends'] = $saved_settings['selected_friends'];
@@ -2430,12 +2449,15 @@ class Predictions extends Admin_Controller {
 			$filename_cccc_data = $this->lottery_data_m->get_combination_filename_cccc($combo_id);
 			if ($filename_cccc_data) {
 				$this->data['file_name'] = $filename_cccc_data['file_name'];
-				$this->data['CCCC'] = $filename_cccc_data['CCCC'];
+				// Use the saved filtered count instead of original file count
+				$this->data['CCCC'] = $saved_settings['CCCC']; // Use filtered count from saved settings
+				log_message('info', "Refresh method: Original file CCCC: " . $filename_cccc_data['CCCC'] . ", Saved filtered CCCC: " . $saved_settings['CCCC']);
 			}
 		}
 		// Store restored settings in session
 		$session_data = [
 			'selected_h_w_c_group' => $saved_settings['h_w_c_group'],
+			'selected_extra_ball' => $saved_settings['extra_balls'] ?? 'ALL', // Restore extra ball filter to session
 			'selected_followers_type' => $saved_settings['follower_type'],
 			'selected_ball_points' => $saved_settings['ball_points'],
 			'selected_position_points' => $saved_settings['position_points'],
@@ -2501,25 +2523,14 @@ class Predictions extends Admin_Controller {
 		
 		$saved_filename = $saved_settings['file_name']; // This is the ADMIN## filename
 		
-		// Get picks count from the lottery combination files table
-		$this->db->select('N');
-		$this->db->from('lottery_combination_files');
-		$this->db->where('id', $combo_id);
-		$combo_file = $this->db->get()->row();
-		
-		if (!$combo_file || !$combo_file->N) {
-			log_message('error', "Refresh method: Could not get picks count for combo_id: " . $combo_id);
-			$this->session->set_flashdata('message', '<div class="alert alert-danger">Unable to determine lottery pick count.</div>');
-			redirect('admin/predictions/futures/' . $id);
-			return;
-		}
-		
-		$picks = (int)$combo_file->N;
+		// Get picks count from the lottery's balls_drawn value (most reliable)
+		$picks = (int)$this->data['lottery']->balls_drawn;
 		
 		// Construct the file path for the saved filtered tickets
 		$directory = FCPATH . 'combinations/pick' . $picks . '/';
 		$file_path = $directory . $saved_filename . '.txt';
 		
+		log_message('info', "Refresh method: Using lottery balls_drawn: {$picks} for directory path");
 		log_message('info', "Refresh method: Looking for saved filtered tickets at: " . $file_path);
 		
 		// Check if the filtered tickets file exists
@@ -2531,18 +2542,33 @@ class Predictions extends Admin_Controller {
 				$lines = explode("\n", $file_content);
 				$filtered_tickets = [];
 				
-				foreach ($lines as $line) {
+				// Check if this is an independent extra ball lottery
+				$is_independent_extra_ball = !empty($this->data['lottery']->duplicate_extra_ball);
+				$expected_numbers = $is_independent_extra_ball ? $picks + 1 : $picks;
+				
+				log_message('info', "Refresh method: Loading filtered tickets - picks: {$picks}, is_independent_extra_ball: " . ($is_independent_extra_ball ? 'yes' : 'no') . ", expected_numbers: {$expected_numbers}");
+				log_message('info', "Refresh method: File has " . count($lines) . " lines");
+				
+				foreach ($lines as $line_index => $line) {
 					$line = trim($line);
 					if (!empty($line)) {
 						// Parse the line into numbers
 						$numbers = preg_split('/[\s,]+/', $line);
 						$numbers = array_map('intval', array_filter($numbers, 'is_numeric'));
 						
-						if (count($numbers) == $picks) {
+						if ($line_index < 3) { // Log first 3 lines for debugging
+							log_message('info', "Refresh method: Line {$line_index}: '{$line}' -> " . count($numbers) . " numbers: " . implode(',', $numbers));
+						}
+						
+						if (count($numbers) == $expected_numbers) {
 							$filtered_tickets[] = $numbers;
+						} else if ($line_index < 3) {
+							log_message('warning', "Refresh method: Line {$line_index} rejected - expected {$expected_numbers} numbers, got " . count($numbers));
 						}
 					}
 				}
+				
+				log_message('info', "Refresh method: Successfully parsed " . count($filtered_tickets) . " filtered tickets from file");
 				
 				if (!empty($filtered_tickets)) {
 					// Create number array from the original combination file (for filtering purposes)
@@ -2573,9 +2599,9 @@ class Predictions extends Admin_Controller {
 						
 						log_message('info', "Refresh method: Successfully loaded " . count($filtered_tickets) . " existing filtered tickets");
 						
-						// Set up pagination for existing tickets
-						$page = 1;
-						$per_page = 10;
+						// Set up pagination for existing tickets - respect URL parameters
+						$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
+						$per_page = $this->input->get('per_page') ? (int)$this->input->get('per_page') : 10;
 						$total_filtered = count($filtered_tickets);
 						$total_pages = ceil($total_filtered / $per_page);
 						$offset = ($page - 1) * $per_page;
@@ -2584,12 +2610,25 @@ class Predictions extends Admin_Controller {
 						// Add row numbers to tickets
 						foreach ($paginated_tickets as $index => &$ticket) {
 							$ticket['row_number'] = $offset + $index + 1;
-							$ticket['numbers'] = is_array($ticket) && isset($ticket[0]) ? array_slice($ticket, 0, $picks) : $ticket;
+							
+							// For independent extra ball lotteries, separate main numbers and extra ball
+							if ($is_independent_extra_ball && is_array($ticket) && count($ticket) == $picks + 1) {
+								$main_numbers = array_slice($ticket, 0, $picks);
+								$extra_ball = $ticket[$picks]; // Last number is the extra ball
+								$ticket['numbers'] = $main_numbers;
+								$ticket['extra_ball'] = $extra_ball;
+							} else {
+								// Regular lottery or if format doesn't match expected
+								$ticket['numbers'] = is_array($ticket) && isset($ticket[0]) ? array_slice($ticket, 0, $picks) : $ticket;
+							}
 						}
 						
 						// Set up the data for the view
 						$this->data['combos_paginated'] = $paginated_tickets;
 						$this->data['total_filtered'] = $total_filtered;
+						// Force the display count to match actual parsed tickets for testing
+						$this->data['CCCC'] = $total_filtered; // Use actual parsed count instead of saved
+						log_message('info', "Refresh method: Setting CCCC to actual count: {$total_filtered}, database saved CCCC was: " . $saved_settings['CCCC']);
 						$this->data['total_pages'] = $total_pages;
 						$this->data['current_page'] = $page;
 						$this->data['per_page'] = $per_page;
@@ -2603,6 +2642,7 @@ class Predictions extends Admin_Controller {
 							'total_filtered' => $total_filtered
 						];
 						
+						log_message('info', "Refresh method: Pagination data - current: {$page}, total_pages: {$total_pages}, per_page: {$per_page}, total_filtered: {$total_filtered}");
 						log_message('info', "Refresh method: Displaying existing filtered tickets, page {$page} of {$total_pages}, showing {$per_page} tickets per page");
 						
 						// Set filter record ID for Prize controller navigation
@@ -2628,6 +2668,7 @@ class Predictions extends Admin_Controller {
 		// Set the session data that the combination method expects
 		$session_data = [
 			'selected_h_w_c_group' => $saved_settings['h_w_c_group'],
+			'selected_extra_ball' => $saved_settings['extra_balls'] ?? 'ALL', // Restore extra ball filter to session
 			'selected_followers_type' => $saved_settings['follower_type'],
 			'selected_ball_points' => $saved_settings['ball_points'],
 			'selected_position_points' => $saved_settings['position_points'],
@@ -2658,6 +2699,7 @@ class Predictions extends Admin_Controller {
 		// Redirect to combination method with POST data to trigger ticket generation
 		$_POST = [
 			'h_w_c_group' => $saved_settings['h_w_c_group'],
+			'extra_ball_filter' => $saved_settings['extra_balls'] ?? 'ALL', // Add extra ball filter
 			'hwc' => $saved_settings['hwc'] ? '1' : '0',
 			'followers' => $saved_settings['followers'] ? '1' : '0',
 			'friends' => $saved_settings['friends'] ? '1' : '0',
