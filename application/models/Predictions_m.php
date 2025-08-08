@@ -2421,6 +2421,62 @@ class Predictions_m extends MY_Model
 			}
 		}
 		
+		// Filter by H-W-C group (Hot-Warm-Cold)
+		if (isset($filter_select['selected_h_w_c_group']) && 
+			$filter_select['selected_h_w_c_group'] !== '' && 
+			$filter_select['selected_h_w_c_group'] !== 'ALL') {
+			
+			$h_w_c_group = $filter_select['selected_h_w_c_group'];
+			
+			// Parse H-W-C group (e.g., "0-5-0" for 0 hot, 5 warm, 0 cold)
+			if (preg_match('/(\d+)-(\d+)-(\d+)/', $h_w_c_group, $matches)) {
+				$expected_hot = (int)$matches[1];
+				$expected_warm = (int)$matches[2];
+				$expected_cold = (int)$matches[3];
+				
+				// Get lottery ID for H-W-C stats
+				$lottery_id = $filter_select['lottery_id'] ?? null;
+				if ($lottery_id) {
+					// Load statistics model if not already loaded
+					if (!isset($this->statistics_m)) {
+						$this->load->model('Statistics_m', 'statistics_m');
+					}
+					
+					// Get H-W-C classification for each number in the combination
+					$combo_numbers = array_values($combo);
+					$hot_count = 0;
+					$warm_count = 0;
+					$cold_count = 0;
+					
+					foreach ($combo_numbers as $number) {
+						// Skip extra ball for H-W-C calculation (only main numbers)
+						if (isset($combo['extra']) && $number == $combo['extra']) {
+							continue;
+						}
+						
+						$classification = $this->statistics_m->get_number_hwc_classification($lottery_id, $number);
+						
+						switch ($classification) {
+							case 'hot':
+								$hot_count++;
+								break;
+							case 'warm':
+								$warm_count++;
+								break;
+							case 'cold':
+								$cold_count++;
+								break;
+						}
+					}
+					
+					// Check if the combination matches the expected H-W-C distribution
+					if ($hot_count !== $expected_hot || $warm_count !== $expected_warm || $cold_count !== $expected_cold) {
+						return false;
+					}
+				}
+			}
+		}
+		
 		return true;
 	}
 	/**

@@ -3509,4 +3509,54 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$_previous = substr($_previous, 0, -1); // Remove the last comma
 	return $_previous; // Return the formatted string for the previous draw positions
 	}
+
+	/**
+	 * Get H-W-C classification for a specific number in a lottery
+	 * 
+	 * @param int $lottery_id Lottery ID
+	 * @param int $number Number to classify
+	 * @return string 'hot', 'warm', 'cold', or null if not found
+	 */
+	public function get_number_hwc_classification($lottery_id, $number)
+	{
+		// Get H-W-C data for the lottery
+		$hwc_data = $this->h_w_c_exists($lottery_id);
+		
+		if (!$hwc_data) {
+			return null;
+		}
+		
+		// Parse the hot, warm, and cold numbers
+		if (!empty($hwc_data['hots'])) {
+			$hots = array_map('intval', array_map(function($v){ 
+				return explode('=', $v)[0]; 
+			}, explode(',', $hwc_data['hots'])));
+			
+			if (in_array($number, $hots)) {
+				return 'hot';
+			}
+		}
+		
+		if (!empty($hwc_data['warms'])) {
+			$warms = array_map('intval', array_map(function($v){ 
+				return explode('=', $v)[0]; 
+			}, explode(',', $hwc_data['warms'])));
+			
+			if (in_array($number, $warms)) {
+				return 'warm';
+			}
+		}
+		
+		if (!empty($hwc_data['colds'])) {
+			$colds = array_map('intval', array_map(function($v){ 
+				return explode('=', $v)[0]; 
+			}, explode(',', $hwc_data['colds'])));
+			
+			if (in_array($number, $colds)) {
+				return 'cold';
+			}
+		}
+		
+		return null;
+	}
 }

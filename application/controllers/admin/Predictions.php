@@ -1416,6 +1416,7 @@ class Predictions extends Admin_Controller {
 					'selected_last_digits'      => $selected_last_digits,
 					'selected_number_range' 	=> $selected_number_range,
 					'selected_adjacents' 		=> $selected_adjacents,
+					'selected_h_w_c_group'      => $h_w_c_group,
 					'selected_combo_id'         => $combo_id, // Add combo_id to session
 				];
 				$this->session->set_userdata('futures_form', $session_data);
@@ -1478,6 +1479,7 @@ class Predictions extends Admin_Controller {
 					'selected_last_digits'      => $selected_last_digits,
 					'selected_number_range' 	=> $selected_number_range,
 					'selected_adjacents' 		=> $selected_adjacents,
+					'selected_h_w_c_group'      => $h_w_c_group,
 					'selected_combo_id'         => $combo_id, // Add combo_id to session
 				];
 				$this->session->set_userdata('futures_form', $session_data);
@@ -2048,6 +2050,9 @@ class Predictions extends Admin_Controller {
 			'selected_last_digits' => $session_data['selected_last_digits'],
 			'selected_number_range' => $session_data['selected_number_range'],
 			'selected_adjacents' => $session_data['selected_adjacents'],
+			'selected_h_w_c_group' => $session_data['selected_h_w_c_group'],
+			'selected_extra_ball' => $session_data['selected_extra_ball'],
+			'lottery_id' => $id,
 			'drawn' => $drawn,
 			'lottery_last_drawn' => $this->data['lottery']->last_drawn,
 			'extra_ball' => $this->data['lottery']->extra_ball,

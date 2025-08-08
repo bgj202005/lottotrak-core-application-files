@@ -53,6 +53,7 @@ class Prize extends Admin_Controller
         // This ensures filters remain active until user actually views the results
         
         // Get prize history data for the specific lottery and admin
+        log_message('info', "Prize index: Loading prize records for admin_id={$admin_id}, lottery_id={$lottery_id}");
         $this->data['prize_records'] = $this->prize_m->get_admin_prize_history($admin_id, $per_page, $offset, $lottery_id);
         $this->data['total_records'] = $this->prize_m->count_admin_prize_records($admin_id, $lottery_id);
         $this->data['lottery'] = $lottery;
@@ -303,6 +304,16 @@ class Prize extends Admin_Controller
         
         $expected_picks = (int)$file_record->R;
         
+        // Check if this is an independent extra ball lottery
+        $this->db->select('extra_ball, duplicate_extra_ball');
+        $this->db->from('lottery_profiles');
+        $this->db->where('id', $filter->lottery_id);
+        $lottery_profile = $this->db->get()->row();
+        $is_independent_extra_ball = ($lottery_profile && $lottery_profile->duplicate_extra_ball == 1 && $lottery_profile->extra_ball == 1);
+        
+        // For independent extra ball, expect picks + 1 numbers
+        $expected_numbers = $is_independent_extra_ball ? $expected_picks + 1 : $expected_picks;
+        
         // Build file path - the filtered combination file is saved in pick{R} directory
         $pick_dir = 'pick' . $expected_picks;
         $file_path = FCPATH . 'combinations/' . $pick_dir . '/' . $filter->file_name . '.txt';
@@ -324,12 +335,15 @@ class Prize extends Admin_Controller
                     $numbers = preg_split('/[\s,]+/', $line);
                     $numbers = array_map('intval', array_filter($numbers, 'is_numeric'));
                     
-                    if (count($numbers) == $expected_picks) {
+                    // Use the correct expected number count based on lottery type
+                    if (count($numbers) == $expected_numbers) {
                         $tickets[] = $numbers;
                     }
                 }
             }
         }
+        
+        log_message('info', "get_combination_tickets_for_filter: Loaded " . count($tickets) . " tickets for filter {$filter->id}, expected_numbers={$expected_numbers}, is_independent_extra_ball=" . ($is_independent_extra_ball ? 'true' : 'false'));
         
         return $tickets;
     }
@@ -1874,6 +1888,8 @@ class Prize extends Admin_Controller
             
             // Process each combination ticket against this draw
             $win_updates = array();
+            log_message('info', "Processing " . count($combination_tickets) . " tickets for filter {$filter->id}, is_independent_extra_ball: " . ($is_independent_extra_ball ? 'true' : 'false'));
+            
             foreach ($combination_tickets as $ticket) {
                 if ($is_independent_extra_ball) {
                     // For independent extra ball lotteries, separate main and extra ball processing
@@ -1893,8 +1909,17 @@ class Prize extends Admin_Controller
                     $drawn_extra = $this->extract_bonus_number_from_draw($draw_info);
                     $extra_matches = ($drawn_extra && $extra_ball == $drawn_extra);
                     
+                    // Debug logging for independent extra ball
+                    log_message('info', "Independent extra ball ticket: main_numbers=" . implode(',', $main_numbers) . 
+                                      ", extra_ball={$extra_ball}, drawn_main=" . implode(',', $drawn_main_numbers) . 
+                                      ", drawn_extra={$drawn_extra}, main_matches={$main_matches}, extra_matches=" . ($extra_matches ? 'true' : 'false'));
+                    
                     // Determine win category for independent extra ball
                     $win_category = $this->determine_independent_extra_ball_win($main_matches, $extra_matches, $prize_profile);
+                    
+                    if ($win_category) {
+                        log_message('info', "Independent extra ball win found: {$win_category}");
+                    }
                 } else {
                     // For regular lotteries (existing logic)
                     $matches = $this->count_ticket_matches($ticket, $draw_info);
@@ -1930,6 +1955,7 @@ class Prize extends Admin_Controller
             
             // Update the filter's win record fields in database
             if (!empty($win_updates)) {
+                log_message('info', "Win updates found for filter {$filter->id}: " . json_encode($win_updates));
                 $update_data = array();
                 
                 // Add win record updates to existing values
@@ -1943,7 +1969,9 @@ class Prize extends Admin_Controller
                     
                     if ($current_result) {
                         $current_value = isset($current_result->$category) ? (int)$current_result->$category : 0;
-                        $update_data[$category] = $current_value + $count;
+                        $new_value = $current_value + $count;
+                        $update_data[$category] = $new_value;
+                        log_message('info', "Updating {$category}: {$current_value} + {$count} = {$new_value}");
                     }
                 }
                 
@@ -1954,8 +1982,10 @@ class Prize extends Admin_Controller
                 
                 // Update the filter record with new win counts and optionally lastdate
                 if (!empty($update_data)) {
+                    log_message('info', "Executing database update for filter {$filter->id}: " . json_encode($update_data));
                     $this->db->where('id', $filter->id);
-                    $this->db->update('lottery_combination_filters', $update_data);
+                    $result = $this->db->update('lottery_combination_filters', $update_data);
+                    log_message('info', "Database update result: " . ($result ? 'success' : 'failed'));
                     
                     // Update the filter object for current view only if lastdate was updated
                     if ($update_lastdate) {
