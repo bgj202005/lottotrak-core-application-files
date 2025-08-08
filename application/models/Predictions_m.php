@@ -2965,7 +2965,7 @@ class Predictions_m extends MY_Model
 			'selected_winning_sums', 'selected_winning_digits', 'selected_repeaters',
 			'selected_consecutives', 'selected_parity', 'selected_decades',
 			'selected_last_digits', 'selected_number_range', 'selected_adjacents',
-			'selected_extra_ball'
+			'selected_extra_ball', 'selected_h_w_c_group'
 		];
 		
 		foreach ($filter_keys as $key) {

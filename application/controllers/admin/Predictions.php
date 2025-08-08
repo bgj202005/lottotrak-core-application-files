@@ -1929,6 +1929,48 @@ class Predictions extends Admin_Controller {
 			$this->data['disable_combination_dropdown'] = true; // or false
 			$this->data['disable_generate_button'] = false; 	// or false
 		}
+		
+		// Ensure these variables are always set for the view
+		if (!isset($this->data['selected_h_w_c_group'])) {
+			// Try to load from the most recent saved filter for this user and lottery
+			$user_id = $this->session->userdata('id');
+			$this->db->where('lottery_id', $id);
+			$this->db->where('user_id', $user_id);
+			$this->db->order_by('id', 'DESC');
+			$this->db->limit(1);
+			$query = $this->db->get('lottery_combination_filters');
+			
+			if ($query->num_rows() > 0) {
+				$saved_filters = $query->row_array();
+				$this->data['selected_h_w_c_group'] = $saved_filters['h_w_c_group'] ?? 'ALL';
+				$this->data['selected_extra_ball'] = $saved_filters['extra_ball_filter'] ?? 'ALL';
+			} else {
+				$this->data['selected_h_w_c_group'] = 'ALL';
+				$this->data['selected_extra_ball'] = 'ALL';
+			}
+		}
+		if (!isset($this->data['selected_extra_ball'])) {
+			$this->data['selected_extra_ball'] = 'ALL';
+		}
+		if (!isset($this->data['selected_followers_type'])) {
+			$this->data['selected_followers_type'] = 'after_ball';
+		}
+		if (!isset($this->data['selected_hwc'])) {
+			$this->data['selected_hwc'] = false;
+		}
+		if (!isset($this->data['selected_followers'])) {
+			$this->data['selected_followers'] = false;
+		}
+		if (!isset($this->data['selected_friends_checkbox'])) {
+			$this->data['selected_friends_checkbox'] = false;
+		}
+		if (!isset($this->data['selected_friends'])) {
+			$this->data['selected_friends'] = '';
+		}
+		if (!isset($this->data['selected_wheeling'])) {
+			$this->data['selected_wheeling'] = '';
+		}
+		
 		$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
 		$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);
 		$this->data['lottery']->winning_digits = $this->predictions_m->get_digit_sums($this->data['lottery']->highlights['winning_digits']);
