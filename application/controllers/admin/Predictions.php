@@ -2116,8 +2116,13 @@ class Predictions extends Admin_Controller {
 			'lottery_last_drawn' => $this->data['lottery']->last_drawn,
 			'extra_ball' => $this->data['lottery']->extra_ball,
 			'duplicate_extra_ball' => $this->data['lottery']->duplicate_extra_ball,
+			'max_ball' => $this->data['lottery']->maximum_ball,
 			'lottery_highlights' => $this->data['lottery']->highlights
 		];
+		
+		log_message('info', "Combination_save: Filter values - selected_extra_ball: " . ($filters['selected_extra_ball'] ?? 'null') . 
+			", duplicate_extra_ball: " . ($filters['duplicate_extra_ball'] ?? 'null') . 
+			", extra_ball: " . ($filters['extra_ball'] ?? 'null'));
 		
 		$filtered_count = $this->predictions_m->get_filtered_combinations_count($filepath, $number_array, $filters);
 		// Get current user ID and format it with leading zero if needed

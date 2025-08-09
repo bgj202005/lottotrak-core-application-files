@@ -2417,8 +2417,10 @@ class Predictions_m extends MY_Model
 			// Check if this combination has the selected extra ball
 			$selected_extra_ball = (int)$filter_select['selected_extra_ball'];
 			if (isset($combo['extra']) && (int)$combo['extra'] !== $selected_extra_ball) {
+				log_message('info', "apply_other_filters: Extra ball filter rejecting combo - expected: {$selected_extra_ball}, actual: " . $combo['extra']);
 				return false;
 			}
+			log_message('info', "apply_other_filters: Extra ball filter passed - expected: {$selected_extra_ball}, actual: " . $combo['extra']);
 		}
 		
 		// Filter by H-W-C group (Hot-Warm-Cold)
@@ -2881,6 +2883,7 @@ class Predictions_m extends MY_Model
 	public function get_filtered_combinations_count($filepath, $number_array, $filter_select = [])
 	{
 		if (!file_exists($filepath)) {
+			log_message('error', "get_filtered_combinations_count: File does not exist: {$filepath}");
 			return 0;
 		}
 		
@@ -2888,9 +2891,19 @@ class Predictions_m extends MY_Model
 		$selected_trends = $filter_select['selected_trends'] ?? 'ALL';
 		$has_other_filters = $this->has_active_filters($filter_select);
 		
-		if ($selected_trends === 'ALL' && !$has_other_filters) {
-			return count(file($filepath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
+		$is_independent_extra_ball = !empty($filter_select['duplicate_extra_ball']) && !empty($filter_select['extra_ball']);
+		$selected_extra_ball = $filter_select['selected_extra_ball'] ?? 'ALL';
+		log_message('info', "get_filtered_combinations_count: Processing file {$filepath}, is_independent_extra_ball: " . ($is_independent_extra_ball ? 'yes' : 'no') . ", selected_extra_ball: {$selected_extra_ball}");
+		
+		// For independent extra ball lotteries, we must always process combinations due to different structure
+		// even when filters are 'ALL', because the combinations need proper parsing
+		if ($selected_trends === 'ALL' && !$has_other_filters && !$is_independent_extra_ball) {
+			$total_lines = count(file($filepath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
+			log_message('info', "get_filtered_combinations_count: No filters applied, returning total lines: {$total_lines}");
+			return $total_lines;
 		}
+		
+		log_message('info', "get_filtered_combinations_count: Processing combinations with filtering (independent_extra_ball: " . ($is_independent_extra_ball ? 'yes' : 'no') . ")");
 		
 		// Count filtered combinations
 		$count = 0;
@@ -2913,16 +2926,39 @@ class Predictions_m extends MY_Model
 		
 		// Count combinations that pass filters
 		if (($handle = fopen($filepath, 'r')) !== false) {
+			$line_number = 0;
 			while (($line = fgets($handle)) !== false) {
 				$line = trim($line);
 				if (empty($line)) continue;
 				
+				$line_number++;
+				
 				// Parse combination
 				$positions = array_map('intval', explode(' ', $line));
 				$combo_numbers = [];
-				foreach ($positions as $pos) {
-					if ($pos > 0 && isset($number_array[$pos - 1])) {
-						$combo_numbers[] = $number_array[$pos - 1];
+				$extra_ball_number = null;
+				
+				// For independent extra ball lotteries, treat last number differently
+				if (!empty($filter_select['duplicate_extra_ball']) && !empty($filter_select['extra_ball'])) {
+					// Last number is the actual extra ball, keep it as-is
+					$extra_ball_number = array_pop($positions);
+					
+					// Process remaining positions as usual (insert generated numbers)
+					foreach ($positions as $pos) {
+						if ($pos > 0 && isset($number_array[$pos - 1])) {
+							$combo_numbers[] = $number_array[$pos - 1];
+						}
+					}
+					
+					if ($line_number <= 3) { // Log first few lines for debugging
+						log_message('info', "get_filtered_combinations_count: Line {$line_number}: positions=" . implode(',', array_map('intval', explode(' ', $line))) . ", extra_ball={$extra_ball_number}, combo_numbers=" . implode(',', $combo_numbers));
+					}
+				} else {
+					// Regular lottery - all positions are for main numbers
+					foreach ($positions as $pos) {
+						if ($pos > 0 && isset($number_array[$pos - 1])) {
+							$combo_numbers[] = $number_array[$pos - 1];
+						}
 					}
 				}
 				
@@ -2932,6 +2968,18 @@ class Predictions_m extends MY_Model
 				$combo = [];
 				foreach ($combo_numbers as $idx => $num) {
 					$combo['ball'.($idx+1)] = $num;
+				}
+				
+				// Add extra ball for independent extra ball lotteries
+				if (!empty($filter_select['duplicate_extra_ball']) && !empty($filter_select['extra_ball'])) {
+					if ($extra_ball_number !== null) {
+						// Use the actual extra ball number from the combination file
+						$combo['extra'] = $extra_ball_number;
+					} else {
+						// Fallback to generated extra ball (for backward compatibility)
+						$max_ball = $filter_select['max_ball'] ?? 50;
+						$combo['extra'] = $this->assign_extra_ball($combo_numbers, $max_ball);
+					}
 				}
 				
 				// Check if combination passes all filters
@@ -2950,6 +2998,7 @@ class Predictions_m extends MY_Model
 			fclose($handle);
 		}
 		
+		log_message('info', "get_filtered_combinations_count: Final count: {$count} out of {$line_number} total lines");
 		return $count;
 	}
 	
