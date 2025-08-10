@@ -540,6 +540,21 @@ class Combination_filters_m extends MY_Model
      */
     private function apply_other_filters($combo, $filter_select)
     {
+        // Add debugging to track filter rejections
+        $combo_str = is_array($combo) ? implode(',', array_slice(array_values($combo), 0, 5)) : 'invalid';
+        
+        // Debug: Log active filters for first combo
+        static $filter_debug_done = false;
+        if (!$filter_debug_done) {
+            log_message('info', "apply_other_filters (Combination_filters_m): Active filters check:");
+            foreach ($filter_select as $key => $value) {
+                if ($key !== 'lottery_last_drawn' && $key !== 'lottery_highlights') {
+                    log_message('info', "  $key = " . (is_array($value) ? print_r($value, true) : $value));
+                }
+            }
+            $filter_debug_done = true;
+        }
+        
         // For independent extra ball lotteries, separate main numbers from extra ball
         $main_numbers = $combo;
         $has_extra_ball = false;
@@ -683,7 +698,7 @@ class Combination_filters_m extends MY_Model
             }
         }
         
-        // Filter by selected extra ball (for independent extra ball lotteries)
+        // Filter by selected extra ball (for independent extra ball lotteries) - MUST COME FIRST TO MATCH PREDICTIONS_M
         if (isset($filter_select['selected_extra_ball']) && 
             $filter_select['selected_extra_ball'] !== 'ALL' && 
             !empty($filter_select['duplicate_extra_ball']) && 
@@ -692,10 +707,68 @@ class Combination_filters_m extends MY_Model
             // Check if this combination has the selected extra ball
             $selected_extra_ball = (int)$filter_select['selected_extra_ball'];
             if (isset($combo['extra']) && (int)$combo['extra'] !== $selected_extra_ball) {
+                log_message('info', "apply_other_filters (Combination_filters_m): Extra ball filter rejecting combo - expected: {$selected_extra_ball}, actual: " . $combo['extra']);
                 return false;
+            }
+            log_message('info', "apply_other_filters (Combination_filters_m): Extra ball filter passed - expected: {$selected_extra_ball}, actual: " . $combo['extra']);
+        }
+        
+        // Filter by H-W-C group (Hot-Warm-Cold) - APPLIED AFTER EXTRA BALL FILTER
+        if (isset($filter_select['selected_h_w_c_group']) && 
+            $filter_select['selected_h_w_c_group'] !== '' && 
+            $filter_select['selected_h_w_c_group'] !== 'ALL') {
+            
+            $h_w_c_group = $filter_select['selected_h_w_c_group'];
+            
+            // Parse H-W-C group (e.g., "2-2-1" for 2 hot, 2 warm, 1 cold)
+            if (preg_match('/(\d+)-(\d+)-(\d+)/', $h_w_c_group, $matches)) {
+                $expected_hot = (int)$matches[1];
+                $expected_warm = (int)$matches[2];
+                $expected_cold = (int)$matches[3];
+                
+                // Get lottery ID for H-W-C stats
+                $lottery_id = $filter_select['lottery_id'] ?? null;
+                if ($lottery_id) {
+                    // Load statistics model if not already loaded
+                    if (!isset($this->statistics_m)) {
+                        $this->load->model('Statistics_m', 'statistics_m');
+                    }
+                    
+                    // Get H-W-C classification for each number in the combination
+                    $combo_numbers = array_values($main_numbers); // Use main numbers only (excludes extra ball)
+                    $hot_count = 0;
+                    $warm_count = 0;
+                    $cold_count = 0;
+                    
+                    foreach ($combo_numbers as $number) {
+                        $classification = $this->statistics_m->get_number_hwc_classification($lottery_id, $number);
+                        
+                        switch ($classification) {
+                            case 'hot':
+                                $hot_count++;
+                                break;
+                            case 'warm':
+                                $warm_count++;
+                                break;
+                            case 'cold':
+                                $cold_count++;
+                                break;
+                        }
+                    }
+                    
+                    // Check if the combination matches the expected H-W-C distribution
+                    if ($hot_count !== $expected_hot || $warm_count !== $expected_warm || $cold_count !== $expected_cold) {
+                        log_message('info', "apply_other_filters (Combination_filters_m): H-W-C filter rejecting combo - expected: {$expected_hot}-{$expected_warm}-{$expected_cold}, actual: {$hot_count}-{$warm_count}-{$cold_count}");
+                        return false;
+                    }
+                    log_message('info', "apply_other_filters (Combination_filters_m): H-W-C filter passed - expected: {$expected_hot}-{$expected_warm}-{$expected_cold}, actual: {$hot_count}-{$warm_count}-{$cold_count}");
+                }
             }
         }
         
+        // If we reach here, combination passed all filters
+        $combo_str = is_array($combo) ? implode(',', array_slice(array_values($combo), 0, 5)) : 'invalid';
+        log_message('info', "apply_other_filters (Combination_filters_m): PASSED all filters - combo: $combo_str");
         return true;
     }
 

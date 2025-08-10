@@ -1385,6 +1385,7 @@ class Predictions extends Admin_Controller {
 					$this->data['selected_followers'] = (bool)($saved_filters['followers'] ?? false);
 					$this->data['selected_friends_checkbox'] = (bool)($saved_filters['friends'] ?? false);
 					$this->data['selected_friends'] = $saved_filters['selected_friends'] ?? '';
+					log_message('info', 'Refresh method: Setting view selected_friends to: \'' . $this->data['selected_friends'] . '\'');
 					$this->data['selected_wheeling'] = $saved_filters['file_name'] ?? '';
 				} else {
 					// Set defaults if no saved settings
@@ -1434,7 +1435,16 @@ class Predictions extends Admin_Controller {
 				$friends_checked = ($this->input->post() && !$this->input->post('friends')) ? false : ($this->input->post('friends') ? (($this->input->post('friends') == '1') ? true : false) : $session_data['selected_friends_checkbox']);
  				$h_w_c_group = ($this->input->post('h_w_c_group') ? $this->input->post('h_w_c_group') : $this->session->userdata('selected_h_w_c_group'));
 				$selected_extra_ball = ($this->input->post('extra_ball_filter') ? $this->input->post('extra_ball_filter') : $this->session->userdata('selected_extra_ball'));
-				// Set default value for extra ball filter if not set (for regular lotteries)
+				
+				// If no extra ball value from POST or session, try to load from saved settings
+				if (empty($selected_extra_ball) && $combo_id) {
+					$saved_settings = $this->combination_filters_m->get_saved_settings($combo_id);
+					if ($saved_settings && isset($saved_settings['extra_balls'])) {
+						$selected_extra_ball = $saved_settings['extra_balls'];
+					}
+				}
+				
+				// Set default value for extra ball filter if still not set (for regular lotteries)
 				if (empty($selected_extra_ball)) {
 					$selected_extra_ball = 'ALL';
 				}
@@ -2444,6 +2454,10 @@ class Predictions extends Admin_Controller {
 		$this->data['selected_ball_points'] = $saved_settings['ball_points'];
 		$this->data['selected_position_points'] = $saved_settings['position_points'];
 		$this->data['selected_friends'] = $saved_settings['selected_friends'];
+		
+		// Debug: Log the actual saved friends value to identify dropdown mismatch
+		log_message('info', "Refresh method: Friends values - checkbox: " . ($saved_settings['friends'] ? 'true' : 'false') . 
+			", dropdown value: '" . ($saved_settings['selected_friends'] ?? 'NULL') . "'");
 		$this->data['selected_wheeling'] = $record_id . '|' . $original_filename; // Set dropdown value format
 		$this->data['combo_id'] = $combo_id;
 		$this->data['active'] = $this->combination_filters_m->get_active_flag($record_id);	
@@ -2535,7 +2549,7 @@ class Predictions extends Admin_Controller {
 		
 		// Set up saved filter values for form restoration
 		$this->data['selected_h_w_c_group'] = $saved_settings['h_w_c_group'] ?? '';
-		$this->data['selected_friends'] = $saved_settings['friends'] ?? [];
+		$this->data['selected_friends'] = $saved_settings['selected_friends'] ?? ''; // Fix: Use dropdown value, not checkbox value
 		$this->data['selected_trends'] = $saved_settings['trends'] ?? '';
 		$this->data['selected_winning_sums'] = $saved_settings['winning_sums'] ?? '';
 		$this->data['selected_winning_digits'] = $saved_settings['winning_digits'] ?? '';
