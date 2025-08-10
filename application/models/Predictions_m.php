@@ -2310,19 +2310,6 @@ class Predictions_m extends MY_Model
 	 */
 	private function apply_other_filters($combo, $filter_select)
 	{
-		// Add debugging to track filter rejections
-		$combo_str = is_array($combo) ? implode(',', array_slice(array_values($combo), 0, 5)) : 'invalid';
-		
-		// Debug: Log active filters for first combo (Predictions_m version)
-		static $filter_debug_done = false;
-		if (!$filter_debug_done) {
-			log_message('info', "apply_other_filters (Predictions_m): Filter values received:");
-			log_message('info', "  selected_h_w_c_group = '" . ($filter_select['selected_h_w_c_group'] ?? 'not set') . "'");
-			log_message('info', "  selected_hwc = '" . ($filter_select['selected_hwc'] ?? 'not set') . "' (checkbox state)");
-			log_message('info', "  selected_decades = '" . ($filter_select['selected_decades'] ?? 'not set') . "'");
-			log_message('info', "  selected_last_digits = '" . ($filter_select['selected_last_digits'] ?? 'not set') . "'");
-			$filter_debug_done = true;
-		}
 		
 		// Example filter implementations - expand as needed
 		// Filter by winning sums
@@ -2332,7 +2319,6 @@ class Predictions_m extends MY_Model
 				? $filter_select['selected_winning_sums'] 
 				: [$filter_select['selected_winning_sums']];
 			if (!in_array($combo_sum, $winning_sums)) {
-				log_message('info', "apply_other_filters: REJECTED by winning_sums filter - combo: $combo_str, sum: $combo_sum, expected: " . implode(',', $winning_sums));
 				return false;
 			}
 		}
@@ -2343,7 +2329,6 @@ class Predictions_m extends MY_Model
 			$repeater_count = $this->is_repeater($combo, $drawn, $last_drawn);
 			$expected_repeaters = (int)$filter_select['selected_repeaters'];
 			if ($repeater_count !== $expected_repeaters) {
-				log_message('info', "apply_other_filters: REJECTED by repeaters filter - combo: $combo_str, actual: $repeater_count, expected: $expected_repeaters");
 				return false;
 			}
 		}
@@ -2353,7 +2338,6 @@ class Predictions_m extends MY_Model
 			$consecutive_count = $this->has_consecutive($combo, $drawn);
 			$expected_consecutives = (int)$filter_select['selected_consecutives'];
 			if ($consecutive_count !== $expected_consecutives) {
-				log_message('info', "apply_other_filters: REJECTED by consecutives filter - combo: $combo_str, actual: $consecutive_count, expected: $expected_consecutives");
 				return false;
 			}
 		}
@@ -2363,7 +2347,6 @@ class Predictions_m extends MY_Model
 			$combo_digit_sum = $this->statistics_m->lottery_draw_sumdigits($combo, $drawn);
 			$selected_digit_sum = (int)$filter_select['selected_winning_digits'];
 			if ($combo_digit_sum !== $selected_digit_sum) {
-				log_message('info', "apply_other_filters: REJECTED by winning_digits filter - combo: $combo_str, actual: $combo_digit_sum, expected: $selected_digit_sum");
 				return false;
 			}
 		}
@@ -2378,7 +2361,6 @@ class Predictions_m extends MY_Model
 				$expected_odd = (int)$parity_parts[0];
 				$expected_even = (int)$parity_parts[1];
 				if ($odd_count !== $expected_odd || $even_count !== $expected_even) {
-					log_message('info', "apply_other_filters: REJECTED by parity filter - combo: $combo_str, odd: $odd_count/$expected_odd, even: $even_count/$expected_even");
 					return false;
 				}
 			}
@@ -2389,14 +2371,6 @@ class Predictions_m extends MY_Model
 			$decade_count = $this->count_decade_numbers($combo, $drawn);
 			$expected_decades = (int)$filter_select['selected_decades'];
 			
-			// Debug logging for first few combinations
-			static $decades_debug_count = 0;
-			if ($decades_debug_count < 3) {
-				$combo_values = array_values($combo);
-				log_message('info', "apply_other_filters (Predictions_m): Decades filter - combo: " . implode(',', array_slice($combo_values, 0, 5)) . ", actual count: $decade_count, expected: $expected_decades");
-				$decades_debug_count++;
-			}
-			
 			if ($decade_count !== $expected_decades) {
 				return false;
 			}
@@ -2406,14 +2380,6 @@ class Predictions_m extends MY_Model
 			$drawn = $filter_select['drawn'] ?? 0;
 			$last_digit_count = $this->count_last_digit_numbers($combo, $drawn);
 			$expected_last_digits = (int)$filter_select['selected_last_digits'];
-			
-			// Debug logging for first few combinations
-			static $last_digits_debug_count = 0;
-			if ($last_digits_debug_count < 3) {
-				$combo_values = array_values($combo);
-				log_message('info', "apply_other_filters (Predictions_m): Last digits filter - combo: " . implode(',', array_slice($combo_values, 0, 5)) . ", actual count: $last_digit_count, expected: $expected_last_digits");
-				$last_digits_debug_count++;
-			}
 			
 			if ($last_digit_count !== $expected_last_digits) {
 				return false;
@@ -2454,23 +2420,15 @@ class Predictions_m extends MY_Model
 			// Check if this combination has the selected extra ball
 			$selected_extra_ball = (int)$filter_select['selected_extra_ball'];
 			if (isset($combo['extra']) && (int)$combo['extra'] !== $selected_extra_ball) {
-				log_message('info', "apply_other_filters: Extra ball filter rejecting combo - expected: {$selected_extra_ball}, actual: " . $combo['extra']);
 				return false;
 			}
-			log_message('info', "apply_other_filters: Extra ball filter passed - expected: {$selected_extra_ball}, actual: " . $combo['extra']);
 		}
-		
-		log_message('info', "apply_other_filters (Predictions_m): H-W-C group check - isset: " . (isset($filter_select['selected_h_w_c_group']) ? 'yes' : 'no') . 
-			", value: '" . ($filter_select['selected_h_w_c_group'] ?? 'not set') . "'" . 
-			", hwc_checkbox: " . (isset($filter_select['selected_hwc']) ? ($filter_select['selected_hwc'] ? 'checked' : 'unchecked') : 'not set'));
 		
 		// Filter by H-W-C group (Hot-Warm-Cold) - only apply if H-W-C checkbox is checked
 		// When checked, H-W-C dropdown has no 'ALL' option - a specific distribution must be selected
 		if (isset($filter_select['selected_hwc']) && $filter_select['selected_hwc'] && 
 			isset($filter_select['selected_h_w_c_group']) && 
 			!empty($filter_select['selected_h_w_c_group'])) {
-			
-			log_message('info', "apply_other_filters (Predictions_m): H-W-C filter ACTIVE - selected_h_w_c_group: " . $filter_select['selected_h_w_c_group']);
 			
 			$h_w_c_group = $filter_select['selected_h_w_c_group'];
 			
@@ -2526,7 +2484,6 @@ class Predictions_m extends MY_Model
 		}
 		
 		// If we reach here, combination passed all filters
-		log_message('info', "apply_other_filters: PASSED all filters - combo: $combo_str");
 		return true;
 	}
 	/**
@@ -2942,21 +2899,12 @@ class Predictions_m extends MY_Model
 		$is_independent_extra_ball = !empty($filter_select['duplicate_extra_ball']) && !empty($filter_select['extra_ball']);
 		$selected_extra_ball = $filter_select['selected_extra_ball'] ?? 'ALL';
 		
-		// DEBUG: Log key details for independent extra ball processing
-		log_message('info', "get_filtered_combinations_count: Processing file {$filepath}");
-		log_message('info', "get_filtered_combinations_count: duplicate_extra_ball=" . ($filter_select['duplicate_extra_ball'] ?? 'null') . ", extra_ball=" . ($filter_select['extra_ball'] ?? 'null'));
-		log_message('info', "get_filtered_combinations_count: is_independent_extra_ball=" . ($is_independent_extra_ball ? 'YES' : 'NO') . ", selected_extra_ball={$selected_extra_ball}");
-		
 		// For independent extra ball lotteries, we must always process combinations due to different structure
 		// even when filters are 'ALL', because the combinations need proper parsing
 		if ($selected_trends === 'ALL' && !$has_other_filters && !$is_independent_extra_ball) {
 			$total_lines = count(file($filepath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
-			log_message('info', "get_filtered_combinations_count: No filters applied, returning total lines: {$total_lines}");
 			return $total_lines;
 		}
-		
-		log_message('info', "get_filtered_combinations_count: Processing combinations with filtering (independent_extra_ball: " . ($is_independent_extra_ball ? 'YES' : 'NO') . ")");
-		log_message('info', "get_filtered_combinations_count: Filter check - selected_trends: {$selected_trends}, has_other_filters: " . ($has_other_filters ? 'YES' : 'NO'));
 		
 		// Count filtered combinations
 		$count = 0;
@@ -3002,10 +2950,6 @@ class Predictions_m extends MY_Model
 							$combo_numbers[] = $number_array[$pos - 1];
 						}
 					}
-					
-					if ($line_number <= 3) { // Log first few lines for debugging
-						log_message('info', "get_filtered_combinations_count: Line {$line_number}: positions=" . implode(',', array_map('intval', explode(' ', $line))) . ", extra_ball={$extra_ball_number}, combo_numbers=" . implode(',', $combo_numbers));
-					}
 				} else {
 					// Regular lottery - all positions are for main numbers
 					foreach ($positions as $pos) {
@@ -3038,24 +2982,15 @@ class Predictions_m extends MY_Model
 				// Check if combination passes all filters
 				if ($selected_trends !== 'ALL') {
 					if (!$this->check_trend_match($combo, $last_drawn_numbers, $selected_trends)) {
-						if ($line_number <= 5) {
-							log_message('info', "get_filtered_combinations_count: Line {$line_number} rejected by trend filter");
-						}
 						continue;
 					}
 				}
 				
 				if (!$this->apply_other_filters($combo, $filter_select)) {
-					if ($line_number <= 5) {
-						log_message('info', "get_filtered_combinations_count: Line {$line_number} rejected by other filters");
-					}
 					continue;
 				}
 				
 				$count++;
-				if ($count <= 5) {
-					log_message('info', "get_filtered_combinations_count: ACCEPTED combination #{$count} from line {$line_number}: " . print_r($combo, true));
-				}
 			}
 			fclose($handle);
 		}
@@ -3154,7 +3089,6 @@ class Predictions_m extends MY_Model
 		$duplicate_extra_ball = isset($filters['duplicate_extra_ball']) ? $filters['duplicate_extra_ball'] : 0;
 		$extra_ball = isset($filters['extra_ball']) ? $filters['extra_ball'] : 0;
 		$selected_extra_ball = isset($filters['selected_extra_ball']) ? $filters['selected_extra_ball'] : null;
-		log_message('info', "save_filtered_combinations_to_file: duplicate_extra_ball=$duplicate_extra_ball, extra_ball=$extra_ball, selected_extra_ball=$selected_extra_ball");
 
 		$handle = fopen($filepath, 'r');
 		$output_handle = fopen($output_file_path, 'w');
@@ -3227,11 +3161,6 @@ class Predictions_m extends MY_Model
 				$combo['extra'] = $extra_ball_value;
 			}
 			
-			// For debugging first few combinations
-			if ($line_count <= 3) {
-				log_message('info', "save_filtered_combinations_to_file: Line $line_count combo: " . print_r($combo, true));
-			}
-			
 			// Apply filters to this combination
 			if ($this->passes_all_filters($combo, $filters)) {
 				// Write the actual sorted numbers to the file, not the template positions
@@ -3241,18 +3170,12 @@ class Predictions_m extends MY_Model
 				}
 				fwrite($output_handle, $output_line . "\n");
 				$saved_count++;
-				
-				// Debug first few saved combinations
-				if ($saved_count <= 3) {
-					log_message('info', "save_filtered_combinations_to_file: Saved combo #$saved_count: $output_line");
-				}
 			}
 		}
 
 		fclose($handle);
 		fclose($output_handle);
 
-		log_message('info', "save_filtered_combinations_to_file: Processed $line_count combinations, saved $saved_count to $output_file_path");
 		return $saved_count > 0;
 	}
 

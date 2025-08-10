@@ -2062,8 +2062,6 @@ class Predictions extends Admin_Controller {
 			// Check if this is an AJAX request
 			$is_ajax = $this->input->is_ajax_request();
 			
-			log_message('info', "Combination_save: Starting save process for lottery_id: {$id}, is_ajax: " . ($is_ajax ? 'true' : 'false'));
-			
 			$this->data['message'] = '';
 			$this->data['lottery'] = $this->lotteries_m->get($id);
 			
@@ -2073,14 +2071,8 @@ class Predictions extends Admin_Controller {
 			$combination_file = $this->session->userdata('combination_file_name'); // Use parsed filename
 			$combo_id = $this->session->userdata('combination_file_id'); // Use stored combo_id
 
-			log_message('info', "Combination_save: Session data check - session_data: " . ($session_data ? 'exists' : 'missing') . 
-				", number_array: " . ($number_array ? 'exists' : 'missing') . 
-				", combination_file: " . ($combination_file ? $combination_file : 'missing') . 
-				", combo_id: " . ($combo_id ? $combo_id : 'missing'));
-
 			if (!$session_data || !$number_array || !$combination_file || !$combo_id) {
 				$message = 'Session data not found. Please generate tickets first.';
-				log_message('error', "Combination_save: Session validation failed - {$message}");
 				if ($is_ajax) {
 					// Clean output buffer and send clean JSON
 					ob_clean();
@@ -2137,15 +2129,7 @@ class Predictions extends Admin_Controller {
 			'lottery_highlights' => $this->data['lottery']->highlights
 		];
 		
-		log_message('info', "Combination_save: Filter values - selected_extra_ball: " . ($filters['selected_extra_ball'] ?? 'null') . 
-			", duplicate_extra_ball: " . ($filters['duplicate_extra_ball'] ?? 'null') . 
-			", extra_ball: " . ($filters['extra_ball'] ?? 'null'));
-		
 		$filtered_count = $this->predictions_m->get_filtered_combinations_count($filepath, $number_array, $filters);
-		log_message('info', "Combination_save: Filtered count from get_filtered_combinations_count: {$filtered_count}");
-		log_message('info', "Combination_save: Session data H-W-C group: " . ($session_data['selected_h_w_c_group'] ?? 'not set'));
-		log_message('info', "Combination_save: Session data decades: " . ($session_data['selected_decades'] ?? 'not set'));
-		log_message('info', "Combination_save: Session data last_digits: " . ($session_data['selected_last_digits'] ?? 'not set'));
 		$current_user_id = $this->session->userdata('id');
 		$formatted_user_id = str_pad($current_user_id, 2, '0', STR_PAD_LEFT);
 		// Create filename: 060828ADMIN01 format (MMDDYY + ADMIN + user_id)
@@ -2213,28 +2197,20 @@ class Predictions extends Admin_Controller {
 		];
 		// Save to database
 		$saved = $this->predictions_m->save_combination_filter($save_data);
-		log_message('info', "Combination_save: Database save result: " . ($saved ? 'success' : 'failed'));
 		
 		if ($saved) {
 			// Create Pick subdirectory in combinations directory if it doesn't exist
 			$pick_dir = FCPATH . 'combinations/pick' . $R . '/';
 			if (!is_dir($pick_dir)) {
 				mkdir($pick_dir, 0755, true);
-				log_message('info', "Combination_save: Created directory: {$pick_dir}");
 			}
 			// Save filtered combinations to file
 			$pick_file_path = $pick_dir . $file_name . '.txt';
-			log_message('info', "Combination_save: Attempting to save filtered combinations to: {$pick_file_path}");
-			log_message('info', "Combination_save: Source file path: {$filepath}");
-			log_message('info', "Combination_save: Number array size: " . (is_array($number_array) ? count($number_array) : 'not an array'));
-			log_message('info', "Combination_save: Filter array keys: " . implode(', ', array_keys($filters)));
 			
 			$success = $this->combination_filters_m->save_filtered_combinations_to_file($filepath, $number_array, $filters, $pick_file_path);
-			log_message('info', "Combination_save: File save result: " . ($success ? 'success' : 'failed'));
 			
 			if ($success) {
 				$message = 'Combination Ticket File ' . preg_replace('/ADMIN.*/', '', $file_name) . ' is Successfully Saved to the combinations/pick' . $R . ' Directory.';
-				log_message('info', "Combination_save: Success - {$message}");
 				if ($is_ajax) {
 					// Clean output buffer and send clean JSON
 					ob_clean();

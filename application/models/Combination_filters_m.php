@@ -653,13 +653,6 @@ class Combination_filters_m extends MY_Model
             $decade_count = $this->count_decade_numbers($main_numbers_values, $max); // Use main numbers only
             $expected_decades = (int)$filter_select['selected_decades'];
             
-            // Debug logging for first few combinations
-            static $decades_debug_count = 0;
-            if ($decades_debug_count < 3) {
-                log_message('info', "apply_other_filters (Combination_filters_m): Decades filter - combo: " . implode(',', $main_numbers_values) . ", actual count: $decade_count, expected: $expected_decades");
-                $decades_debug_count++;
-            }
-            
             if ($decade_count !== $expected_decades) {
                 return false;
             }
@@ -671,13 +664,6 @@ class Combination_filters_m extends MY_Model
             $max = $lottery_highlights['range'] ?? 49;
             $last_digit_count = $this->count_last_digit_numbers($main_numbers_values, $max); // Use main numbers only
             $expected_last_digits = (int)$filter_select['selected_last_digits'];
-            
-            // Debug logging for first few combinations
-            static $last_digits_debug_count = 0;
-            if ($last_digits_debug_count < 3) {
-                log_message('info', "apply_other_filters (Combination_filters_m): Last digits filter - combo: " . implode(',', $main_numbers_values) . ", actual count: $last_digit_count, expected: $expected_last_digits");
-                $last_digits_debug_count++;
-            }
             
             if ($last_digit_count !== $expected_last_digits) {
                 return false;
