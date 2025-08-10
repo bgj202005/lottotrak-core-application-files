@@ -346,6 +346,8 @@ class Combination_filters_m extends MY_Model
      */
     public function save_filtered_combinations_to_file($filepath, $number_array, $filters, $output_file_path)
     {
+        log_message('info', "save_filtered_combinations_to_file: STARTING - source: {$filepath}, output: {$output_file_path}");
+        
         if (!file_exists($filepath)) {
             log_message('error', "save_filtered_combinations_to_file: Source file not found: {$filepath}");
             return false;
@@ -457,7 +459,8 @@ class Combination_filters_m extends MY_Model
             log_message('warning', "save_filtered_combinations_to_file: No combinations passed filters. Filters: " . print_r($filters, true));
         }
 
-        return true;
+        log_message('info', "save_filtered_combinations_to_file: COMPLETED - returning " . ($saved_count > 0 ? 'true' : 'false'));
+        return $saved_count > 0;
     }
 
     /**
@@ -647,11 +650,17 @@ class Combination_filters_m extends MY_Model
         if (!empty($filter_select['selected_decades']) && $filter_select['selected_decades'] !== 'ALL') {
             $lottery_highlights = $filter_select['lottery_highlights'] ?? [];
             $max = $lottery_highlights['range'] ?? 49;
-            $decade_counts = $this->count_decade_numbers($main_numbers_values, $max); // Use main numbers only
+            $decade_count = $this->count_decade_numbers($main_numbers_values, $max); // Use main numbers only
+            $expected_decades = (int)$filter_select['selected_decades'];
             
-            $allowed_decades = explode(',', $filter_select['selected_decades']);
-            $combo_decade_pattern = implode('-', $decade_counts);
-            if (!in_array($combo_decade_pattern, $allowed_decades)) {
+            // Debug logging for first few combinations
+            static $decades_debug_count = 0;
+            if ($decades_debug_count < 3) {
+                log_message('info', "apply_other_filters (Combination_filters_m): Decades filter - combo: " . implode(',', $main_numbers_values) . ", actual count: $decade_count, expected: $expected_decades");
+                $decades_debug_count++;
+            }
+            
+            if ($decade_count !== $expected_decades) {
                 return false;
             }
         }
@@ -660,11 +669,17 @@ class Combination_filters_m extends MY_Model
         if (!empty($filter_select['selected_last_digits']) && $filter_select['selected_last_digits'] !== 'ALL') {
             $lottery_highlights = $filter_select['lottery_highlights'] ?? [];
             $max = $lottery_highlights['range'] ?? 49;
-            $last_digit_counts = $this->count_last_digit_numbers($main_numbers_values, $max); // Use main numbers only
+            $last_digit_count = $this->count_last_digit_numbers($main_numbers_values, $max); // Use main numbers only
+            $expected_last_digits = (int)$filter_select['selected_last_digits'];
             
-            $allowed_last_digits = explode(',', $filter_select['selected_last_digits']);
-            $combo_last_digit_pattern = implode('-', $last_digit_counts);
-            if (!in_array($combo_last_digit_pattern, $allowed_last_digits)) {
+            // Debug logging for first few combinations
+            static $last_digits_debug_count = 0;
+            if ($last_digits_debug_count < 3) {
+                log_message('info', "apply_other_filters (Combination_filters_m): Last digits filter - combo: " . implode(',', $main_numbers_values) . ", actual count: $last_digit_count, expected: $expected_last_digits");
+                $last_digits_debug_count++;
+            }
+            
+            if ($last_digit_count !== $expected_last_digits) {
                 return false;
             }
         }
@@ -713,10 +728,11 @@ class Combination_filters_m extends MY_Model
             log_message('info', "apply_other_filters (Combination_filters_m): Extra ball filter passed - expected: {$selected_extra_ball}, actual: " . $combo['extra']);
         }
         
-        // Filter by H-W-C group (Hot-Warm-Cold) - APPLIED AFTER EXTRA BALL FILTER
-        if (isset($filter_select['selected_h_w_c_group']) && 
-            $filter_select['selected_h_w_c_group'] !== '' && 
-            $filter_select['selected_h_w_c_group'] !== 'ALL') {
+        // Filter by H-W-C group (Hot-Warm-Cold) - only apply if H-W-C checkbox is checked
+        // When checked, H-W-C dropdown has no 'ALL' option - a specific distribution must be selected
+        if (isset($filter_select['selected_hwc']) && $filter_select['selected_hwc'] && 
+            isset($filter_select['selected_h_w_c_group']) && 
+            !empty($filter_select['selected_h_w_c_group'])) {
             
             $h_w_c_group = $filter_select['selected_h_w_c_group'];
             
@@ -853,27 +869,23 @@ class Combination_filters_m extends MY_Model
      *
      * @param array $combo Combination to analyze
      * @param int $max Maximum number in range
-     * @return array Decade counts
+     * @return int Maximum count of numbers in any single decade
      */
     public function count_decade_numbers($combo, $max)
     {
-        $decades = [];
-        $max_decade = floor($max / 10);
-        
-        // Initialize decade counters
-        for ($i = 0; $i <= $max_decade; $i++) {
-            $decades[$i] = 0;
-        }
+        $decade_counts = [];
         
         // Count numbers in each decade
         foreach ($combo as $number) {
-            $decade = floor($number / 10);
-            if (isset($decades[$decade])) {
-                $decades[$decade]++;
+            $decade = intval($number / 10); // 22 -> 2, 23 -> 2, 35 -> 3, etc.
+            if (!isset($decade_counts[$decade])) {
+                $decade_counts[$decade] = 0;
             }
+            $decade_counts[$decade]++;
         }
         
-        return array_values($decades);
+        // Return the maximum count of numbers in any single decade (matches Predictions_m logic)
+        return max($decade_counts);
     }
 
     /**
@@ -881,19 +893,23 @@ class Combination_filters_m extends MY_Model
      *
      * @param array $combo Combination to analyze
      * @param int $max Maximum number in range
-     * @return array Last digit counts
+     * @return int Maximum count of numbers with the same last digit
      */
     public function count_last_digit_numbers($combo, $max)
     {
-        $last_digits = array_fill(0, 10, 0);
+        $last_digit_counts = [];
         
-        // Count numbers by last digit
+        // Count numbers by their last digit
         foreach ($combo as $number) {
-            $last_digit = $number % 10;
-            $last_digits[$last_digit]++;
+            $last_digit = $number % 10; // 12 -> 2, 22 -> 2, 35 -> 5, etc.
+            if (!isset($last_digit_counts[$last_digit])) {
+                $last_digit_counts[$last_digit] = 0;
+            }
+            $last_digit_counts[$last_digit]++;
         }
         
-        return $last_digits;
+        // Return the maximum count of numbers with the same last digit (matches Predictions_m logic)
+        return max($last_digit_counts);
     }
     /**
      * Get saved settings from lottery_combination_filters table by record ID or combo_id

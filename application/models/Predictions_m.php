@@ -2313,6 +2313,17 @@ class Predictions_m extends MY_Model
 		// Add debugging to track filter rejections
 		$combo_str = is_array($combo) ? implode(',', array_slice(array_values($combo), 0, 5)) : 'invalid';
 		
+		// Debug: Log active filters for first combo (Predictions_m version)
+		static $filter_debug_done = false;
+		if (!$filter_debug_done) {
+			log_message('info', "apply_other_filters (Predictions_m): Filter values received:");
+			log_message('info', "  selected_h_w_c_group = '" . ($filter_select['selected_h_w_c_group'] ?? 'not set') . "'");
+			log_message('info', "  selected_hwc = '" . ($filter_select['selected_hwc'] ?? 'not set') . "' (checkbox state)");
+			log_message('info', "  selected_decades = '" . ($filter_select['selected_decades'] ?? 'not set') . "'");
+			log_message('info', "  selected_last_digits = '" . ($filter_select['selected_last_digits'] ?? 'not set') . "'");
+			$filter_debug_done = true;
+		}
+		
 		// Example filter implementations - expand as needed
 		// Filter by winning sums
 		if ($filter_select['selected_winning_sums'] !== 'ALL') {
@@ -2377,6 +2388,15 @@ class Predictions_m extends MY_Model
 			$drawn = $filter_select['drawn'] ?? 0;
 			$decade_count = $this->count_decade_numbers($combo, $drawn);
 			$expected_decades = (int)$filter_select['selected_decades'];
+			
+			// Debug logging for first few combinations
+			static $decades_debug_count = 0;
+			if ($decades_debug_count < 3) {
+				$combo_values = array_values($combo);
+				log_message('info', "apply_other_filters (Predictions_m): Decades filter - combo: " . implode(',', array_slice($combo_values, 0, 5)) . ", actual count: $decade_count, expected: $expected_decades");
+				$decades_debug_count++;
+			}
+			
 			if ($decade_count !== $expected_decades) {
 				return false;
 			}
@@ -2386,6 +2406,15 @@ class Predictions_m extends MY_Model
 			$drawn = $filter_select['drawn'] ?? 0;
 			$last_digit_count = $this->count_last_digit_numbers($combo, $drawn);
 			$expected_last_digits = (int)$filter_select['selected_last_digits'];
+			
+			// Debug logging for first few combinations
+			static $last_digits_debug_count = 0;
+			if ($last_digits_debug_count < 3) {
+				$combo_values = array_values($combo);
+				log_message('info', "apply_other_filters (Predictions_m): Last digits filter - combo: " . implode(',', array_slice($combo_values, 0, 5)) . ", actual count: $last_digit_count, expected: $expected_last_digits");
+				$last_digits_debug_count++;
+			}
+			
 			if ($last_digit_count !== $expected_last_digits) {
 				return false;
 			}
@@ -2431,10 +2460,17 @@ class Predictions_m extends MY_Model
 			log_message('info', "apply_other_filters: Extra ball filter passed - expected: {$selected_extra_ball}, actual: " . $combo['extra']);
 		}
 		
-		// Filter by H-W-C group (Hot-Warm-Cold)
-		if (isset($filter_select['selected_h_w_c_group']) && 
-			$filter_select['selected_h_w_c_group'] !== '' && 
-			$filter_select['selected_h_w_c_group'] !== 'ALL') {
+		log_message('info', "apply_other_filters (Predictions_m): H-W-C group check - isset: " . (isset($filter_select['selected_h_w_c_group']) ? 'yes' : 'no') . 
+			", value: '" . ($filter_select['selected_h_w_c_group'] ?? 'not set') . "'" . 
+			", hwc_checkbox: " . (isset($filter_select['selected_hwc']) ? ($filter_select['selected_hwc'] ? 'checked' : 'unchecked') : 'not set'));
+		
+		// Filter by H-W-C group (Hot-Warm-Cold) - only apply if H-W-C checkbox is checked
+		// When checked, H-W-C dropdown has no 'ALL' option - a specific distribution must be selected
+		if (isset($filter_select['selected_hwc']) && $filter_select['selected_hwc'] && 
+			isset($filter_select['selected_h_w_c_group']) && 
+			!empty($filter_select['selected_h_w_c_group'])) {
+			
+			log_message('info', "apply_other_filters (Predictions_m): H-W-C filter ACTIVE - selected_h_w_c_group: " . $filter_select['selected_h_w_c_group']);
 			
 			$h_w_c_group = $filter_select['selected_h_w_c_group'];
 			

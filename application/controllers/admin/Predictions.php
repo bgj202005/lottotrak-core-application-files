@@ -1814,6 +1814,9 @@ class Predictions extends Admin_Controller {
 					'selected_number_range' => $selected_number_range,
 					'selected_adjacents' => $selected_adjacents,
 					'selected_extra_ball' => $selected_extra_ball,
+					'selected_h_w_c_group' => $h_w_c_group,
+					'selected_hwc' => $hwc_checked,
+					'lottery_id' => $id,
 					'drawn' => $drawn,
 					'lottery_last_drawn' => $this->data['lottery']->last_drawn,
 					'extra_ball' => $this->data['lottery']->extra_ball,
@@ -1954,6 +1957,9 @@ class Predictions extends Admin_Controller {
 					'selected_number_range' => $futures_form['selected_number_range'],
 					'selected_adjacents' => $futures_form['selected_adjacents'],
 					'selected_extra_ball' => isset($futures_form['selected_extra_ball']) ? $futures_form['selected_extra_ball'] : 'ALL',
+					'selected_h_w_c_group' => $futures_form['selected_h_w_c_group'],
+					'selected_hwc' => $futures_form['selected_hwc'],
+					'lottery_id' => $id,
 					'drawn' => $drawn,
 					'lottery_last_drawn' => $this->data['lottery']->last_drawn,
 					'extra_ball' => $this->data['lottery']->extra_ball,
@@ -2120,6 +2126,7 @@ class Predictions extends Admin_Controller {
 			'selected_number_range' => $session_data['selected_number_range'],
 			'selected_adjacents' => $session_data['selected_adjacents'],
 			'selected_h_w_c_group' => $session_data['selected_h_w_c_group'],
+			'selected_hwc' => $session_data['selected_hwc'],
 			'selected_extra_ball' => $session_data['selected_extra_ball'],
 			'lottery_id' => $id,
 			'drawn' => $drawn,
@@ -2135,7 +2142,10 @@ class Predictions extends Admin_Controller {
 			", extra_ball: " . ($filters['extra_ball'] ?? 'null'));
 		
 		$filtered_count = $this->predictions_m->get_filtered_combinations_count($filepath, $number_array, $filters);
-		// Get current user ID and format it with leading zero if needed
+		log_message('info', "Combination_save: Filtered count from get_filtered_combinations_count: {$filtered_count}");
+		log_message('info', "Combination_save: Session data H-W-C group: " . ($session_data['selected_h_w_c_group'] ?? 'not set'));
+		log_message('info', "Combination_save: Session data decades: " . ($session_data['selected_decades'] ?? 'not set'));
+		log_message('info', "Combination_save: Session data last_digits: " . ($session_data['selected_last_digits'] ?? 'not set'));
 		$current_user_id = $this->session->userdata('id');
 		$formatted_user_id = str_pad($current_user_id, 2, '0', STR_PAD_LEFT);
 		// Create filename: 060828ADMIN01 format (MMDDYY + ADMIN + user_id)
@@ -2685,12 +2695,42 @@ class Predictions extends Admin_Controller {
 						log_message('info', "Refresh method: Created fallback number array with " . count($number_array) . " unique numbers from filtered tickets");
 					}
 					
-					// Set session data for the existing filtered tickets
-					$this->session->set_userdata('futures_number_array', $number_array);
-					$this->session->set_userdata('combination_file_id', $combo_id);
-					$this->session->set_userdata('combination_file_name', $original_filename);
-					
-					// Set up pagination for existing tickets - respect URL parameters
+		// Set session data for the existing filtered tickets
+		$this->session->set_userdata('futures_number_array', $number_array);
+		$this->session->set_userdata('combination_file_id', $combo_id);
+		$this->session->set_userdata('combination_file_name', $original_filename);
+		
+		// **RESTORE SESSION FORM DATA FOR CONSISTENCY**
+		// This ensures the refresh method uses the same session data as Generate Tickets
+		$futures_form_data = [
+			'selected_trends' => $saved_settings['trends'],
+			'selected_winning_sums' => $saved_settings['winning_sums'],
+			'selected_winning_digits' => $saved_settings['winning_digits'],
+			'selected_repeaters' => $saved_settings['repeaters'],
+			'selected_consecutives' => $saved_settings['consecutives'],
+			'selected_parity' => $saved_settings['parity'],
+			'selected_decades' => $saved_settings['decades'],
+			'selected_last_digits' => $saved_settings['last_digits'],
+			'selected_number_range' => $saved_settings['number_range'],
+			'selected_adjacents' => $saved_settings['adjacents'],
+			'selected_extra_ball' => $saved_settings['extra_balls'],
+			'selected_h_w_c_group' => $saved_settings['h_w_c_group'],
+			'selected_hwc' => (bool)$saved_settings['hwc'],
+			'selected_followers' => (bool)$saved_settings['followers'],
+			'selected_friends_checkbox' => (bool)$saved_settings['friends'],
+			'selected_friends' => $saved_settings['selected_friends'],
+			'selected_followers_type' => $saved_settings['follower_type'],
+			'selected_ball_points' => $saved_settings['ball_points'],
+			'selected_position_points' => $saved_settings['position_points']
+		];
+		$this->session->set_userdata('futures_form', $futures_form_data);
+		log_message('info', "Refresh method: Restored session data for consistency with Generate Tickets");
+		
+		// Log current session data for debugging
+		$current_session_array = $this->session->userdata('futures_number_array');
+		$current_session_form = $this->session->userdata('futures_form');
+		log_message('info', "Refresh method: Current session number_array: " . (is_array($current_session_array) ? count($current_session_array) . " numbers: " . implode(',', array_slice($current_session_array, 0, 10)) : 'not set'));
+		log_message('info', "Refresh method: Current session form decades: " . ($current_session_form['selected_decades'] ?? 'not set') . ", last_digits: " . ($current_session_form['selected_last_digits'] ?? 'not set'));					// Set up pagination for existing tickets - respect URL parameters
 					$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
 					$per_page = $this->input->get('per_page') ? (int)$this->input->get('per_page') : 10;
 					$total_filtered = count($filtered_tickets);
@@ -2761,23 +2801,113 @@ class Predictions extends Admin_Controller {
 					// Set up the data for the view
 					$this->data['combos_paginated'] = $paginated_tickets;
 					$this->data['total_filtered'] = $total_filtered;
-					// Force the display count to match actual parsed tickets for testing
-					$this->data['CCCC'] = $total_filtered; // Use actual parsed count instead of saved
-					log_message('info', "Refresh method: Setting CCCC to actual count: {$total_filtered}, database saved CCCC was: " . $saved_settings['CCCC']);
+					
+					// **DYNAMIC FILTER COUNT CALCULATION**
+					// Calculate the actual filtered count using saved filter settings to match Generate Tickets
+					$dynamic_filtered_count = $total_filtered; // Default to saved file count
+					
+					$original_file_path = FCPATH . 'combinations/' . $original_filename . '.txt';
+					if (file_exists($original_file_path)) {
+						log_message('info', "Refresh method: Calculating dynamic filter count from original file: {$original_file_path}");
+						
+						// Load lottery highlights if not already loaded (required for filtering)
+						if (!isset($this->data['lottery']->highlights)) {
+							$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
+						}
+						
+						// Get session data to use EXACT same filter values as combination method
+						$session_form_data = $this->session->userdata('futures_form');
+						if ($session_form_data) {
+							// Use session data if available (matches Generate Tickets exactly)
+							$filters = [
+								'selected_trends' => $session_form_data['selected_trends'] ?? 'ALL',
+								'selected_winning_sums' => $session_form_data['selected_winning_sums'] ?? 'ALL',
+								'selected_winning_digits' => $session_form_data['selected_winning_digits'] ?? 'ALL',
+								'selected_repeaters' => $session_form_data['selected_repeaters'] ?? 'ALL',
+								'selected_consecutives' => $session_form_data['selected_consecutives'] ?? 'ALL',
+								'selected_parity' => $session_form_data['selected_parity'] ?? 'ALL',
+								'selected_decades' => $session_form_data['selected_decades'] ?? 'ALL',
+								'selected_last_digits' => $session_form_data['selected_last_digits'] ?? 'ALL',
+								'selected_number_range' => $session_form_data['selected_number_range'] ?? 'ALL',
+								'selected_adjacents' => $session_form_data['selected_adjacents'] ?? 'ALL',
+								'selected_extra_ball' => $session_form_data['selected_extra_ball'] ?? 'ALL',
+								'drawn' => $picks,
+								'lottery_last_drawn' => $this->data['lottery']->last_drawn,
+								'extra_ball' => $this->data['lottery']->extra_ball,
+								'duplicate_extra_ball' => $this->data['lottery']->duplicate_extra_ball,
+								'max_ball' => $this->data['lottery']->maximum_ball,
+								'lottery_highlights' => $this->data['lottery']->highlights
+							];
+							log_message('info', "Refresh method: Using session form data for filters - decades: {$session_form_data['selected_decades']}, last_digits: {$session_form_data['selected_last_digits']}");
+						} else {
+							// Fallback to saved settings if no session data
+							$filters = [
+								'selected_trends' => $saved_settings['trends'] ?? 'ALL',
+								'selected_winning_sums' => $saved_settings['winning_sums'] ?? 'ALL',
+								'selected_winning_digits' => $saved_settings['winning_digits'] ?? 'ALL',
+								'selected_repeaters' => $saved_settings['repeaters'] ?? 'ALL',
+								'selected_consecutives' => $saved_settings['consecutives'] ?? 'ALL',
+								'selected_parity' => $saved_settings['parity'] ?? 'ALL',
+								'selected_decades' => $saved_settings['decades'] ?? 'ALL',
+								'selected_last_digits' => $saved_settings['last_digits'] ?? 'ALL',
+								'selected_number_range' => $saved_settings['number_range'] ?? 'ALL',
+								'selected_adjacents' => $saved_settings['adjacents'] ?? 'ALL',
+								'selected_extra_ball' => $saved_settings['extra_balls'] ?? 'ALL',
+								'drawn' => $picks,
+								'lottery_last_drawn' => $this->data['lottery']->last_drawn,
+								'extra_ball' => $this->data['lottery']->extra_ball,
+								'duplicate_extra_ball' => $this->data['lottery']->duplicate_extra_ball,
+								'max_ball' => $this->data['lottery']->maximum_ball,
+								'lottery_highlights' => $this->data['lottery']->highlights
+							];
+							log_message('info', "Refresh method: Using saved settings for filters - decades: {$saved_settings['decades']}, last_digits: {$saved_settings['last_digits']}");
+						}
+						
+						// Calculate dynamic filtered count using session number array
+						$session_number_array = $this->session->userdata('futures_number_array');
+						if (is_array($session_number_array) && !empty($session_number_array)) {
+							$dynamic_filtered_count = $this->predictions_m->get_filtered_combinations_count($original_file_path, $session_number_array, $filters);
+							log_message('info', "Refresh method: Dynamic filter calculation - saved file count: {$total_filtered}, dynamic count: {$dynamic_filtered_count}");
+							
+							// Generate the actual filtered combinations for display (not just count)
+							$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
+							$per_page = $this->input->get('per_page') ? (int)$this->input->get('per_page') : 10;
+							$dynamic_combos = $this->predictions_m->insert_number_combination($original_file_path, $session_number_array, $page, $per_page, $filters);
+							
+							if (!empty($dynamic_combos)) {
+								// Replace the saved file combinations with dynamically filtered ones
+								$paginated_tickets = $dynamic_combos;
+								$total_filtered = $dynamic_filtered_count;
+								log_message('info', "Refresh method: Replaced combinations display with {$dynamic_filtered_count} dynamically filtered combinations");
+							}
+						} else {
+							log_message('warning', "Refresh method: No session number array found for dynamic filtering");
+						}
+					} else {
+						log_message('warning', "Refresh method: Original file not found for dynamic filtering: {$original_file_path}");
+					}
+					
+					// Use dynamic count for CCCC display
+					$this->data['CCCC'] = $dynamic_filtered_count;
+					log_message('info', "Refresh method: Setting CCCC to dynamic count: {$dynamic_filtered_count}, saved file count was: {$total_filtered}, database CCCC was: " . $saved_settings['CCCC']);
 					$this->data['total_pages'] = $total_pages;
 					$this->data['current_page'] = $page;
 					$this->data['per_page'] = $per_page;
 					$this->data['number_array'] = $number_array;
 					
-					// Set up pagination array for the view
+					// Set up pagination array for the view using dynamic count
+					$total_pages = ceil($dynamic_filtered_count / $per_page);
 					$this->data['pagination'] = [
 						'current' => $page,
 						'total' => $total_pages,
 						'per_page' => $per_page,
-						'total_filtered' => $total_filtered
+						'total_filtered' => $dynamic_filtered_count
 					];
 					
-					log_message('info', "Refresh method: Pagination data - current: {$page}, total_pages: {$total_pages}, per_page: {$per_page}, total_filtered: {$total_filtered}");
+					// Update total_filtered for view display
+					$this->data['total_filtered'] = $dynamic_filtered_count;
+					
+					log_message('info', "Refresh method: Pagination data - current: {$page}, total_pages: {$total_pages}, per_page: {$per_page}, total_filtered: {$dynamic_filtered_count}");
 					log_message('info', "Refresh method: Displaying existing filtered tickets, page {$page} of {$total_pages}, showing {$per_page} tickets per page");
 					
 					// Set filter record ID for Prize controller navigation
