@@ -591,6 +591,7 @@ class Combination_filters_m extends MY_Model
         
         foreach ($filter_keys as $key) {
             if (!empty($filter_select[$key]) && $filter_select[$key] !== 'ALL') {
+                log_message('debug', "has_active_filters: Found active filter {$key} = '{$filter_select[$key]}'");
                 return true;
             }
         }
@@ -599,9 +600,11 @@ class Combination_filters_m extends MY_Model
         if (isset($filter_select['selected_hwc']) && $filter_select['selected_hwc'] && 
             isset($filter_select['selected_h_w_c_group']) && 
             !empty($filter_select['selected_h_w_c_group'])) {
+            log_message('debug', "has_active_filters: Found active H-W-C filter");
             return true;
         }
         
+        log_message('debug', "has_active_filters: No active filters found");
         return false;
     }
 
@@ -651,7 +654,23 @@ class Combination_filters_m extends MY_Model
                 $last_drawn_numbers[] = (int)$last_drawn['extra'];
             }
             
-            if (!$this->check_trend_match($main_numbers_values, $last_drawn_numbers, $filters['selected_trends'])) {
+            $trend_result = $this->check_trend_match($main_numbers_values, $last_drawn_numbers, $filters['selected_trends']);
+            
+            // Debug trends filter for first few combinations
+            static $trend_debug_count = 0;
+            if ($trend_debug_count < 5) {
+                $combo_sorted = $main_numbers_values;
+                $last_sorted = $last_drawn_numbers;
+                sort($combo_sorted, SORT_NUMERIC);
+                sort($last_sorted, SORT_NUMERIC);
+                
+                log_message('info', "TREND DEBUG #{$trend_debug_count}: Numbers: " . implode(',', $main_numbers_values) . " (sorted: " . implode(',', $combo_sorted) . ")");
+                log_message('info', "TREND DEBUG #{$trend_debug_count}: Last Drawn: " . implode(',', $last_drawn_numbers) . " (sorted: " . implode(',', $last_sorted) . ")");
+                log_message('info', "TREND DEBUG #{$trend_debug_count}: Trend: '{$filters['selected_trends']}', Result: " . ($trend_result ? 'PASS' : 'FAIL'));
+                $trend_debug_count++;
+            }
+            
+            if (!$trend_result) {
                 return false;
             }
         }
@@ -679,8 +698,11 @@ class Combination_filters_m extends MY_Model
         // Add debugging to track filter rejections
         $combo_str = is_array($combo) ? implode(',', array_slice(array_values($combo), 0, 5)) : 'invalid';
         
-        // Debug: Log active filters for first combo
+        // Debug: Log active filters for first combo and track all calls
         static $filter_debug_done = false;
+        static $total_calls = 0;
+        $total_calls++;
+        
         if (!$filter_debug_done) {
             log_message('info', "apply_other_filters (Combination_filters_m): Active filters check:");
             foreach ($filter_select as $key => $value) {
@@ -689,6 +711,11 @@ class Combination_filters_m extends MY_Model
                 }
             }
             $filter_debug_done = true;
+        }
+        
+        // Log every combination being tested (first 10 only)
+        if ($total_calls <= 10) {
+            log_message('info', "apply_other_filters CALL #{$total_calls}: Testing combo: {$combo_str}");
         }
         
         // For independent extra ball lotteries, separate main numbers from extra ball
@@ -702,6 +729,39 @@ class Combination_filters_m extends MY_Model
         
         // Convert associative array (ball1, ball2, etc.) to indexed array of values for calculations
         $main_numbers_values = array_values($main_numbers);
+        
+        // *** MOVED TO TOP: Check consecutives filter FIRST to ensure it runs ***
+        if (isset($filter_select['selected_consecutives']) && $filter_select['selected_consecutives'] !== 'ALL') {
+            $lottery_highlights = $filter_select['lottery_highlights'] ?? [];
+            $max = $lottery_highlights['range'] ?? 49;
+            
+            // Get the count of consecutive pairs, not just if there are any
+            $consecutive_count = $this->count_consecutives($main_numbers_values, $max);
+            $expected_consecutive_count = (int)$filter_select['selected_consecutives'];
+            
+            // Debug consecutives filter for first few combinations
+            static $consecutive_debug_count = 0;
+            if ($consecutive_debug_count < 5) {
+                log_message('info', "CONSECUTIVE DEBUG #{$consecutive_debug_count}: Numbers: " . implode(',', $main_numbers_values) . ", Consecutive Count: {$consecutive_count}, Expected Count: {$expected_consecutive_count}");
+                log_message('info', "CONSECUTIVE DEBUG #{$consecutive_debug_count}: TYPES - consecutive_count type: " . gettype($consecutive_count) . ", expected_consecutive_count type: " . gettype($expected_consecutive_count));
+                log_message('info', "CONSECUTIVE DEBUG #{$consecutive_debug_count}: RAW VALUES - selected_consecutives: '{$filter_select['selected_consecutives']}' (type: " . gettype($filter_select['selected_consecutives']) . ")");
+                log_message('info', "CONSECUTIVE DEBUG #{$consecutive_debug_count}: COMPARISON: {$consecutive_count} !== {$expected_consecutive_count} = " . ($consecutive_count !== $expected_consecutive_count ? 'TRUE (REJECT)' : 'FALSE (PASS)'));
+                $consecutive_debug_count++;
+            }
+            
+            // Check if the combination has the exact number of consecutive pairs expected
+            log_message('debug', "CONSECUTIVE LOGIC: expected_count={$expected_consecutive_count}, actual_count={$consecutive_count}, selected_consecutives='{$filter_select['selected_consecutives']}'");
+            
+            if ($consecutive_count !== $expected_consecutive_count) {
+                // Log the rejection - use a separate counter to avoid conflicts
+                static $consecutive_reject_count = 0;
+                if ($consecutive_reject_count < 10) {
+                    log_message('info', "CONSECUTIVE FILTER REJECTED combo #{$consecutive_reject_count}: " . implode(',', $main_numbers_values) . " (expected: {$expected_consecutive_count} consecutives, actual: {$consecutive_count} consecutives)");
+                    $consecutive_reject_count++;
+                }
+                return false;
+            }
+        }
         
         // Check winning sums filter
         if (!empty($filter_select['selected_winning_sums']) && $filter_select['selected_winning_sums'] !== 'ALL') {
@@ -740,27 +800,38 @@ class Combination_filters_m extends MY_Model
         }
         
         // Check repeaters filter
-        if (!empty($filter_select['selected_repeaters']) && $filter_select['selected_repeaters'] !== 'ALL') {
+        if (isset($filter_select['selected_repeaters']) && $filter_select['selected_repeaters'] !== 'ALL') {
             $lottery_highlights = $filter_select['lottery_highlights'] ?? [];
             $max = $lottery_highlights['range'] ?? 49;
             $last_draw = $filter_select['lottery_last_drawn'] ?? [];
             
-            if (!$this->is_repeater($main_numbers_values, $max, $last_draw)) { // Use main numbers only
-                return false;
-            }
-        }
-        
-        // Check consecutives filter
-        if (!empty($filter_select['selected_consecutives']) && $filter_select['selected_consecutives'] !== 'ALL') {
-            $lottery_highlights = $filter_select['lottery_highlights'] ?? [];
-            $max = $lottery_highlights['range'] ?? 49;
+            // Get the count of repeaters, not just if there are any
+            $repeater_count = $this->count_repeaters($main_numbers_values, $max, $last_draw);
+            $expected_repeater_count = (int)$filter_select['selected_repeaters'];
             
-            if (!$this->has_consecutive($main_numbers_values, $max)) { // Use main numbers only
+            // Debug repeaters filter for first few combinations
+            static $repeater_debug_count = 0;
+            if ($repeater_debug_count < 5) {
+                log_message('info', "REPEATER DEBUG #{$repeater_debug_count}: Numbers: " . implode(',', $main_numbers_values) . ", Repeater Count: {$repeater_count}, Expected Count: {$expected_repeater_count}");
+                log_message('info', "REPEATER DEBUG #{$repeater_debug_count}: TYPES - repeater_count type: " . gettype($repeater_count) . ", expected_repeater_count type: " . gettype($expected_repeater_count));
+                log_message('info', "REPEATER DEBUG #{$repeater_debug_count}: RAW VALUES - selected_repeaters: '{$filter_select['selected_repeaters']}' (type: " . gettype($filter_select['selected_repeaters']) . ")");
+                log_message('info', "REPEATER DEBUG #{$repeater_debug_count}: COMPARISON: {$repeater_count} !== {$expected_repeater_count} = " . ($repeater_count !== $expected_repeater_count ? 'TRUE (REJECT)' : 'FALSE (PASS)'));
+                $repeater_debug_count++;
+            }
+            
+            // Check if the combination has the exact number of repeaters expected
+            log_message('debug', "REPEATER LOGIC: expected_count={$expected_repeater_count}, actual_count={$repeater_count}, selected_repeaters='{$filter_select['selected_repeaters']}'");
+            
+            if ($repeater_count !== $expected_repeater_count) {
+                // Log the rejection - use a separate counter to avoid conflicts
+                static $repeater_reject_count = 0;
+                if ($repeater_reject_count < 10) {
+                    log_message('info', "REPEATER FILTER REJECTED combo #{$repeater_reject_count}: " . implode(',', $main_numbers_values) . " (expected: {$expected_repeater_count} repeaters, actual: {$repeater_count} repeaters)");
+                    $repeater_reject_count++;
+                }
                 return false;
             }
-        }
-        
-        // Check parity filter
+        }        // Check parity filter
         if (!empty($filter_select['selected_parity']) && $filter_select['selected_parity'] !== 'ALL') {
             $even_count = 0;
             $odd_count = 0;
@@ -772,8 +843,17 @@ class Combination_filters_m extends MY_Model
                 }
             }
             
-            $parity_ratio = $even_count . '-' . $odd_count;
+            // FIXED: Use Odd-Even format instead of Even-Odd to match UI expectations
+            $parity_ratio = $odd_count . '-' . $even_count;
             $allowed_parity = explode(',', $filter_select['selected_parity']);
+            
+            // Debug parity filter for first few combinations
+            static $parity_debug_count = 0;
+            if ($parity_debug_count < 5) {
+                log_message('info', "PARITY DEBUG #{$parity_debug_count}: Numbers: " . implode(',', $main_numbers_values) . " -> Odd: {$odd_count}, Even: {$even_count}, Ratio: '{$parity_ratio}', Expected: '{$filter_select['selected_parity']}', Allowed: " . implode('|', $allowed_parity));
+                $parity_debug_count++;
+            }
+            
             if (!in_array($parity_ratio, $allowed_parity)) {
                 return false;
             }
@@ -903,7 +983,11 @@ class Combination_filters_m extends MY_Model
         
         // If we reach here, combination passed all filters
         $combo_str = is_array($combo) ? implode(',', array_slice(array_values($combo), 0, 5)) : 'invalid';
-        log_message('info', "apply_other_filters (Combination_filters_m): PASSED all filters - combo: $combo_str");
+        
+        // Log results for first 10 calls
+        if ($total_calls <= 10) {
+            log_message('info', "apply_other_filters CALL #{$total_calls}: PASSED all filters - combo: $combo_str");
+        }
         return true;
     }
 
@@ -921,19 +1005,58 @@ class Combination_filters_m extends MY_Model
             return true;
         }
         
-        $matches = count(array_intersect($combo, $last_drawn_numbers));
-        
         switch ($trend) {
+            case 'UP':
+                // All combination numbers must be greater than corresponding last drawn numbers
+                $combo_sorted = $combo;
+                $last_drawn_sorted = $last_drawn_numbers;
+                sort($combo_sorted, SORT_NUMERIC);
+                sort($last_drawn_sorted, SORT_NUMERIC);
+                
+                foreach ($combo_sorted as $index => $combo_number) {
+                    if (isset($last_drawn_sorted[$index])) {
+                        if ($combo_number <= $last_drawn_sorted[$index]) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+                
+            case 'DOWN':
+                // All combination numbers must be less than corresponding last drawn numbers
+                $combo_sorted = $combo;
+                $last_drawn_sorted = $last_drawn_numbers;
+                sort($combo_sorted, SORT_NUMERIC);
+                sort($last_drawn_sorted, SORT_NUMERIC);
+                
+                foreach ($combo_sorted as $index => $combo_number) {
+                    if (isset($last_drawn_sorted[$index])) {
+                        if ($combo_number >= $last_drawn_sorted[$index]) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+                
             case 'hot':
+                $matches = count(array_intersect($combo, $last_drawn_numbers));
                 return $matches >= 3;
+                
             case 'warm':
+                $matches = count(array_intersect($combo, $last_drawn_numbers));
                 return $matches >= 2 && $matches <= 3;
+                
             case 'cold':
+                $matches = count(array_intersect($combo, $last_drawn_numbers));
                 return $matches <= 1;
+                
             case 'none':
+                $matches = count(array_intersect($combo, $last_drawn_numbers));
                 return $matches == 0;
+                
             default:
                 if (is_numeric($trend)) {
+                    $matches = count(array_intersect($combo, $last_drawn_numbers));
                     return $matches == intval($trend);
                 }
                 return true;
@@ -966,6 +1089,31 @@ class Combination_filters_m extends MY_Model
     }
 
     /**
+     * Count the number of repeaters in a combination
+     *
+     * @param array $combo Combination to check
+     * @param int $max Maximum number in range
+     * @param array $last_draw Last draw data
+     * @return int Number of repeaters found
+     */
+    public function count_repeaters($combo, $max, $last_draw)
+    {
+        if (empty($last_draw)) {
+            return 0;
+        }
+        
+        $last_drawn_numbers = [];
+        foreach ($last_draw as $key => $value) {
+            if (strpos($key, 'ball') === 0 && is_numeric($value)) {
+                $last_drawn_numbers[] = intval($value);
+            }
+        }
+        
+        $repeaters = array_intersect($combo, $last_drawn_numbers);
+        return count($repeaters);
+    }
+
+    /**
      * Check if combination has consecutive numbers
      *
      * @param array $combo Combination to check
@@ -981,6 +1129,36 @@ class Combination_filters_m extends MY_Model
             }
         }
         return false;
+    }
+
+    /**
+     * Count the number of consecutive pairs in a combination
+     *
+     * @param array $combo Combination to check
+     * @param int $max Maximum number in range
+     * @return int Number of consecutive pairs found
+     */
+    public function count_consecutives($combo, $max)
+    {
+        sort($combo);
+        $consecutive_count = 0;
+        $consecutive_pairs = [];
+        
+        for ($i = 0; $i < count($combo) - 1; $i++) {
+            if ($combo[$i + 1] - $combo[$i] == 1) {
+                $consecutive_count++;
+                $consecutive_pairs[] = $combo[$i] . '-' . $combo[$i + 1];
+            }
+        }
+        
+        // Debug logging for first few calls
+        static $consecutive_method_debug = 0;
+        if ($consecutive_method_debug < 5) {
+            log_message('info', "count_consecutives DEBUG #{$consecutive_method_debug}: Numbers: " . implode(',', $combo) . " -> Found {$consecutive_count} pairs: " . implode(', ', $consecutive_pairs));
+            $consecutive_method_debug++;
+        }
+        
+        return $consecutive_count;
     }
 
     /**
