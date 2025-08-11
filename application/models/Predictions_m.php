@@ -3011,7 +3011,7 @@ class Predictions_m extends MY_Model
 			'selected_winning_sums', 'selected_winning_digits', 'selected_repeaters',
 			'selected_consecutives', 'selected_parity', 'selected_decades',
 			'selected_last_digits', 'selected_number_range', 'selected_adjacents',
-			'selected_extra_ball', 'selected_h_w_c_group'
+			'selected_extra_ball'
 		];
 		
 		foreach ($filter_keys as $key) {
@@ -3019,6 +3019,14 @@ class Predictions_m extends MY_Model
 				return true;
 			}
 		}
+		
+		// Special check for H-W-C group: only active if checkbox is checked AND dropdown has value
+		if (isset($filter_select['selected_hwc']) && $filter_select['selected_hwc'] && 
+			isset($filter_select['selected_h_w_c_group']) && 
+			!empty($filter_select['selected_h_w_c_group'])) {
+			return true;
+		}
+		
 		return false;
 	}
 	/**

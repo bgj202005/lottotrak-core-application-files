@@ -644,6 +644,12 @@ class Prize extends Admin_Controller
             show_error('Filter not found or access denied', 404);
         }
         
+        // Debug logging to see what filter values we retrieved
+        log_message('debug', "view_combination_tickets: Filter ID {$filter->id}, selected_trends: " . ($filter->selected_trends ?? 'NULL') . ", selected_winning_sums: " . ($filter->selected_winning_sums ?? 'NULL'));
+        
+        // Debug: Let's see all properties of the filter object
+        log_message('debug', "view_combination_tickets: All filter properties: " . print_r($filter, true));
+        
         // Get pagination settings
         $per_page = $this->input->get('per_page') ? (int)$this->input->get('per_page') : 10;
         $page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
@@ -918,6 +924,9 @@ class Prize extends Admin_Controller
                 return;
             }
             
+            // Debug logging to see what filter values we retrieved in AJAX
+            log_message('debug', "load_combination_tickets: Filter ID {$filter->id}, selected_trends: " . ($filter->selected_trends ?? 'NULL') . ", selected_winning_sums: " . ($filter->selected_winning_sums ?? 'NULL'));
+            
             // Calculate offset
             $offset = ($page - 1) * $per_page;
             
@@ -1149,6 +1158,14 @@ class Prize extends Admin_Controller
         $pick_dir = 'pick' . $expected_picks;
         $file_path = FCPATH . 'combinations/' . $pick_dir . '/' . $filter->file_name . '.txt';
         
+        log_message('debug', "get_paginated_combination_tickets: Looking for file: {$file_path}");
+        log_message('debug', "get_paginated_combination_tickets: File exists: " . (file_exists($file_path) ? 'YES' : 'NO'));
+        if (file_exists($file_path)) {
+            $file_size = filesize($file_path);
+            $line_count = count(file($file_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
+            log_message('debug', "get_paginated_combination_tickets: File size: {$file_size} bytes, Lines: {$line_count}");
+        }
+        
         if (!file_exists($file_path)) {
             log_message('error', "Combination file not found: {$file_path}");
             return array();
@@ -1156,6 +1173,8 @@ class Prize extends Admin_Controller
         
         // Check if any filters are applied
         $has_filters = $this->has_active_filters($filter);
+        
+        log_message('debug', "get_paginated_combination_tickets: Filter ID {$filter->combo_id}, Has filters: " . ($has_filters ? 'YES' : 'NO') . ", File: {$filter->file_name}");
         
         if ($has_filters) {
             // Use filtering model when filters are applied
@@ -1315,6 +1334,8 @@ class Prize extends Admin_Controller
         
         // Check if any filters are applied
         $has_filters = $this->has_active_filters($filter);
+        
+        log_message('debug', "count_combination_tickets: Filter ID {$filter->combo_id}, Has filters: " . ($has_filters ? 'YES' : 'NO') . ", File: {$filter->file_name}");
         
         if ($has_filters) {
             // Use filtering model when filters are applied
@@ -2293,10 +2314,12 @@ class Prize extends Admin_Controller
         
         foreach ($filter_fields as $field) {
             if (isset($filter->$field) && !empty($filter->$field) && $filter->$field !== 'ALL') {
+                log_message('debug', "has_active_filters: Found active filter {$field} = {$filter->$field}");
                 return true;
             }
         }
         
+        log_message('debug', "has_active_filters: No active filters found for filter ID {$filter->id}");
         return false;
     }
     
@@ -2321,6 +2344,9 @@ class Prize extends Admin_Controller
             'selected_adjacents' => $filter->selected_adjacents ?? 'ALL',
             'selected_extra_ball' => $filter->selected_extra_ball ?? 'ALL'
         );
+        
+        // Debug logging to see filter values
+        log_message('debug', "build_filter_array: Filter ID {$filter->id}, Trends: {$filter_data['selected_trends']}, Sums: {$filter_data['selected_winning_sums']}, Digits: {$filter_data['selected_winning_digits']}");
         
         // Add lottery-specific data
         if (!empty($filter->lottery_id)) {

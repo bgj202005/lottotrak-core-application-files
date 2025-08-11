@@ -1824,7 +1824,49 @@ class Predictions extends Admin_Controller {
 					'max_ball' => $this->data['lottery']->maximum_ball,
 					'lottery_highlights' => $this->data['lottery']->highlights
 				];
-				$combos_paginated = $this->predictions_m->insert_number_combination($filepath, $number_array, $page, $per_page, $filters);
+				
+				// OPTIMIZATION: Get ALL filtered combinations first (not just paginated)
+				$all_filtered_combos = $this->combination_filters_m->get_filtered_combinations($filepath, $number_array, $filters, 1, PHP_INT_MAX);
+				
+				// Store ALL filtered combinations in session for optimized saving later
+				$this->session->set_userdata('current_filtered_combinations', $all_filtered_combos);
+				$this->session->set_userdata('current_filtered_count', count($all_filtered_combos));
+				$this->session->set_userdata('current_filters', $filters);
+				log_message('info', "Generate Tickets: Stored " . count($all_filtered_combos) . " filtered combinations in session for optimized saving");
+				
+				// FIXED: Get paginated subset from the SAME filtered results and format properly
+				$start_index = ($page - 1) * $per_page;
+				$raw_combos_slice = array_slice($all_filtered_combos, $start_index, $per_page);
+				
+				// Format combinations to match expected view structure
+				$combos_paginated = [];
+				foreach ($raw_combos_slice as $raw_combo) {
+					// Convert raw combo to proper format
+					if (is_array($raw_combo) && isset($raw_combo['main_numbers'])) {
+						// Extra ball lottery format
+						$combo = [];
+						foreach ($raw_combo['main_numbers'] as $idx => $num) {
+							$combo['ball'.($idx+1)] = $num;
+						}
+						$combo['extra'] = $raw_combo['extra_ball'];
+					} else {
+						// Regular lottery format
+						$combo = [];
+						foreach ($raw_combo as $idx => $num) {
+							$combo['ball'.($idx+1)] = $num;
+						}
+					}
+					
+					// Get stats for this combination
+					$combo_data = ['combo' => $combo];
+					if (!empty($filters) && isset($filters['drawn']) && isset($filters['lottery_last_drawn'])) {
+						$stats = $this->predictions_m->get_combo_stats($combo, $filters['drawn'], $filters['lottery_last_drawn']);
+						$combo_data = array_merge($combo_data, $stats);
+					}
+					
+					$combos_paginated[] = $combo_data;
+				}
+				
 				// Check if any combinations were found
 				if (empty($combos_paginated)) {
 					$this->data['message'] = 'No Combinations are available with the applied filters';
@@ -1835,15 +1877,18 @@ class Predictions extends Admin_Controller {
 						'per_page' => $per_page,
 						'total_filtered' => 0
 					];
+					// Clear stored combinations if none found
+					$this->session->unset_userdata('current_filtered_combinations');
+					$this->session->unset_userdata('current_filtered_count');
 				} else {
 					$this->data['combos_paginated'] = $combos_paginated;
-					// Paginate for display - use filtered count for accurate pagination
-					$total_filtered = $this->predictions_m->get_filtered_combinations_count($filepath, $number_array, $filters);
+					// Use stored count for pagination (more efficient than recalculating)
+					$total_filtered = count($all_filtered_combos);
 					$this->data['pagination'] = [
 						'current' => $page,
 						'total' => ceil($total_filtered / $per_page),
 						'per_page' => $per_page,
-						'total_filtered' => $total_filtered  // Add total filtered count
+						'total_filtered' => $total_filtered
 					];
 					$this->data['number_array'] = $number_array;
 					$this->data['message'] = 'Combination Table and filters loaded successfully.';
@@ -1967,7 +2012,64 @@ class Predictions extends Admin_Controller {
 					'max_ball' => $this->data['lottery']->maximum_ball,
 					'lottery_highlights' => $this->data['lottery']->highlights
 				];
-				$updated_combinations = $this->predictions_m->insert_number_combination($filepath, $number_array, $page, $per_page, $filters);
+				
+				// FIXED: Use session-stored combinations for consistent pagination
+				$stored_filtered_combos = $this->session->userdata('current_filtered_combinations');
+				$stored_filters = $this->session->userdata('current_filters');
+				
+				// Check if stored combinations exist and filters match
+				if (!empty($stored_filtered_combos) && $this->filters_match($stored_filters, $filters)) {
+					log_message('info', "AJAX Pagination: Using stored filtered combinations (" . count($stored_filtered_combos) . " total)");
+					
+					// Get paginated subset from stored results
+					$start_index = ($page - 1) * $per_page;
+					$raw_combos_slice = array_slice($stored_filtered_combos, $start_index, $per_page);
+					$total_filtered = count($stored_filtered_combos);
+				} else {
+					log_message('info', "AJAX Pagination: Filters changed or no stored data, refiltering...");
+					
+					// Get fresh filtered data
+					$all_filtered_combos = $this->combination_filters_m->get_filtered_combinations($filepath, $number_array, $filters, 1, PHP_INT_MAX);
+					
+					// Update session storage
+					$this->session->set_userdata('current_filtered_combinations', $all_filtered_combos);
+					$this->session->set_userdata('current_filtered_count', count($all_filtered_combos));
+					$this->session->set_userdata('current_filters', $filters);
+					
+					// Get paginated subset
+					$start_index = ($page - 1) * $per_page;
+					$raw_combos_slice = array_slice($all_filtered_combos, $start_index, $per_page);
+					$total_filtered = count($all_filtered_combos);
+				}
+				
+				// Format combinations to match expected view structure
+				$updated_combinations = [];
+				foreach ($raw_combos_slice as $raw_combo) {
+					// Convert raw combo to proper format
+					if (is_array($raw_combo) && isset($raw_combo['main_numbers'])) {
+						// Extra ball lottery format
+						$combo = [];
+						foreach ($raw_combo['main_numbers'] as $idx => $num) {
+							$combo['ball'.($idx+1)] = $num;
+						}
+						$combo['extra'] = $raw_combo['extra_ball'];
+					} else {
+						// Regular lottery format
+						$combo = [];
+						foreach ($raw_combo as $idx => $num) {
+							$combo['ball'.($idx+1)] = $num;
+						}
+					}
+					
+					// Get stats for this combination
+					$combo_data = ['combo' => $combo];
+					if (!empty($filters) && isset($filters['drawn']) && isset($filters['lottery_last_drawn'])) {
+						$stats = $this->predictions_m->get_combo_stats($combo, $filters['drawn'], $filters['lottery_last_drawn']);
+						$combo_data = array_merge($combo_data, $stats);
+					}
+					
+					$updated_combinations[] = $combo_data;
+				}
 				// Check if any combinations were found
 				if (empty($updated_combinations)) {
 					$this->data['message'] = 'No Combinations are available with the applied filters';
@@ -1980,8 +2082,7 @@ class Predictions extends Admin_Controller {
 					];
 				} else {
 					$this->data['combos_paginated'] = $updated_combinations;
-					// Paginate for display - use filtered count for accurate pagination
-					$total_filtered = $this->predictions_m->get_filtered_combinations_count($filepath, $number_array, $filters);
+					// Use the calculated total_filtered count
 					$this->data['pagination'] = [
 						'current' => $page,
 						'total' => ceil($total_filtered / $per_page),
@@ -2129,7 +2230,27 @@ class Predictions extends Admin_Controller {
 			'lottery_highlights' => $this->data['lottery']->highlights
 		];
 		
-		$filtered_count = $this->predictions_m->get_filtered_combinations_count($filepath, $number_array, $filters);
+		// Debug: Log the filter values being used
+		log_message('info', "Save tickets: Filter values - trends: " . ($session_data['selected_trends'] ?? 'NULL') . 
+			", sums: " . ($session_data['selected_winning_sums'] ?? 'NULL') . 
+			", h_w_c_group: " . ($session_data['selected_h_w_c_group'] ?? 'NULL') .
+			", extra_ball: " . ($session_data['selected_extra_ball'] ?? 'NULL'));
+		
+		// OPTIMIZATION: Use pre-filtered combinations from session if available
+		$stored_combinations = $this->session->userdata('current_filtered_combinations');
+		$stored_count = $this->session->userdata('current_filtered_count');
+		$stored_filters = $this->session->userdata('current_filters');
+		
+		if (!empty($stored_combinations) && !empty($stored_count) && 
+			$this->filters_match($filters, $stored_filters)) {
+			// Use pre-filtered combinations (no re-filtering needed)
+			$filtered_count = $stored_count;
+			log_message('info', "Save tickets: Using pre-filtered combinations from session - count: {$filtered_count} (OPTIMIZED - no re-filtering)");
+		} else {
+			// Fallback: Re-filter if no stored combinations or filters don't match
+			$filtered_count = $this->combination_filters_m->get_filtered_combinations_count($filepath, $number_array, $filters);
+			log_message('info', "Save tickets: Had to re-filter combinations - count: {$filtered_count} (LEGACY mode)");
+		}
 		$current_user_id = $this->session->userdata('id');
 		$formatted_user_id = str_pad($current_user_id, 2, '0', STR_PAD_LEFT);
 		// Create filename: 060828ADMIN01 format (MMDDYY + ADMIN + user_id)
@@ -2204,10 +2325,19 @@ class Predictions extends Admin_Controller {
 			if (!is_dir($pick_dir)) {
 				mkdir($pick_dir, 0755, true);
 			}
-			// Save filtered combinations to file
+			// Save filtered combinations to file using optimized method
 			$pick_file_path = $pick_dir . $file_name . '.txt';
 			
-			$success = $this->combination_filters_m->save_filtered_combinations_to_file($filepath, $number_array, $filters, $pick_file_path);
+			// OPTIMIZATION: Use pre-filtered combinations if available
+			if (!empty($stored_combinations) && $this->filters_match($filters, $stored_filters)) {
+				// Use optimized method - save pre-filtered combinations directly
+				$success = $this->combination_filters_m->save_prefiltered_combinations_to_file($stored_combinations, $pick_file_path, $filters);
+				log_message('info', "Save tickets: Used OPTIMIZED save method - no re-filtering needed");
+			} else {
+				// Fallback to legacy method that re-filters
+				$success = $this->combination_filters_m->save_filtered_combinations_to_file($filepath, $number_array, $filters, $pick_file_path);
+				log_message('info', "Save tickets: Used LEGACY save method - had to re-filter");
+			}
 			
 			if ($success) {
 				$message = 'Combination Ticket File ' . preg_replace('/ADMIN.*/', '', $file_name) . ' is Successfully Saved to the combinations/pick' . $R . ' Directory.';
@@ -2706,13 +2836,19 @@ class Predictions extends Admin_Controller {
 		$current_session_array = $this->session->userdata('futures_number_array');
 		$current_session_form = $this->session->userdata('futures_form');
 		log_message('info', "Refresh method: Current session number_array: " . (is_array($current_session_array) ? count($current_session_array) . " numbers: " . implode(',', array_slice($current_session_array, 0, 10)) : 'not set'));
-		log_message('info', "Refresh method: Current session form decades: " . ($current_session_form['selected_decades'] ?? 'not set') . ", last_digits: " . ($current_session_form['selected_last_digits'] ?? 'not set'));					// Set up pagination for existing tickets - respect URL parameters
+		log_message('info', "Refresh method: Current session form decades: " . ($current_session_form['selected_decades'] ?? 'not set') . ", last_digits: " . ($current_session_form['selected_last_digits'] ?? 'not set'));					// Set up pagination for existing tickets - respect URL parameters and database CCCC
 					$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
 					$per_page = $this->input->get('per_page') ? (int)$this->input->get('per_page') : 10;
-					$total_filtered = count($filtered_tickets);
-					$total_pages = ceil($total_filtered / $per_page);
+					$database_cccc = (int)$saved_settings['CCCC'];
+					
+					// Limit filtered_tickets to database CCCC count to prevent showing extra tickets
+					$limited_filtered_tickets = array_slice($filtered_tickets, 0, $database_cccc);
+					
+					$total_pages = ceil($database_cccc / $per_page);
 					$offset = ($page - 1) * $per_page;
-					$paginated_tickets = array_slice($filtered_tickets, $offset, $per_page);
+					$paginated_tickets = array_slice($limited_filtered_tickets, $offset, $per_page);
+					
+					log_message('info', "Refresh method: Limited display to database CCCC={$database_cccc}, file had " . count($filtered_tickets) . " tickets, showing page {$page} with {$per_page} per page");
 					
 					// Format tickets to match view expectations
 					$formatted_tickets = [];
@@ -2776,11 +2912,11 @@ class Predictions extends Admin_Controller {
 					
 					// Set up the data for the view
 					$this->data['combos_paginated'] = $paginated_tickets;
-					$this->data['total_filtered'] = $total_filtered;
+					$this->data['total_filtered'] = $database_cccc;
 					
 					// **DYNAMIC FILTER COUNT CALCULATION**
 					// Calculate the actual filtered count using saved filter settings to match Generate Tickets
-					$dynamic_filtered_count = $total_filtered; // Default to saved file count
+					$dynamic_filtered_count = $database_cccc; // Default to database CCCC count
 					
 					$original_file_path = FCPATH . 'combinations/' . $original_filename . '.txt';
 					if (file_exists($original_file_path)) {
@@ -2843,7 +2979,7 @@ class Predictions extends Admin_Controller {
 						$session_number_array = $this->session->userdata('futures_number_array');
 						if (is_array($session_number_array) && !empty($session_number_array)) {
 							$dynamic_filtered_count = $this->predictions_m->get_filtered_combinations_count($original_file_path, $session_number_array, $filters);
-							log_message('info', "Refresh method: Dynamic filter calculation - saved file count: {$total_filtered}, dynamic count: {$dynamic_filtered_count}");
+							log_message('info', "Refresh method: Dynamic filter calculation - database CCCC: {$database_cccc}, dynamic count: {$dynamic_filtered_count}");
 							
 							// Generate the actual filtered combinations for display (not just count)
 							$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
@@ -2851,10 +2987,11 @@ class Predictions extends Admin_Controller {
 							$dynamic_combos = $this->predictions_m->insert_number_combination($original_file_path, $session_number_array, $page, $per_page, $filters);
 							
 							if (!empty($dynamic_combos)) {
-								// Replace the saved file combinations with dynamically filtered ones
-								$paginated_tickets = $dynamic_combos;
-								$total_filtered = $dynamic_filtered_count;
-								log_message('info', "Refresh method: Replaced combinations display with {$dynamic_filtered_count} dynamically filtered combinations");
+								// DO NOT replace saved file combinations with dynamically filtered ones
+								// This was causing the wrong results to be displayed
+								// $paginated_tickets = $dynamic_combos;
+								// $total_filtered = $dynamic_filtered_count;
+								log_message('info', "Refresh method: SKIPPED replacing saved combinations with dynamic ones (would have shown {$dynamic_filtered_count} instead of correct {$database_cccc})");
 							}
 						} else {
 							log_message('warning', "Refresh method: No session number array found for dynamic filtering");
@@ -2863,25 +3000,27 @@ class Predictions extends Admin_Controller {
 						log_message('warning', "Refresh method: Original file not found for dynamic filtering: {$original_file_path}");
 					}
 					
-					// Use dynamic count for CCCC display
-					$this->data['CCCC'] = $dynamic_filtered_count;
-					log_message('info', "Refresh method: Setting CCCC to dynamic count: {$dynamic_filtered_count}, saved file count was: {$total_filtered}, database CCCC was: " . $saved_settings['CCCC']);
-					$this->data['total_pages'] = $total_pages;
+					// Use database CCCC value (NOT file count or dynamic count)
+					// This ensures the correct filtered count is always displayed
+					$database_cccc = (int)$saved_settings['CCCC'];
+					$this->data['CCCC'] = $database_cccc;
+					log_message('info', "Refresh method: Using database CCCC: {$database_cccc} (dynamic would have been: {$dynamic_filtered_count})");
+					$this->data['total_pages'] = ceil($database_cccc / $per_page);
 					$this->data['current_page'] = $page;
 					$this->data['per_page'] = $per_page;
 					$this->data['number_array'] = $number_array;
 					
-					// Set up pagination array for the view using dynamic count
-					$total_pages = ceil($dynamic_filtered_count / $per_page);
+					// Set up pagination array for the view using database CCCC value
+					$total_pages_correct = ceil($database_cccc / $per_page);
 					$this->data['pagination'] = [
 						'current' => $page,
-						'total' => $total_pages,
+						'total' => $total_pages_correct,
 						'per_page' => $per_page,
-						'total_filtered' => $dynamic_filtered_count
+						'total_filtered' => $database_cccc
 					];
 					
-					// Update total_filtered for view display
-					$this->data['total_filtered'] = $dynamic_filtered_count;
+					// Update total_filtered for view display to use database CCCC
+					$this->data['total_filtered'] = $database_cccc;
 					
 					log_message('info', "Refresh method: Pagination data - current: {$page}, total_pages: {$total_pages}, per_page: {$per_page}, total_filtered: {$dynamic_filtered_count}");
 					log_message('info', "Refresh method: Displaying existing filtered tickets, page {$page} of {$total_pages}, showing {$per_page} tickets per page");
@@ -3083,5 +3222,40 @@ class Predictions extends Admin_Controller {
 		}
 		// Redirect back to the lottery's prediction futures page
 		redirect('admin/predictions/futures/' . $combination_filter->lottery_id);
+	}
+	
+	/**
+	 * Compare two filter arrays to check if they match (for optimization)
+	 * 
+	 * @param array $filters1 First filter array
+	 * @param array $filters2 Second filter array
+	 * @return bool True if filters match
+	 */
+	private function filters_match($filters1, $filters2)
+	{
+		if (empty($filters1) || empty($filters2)) {
+			return false;
+		}
+		
+		// Compare key filter values that affect combination selection
+		$key_filters = [
+			'selected_trends', 'selected_winning_sums', 'selected_winning_digits',
+			'selected_repeaters', 'selected_consecutives', 'selected_parity',
+			'selected_decades', 'selected_last_digits', 'selected_number_range',
+			'selected_adjacents', 'selected_h_w_c_group', 'selected_hwc',
+			'selected_extra_ball', 'lottery_id'
+		];
+		
+		foreach ($key_filters as $filter) {
+			$value1 = $filters1[$filter] ?? null;
+			$value2 = $filters2[$filter] ?? null;
+			
+			if ($value1 !== $value2) {
+				log_message('debug', "filters_match: Mismatch on {$filter} - {$value1} vs {$value2}");
+				return false;
+			}
+		}
+		
+		return true;
 	}
 }

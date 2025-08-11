@@ -147,6 +147,10 @@ class Combination_filters_m extends MY_Model
         $extra_ball = $filter_select['extra_ball'] ?? 0;
         $selected_trends = $filter_select['selected_trends'] ?? 'ALL';
         
+        // Debug logging
+        log_message('debug', "get_filtered_combinations: page={$page}, per_page={$per_page}, selected_trends={$selected_trends}");
+        log_message('debug', "get_filtered_combinations: filter_select keys: " . implode(', ', array_keys($filter_select)));
+        
         // Prepare last drawn numbers for trend filtering
         $last_drawn_numbers = [];
         if ($selected_trends !== 'ALL' && !empty($last_drawn)) {
@@ -160,10 +164,15 @@ class Combination_filters_m extends MY_Model
             }
         }
         
+        $total_lines_processed = 0;
+        $passed_filters = 0;
+        
         if (($handle = fopen($filepath, 'r')) !== false) {
             while (($line = fgets($handle)) !== false) {
                 $line = trim($line);
                 if (empty($line)) continue;
+                
+                $total_lines_processed++;
                 
                 // Parse combination
                 $positions = array_map('intval', explode(' ', $line));
@@ -205,6 +214,7 @@ class Combination_filters_m extends MY_Model
                 
                 // Check if combination passes all filters
                 if ($this->passes_all_filters($combo, $filter_select)) {
+                    $passed_filters++;
                     if ($count >= $skip_count) {
                         // For independent extra ball lotteries, return structured data
                         if ($extra_ball_number !== null) {
@@ -228,6 +238,8 @@ class Combination_filters_m extends MY_Model
             fclose($handle);
         }
         
+        log_message('debug', "get_filtered_combinations: Processed {$total_lines_processed} lines, {$passed_filters} passed filters, returning " . count($combinations) . " combinations");
+        
         return $combinations;
     }
 
@@ -241,6 +253,9 @@ class Combination_filters_m extends MY_Model
      */
     public function get_filtered_combinations_count($filepath, $number_array, $filter_select = [])
     {
+        log_message('info', "get_filtered_combinations_count: STARTING - source: {$filepath}");
+        log_message('info', "get_filtered_combinations_count: Filters being used: " . print_r($filter_select, true));
+        
         if (!file_exists($filepath)) {
             return 0;
         }
@@ -249,12 +264,22 @@ class Combination_filters_m extends MY_Model
         $selected_trends = $filter_select['selected_trends'] ?? 'ALL';
         $has_other_filters = $this->has_active_filters($filter_select);
         
-        if ($selected_trends === 'ALL' && !$has_other_filters) {
-            return count(file($filepath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
+        $is_independent_extra_ball = !empty($filter_select['duplicate_extra_ball']) && !empty($filter_select['extra_ball']);
+        $selected_extra_ball = $filter_select['selected_extra_ball'] ?? 'ALL';
+        
+        log_message('debug', "get_filtered_combinations_count: selected_trends={$selected_trends}, has_other_filters=" . ($has_other_filters ? 'YES' : 'NO') . ", is_independent_extra_ball=" . ($is_independent_extra_ball ? 'YES' : 'NO'));
+        
+        // For independent extra ball lotteries, we must always process combinations due to different structure
+        // even when filters are 'ALL', because the combinations need proper parsing
+        if ($selected_trends === 'ALL' && !$has_other_filters && !$is_independent_extra_ball) {
+            $total_lines = count(file($filepath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
+            log_message('debug', "get_filtered_combinations_count: No filters applied, returning total lines: {$total_lines}");
+            return $total_lines;
         }
         
         // Count filtered combinations
         $count = 0;
+        $total_lines = 0;
         $drawn = $filter_select['drawn'] ?? 0;
         $last_drawn = $filter_select['lottery_last_drawn'] ?? [];
         $extra_ball = $filter_select['extra_ball'] ?? 0;
@@ -277,6 +302,8 @@ class Combination_filters_m extends MY_Model
             while (($line = fgets($handle)) !== false) {
                 $line = trim($line);
                 if (empty($line)) continue;
+                
+                $total_lines++;
                 
                 // Parse combination
                 $positions = array_map('intval', explode(' ', $line));
@@ -316,27 +343,68 @@ class Combination_filters_m extends MY_Model
                     $combo['extra'] = $extra_ball_number;
                 }
                 
-                // Check if combination passes all filters
-                if ($selected_trends !== 'ALL') {
-                    if (!$this->check_trend_match($combo, $last_drawn_numbers, $selected_trends)) {
-                        continue;
-                    }
+                // Check if combination passes all filters (use same method as save)
+                if ($this->passes_all_filters($combo, $filter_select)) {
+                    $count++;
                 }
-                
-                if (!$this->apply_other_filters($combo, $filter_select)) {
-                    continue;
-                }
-                
-                $count++;
             }
             fclose($handle);
         }
         
+        log_message('info', "get_filtered_combinations_count: FINAL RESULT - {$count} passed out of {$total_lines} total combinations");
         return $count;
     }
 
     /**
-     * Save filtered combinations to a file
+     * Save pre-filtered combinations directly to file (no re-filtering needed)
+     * This method should be used when combinations have already been filtered
+     * during the Generate Tickets process to avoid double-filtering.
+     * 
+     * @param array $filtered_combinations Already filtered combinations
+     * @param string $output_file_path Path to save the combinations
+     * @param array $filters Filter info for logging purposes
+     * @return bool True on success
+     */
+    public function save_prefiltered_combinations_to_file($filtered_combinations, $output_file_path, $filters = [])
+    {
+        log_message('info', "save_prefiltered_combinations_to_file: Saving " . count($filtered_combinations) . " pre-filtered combinations to {$output_file_path}");
+        
+        $output_handle = fopen($output_file_path, 'w');
+        if (!$output_handle) {
+            log_message('error', "save_prefiltered_combinations_to_file: Could not open output file: {$output_file_path}");
+            return false;
+        }
+
+        $saved_count = 0;
+        foreach ($filtered_combinations as $combo) {
+            if (is_array($combo)) {
+                // Handle different combination formats
+                if (isset($combo['main_numbers']) && isset($combo['extra_ball'])) {
+                    // Independent extra ball format: main_numbers + extra_ball
+                    $all_numbers = $combo['main_numbers'];
+                    $all_numbers[] = $combo['extra_ball'];
+                    $output_line = implode(' ', $all_numbers);
+                } else {
+                    // Regular format: array of numbers
+                    $output_line = implode(' ', $combo);
+                }
+                
+                fwrite($output_handle, $output_line . "\n");
+                $saved_count++;
+            }
+        }
+
+        fclose($output_handle);
+        
+        log_message('info', "save_prefiltered_combinations_to_file: Successfully saved {$saved_count} combinations (no re-filtering needed)");
+        return $saved_count > 0;
+    }
+
+    /**
+     * Save filtered combinations to a file (LEGACY METHOD - DOES RE-FILTERING)
+     * Note: This method re-filters combinations from original file.
+     * Consider using save_prefiltered_combinations_to_file() for better performance
+     * when combinations are already filtered.
      *
      * @param string $filepath Path to the source combination file
      * @param array $number_array Array of numbers to filter with
@@ -347,6 +415,7 @@ class Combination_filters_m extends MY_Model
     public function save_filtered_combinations_to_file($filepath, $number_array, $filters, $output_file_path)
     {
         log_message('info', "save_filtered_combinations_to_file: STARTING - source: {$filepath}, output: {$output_file_path}");
+        log_message('info', "save_filtered_combinations_to_file: Filters being used: " . print_r($filters, true));
         
         if (!file_exists($filepath)) {
             log_message('error', "save_filtered_combinations_to_file: Source file not found: {$filepath}");
@@ -464,6 +533,48 @@ class Combination_filters_m extends MY_Model
     }
 
     /**
+     * Save pre-filtered combinations to database (optimized version)
+     * 
+     * @param array $combinations Pre-filtered combinations
+     * @param array $filters Filter criteria used
+     * @return bool True if saved successfully
+     */
+    public function save_prefiltered_combinations_to_database($combinations, $filters)
+    {
+        log_message('info', "save_prefiltered_combinations_to_database: Starting with " . count($combinations) . " pre-filtered combinations");
+        
+        if (empty($combinations)) {
+            log_message('warning', "save_prefiltered_combinations_to_database: No combinations provided");
+            return false;
+        }
+
+        // Use the provided combinations directly (already filtered)
+        $saved_count = 0;
+        foreach ($combinations as $combination) {
+            // Determine CCCC count
+            $cccc_count = $this->count_cccc_in_combination($combination);
+            
+            // Prepare data for database insertion
+            $data = array(
+                'combination' => $combination,
+                'date_created' => date('Y-m-d H:i:s'),
+                'CCCC' => $cccc_count
+            );
+            
+            // Insert into database
+            if ($this->db->insert('lottery_combination_filters', $data)) {
+                $saved_count++;
+                log_message('debug', "save_prefiltered_combinations_to_database: Saved combination: " . $combination . " (CCCC: " . $cccc_count . ")");
+            } else {
+                log_message('error', "save_prefiltered_combinations_to_database: Failed to save combination: " . $combination);
+            }
+        }
+
+        log_message('info', "save_prefiltered_combinations_to_database: Saved $saved_count out of " . count($combinations) . " combinations to database");
+        return $saved_count > 0;
+    }
+
+    /**
      * Check if any filters other than trends are active
      *
      * @param array $filter_select Array of filter criteria
@@ -484,6 +595,13 @@ class Combination_filters_m extends MY_Model
             }
         }
         
+        // Special check for H-W-C group: only active if checkbox is checked AND dropdown has value
+        if (isset($filter_select['selected_hwc']) && $filter_select['selected_hwc'] && 
+            isset($filter_select['selected_h_w_c_group']) && 
+            !empty($filter_select['selected_h_w_c_group'])) {
+            return true;
+        }
+        
         return false;
     }
 
@@ -496,6 +614,14 @@ class Combination_filters_m extends MY_Model
      */
     private function passes_all_filters($combo, $filters)
     {
+        static $debug_count = 0;
+        $debug_count++;
+        
+        // Debug first few combinations
+        if ($debug_count <= 3) {
+            log_message('debug', "passes_all_filters #{$debug_count}: selected_trends=" . ($filters['selected_trends'] ?? 'NULL') . ", selected_winning_sums=" . ($filters['selected_winning_sums'] ?? 'NULL'));
+        }
+        
         // For independent extra ball lotteries, separate main numbers from extra ball for filtering
         $main_numbers = $combo;
         if (!empty($filters['duplicate_extra_ball']) && !empty($filters['extra_ball']) && isset($combo['extra'])) {
@@ -531,7 +657,14 @@ class Combination_filters_m extends MY_Model
         }
         
         // Apply other filters using existing method
-        return $this->apply_other_filters($combo, $filters);
+        $result = $this->apply_other_filters($combo, $filters);
+        
+        // Debug result for first few combinations
+        if ($debug_count <= 3) {
+            log_message('debug', "passes_all_filters #{$debug_count}: result=" . ($result ? 'PASS' : 'FAIL'));
+        }
+        
+        return $result;
     }
 
     /**
@@ -1005,5 +1138,33 @@ class Combination_filters_m extends MY_Model
         }
         
         return FALSE;
+    }
+
+    /**
+     * Count CCCC occurrences in a combination
+     * 
+     * @param string $combination The combination string
+     * @return int Number of CCCC patterns found
+     */
+    private function count_cccc_in_combination($combination)
+    {
+        // Split combination into individual numbers
+        $numbers = explode('-', $combination);
+        $cccc_count = 0;
+        
+        // Check each number for CCCC pattern (4 identical consecutive digits)
+        foreach ($numbers as $number) {
+            $number = str_pad($number, 4, '0', STR_PAD_LEFT); // Ensure 4 digits
+            
+            // Check if all 4 digits are the same
+            if (strlen($number) == 4 && 
+                $number[0] == $number[1] && 
+                $number[1] == $number[2] && 
+                $number[2] == $number[3]) {
+                $cccc_count++;
+            }
+        }
+        
+        return $cccc_count;
     }
 }
