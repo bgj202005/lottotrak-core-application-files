@@ -2336,19 +2336,12 @@ class Predictions extends Admin_Controller {
 			if (!is_dir($pick_dir)) {
 				mkdir($pick_dir, 0755, true);
 			}
-			// Save filtered combinations to file using optimized method
+			// Save filtered combinations to file
 			$pick_file_path = $pick_dir . $file_name . '.txt';
 			
-			// OPTIMIZATION: Use pre-filtered combinations if available
-			if (!empty($stored_combinations) && $this->filters_match($filters, $stored_filters)) {
-				// Use optimized method - save pre-filtered combinations directly
-				$success = $this->combination_filters_m->save_prefiltered_combinations_to_file($stored_combinations, $pick_file_path, $filters);
-				log_message('info', "Save tickets: Used OPTIMIZED save method - no re-filtering needed");
-			} else {
-				// Fallback to legacy method that re-filters
-				$success = $this->combination_filters_m->save_filtered_combinations_to_file($filepath, $number_array, $filters, $pick_file_path);
-				log_message('info', "Save tickets: Used LEGACY save method - had to re-filter");
-			}
+			// Use file-based filtering for saving (always up-to-date and memory efficient)
+			$success = $this->combination_filters_m->save_filtered_combinations_to_file($filepath, $number_array, $filters, $pick_file_path);
+			log_message('info', "Save tickets: Used file-based save method for {$filtered_count} combinations");
 			
 			if ($success) {
 				$message = 'Combination Ticket File ' . preg_replace('/ADMIN.*/', '', $file_name) . ' is Successfully Saved to the combinations/pick' . $R . ' Directory.';
@@ -2359,7 +2352,8 @@ class Predictions extends Admin_Controller {
 						->set_content_type('application/json')
 						->set_output(json_encode([
 							'success' => true,
-							'message' => $message
+							'message' => $message,
+							'filtered_count' => $filtered_count // Add filtered count for AJAX update
 						]));
 					return;
 				}

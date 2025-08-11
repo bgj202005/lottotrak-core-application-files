@@ -773,7 +773,7 @@
 											<i class="fa fa-eye fa-2x" title="Restore previous Combination Filter Settings" style="color:#007bff; cursor:pointer; margin:0 5px;" onclick="refreshFilter(<?= $combo_id ?>)"></i>
 											<i class="fa fa-money fa-2x" title="View Combination Ticket Winners" style="color:#28a745; cursor:pointer; margin:0 5px;" onclick="viewCombinationWinners(<?= $combo_id ?>)"></i>
 											<i class="fa fa-trash-o fa-2x" title="Delete this file and Combination Table Filtered Tickets" style="color:#dc3545; cursor:pointer; margin:0 5px;" onclick="deleteFilter(<?= $combo_id ?>, '<?= $file_name ?>')"></i>
-											<span style="color:#28a745; font-weight:bold;">Filtered Tickets: <?=$CCCC ?></span>
+											<span id="filtered-tickets-count" style="color:#28a745; font-weight:bold;">Filtered Tickets: <?=$CCCC ?></span>
 										<?php endif; ?>
 									</div>		
 										<div class="table-responsive">
@@ -1347,6 +1347,14 @@
 					
 					// Insert message at the top of the form
 					form.insertBefore(messageDiv, form.firstChild);
+					
+					// Update the Filtered Tickets count if provided in response
+					if (data.filtered_count) {
+						const filteredTicketsElement = document.getElementById('filtered-tickets-count');
+						if (filteredTicketsElement) {
+							filteredTicketsElement.textContent = 'Filtered Tickets: ' + data.filtered_count.toLocaleString();
+						}
+					}
 					
 					// Update the active flag since we just saved an active filter
 					isActive = true;
