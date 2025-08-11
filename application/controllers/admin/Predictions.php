@@ -1825,18 +1825,18 @@ class Predictions extends Admin_Controller {
 					'lottery_highlights' => $this->data['lottery']->highlights
 				];
 				
-				// OPTIMIZATION: Get ALL filtered combinations first (not just paginated)
-				$all_filtered_combos = $this->combination_filters_m->get_filtered_combinations($filepath, $number_array, $filters, 1, PHP_INT_MAX);
+				// OPTIMIZATION: Get filtered count first (efficient - no loading all data)
+				$total_filtered_count = $this->combination_filters_m->get_filtered_combinations_count($filepath, $number_array, $filters);
+				log_message('info', "Pagination Performance: Found {$total_filtered_count} total filtered combinations");
 				
-				// Store ALL filtered combinations in session for optimized saving later
-				$this->session->set_userdata('current_filtered_combinations', $all_filtered_combos);
-				$this->session->set_userdata('current_filtered_count', count($all_filtered_combos));
+				// OPTIMIZATION: Get only current page's combinations (lazy loading)
+				$raw_combos_slice = $this->combination_filters_m->get_filtered_combinations($filepath, $number_array, $filters, $page, $per_page);
+				log_message('info', "Pagination Performance: Loaded page {$page} with " . count($raw_combos_slice) . " combinations");
+				
+				// Store essential data in session for saving (metadata only, not full combinations)
+				$this->session->set_userdata('current_filtered_count', $total_filtered_count);
 				$this->session->set_userdata('current_filters', $filters);
-				log_message('info', "Generate Tickets: Stored " . count($all_filtered_combos) . " filtered combinations in session for optimized saving");
-				
-				// FIXED: Get paginated subset from the SAME filtered results and format properly
-				$start_index = ($page - 1) * $per_page;
-				$raw_combos_slice = array_slice($all_filtered_combos, $start_index, $per_page);
+				log_message('info', "Generate Tickets: Stored metadata for {$total_filtered_count} filtered combinations in session");
 				
 				// Format combinations to match expected view structure
 				$combos_paginated = [];
@@ -1877,18 +1877,16 @@ class Predictions extends Admin_Controller {
 						'per_page' => $per_page,
 						'total_filtered' => 0
 					];
-					// Clear stored combinations if none found
-					$this->session->unset_userdata('current_filtered_combinations');
+					// Clear session metadata if none found
 					$this->session->unset_userdata('current_filtered_count');
 				} else {
 					$this->data['combos_paginated'] = $combos_paginated;
-					// Use stored count for pagination (more efficient than recalculating)
-					$total_filtered = count($all_filtered_combos);
+					// Use optimized count for pagination 
 					$this->data['pagination'] = [
 						'current' => $page,
-						'total' => ceil($total_filtered / $per_page),
+						'total' => ceil($total_filtered_count / $per_page),
 						'per_page' => $per_page,
-						'total_filtered' => $total_filtered
+						'total_filtered' => $total_filtered_count
 					];
 					$this->data['number_array'] = $number_array;
 					$this->data['message'] = 'Combination Table and filters loaded successfully.';
@@ -2013,33 +2011,28 @@ class Predictions extends Admin_Controller {
 					'lottery_highlights' => $this->data['lottery']->highlights
 				];
 				
-				// FIXED: Use session-stored combinations for consistent pagination
-				$stored_filtered_combos = $this->session->userdata('current_filtered_combinations');
+				// Get session data for continuity
 				$stored_filters = $this->session->userdata('current_filters');
 				
-				// Check if stored combinations exist and filters match
-				if (!empty($stored_filtered_combos) && $this->filters_match($stored_filters, $filters)) {
-					log_message('info', "AJAX Pagination: Using stored filtered combinations (" . count($stored_filtered_combos) . " total)");
+				// Check if stored count and filters match
+				$stored_total_count = $this->session->userdata('current_filtered_count');
+				if (!empty($stored_total_count) && $this->filters_match($stored_filters, $filters)) {
+					log_message('info', "AJAX Pagination: Using stored metadata ({$stored_total_count} total combinations)");
 					
-					// Get paginated subset from stored results
-					$start_index = ($page - 1) * $per_page;
-					$raw_combos_slice = array_slice($stored_filtered_combos, $start_index, $per_page);
-					$total_filtered = count($stored_filtered_combos);
+					// Get only current page's combinations (lazy loading)
+					$raw_combos_slice = $this->combination_filters_m->get_filtered_combinations($filepath, $number_array, $filters, $page, $per_page);
+					$total_filtered = $stored_total_count;
 				} else {
 					log_message('info', "AJAX Pagination: Filters changed or no stored data, refiltering...");
 					
-					// Get fresh filtered data
-					$all_filtered_combos = $this->combination_filters_m->get_filtered_combinations($filepath, $number_array, $filters, 1, PHP_INT_MAX);
+					// OPTIMIZATION: Get count first, then current page only
+					$total_filtered = $this->combination_filters_m->get_filtered_combinations_count($filepath, $number_array, $filters);
+					$raw_combos_slice = $this->combination_filters_m->get_filtered_combinations($filepath, $number_array, $filters, $page, $per_page);
 					
-					// Update session storage
-					$this->session->set_userdata('current_filtered_combinations', $all_filtered_combos);
-					$this->session->set_userdata('current_filtered_count', count($all_filtered_combos));
+					// Update session storage with metadata only
+					$this->session->set_userdata('current_filtered_count', $total_filtered);
 					$this->session->set_userdata('current_filters', $filters);
-					
-					// Get paginated subset
-					$start_index = ($page - 1) * $per_page;
-					$raw_combos_slice = array_slice($all_filtered_combos, $start_index, $per_page);
-					$total_filtered = count($all_filtered_combos);
+					log_message('info', "AJAX Pagination: Updated metadata for {$total_filtered} combinations");
 				}
 				
 				// Format combinations to match expected view structure
@@ -2236,20 +2229,18 @@ class Predictions extends Admin_Controller {
 			", h_w_c_group: " . ($session_data['selected_h_w_c_group'] ?? 'NULL') .
 			", extra_ball: " . ($session_data['selected_extra_ball'] ?? 'NULL'));
 		
-		// OPTIMIZATION: Use pre-filtered combinations from session if available
-		$stored_combinations = $this->session->userdata('current_filtered_combinations');
+		// OPTIMIZATION: Check if we have stored filter metadata for faster saving
 		$stored_count = $this->session->userdata('current_filtered_count');
 		$stored_filters = $this->session->userdata('current_filters');
 		
-		if (!empty($stored_combinations) && !empty($stored_count) && 
-			$this->filters_match($filters, $stored_filters)) {
-			// Use pre-filtered combinations (no re-filtering needed)
+		if (!empty($stored_count) && $this->filters_match($filters, $stored_filters)) {
+			// Use pre-calculated count (no re-filtering needed for count)
 			$filtered_count = $stored_count;
-			log_message('info', "Save tickets: Using pre-filtered combinations from session - count: {$filtered_count} (OPTIMIZED - no re-filtering)");
+			log_message('info', "Save tickets: Using pre-calculated count from session - count: {$filtered_count} (OPTIMIZED)");
 		} else {
-			// Fallback: Re-filter if no stored combinations or filters don't match
+			// Fallback: Re-calculate count if no stored data or filters don't match
 			$filtered_count = $this->combination_filters_m->get_filtered_combinations_count($filepath, $number_array, $filters);
-			log_message('info', "Save tickets: Had to re-filter combinations - count: {$filtered_count} (LEGACY mode)");
+			log_message('info', "Save tickets: Had to re-calculate count - count: {$filtered_count} (LEGACY mode)");
 		}
 		$current_user_id = $this->session->userdata('id');
 		$formatted_user_id = str_pad($current_user_id, 2, '0', STR_PAD_LEFT);

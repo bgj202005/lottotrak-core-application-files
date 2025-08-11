@@ -1133,15 +1133,22 @@
 										$total = $pagination['total'];
 										$per_page = $pagination['per_page'];
 										
-										// Base URL for pagination - use combination method for proper session handling
+										// Base URL for pagination - preserve all current GET parameters
 										$base_url = base_url('admin/predictions/combination/' . $lottery->id);
+										
+										// Build query string with current GET parameters (excluding page)
+										$current_params = $_GET;
+										unset($current_params['page']); // We'll add page separately
+										$current_params['per_page'] = $per_page; // Ensure per_page is included
+										$query_string = http_build_query($current_params);
+										$query_prefix = $query_string ? '&' : '';
 
 										// Previous arrow
 										$prev_disabled = ($current <= 1) ? 'disabled' : '';
 										$prev_page = max(1, $current - 1);
 										?>
 										<li class="page-item <?= $prev_disabled ?>">
-											<a class="page-link" href="<?= $base_url ?>?page=<?= $prev_page ?>&per_page=<?= $per_page ?>" aria-label="Previous">
+											<a class="page-link" href="<?= $base_url ?>?page=<?= $prev_page ?><?= $query_prefix . $query_string ?>" aria-label="Previous">
 												<span aria-hidden="true">&laquo;</span>
 											</a>
 										</li>
@@ -1151,7 +1158,7 @@
 											// Show all pages
 											for ($i = 1; $i <= $total; $i++) {
 												$active = ($i == $current) ? 'active' : '';
-												echo '<li class="page-item '.$active.'"><a class="page-link" href="'.$base_url.'?page='.$i.'&per_page='.$per_page.'">'.$i.'</a></li>';
+												echo '<li class="page-item '.$active.'"><a class="page-link" href="'.$base_url.'?page='.$i.$query_prefix.$query_string.'">'.$i.'</a></li>';
 											}
 										} else {
 											$showed_dots = false;
@@ -1164,7 +1171,7 @@
 													($i >= $total - 2 && $current >= $total - 4) // last 3 if near end
 												) {
 													$active = ($i == $current) ? 'active' : '';
-													echo '<li class="page-item '.$active.'"><a class="page-link" href="'.$base_url.'?page='.$i.'&per_page='.$per_page.'">'.$i.'</a></li>';
+													echo '<li class="page-item '.$active.'"><a class="page-link" href="'.$base_url.'?page='.$i.$query_prefix.$query_string.'">'.$i.'</a></li>';
 													$showed_dots = false;
 												} else {
 													if (!$showed_dots) {
@@ -1179,7 +1186,7 @@
 										$next_page = min($total, $current + 1);
 										?>
 										<li class="page-item <?= $next_disabled ?>">
-											<a class="page-link" href="<?= $base_url ?>?page=<?= $next_page ?>&per_page=<?= $per_page ?>" aria-label="Next">
+											<a class="page-link" href="<?= $base_url ?>?page=<?= $next_page ?><?= $query_prefix . $query_string ?>" aria-label="Next">
 												<span aria-hidden="true">&raquo;</span>
 											</a>
 										</li>
