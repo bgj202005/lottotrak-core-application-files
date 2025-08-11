@@ -448,15 +448,6 @@ class Combination_filters_m extends MY_Model
             $combo_numbers = [];
             $extra_ball_number = null;
             
-            // Debug logging for first few combinations
-            static $conversion_debug_count = 0;
-            if ($conversion_debug_count < 3) {
-                log_message('debug', "CONVERSION DEBUG #{$conversion_debug_count}: Raw line: '{$line}'");
-                log_message('debug', "CONVERSION DEBUG #{$conversion_debug_count}: Positions: " . print_r($positions, true));
-                log_message('debug', "CONVERSION DEBUG #{$conversion_debug_count}: Number array (first 10): " . print_r(array_slice($number_array, 0, 10, true), true));
-                $conversion_debug_count++;
-            }
-            
             // For independent extra ball lotteries, handle last position as extra ball
             if (!empty($filters['duplicate_extra_ball']) && !empty($filters['extra_ball'])) {
                 // Last position is the actual extra ball number
@@ -488,14 +479,6 @@ class Combination_filters_m extends MY_Model
             // Add extra ball to combo for filtering purposes
             if ($extra_ball_number !== null) {
                 $combo['extra'] = $extra_ball_number;
-            }
-            
-            // Debug logging for first few converted combinations
-            static $combo_debug_count = 0;
-            if ($combo_debug_count < 3) {
-                log_message('debug', "COMBO DEBUG #{$combo_debug_count}: Final combo array: " . print_r($combo, true));
-                log_message('debug', "COMBO DEBUG #{$combo_debug_count}: Sum: " . array_sum(array_values(array_filter($combo, function($key) { return $key !== 'extra'; }, ARRAY_FILTER_USE_KEY))));
-                $combo_debug_count++;
             }
             
             // Check if combination passes all filters
@@ -617,14 +600,6 @@ class Combination_filters_m extends MY_Model
      */
     private function passes_all_filters($combo, $filters)
     {
-        static $debug_count = 0;
-        $debug_count++;
-        
-        // Debug first few combinations
-        if ($debug_count <= 3) {
-            log_message('debug', "passes_all_filters #{$debug_count}: selected_trends=" . ($filters['selected_trends'] ?? 'NULL') . ", selected_winning_sums=" . ($filters['selected_winning_sums'] ?? 'NULL'));
-        }
-        
         // For independent extra ball lotteries, separate main numbers from extra ball for filtering
         $main_numbers = $combo;
         if (!empty($filters['duplicate_extra_ball']) && !empty($filters['extra_ball']) && isset($combo['extra'])) {
@@ -656,20 +631,6 @@ class Combination_filters_m extends MY_Model
             
             $trend_result = $this->check_trend_match($main_numbers_values, $last_drawn_numbers, $filters['selected_trends']);
             
-            // Debug trends filter for first few combinations
-            static $trend_debug_count = 0;
-            if ($trend_debug_count < 5) {
-                $combo_sorted = $main_numbers_values;
-                $last_sorted = $last_drawn_numbers;
-                sort($combo_sorted, SORT_NUMERIC);
-                sort($last_sorted, SORT_NUMERIC);
-                
-                log_message('info', "TREND DEBUG #{$trend_debug_count}: Numbers: " . implode(',', $main_numbers_values) . " (sorted: " . implode(',', $combo_sorted) . ")");
-                log_message('info', "TREND DEBUG #{$trend_debug_count}: Last Drawn: " . implode(',', $last_drawn_numbers) . " (sorted: " . implode(',', $last_sorted) . ")");
-                log_message('info', "TREND DEBUG #{$trend_debug_count}: Trend: '{$filters['selected_trends']}', Result: " . ($trend_result ? 'PASS' : 'FAIL'));
-                $trend_debug_count++;
-            }
-            
             if (!$trend_result) {
                 return false;
             }
@@ -677,11 +638,6 @@ class Combination_filters_m extends MY_Model
         
         // Apply other filters using existing method
         $result = $this->apply_other_filters($combo, $filters);
-        
-        // Debug result for first few combinations
-        if ($debug_count <= 3) {
-            log_message('debug', "passes_all_filters #{$debug_count}: result=" . ($result ? 'PASS' : 'FAIL'));
-        }
         
         return $result;
     }
@@ -695,29 +651,6 @@ class Combination_filters_m extends MY_Model
      */
     private function apply_other_filters($combo, $filter_select)
     {
-        // Add debugging to track filter rejections
-        $combo_str = is_array($combo) ? implode(',', array_slice(array_values($combo), 0, 5)) : 'invalid';
-        
-        // Debug: Log active filters for first combo and track all calls
-        static $filter_debug_done = false;
-        static $total_calls = 0;
-        $total_calls++;
-        
-        if (!$filter_debug_done) {
-            log_message('info', "apply_other_filters (Combination_filters_m): Active filters check:");
-            foreach ($filter_select as $key => $value) {
-                if ($key !== 'lottery_last_drawn' && $key !== 'lottery_highlights') {
-                    log_message('info', "  $key = " . (is_array($value) ? print_r($value, true) : $value));
-                }
-            }
-            $filter_debug_done = true;
-        }
-        
-        // Log every combination being tested (first 10 only)
-        if ($total_calls <= 10) {
-            log_message('info', "apply_other_filters CALL #{$total_calls}: Testing combo: {$combo_str}");
-        }
-        
         // For independent extra ball lotteries, separate main numbers from extra ball
         $main_numbers = $combo;
         $has_extra_ball = false;
@@ -739,26 +672,8 @@ class Combination_filters_m extends MY_Model
             $consecutive_count = $this->count_consecutives($main_numbers_values, $max);
             $expected_consecutive_count = (int)$filter_select['selected_consecutives'];
             
-            // Debug consecutives filter for first few combinations
-            static $consecutive_debug_count = 0;
-            if ($consecutive_debug_count < 5) {
-                log_message('info', "CONSECUTIVE DEBUG #{$consecutive_debug_count}: Numbers: " . implode(',', $main_numbers_values) . ", Consecutive Count: {$consecutive_count}, Expected Count: {$expected_consecutive_count}");
-                log_message('info', "CONSECUTIVE DEBUG #{$consecutive_debug_count}: TYPES - consecutive_count type: " . gettype($consecutive_count) . ", expected_consecutive_count type: " . gettype($expected_consecutive_count));
-                log_message('info', "CONSECUTIVE DEBUG #{$consecutive_debug_count}: RAW VALUES - selected_consecutives: '{$filter_select['selected_consecutives']}' (type: " . gettype($filter_select['selected_consecutives']) . ")");
-                log_message('info', "CONSECUTIVE DEBUG #{$consecutive_debug_count}: COMPARISON: {$consecutive_count} !== {$expected_consecutive_count} = " . ($consecutive_count !== $expected_consecutive_count ? 'TRUE (REJECT)' : 'FALSE (PASS)'));
-                $consecutive_debug_count++;
-            }
-            
             // Check if the combination has the exact number of consecutive pairs expected
-            log_message('debug', "CONSECUTIVE LOGIC: expected_count={$expected_consecutive_count}, actual_count={$consecutive_count}, selected_consecutives='{$filter_select['selected_consecutives']}'");
-            
             if ($consecutive_count !== $expected_consecutive_count) {
-                // Log the rejection - use a separate counter to avoid conflicts
-                static $consecutive_reject_count = 0;
-                if ($consecutive_reject_count < 10) {
-                    log_message('info', "CONSECUTIVE FILTER REJECTED combo #{$consecutive_reject_count}: " . implode(',', $main_numbers_values) . " (expected: {$expected_consecutive_count} consecutives, actual: {$consecutive_count} consecutives)");
-                    $consecutive_reject_count++;
-                }
                 return false;
             }
         }
@@ -768,22 +683,7 @@ class Combination_filters_m extends MY_Model
             $sum = array_sum($main_numbers_values); // Use only main numbers for sum calculation
             $allowed_sums = explode(',', $filter_select['selected_winning_sums']);
             
-            // Enhanced debugging - log all filter values on first iteration
-            static $first_filter_debug = true;
-            if ($first_filter_debug) {
-                log_message('debug', "FILTER DEBUG - All filter values: " . print_r($filter_select, true));
-                log_message('debug', "FILTER DEBUG - Sum filter raw value: '{$filter_select['selected_winning_sums']}'");
-                log_message('debug', "FILTER DEBUG - Allowed sums array: " . print_r($allowed_sums, true));
-                $first_filter_debug = false;
-            }
-            
             if (!in_array($sum, $allowed_sums)) {
-                // Log first few failed sum checks for debugging
-                static $sum_debug_count = 0;
-                if ($sum_debug_count < 5) {
-                    log_message('debug', "Sum filter failed: calculated sum {$sum}, allowed sums: " . implode(',', $allowed_sums) . ", main numbers: " . implode(',', $main_numbers_values));
-                    $sum_debug_count++;
-                }
                 return false;
             }
         }
@@ -809,26 +709,8 @@ class Combination_filters_m extends MY_Model
             $repeater_count = $this->count_repeaters($main_numbers_values, $max, $last_draw);
             $expected_repeater_count = (int)$filter_select['selected_repeaters'];
             
-            // Debug repeaters filter for first few combinations
-            static $repeater_debug_count = 0;
-            if ($repeater_debug_count < 5) {
-                log_message('info', "REPEATER DEBUG #{$repeater_debug_count}: Numbers: " . implode(',', $main_numbers_values) . ", Repeater Count: {$repeater_count}, Expected Count: {$expected_repeater_count}");
-                log_message('info', "REPEATER DEBUG #{$repeater_debug_count}: TYPES - repeater_count type: " . gettype($repeater_count) . ", expected_repeater_count type: " . gettype($expected_repeater_count));
-                log_message('info', "REPEATER DEBUG #{$repeater_debug_count}: RAW VALUES - selected_repeaters: '{$filter_select['selected_repeaters']}' (type: " . gettype($filter_select['selected_repeaters']) . ")");
-                log_message('info', "REPEATER DEBUG #{$repeater_debug_count}: COMPARISON: {$repeater_count} !== {$expected_repeater_count} = " . ($repeater_count !== $expected_repeater_count ? 'TRUE (REJECT)' : 'FALSE (PASS)'));
-                $repeater_debug_count++;
-            }
-            
             // Check if the combination has the exact number of repeaters expected
-            log_message('debug', "REPEATER LOGIC: expected_count={$expected_repeater_count}, actual_count={$repeater_count}, selected_repeaters='{$filter_select['selected_repeaters']}'");
-            
             if ($repeater_count !== $expected_repeater_count) {
-                // Log the rejection - use a separate counter to avoid conflicts
-                static $repeater_reject_count = 0;
-                if ($repeater_reject_count < 10) {
-                    log_message('info', "REPEATER FILTER REJECTED combo #{$repeater_reject_count}: " . implode(',', $main_numbers_values) . " (expected: {$expected_repeater_count} repeaters, actual: {$repeater_count} repeaters)");
-                    $repeater_reject_count++;
-                }
                 return false;
             }
         }        // Check parity filter
@@ -846,13 +728,6 @@ class Combination_filters_m extends MY_Model
             // FIXED: Use Odd-Even format instead of Even-Odd to match UI expectations
             $parity_ratio = $odd_count . '-' . $even_count;
             $allowed_parity = explode(',', $filter_select['selected_parity']);
-            
-            // Debug parity filter for first few combinations
-            static $parity_debug_count = 0;
-            if ($parity_debug_count < 5) {
-                log_message('info', "PARITY DEBUG #{$parity_debug_count}: Numbers: " . implode(',', $main_numbers_values) . " -> Odd: {$odd_count}, Even: {$even_count}, Ratio: '{$parity_ratio}', Expected: '{$filter_select['selected_parity']}', Allowed: " . implode('|', $allowed_parity));
-                $parity_debug_count++;
-            }
             
             if (!in_array($parity_ratio, $allowed_parity)) {
                 return false;
@@ -982,12 +857,6 @@ class Combination_filters_m extends MY_Model
         }
         
         // If we reach here, combination passed all filters
-        $combo_str = is_array($combo) ? implode(',', array_slice(array_values($combo), 0, 5)) : 'invalid';
-        
-        // Log results for first 10 calls
-        if ($total_calls <= 10) {
-            log_message('info', "apply_other_filters CALL #{$total_calls}: PASSED all filters - combo: $combo_str");
-        }
         return true;
     }
 
@@ -1149,13 +1018,6 @@ class Combination_filters_m extends MY_Model
                 $consecutive_count++;
                 $consecutive_pairs[] = $combo[$i] . '-' . $combo[$i + 1];
             }
-        }
-        
-        // Debug logging for first few calls
-        static $consecutive_method_debug = 0;
-        if ($consecutive_method_debug < 5) {
-            log_message('info', "count_consecutives DEBUG #{$consecutive_method_debug}: Numbers: " . implode(',', $combo) . " -> Found {$consecutive_count} pairs: " . implode(', ', $consecutive_pairs));
-            $consecutive_method_debug++;
         }
         
         return $consecutive_count;
