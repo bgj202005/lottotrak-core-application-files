@@ -707,6 +707,26 @@ class Predictions extends Admin_Controller {
 			$this->data['combo_id'] = NULL; // Initialize combo_id to NULL
 			$this->data['active'] = false; // Initialize active flag to false
 			
+			// Check if combo_id is provided in URL parameter (from money icon click)
+			$combo_id_param = $this->input->get('combo_id');
+			if ($combo_id_param) {
+				// Load the combination_filters_m model to check active status
+				$this->load->model('combination_filters_m');
+				
+				$this->data['combo_id'] = $combo_id_param;
+				$this->data['active'] = $this->combination_filters_m->get_active_flag($combo_id_param);
+				
+				// Get the filter record ID for the money icon functionality
+				$saved_settings = $this->combination_filters_m->get_saved_settings($combo_id_param);
+				if ($saved_settings) {
+					$this->data['filter_record_id'] = $saved_settings['id'];
+				} else {
+					$this->data['filter_record_id'] = NULL;
+				}
+			} else {
+				$this->data['filter_record_id'] = NULL;
+			}
+			
 			// Get all saved combination filters for the user
 			$user_id = $this->session->userdata('id');
 			$this->data['saved_combinations'] = $this->lottery_data_m->get_all_user_combination_filters($id, $user_id);
