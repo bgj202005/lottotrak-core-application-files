@@ -1212,6 +1212,10 @@
     // Pass PHP variables to JavaScript
     const countryCode = '<?php echo $country_code; ?>';
     const stateProvCode = '<?php echo $state_prov_code; ?>';
+    
+    // Global variable to track active status (updated by AJAX)
+    var isActive = <?php if (isset($active) && $active == 1) { echo 'true'; } else { echo 'false'; } ?>;
+    
     // Run your script after the page is loaded
     document.addEventListener('DOMContentLoaded', function () {
         console.log('Country Code:', countryCode);
@@ -1367,6 +1371,16 @@
 					
 					// Update the active flag since we just saved an active filter
 					isActive = true;
+					
+					// Update status badge if status changed from Expired to Active
+					if (data.status_changed && data.new_status) {
+						// Find the status badge in the control panel and update it
+						const statusBadge = document.querySelector('.table-title .badge');
+						if (statusBadge) {
+							statusBadge.className = 'badge badge-success';
+							statusBadge.textContent = data.new_status;
+						}
+					}
 					
 					// Grey out and disable Save Filtered Tickets button (requirement 6)
 					saveBtn.disabled = true;
@@ -1693,16 +1707,17 @@
         // Use the filter record ID if available, otherwise show error
         <?php if (!empty($filter_record_id)): ?>
             var filterRecordId = <?= $filter_record_id ?>;
-            var isActive = <?= $active ? 'true' : 'false' ?>;
             
-            // Show warning for expired filters but still allow navigation
+            // Check the global isActive variable (which gets updated by AJAX)
             if (!isActive) {
+                // Show warning for expired filters but still allow navigation
                 if (confirm('This filter is EXPIRED. You can still view the combination ticket winners, but results will be based on historical data. Continue?')) {
                     // Add referrer parameter to indicate we came from prediction futures
                     window.location.href = '<?= base_url() ?>admin/prize/view_combination_tickets/' + filterRecordId + '?referrer=futures&lottery_id=<?= $lottery->id ?>&combo_id=<?= $combo_id ?>';
                 }
+                // If user cancels, do nothing (return from function)
             } else {
-                // Active filter - navigate directly
+                // Active filter - navigate directly without warning
                 window.location.href = '<?= base_url() ?>admin/prize/view_combination_tickets/' + filterRecordId + '?referrer=futures&lottery_id=<?= $lottery->id ?>&combo_id=<?= $combo_id ?>';
             }
         <?php else: ?>

@@ -2357,7 +2357,9 @@ class Predictions extends Admin_Controller {
 						->set_output(json_encode([
 							'success' => true,
 							'message' => $message,
-							'filtered_count' => $filtered_count // Add filtered count for AJAX update
+							'filtered_count' => $filtered_count, // Add filtered count for AJAX update
+							'status_changed' => true, // Indicate that combination is now active
+							'new_status' => 'Active' // New status for display
 						]));
 					return;
 				}
