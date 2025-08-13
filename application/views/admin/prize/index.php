@@ -132,6 +132,16 @@
                     <h3 class="card-title text-center">
                         <i class="fa fa-table"></i> Prize History
                     </h3>
+                    <!-- Alert Messages -->
+                    <?php if ($this->session->flashdata('prize_alert')): ?>
+                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                            <i class="fa fa-exclamation-triangle"></i>
+                            <strong>Alert:</strong> <?php echo $this->session->flashdata('prize_alert'); ?>
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                    <?php endif; ?>
                     <!-- Pagination Controls -->
                     <div class="pagination-controls">
                         <div class="row">

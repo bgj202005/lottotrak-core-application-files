@@ -31,7 +31,11 @@
                                         <div class="drawn-numbers-section">
                                             <strong>Drawn Numbers:</strong>
                                             <div class="drawn-numbers-display">
-                                                <span class="tbd-display">TBD (To Be Determined)</span>
+                                                <?php if ($filter->active == 0): ?>
+                                                    <span class="out-of-date-display" style="background-color: #ff0000; color: white; padding: 4px 8px; border-radius: 4px;">Draw is Out of Date</span>
+                                                <?php else: ?>
+                                                    <span class="tbd-display">TBD (To Be Determined)</span>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
                                     <?php else: ?>
@@ -85,7 +89,11 @@
                                     <div class="drawn-numbers-section">
                                         <strong>Drawn Numbers:</strong>
                                         <div class="drawn-numbers-display">
-                                            <span class="tbd-display">TBD (To Be Determined)</span>
+                                            <?php if ($filter->active == 0): ?>
+                                                <span class="out-of-date-display" style="background-color: #ff0000; color: white; padding: 4px 8px; border-radius: 4px;">Draw is Out of Date</span>
+                                            <?php else: ?>
+                                                <span class="tbd-display">TBD (To Be Determined)</span>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                 </div>
@@ -404,7 +412,11 @@
                                                 </td>
                                                 <td class="text-center check-results">
                                                     <?php if(isset($display_mode) && $display_mode == 'tbd'): ?>
-                                                        <span class="check-result-tbd">TBD (To Be Determined)</span>
+                                                        <?php if ($filter->active == 0): ?>
+                                                            <span class="check-result-out-of-date" style="background-color: #ff0000; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;">Draw is Out of Date</span>
+                                                        <?php else: ?>
+                                                            <span class="check-result-tbd">TBD (To Be Determined)</span>
+                                                        <?php endif; ?>
                                                     <?php else: ?>
                                                         <?php
                                                         // Use the win_result from controller which now properly handles
