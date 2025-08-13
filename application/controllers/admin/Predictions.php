@@ -606,6 +606,10 @@ class Predictions extends Admin_Controller {
 			return;
 		}
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		
+		// Check for outdated combination files that need to be expired
+		$this->check_outdated_combinations($id);
+		
 		// Verify and update expired combination ticket filters
 		$expired_check = $this->lottery_data_m->verify_active_date($id, $tbl_name);
 		if (!$expired_check) {
@@ -3262,5 +3266,170 @@ class Predictions extends Admin_Controller {
 		}
 		
 		return true;
+	}
+	
+	/**
+	 * Check and expire outdated combination files for Predictions Futures
+	 * This method should be called when the futures page is loaded
+	 * @param int $lottery_id Lottery ID to check
+	 * @return void
+	 */
+	public function check_outdated_combinations($lottery_id)
+	{
+		// Check for outdated combination files that need to be expired
+		$expired_info = $this->expire_outdated_combination_files($lottery_id);
+		
+		if (is_array($expired_info) && isset($expired_info['count']) && $expired_info['count'] > 0) {
+			// Create alert message with specific filenames
+			if (!empty($expired_info['filenames'])) {
+				$alert_message = "Combination Ticket Filenames " . implode(', ', $expired_info['filenames']) . 
+				               " Statuses have changed from ACTIVE to EXPIRED because the draw is out of date. Please Regenerate Tickets";
+			} else {
+				$alert_message = "Expired {$expired_info['count']} outdated combination file(s) due to newer draws being imported. Please Regenerate Tickets";
+			}
+			
+			// Store alert message in session for display on Predictions Futures page
+			$this->session->set_flashdata('predictions_alert', $alert_message);
+			log_message('info', "Predictions: Expired {$expired_info['count']} outdated combination files for lottery {$lottery_id}");
+		}
+	}
+	
+	/**
+	 * Expire combination files that are outdated due to newer draws being imported
+	 * (Copied from Prize controller for Predictions use)
+	 * @param int $lottery_id Lottery ID to check (or null to check all lotteries)
+	 * @return array Array with 'count' and 'filenames' of expired combination files
+	 */
+	private function expire_outdated_combination_files($lottery_id = null)
+	{
+		$expired_count = 0;
+		$expired_filenames = array();
+		
+		try {
+			// Get all active combination filters for the specified lottery (or all lotteries)
+			// Note: Only check ACTIVE files, skip already EXPIRED ones
+			$this->db->select('lcf.*, lp.lottery_name');
+			$this->db->from('lottery_combination_filters lcf');
+			$this->db->join('lottery_profiles lp', 'lp.id = lcf.lottery_id', 'left');
+			$this->db->where('lcf.active', 1); // Only check ACTIVE combination files
+			
+			if ($lottery_id) {
+				$this->db->where('lcf.lottery_id', $lottery_id);
+			}
+			
+			$active_filters = $this->db->get()->result();
+			
+			if (empty($active_filters)) {
+				log_message('info', "expire_outdated_combination_files: No active filters found");
+				return array('count' => 0, 'filenames' => array());
+			}
+			
+			// Load required models
+			$this->load->model('Lotteries_m', 'lotteries_m');
+			
+			foreach ($active_filters as $filter) {
+				try {
+					// Get the lottery profile for this filter
+					$this->db->select('*');
+					$this->db->from('lottery_profiles');
+					$this->db->where('id', $filter->lottery_id);
+					$lottery_profile = $this->db->get()->row();
+					
+					if (!$lottery_profile) {
+						log_message('error', "expire_outdated_combination_files: No lottery profile found for filter {$filter->id}");
+						continue;
+					}
+					
+					// Calculate the expected next draw date from the filter's lastdate
+					$day = $this->lotteries_m->return_day($filter->lastdate);
+					$expected_next_draw_date = $this->lotteries_m->next_date($lottery_profile, $day, $filter->lastdate);
+					
+					if (!$expected_next_draw_date) {
+						log_message('error', "expire_outdated_combination_files: Could not calculate next draw date for filter {$filter->id}");
+						continue;
+					}
+					
+					// Convert expected date to MySQL format for comparison
+					$expected_next_draw_mysql = $this->convert_to_mysql_date($expected_next_draw_date);
+					
+					if (!$expected_next_draw_mysql) {
+						log_message('error', "expire_outdated_combination_files: Could not convert date {$expected_next_draw_date} for filter {$filter->id}");
+						continue;
+					}
+					
+					// Get the most recent draw date from the lottery table
+					$table_name = $this->lotteries_m->lotto_table_convert($lottery_profile->lottery_name);
+					
+					if (!$table_name || !$this->db->table_exists($table_name)) {
+						log_message('error', "expire_outdated_combination_files: Invalid table {$table_name} for filter {$filter->id}");
+						continue;
+					}
+					
+					// Get the most recent draw date
+					$this->db->select('draw_date');
+					$this->db->from($table_name);
+					$this->db->where('extra > 0'); // Only valid draws with extra ball
+					$this->db->order_by('draw_date', 'DESC');
+					$this->db->limit(1);
+					$latest_draw = $this->db->get()->row();
+					
+					if (!$latest_draw) {
+						log_message('info', "expire_outdated_combination_files: No draws found for {$table_name}");
+						continue;
+					}
+					
+					// Compare the most recent draw date with the expected next draw date
+					// If the most recent draw is newer than the expected next draw, the combination is outdated
+					if ($latest_draw->draw_date > $expected_next_draw_mysql) {
+						// This combination file is outdated - expire it
+						$this->db->where('id', $filter->id);
+						$this->db->update('lottery_combination_filters', array('active' => 0));
+						
+						$expired_count++;
+						$expired_filenames[] = $filter->file_name; // Collect the filename
+						
+						log_message('info', "expire_outdated_combination_files: Expired filter {$filter->id} ({$filter->file_name}) - latest draw ({$latest_draw->draw_date}) is newer than expected next draw ({$expected_next_draw_mysql})");
+					}
+					
+				} catch (Exception $e) {
+					log_message('error', "expire_outdated_combination_files: Error processing filter {$filter->id}: " . $e->getMessage());
+					continue;
+				}
+			}
+			
+		} catch (Exception $e) {
+			log_message('error', "expire_outdated_combination_files: General error: " . $e->getMessage());
+			// Return default array structure on error
+			return array(
+				'count' => 0,
+				'filenames' => array()
+			);
+		}
+		
+		// Always return array structure
+		return array(
+			'count' => $expired_count,
+			'filenames' => $expired_filenames
+		);
+	}
+	
+	/**
+	 * Convert date string to MySQL format (copied from Prize controller)
+	 * @param string $date_string Date string to convert
+	 * @return string|false MySQL formatted date or false on failure
+	 */
+	private function convert_to_mysql_date($date_string)
+	{
+		try {
+			// Handle various date formats and convert to MySQL format
+			$timestamp = strtotime($date_string);
+			if ($timestamp === false) {
+				return false;
+			}
+			return date('Y-m-d', $timestamp);
+		} catch (Exception $e) {
+			log_message('error', 'convert_to_mysql_date exception: ' . $e->getMessage());
+			return false;
+		}
 	}
 }

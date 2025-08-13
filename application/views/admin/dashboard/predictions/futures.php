@@ -645,6 +645,15 @@
 							</div>
 						<?php endif; ?>
 						
+						<?php if ($this->session->flashdata('predictions_alert')): ?>
+							<div class="alert alert-warning alert-dismissible fade show" role="alert">
+								<i class="fas fa-exclamation-triangle"></i> <?= $this->session->flashdata('predictions_alert') ?>
+								<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+									<span aria-hidden="true">&times;</span>
+								</button>
+							</div>
+						<?php endif; ?>
+						
 						<?php if (!empty($message)) ?> <h3 class="bg-warning" style = "text-align:center;"><?=$message; ?></h3>
 						
 						<!-- Friendship Warning Messages -->
@@ -1679,7 +1688,7 @@
         }
     }
     
-    // Function to view combination ticket winners
+    // Function to view combination ticket winners (for control panel only)
     function viewCombinationWinners(comboId) {
         // Use the filter record ID if available, otherwise show error
         <?php if (!empty($filter_record_id)): ?>
