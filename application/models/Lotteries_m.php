@@ -1,4 +1,4 @@
-<?php
+ <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Lotteries_m extends MY_Model
@@ -1014,5 +1014,40 @@ class Lotteries_m extends MY_Model
 	{
 		$unixTimestamp = strtotime($last);  	// Convert the date string into a unix timestamp.
 		return strtolower(date("l", $unixTimestamp));	
+	}
+
+	/**
+	 * Update the lastdate field in lottery_profiles table
+	 * 
+	 * @param	int		$lottery_id		Lottery ID
+	 * @param	string	$last_date		Last draw date in MySQL format (YYYY-MM-DD)
+	 * @return	bool					TRUE on success, FALSE on failure
+	 */
+	public function update_lastdraw($lottery_id, $last_date)
+	{
+		$data = array('lastdate' => $last_date);
+		$this->db->where('id', $lottery_id);
+		return $this->db->update('lottery_profiles', $data);
+	}
+
+	/**
+	 * Get the most recent draw date from a lottery table
+	 * 
+	 * @param	string	$table_name		Lottery table name
+	 * @return	string|false			Last draw date in MySQL format or FALSE if no draws
+	 */
+	public function get_latest_draw_date($table_name)
+	{
+		if ($this->lotto_table_exists($table_name)) {
+			$this->db->select('MAX(draw_date) as latest_date');
+			$this->db->from($table_name);
+			$result = $this->db->get();
+			
+			if ($result->num_rows() > 0) {
+				$row = $result->row();
+				return $row->latest_date;
+			}
+		}
+		return FALSE;
 	}
 }

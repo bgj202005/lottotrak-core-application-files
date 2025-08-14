@@ -168,10 +168,10 @@ class Lotteries extends Admin_Controller {
 		$this->form_validation->set_rules($rules);
 		
 		if ($this->form_validation->run() == TRUE&&is_null($error)) {
-			$_POST['lottery_image'] = (is_null($_FILES['lottery_image']) ? '': $_FILES['lottery_image']['name']); 
-			$firstdate = DateTime::createFromFormat('D, M-d-Y', $_POST['firstdate']);
+ 			$_POST['lottery_image'] = (is_null($_FILES['lottery_image']) ? '': $_FILES['lottery_image']['name']); 
+			$firstdate = new DateTime($_POST['firstdate']); 
 			$_POST['firstdate'] = $firstdate->format('Y-m-d');
-			$lastdate = DateTime::createFromFormat('D, M-d-Y', $_POST['lastdate']);
+			$lastdate = new DateTime($_POST['lastdate']);
 			$_POST['lastdate'] = $lastdate->format('Y-m-d');
 			// We can save and redirect
 			$data = $this->lotteries_m->array_from_post ( array (
@@ -829,6 +829,14 @@ class Lotteries extends Admin_Controller {
 				echo json_encode($draw_data);
 				unset($draw_data);
 			} elseif(!isset($draw_data)) { // No more data to process
+				// Import completed successfully - update lastdate field in lottery_profiles
+				$table_name = $this->session->userdata('table_name');
+				if ($table_name) {
+					$latest_date = $this->lotteries_m->get_latest_draw_date($table_name);
+					if ($latest_date) {
+						$this->lotteries_m->update_lastdraw($id, $latest_date);
+					}
+				}
 				echo json_encode(array('exit' => TRUE));
 			}
 		}
@@ -1240,7 +1248,10 @@ class Lotteries extends Admin_Controller {
 				$next_id = $this->lotteries_m->insert_draw($tbl_name, $draw); 
 				if ($next_id)
 				{
-					$this->data['message'] = "Draw has been added to the database. Last Draw Date:".date("l M d, Y", strtotime($draw['draw_date']));  // Successfully added draw message	
+					$this->data['message'] = "Draw has been added to the database. Last Draw Date:".date("l M d, Y", strtotime($draw['draw_date']));  // Successfully added draw message
+					
+					// Update lastdate field in lottery_profiles with the new draw date
+					$this->lotteries_m->update_lastdraw($id, $draw['draw_date']);
 				} 
 				else
 				{
@@ -1412,7 +1423,17 @@ class Lotteries extends Admin_Controller {
 
 				if ($result)
 				{
-					$this->data['message'] = "The Draw(s) have been updated in the database.";  // Successfully added draw message	
+					$this->data['message'] = "The Draw(s) have been updated in the database.";  // Successfully added draw message
+					
+					// Update lastdate field in lottery_profiles if needed
+					$current_latest_date = $this->lotteries_m->get_latest_draw_date($tbl_name);
+					if ($current_latest_date) {
+						// Get current lastdate from lottery_profiles
+						$lottery_profile = $this->lotteries_m->get($id);
+						if (!$lottery_profile->lastdate || $lottery_profile->lastdate !== $current_latest_date) {
+							$this->lotteries_m->update_lastdraw($id, $current_latest_date);
+						}
+					}
 				} 
 				else
 				{
