@@ -659,13 +659,8 @@
 									<tbody>
 										<?php foreach($lottery->dupextra as $ball => $count):	
 												echo "<tr class='table-success'>";
-												if($ball==$lottery->last_drawn['extra']):
-													echo "<td class='text-center bg-info'>".$ball."</td>";
-													echo "<td class='text-center bg-info'>".$count."</td>";
-												else:
 													echo "<td class='text-center'>".$ball."</td>";
 													echo "<td class='text-center'>".$count."</td>";
-												endif;
 												echo "</tr>";
 										endforeach; ?>
 									</tbody>
