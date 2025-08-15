@@ -288,6 +288,8 @@ class History extends Admin_Controller {
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$max_ball = $this->data['lottery']->maximum_ball;	// Get the highest ball drawn for this lottery, e.g. 49 in Lottery 649, 50 in Lottomax
+		// duplicate extra ball flag
+		$dup = $this->data['lottery']->duplicate_extra_ball;  // duplicate_extra_ball  = TRUE (1) lotteries
 		// Check to see if the actual table exists in the db?
 		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
 		{
@@ -305,7 +307,7 @@ class History extends Admin_Controller {
 				$draw = array(); 		// Temporary draw array
 				$positions = array();	// Temporary position array
 				$positions_last = array();	// Temporary position from last array
-				$draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn,$this->data['lottery']->extra_ball);
+				$draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn,$this->data['lottery']->extra_ball, $dup);
 				$hots = $h_w_c['h_count'];
 				$warms = $h_w_c['w_count'];
 				$colds = $h_w_c['c_count'];

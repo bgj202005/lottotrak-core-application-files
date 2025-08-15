@@ -688,9 +688,11 @@ class History_m extends MY_Model
 	* 
 	* @param 	array	$dr		    key / value pairs of the last drawn numbers in this lottery
 	* @param	boolean $xt		    The lottery has an extra / bonus flag. No Extra Ball = 0 (FALSE), Extra/Bonus ball included = 1 (TRUE) 
+   	* @param	boolean $dxb        The lottery has an duplicate extra / bonus flag. No Independent Extra Ball = 0 (FALSE), 
+    *                               Extra/Bonus ball included = 1 (TRUE) independent ball
 	* @return   array   $drawn      Return index array of only drawn numbers	
 	*/
-	public function onlydrawn($dr, $xt)
+	public function onlydrawn($dr, $xt = 1, $dxb = 0)
 	{
 		$drawn = array();
         $ball = 1;
@@ -701,7 +703,7 @@ class History_m extends MY_Model
             if(isset($dr['ball'.$ball])) $drawn[$ball] = $dr['ball'.$ball];
             ++$ball;
         } while($ball<10);
-        if($xt) 
+        if($xt&&!$dxb)  // We don't want the extra bonus ball added here because it has it's own separate table 
         {
             $next = array_key_last($drawn); // next available index key value
             if($next!=NULL) 
