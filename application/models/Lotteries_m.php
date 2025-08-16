@@ -716,7 +716,7 @@ class Lotteries_m extends MY_Model
 	*/
 	public function load_draws($table, $limit = 100, $trnd = 0)
 	{
-		$range = $limit+1;
+		$range = $limit; // Fixed: removed the +1 to match load_history behavior
 		$this->db->query('SET @draw_number = '.$range.'; '); // Add a Draw Number to the Draw List
 		$where = (!$trnd ? '' : ' WHERE extra <> "0"');
 		$query = $this->db->query('SELECT *, 

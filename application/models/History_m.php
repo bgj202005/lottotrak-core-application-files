@@ -25,7 +25,7 @@ class History_m extends MY_Model
     public function load_history($tbl, $lotto_id, $coverage = 100, $e = 0)
     {
         // todo: load the range of lottery draws, ascending order
-        $this->db->reset_query();	// Clear any previous queries that are cachedextra !=' => '0');
+        $this->db->reset_query();	// Clear any previous queries that are cached
         $ex_d = (!$e ?  ' WHERE extra <> "0"' : '');
   
         $query = $this->db->query('SELECT d.*
@@ -436,29 +436,29 @@ class History_m extends MY_Model
         
         foreach($draws as $count => $draw)
         {
-            if(($total)!=$count)
+            // Count all digits, regardless of position
+            $digits[$draw['sum_digits']] = (!array_key_exists($draw['sum_digits'], $digits) ? 1 : $digits[$draw['sum_digits']]+1); // Add Key or Existing One?
+            
+            // Only calculate percentage differences if not the last draw (for trend analysis)
+            if(($count + 1) < $total && !empty($count)) // if not the last draw and not the first
             {
-                $digits[$draw['sum_digits']] = (!array_key_exists($draw['sum_digits'], $digits) ? 1 : $digits[$draw['sum_digits']]+1); // Add Key or Existing One?
-                if(!empty($count)) // if not 0
+                //$diff = $draws[$count]['sum_draw']-$draws[$count-1]['sum_draw'];                                // Formula for percentage difference
+                $percent_diff = (1-$draws[$count-1]['sum_digits']/$draws[$count]['sum_digits'])*100;   // Perecentage Difference = |ΔV|[ΣV2]×100
+                $percent_diff = round($percent_diff); // No decimals
+                foreach($percents as $r => $v)
                 {
-                    //$diff = $draws[$count]['sum_draw']-$draws[$count-1]['sum_draw'];                                // Formula for percentage difference
-                    $percent_diff = (1-$draws[$count-1]['sum_digits']/$draws[$count]['sum_digits'])*100;   // Perecentage Difference = |ΔV|[ΣV2]×100
-                    $percent_diff = round($percent_diff); // No decimals
-                    foreach($percents as $r => $v)
+                    if(($percent_diff<0)&&($percent_diff<=($v+4))&&($percent_diff>=$v)) // 0 < Negatives
                     {
-                        if(($percent_diff<0)&&($percent_diff<=($v+4))&&($percent_diff>=$v)) // 0 < Negatives
-                        {
-                            $ranges[$r] += 1;
-                            break;
-                        }
-                        elseif(($percent_diff>0)&&($percent_diff>=($v-4))&&($percent_diff<=$v)) // 0 > Positives
-                        {
-                            $ranges[$r] += 1;
-                            break;
-                        }
+                        $ranges[$r] += 1;
+                        break;
                     }
-                }   
-            }
+                    elseif(($percent_diff>0)&&($percent_diff>=($v-4))&&($percent_diff<=$v)) // 0 > Positives
+                    {
+                        $ranges[$r] += 1;
+                        break;
+                    }
+                }
+            }   
         }
         $d_text = "";
         arsort($digits);    // Sort by value NOT Key only value DESCENDING
