@@ -520,7 +520,15 @@ class History extends Admin_Controller {
 		else $this->data['message'] = '';
 		//Don't forget to include the last drawn h-w-c
 		$this->data['lottery']->hwc = explode('-',$hwc_history['h_w_c_last_1']);
-		$this->data['lottery']->draw = $draw;
+		
+		// For display purposes, create a complete draw array that includes the extra ball
+		// The $draw array from onlydrawn() excludes extra ball for independent extra ball lotteries
+		$complete_draw = $draw; // Start with main balls
+		if($this->data['lottery']->extra_ball && $dup) {
+			// For independent extra ball lotteries, add the extra ball for display
+			$complete_draw[] = $this->data['lottery']->last_drawn['extra'];
+		}
+		$this->data['lottery']->draw = $complete_draw;
 		$this->data['lottery']->positions = $positions;
 		$this->data['lottery']->positions_last = $positions_last;
 		unset($draw);
