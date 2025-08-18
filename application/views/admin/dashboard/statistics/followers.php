@@ -149,7 +149,25 @@
 										endif;
 										$trailer = explode('|', ($b>$cd ? $xtr : $lottery->last_drawn[$lottery->last_drawn['ball'.$b]])); ?>
  										<h5 class="card-title">After Ball <?=($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);?> has been drawn in <?=$lottery->last_drawn['range']; ?> draws.</h5>
-										<?php $t_picks = array(); 
+										<?php 
+										// Check if this is an independent extra ball lottery and if we have extra followers data
+										$has_extra_followers = false;
+										$extra_trailer = array();
+										if($lottery->duplicate_extra_ball && $b<=$cd) {
+											$extra_key = $lottery->last_drawn['ball'.$b].'_extra';
+											if(isset($lottery->last_drawn[$extra_key])) {
+												$has_extra_followers = true;
+												$extra_trailer = explode('|', $lottery->last_drawn[$extra_key]);
+											}
+										} elseif($lottery->duplicate_extra_ball && $b>$cd) {
+											$extra_key = $lottery->last_drawn['extra'].'x_extra';
+											if(isset($lottery->last_drawn[$extra_key])) {
+												$has_extra_followers = true;
+												$extra_trailer = explode('|', $lottery->last_drawn[$extra_key]);
+											}
+										}
+										
+										$t_picks = array(); 
 											foreach($trailer as $t):  
 												$picks = explode('=', $t);
 												$t_picks += array(
@@ -161,6 +179,12 @@
 										$s_picks = "";
 										$sum = 0;
 										$counts = current($t_picks);
+										
+										// Always show Main Balls heading for independent extra ball lotteries
+										if($lottery->duplicate_extra_ball): ?>
+											<h5 class="text-primary bg-light p-2 border rounded"><strong>Main Balls</strong> (Range: <?=$lottery->minimum_ball;?> - <?=$lottery->maximum_ball;?>)</h5>
+										<?php endif;
+										
 										if($counts) // followers with a count of greater than 0
 											{
 												do
@@ -182,34 +206,111 @@
 												endif; 
 											} while(!is_null(key($t_picks)));
 											unset($trailer);?>
-											<p class="card-text">The total number of predictor balls for this ball is <strong><?=$sum;?></strong>.</p>
-											<p class="card-text">These are the numbers listed above that have the highest probability of being drawn.</p>
+											<p class="card-text">The total number of main ball followers for this <?=($b>$cd ? 'extra ball' : 'main ball');?> is <strong><?=$sum;?></strong>.</p>
 										<?php }
 										else{ ?>
-											<p class="card-text">There a followers with not more than 2 occurrences in the range of <?=$lottery->last_drawn['range'];?> draws.</p>
+											<p class="card-text">There are no main ball followers with more than 2 occurrences in the range of <?=$lottery->last_drawn['range'];?> draws.</p>
 										<?php }
-										/* Display the non - following numbers for the given range */
-										/* Determine the number from the ball position and then access the ball+nf for not followed */
-											/* difference is when any of the regular balls match the duplicate extra ball load the duplicate extra non followers **/
+										
+										// Display main ball non-followers under Main Balls heading
+										if($lottery->duplicate_extra_ball): 
+											// Get main ball non-followers data
 											if(isset($lottery->last_drawn[$lottery->last_drawn['extra'].'nf'])):
 												$xtr = (($lottery->duplicate_extra_ball&&$lottery->extra_included) ? $lottery->last_drawn[$lottery->last_drawn['extra'].'nfx'] : $lottery->last_drawn[$lottery->last_drawn['extra'].'nf']);
 											else:
 												$xtr = '0|0';
 											endif;	
-											$nonfollowers = explode('|', ($b>$cd ? $xtr : $lottery->last_drawn[$lottery->last_drawn['ball'.$b].'nf'])); 
-											$non_picks = "";
-											if($nonfollowers[0]): /* Check for all non followers have followed */
-												$sum = 0; // Reset the sum counter;
-												$non_picks .= "These Numbers have <strong>NEVER</strong> followed this Ball <strong>".($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b])."</strong> for ".$lottery->last_drawn['range']." Draws:<br />";
-												foreach($nonfollowers as $nf):  
-													$non_picks .= 'Number: <strong>'.$nf.'</strong><br />';
-													$sum++;	
+											$main_nonfollowers = explode('|', ($b>$cd ? $xtr : $lottery->last_drawn[$lottery->last_drawn['ball'.$b].'nf'])); 
+											$main_non_picks = "";
+											if($main_nonfollowers[0]): ?>
+												<?php $main_sum = 0; // Reset the sum counter;
+												$main_non_picks .= "These Numbers have <strong>NEVER</strong> followed this Ball <strong>".($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b])."</strong> for ".$lottery->last_drawn['range']." Draws:<br />";
+												foreach($main_nonfollowers as $nf):  
+													$main_non_picks .= 'Number: <strong>'.$nf.'</strong><br />';
+													$main_sum++;	
+												endforeach; ?>
+												<p class='card-text'><?php echo $main_non_picks; ?></p>
+												<?php $main_plural = (string) ($main_sum>1 ?  " balls " : " ball "); ?>
+												<p class='card-text'><strong><?php echo $main_sum.$main_plural; ?></strong> in this main non-follower group.</p>
+											<?php endif;
+											unset($main_nonfollowers);
+										endif;
+										
+										// Display extra ball section for independent extra ball lotteries
+										if($lottery->duplicate_extra_ball): ?>
+											<h5 class="text-success bg-light p-2 border rounded"><strong>Extra Balls</strong> (Range: <?=$lottery->minimum_extra_ball;?> - <?=$lottery->maximum_extra_ball;?>)</h5>
+											<?php if($has_extra_followers && !empty($extra_trailer)): ?>
+											<?php $extra_t_picks = array(); 
+											foreach($extra_trailer as $t):  
+												$picks = explode('=', $t);
+												if(count($picks) == 2):
+													$extra_t_picks += array(
+															$picks[0] => $picks[1]
+													);
+												endif;
+												unset($picks);
+											endforeach;
+											arsort($extra_t_picks); // Sort from the most picks to the least picks
+											$extra_s_picks = "";
+											$extra_sum = 0;
+											$extra_counts = current($extra_t_picks);
+											if($extra_counts): 
+												$extra_first_run = true;
+												while(!is_null(key($extra_t_picks)) || $extra_first_run):
+													$extra_first_run = false;
+													if($extra_counts==current($extra_t_picks)):
+														$extra_s_picks .= 'Number <strong>'.key($extra_t_picks).'</strong>';
+														$extra_current = next($extra_t_picks);
+														$extra_sum++;
+														if($extra_counts!=$extra_current):
+															$extra_s_picks .= ' has been drawn <strong>'.$extra_counts.'</strong> Times.</p>';
+															echo "<p class='card-text'> ".$extra_s_picks."</p>";
+															$extra_counts = $extra_current;
+															$extra_s_picks = "";
+														else:
+															$extra_s_picks .= ' AND ';
+														endif;
+													else:
+														$extra_counts = next($extra_t_picks); 
+													endif; 
+												endwhile; ?>
+												<p class="card-text">The total number of extra ball followers for this <?=($b>$cd ? 'extra ball' : 'main ball');?> is <strong><?php echo $extra_sum; ?></strong>.</p>
+											<?php else: ?>
+												<p class="card-text">There are no extra ball followers with more than 2 occurrences in the range of <?php echo $lottery->last_drawn['range']; ?> draws.</p>
+											<?php endif; ?>
+											<?php else: ?>
+												<p class="card-text">There are no extra ball followers with more than 2 occurrences in the range of <?php echo $lottery->last_drawn['range']; ?> draws.</p>
+										<?php endif; ?>
+										
+										<!-- Display extra ball non-followers under Extra Balls heading -->
+										<?php 
+										$extra_nf_key = '';
+										if($b<=$cd):
+											$extra_nf_key = $lottery->last_drawn['ball'.$b].'nf_extra';
+										else:
+											$extra_nf_key = $lottery->last_drawn['extra'].'nfx_extra';
+										endif;
+										
+										if(isset($lottery->last_drawn[$extra_nf_key])):
+											$extra_nonfollowers = explode('|', $lottery->last_drawn[$extra_nf_key]);
+											if($extra_nonfollowers[0] && $extra_nonfollowers[0] != '0'): ?>
+												<?php $extra_non_picks = "";
+												$extra_sum = 0;
+												$extra_non_picks .= "These Extra Ball Numbers have <strong>NEVER</strong> followed this ".($b>$cd ? "Extra " : "")."Ball <strong>".($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b])."</strong> for ".$lottery->last_drawn['range']." Draws:<br />";
+												foreach($extra_nonfollowers as $nf):  
+													if($nf && $nf != '0'):
+														$extra_non_picks .= 'Number: <strong>'.$nf.'</strong><br />';
+														$extra_sum++;
+													endif;
 												endforeach;
-												echo "<p class='card-text'> ".$non_picks."</p>";
-												$plural = (string) ($sum>1 ?  " balls " : " ball ");
-												echo "<p class='card-text'><strong>".$sum.$plural."</strong> in this non-follower group.</p>";
-											unset($nonfollowers);
-										endif;  
+												if($extra_sum > 0): ?>
+													<p class='card-text'><?php echo $extra_non_picks; ?></p>
+													<?php $extra_plural = (string) ($extra_sum>1 ?  " balls " : " ball "); ?>
+													<p class='card-text'><strong><?php echo $extra_sum.$extra_plural; ?></strong> in the extra non-follower group.</p>
+												<?php endif; ?>
+											<?php endif; ?>
+										<?php endif; ?>
+										<?php endif;
 									else: 
 										echo "<p class='card-text'> No Criteria High enough to Use for this Ball. </p>";
 									endif; ?>

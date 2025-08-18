@@ -603,17 +603,40 @@ class Statistics extends Admin_Controller {
 		{
 			$n = strstr($ball_drawn, '>', TRUE); // Strip off each number
 			$f = substr(strstr($ball_drawn, '>', FALSE),1); // Remove the '>' from the string
-			for($b = 1; $b<=$drawn; $b++)
-			{
-				if(($this->data['lottery']->last_drawn['ball'.$b]==$n)&&(!isset($this->data['lottery']->last_drawn[$n]))) $this->data['lottery']->last_drawn[$n] = $f;
-			}
-			if(($this->data['lottery']->extra_included)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
-			{
-				$this->data['lottery']->last_drawn[$n] = $f;
-			}
-			elseif(($this->data['lottery']->extra_included)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
-			{
-				$this->data['lottery']->last_drawn[$n.'x'] = $f; // denotes x for 'duplicate' extra
+			
+			// Handle independent extra ball format with # separator
+			if($blnduplicate && strpos($f, '#') !== FALSE) {
+				$parts = explode('#', $f);
+				$main_followers = $parts[0]; // Main ball followers
+				$extra_followers = isset($parts[1]) ? $parts[1] : '0=0'; // Extra ball followers
+				
+				// Store main and extra followers
+				for($b = 1; $b<=$drawn; $b++)
+				{
+					if(($this->data['lottery']->last_drawn['ball'.$b]==$n)&&(!isset($this->data['lottery']->last_drawn[$n]))) {
+						$this->data['lottery']->last_drawn[$n] = $main_followers;
+						$this->data['lottery']->last_drawn[$n.'_extra'] = $extra_followers; // Store extra followers separately
+					}
+				}
+				if(($this->data['lottery']->extra_included)&&($this->data['lottery']->last_drawn['extra']==$n))
+				{
+					$this->data['lottery']->last_drawn[$n.'x'] = $main_followers; // Main followers for extra ball
+					$this->data['lottery']->last_drawn[$n.'x_extra'] = $extra_followers; // Extra followers for extra ball
+				}
+			} else {
+				// Original processing for non-independent extra ball lotteries
+				for($b = 1; $b<=$drawn; $b++)
+				{
+					if(($this->data['lottery']->last_drawn['ball'.$b]==$n)&&(!isset($this->data['lottery']->last_drawn[$n]))) $this->data['lottery']->last_drawn[$n] = $f;
+				}
+				if(($this->data['lottery']->extra_included)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
+				{
+					$this->data['lottery']->last_drawn[$n] = $f;
+				}
+				elseif(($this->data['lottery']->extra_included)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
+				{
+					$this->data['lottery']->last_drawn[$n.'x'] = $f; // denotes x for 'duplicate' extra
+				}
 			}
 		}
 		// 5. Do the same for non-following string into the array counter parts also
@@ -622,17 +645,40 @@ class Statistics extends Admin_Controller {
 		{
 			$n = strstr($ball_drawn, '>', TRUE); // Strip off each number
 			$nf = substr(strstr($ball_drawn, '>', FALSE),1); // Remove the '>' from the string
-			for($b = 1; $b<=$drawn; $b++)
-			{
-				if(($this->data['lottery']->last_drawn['ball'.$b]==$n)&&(!isset($this->data['lottery']->last_drawn[$n.'nf']))) $this->data['lottery']->last_drawn[$n.'nf'] = $nf;
-			}
-			if(($this->data['lottery']->extra_included)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
-			{
-				$this->data['lottery']->last_drawn[$n.'nf'] = $nf;
-			}
-			elseif(($this->data['lottery']->extra_included)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
-			{
-				$this->data['lottery']->last_drawn[$n.'nfx'] = $nf;
+			
+			// Handle independent extra ball format with # separator for nonfollowers
+			if($blnduplicate && strpos($nf, '#') !== FALSE) {
+				$parts = explode('#', $nf);
+				$main_nonfollowers = $parts[0]; // Main ball nonfollowers
+				$extra_nonfollowers = isset($parts[1]) ? $parts[1] : '0'; // Extra ball nonfollowers
+				
+				// Store main and extra nonfollowers
+				for($b = 1; $b<=$drawn; $b++)
+				{
+					if(($this->data['lottery']->last_drawn['ball'.$b]==$n)&&(!isset($this->data['lottery']->last_drawn[$n.'nf']))) {
+						$this->data['lottery']->last_drawn[$n.'nf'] = $main_nonfollowers;
+						$this->data['lottery']->last_drawn[$n.'nf_extra'] = $extra_nonfollowers; // Store extra nonfollowers separately
+					}
+				}
+				if(($this->data['lottery']->extra_included)&&($this->data['lottery']->last_drawn['extra']==$n))
+				{
+					$this->data['lottery']->last_drawn[$n.'nfx'] = $main_nonfollowers; // Main nonfollowers for extra ball
+					$this->data['lottery']->last_drawn[$n.'nfx_extra'] = $extra_nonfollowers; // Extra nonfollowers for extra ball
+				}
+			} else {
+				// Original processing for non-independent extra ball lotteries
+				for($b = 1; $b<=$drawn; $b++)
+				{
+					if(($this->data['lottery']->last_drawn['ball'.$b]==$n)&&(!isset($this->data['lottery']->last_drawn[$n.'nf']))) $this->data['lottery']->last_drawn[$n.'nf'] = $nf;
+				}
+				if(($this->data['lottery']->extra_included)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
+				{
+					$this->data['lottery']->last_drawn[$n.'nf'] = $nf;
+				}
+				elseif(($this->data['lottery']->extra_included)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
+				{
+					$this->data['lottery']->last_drawn[$n.'nfx'] = $nf;
+				}
 			}
 		}
 		unset($prizes);													// Remove this array, free up memory

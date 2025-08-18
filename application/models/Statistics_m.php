@@ -982,6 +982,7 @@ class Statistics_m extends MY_Model
 	 * @param 	boolean	$duple		Duplicate extra ball. FALSE by default.  The extra can have the same number drawn based on the minimum and maximum number drawn
 	 * @return  string	$followers	Followers string in this format that follow with the number of occurrences (minumum 3 Occurrences)
 	 * 								e.g. 10=>3=4|22=3,17=>10=5|37=4|48=4
+	 * 								For duplicate_extra_ball=1: 10=>3=4|22=3#2=5|7=3,17=>10=5|37=4|48=4#4=3
 	 */
 	public function followers_calculate($name, $ldn, $max, $bonus, $draws, $range = 100, $last = '', $duple = FALSE)
 	{
@@ -1012,14 +1013,17 @@ class Statistics_m extends MY_Model
 		{
 			$blnExDup = ($bonus&&$duple&&($b>$b_max) ? TRUE : FALSE); // Has reached the extra number that is an independent and duplicate Extra ball (TRUE) or everything else is FALSE
 			$c_b = ($bonus&&($b>$b_max) ? $ldn['extra'] : $ldn['ball'.$b]); // If there is an Extra / Bonus Ball and this bonus ball has exceeded the regularly drawn numbers, retrieve the extra ball
-			$sql = ($blnExDup ? "SELECT t.* FROM (SELECT extra, draw_date FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;" 
-			: "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;");
-			// Execute Query
-			$query = $this->db->query($sql);
- 			$row = $query->first_row('array');
-			$followlist = array(); // default empty set array
-			if(!$blnExDup) // Condition has not been met, not Duplicate Extra
-			{
+			
+			// For independent extra ball lotteries (duplicate_extra_ball = 1), we need to track both main and extra followers
+			if($duple && $bonus && !$blnExDup) {
+				// Calculate followers that include BOTH main numbers AND extra ball for each main ball
+				$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
+				$query = $this->db->query($sql);
+				$row = $query->first_row('array');
+				$followlist = array(); // default empty set array for main numbers only
+				$extra_followlist = array(); // array for extra ball numbers that follow when this main ball is drawn
+				$combined_followlist = array(); // array for combined main+extra followers
+				
 				do 
 				{
 					if($this->is_drawn($c_b, $row, $b_max, $bonus))
@@ -1027,16 +1031,45 @@ class Statistics_m extends MY_Model
 						$row = $query->next_row('array');
 						if(!is_null($row))
 						{
-							unset($row['draw_date']);
-							if((!$bonus)||($duple)) unset($row['extra']); // do not use in the add / update compare
-							// Special condition for a duplicate extra is not to include the extra ball (in case the duplicate extra is set)
+							// Process main number followers (without extra)
+							$temp_row = $row;
+							unset($temp_row['draw_date']);
+							unset($temp_row['extra']); // Remove extra for main number processing
+							
 							if(!empty($followlist))
 							{
-								$followlist = $this->update_followers($followlist, $row);
+								$followlist = $this->update_followers($followlist, $temp_row);
 							}
 							else
 							{
-								$followlist = $this->add_followers($row);
+								$followlist = $this->add_followers($temp_row);
+							}
+							
+							// Process extra ball followers - for independent extra balls, this means 
+							// what EXTRA BALL NUMBERS follow when this main ball is drawn
+							if($row['extra'] != 0) {
+								if(!empty($extra_followlist))
+								{
+									$extra_followlist = $this->update_dupalextra($extra_followlist, $row['extra']);
+								}
+								else
+								{
+									$extra_followlist = $this->add_dupalextra($row['extra']);
+								}
+							}
+							
+							// Process combined main+extra followers (including extra in the combination)
+							$combined_temp_row = $row;
+							unset($combined_temp_row['draw_date']);
+							// Keep the extra ball in the row for combined tracking
+							
+							if(!empty($combined_followlist))
+							{
+								$combined_followlist = $this->update_followers($combined_followlist, $combined_temp_row);
+							}
+							else
+							{
+								$combined_followlist = $this->add_followers($combined_temp_row);
 							}
 						}
 					}
@@ -1045,48 +1078,166 @@ class Statistics_m extends MY_Model
 						$row = $query->next_row('array');
 					}
 				} while(!is_null($row));
+				
+				// Build combined follower string with # separator for independent extra ball
+				if(empty($followlist)) $followlist = NULL;
+				if(empty($extra_followlist)) $extra_followlist = NULL;
+				if(empty($combined_followlist)) $combined_followlist = NULL;
+				$followers .= $this->follower_string_with_combined_extra($c_b, $followlist, $extra_followlist, $combined_followlist); 
 			}
-			else		// Condition has been met
-			{
-				 do 
-				 {
-					if($ldn['extra']==$row['extra'])
+			else {
+				// Original logic for non-independent extra ball lotteries OR when analyzing the extra ball itself
+				if($blnExDup && $duple) {
+					// Special handling for independent extra ball when analyzing the extra ball itself
+					// We need to track BOTH main numbers AND extra balls that follow this extra ball
+					$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
+					$query = $this->db->query($sql);
+					$row = $query->first_row('array');
+					$main_followlist = array(); // for main numbers that follow the extra ball
+					$extra_followlist = array(); // for extra balls that follow the extra ball
+					$combined_followlist = array(); // for combined followers
+					
+					do 
 					{
-						$row = $query->next_row('array');
-						if(!is_null($row))
+						if($ldn['extra']==$row['extra']) // When this extra ball is drawn
 						{
-							unset($row['draw_date']);
-							if(!empty($followlist))
+							$row = $query->next_row('array');
+							if(!is_null($row))
 							{
-								$followlist = $this->update_dupalextra($followlist, $row['extra']);
+								// Track main numbers that follow this extra ball
+								$main_temp_row = $row;
+								unset($main_temp_row['draw_date']);
+								unset($main_temp_row['extra']); // Remove extra for main number tracking
+								
+								if(!empty($main_followlist))
+								{
+									$main_followlist = $this->update_followers($main_followlist, $main_temp_row);
+								}
+								else
+								{
+									$main_followlist = $this->add_followers($main_temp_row);
+								}
+								
+								// Track extra balls that follow this extra ball
+								if($row['extra'] != 0) {
+									if(!empty($extra_followlist))
+									{
+										$extra_followlist = $this->update_dupalextra($extra_followlist, $row['extra']);
+									}
+									else
+									{
+										$extra_followlist = $this->add_dupalextra($row['extra']);
+									}
+								}
+								
+								// Track combined (main + extra) that follow this extra ball
+								$combined_temp_row = $row;
+								unset($combined_temp_row['draw_date']);
+								// Keep extra ball in for combined tracking
+								
+								if(!empty($combined_followlist))
+								{
+									$combined_followlist = $this->update_followers($combined_followlist, $combined_temp_row);
+								}
+								else
+								{
+									$combined_followlist = $this->add_followers($combined_temp_row);
+								}
+							}
+						}
+						else
+						{
+							$row = $query->next_row('array');
+						}
+					} while(!is_null($row));
+					
+					// Build follower string with combined tracking for extra ball analysis
+					if(empty($main_followlist)) $main_followlist = NULL;
+					if(empty($extra_followlist)) $extra_followlist = NULL;
+					if(empty($combined_followlist)) $combined_followlist = NULL;
+					$followers .= $this->follower_string_with_combined_extra($c_b, $main_followlist, $extra_followlist, $combined_followlist);
+				}
+				else {
+					// Original logic for non-independent extra ball lotteries
+					$sql = ($blnExDup ? "SELECT t.* FROM (SELECT extra, draw_date FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;" 
+					: "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;");
+					// Execute Query
+					$query = $this->db->query($sql);
+					$row = $query->first_row('array');
+					$followlist = array(); // default empty set array
+					if(!$blnExDup) // Condition has not been met, not Duplicate Extra
+					{
+						do 
+						{
+							if($this->is_drawn($c_b, $row, $b_max, $bonus))
+							{
+								$row = $query->next_row('array');
+								if(!is_null($row))
+								{
+									unset($row['draw_date']);
+									if((!$bonus)||($duple)) unset($row['extra']); // do not use in the add / update compare
+									// Special condition for a duplicate extra is not to include the extra ball (in case the duplicate extra is set)
+									if(!empty($followlist))
+									{
+										$followlist = $this->update_followers($followlist, $row);
+									}
+									else
+									{
+										$followlist = $this->add_followers($row);
+									}
+								}
 							}
 							else
 							{
-								$followlist = $this->add_dupalextra($row['extra']);
+								$row = $query->next_row('array');
 							}
-						}
+						} while(!is_null($row));
 					}
-					else
+					else		// Condition has been met
 					{
-						$row = $query->next_row('array');
+						 do 
+						 {
+							if($ldn['extra']==$row['extra'])
+							{
+								$row = $query->next_row('array');
+								if(!is_null($row))
+								{
+									unset($row['draw_date']);
+									if(!empty($followlist))
+									{
+										$followlist = $this->update_dupalextra($followlist, $row['extra']);
+									}
+									else
+									{
+										$followlist = $this->add_dupalextra($row['extra']);
+									}
+								}
+							}
+							else
+							{
+								$row = $query->next_row('array');
+							}
+						} while(!is_null($row));
 					}
-				} while(!is_null($row));
+					
+					// Build Follower string for non-independent extra ball lotteries
+					if(empty($followlist)) $followlist = NULL;
+					$followers .= $this->follower_string($c_b, $followlist); 
+				}
 			}
-		
-		// Build Follower string
-		if(empty($followlist)) $followlist = NULL;
-		/* echo"<pre>";
-		print_r($followlist);
-		echo "</pre>"; */
-		$followers .= $this->follower_string($c_b, $followlist); 
+			
 		// Return $follower number associative numbers that have 3 and above in this format, save in this format e.g. ball drawn 10 => 22=3,37=4,42=4
 		// update ball counter
 		// while ball count < $max
 			$b++;
-			if(($b<=$max)&&(!empty($followlist))) $followers .= ','; 
+			if($b<=$max) $followers .= ','; 
 			unset($followlist);		// Destroy the old followerlist
+			if(isset($extra_followlist)) unset($extra_followlist); // Destroy extra followlist if it exists
 			$query->free_result();	// Removes the Memory associated with the result resource ID
 		} while ($b<=$max);
+		
+		// Remove trailing comma if present
+		$followers = rtrim($followers, ',');
 		return $followers;
 	}
 
@@ -1226,6 +1377,86 @@ class Statistics_m extends MY_Model
 		}
 	return substr($str, 0, -1);		// Return the followers of the current draw without the extra Pipe character on the end of string
 	}
+
+	/**
+	 * Return the formatted string with both main and extra ball followers for independent extra ball lotteries
+	 * @param	integer	$ball		Ball that the list is associated with
+	 * @param	array	$main_list	Associative Array of main ball followers and the counts		
+	 * @param	array	$extra_list	Associative Array of extra ball followers and the counts		
+	 * @return	string	$str		Return formatted string with # separator for extra balls, e.g. 10>3=4|22=3#2=5|7=3
+	 */
+	/**
+	 * Build follower string with main and extra tracking for independent extra ball lotteries
+	 * 
+	 * @param	string	$ball		Ball number being processed
+	 * @param	array	$main_list	Associative Array of main number followers and the counts
+	 * @param	array	$extra_list	Associative Array of extra ball followers and the counts
+	 * @param	array	$combined_list	Associative Array of combined main+extra followers and the counts (not used in string)	
+	 * @return	string	$str		Return formatted string with # separator, e.g. 10>3=4|22=3#2=5|7=3
+	 */
+	private function follower_string_with_combined_extra($ball, $main_list, $extra_list, $combined_list)
+	{
+		$str = "";
+		$main_str = "";
+		$extra_str = "";
+		
+		// Process main ball followers (without extra)
+		if(is_null($main_list)) {
+			$main_str = '0=0';
+		} else {
+			foreach($main_list as $key => $follows) {
+				if($follows>=3) $main_str .= $key.'='.$follows.'|';
+			}
+			$main_str = (!empty($main_str) ? rtrim($main_str, '|') : '0=0');
+		}
+		
+		// Process extra ball followers only
+		if(is_null($extra_list)) {
+			$extra_str = '0=0';
+		} else {
+			foreach($extra_list as $key => $follows) {
+				if($follows>=3) $extra_str .= $key.'='.$follows.'|';
+			}
+			$extra_str = (!empty($extra_str) ? rtrim($extra_str, '|') : '0=0');
+		}
+		
+		// For independent extra ball lotteries, only use main#extra format (2 sections)
+		$str = $ball.'>'.$main_str.'#'.$extra_str;
+		
+		return $str;
+	}
+
+	private function follower_string_with_extra($ball, $main_list, $extra_list)
+	{
+		$str = "";
+		$main_str = "";
+		$extra_str = "";
+		
+		// Process main ball followers
+		if(is_null($main_list)) {
+			$main_str = '0=0';
+		} else {
+			foreach($main_list as $key => $follows) {
+				if($follows>=3) $main_str .= $key.'='.$follows.'|';
+			}
+			$main_str = (!empty($main_str) ? rtrim($main_str, '|') : '0=0');
+		}
+		
+		// Process extra ball followers
+		if(is_null($extra_list)) {
+			$extra_str = '0=0';
+		} else {
+			foreach($extra_list as $key => $follows) {
+				if($follows>=3) $extra_str .= $key.'='.$follows.'|';
+			}
+			$extra_str = (!empty($extra_str) ? rtrim($extra_str, '|') : '0=0');
+		}
+		
+		// Combine with # separator
+		$str = $ball.'>'.$main_str.'#'.$extra_str;
+		
+		return $str;
+	}
 	/** 
 	* Insert / Update Follower Profile of current lottery
 	* 
@@ -1291,16 +1522,21 @@ class Statistics_m extends MY_Model
 			$blnExDup = ($bonus&&$duple&&($b>$b_max) ? TRUE : FALSE); // Has reached the extra number that is an independent and duplicate Extra ball (TRUE) or everything else is FALSE
 			if($blnExDup) $top = $mx_ex;	// Swap over the Top Extra ball as the top number instead of the regular balls
 			$c_b = ($bonus&&($b>$b_max) ? $ldn['extra'] : $ldn['ball'.$b]); // If there is an Extra / Bonus Ball and this bonus ball has exceeded the regularly drawn numbers, retrieve the extra ball
-			$sql = ($blnExDup ? "SELECT t.* FROM (SELECT extra, draw_date FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;" 
-			: "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;");
-			// Execute Query
-			$query = $this->db->query($sql);
-			$row = $query->first_row('array');
 			
-			$followlist = array();
-			$nonfollowlist = array();
-			if(!$blnExDup) // Condition has not been met, not Duplicate Extra
-			{
+			// For independent extra ball lotteries (duplicate_extra_ball = 1), we need to track both main and extra nonfollowers
+			if($duple && $bonus && !$blnExDup) {
+				// Calculate main number, extra ball, and combined nonfollowers for each main ball
+				$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
+				$query = $this->db->query($sql);
+				$row = $query->first_row('array');
+				
+				$followlist = array();
+				$extra_followlist = array();
+				$combined_followlist = array();
+				$nonfollowlist = array();
+				$extra_nonfollowlist = array();
+				$combined_nonfollowlist = array();
+				
 				do 
 				{
 					if($this->is_drawn($c_b, $row, $b_max, $bonus))
@@ -1308,15 +1544,45 @@ class Statistics_m extends MY_Model
 						$row = $query->next_row('array');
 						if(!is_null($row))
 						{
-							unset($row['draw_date']);
-							if((!$bonus)||($duple)) unset($row['extra']);
+							// Process main number followers (without extra)
+							$temp_row = $row;
+							unset($temp_row['draw_date']);
+							unset($temp_row['extra']); // Remove extra for main number processing
+							
 							if(!empty($followlist))
 							{
-								$followlist = $this->update_followers($followlist, $row);
+								$followlist = $this->update_followers($followlist, $temp_row);
 							}
 							else
 							{
-								$followlist = $this->add_followers($row);
+								$followlist = $this->add_followers($temp_row);
+							}
+							
+							// Process extra ball followers - for independent extra balls, this means 
+							// what EXTRA BALL NUMBERS follow when this main ball is drawn
+							if($row['extra'] != 0) {
+								if(!empty($extra_followlist))
+								{
+									$extra_followlist = $this->update_dupalextra($extra_followlist, $row['extra']);
+								}
+								else
+								{
+									$extra_followlist = $this->add_dupalextra($row['extra']);
+								}
+							}
+							
+							// Process combined main+extra followers (including extra in the combination)
+							$combined_temp_row = $row;
+							unset($combined_temp_row['draw_date']);
+							// Keep the extra ball in the row for combined tracking
+							
+							if(!empty($combined_followlist))
+							{
+								$combined_followlist = $this->update_followers($combined_followlist, $combined_temp_row);
+							}
+							else
+							{
+								$combined_followlist = $this->add_followers($combined_temp_row);
 							}
 						}
 					}
@@ -1325,38 +1591,162 @@ class Statistics_m extends MY_Model
 						$row = $query->next_row('array');
 					}
 				} while(!is_null($row));
+				
+				// Build nonfollower lists
+				if(empty($followlist)) $followlist = NULL; 
+				if(empty($extra_followlist)) $extra_followlist = NULL;
+				if(empty($combined_followlist)) $combined_followlist = NULL;
+				$nonfollowlist = $this->non_followers($followlist, $top);
+				$extra_nonfollowlist = $this->non_followers($extra_followlist, $mx_ex);
+				$combined_nonfollowlist = $this->non_followers($combined_followlist, $top); // Use main ball top range for combined
+				$nonfollowers .= $this->nonfollower_string_with_combined_extra($c_b, $nonfollowlist, $extra_nonfollowlist, $combined_nonfollowlist); 
 			}
-			else		// Condition has been met
-			{
-				 do 
-				 {
-					if($ldn['extra']==$row['extra'])
+			else {
+				// Original logic for non-independent extra ball lotteries OR when analyzing the extra ball itself
+				if($blnExDup && $duple) {
+					// Special handling for independent extra ball when analyzing the extra ball itself
+					// We need to track BOTH main numbers AND extra balls that follow this extra ball
+					$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
+					$query = $this->db->query($sql);
+					$row = $query->first_row('array');
+					$main_followlist = array(); // for main numbers that follow the extra ball
+					$extra_followlist = array(); // for extra balls that follow the extra ball
+					$combined_followlist = array(); // for combined followers
+					
+					do 
 					{
-						$row = $query->next_row('array');
-						if(!is_null($row))
+						if($ldn['extra']==$row['extra']) // When this extra ball is drawn
 						{
-							unset($row['draw_date']);
-							if(!empty($followlist))
+							$row = $query->next_row('array');
+							if(!is_null($row))
 							{
-								$followlist = $this->update_dupalextra($followlist, $row['extra']);
+								// Track main numbers that follow this extra ball
+								$main_temp_row = $row;
+								unset($main_temp_row['draw_date']);
+								unset($main_temp_row['extra']); // Remove extra for main number tracking
+								
+								if(!empty($main_followlist))
+								{
+									$main_followlist = $this->update_followers($main_followlist, $main_temp_row);
+								}
+								else
+								{
+									$main_followlist = $this->add_followers($main_temp_row);
+								}
+								
+								// Track extra balls that follow this extra ball
+								if($row['extra'] != 0) {
+									if(!empty($extra_followlist))
+									{
+										$extra_followlist = $this->update_dupalextra($extra_followlist, $row['extra']);
+									}
+									else
+									{
+										$extra_followlist = $this->add_dupalextra($row['extra']);
+									}
+								}
+								
+								// Track combined (main + extra) that follow this extra ball
+								$combined_temp_row = $row;
+								unset($combined_temp_row['draw_date']);
+								// Keep extra ball in for combined tracking
+								
+								if(!empty($combined_followlist))
+								{
+									$combined_followlist = $this->update_followers($combined_followlist, $combined_temp_row);
+								}
+								else
+								{
+									$combined_followlist = $this->add_followers($combined_temp_row);
+								}
+							}
+						}
+						else
+						{
+							$row = $query->next_row('array');
+						}
+					} while(!is_null($row));
+					
+					// Build nonfollower lists for extra ball analysis
+					if(empty($main_followlist)) $main_followlist = NULL;
+					if(empty($extra_followlist)) $extra_followlist = NULL;
+					if(empty($combined_followlist)) $combined_followlist = NULL;
+					$main_nonfollowlist = $this->non_followers($main_followlist, $top);
+					$extra_nonfollowlist = $this->non_followers($extra_followlist, $mx_ex);
+					$combined_nonfollowlist = $this->non_followers($combined_followlist, $top);
+					$nonfollowers .= $this->nonfollower_string_with_combined_extra($c_b, $main_nonfollowlist, $extra_nonfollowlist, $combined_nonfollowlist);
+				}
+				else {
+					// Original logic for non-independent extra ball lotteries
+					$sql = ($blnExDup ? "SELECT t.* FROM (SELECT extra, draw_date FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;" 
+					: "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;");
+					// Execute Query
+					$query = $this->db->query($sql);
+					$row = $query->first_row('array');
+					
+					$followlist = array();
+					$nonfollowlist = array();
+					if(!$blnExDup) // Condition has not been met, not Duplicate Extra
+					{
+						do 
+						{
+							if($this->is_drawn($c_b, $row, $b_max, $bonus))
+							{
+								$row = $query->next_row('array');
+								if(!is_null($row))
+								{
+									unset($row['draw_date']);
+									if((!$bonus)||($duple)) unset($row['extra']);
+									if(!empty($followlist))
+									{
+										$followlist = $this->update_followers($followlist, $row);
+									}
+									else
+									{
+										$followlist = $this->add_followers($row);
+									}
+								}
 							}
 							else
 							{
-								$followlist = $this->add_dupalextra($row['extra']);
+								$row = $query->next_row('array');
 							}
-						}
+						} while(!is_null($row));
 					}
-					else
+					else		// Condition has been met
 					{
-						$row = $query->next_row('array');
+						 do 
+						 {
+							if($ldn['extra']==$row['extra'])
+							{
+								$row = $query->next_row('array');
+								if(!is_null($row))
+								{
+									unset($row['draw_date']);
+									if(!empty($followlist))
+									{
+										$followlist = $this->update_dupalextra($followlist, $row['extra']);
+									}
+									else
+									{
+										$followlist = $this->add_dupalextra($row['extra']);
+									}
+								}
+							}
+							else
+							{
+								$row = $query->next_row('array');
+							}
+						} while(!is_null($row));
 					}
-				} while(!is_null($row));
+					
+					// Build Follower string for non-independent extra ball lotteries
+					if(empty($followlist)) $followlist = NULL; 
+					$nonfollowlist = $this->non_followers($followlist, $top);
+					$nonfollowers .= $this->nonfollower_string($c_b, $nonfollowlist); 
+				}
 			}
-		
-		// Build Follower string
-		if(empty($followlist)) $followlist = NULL; 
-		$nonfollowlist = $this->non_followers($followlist, $top);
-		$nonfollowers .= $this->nonfollower_string($c_b, $nonfollowlist); 
+			
 		// Return $follower number associative numbers that have 3 and above in this format, save in this format e.g. ball drawn 10 => 22,37,42
 		// update ball counter
 		// while ball count < $max
@@ -1364,8 +1754,13 @@ class Statistics_m extends MY_Model
 			if($b<=$max) $nonfollowers .= ',';
 			unset($followlist);		// Destroy the old followerlist
 			unset($nonfollowlist);
+			if(isset($extra_followlist)) unset($extra_followlist);
+			if(isset($extra_nonfollowlist)) unset($extra_nonfollowlist);
 			$query->free_result();	// Removes the Memory associated with the result resource ID
 		} while ($b<=$max);
+		
+		// Remove trailing comma if present
+		$nonfollowers = rtrim($nonfollowers, ',');
 		return $nonfollowers;
 	}
 	/**
@@ -1412,6 +1807,81 @@ class Statistics_m extends MY_Model
 			}
 		}
 	return substr($str, 0, -1);		// Return the followers of the current draw without the extra Pipe character on the end of string
+	}
+
+	/**
+	 * Return the formatted nonfollower string with both main and extra ball nonfollowers for independent extra ball lotteries
+	 * @param	integer	$ball		Ball that the list is associated with
+	 * @param	array	$main_list	Array of main ball nonfollowers		
+	 * @param	array	$extra_list	Array of extra ball nonfollowers		
+	 * @return	string	$str		Return formatted string with # separator for extra balls, e.g. 10>3|22#7|4
+	 */
+	/**
+	 * Build nonfollower string with main and extra tracking for independent extra ball lotteries
+	 * 
+	 * @param	string	$ball		Ball number being processed
+	 * @param	array	$main_list	Array of main number nonfollowers
+	 * @param	array	$extra_list	Array of extra ball nonfollowers
+	 * @param	array	$combined_list	Array of combined main+extra nonfollowers (not used in string)
+	 * @return	string	$str		Return formatted string with # separator, e.g. 10>3|22|45#2|7
+	 */
+	private function nonfollower_string_with_combined_extra($ball, $main_list, $extra_list, $combined_list)
+	{
+		$str = "";
+		$main_str = "";
+		$extra_str = "";
+		$combined_str = "";
+		
+		// Process main ball nonfollowers (without extra)
+		if(is_null($main_list) || empty($main_list)) {
+			$main_str = '0';
+		} else {
+			$main_str = implode('|', $main_list);
+		}
+		
+		// Process extra ball nonfollowers only
+		if(is_null($extra_list) || empty($extra_list)) {
+			$extra_str = '0';
+		} else {
+			$extra_str = implode('|', $extra_list);
+		}
+		
+		// For independent extra ball lotteries, only use main#extra format (2 sections)
+		$str = $ball.'>'.$main_str.'#'.$extra_str;
+		
+		return $str;
+	}
+
+	private function nonfollower_string_with_extra($ball, $main_list, $extra_list)
+	{
+		$str = "";
+		$main_str = "";
+		$extra_str = "";
+		
+		// Process main ball nonfollowers
+		if(empty($main_list)) {
+			$main_str = '0';
+		} else {
+			foreach($main_list as $key) {
+				$main_str .= $key.'|';
+			}
+			$main_str = rtrim($main_str, '|'); // Remove trailing pipe
+		}
+		
+		// Process extra ball nonfollowers  
+		if(empty($extra_list)) {
+			$extra_str = '0';
+		} else {
+			foreach($extra_list as $key) {
+				$extra_str .= $key.'|';
+			}
+			$extra_str = rtrim($extra_str, '|'); // Remove trailing pipe
+		}
+		
+		// Combine with # separator
+		$str = $ball.'>'.$main_str.'#'.$extra_str;
+		
+		return $str;
 	}
 
 	/** 
