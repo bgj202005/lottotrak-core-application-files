@@ -1465,7 +1465,7 @@ class Statistics extends Admin_Controller {
 		$pos_last = $this->statistics_m->position_copylasts($id);
 		// Recalculation is nesessary
 		$hwc_history = $this->h_w_c_history($id, $tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
-	 	$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl, $drawn, $this->data['lottery']->extra_included, $blnduplicate, $strhots_last, $strwarms_last, $strcolds_last, $hwc_history['position']);
+	 	$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl, $drawn, $this->data['lottery']->extra_included, $blnduplicate, $h_w_c['hots_last'], $h_w_c['warms_last'], $h_w_c['colds_last'], $hwc_history['position']);
 	 }
 	 else 
 	 {
@@ -1610,6 +1610,11 @@ class Statistics extends Admin_Controller {
 				'lottery_id'			=> $id
 			);
 			$this->statistics_m->nonfollower_data_save($nonfollowers, TRUE);
+			
+			// Enhanced calculation for independent extra ball lotteries (duplicate_extra_ball = 1)
+			if ($blnduplicate) {
+				$this->calculate_enhanced_follower_wins($id, $range, $lotto, $tbl);
+			}
 		}
 		else // 3. If does not exist, calculate for the given draw range, return results and save to follower table
 		{
@@ -1642,6 +1647,11 @@ class Statistics extends Admin_Controller {
 			'lottery_id'			=> $id
 			);
 			$this->statistics_m->nonfollower_data_save($nonfollowers, FALSE);
+			
+			// Enhanced calculation for independent extra ball lotteries (duplicate_extra_ball = 1)
+			if ($blnduplicate) {
+				$this->calculate_enhanced_follower_wins($id, $range, $lotto, $tbl);
+			}
 		}
 		unset($prizes);			// Remove the $prize array - Free up memory 
 	}
@@ -1730,6 +1740,283 @@ class Statistics extends Admin_Controller {
 				'lottery_id'			=> $id
 			);
 			$this->statistics_m->nonfriends_data_save($nonfriends, TRUE);
+		}
+	}
+
+	/**
+	 * Calculate and save follower wins for independent extra ball lotteries
+	 * This method implements the enhanced prize calculation system for duplicate_extra_ball = 1
+	 * 
+	 * @param int $id Lottery ID
+	 * @param int $range Draw range (100, 200, 300, etc.)
+	 */
+	public function calculate_follower_wins($id, $range = 100)
+	{
+		// Validate lottery
+		$lottery = $this->lotteries_m->get($id);
+		if (!$lottery) {
+			$this->session->set_flashdata('message', 'Lottery not found.');
+			redirect('admin/statistics');
+			return;
+		}
+
+		// Check if this is an independent extra ball lottery
+		if (!$lottery->duplicate_extra_ball) {
+			$this->session->set_flashdata('message', 'This feature is only available for independent extra ball lotteries (duplicate_extra_ball = 1).');
+			redirect('admin/statistics');
+			return;
+		}
+
+		$table_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+		
+		// Check if table exists
+		if (!$this->lotteries_m->lotto_table_exists($table_name)) {
+			$this->session->set_flashdata('message', 'Lottery database table does not exist.');
+			redirect('admin/statistics');
+			return;
+		}
+
+		try {
+			// Calculate follower wins using the enhanced algorithm
+			$result = $this->statistics_m->calculate_independent_extra_follower_wins(
+				$table_name, 
+				$id, 
+				$range, 
+				true, // extra_included
+				false // extra_draws
+			);
+
+			// Check for errors (insufficient draws)
+			if (isset($result['error'])) {
+				$this->session->set_flashdata('message', $result['error']);
+				redirect('admin/statistics');
+				return;
+			}
+
+			// Save to database
+			$this->save_follower_wins_data($id, $range, $result);
+
+			$this->session->set_flashdata('message', "Follower wins calculated successfully for {$lottery->lottery_name} using {$range} draw range. Enhanced independent extra ball algorithm applied.");
+			
+		} catch (Exception $e) {
+			$this->session->set_flashdata('message', 'Error calculating follower wins: ' . $e->getMessage());
+		}
+
+		redirect('admin/statistics');
+	}
+
+	/**
+	 * Save follower wins data to existing lottery_followers table (REMOVED redundant lottery_follower_wins table)
+	 */
+	private function save_follower_wins_data($lottery_id, $range, $result)
+	{
+		// Data is already saved by the model methods - this method is now simplified
+		// The enhanced calculation methods in Statistics_m handle the database operations directly
+		
+		// Just return success since the model handles all database operations
+		return true;
+	}
+
+	/**
+	 * View follower wins for a specific lottery using existing lottery_followers table
+	 * This creates the display interface for the calculated follower wins
+	 * 
+	 * @param int $id Lottery ID
+	 * @param int $range Draw range to display
+	 */
+	public function view_follower_wins($id, $range = 100)
+	{
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		
+		if (!$this->data['lottery']) {
+			$this->session->set_flashdata('message', 'Lottery not found.');
+			redirect('admin/statistics');
+			return;
+		}
+
+		// Get follower wins data from existing lottery_followers table
+		$wins_data = $this->db->select('*')
+							  ->where('lottery_id', $id)
+							  ->where('range', $range)
+							  ->get('lottery_followers')
+							  ->row();
+
+		if (!$wins_data) {
+			$this->session->set_flashdata('message', 'No follower wins data found for this lottery and range. Please calculate first.');
+			redirect('admin/statistics');
+			return;
+		}
+
+		// Parse the wins string based on lottery type
+		if ($this->data['lottery']->duplicate_extra_ball == 1) {
+			// Independent extra ball lottery - parse with # separator
+			$this->data['parsed_wins'] = $this->parse_wins_string_with_separator($wins_data->wins);
+		} else {
+			// Regular lottery - parse standard format
+			$this->data['parsed_wins'] = $this->parse_wins_string($wins_data->wins);
+		}
+		
+		$this->data['wins_data'] = $wins_data;
+		$this->data['range'] = $range;
+		$this->data['subview'] = 'admin/dashboard/statistics/view_follower_wins';
+		$this->load->view('admin/_layout_main', $this->data);
+	}
+
+	/**
+	 * Parse wins string into displayable format
+	 */
+	private function parse_wins_string($wins_string)
+	{
+		$parsed = array();
+		$numbers = explode('<', $wins_string);
+		
+		foreach ($numbers as $number_data) {
+			if (empty($number_data)) continue;
+			
+			$parts = explode('>', $number_data);
+			if (count($parts) != 2) continue;
+			
+			$number = $parts[0];
+			$wins = explode(',', $parts[1]);
+			
+			$parsed[$number] = $wins;
+		}
+		
+		return $parsed;
+	}
+
+	/**
+	 * Parse positions string into displayable format
+	 */
+	private function parse_positions_string($positions_string)
+	{
+		$parsed = array();
+		$positions = explode('<', $positions_string);
+		
+		foreach ($positions as $position_data) {
+			if (empty($position_data)) continue;
+			
+			$parts = explode('>', $position_data);
+			if (count($parts) != 2) continue;
+			
+			$position = $parts[0];
+			$wins = explode(',', $parts[1]);
+			
+			$parsed[$position] = $wins;
+		}
+		
+		return $parsed;
+	}
+
+	/**
+	 * Parse wins string with # separator for independent extra ball lotteries
+	 */
+	private function parse_wins_string_with_separator($wins_string)
+	{
+		$parsed = array();
+		
+		if (empty($wins_string)) {
+			return $parsed;
+		}
+		
+		// Split by # to separate main and extra balls
+		$parts = explode('#', $wins_string);
+		$main_string = isset($parts[0]) ? $parts[0] : '';
+		$extra_string = isset($parts[1]) ? $parts[1] : '';
+		
+		// Parse main balls
+		if (!empty($main_string)) {
+			$main_entries = explode('<', $main_string);
+			foreach ($main_entries as $entry) {
+				if (empty($entry)) continue;
+				$entry_parts = explode('>', $entry);
+				if (count($entry_parts) == 2) {
+					$number = $entry_parts[0];
+					$wins = explode(',', $entry_parts[1]);
+					$parsed['main_' . $number] = $wins;
+				}
+			}
+		}
+		
+		// Parse extra balls
+		if (!empty($extra_string)) {
+			$extra_entries = explode('<', $extra_string);
+			foreach ($extra_entries as $entry) {
+				if (empty($entry)) continue;
+				$entry_parts = explode('>', $entry);
+				if (count($entry_parts) == 2) {
+					$number = $entry_parts[0];
+					$wins = explode(',', $entry_parts[1]);
+					$parsed['extra_' . $number] = $wins;
+				}
+			}
+		}
+		
+		return $parsed;
+	}
+
+	/**
+	 * Calculate point rankings based on the point system
+	 */
+	private function calculate_point_rankings($parsed_wins)
+	{
+		$rankings = array();
+		
+		foreach ($parsed_wins as $number => $wins) {
+			$total_points = 0;
+			
+			// Apply point system (scaled for independent extra ball lotteries)
+			// Index 0 = no winners (0 points)
+			// Index 1 = 1 win (2 points)
+			// Index 2 = 1 win + extra (3 points)
+			// Index 3 = 2 wins (2 points - special case for pick 5)
+			// Index 4 = 2 wins + extra (1 point)
+			// etc.
+			
+			$point_values = array(0, 2, 3, 2, 1, 3, 1, 4, 1, 5, 1); // Based on the point system
+			
+			for ($i = 0; $i < count($wins) && $i < count($point_values); $i++) {
+				$total_points += $wins[$i] * $point_values[$i];
+			}
+			
+			$rankings[$number] = $total_points;
+		}
+		
+		// Sort by points (descending)
+		arsort($rankings);
+		
+		return $rankings;
+	}
+
+	/**
+	 * Helper method to calculate enhanced follower wins during recalc for independent extra ball lotteries
+	 * This integrates the enhanced calculation into the existing recalc process
+	 */
+	private function calculate_enhanced_follower_wins($id, $range, $lotto, $table_name)
+	{
+		try {
+			// Use the enhanced algorithm for independent extra ball lotteries
+			$result = $this->statistics_m->calculate_independent_extra_follower_wins(
+				$table_name, 
+				$id, 
+				$range, 
+				true, // extra_included
+				false // extra_draws
+			);
+
+			// Check for errors (insufficient draws)
+			if (isset($result['error'])) {
+				// Log error but don't break the recalc process
+				log_message('error', "Enhanced follower wins calculation failed for lottery {$id}: " . $result['error']);
+				return;
+			}
+
+			// Save enhanced wins data to database
+			$this->save_follower_wins_data($id, $range, $result);
+			
+		} catch (Exception $e) {
+			// Log error but don't break the recalc process
+			log_message('error', "Enhanced follower wins calculation exception for lottery {$id}: " . $e->getMessage());
 		}
 	}
 }

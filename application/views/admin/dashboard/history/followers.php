@@ -148,26 +148,47 @@
 						$best_pos_points = 0;
 						$max_balls = $lottery->balls_drawn;
 						if ($lottery->extra_included) $max_balls++;
-						for ($i = 1; $i <= $max_balls; $i++) {
-							// Ball points
-							$wins = ($i > $lottery->balls_drawn ? $lottery->last_drawn['extra_win'] : $lottery->last_drawn['ball'.$i.'_win']);
-							$points_total = 0;
-							foreach ($wins as $key => $value) {
-								if (strpos($key, "_points") !== false) $points_total += intval($value);
+						
+						// Check if this is an enhanced display for independent extra ball lottery
+						$is_enhanced = isset($lottery->enhanced_wins) && $lottery->enhanced_wins;
+						
+						if ($is_enhanced && isset($lottery->enhanced_point_rankings)) {
+							// Use enhanced point rankings for independent extra ball lotteries
+							$ball_rankings = $lottery->enhanced_point_rankings['balls'];
+							$position_rankings = $lottery->enhanced_point_rankings['positions'];
+							
+							if (!empty($ball_rankings)) {
+								$best_ball = key($ball_rankings);
+								$best_ball_points = current($ball_rankings);
 							}
-							if ($points_total > $best_ball_points) {
-								$best_ball_points = $points_total;
-								$best_ball = $i;
+							
+							if (!empty($position_rankings)) {
+								$best_pos = key($position_rankings);
+								$best_pos_points = current($position_rankings);
 							}
-							// Position points
-							$positions = ($i > $lottery->balls_drawn ? $lottery->last_drawn['position_extra_win'] : $lottery->last_drawn['position'.$i.'_win']);
-							$points_total_pos = 0;
-							foreach ($positions as $key => $value) {
-								if (strpos($key, "_points") !== false) $points_total_pos += intval($value);
-							}
-							if ($points_total_pos > $best_pos_points) {
-								$best_pos_points = $points_total_pos;
-								$best_pos = $i;
+						} else {
+							// Use regular point calculation for standard lotteries
+							for ($i = 1; $i <= $max_balls; $i++) {
+								// Ball points
+								$wins = ($i > $lottery->balls_drawn ? $lottery->last_drawn['extra_win'] : $lottery->last_drawn['ball'.$i.'_win']);
+								$points_total = 0;
+								foreach ($wins as $key => $value) {
+									if (strpos($key, "_points") !== false) $points_total += intval($value);
+								}
+								if ($points_total > $best_ball_points) {
+									$best_ball_points = $points_total;
+									$best_ball = $i;
+								}
+								// Position points
+								$positions = ($i > $lottery->balls_drawn ? $lottery->last_drawn['position_extra_win'] : $lottery->last_drawn['position'.$i.'_win']);
+								$points_total_pos = 0;
+								foreach ($positions as $key => $value) {
+									if (strpos($key, "_points") !== false) $points_total_pos += intval($value);
+								}
+								if ($points_total_pos > $best_pos_points) {
+									$best_pos_points = $points_total_pos;
+									$best_pos = $i;
+								}
 							}
 						}
 						?>
@@ -183,10 +204,21 @@
 										<div class="alert alert-success text-center mb-2">
 											<strong>Ball with Highest Points:</strong>
 											<?php
-											if ($best_ball > $lottery->balls_drawn) {
-												echo '<strong>Extra Ball</strong> (' . $lottery->last_drawn['extra'] . ')';
+											if ($is_enhanced) {
+												// For enhanced displays, $best_ball IS the ball number
+												// Check if this ball number is the extra ball that was actually drawn
+												if ($lottery->extra_included && $best_ball == $lottery->last_drawn['extra']) {
+													echo '<strong>Extra Ball +' . $best_ball . '</strong>';
+												} else {
+													echo 'Ball <strong>' . $best_ball . '</strong>';
+												}
 											} else {
-												echo 'Ball <strong>' . $lottery->last_drawn['ball'.$best_ball] . '</strong>';
+												// For regular displays, $best_ball is the position index
+												if ($best_ball > $lottery->balls_drawn) {
+													echo '<strong>Extra Ball +' . $lottery->last_drawn['extra'] . '</strong>';
+												} else {
+													echo 'Ball <strong>' . $lottery->last_drawn['ball'.$best_ball] . '</strong>';
+												}
 											}
 											?>
 											(<?= $best_ball_points; ?> points)
@@ -195,7 +227,15 @@
 									<div class="col-md-6">
 										<div class="alert alert-info text-center mb-2">
 											<strong>Position with Highest Points:</strong>
-											<?= ($best_pos > $lottery->balls_drawn ? '<strong>Extra Ball</strong> Position' : 'Position <strong>'.$best_pos.'</strong>'); ?>
+											<?php
+											if ($is_enhanced) {
+												// For enhanced displays, $best_pos is the position number
+												echo ($best_pos > $lottery->balls_drawn ? '<strong>Extra Ball</strong> Position' : 'Position <strong>'.$best_pos.'</strong>');
+											} else {
+												// For regular displays
+												echo ($best_pos > $lottery->balls_drawn ? '<strong>Extra Ball</strong> Position' : 'Position <strong>'.$best_pos.'</strong>');
+											}
+											?>
 											(<?= $best_pos_points; ?> points)
 										</div>
 									</div>
@@ -206,12 +246,41 @@
 										<h6 class="my-0 font-weight-normal card-title"><strong>Win Record After Ball <?=($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);?> has been drawn in <?=$lottery->last_drawn['range']; ?> draws</strong></h6>
 									</div>
 									<div class="card-body">
-										<?php // Prepare data
-										$wins = ($b > $cd ? $lottery->last_drawn['extra_win'] : $lottery->last_drawn['ball'.$b.'_win']);
-										$total_winners = 0;
-										$points_total = 0;
-										foreach ($wins as $key => $value) {
-											if (strpos($key, "_points") === false) $total_winners += intval($value);
+										<?php 
+										// Prepare data based on enhanced vs regular display
+										if ($is_enhanced && isset($lottery->enhanced_parsed_wins)) {
+											// Enhanced display for independent extra ball lotteries
+											$ball_number = ($b > $cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);
+											$wins = isset($lottery->enhanced_parsed_wins[$ball_number]) ? $lottery->enhanced_parsed_wins[$ball_number] : array();
+											$total_winners = array_sum($wins);
+											
+											// Calculate points for enhanced display
+											$points_total = 0;
+											$category_mapping = array(
+												'extra' => 1,
+												'1_win_extra' => 3,
+												'2_win' => 2,
+												'2_win_extra' => 1,
+												'3_win' => 3,
+												'3_win_extra' => 1,
+												'4_win' => 4,
+												'4_win_extra' => 1,
+												'5_win' => 5,
+												'5_win_extra' => 1
+											);
+											foreach ($wins as $category => $count) {
+												if (isset($category_mapping[$category])) {
+													$points_total += intval($count) * $category_mapping[$category];
+												}
+											}
+										} else {
+											// Regular display
+											$wins = ($b > $cd ? $lottery->last_drawn['extra_win'] : $lottery->last_drawn['ball'.$b.'_win']);
+											$total_winners = 0;
+											$points_total = 0;
+											foreach ($wins as $key => $value) {
+												if (strpos($key, "_points") === false) $total_winners += intval($value);
+											}
 										}
 										?>
 										<table class="table table-bordered table-sm mb-3 w-100 mx-auto">
@@ -225,29 +294,58 @@
 											</thead>
 											<tbody>
 												<?php
-												foreach ($wins as $prize => $winners) {
-													if (strpos($prize, "_points") !== false) continue; // Only process main categories
-													$points = isset($wins[$prize . '_points']) ? $wins[$prize . '_points'] : 0;
-													$points_total += $points;
-													$percentage = $lottery->last_drawn['range'] > 0 ? round(($winners / $lottery->last_drawn['range']) * 100, 2) : 0;
-													switch ($prize) {
-														case "9_win": $label = "9 out of $cd Winners"; break;
-														case "8_win_extra": $label = "8 out of $cd Winners + Extra"; break;
-														case "8_win": $label = "8 out of $cd Winners"; break;
-														case "7_win_extra": $label = "7 out of $cd Winners + Extra"; break;
-														case "7_win": $label = "7 out of $cd Winners"; break;
-														case "6_win_extra": $label = "6 out of $cd Winners + Extra"; break;
-														case "6_win": $label = "6 out of $cd Winners"; break;
-														case "5_win_extra": $label = "5 out of $cd Winners + Extra"; break;
-														case "5_win": $label = "5 out of $cd Winners"; break;
-														case "4_win_extra": $label = "4 out of $cd Winners + Extra"; break;
-														case "4_win": $label = "4 out of $cd Winners"; break;
-														case "3_win_extra": $label = "3 out of $cd Winners + Extra"; break;
-														case "3_win": $label = "3 out of $cd Winners"; break;
-														case "2_win_extra": $label = "2 out of $cd Winners + Extra"; break;
-														case "2_win": $label = "2 out of $cd Winners"; break;
-														case "1_win_extra": $label = "1 out of $cd Winners + Extra"; break;
-														case "1_win": $label = "1 out of $cd Winners"; break;
+												if ($is_enhanced && isset($lottery->enhanced_parsed_wins)) {
+													// Enhanced display for independent extra ball lotteries using associative array
+													$category_mapping = array(
+														'extra' => array('label' => 'Extra Only', 'points' => 1),
+														'1_win_extra' => array('label' => '1 Win + Extra', 'points' => 3),
+														'2_win' => array('label' => '2 Wins', 'points' => 2),
+														'2_win_extra' => array('label' => '2 Wins + Extra', 'points' => 1),
+														'3_win' => array('label' => '3 Wins', 'points' => 3),
+														'3_win_extra' => array('label' => '3 Wins + Extra', 'points' => 1),
+														'4_win' => array('label' => '4 Wins', 'points' => 4),
+														'4_win_extra' => array('label' => '4 Wins + Extra', 'points' => 1),
+														'5_win' => array('label' => '5 Wins', 'points' => 5),
+														'5_win_extra' => array('label' => '5 Wins + Extra', 'points' => 1)
+													);
+													
+													foreach ($category_mapping as $category_key => $category_info) {
+														$winners = isset($wins[$category_key]) ? intval($wins[$category_key]) : 0;
+														$points = $winners * $category_info['points'];
+														$percentage = $lottery->last_drawn['range'] > 0 ? round(($winners / $lottery->last_drawn['range']) * 100, 2) : 0;
+														?>
+														<tr>
+															<td><?= $category_info['label'] ?></td>
+															<td><?= $winners ?></td>
+															<td><?= $points ?></td>
+															<td><?= $percentage ?>%</td>
+														</tr>
+													<?php }
+												} else {
+													// Regular display
+													foreach ($wins as $prize => $winners) {
+														if (strpos($prize, "_points") !== false) continue; // Only process main categories
+														$points = isset($wins[$prize . '_points']) ? $wins[$prize . '_points'] : 0;
+														$points_total += $points;
+														$percentage = $lottery->last_drawn['range'] > 0 ? round(($winners / $lottery->last_drawn['range']) * 100, 2) : 0;
+														switch ($prize) {
+															case "9_win": $label = "9 out of $cd Winners"; break;
+															case "8_win_extra": $label = "8 out of $cd Winners + Extra"; break;
+															case "8_win": $label = "8 out of $cd Winners"; break;
+															case "7_win_extra": $label = "7 out of $cd Winners + Extra"; break;
+															case "7_win": $label = "7 out of $cd Winners"; break;
+															case "6_win_extra": $label = "6 out of $cd Winners + Extra"; break;
+															case "6_win": $label = "6 out of $cd Winners"; break;
+															case "5_win_extra": $label = "5 out of $cd Winners + Extra"; break;
+															case "5_win": $label = "5 out of $cd Winners"; break;
+															case "4_win_extra": $label = "4 out of $cd Winners + Extra"; break;
+															case "4_win": $label = "4 out of $cd Winners"; break;
+															case "3_win_extra": $label = "3 out of $cd Winners + Extra"; break;
+															case "3_win": $label = "3 out of $cd Winners"; break;
+															case "2_win_extra": $label = "2 out of $cd Winners + Extra"; break;
+															case "2_win": $label = "2 out of $cd Winners"; break;
+															case "1_win_extra": $label = "1 out of $cd Winners + Extra"; break;
+															case "1_win": $label = "1 out of $cd Winners"; break;
 														case "extra": $label = "Extra / Bonus Ball"; break;
 														default: $label = $prize;
 													}
@@ -258,7 +356,9 @@
 														<td><?= $points ?></td>
 														<td><?= $percentage ?>%</td>
 													</tr>
-												<?php } ?>
+												<?php }
+												}
+												?>
 											</tbody>
 											<tfoot>
 												<tr>
@@ -276,11 +376,40 @@
 									</div>
 									<div class="card-body">
 										<?php
-										$positions = ($b > $cd ? $lottery->last_drawn['position_extra_win'] : $lottery->last_drawn['position'.$b.'_win']);
-										$total_winners_pos = 0;
-										$points_total_pos = 0;
-										foreach ($positions as $key => $value) {
-											if (strpos($key, "_points") === false) $total_winners_pos += intval($value);
+										// Prepare position data based on enhanced vs regular display
+										if ($is_enhanced && isset($lottery->enhanced_parsed_positions)) {
+											// Enhanced display for independent extra ball lotteries - positions
+											$position_number = $b;
+											$positions = isset($lottery->enhanced_parsed_positions[$position_number]) ? $lottery->enhanced_parsed_positions[$position_number] : array();
+											$total_winners_pos = array_sum($positions);
+											
+											// Calculate points for enhanced position display
+											$points_total_pos = 0;
+											$category_mapping = array(
+												'extra' => 1,
+												'1_win_extra' => 3,
+												'2_win' => 2,
+												'2_win_extra' => 1,
+												'3_win' => 3,
+												'3_win_extra' => 1,
+												'4_win' => 4,
+												'4_win_extra' => 1,
+												'5_win' => 5,
+												'5_win_extra' => 1
+											);
+											foreach ($positions as $category => $count) {
+												if (isset($category_mapping[$category])) {
+													$points_total_pos += intval($count) * $category_mapping[$category];
+												}
+											}
+										} else {
+											// Regular display
+											$positions = ($b > $cd ? $lottery->last_drawn['position_extra_win'] : $lottery->last_drawn['position'.$b.'_win']);
+											$total_winners_pos = 0;
+											$points_total_pos = 0;
+											foreach ($positions as $key => $value) {
+												if (strpos($key, "_points") === false) $total_winners_pos += intval($value);
+											}
 										}
 										?>
 										<table class="table table-bordered table-sm mb-3 w-100 mx-auto">
@@ -294,25 +423,54 @@
 											</thead>
 											<tbody>
 												<?php
-												foreach ($positions as $prize => $winners) {
-													if (strpos($prize, "_points") !== false) continue;
-													$points = isset($positions[$prize . '_points']) ? $positions[$prize . '_points'] : 0;
-													$points_total_pos += $points;
-													$percentage = $lottery->last_drawn['range'] > 0 ? round(($winners / $lottery->last_drawn['range']) * 100, 2) : 0;
-													switch ($prize) {
-														case "9_win": $label = "9 out of $cd Winners"; break;
-														case "8_win_extra": $label = "8 out of $cd Winners + Extra"; break;
-														case "8_win": $label = "8 out of $cd Winners"; break;
-														case "7_win_extra": $label = "7 out of $cd Winners + Extra"; break;
-														case "7_win": $label = "7 out of $cd Winners"; break;
-														case "6_win_extra": $label = "6 out of $cd Winners + Extra"; break;
-														case "6_win": $label = "6 out of $cd Winners"; break;
-														case "5_win_extra": $label = "5 out of $cd Winners + Extra"; break;
-														case "5_win": $label = "5 out of $cd Winners"; break;
-														case "4_win_extra": $label = "4 out of $cd Winners + Extra"; break;
-														case "4_win": $label = "4 out of $cd Winners"; break;
-														case "3_win_extra": $label = "3 out of $cd Winners + Extra"; break;
-														case "3_win": $label = "3 out of $cd Winners"; break;
+												if ($is_enhanced && isset($lottery->enhanced_parsed_positions)) {
+													// Enhanced display for independent extra ball lotteries - positions using associative array
+													$category_mapping = array(
+														'extra' => array('label' => 'Extra Only', 'points' => 1),
+														'1_win_extra' => array('label' => '1 Win + Extra', 'points' => 3),
+														'2_win' => array('label' => '2 Wins', 'points' => 2),
+														'2_win_extra' => array('label' => '2 Wins + Extra', 'points' => 1),
+														'3_win' => array('label' => '3 Wins', 'points' => 3),
+														'3_win_extra' => array('label' => '3 Wins + Extra', 'points' => 1),
+														'4_win' => array('label' => '4 Wins', 'points' => 4),
+														'4_win_extra' => array('label' => '4 Wins + Extra', 'points' => 1),
+														'5_win' => array('label' => '5 Wins', 'points' => 5),
+														'5_win_extra' => array('label' => '5 Wins + Extra', 'points' => 1)
+													);
+													
+													foreach ($category_mapping as $category_key => $category_info) {
+														$winners = isset($positions[$category_key]) ? intval($positions[$category_key]) : 0;
+														$points = $winners * $category_info['points'];
+														$percentage = $lottery->last_drawn['range'] > 0 ? round(($winners / $lottery->last_drawn['range']) * 100, 2) : 0;
+														?>
+														<tr>
+															<td><?= $category_info['label'] ?></td>
+															<td><?= $winners ?></td>
+															<td><?= $points ?></td>
+															<td><?= $percentage ?>%</td>
+														</tr>
+													<?php }
+												} else {
+													// Regular display
+													foreach ($positions as $prize => $winners) {
+														if (strpos($prize, "_points") !== false) continue;
+														$points = isset($positions[$prize . '_points']) ? $positions[$prize . '_points'] : 0;
+														$points_total_pos += $points;
+														$percentage = $lottery->last_drawn['range'] > 0 ? round(($winners / $lottery->last_drawn['range']) * 100, 2) : 0;
+														switch ($prize) {
+															case "9_win": $label = "9 out of $cd Winners"; break;
+															case "8_win_extra": $label = "8 out of $cd Winners + Extra"; break;
+															case "8_win": $label = "8 out of $cd Winners"; break;
+															case "7_win_extra": $label = "7 out of $cd Winners + Extra"; break;
+															case "7_win": $label = "7 out of $cd Winners"; break;
+															case "6_win_extra": $label = "6 out of $cd Winners + Extra"; break;
+															case "6_win": $label = "6 out of $cd Winners"; break;
+															case "5_win_extra": $label = "5 out of $cd Winners + Extra"; break;
+															case "5_win": $label = "5 out of $cd Winners"; break;
+															case "4_win_extra": $label = "4 out of $cd Winners + Extra"; break;
+															case "4_win": $label = "4 out of $cd Winners"; break;
+															case "3_win_extra": $label = "3 out of $cd Winners + Extra"; break;
+															case "3_win": $label = "3 out of $cd Winners"; break;
 														case "2_win_extra": $label = "2 out of $cd Winners + Extra"; break;
 														case "2_win": $label = "2 out of $cd Winners"; break;
 														case "1_win_extra": $label = "1 out of $cd Winners + Extra"; break;
@@ -327,7 +485,9 @@
 													<td><?= $points ?></td>
 													<td><?= $percentage ?>%</td>
 												</tr>
-												<?php } ?>
+												<?php }
+												}
+												?>
 											</tbody>
 											<tfoot>
 												<tr>

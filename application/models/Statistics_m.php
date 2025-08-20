@@ -6,6 +6,16 @@ class Statistics_m extends MY_Model
 	protected $_table_name = 'lottery_stats';
 	protected $_order_by = 'id';
 	
+	// Properties for enhanced follower calculation
+	private $followers_data = array();
+	private $extra_followers_data = array();
+	
+	public function __construct()
+	{
+		parent::__construct();
+		$this->load->model('lotteries_m');
+	}
+	
 	// Based on the lottery maximum range for the balls being drawn, miniumum ball = 11, maximum ball = 54 for any lottery created
 	public $hwc_defaults = array(
 				'11'	=>		'3-5-3',
@@ -4028,5 +4038,1239 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		}
 		
 		return null;
+	}
+
+	/**
+	 * Calculate follower wins for independent extra ball lotteries - DUPLICATE TO BE REMOVED
+	 * This method handles the enhanced prize calculation where extra ball is checked
+	 * against every main ball draw and position
+	 * 
+	 * @param string $table_name Lottery table name
+	 * @param int $lottery_id Lottery ID
+	 * @param int $range Number of draws to analyze (100, 200, 300, etc.)
+	 * @param bool $extra_included Include extra ball in calculations
+	 * @param bool $extra_draws Include extra draws (draws with extra=0)
+	 * @return array|false Follower wins data or false if insufficient draws
+	 */
+	public function calculate_independent_extra_follower_wins_OLD($table_name, $lottery_id, $range, $extra_included = true, $extra_draws = false)
+	{
+		// Validate range against total available draws
+		$total_draws = $this->count_draws($table_name);
+		$required_draws = $range * 2; // Need range for followers + range for prizes
+		
+		if ($total_draws < $required_draws) {
+			$previous_draws = $total_draws - $range;
+			return array(
+				'error' => "Not Allowed: {$range} Draws (Last {$range} plus {$range} previous draws) because the total draws is {$total_draws}. {$previous_draws} previous draws does not exist!!"
+			);
+		}
+		
+		// Get lottery configuration
+		$lottery = $this->lotteries_m->get($lottery_id);
+		$balls_drawn = $lottery->balls_drawn;
+		$max_ball = $lottery->maximum_ball;
+		$max_extra = $lottery->maximum_extra_ball;
+		
+		// Check if range has changed - if so, do complete recalc
+		$existing_follower = $this->db->select('range')->where('lottery_id', $lottery_id)->get('lottery_followers')->row();
+		$complete_recalc = !$existing_follower || $existing_follower->range != $range;
+
+		if ($complete_recalc) {
+			return $this->do_complete_recalc_independent_OLD($table_name, $lottery_id, $range, $lottery, $extra_included, $extra_draws);
+		} else {
+			return $this->do_sliding_window_update_independent_OLD($table_name, $lottery_id, $range, $lottery, $extra_included, $extra_draws);
+		}
+	}
+
+	/**
+	 * Perform complete recalculation for independent extra ball lotteries
+	 * Clears all existing wins and recalculates from scratch
+	 */
+	private function do_complete_recalc_independent_OLD($table_name, $lottery_id, $range, $lottery, $extra_included, $extra_draws)
+	{
+		$balls_drawn = $lottery->balls_drawn;
+		$max_ball = $lottery->maximum_ball;
+		$max_extra = $lottery->maximum_extra_ball;
+		
+		// Get prize profile for this lottery
+		$prize_profile = $this->get_prize_profile($lottery_id);
+		
+		// Phase 1: Get follower totals for first range (1 to $range)
+		$follower_data = $this->calculate_follower_totals($table_name, $range, $extra_included, $extra_draws, true);
+		
+		// Phase 2: Calculate prizes for next range (range+1 to range*2) - starts with all wins = 0
+		$number_wins = array();
+		for ($i = 1; $i <= $max_ball; $i++) {
+			$number_wins[$i] = $this->initialize_prize_counters($prize_profile);
+		}
+		
+		$position_wins = array();
+		for ($i = 1; $i <= $balls_drawn + 1; $i++) { // +1 for extra position
+			$position_wins[$i] = $this->initialize_prize_counters($prize_profile);
+		}
+		
+		// Process draws from (range+1) to (range*2)
+		$start_draw = $range + 1;
+		$end_draw = $range * 2;
+		
+		$draws = $this->db->select('*')
+						 ->where("id >= {$start_draw}")
+						 ->where("id <= {$end_draw}")
+						 ->order_by('id', 'ASC')
+						 ->get($table_name)
+						 ->result();
+		
+		foreach ($draws as $draw) {
+			$this->process_independent_extra_draw($draw, $follower_data, $number_wins, $position_wins, $prize_profile, $balls_drawn, $max_extra);
+		}
+		
+		// Format and save to lottery_followers table (keep original format for now)
+		$wins_string = $this->format_wins_string_with_separator_OLD($number_wins, $max_extra);
+		$positions_string = $this->format_positions_string_OLD($position_wins);
+		
+		// Save/update lottery_followers record
+		$follower_record = array(
+			'lottery_id' => $lottery_id,
+			'range' => $range,
+			'wins' => $wins_string,
+			'positions' => $positions_string,
+			'created_at' => date('Y-m-d H:i:s'),
+			'updated_at' => date('Y-m-d H:i:s')
+		);
+		
+		// Delete existing and insert new
+		$this->db->where('lottery_id', $lottery_id)->delete('lottery_followers');
+		$this->db->insert('lottery_followers', $follower_record);
+		
+		return array(
+			'success' => true,
+			'range' => $range,
+			'total_draws' => $this->count_draws($table_name),
+			'wins_string' => $wins_string,
+			'positions_string' => $positions_string,
+			'type' => 'complete_recalc'
+		);
+	}
+
+	/**
+	 * Perform sliding window update for independent extra ball lotteries
+	 * Remove oldest draw and add newest draw
+	 */
+	private function do_sliding_window_update_independent_OLD($table_name, $lottery_id, $range, $lottery, $extra_included, $extra_draws)
+	{
+		// Get existing data
+		$existing = $this->db->where('lottery_id', $lottery_id)->get('lottery_followers')->row();
+		if (!$existing) {
+			// No existing data, do complete recalc
+			return $this->do_complete_recalc_independent_OLD($table_name, $lottery_id, $range, $lottery, $extra_included, $extra_draws);
+		}
+		
+		// Parse existing wins and positions
+		$number_wins = $this->parse_wins_string_with_separator_OLD($existing->wins, $lottery->maximum_ball, $lottery->maximum_extra_ball);
+		$position_wins = $this->parse_positions_string($existing->positions);
+		
+		// Get prize profile
+		$prize_profile = $this->get_prize_profile($lottery_id);
+		
+		// Get total draws to determine which draws to remove/add
+		$total_draws = $this->count_draws($table_name);
+		$oldest_prize_draw = $total_draws - ($range * 2) + 1; // First draw in prize calculation range
+		$newest_draw = $total_draws; // Latest draw
+		
+		// Remove the oldest draw from prize calculations
+		$old_draw = $this->db->where('id', $oldest_prize_draw)->get($table_name)->row();
+		if ($old_draw) {
+			$this->remove_independent_extra_draw($old_draw, $number_wins, $position_wins, $prize_profile, $lottery->balls_drawn, $lottery->maximum_extra_ball);
+		}
+		
+		// Add the newest draw to prize calculations  
+		$new_draw = $this->db->where('id', $newest_draw)->get($table_name)->row();
+		if ($new_draw) {
+			// Need updated follower data for the new sliding window
+			$follower_data = $this->calculate_follower_totals($table_name, $range, $extra_included, $extra_draws, true);
+			$this->process_independent_extra_draw($new_draw, $follower_data, $number_wins, $position_wins, $prize_profile, $lottery->balls_drawn, $lottery->maximum_extra_ball);
+		}
+		
+		// Format and update
+		$wins_string = $this->format_wins_string_with_separator_OLD($number_wins, $lottery->maximum_extra_ball);
+		$positions_string = $this->format_positions_string_OLD($position_wins);
+		
+		// Update lottery_followers record
+		$this->db->where('lottery_id', $lottery_id)
+				 ->update('lottery_followers', array(
+					 'wins' => $wins_string,
+					 'positions' => $positions_string,
+					 'updated_at' => date('Y-m-d H:i:s')
+				 ));
+		
+		return array(
+			'success' => true,
+			'range' => $range,
+			'total_draws' => $total_draws,
+			'wins_string' => $wins_string,
+			'positions_string' => $positions_string,
+			'type' => 'sliding_window'
+		);
+	}
+
+	/**
+	 * Format wins string with # separator for main balls and extra ball
+	 * Format: main_balls#extra_ball
+	 */
+	private function format_wins_string_with_separator_OLD($number_wins, $max_extra)
+	{
+		$main_parts = array();
+		$extra_parts = array();
+		
+		// Process main balls (keys that are numeric and within main range)
+		foreach ($number_wins as $number => $wins) {
+			if (is_numeric($number) && $number <= 49) { // Assuming main balls 1-49 for Daily Grand
+				$win_values = array();
+				foreach ($wins as $category => $count) {
+					$win_values[] = $count;
+				}
+				$main_parts[] = $number . '>' . implode(',', $win_values);
+			}
+		}
+		
+		// Process extra balls (1 to max_extra)
+		for ($i = 1; $i <= $max_extra; $i++) {
+			if (isset($number_wins['extra_' . $i])) {
+				$wins = $number_wins['extra_' . $i];
+				$win_values = array();
+				foreach ($wins as $category => $count) {
+					$win_values[] = $count;
+				}
+				$extra_parts[] = $i . '>' . implode(',', $win_values);
+			}
+		}
+		
+		// Combine with # separator
+		$main_string = implode('<', $main_parts);
+		$extra_string = implode('<', $extra_parts);
+		
+		return $main_string . '#' . $extra_string;
+	}
+
+	/**
+	 * Parse wins string with # separator back into array format
+	 */
+	public function parse_wins_string_with_separator_OLD($wins_string, $max_ball, $max_extra, $lottery_id = 15)
+	{
+		$number_wins = array();
+		
+		if (empty($wins_string)) {
+			return $number_wins;
+		}
+		
+		// Get the prize profile for proper category mapping
+		$prize_profile = $this->get_prize_profile($lottery_id);
+		$category_names = array_keys(array_filter($prize_profile, function($value) { return $value == 1; }));
+		
+		// Debug logging
+		log_message('debug', "Prize profile for lottery $lottery_id: " . print_r($prize_profile, true));
+		log_message('debug', "Active categories: " . print_r($category_names, true));
+		
+		// Check if data has # separator (main#extra format)
+		if (strpos($wins_string, '#') !== false) {
+			// New format with # separator
+			$parts = explode('#', $wins_string);
+			$main_string = isset($parts[0]) ? $parts[0] : '';
+			$extra_string = isset($parts[1]) ? $parts[1] : '';
+			
+			// Parse main balls
+			if (!empty($main_string)) {
+				$main_entries = explode('>', $main_string);
+				foreach ($main_entries as $idx => $entry) {
+					if (empty($entry)) continue;
+					$entry_parts = explode(',', $entry);
+					$number = $idx + 1;
+					if ($number <= $max_ball) {
+						// Map numeric indexes to category names
+						$categorized_wins = array();
+						foreach ($entry_parts as $cat_idx => $count) {
+							if (isset($category_names[$cat_idx])) {
+								$categorized_wins[$category_names[$cat_idx]] = intval($count);
+							}
+						}
+						$number_wins[$number] = $categorized_wins;
+					}
+				}
+			}
+			
+			// Parse extra balls
+			if (!empty($extra_string)) {
+				$extra_entries = explode('>', $extra_string);
+				foreach ($extra_entries as $idx => $entry) {
+					if (empty($entry)) continue;
+					$entry_parts = explode(',', $entry);
+					$number = $idx + 1;
+					if ($number <= $max_extra) {
+						// Map numeric indexes to category names
+						$categorized_wins = array();
+						foreach ($entry_parts as $cat_idx => $count) {
+							if (isset($category_names[$cat_idx])) {
+								$categorized_wins[$category_names[$cat_idx]] = intval($count);
+							}
+						}
+						$number_wins['extra_' . $number] = $categorized_wins;
+					}
+				}
+			}
+		} else {
+			// Old format without # separator - assume sequential: main balls 1-max_ball, then extra balls 1-max_extra
+			$entries = explode('>', $wins_string);
+			$entry_index = 0;
+			
+			// Parse main balls (1 to max_ball)
+			for ($number = 1; $number <= $max_ball && $entry_index < count($entries); $number++) {
+				if (!empty($entries[$entry_index])) {
+					$wins = explode(',', $entries[$entry_index]);
+					// Map numeric indexes to category names
+					$categorized_wins = array();
+					foreach ($wins as $cat_idx => $count) {
+						if (isset($category_names[$cat_idx])) {
+							$categorized_wins[$category_names[$cat_idx]] = intval($count);
+						}
+					}
+					$number_wins[$number] = $categorized_wins;
+				}
+				$entry_index++;
+			}
+			
+			// Parse extra balls (1 to max_extra)
+			for ($number = 1; $number <= $max_extra && $entry_index < count($entries); $number++) {
+				if (!empty($entries[$entry_index])) {
+					$wins = explode(',', $entries[$entry_index]);
+					// Map numeric indexes to category names
+					$categorized_wins = array();
+					foreach ($wins as $cat_idx => $count) {
+						if (isset($category_names[$cat_idx])) {
+							$categorized_wins[$category_names[$cat_idx]] = intval($count);
+						}
+					}
+					$number_wins['extra_' . $number] = $categorized_wins;
+				}
+				$entry_index++;
+			}
+		}
+		
+		return $number_wins;
+	}
+
+	/**
+	 * Calculate prizes for independent extra ball lotteries
+	 * Checks extra ball against every main ball draw and position
+	 */
+	private function calculate_independent_extra_prizes($table_name, $range, $follower_data, $prize_profile, $balls_drawn, $max_ball, $max_extra, $min_extra)
+	{
+		// Initialize prize counters for each number (1 to max_ball)
+		$number_wins = array();
+		for ($i = 1; $i <= $max_ball; $i++) {
+			$number_wins[$i] = $this->initialize_prize_counters($prize_profile);
+		}
+		
+		// Initialize prize counters for each position (1 to balls_drawn + extra)
+		$position_wins = array();
+		for ($i = 1; $i <= $balls_drawn + 1; $i++) { // +1 for extra position
+			$position_wins[$i] = $this->initialize_prize_counters($prize_profile);
+		}
+		
+		// Get draws for prize calculation phase
+		$prize_draws = $this->get_draws_for_range($table_name, $range, true); // Second range
+		
+		foreach ($prize_draws as $draw) {
+			// Extract main balls and extra ball
+			$main_balls = array();
+			for ($b = 1; $b <= $balls_drawn; $b++) {
+				$main_balls[$b] = $draw['ball' . $b];
+			}
+			$extra_ball = $draw['extra'];
+			
+			// For each main ball position
+			for ($position = 1; $position <= $balls_drawn; $position++) {
+				$ball_number = $main_balls[$position];
+				
+				// Check main ball followers/non-followers
+				$main_followers = $this->get_ball_followers($ball_number, $follower_data['main_followers']);
+				$main_count = $this->count_matching_balls($main_balls, $main_followers);
+				
+				// Check extra ball followers for this main ball (ENHANCED LOGIC)
+				$extra_followers = $this->get_ball_extra_followers($ball_number, $follower_data['extra_followers']);
+				$extra_match = in_array($extra_ball, $extra_followers);
+				
+				// Calculate prize category based on main count + extra match
+				$prize_category = $this->determine_prize_category($main_count, $extra_match, $prize_profile);
+				
+				// Update counters
+				if ($prize_category) {
+					$number_wins[$ball_number][$prize_category]++;
+					$position_wins[$position][$prize_category]++;
+				}
+			}
+			
+			// Handle extra ball position separately
+			$extra_followers = $this->get_ball_followers($extra_ball, $follower_data['extra_followers']);
+			$extra_count = ($extra_ball && in_array($extra_ball, $extra_followers)) ? 1 : 0;
+			
+			if ($extra_count > 0 && isset($prize_profile['extra'])) {
+				$position_wins[$balls_drawn + 1]['extra']++;
+			}
+		}
+		
+		return array(
+			'number_wins' => $number_wins,
+			'position_wins' => $position_wins
+		);
+	}
+
+	/**
+	 * Determine prize category for independent extra ball lotteries
+	 * Handles combinations of main balls + extra ball matches
+	 */
+	private function determine_prize_category($main_count, $extra_match, $prize_profile)
+	{
+		if ($main_count == 0 && !$extra_match) {
+			return null; // No winners
+		}
+		
+		// Check for extra only
+		if ($main_count == 0 && $extra_match && isset($prize_profile['extra'])) {
+			return 'extra';
+		}
+		
+		// Check for main + extra combinations
+		if ($main_count > 0 && $extra_match) {
+			$combo_key = $main_count . '_win_extra';
+			if (isset($prize_profile[$combo_key])) {
+				return $combo_key;
+			}
+		}
+		
+		// Check for main only
+		if ($main_count > 0) {
+			$main_key = $main_count . '_win';
+			if (isset($prize_profile[$main_key])) {
+				return $main_key;
+			}
+		}
+		
+		return null;
+	}
+
+	/**
+	 * Initialize prize counters based on prize profile
+	 */
+	private function initialize_prize_counters($prize_profile)
+	{
+		$counters = array();
+		foreach ($prize_profile as $category => $value) {
+			if ($value == 1) { // Only include active prize categories
+				$counters[$category] = 0;
+			}
+		}
+		return $counters;
+	}
+
+	/**
+	 * Get prize profile for a lottery
+	 */
+	private function get_prize_profile($lottery_id)
+	{
+		$query = $this->db->select('*')
+						  ->where('lottery_id', $lottery_id)
+						  ->get('lottery_prize_profiles');
+		
+		if ($query->num_rows() > 0) {
+			return $query->row_array();
+		}
+		
+		// Return default profile if none exists
+		return array(
+			'extra' => 1,
+			'1_win' => 1,
+			'1_win_extra' => 1,
+			'2_win' => 1,
+			'2_win_extra' => 1,
+			'3_win' => 1,
+			'3_win_extra' => 1,
+			'4_win' => 1,
+			'4_win_extra' => 1,
+			'5_win' => 1,
+			'5_win_extra' => 1
+		);
+	}
+
+	/**
+	 * Count total draws in a lottery table
+	 */
+	private function count_draws($table_name)
+	{
+		if (!$this->lotteries_m->lotto_table_exists($table_name)) {
+			return 0;
+		}
+		
+		$query = $this->db->select('COUNT(*) as total')
+						  ->from($table_name)
+						  ->get();
+		
+		return $query->row()->total;
+	}
+
+	/**
+	 * Format wins string for database storage
+	 * Format: 1>10,27,24,22,10,5,2,0<2>10,27,24,22,10,5,2,0<...
+	 */
+	private function format_wins_string($number_wins)
+	{
+		$result = '';
+		foreach ($number_wins as $number => $wins) {
+			$result .= $number . '>';
+			$win_values = array();
+			foreach ($wins as $category => $count) {
+				$win_values[] = $count;
+			}
+			$result .= implode(',', $win_values) . '<';
+		}
+		return rtrim($result, '<');
+	}
+
+	/**
+	 * Format positions string for database storage
+	 * Format: <1>10,27,24,22,10,5,2,0<2>10,27,24,22,10,5,2,0<...
+	 */
+	private function format_positions_string_OLD($position_wins)
+	{
+		$result = '';
+		foreach ($position_wins as $position => $wins) {
+			$pos_label = ($position <= 9) ? $position : 'E'; // Extra position
+			$result .= '<' . $pos_label . '>';
+			$win_values = array();
+			foreach ($wins as $category => $count) {
+				// Handle case where count might be an array (debugging safeguard)
+				if (is_array($count)) {
+					$count = array_sum($count); // Sum if it's an array
+				}
+				$win_values[] = $count;
+			}
+			$result .= implode(',', $win_values);
+		}
+		return $result;
+	}
+
+	/**
+	 * Calculate follower totals for a given range
+	 * This is Phase 1 of the two-phase calculation process
+	 */
+	private function calculate_follower_totals($table_name, $range, $extra_included, $extra_draws, $is_independent_extra = false)
+	{
+		// Get the initial range of draws for follower calculation
+		$follower_draws = $this->get_draws_for_range($table_name, $range, false); // First range
+		
+		$main_followers = array();
+		$extra_followers = array();
+		
+		// Process each draw to build follower relationships
+		foreach ($follower_draws as $i => $draw) {
+			if ($i == 0) continue; // Skip first draw (no previous draw to compare)
+			
+			$prev_draw = $follower_draws[$i - 1];
+			$current_draw = $draw;
+			
+			// Extract balls from previous draw
+			$prev_main_balls = array();
+			for ($b = 1; $b <= 10; $b++) { // Up to 10 balls max
+				if (isset($prev_draw['ball' . $b])) {
+					$prev_main_balls[] = $prev_draw['ball' . $b];
+				}
+			}
+			$prev_extra = $prev_draw['extra'];
+			
+			// Extract balls from current draw
+			$curr_main_balls = array();
+			for ($b = 1; $b <= 10; $b++) {
+				if (isset($current_draw['ball' . $b])) {
+					$curr_main_balls[] = $current_draw['ball' . $b];
+				}
+			}
+			$curr_extra = $current_draw['extra'];
+			
+			// Build main ball follower relationships
+			foreach ($prev_main_balls as $prev_ball) {
+				if (!isset($main_followers[$prev_ball])) {
+					$main_followers[$prev_ball] = array();
+				}
+				foreach ($curr_main_balls as $curr_ball) {
+					if (!in_array($curr_ball, $main_followers[$prev_ball])) {
+						$main_followers[$prev_ball][] = $curr_ball;
+					}
+				}
+			}
+			
+			// Build extra ball follower relationships (independent tracking)
+			if ($is_independent_extra && $extra_included) {
+				// For independent extra ball lotteries, track extra followers for each main ball
+				foreach ($prev_main_balls as $prev_ball) {
+					if (!isset($extra_followers[$prev_ball])) {
+						$extra_followers[$prev_ball] = array();
+					}
+					if ($curr_extra && !in_array($curr_extra, $extra_followers[$prev_ball])) {
+						$extra_followers[$prev_ball][] = $curr_extra;
+					}
+				}
+				
+				// Also track extra-to-extra relationships
+				if ($prev_extra) {
+					if (!isset($extra_followers[$prev_extra])) {
+						$extra_followers[$prev_extra] = array();
+					}
+					if ($curr_extra && !in_array($curr_extra, $extra_followers[$prev_extra])) {
+						$extra_followers[$prev_extra][] = $curr_extra;
+					}
+				}
+			}
+		}
+		
+		return array(
+			'main_followers' => $main_followers,
+			'extra_followers' => $extra_followers
+		);
+	}
+
+	/**
+	 * Get draws for a specific range (first or second half)
+	 */
+	private function get_draws_for_range($table_name, $range, $second_half = false)
+	{
+		$offset = $second_half ? 0 : $range; // Second half starts from most recent, first half is offset by range
+		
+		$query = $this->db->select('*')
+						  ->from($table_name)
+						  ->order_by('draw_date', 'DESC')
+						  ->limit($range, $offset)
+						  ->get();
+		
+		$draws = $query->result_array();
+		
+		// Reverse to get chronological order
+		return array_reverse($draws);
+	}
+
+	/**
+	 * Get followers for a specific ball number
+	 */
+	private function get_ball_followers($ball_number, $followers_data)
+	{
+		return isset($followers_data[$ball_number]) ? $followers_data[$ball_number] : array();
+	}
+
+	/**
+	 * Get extra ball followers for a specific main ball number
+	 */
+	private function get_ball_extra_followers($ball_number, $extra_followers_data)
+	{
+		return isset($extra_followers_data[$ball_number]) ? $extra_followers_data[$ball_number] : array();
+	}
+
+	/**
+	 * Calculate enhanced follower wins for independent extra ball lotteries
+	 * Uses existing lottery_followers table with correct format and complete vs sliding window logic
+	 */
+	public function calculate_independent_extra_follower_wins($lottery_id, $range, $extra_included = 1, $extra_draws = null)
+	{
+		try {
+			// Check if this is a range change (complete recalc) or same range (sliding window)
+			$existing_data = $this->db->select('range')
+									  ->where('lottery_id', $lottery_id)
+									  ->get('lottery_followers')
+									  ->row();
+									  
+			$is_range_change = !$existing_data || $existing_data->range != $range;
+			
+			if ($is_range_change) {
+				// For range changes, use original calculation to regenerate fresh follower data
+				log_message('info', "Range change detected for lottery $lottery_id (old: " . 
+					($existing_data ? $existing_data->range : 'none') . ", new: $range), using original calculation");
+				
+				// Get lottery information for original calculation
+				$lottery = $this->lotteries_m->get($lottery_id);
+				$table_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+				
+				return $this->calculate_independent_extra_follower_wins_OLD($table_name, $lottery_id, $range, $extra_included, $extra_draws);
+			} else {
+				// Sliding window update for same range
+				return $this->do_sliding_window_update_independent($lottery_id, $range, $extra_included, $extra_draws);
+			}
+		} catch (Exception $e) {
+			log_message('error', 'Enhanced follower calculation failed: ' . $e->getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * Perform complete recalculation for independent extra ball lotteries
+	 */
+	private function do_complete_recalc_independent($lottery_id, $range, $extra_included, $extra_draws)
+	{
+		// Get lottery information
+		$lottery = $this->lotteries_m->get($lottery_id);
+		if (!$lottery) {
+			throw new Exception("Lottery not found: $lottery_id");
+		}
+
+		// Verify this is an independent extra ball lottery
+		if ($lottery->duplicate_extra_ball != 1) {
+			throw new Exception("This method is only for independent extra ball lotteries");
+		}
+
+		// Get table name and verify it exists
+		$table_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+		if (!$this->lotteries_m->lotto_table_exists($table_name)) {
+			throw new Exception("Lottery table does not exist: $table_name");
+		}
+
+		// Get the last draws for calculation
+		$draws = $this->get_last_draws($table_name, $range);
+		if (empty($draws)) {
+			throw new Exception("No draws found for calculation");
+		}
+
+		// Load follower data for enhanced calculation
+		$this->load_follower_data_for_enhanced_calculation($lottery_id);
+		
+		// Check if we have follower data - if not, fall back to original calculation
+		if (empty($this->followers_data) && empty($this->extra_followers_data)) {
+			log_message('info', "No follower data found for lottery $lottery_id, falling back to original calculation");
+			return $this->calculate_independent_extra_follower_wins_OLD($table_name, $lottery_id, $range, $extra_included, $extra_draws);
+		}
+		
+		// Log that we're using enhanced calculation with existing data
+		log_message('info', "Using enhanced calculation for lottery $lottery_id with " . 
+			count($this->followers_data) . " main followers and " . 
+			count($this->extra_followers_data) . " extra followers");
+
+		// Calculate wins for each number (1 to lottery max)
+		$wins_data = array();
+		$position_data = array();
+
+		for ($number = 1; $number <= $lottery->maximum_ball; $number++) {
+			$result = $this->calculate_independent_extra_wins_for_number($number, $draws, $lottery);
+			$wins_data[$number] = $result['wins'];
+			
+			// Merge position data from this number into overall position data
+			foreach ($result['positions'] as $position => $position_wins) {
+				if (!isset($position_data[$position])) {
+					$position_data[$position] = array_fill(0, 12, 0);
+				}
+				foreach ($position_wins as $category => $count) {
+					$position_data[$position][$category] += $count;
+				}
+			}
+		}
+
+		// Get the latest draw ID for tracking
+		$latest_draw = $this->db->select('id')
+							   ->order_by('id', 'DESC')
+							   ->limit(1)
+							   ->get($table_name)
+							   ->row();
+		$latest_draw_id = $latest_draw ? $latest_draw->id : 0;
+
+		// Get existing followers data (we keep the same followers, just update wins)
+		$existing_followers = $this->db->select('lottery_followers')
+									   ->where('lottery_id', $lottery_id)
+									   ->get('lottery_followers')
+									   ->row();
+		$followers_data = $existing_followers ? $existing_followers->lottery_followers : '';
+
+		// Format the data with # separator
+		$formatted_wins = $this->format_wins_string_with_separator($wins_data);
+		$formatted_positions = $this->format_positions_string_OLD($position_data);
+
+		// Save to lottery_followers table
+		$save_data = array(
+			'lottery_id' => $lottery_id,
+			'range' => $range,
+			'lottery_followers' => $followers_data,
+			'wins' => $formatted_wins,
+			'positions' => $formatted_positions,
+			'draw_id' => $latest_draw_id,
+			'extra_included' => $extra_included,
+			'extra_draws' => $extra_draws
+		);
+
+		// Delete existing data and insert new
+		$this->db->where('lottery_id', $lottery_id)->delete('lottery_followers');
+		$this->db->insert('lottery_followers', $save_data);
+
+		return $save_data;
+	}
+
+	/**
+	 * Perform sliding window update for same range
+	 */
+	private function do_sliding_window_update_independent($lottery_id, $range, $extra_included, $extra_draws)
+	{
+		// Get lottery information
+		$lottery = $this->lotteries_m->get($lottery_id);
+		if (!$lottery) {
+			throw new Exception("Lottery not found: $lottery_id");
+		}
+
+		// Get table name
+		$table_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+		
+		// Get existing wins data
+		$existing_data = $this->db->select('wins, positions')
+								  ->where('lottery_id', $lottery_id)
+								  ->get('lottery_followers')
+								  ->row();
+
+		if (!$existing_data) {
+			// No existing data, do complete recalc
+			return $this->do_complete_recalc_independent($lottery_id, $range, $extra_included, $extra_draws);
+		}
+
+		// Parse existing data
+		$existing_wins = $this->parse_wins_string_with_separator($existing_data->wins);
+		$existing_positions = $this->parse_positions_string($existing_data->positions);
+
+		// Get the latest draw to add
+		$latest_draw = $this->get_latest_draw($table_name);
+		if (!$latest_draw) {
+			return false;
+		}
+
+		// Get the oldest draw in current range to remove
+		$oldest_draw = $this->get_draw_at_position($table_name, $range + 1);
+
+		// Update each number's statistics
+		$updated_wins = array();
+		$updated_positions = array();
+
+		for ($number = 1; $number <= $lottery->maximum_ball; $number++) {
+			// Start with existing data
+			$wins = isset($existing_wins[$number]) ? $existing_wins[$number] : array_fill(0, 12, 0);
+			$positions = isset($existing_positions[$number]) ? $existing_positions[$number] : array();
+
+			// Remove oldest draw impact if it exists
+			if ($oldest_draw) {
+				$this->remove_draw_impact_independent($number, $oldest_draw, $wins, $positions, $lottery);
+			}
+
+			// Add latest draw impact
+			$this->add_draw_impact_independent($number, $latest_draw, $wins, $positions, $lottery);
+
+			$updated_wins[$number] = $wins;
+			$updated_positions[$number] = $positions;
+		}
+
+		// Format and save updated data
+		$formatted_wins = $this->format_wins_string_with_separator($updated_wins);
+		$formatted_positions = $this->format_positions_string_OLD($updated_positions);
+
+		$update_data = array(
+			'wins' => $formatted_wins,
+			'positions' => $formatted_positions
+		);
+
+		$this->db->where('lottery_id', $lottery_id)->update('lottery_followers', $update_data);
+
+		return array_merge($update_data, array('lottery_id' => $lottery_id, 'range' => $range));
+	}
+
+	/**
+	 * Calculate wins for a specific number in independent extra ball lottery
+	 * This includes both direct wins and follower wins
+	 */
+	private function calculate_independent_extra_wins_for_number($number, $draws, $lottery)
+	{
+		$wins = array_fill(0, 12, 0); // 12 categories for enhanced tracking
+		$positions = array();
+
+		// Get follower data for this number
+		$follower_data = $this->get_ball_followers($number, isset($this->followers_data) ? $this->followers_data : array());
+		$extra_follower_data = $this->get_ball_extra_followers($number, isset($this->extra_followers_data) ? $this->extra_followers_data : array());
+
+		foreach ($draws as $draw) {
+			$main_balls = $this->parse_main_balls($draw, $lottery);
+			$extra_ball = $this->parse_extra_ball($draw, $lottery);
+
+			// 1. Check for direct wins (when the number itself appears)
+			$main_matches = in_array($number, $main_balls) ? 1 : 0;
+			$extra_match = ($number == $extra_ball) ? 1 : 0;
+			
+			// 2. Check for follower wins (when follower numbers appear)
+			$follower_main_matches = 0;
+			$follower_extra_matches = 0;
+			
+			if ($follower_data && !$main_matches) {
+				// Check if any main ball followers appeared
+				foreach ($main_balls as $drawn_ball) {
+					if (in_array($drawn_ball, $follower_data)) {
+						$follower_main_matches++;
+					}
+				}
+			}
+			
+			if ($extra_follower_data && !$extra_match) {
+				// Check if extra ball follower appeared
+				if (in_array($extra_ball, $extra_follower_data)) {
+					$follower_extra_matches = 1;
+				}
+			}
+			
+			// 3. Calculate total matches including both direct and follower
+			$total_main_matches = $main_matches + ($follower_main_matches > 0 ? 1 : 0);
+			$total_extra_matches = $extra_match + $follower_extra_matches;
+			$total_matches = $total_main_matches + $total_extra_matches;
+
+			// 4. Determine category index based on enhanced logic
+			$category_index = $this->get_enhanced_category_index($total_main_matches, $total_extra_matches, $total_matches);
+			
+			if ($category_index !== false) {
+				$wins[$category_index]++;
+				
+				// Track position if main ball match (direct or follower)
+				if ($main_matches > 0) {
+					$position = array_search($number, $main_balls) + 1;
+					if (!isset($positions[$position])) {
+						$positions[$position] = array_fill(0, 12, 0);
+					}
+					$positions[$position][$category_index]++;
+				} elseif ($follower_main_matches > 0) {
+					// For follower matches, use first position of follower that matched
+					foreach ($main_balls as $pos => $drawn_ball) {
+						if ($follower_data && in_array($drawn_ball, $follower_data)) {
+							$position = $pos + 1;
+							if (!isset($positions[$position])) {
+								$positions[$position] = array_fill(0, 12, 0);
+							}
+							$positions[$position][$category_index]++;
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		return array('wins' => $wins, 'positions' => $positions);
+	}
+
+	/**
+	 * Get enhanced category index for independent extra ball tracking
+	 */
+	private function get_enhanced_category_index($main_matches, $extra_match, $total_matches)
+	{
+		// Enhanced tracking categories:
+		// 0: No matches
+		// 1: Extra ball only
+		// 2: 1 main ball only
+		// 3: 1 main ball + extra ball
+		// 4-11: Additional categories for enhanced tracking
+
+		if ($total_matches == 0) {
+			return 0; // No matches
+		} elseif ($main_matches == 0 && $extra_match == 1) {
+			return 1; // Extra ball only
+		} elseif ($main_matches == 1 && $extra_match == 0) {
+			return 2; // 1 main ball only
+		} elseif ($main_matches == 1 && $extra_match == 1) {
+			return 3; // 1 main ball + extra ball
+		}
+
+		// Additional enhanced categories for more complex tracking
+		return min(11, 4 + $total_matches - 2);
+	}
+
+	/**
+	 * Format wins string with separator for independent extra ball lotteries
+	 */
+	private function format_wins_string_with_separator($wins_data)
+	{
+		$formatted_parts = array();
+		
+		foreach ($wins_data as $number => $wins) {
+			// Split wins into main and extra categories
+			$main_wins = array_slice($wins, 0, 6); // First 6 categories for main balls
+			$extra_wins = array_slice($wins, 6, 6); // Next 6 categories for extra balls
+			
+			$main_string = implode(',', $main_wins);
+			$extra_string = implode(',', $extra_wins);
+			
+			$formatted_parts[] = $number . '>' . $main_string . '#' . $extra_string;
+		}
+		
+		return '<' . implode('<', $formatted_parts);
+	}
+
+	/**
+	 * Parse wins string with separator format
+	 */
+	public function parse_wins_string_with_separator($wins_string)
+	{
+		$parsed = array();
+		$numbers = explode('<', $wins_string);
+		
+		foreach ($numbers as $number_data) {
+			if (empty($number_data)) continue;
+			
+			$parts = explode('>', $number_data);
+			if (count($parts) != 2) continue;
+			
+			$number = $parts[0];
+			
+			// Check for new format with # separator
+			if (strpos($parts[1], '#') !== false) {
+				list($main_wins, $extra_wins) = explode('#', $parts[1]);
+				$main_wins_array = explode(',', $main_wins);
+				$extra_wins_array = explode(',', $extra_wins);
+				
+				// Combine them in the expected order
+				$parsed[$number] = array_merge($main_wins_array, $extra_wins_array);
+			} else {
+				// Legacy format fallback
+				$wins = explode(',', $parts[1]);
+				$parsed[$number] = $wins;
+			}
+		}
+		
+		return $parsed;
+	}
+
+	/**
+	 * Count how many balls in the current draw match the followers list
+	 */
+	private function count_matching_balls($current_balls, $followers)
+	{
+		$count = 0;
+		foreach ($current_balls as $ball) {
+			if (in_array($ball, $followers)) {
+				$count++;
+			}
+		}
+		return $count;
+	}
+
+	/**
+	 * Get last N draws from a lottery table
+	 */
+	private function get_last_draws($table_name, $count)
+	{
+		$query = $this->db->select('*')
+						  ->order_by('id', 'DESC')
+						  ->limit($count)
+						  ->get($table_name);
+		
+		$draws = $query->result_array();
+		
+		// Reverse to get chronological order
+		return array_reverse($draws);
+	}
+
+	/**
+	 * Get latest draw from a lottery table
+	 */
+	private function get_latest_draw($table_name)
+	{
+		$query = $this->db->select('*')
+						  ->order_by('id', 'DESC')
+						  ->limit(1)
+						  ->get($table_name);
+		
+		return $query->row_array();
+	}
+
+	/**
+	 * Get draw at specific position from latest
+	 */
+	private function get_draw_at_position($table_name, $position)
+	{
+		$query = $this->db->select('*')
+						  ->order_by('id', 'DESC')
+						  ->limit(1, $position - 1) // Skip (position-1) records
+						  ->get($table_name);
+		
+		return $query->row_array();
+	}
+
+	/**
+	 * Parse main balls from a draw record
+	 */
+	private function parse_main_balls($draw, $lottery)
+	{
+		$balls = array();
+		for ($i = 1; $i <= $lottery->balls_drawn; $i++) {
+			$field = 'ball' . $i;
+			if (isset($draw[$field])) {
+				$balls[] = intval($draw[$field]);
+			}
+		}
+		return $balls;
+	}
+
+	/**
+	 * Parse extra ball from a draw record
+	 */
+	private function parse_extra_ball($draw, $lottery)
+	{
+		return isset($draw['extra']) ? intval($draw['extra']) : null;
+	}
+
+	/**
+	 * Remove impact of a draw from wins data (for sliding window)
+	 */
+	private function remove_draw_impact_independent($number, $draw, &$wins, &$positions, $lottery)
+	{
+		$main_balls = $this->parse_main_balls($draw, $lottery);
+		$extra_ball = $this->parse_extra_ball($draw, $lottery);
+
+		// Count matches
+		$main_matches = in_array($number, $main_balls) ? 1 : 0;
+		$extra_match = ($number == $extra_ball) ? 1 : 0;
+		$total_matches = $main_matches + $extra_match;
+
+		// Get category and decrement
+		$category_index = $this->get_enhanced_category_index($main_matches, $extra_match, $total_matches);
+		
+		if ($category_index !== false && isset($wins[$category_index])) {
+			$wins[$category_index] = max(0, $wins[$category_index] - 1);
+			
+			// Handle position removal if main ball match
+			if ($main_matches > 0) {
+				$position = array_search($number, $main_balls) + 1;
+				if (isset($positions[$position][$category_index])) {
+					$positions[$position][$category_index] = max(0, $positions[$position][$category_index] - 1);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Add impact of a draw to wins data (for sliding window)
+	 */
+	private function add_draw_impact_independent($number, $draw, &$wins, &$positions, $lottery)
+	{
+		$main_balls = $this->parse_main_balls($draw, $lottery);
+		$extra_ball = $this->parse_extra_ball($draw, $lottery);
+
+		// Count matches
+		$main_matches = in_array($number, $main_balls) ? 1 : 0;
+		$extra_match = ($number == $extra_ball) ? 1 : 0;
+		$total_matches = $main_matches + $extra_match;
+
+		// Get category and increment
+		$category_index = $this->get_enhanced_category_index($main_matches, $extra_match, $total_matches);
+		
+		if ($category_index !== false) {
+			if (!isset($wins[$category_index])) {
+				$wins[$category_index] = 0;
+			}
+			$wins[$category_index]++;
+			
+			// Handle position addition if main ball match
+			if ($main_matches > 0) {
+				$position = array_search($number, $main_balls) + 1;
+				if (!isset($positions[$position])) {
+					$positions[$position] = array_fill(0, 12, 0);
+				}
+				if (!isset($positions[$position][$category_index])) {
+					$positions[$position][$category_index] = 0;
+				}
+				$positions[$position][$category_index]++;
+			}
+		}
+	}
+
+	/**
+	 * Format positions string for database storage
+	 */
+	private function format_positions_string($position_data)
+	{
+		$formatted_parts = array();
+		
+		foreach ($position_data as $position => $wins) {
+			if (!empty($wins)) {
+				$wins_string = implode(',', $wins);
+				$formatted_parts[] = $position . '>' . $wins_string;
+			}
+		}
+		
+		return '<' . implode('<', $formatted_parts);
+	}
+
+	/**
+	 * Parse positions string from database
+	 */
+	/**
+	 * Load follower data for enhanced calculation
+	 */
+	private function load_follower_data_for_enhanced_calculation($lottery_id)
+	{
+		// Get follower data from lottery_followers table
+		$follower_record = $this->db->select('lottery_followers')
+									->where('lottery_id', $lottery_id)
+									->get('lottery_followers')
+									->row();
+		
+		$this->followers_data = array();
+		$this->extra_followers_data = array();
+		
+		if ($follower_record && !empty($follower_record->lottery_followers)) {
+			// Parse follower string to extract follower relationships
+			$this->parse_follower_string_for_enhanced_calculation($follower_record->lottery_followers);
+		}
+	}
+
+	/**
+	 * Parse follower string to build follower relationship arrays
+	 */
+	private function parse_follower_string_for_enhanced_calculation($followers_string)
+	{
+		// Parse the follower string format: ball>follower1,follower2<ball2>follower3,follower4
+		$ball_groups = explode('<', $followers_string);
+		
+		foreach ($ball_groups as $group) {
+			if (empty($group)) continue;
+			
+			$parts = explode('>', $group);
+			if (count($parts) != 2) continue;
+			
+			$ball = intval($parts[0]);
+			$followers = array_map('intval', explode(',', $parts[1]));
+			
+			// Check if this uses new format with # separator for independent extra balls
+			if (strpos($parts[1], '#') !== false) {
+				list($main_followers_str, $extra_followers_str) = explode('#', $parts[1]);
+				$main_followers = array_map('intval', explode(',', $main_followers_str));
+				$extra_followers = array_map('intval', explode(',', $extra_followers_str));
+				
+				$this->followers_data[$ball] = array_filter($main_followers);
+				$this->extra_followers_data[$ball] = array_filter($extra_followers);
+			} else {
+				// Legacy format
+				$this->followers_data[$ball] = array_filter($followers);
+			}
+		}
+	}
+
+	public function parse_positions_string($positions_string)
+	{
+		$parsed = array();
+		$positions = explode('<', $positions_string);
+		
+		foreach ($positions as $position_data) {
+			if (empty($position_data)) continue;
+			
+			$parts = explode('>', $position_data);
+			if (count($parts) != 2) continue;
+			
+			$position = $parts[0];
+			$wins = explode(',', $parts[1]);
+			
+			$parsed[$position] = $wins;
+		}
+		
+		return $parsed;
 	}
 }
