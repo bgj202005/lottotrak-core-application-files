@@ -763,26 +763,56 @@ class History_m extends MY_Model
         for($b = 1; $b<=$drn; $b++)
         {
             $ball = $last_draw['ball'.$b];
-            $ball_prizes = explode(',',$fp[$ball-1]); 
-            $position_prizes = explode(',',$ps[$b-1]); 
+            
+            // Add safety checks for array bounds
+            $ball_index = $ball - 1;
+            $position_index = $b - 1;
+            
+            if (isset($fp[$ball_index])) {
+                $ball_prizes = explode(',',$fp[$ball_index]); 
+            } else {
+                $ball_prizes = ['0','0','0','0','0','0','0','0','0','0']; // Default zeros
+            }
+            
+            if (isset($ps[$position_index])) {
+                $position_prizes = explode(',',$ps[$position_index]); 
+            } else {
+                $position_prizes = ['0','0','0','0','0','0','0','0','0','0']; // Default zeros
+            }
+            
             $index = 0;     
             foreach($pg as $prize => $value)
             {
-                $last_draw['ball'.$b.'_win'][$prize] = $ball_prizes[$index];
-                $last_draw['position'.$b.'_win'][$prize] = $position_prizes[$index];
+                $last_draw['ball'.$b.'_win'][$prize] = isset($ball_prizes[$index]) ? $ball_prizes[$index] : '0';
+                $last_draw['position'.$b.'_win'][$prize] = isset($position_prizes[$index]) ? $position_prizes[$index] : '0';
                 $index++;
             }
         }
         if(($ei)) // Doesn't matter if duplicate extra / bonus
         {
             $extra = $last_draw['extra'];
-            $extra_prize = explode(',',$fp[$extra-1]);
-            $position_prizes = explode(',',$ps[$drn]);
+            
+            // Add safety checks for extra ball array bounds
+            $extra_index = $extra - 1;
+            $extra_position_index = $drn;
+            
+            if (isset($fp[$extra_index])) {
+                $extra_prize = explode(',',$fp[$extra_index]);
+            } else {
+                $extra_prize = ['0','0','0','0','0','0','0','0','0','0']; // Default zeros
+            }
+            
+            if (isset($ps[$extra_position_index])) {
+                $position_prizes = explode(',',$ps[$extra_position_index]);
+            } else {
+                $position_prizes = ['0','0','0','0','0','0','0','0','0','0']; // Default zeros
+            }
+            
             $index = 0;
             foreach($pg as $prize => $value)
             {
-                $last_draw['extra_win'][$prize] = $extra_prize[$index];
-                $last_draw['position_extra_win'][$prize] = $position_prizes[$index];
+                $last_draw['extra_win'][$prize] = isset($extra_prize[$index]) ? $extra_prize[$index] : '0';
+                $last_draw['position_extra_win'][$prize] = isset($position_prizes[$index]) ? $position_prizes[$index] : '0';
                 $index++;
             }
         }

@@ -160,11 +160,71 @@
 							if (!empty($ball_rankings)) {
 								$best_ball = key($ball_rankings);
 								$best_ball_points = current($ball_rankings);
+								
+								// Check for ties at the highest point value, but only include drawn balls
+								$tied_balls = array();
+								$drawn_balls = array();
+								
+								// Collect all drawn ball numbers
+								for ($i = 1; $i <= $lottery->balls_drawn; $i++) {
+									if (isset($lottery->last_drawn['ball'.$i])) {
+										$drawn_balls[] = $lottery->last_drawn['ball'.$i];
+									}
+								}
+								if ($lottery->extra_included && isset($lottery->last_drawn['extra'])) {
+									$drawn_balls[] = $lottery->last_drawn['extra'];
+								}
+								
+								// Only consider balls that were actually drawn
+								foreach ($ball_rankings as $ball_num => $points) {
+									if ($points == $best_ball_points && in_array($ball_num, $drawn_balls)) {
+										$tied_balls[] = $ball_num;
+									}
+								}
+								
+								// If no drawn balls have the highest points, find the highest among drawn balls
+								if (empty($tied_balls)) {
+									$max_points_drawn = 0;
+									$tied_balls = array();
+									foreach ($ball_rankings as $ball_num => $points) {
+										if (in_array($ball_num, $drawn_balls)) {
+											if ($points > $max_points_drawn) {
+												$max_points_drawn = $points;
+												$tied_balls = array($ball_num);
+											} elseif ($points == $max_points_drawn) {
+												$tied_balls[] = $ball_num;
+											}
+										}
+									}
+									$best_ball_points = $max_points_drawn;
+								}
+								
+								// Store tie information for display
+								$ball_tie_info = array(
+									'balls' => $tied_balls,
+									'points' => $best_ball_points,
+									'has_tie' => count($tied_balls) > 1
+								);
 							}
 							
 							if (!empty($position_rankings)) {
 								$best_pos = key($position_rankings);
 								$best_pos_points = current($position_rankings);
+								
+								// Check for ties at the highest point value for positions
+								$tied_positions = array();
+								foreach ($position_rankings as $pos_num => $points) {
+									if ($points == $best_pos_points) {
+										$tied_positions[] = $pos_num;
+									}
+								}
+								
+								// Store position tie information for display
+								$position_tie_info = array(
+									'positions' => $tied_positions,
+									'points' => $best_pos_points,
+									'has_tie' => count($tied_positions) > 1
+								);
 							}
 						} else {
 							// Use regular point calculation for standard lotteries
@@ -204,36 +264,66 @@
 										<div class="alert alert-success text-center mb-2">
 											<strong>Ball with Highest Points:</strong>
 											<?php
-											if ($is_enhanced) {
-												// For enhanced displays, $best_ball IS the ball number
-												// Check if this ball number is the extra ball that was actually drawn
-												if ($lottery->extra_included && $best_ball == $lottery->last_drawn['extra']) {
-													echo '<strong>Extra Ball +' . $best_ball . '</strong>';
+											if ($is_enhanced && isset($ball_tie_info)) {
+												// For enhanced displays with tie detection
+												if ($ball_tie_info['has_tie']) {
+													// Handle ties - show all tied balls
+													$display_parts = array();
+													foreach ($ball_tie_info['balls'] as $ball_num) {
+														if ($lottery->extra_included && $ball_num == $lottery->last_drawn['extra']) {
+															$display_parts[] = '<strong>Extra Ball +' . $ball_num . '</strong>';
+														} else {
+															$display_parts[] = '<strong>Ball ' . $ball_num . '</strong>';
+														}
+													}
+													echo implode(' and ', $display_parts);
 												} else {
-													echo 'Ball <strong>' . $best_ball . '</strong>';
+													// Single highest ball from drawn balls
+													$best_drawn_ball = $ball_tie_info['balls'][0];
+													if ($lottery->extra_included && $best_drawn_ball == $lottery->last_drawn['extra']) {
+														echo '<strong>Extra Ball +' . $best_drawn_ball . '</strong>';
+													} else {
+														echo '<strong>Ball ' . $best_drawn_ball . '</strong>';
+													}
 												}
 											} else {
 												// For regular displays, $best_ball is the position index
 												if ($best_ball > $lottery->balls_drawn) {
 													echo '<strong>Extra Ball +' . $lottery->last_drawn['extra'] . '</strong>';
 												} else {
-													echo 'Ball <strong>' . $lottery->last_drawn['ball'.$best_ball] . '</strong>';
+													// Ensure we show the actual ball number, not the position
+													$actual_ball_number = isset($lottery->last_drawn['ball'.$best_ball]) ? $lottery->last_drawn['ball'.$best_ball] : $best_ball;
+													echo '<strong>Ball ' . $actual_ball_number . '</strong>';
 												}
 											}
 											?>
-											(<?= $best_ball_points; ?> points)
+											(<?= isset($ball_tie_info) ? $ball_tie_info['points'] : $best_ball_points; ?> points)
 										</div>
 									</div>
 									<div class="col-md-6">
 										<div class="alert alert-info text-center mb-2">
 											<strong>Position with Highest Points:</strong>
 											<?php
-											if ($is_enhanced) {
-												// For enhanced displays, $best_pos is the position number
-												echo ($best_pos > $lottery->balls_drawn ? '<strong>Extra Ball</strong> Position' : 'Position <strong>'.$best_pos.'</strong>');
+											if ($is_enhanced && isset($position_tie_info)) {
+												// For enhanced displays with tie detection
+												if ($position_tie_info['has_tie']) {
+													// Handle ties - show all tied positions
+													$display_parts = array();
+													foreach ($position_tie_info['positions'] as $pos_num) {
+														if ($pos_num > $lottery->balls_drawn) {
+															$display_parts[] = '<strong>Extra Ball Position</strong>';
+														} else {
+															$display_parts[] = '<strong>Position ' . $pos_num . '</strong>';
+														}
+													}
+													echo implode(' and ', $display_parts);
+												} else {
+													// Single highest position
+													echo ($best_pos > $lottery->balls_drawn ? '<strong>Extra Ball Position</strong>' : '<strong>Position '.$best_pos.'</strong>');
+												}
 											} else {
 												// For regular displays
-												echo ($best_pos > $lottery->balls_drawn ? '<strong>Extra Ball</strong> Position' : 'Position <strong>'.$best_pos.'</strong>');
+												echo ($best_pos > $lottery->balls_drawn ? '<strong>Extra Ball Position</strong>' : '<strong>Position '.$best_pos.'</strong>');
 											}
 											?>
 											(<?= $best_pos_points; ?> points)

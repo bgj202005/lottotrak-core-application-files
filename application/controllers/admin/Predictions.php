@@ -670,8 +670,21 @@ class Predictions extends Admin_Controller {
 			$p_group = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_ball);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_prizegroup($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_ball, $p_group); 
 			// 2. extract the win record for each number into an array
-			$follower_wins = explode(">",$this->data['followers']['wins']);
-			$follow_poswins = explode(">",$this->data['followers']['positions']);
+			// Check if this is an independent extra ball lottery and use enhanced follower calculation
+			if ($this->data['lottery']->duplicate_extra_ball == 1) {
+				// For independent extra ball lotteries, use enhanced follower calculation
+				$range = isset($this->data['followers']['range']) ? $this->data['followers']['range'] : 25; // Default to 25 if not set
+				$enhanced_ball_wins = $this->statistics_m->calculate_independent_extra_follower_wins_OLD($tbl_name, $id, $range);
+				$enhanced_position_wins = $this->statistics_m->calculate_independent_extra_follower_positions_OLD($tbl_name, $id, $range);
+				
+				// Convert enhanced associative arrays to old format for compatibility
+				$follower_wins = $this->convert_enhanced_to_old_format($enhanced_ball_wins, $this->data['lottery']->balls_drawn);
+				$follow_poswins = $this->convert_enhanced_to_old_format($enhanced_position_wins, $this->data['lottery']->balls_drawn, true);
+			} else {
+				// For regular lotteries, use old format
+				$follower_wins = explode(">",$this->data['followers']['wins']);
+				$follow_poswins = explode(">",$this->data['followers']['positions']);
+			}
 			// 3. Only populate the numbers with the win record that was actually drawn
 			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'],$p_group,$follower_wins,$follow_poswins);
 			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included']);
@@ -1229,8 +1242,21 @@ class Predictions extends Admin_Controller {
 		$p_group = $this->statistics_m->prize_group_profile($id);
 		$p_group = $this->statistics_m->prizes_only($p_group, $this->data['lottery']->extra_ball);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_prizegroup($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_ball, $p_group);
-		$follower_wins = explode(">", $this->data['followers']['wins']);
-		$follow_poswins = explode(">", $this->data['followers']['positions']);
+		// Check if this is an independent extra ball lottery and use enhanced follower calculation
+		if ($this->data['lottery']->duplicate_extra_ball == 1) {
+			// For independent extra ball lotteries, use enhanced follower calculation
+			$range = isset($this->data['followers']['range']) ? $this->data['followers']['range'] : 25; // Default to 25 if not set
+			$enhanced_ball_wins = $this->statistics_m->calculate_independent_extra_follower_wins_OLD($tbl_name, $id, $range);
+			$enhanced_position_wins = $this->statistics_m->calculate_independent_extra_follower_positions_OLD($tbl_name, $id, $range);
+			
+			// Convert enhanced associative arrays to old format for compatibility
+			$follower_wins = $this->convert_enhanced_to_old_format($enhanced_ball_wins, $this->data['lottery']->balls_drawn);
+			$follow_poswins = $this->convert_enhanced_to_old_format($enhanced_position_wins, $this->data['lottery']->balls_drawn, true);
+		} else {
+			// For regular lotteries, use old format
+			$follower_wins = explode(">", $this->data['followers']['wins']);
+			$follow_poswins = explode(">", $this->data['followers']['positions']);
+		}
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $p_group, $follower_wins, $follow_poswins);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included']);
 	// Ball points and position points setup
@@ -1372,8 +1398,21 @@ class Predictions extends Admin_Controller {
 		$p_group = $this->statistics_m->prize_group_profile($id);
 		$p_group = $this->statistics_m->prizes_only($p_group, $this->data['lottery']->extra_ball);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_prizegroup($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_ball, $p_group);
-		$follower_wins = explode(">", $this->data['followers']['wins']);
-		$follow_poswins = explode(">", $this->data['followers']['positions']);
+		// Check if this is an independent extra ball lottery and use enhanced follower calculation
+		if ($this->data['lottery']->duplicate_extra_ball == 1) {
+			// For independent extra ball lotteries, use enhanced follower calculation
+			$range = isset($this->data['followers']['range']) ? $this->data['followers']['range'] : 25; // Default to 25 if not set
+			$enhanced_ball_wins = $this->statistics_m->calculate_independent_extra_follower_wins_OLD($tbl_name, $id, $range);
+			$enhanced_position_wins = $this->statistics_m->calculate_independent_extra_follower_positions_OLD($tbl_name, $id, $range);
+			
+			// Convert enhanced associative arrays to old format for compatibility
+			$follower_wins = $this->convert_enhanced_to_old_format($enhanced_ball_wins, $this->data['lottery']->balls_drawn);
+			$follow_poswins = $this->convert_enhanced_to_old_format($enhanced_position_wins, $this->data['lottery']->balls_drawn, true);
+		} else {
+			// For regular lotteries, use old format
+			$follower_wins = explode(">", $this->data['followers']['wins']);
+			$follow_poswins = explode(">", $this->data['followers']['positions']);
+		}
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $p_group, $follower_wins, $follow_poswins);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included']);
 		// Ball points and position points
@@ -2237,8 +2276,21 @@ class Predictions extends Admin_Controller {
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_prizegroup($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_ball, $p_group);
 		// Get followers data for last_drawn processing
 		$followers = $this->predictions_m->get_followers($id);
-		$follower_wins = explode(">", $followers['wins']);
-		$follow_poswins = explode(">", $followers['positions']);
+		// Check if this is an independent extra ball lottery and use enhanced follower calculation
+		if ($this->data['lottery']->duplicate_extra_ball == 1) {
+			// For independent extra ball lotteries, use enhanced follower calculation
+			$range = isset($followers['range']) ? $followers['range'] : 25; // Default to 25 if not set
+			$enhanced_ball_wins = $this->statistics_m->calculate_independent_extra_follower_wins_OLD($tbl_name, $id, $range);
+			$enhanced_position_wins = $this->statistics_m->calculate_independent_extra_follower_positions_OLD($tbl_name, $id, $range);
+			
+			// Convert enhanced associative arrays to old format for compatibility
+			$follower_wins = $this->convert_enhanced_to_old_format($enhanced_ball_wins, $this->data['lottery']->balls_drawn);
+			$follow_poswins = $this->convert_enhanced_to_old_format($enhanced_position_wins, $this->data['lottery']->balls_drawn, true);
+		} else {
+			// For regular lotteries, use old format
+			$follower_wins = explode(">", $followers['wins']);
+			$follow_poswins = explode(">", $followers['positions']);
+		}
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $followers['extra_included'], $p_group, $follower_wins, $follow_poswins);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $followers['extra_included']);
 		// Load lottery highlights for filtering
@@ -2564,8 +2616,21 @@ class Predictions extends Admin_Controller {
 		$p_group = $this->statistics_m->prize_group_profile($id);
 		$p_group = $this->statistics_m->prizes_only($p_group, $this->data['lottery']->extra_ball);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_prizegroup($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_ball, $p_group);
-		$follower_wins = explode(">", $this->data['followers']['wins']);
-		$follow_poswins = explode(">", $this->data['followers']['positions']);
+		// Check if this is an independent extra ball lottery and use enhanced follower calculation
+		if ($this->data['lottery']->duplicate_extra_ball == 1) {
+			// For independent extra ball lotteries, use enhanced follower calculation
+			$range = isset($this->data['followers']['range']) ? $this->data['followers']['range'] : 25; // Default to 25 if not set
+			$enhanced_ball_wins = $this->statistics_m->calculate_independent_extra_follower_wins_OLD($tbl_name, $id, $range);
+			$enhanced_position_wins = $this->statistics_m->calculate_independent_extra_follower_positions_OLD($tbl_name, $id, $range);
+			
+			// Convert enhanced associative arrays to old format for compatibility
+			$follower_wins = $this->convert_enhanced_to_old_format($enhanced_ball_wins, $this->data['lottery']->balls_drawn);
+			$follow_poswins = $this->convert_enhanced_to_old_format($enhanced_position_wins, $this->data['lottery']->balls_drawn, true);
+		} else {
+			// For regular lotteries, use old format
+			$follower_wins = explode(">", $this->data['followers']['wins']);
+			$follow_poswins = explode(">", $this->data['followers']['positions']);
+		}
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $p_group, $follower_wins, $follow_poswins);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included']);
 		// Ball points and position points setup
@@ -3453,5 +3518,43 @@ class Predictions extends Admin_Controller {
 			log_message('error', 'convert_to_mysql_date exception: ' . $e->getMessage());
 			return false;
 		}
+	}
+
+	/**
+	 * Convert enhanced associative array format to old pipe-delimited format
+	 * for compatibility with existing last_draw_addwins method
+	 * 
+	 * @param array $enhanced_data Enhanced associative array data
+	 * @param int $num_balls Number of balls in lottery
+	 * @param bool $is_position Whether this is position data (default false)
+	 * @return array Old format array compatible with existing code
+	 */
+	private function convert_enhanced_to_old_format($enhanced_data, $num_balls, $is_position = false)
+	{
+		$old_format = [];
+		$range = $is_position ? $num_balls : 49; // Position data uses num_balls, ball data uses full range
+		
+		for ($i = 1; $i <= $range; $i++) {
+			$item_key = $is_position ? $i : $i; // For positions: 1,2,3... For balls: 1,2,3...49
+			
+			if (isset($enhanced_data[$item_key])) {
+				$item_data = $enhanced_data[$item_key];
+				
+				// Build comma-separated values from associative array
+				$values = [];
+				$categories = ['extra', '1_win_extra', '2_win', '2_win_extra', '3_win', '3_win_extra', '4_win', '4_win_extra', '5_win', '5_win_extra'];
+				
+				foreach ($categories as $category) {
+					$values[] = isset($item_data[$category]) ? $item_data[$category] : '0';
+				}
+				
+				$old_format[] = implode(',', $values);
+			} else {
+				// No data for this item, use all zeros
+				$old_format[] = '0,0,0,0,0,0,0,0,0,0';
+			}
+		}
+		
+		return $old_format;
 	}
 }

@@ -630,10 +630,59 @@ class History extends Admin_Controller {
 						$this->setup_regular_follower_display($followers, $drawn, $p_group);
 					}
 				} else {
-					// No enhanced data exists, use regular follower display
-					echo "<!-- No enhanced data found for lottery $id, using regular display -->";
-					$this->data['lottery']->enhanced_wins = false;
-					$this->setup_regular_follower_display($followers, $drawn, $p_group);
+					// No enhanced data exists, try to generate it on-demand
+					echo "<!-- No enhanced data found for lottery $id, attempting to generate -->";
+					log_message('debug', "Attempting to generate enhanced data for lottery $id with range $range");
+					
+					// Try to generate enhanced data for this lottery
+					$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+					
+					try {
+						// Use the enhanced follower calculation methods we fixed earlier
+						$enhanced_ball_wins = $this->statistics_m->calculate_independent_extra_follower_wins_OLD($tbl_name, $id, $range);
+						$enhanced_position_wins = $this->statistics_m->calculate_independent_extra_follower_positions_OLD($tbl_name, $id, $range);
+						
+						log_message('debug', "Enhanced ball wins generated: " . (empty($enhanced_ball_wins) ? 'empty' : 'success'));
+						log_message('debug', "Enhanced position wins generated: " . (empty($enhanced_position_wins) ? 'empty' : 'success'));
+						
+						if (!empty($enhanced_ball_wins) && !empty($enhanced_position_wins)) {
+							// Convert to the format expected by the view
+							$this->data['lottery']->enhanced_wins = true;
+							$this->data['lottery']->parsed_wins = $enhanced_ball_wins;
+							$this->data['lottery']->parsed_positions = $enhanced_position_wins;
+							$this->data['lottery']->enhanced_point_rankings = $this->calculate_point_rankings($enhanced_ball_wins, $enhanced_position_wins);
+							
+							log_message('debug', "Enhanced point rankings calculated, ball count: " . count($this->data['lottery']->enhanced_point_rankings['balls']));
+							
+							// Get the actual drawn ball numbers for enhanced display
+							$last_draw_data = $this->statistics_m->db_row($tbl_name, 0);
+							if ($last_draw_data) {
+								// Set actual drawn ball numbers
+								for ($i = 1; $i <= $this->data['lottery']->balls_drawn; $i++) {
+									$ball_field = 'ball' . $i;
+									if (isset($last_draw_data->$ball_field)) {
+										$this->data['lottery']->last_drawn[$ball_field] = $last_draw_data->$ball_field;
+										log_message('debug', "Set ball$i = " . $last_draw_data->$ball_field);
+									}
+								}
+								// Set extra ball if it exists
+								if ($this->data['lottery']->extra_included && isset($last_draw_data->extra)) {
+									$this->data['lottery']->last_drawn['extra'] = $last_draw_data->extra;
+									log_message('debug', "Set extra = " . $last_draw_data->extra);
+								}
+							}
+							echo "<!-- Enhanced data generated successfully -->";
+							log_message('debug', "Enhanced data generation completed successfully");
+						} else {
+							throw new Exception("Enhanced calculation returned empty data");
+						}
+					} catch (Exception $e) {
+						// Enhanced generation failed, fall back to regular display
+						echo "<!-- Enhanced data generation failed: " . $e->getMessage() . ", using regular display -->";
+						log_message('error', "Enhanced data generation failed: " . $e->getMessage());
+						$this->data['lottery']->enhanced_wins = false;
+						$this->setup_regular_follower_display($followers, $drawn, $p_group);
+					}
 				}
 			} else {
 				// Regular lottery - use standard follower display
@@ -647,6 +696,16 @@ class History extends Admin_Controller {
 			redirect('admin/history');
 		}
 		$this->data['lottery']->last_drawn['range'] = $range;
+		
+		// Debug: Log the actual ball numbers in last_drawn array
+		log_message('debug', "Final last_drawn ball numbers: " . 
+			"ball1=" . (isset($this->data['lottery']->last_drawn['ball1']) ? $this->data['lottery']->last_drawn['ball1'] : 'not set') . 
+			", ball2=" . (isset($this->data['lottery']->last_drawn['ball2']) ? $this->data['lottery']->last_drawn['ball2'] : 'not set') . 
+			", ball3=" . (isset($this->data['lottery']->last_drawn['ball3']) ? $this->data['lottery']->last_drawn['ball3'] : 'not set') . 
+			", ball4=" . (isset($this->data['lottery']->last_drawn['ball4']) ? $this->data['lottery']->last_drawn['ball4'] : 'not set') . 
+			", ball5=" . (isset($this->data['lottery']->last_drawn['ball5']) ? $this->data['lottery']->last_drawn['ball5'] : 'not set') . 
+			", extra=" . (isset($this->data['lottery']->last_drawn['extra']) ? $this->data['lottery']->last_drawn['extra'] : 'not set'));
+		
 		$this->data['current'] = $this->uri->segment(2); 				// Sets the Admins Menu Highlighted
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/followers'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
@@ -674,12 +733,28 @@ class History extends Admin_Controller {
 	 */
 	private function setup_regular_follower_display($followers, $drawn, $p_group)
 	{
+		// Preserve the original ball numbers before processing
+		$original_balls = array();
+		for ($i = 1; $i <= $this->data['lottery']->balls_drawn; $i++) {
+			if (isset($this->data['lottery']->last_drawn['ball'.$i])) {
+				$original_balls['ball'.$i] = $this->data['lottery']->last_drawn['ball'.$i];
+			}
+		}
+		if (isset($this->data['lottery']->last_drawn['extra'])) {
+			$original_balls['extra'] = $this->data['lottery']->last_drawn['extra'];
+		}
+		
 		// 4. extract the win record for each number into an array
 		$follower_wins = explode(">", $followers['wins']);
 		$follow_poswins = explode(">", $followers['positions']);
 		// 5. Only populate the numbers with the win record that was actually drawn
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included,$p_group,$follower_wins,$follow_poswins);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included);
+		
+		// Restore the original ball numbers (in case they were overwritten)
+		foreach ($original_balls as $key => $value) {
+			$this->data['lottery']->last_drawn[$key] = $value;
+		}
 	}
 
 	/**
