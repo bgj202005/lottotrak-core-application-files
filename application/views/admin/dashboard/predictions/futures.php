@@ -906,7 +906,7 @@
 													</td>
 													<?php endif; ?>
 													<td data-label="After Ball">
-														<div class="d-flex align-items-center" style="gap:0.2em;">
+														<div class="d-flex align-items-center" style="gap:0.4em;">
 															<?= form_radio([
 																	'name' => 'followers_type',
 																	'id' => 'after_ball_radio',
@@ -917,7 +917,7 @@
 														</div>
 													</td>
 													<td data-label="Position">
-														<div class="d-flex align-items-center" style="gap:0.2em;">
+														<div class="d-flex align-items-center" style="gap:0.4em;">
 															<?= form_radio([
 																'name' => 'followers_type',
 																'id' => 'position_radio',

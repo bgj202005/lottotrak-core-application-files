@@ -4323,10 +4323,6 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$prize_profile = $this->get_prize_profile($lottery_id);
 		$category_names = array_keys(array_filter($prize_profile, function($value) { return $value == 1; }));
 		
-		// Debug logging
-		log_message('debug', "Prize profile for lottery $lottery_id: " . print_r($prize_profile, true));
-		log_message('debug', "Active categories: " . print_r($category_names, true));
-		
 		// Check if data has # separator (main#extra format)
 		if (strpos($wins_string, '#') !== false) {
 			// New format with # separator

@@ -98,16 +98,23 @@ class Lottery_statistics_m extends MY_Model
      * @param int $balls_drawn Number of balls drawn
      * @return array Sorted position points
      */
-    public function get_sorted_position_points($last_drawn, $balls_drawn)
+    public function get_sorted_position_points($last_drawn, $balls_drawn, $duplicate_extra_ball = false)
     {
         $position_points = [];
-        // Loop through each position
+        // Loop through each regular position
         for ($i = 1; $i <= $balls_drawn; $i++) {
             $position_total_key = 'position' . $i . '_total';
             if (isset($last_drawn[$position_total_key]) && $last_drawn[$position_total_key] > 0) {
                 $position_points[$i] = $last_drawn[$position_total_key];
             }
         }
+        
+        // For independent extra ball lotteries, add position 6 (extra ball position)
+        if ($duplicate_extra_ball && isset($last_drawn['position_extra_total']) && $last_drawn['position_extra_total'] > 0) {
+            $extra_position = $balls_drawn + 1; // Position 6 for Daily Grand (5 balls + 1 extra)
+            $position_points[$extra_position] = $last_drawn['position_extra_total'];
+        }
+        
         // Sort by points descending
         arsort($position_points);
         // Build dropdown array: 0 => '1 (115)', 1 => '2 (83)', ...

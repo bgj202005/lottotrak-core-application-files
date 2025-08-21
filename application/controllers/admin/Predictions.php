@@ -669,25 +669,14 @@ class Predictions extends Admin_Controller {
 			$p_group = $this->statistics_m->prize_group_profile($id); // Prize Group Profile Only
 			$p_group = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_ball);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_prizegroup($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_ball, $p_group); 
-			// 2. extract the win record for each number into an array
-			// Check if this is an independent extra ball lottery and use enhanced follower calculation
-			if ($this->data['lottery']->duplicate_extra_ball == 1) {
-				// For independent extra ball lotteries, use enhanced follower calculation
-				$range = isset($this->data['followers']['range']) ? $this->data['followers']['range'] : 25; // Default to 25 if not set
-				$enhanced_ball_wins = $this->statistics_m->calculate_independent_extra_follower_wins_OLD($tbl_name, $id, $range);
-				$enhanced_position_wins = $this->statistics_m->calculate_independent_extra_follower_positions_OLD($tbl_name, $id, $range);
-				
-				// Convert enhanced associative arrays to old format for compatibility
-				$follower_wins = $this->convert_enhanced_to_old_format($enhanced_ball_wins, $this->data['lottery']->balls_drawn);
-				$follow_poswins = $this->convert_enhanced_to_old_format($enhanced_position_wins, $this->data['lottery']->balls_drawn, true);
-			} else {
-				// For regular lotteries, use old format
-				$follower_wins = explode(">",$this->data['followers']['wins']);
-				$follow_poswins = explode(">",$this->data['followers']['positions']);
-			}
+			
+			// 2. Use the same method as history/followers page - extract wins and positions data
+			$follower_wins = explode(">",$this->data['followers']['wins']);
+			$follow_poswins = explode(">",$this->data['followers']['positions']);
+			
 			// 3. Only populate the numbers with the win record that was actually drawn
 			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'],$p_group,$follower_wins,$follow_poswins);
-			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included']);
+			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $this->data['lottery']->duplicate_extra_ball);
 		
 		$ball_points = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
 		// Example $ball_points_labels = ['7 (142)', '+14 (62)', '12 (88)', ...];
@@ -702,7 +691,7 @@ class Predictions extends Admin_Controller {
 		$ball_points_options[$value] = $label;
 		}
 		$this->data['ball_points_options'] = $ball_points_options;
-		$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
+		$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
 		$position_points_options = [];
 		foreach ($position_points as $label) {
 			if (strpos($label, '+') === 0) {
@@ -737,7 +726,7 @@ class Predictions extends Admin_Controller {
 					$this->data['filter_record_id'] = NULL;
 				}
 			} else {
-				$this->data['filter_record_id'] = NULL;
+				$this->Ffuturedata['filter_record_id'] = NULL;
 			}
 			
 			// Get all saved combination filters for the user
@@ -1258,7 +1247,7 @@ class Predictions extends Admin_Controller {
 			$follow_poswins = explode(">", $this->data['followers']['positions']);
 		}
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $p_group, $follower_wins, $follow_poswins);
-		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included']);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $this->data['lottery']->duplicate_extra_ball);
 	// Ball points and position points setup
 	$ball_points = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
 	$ball_points_options = [];
@@ -1272,7 +1261,7 @@ class Predictions extends Admin_Controller {
 	}
 	$this->data['ball_points_options'] = $ball_points_options;
 	
-	$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
+	$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
 	$position_points_options = [];
 		foreach ($position_points as $label) {
 			if (strpos($label, '+') === 0) {
@@ -1414,7 +1403,7 @@ class Predictions extends Admin_Controller {
 			$follow_poswins = explode(">", $this->data['followers']['positions']);
 		}
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $p_group, $follower_wins, $follow_poswins);
-		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included']);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $this->data['lottery']->duplicate_extra_ball);
 		// Ball points and position points
 		$ball_points = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
 		$ball_points_options = [];
@@ -1423,7 +1412,7 @@ class Predictions extends Admin_Controller {
 			$ball_points_options[$value] = $label;
 		}
 		$this->data['ball_points_options'] = $ball_points_options;
-		$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
+		$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
 		$position_points_options = [];
 		foreach ($position_points as $label) {
 			$value = (strpos($label, '+') === 0) ? substr($label, 0, strpos($label, ' ')) : strtok($label, ' ');
@@ -1468,7 +1457,6 @@ class Predictions extends Admin_Controller {
 					$this->data['selected_followers'] = (bool)($saved_filters['followers'] ?? false);
 					$this->data['selected_friends_checkbox'] = (bool)($saved_filters['friends'] ?? false);
 					$this->data['selected_friends'] = $saved_filters['selected_friends'] ?? '';
-					log_message('info', 'Refresh method: Setting view selected_friends to: \'' . $this->data['selected_friends'] . '\'');
 					$this->data['selected_wheeling'] = $saved_filters['file_name'] ?? '';
 				} else {
 					// Set defaults if no saved settings
@@ -1910,16 +1898,13 @@ class Predictions extends Admin_Controller {
 				
 				// OPTIMIZATION: Get filtered count first (efficient - no loading all data)
 				$total_filtered_count = $this->combination_filters_m->get_filtered_combinations_count($filepath, $number_array, $filters);
-				log_message('info', "Pagination Performance: Found {$total_filtered_count} total filtered combinations");
 				
 				// OPTIMIZATION: Get only current page's combinations (lazy loading)
 				$raw_combos_slice = $this->combination_filters_m->get_filtered_combinations($filepath, $number_array, $filters, $page, $per_page);
-				log_message('info', "Pagination Performance: Loaded page {$page} with " . count($raw_combos_slice) . " combinations");
 				
 				// Store essential data in session for saving (metadata only, not full combinations)
 				$this->session->set_userdata('current_filtered_count', $total_filtered_count);
 				$this->session->set_userdata('current_filters', $filters);
-				log_message('info', "Generate Tickets: Stored metadata for {$total_filtered_count} filtered combinations in session");
 				
 				// Format combinations to match expected view structure
 				$combos_paginated = [];
@@ -2100,13 +2085,11 @@ class Predictions extends Admin_Controller {
 				// Check if stored count and filters match
 				$stored_total_count = $this->session->userdata('current_filtered_count');
 				if (!empty($stored_total_count) && $this->filters_match($stored_filters, $filters)) {
-					log_message('info', "AJAX Pagination: Using stored metadata ({$stored_total_count} total combinations)");
 					
 					// Get only current page's combinations (lazy loading)
 					$raw_combos_slice = $this->combination_filters_m->get_filtered_combinations($filepath, $number_array, $filters, $page, $per_page);
 					$total_filtered = $stored_total_count;
 				} else {
-					log_message('info', "AJAX Pagination: Filters changed or no stored data, refiltering...");
 					
 					// OPTIMIZATION: Get count first, then current page only
 					$total_filtered = $this->combination_filters_m->get_filtered_combinations_count($filepath, $number_array, $filters);
@@ -2115,7 +2098,6 @@ class Predictions extends Admin_Controller {
 					// Update session storage with metadata only
 					$this->session->set_userdata('current_filtered_count', $total_filtered);
 					$this->session->set_userdata('current_filters', $filters);
-					log_message('info', "AJAX Pagination: Updated metadata for {$total_filtered} combinations");
 				}
 				
 				// Format combinations to match expected view structure
@@ -2292,7 +2274,7 @@ class Predictions extends Admin_Controller {
 			$follow_poswins = explode(">", $followers['positions']);
 		}
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $followers['extra_included'], $p_group, $follower_wins, $follow_poswins);
-		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $followers['extra_included']);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $followers['extra_included'], $this->data['lottery']->duplicate_extra_ball);
 		// Load lottery highlights for filtering
 		$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
 		// Prepare filter array
@@ -2319,12 +2301,6 @@ class Predictions extends Admin_Controller {
 			'lottery_highlights' => $this->data['lottery']->highlights
 		];
 		
-		// Debug: Log the filter values being used
-		log_message('info', "Save tickets: Filter values - trends: " . ($session_data['selected_trends'] ?? 'NULL') . 
-			", sums: " . ($session_data['selected_winning_sums'] ?? 'NULL') . 
-			", h_w_c_group: " . ($session_data['selected_h_w_c_group'] ?? 'NULL') .
-			", extra_ball: " . ($session_data['selected_extra_ball'] ?? 'NULL'));
-		
 		// OPTIMIZATION: Check if we have stored filter metadata for faster saving
 		$stored_count = $this->session->userdata('current_filtered_count');
 		$stored_filters = $this->session->userdata('current_filters');
@@ -2332,11 +2308,9 @@ class Predictions extends Admin_Controller {
 		if (!empty($stored_count) && $this->filters_match($filters, $stored_filters)) {
 			// Use pre-calculated count (no re-filtering needed for count)
 			$filtered_count = $stored_count;
-			log_message('info', "Save tickets: Using pre-calculated count from session - count: {$filtered_count} (OPTIMIZED)");
 		} else {
 			// Fallback: Re-calculate count if no stored data or filters don't match
 			$filtered_count = $this->combination_filters_m->get_filtered_combinations_count($filepath, $number_array, $filters);
-			log_message('info', "Save tickets: Had to re-calculate count - count: {$filtered_count} (LEGACY mode)");
 		}
 		$current_user_id = $this->session->userdata('id');
 		$formatted_user_id = str_pad($current_user_id, 2, '0', STR_PAD_LEFT);
@@ -2417,7 +2391,6 @@ class Predictions extends Admin_Controller {
 			
 			// Use file-based filtering for saving (always up-to-date and memory efficient)
 			$success = $this->combination_filters_m->save_filtered_combinations_to_file($filepath, $number_array, $filters, $pick_file_path);
-			log_message('info', "Save tickets: Used file-based save method for {$filtered_count} combinations");
 			
 			if ($success) {
 				$message = 'Combination Ticket File ' . preg_replace('/ADMIN.*/', '', $file_name) . ' is Successfully Saved to the combinations/pick' . $R . ' Directory.';
@@ -2534,21 +2507,15 @@ class Predictions extends Admin_Controller {
 		// Get the record_id from the URL parameter or POST data
 		$record_id = $this->input->get('combo_id') ?: $this->input->post('combo_id');
 		
-		// Debug: Log what we received
-		log_message('info', "Refresh method: Received combo_id parameter: " . var_export($record_id, true));
-		
 		// If record_id comes from dropdown value format (253|06077), extract just the ID
 		if ($record_id && strpos($record_id, '|') !== false) {
 			list($record_id, $filename) = explode('|', $record_id, 2);
 			$record_id = (int)$record_id;
-			log_message('info', "Refresh method: Extracted record_id from dropdown: " . $record_id . ", filename: " . $filename);
 		} else {
 			$record_id = (int)$record_id;
-			log_message('info', "Refresh method: Using record_id as is: " . $record_id);
 		}
 		
 		if (!$record_id) {
-			log_message('error', "Refresh method: No record_id found");
 			$this->session->set_flashdata('message', '<div class="alert alert-danger">No combination ID found for refresh.</div>');
 			redirect('admin/predictions/futures/' . $id);
 			return;
@@ -2559,10 +2526,8 @@ class Predictions extends Admin_Controller {
 		$saved_settings = $this->combination_filters_m->get_saved_settings($record_id);
 		
 		// Debug: Log what we found
-		log_message('info', "Refresh method: Saved settings lookup result: " . var_export($saved_settings, true));
 		
 		if (!$saved_settings) {
-			log_message('error', "Refresh method: No saved settings found for record_id: " . $record_id);
 			$this->session->set_flashdata('message', '<div class="alert alert-danger">No saved settings found for combination ID: ' . $record_id . '</div>');
 			redirect('admin/predictions/futures/' . $id);
 			return;
@@ -2582,9 +2547,6 @@ class Predictions extends Admin_Controller {
 		
 		// Get the actual combo_id from saved settings
 		$combo_id = $saved_settings['combo_id'];
-		
-		// Debug: Log the key values
-		log_message('info', "Refresh method: Original filename: " . $original_filename . ", combo_id: " . $combo_id);
 		// Set up all the basic lottery data
 		$this->data['country_code'] = $this->lottery_data_m->get_lottery_country($id);
 		$this->data['state_prov_code'] = $this->lottery_data_m->get_lottery_state_prov($id);
@@ -2632,7 +2594,7 @@ class Predictions extends Admin_Controller {
 			$follow_poswins = explode(">", $this->data['followers']['positions']);
 		}
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $p_group, $follower_wins, $follow_poswins);
-		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included']);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $this->data['lottery']->duplicate_extra_ball);
 		// Ball points and position points setup
 		$ball_points = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
 		$ball_points_options = [];
@@ -2645,7 +2607,7 @@ class Predictions extends Admin_Controller {
 			$ball_points_options[$value] = $label;
 		}
 		$this->data['ball_points_options'] = $ball_points_options;
-		$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
+		$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
 		$position_points_options = [];
 		foreach ($position_points as $label) {
 			if (strpos($label, '+') === 0) {
@@ -2667,9 +2629,6 @@ class Predictions extends Admin_Controller {
 		$this->data['selected_position_points'] = $saved_settings['position_points'];
 		$this->data['selected_friends'] = $saved_settings['selected_friends'];
 		
-		// Debug: Log the actual saved friends value to identify dropdown mismatch
-		log_message('info', "Refresh method: Friends values - checkbox: " . ($saved_settings['friends'] ? 'true' : 'false') . 
-			", dropdown value: '" . ($saved_settings['selected_friends'] ?? 'NULL') . "'");
 		$this->data['selected_wheeling'] = $record_id . '|' . $original_filename; // Set dropdown value format
 		$this->data['combo_id'] = $combo_id;
 		$this->data['active'] = $this->combination_filters_m->get_active_flag($record_id);	
@@ -2691,7 +2650,6 @@ class Predictions extends Admin_Controller {
 				$this->data['file_name'] = $filename_cccc_data['file_name'];
 				// Use the saved filtered count instead of original file count
 				$this->data['CCCC'] = $saved_settings['CCCC']; // Use filtered count from saved settings
-				log_message('info', "Refresh method: Original file CCCC: " . $filename_cccc_data['CCCC'] . ", Saved filtered CCCC: " . $saved_settings['CCCC']);
 			}
 		}
 		// Store restored settings in session
@@ -2773,8 +2731,6 @@ class Predictions extends Admin_Controller {
 		$this->data['selected_number_range'] = $saved_settings['number_range'] ?? '';
 		$this->data['selected_adjacents'] = $saved_settings['adjacents'] ?? '';
 		
-		log_message('info', "Refresh method: Set up form dropdown options and saved filter values");
-		
 		// Get next draw date
 		$ld = $this->data['lottery']->last_drawn['draw_date'];
 		$day = $this->lotteries_m->return_day($ld);
@@ -2794,7 +2750,7 @@ class Predictions extends Admin_Controller {
 		$update_result = $this->db->update('lottery_combination_filters', $update_data);
 		
 		if ($update_result) {
-			log_message('info', "Refresh method: Updated lastdate to {$mysql_next_date} to prevent immediate expiration");
+			// Successfully updated
 		} else {
 			log_message('error', "Refresh method: Failed to update lastdate for record {$record_id}");
 		}
@@ -2811,9 +2767,6 @@ class Predictions extends Admin_Controller {
 		$directory = FCPATH . 'combinations/pick' . $picks . '/';
 		$file_path = $directory . $saved_filename . '.txt';
 		
-		log_message('info', "Refresh method: Using lottery balls_drawn: {$picks} for directory path");
-		log_message('info', "Refresh method: Looking for saved filtered tickets at: " . $file_path);
-		
 		// Check if the filtered tickets file exists
 		if (file_exists($file_path)) {
 			// Load the existing filtered tickets
@@ -2827,9 +2780,6 @@ class Predictions extends Admin_Controller {
 				$is_independent_extra_ball = !empty($this->data['lottery']->duplicate_extra_ball);
 				$expected_numbers = $is_independent_extra_ball ? $picks + 1 : $picks;
 				
-				log_message('info', "Refresh method: Loading filtered tickets - picks: {$picks}, is_independent_extra_ball: " . ($is_independent_extra_ball ? 'yes' : 'no') . ", expected_numbers: {$expected_numbers}");
-				log_message('info', "Refresh method: File has " . count($lines) . " lines");
-				
 				foreach ($lines as $line_index => $line) {
 					$line = trim($line);
 					if (!empty($line)) {
@@ -2837,23 +2787,13 @@ class Predictions extends Admin_Controller {
 						$numbers = preg_split('/[\s,]+/', $line);
 						$numbers = array_map('intval', array_filter($numbers, 'is_numeric'));
 						
-						if ($line_index < 3) { // Log first 3 lines for debugging
-							log_message('info', "Refresh method: Line {$line_index}: '{$line}' -> " . count($numbers) . " numbers: " . implode(',', $numbers));
-						}
-						
 						if (count($numbers) == $expected_numbers) {
 							$filtered_tickets[] = $numbers;
-						} else if ($line_index < 3) {
-							log_message('warning', "Refresh method: Line {$line_index} rejected - expected {$expected_numbers} numbers, got " . count($numbers));
 						}
 					}
 				}
 				
-				log_message('info', "Refresh method: Successfully parsed " . count($filtered_tickets) . " filtered tickets from file");
-				
 				if (!empty($filtered_tickets)) {
-					log_message('info', "Refresh method: Successfully parsed " . count($filtered_tickets) . " filtered tickets from file");
-					
 					// For displaying filtered tickets, we don't necessarily need the original file
 					// We can create a basic number array or work without it
 					$number_array = [];
@@ -2861,10 +2801,7 @@ class Predictions extends Admin_Controller {
 					// Create number array from the original combination file (for filtering purposes)
 					$original_file_path = $directory . $original_filename . '.txt';
 					
-					log_message('info', "Refresh method: Looking for original file at: " . $original_file_path);
-					
 					if (file_exists($original_file_path)) {
-						log_message('info', "Refresh method: Original file found, loading number array");
 						$original_content = file_get_contents($original_file_path);
 						$original_lines = explode("\n", $original_content);
 						
@@ -2880,10 +2817,7 @@ class Predictions extends Admin_Controller {
 						}
 						$number_array = array_unique($number_array);
 						sort($number_array);
-						
-						log_message('info', "Refresh method: Created number array with " . count($number_array) . " unique numbers");
 					} else {
-						log_message('info', "Refresh method: Original file not found, but proceeding with filtered tickets display");
 						// Create a basic number array from the filtered tickets themselves
 						foreach ($filtered_tickets as $ticket) {
 							foreach ($ticket as $number) {
@@ -2894,7 +2828,6 @@ class Predictions extends Admin_Controller {
 						}
 						$number_array = array_unique($number_array);
 						sort($number_array);
-						log_message('info', "Refresh method: Created fallback number array with " . count($number_array) . " unique numbers from filtered tickets");
 					}
 					
 		// Set session data for the existing filtered tickets
@@ -2926,13 +2859,8 @@ class Predictions extends Admin_Controller {
 			'selected_position_points' => $saved_settings['position_points']
 		];
 		$this->session->set_userdata('futures_form', $futures_form_data);
-		log_message('info', "Refresh method: Restored session data for consistency with Generate Tickets");
 		
-		// Log current session data for debugging
-		$current_session_array = $this->session->userdata('futures_number_array');
-		$current_session_form = $this->session->userdata('futures_form');
-		log_message('info', "Refresh method: Current session number_array: " . (is_array($current_session_array) ? count($current_session_array) . " numbers: " . implode(',', array_slice($current_session_array, 0, 10)) : 'not set'));
-		log_message('info', "Refresh method: Current session form decades: " . ($current_session_form['selected_decades'] ?? 'not set') . ", last_digits: " . ($current_session_form['selected_last_digits'] ?? 'not set'));					// Set up pagination for existing tickets - respect URL parameters and database CCCC
+		// Log current session data for debugging					// Set up pagination for existing tickets - respect URL parameters and database CCCC
 					$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
 					$per_page = $this->input->get('per_page') ? (int)$this->input->get('per_page') : 10;
 					$database_cccc = (int)$saved_settings['CCCC'];
@@ -2943,8 +2871,6 @@ class Predictions extends Admin_Controller {
 					$total_pages = ceil($database_cccc / $per_page);
 					$offset = ($page - 1) * $per_page;
 					$paginated_tickets = array_slice($limited_filtered_tickets, $offset, $per_page);
-					
-					log_message('info', "Refresh method: Limited display to database CCCC={$database_cccc}, file had " . count($filtered_tickets) . " tickets, showing page {$page} with {$per_page} per page");
 					
 					// Format tickets to match view expectations
 					$formatted_tickets = [];
@@ -3016,7 +2942,6 @@ class Predictions extends Admin_Controller {
 					
 					$original_file_path = FCPATH . 'combinations/' . $original_filename . '.txt';
 					if (file_exists($original_file_path)) {
-						log_message('info', "Refresh method: Calculating dynamic filter count from original file: {$original_file_path}");
 						
 						// Load lottery highlights if not already loaded (required for filtering)
 						if (!isset($this->data['lottery']->highlights)) {
@@ -3046,7 +2971,6 @@ class Predictions extends Admin_Controller {
 								'max_ball' => $this->data['lottery']->maximum_ball,
 								'lottery_highlights' => $this->data['lottery']->highlights
 							];
-							log_message('info', "Refresh method: Using session form data for filters - decades: {$session_form_data['selected_decades']}, last_digits: {$session_form_data['selected_last_digits']}");
 						} else {
 							// Fallback to saved settings if no session data
 							$filters = [
@@ -3068,14 +2992,12 @@ class Predictions extends Admin_Controller {
 								'max_ball' => $this->data['lottery']->maximum_ball,
 								'lottery_highlights' => $this->data['lottery']->highlights
 							];
-							log_message('info', "Refresh method: Using saved settings for filters - decades: {$saved_settings['decades']}, last_digits: {$saved_settings['last_digits']}");
 						}
 						
 						// Calculate dynamic filtered count using session number array
 						$session_number_array = $this->session->userdata('futures_number_array');
 						if (is_array($session_number_array) && !empty($session_number_array)) {
 							$dynamic_filtered_count = $this->predictions_m->get_filtered_combinations_count($original_file_path, $session_number_array, $filters);
-							log_message('info', "Refresh method: Dynamic filter calculation - database CCCC: {$database_cccc}, dynamic count: {$dynamic_filtered_count}");
 							
 							// Generate the actual filtered combinations for display (not just count)
 							$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
@@ -3087,7 +3009,6 @@ class Predictions extends Admin_Controller {
 								// This was causing the wrong results to be displayed
 								// $paginated_tickets = $dynamic_combos;
 								// $total_filtered = $dynamic_filtered_count;
-								log_message('info', "Refresh method: SKIPPED replacing saved combinations with dynamic ones (would have shown {$dynamic_filtered_count} instead of correct {$database_cccc})");
 							}
 						} else {
 							log_message('warning', "Refresh method: No session number array found for dynamic filtering");
@@ -3100,7 +3021,6 @@ class Predictions extends Admin_Controller {
 					// This ensures the correct filtered count is always displayed
 					$database_cccc = (int)$saved_settings['CCCC'];
 					$this->data['CCCC'] = $database_cccc;
-					log_message('info', "Refresh method: Using database CCCC: {$database_cccc} (dynamic would have been: {$dynamic_filtered_count})");
 					$this->data['total_pages'] = ceil($database_cccc / $per_page);
 					$this->data['current_page'] = $page;
 					$this->data['per_page'] = $per_page;
@@ -3118,12 +3038,8 @@ class Predictions extends Admin_Controller {
 					// Update total_filtered for view display to use database CCCC
 					$this->data['total_filtered'] = $database_cccc;
 					
-					log_message('info', "Refresh method: Pagination data - current: {$page}, total_pages: {$total_pages}, per_page: {$per_page}, total_filtered: {$dynamic_filtered_count}");
-					log_message('info', "Refresh method: Displaying existing filtered tickets, page {$page} of {$total_pages}, showing {$per_page} tickets per page");
-					
 					// Set filter record ID for Prize controller navigation
 					$this->data['filter_record_id'] = $record_id;
-					log_message('info', "Refresh method: Set filter_record_id to {$record_id} for dollar icon navigation");
 					
 					// Get all saved combination filters for the user - ensure this is always available
 					$user_id = $this->session->userdata('id');
@@ -3141,8 +3057,6 @@ class Predictions extends Admin_Controller {
 					if (isset($saved_settings['extra_balls']) && !empty($saved_settings['extra_balls'])) {
 						$this->data['selected_extra_ball'] = $saved_settings['extra_balls'];
 					}
-					
-					log_message('info', "Refresh method: Set up extra ball variables - is_independent_extra_ball: " . ($is_independent_extra_ball ? 'yes' : 'no') . ", extra_ball_occurrences count: " . count($this->data['extra_ball_occurrences']));
 					
 					// Load the futures view with existing filtered tickets
 					$this->data['subview'] = 'admin/dashboard/predictions/futures';
