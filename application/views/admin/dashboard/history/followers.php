@@ -348,15 +348,24 @@
 											$points_total = 0;
 											$category_mapping = array(
 												'extra' => 1,
+												'1_win' => 2,
 												'1_win_extra' => 3,
-												'2_win' => 2,
-												'2_win_extra' => 1,
-												'3_win' => 3,
-												'3_win_extra' => 1,
-												'4_win' => 4,
-												'4_win_extra' => 1,
-												'5_win' => 5,
-												'5_win_extra' => 1
+												'2_win' => 4,
+												'2_win_extra' => 5,
+												'3_win' => 6,
+												'3_win_extra' => 7,
+												'4_win' => 8,
+												'4_win_extra' => 9,
+												'5_win' => 10,
+												'5_win_extra' => 11,
+												'6_win' => 12,
+												'6_win_extra' => 13,
+												'7_win' => 14,
+												'7_win_extra' => 15,
+												'8_win' => 16,
+												'8_win_extra' => 17,
+												'9_win' => 18,
+												'9_win_extra' => 19
 											);
 											foreach ($wins as $category => $count) {
 												if (isset($category_mapping[$category])) {
