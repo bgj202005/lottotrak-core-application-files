@@ -368,6 +368,13 @@
 												'9_win_extra' => 19
 											);
 											foreach ($wins as $category => $count) {
+												// For duplicate_extra_ball lotteries, only calculate points for valid categories
+												if ($lottery->duplicate_extra_ball && isset($lottery->valid_prize_categories)) {
+													if (!in_array($category, $lottery->valid_prize_categories)) {
+														continue; // Skip categories not in the prize profile
+													}
+												}
+												
 												if (isset($category_mapping[$category])) {
 													$points_total += intval($count) * $category_mapping[$category];
 												}
@@ -397,18 +404,34 @@
 													// Enhanced display for independent extra ball lotteries using associative array
 													$category_mapping = array(
 														'extra' => array('label' => 'Extra Only', 'points' => 1),
+														'1_win' => array('label' => '1 Wins', 'points' => 2),
 														'1_win_extra' => array('label' => '1 Win + Extra', 'points' => 3),
-														'2_win' => array('label' => '2 Wins', 'points' => 2),
-														'2_win_extra' => array('label' => '2 Wins + Extra', 'points' => 1),
-														'3_win' => array('label' => '3 Wins', 'points' => 3),
-														'3_win_extra' => array('label' => '3 Wins + Extra', 'points' => 1),
-														'4_win' => array('label' => '4 Wins', 'points' => 4),
-														'4_win_extra' => array('label' => '4 Wins + Extra', 'points' => 1),
-														'5_win' => array('label' => '5 Wins', 'points' => 5),
-														'5_win_extra' => array('label' => '5 Wins + Extra', 'points' => 1)
+														'2_win' => array('label' => '2 Wins', 'points' => 4),
+														'2_win_extra' => array('label' => '2 Wins + Extra', 'points' => 5),
+														'3_win' => array('label' => '3 Wins', 'points' => 6),
+														'3_win_extra' => array('label' => '3 Wins + Extra', 'points' => 7),
+														'4_win' => array('label' => '4 Wins', 'points' => 8),
+														'4_win_extra' => array('label' => '4 Wins + Extra', 'points' => 9),
+														'5_win' => array('label' => '5 Wins', 'points' => 10),
+														'5_win_extra' => array('label' => '5 Wins + Extra', 'points' => 11),
+														'6_win' => array('label' => '6 Wins', 'points' => 12),
+														'6_win_extra' => array('label' => '6 Wins + Extra', 'points' => 13),
+														'7_win' => array('label' => '7 Wins', 'points' => 14),
+														'7_win_extra' => array('label' => '7 Wins + Extra', 'points' => 15),
+														'8_win' => array('label' => '8 Wins', 'points' => 16),
+														'8_win_extra' => array('label' => '8 Wins + Extra', 'points' => 17),
+														'9_win' => array('label' => '9 Wins', 'points' => 18),
+														'9_win_extra' => array('label' => '9 Wins + Extra', 'points' => 19)
 													);
 													
 													foreach ($category_mapping as $category_key => $category_info) {
+														// For duplicate_extra_ball lotteries, only show categories that exist in lottery_prize_profiles
+														if ($lottery->duplicate_extra_ball && isset($lottery->valid_prize_categories)) {
+															if (!in_array($category_key, $lottery->valid_prize_categories)) {
+																continue; // Skip categories not in the prize profile
+															}
+														}
+														
 														$winners = isset($wins[$category_key]) ? intval($wins[$category_key]) : 0;
 														$points = $winners * $category_info['points'];
 														$percentage = $lottery->last_drawn['range'] > 0 ? round(($winners / $lottery->last_drawn['range']) * 100, 2) : 0;
@@ -486,17 +509,33 @@
 											$points_total_pos = 0;
 											$category_mapping = array(
 												'extra' => 1,
+												'1_win' => 2,
 												'1_win_extra' => 3,
-												'2_win' => 2,
-												'2_win_extra' => 1,
-												'3_win' => 3,
-												'3_win_extra' => 1,
-												'4_win' => 4,
-												'4_win_extra' => 1,
-												'5_win' => 5,
-												'5_win_extra' => 1
+												'2_win' => 4,
+												'2_win_extra' => 5,
+												'3_win' => 6,
+												'3_win_extra' => 7,
+												'4_win' => 8,
+												'4_win_extra' => 9,
+												'5_win' => 10,
+												'5_win_extra' => 11,
+												'6_win' => 12,
+												'6_win_extra' => 13,
+												'7_win' => 14,
+												'7_win_extra' => 15,
+												'8_win' => 16,
+												'8_win_extra' => 17,
+												'9_win' => 18,
+												'9_win_extra' => 19
 											);
 											foreach ($positions as $category => $count) {
+												// For duplicate_extra_ball lotteries, only calculate points for valid categories
+												if ($lottery->duplicate_extra_ball && isset($lottery->valid_prize_categories)) {
+													if (!in_array($category, $lottery->valid_prize_categories)) {
+														continue; // Skip categories not in the prize profile
+													}
+												}
+												
 												if (isset($category_mapping[$category])) {
 													$points_total_pos += intval($count) * $category_mapping[$category];
 												}
@@ -526,18 +565,34 @@
 													// Enhanced display for independent extra ball lotteries - positions using associative array
 													$category_mapping = array(
 														'extra' => array('label' => 'Extra Only', 'points' => 1),
+														'1_win' => array('label' => '1 Wins', 'points' => 2),
 														'1_win_extra' => array('label' => '1 Win + Extra', 'points' => 3),
-														'2_win' => array('label' => '2 Wins', 'points' => 2),
-														'2_win_extra' => array('label' => '2 Wins + Extra', 'points' => 1),
-														'3_win' => array('label' => '3 Wins', 'points' => 3),
-														'3_win_extra' => array('label' => '3 Wins + Extra', 'points' => 1),
-														'4_win' => array('label' => '4 Wins', 'points' => 4),
-														'4_win_extra' => array('label' => '4 Wins + Extra', 'points' => 1),
-														'5_win' => array('label' => '5 Wins', 'points' => 5),
-														'5_win_extra' => array('label' => '5 Wins + Extra', 'points' => 1)
+														'2_win' => array('label' => '2 Wins', 'points' => 4),
+														'2_win_extra' => array('label' => '2 Wins + Extra', 'points' => 5),
+														'3_win' => array('label' => '3 Wins', 'points' => 6),
+														'3_win_extra' => array('label' => '3 Wins + Extra', 'points' => 7),
+														'4_win' => array('label' => '4 Wins', 'points' => 8),
+														'4_win_extra' => array('label' => '4 Wins + Extra', 'points' => 9),
+														'5_win' => array('label' => '5 Wins', 'points' => 10),
+														'5_win_extra' => array('label' => '5 Wins + Extra', 'points' => 11),
+														'6_win' => array('label' => '6 Wins', 'points' => 12),
+														'6_win_extra' => array('label' => '6 Wins + Extra', 'points' => 13),
+														'7_win' => array('label' => '7 Wins', 'points' => 14),
+														'7_win_extra' => array('label' => '7 Wins + Extra', 'points' => 15),
+														'8_win' => array('label' => '8 Wins', 'points' => 16),
+														'8_win_extra' => array('label' => '8 Wins + Extra', 'points' => 17),
+														'9_win' => array('label' => '9 Wins', 'points' => 18),
+														'9_win_extra' => array('label' => '9 Wins + Extra', 'points' => 19)
 													);
 													
 													foreach ($category_mapping as $category_key => $category_info) {
+														// For duplicate_extra_ball lotteries, only show categories that exist in lottery_prize_profiles
+														if ($lottery->duplicate_extra_ball && isset($lottery->valid_prize_categories)) {
+															if (!in_array($category_key, $lottery->valid_prize_categories)) {
+																continue; // Skip categories not in the prize profile
+															}
+														}
+														
 														$winners = isset($positions[$category_key]) ? intval($positions[$category_key]) : 0;
 														$points = $winners * $category_info['points'];
 														$percentage = $lottery->last_drawn['range'] > 0 ? round(($winners / $lottery->last_drawn['range']) * 100, 2) : 0;

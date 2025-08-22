@@ -573,6 +573,10 @@ class History extends Admin_Controller {
 		// 1. Check for a record for the current lottery in the followers table
 		$p_group = $this->statistics_m->prize_group_profile($id); // Prize Group Profile Only
 		$p_group = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_ball);
+		
+		// Store the valid prize categories for filtering display
+		$this->data['lottery']->valid_prize_categories = array_keys($p_group);
+		
 		$followers = $this->statistics_m->followers_exists($id);		// Existing follower row 
 		if(!is_null($followers))
 		{
@@ -607,7 +611,7 @@ class History extends Admin_Controller {
 						// Set data with the names the view expects
 						$this->data['lottery']->enhanced_parsed_wins = $this->data['lottery']->parsed_wins;
 						$this->data['lottery']->enhanced_parsed_positions = $this->data['lottery']->parsed_positions;
-						$this->data['lottery']->enhanced_point_rankings = $this->calculate_point_rankings($this->data['lottery']->parsed_wins, $this->data['lottery']->parsed_positions);
+						$this->data['lottery']->enhanced_point_rankings = $this->calculate_point_rankings($this->data['lottery']->parsed_wins, $this->data['lottery']->parsed_positions, $this->data['lottery']->valid_prize_categories);
 						
 						// Get the actual drawn ball numbers for enhanced display
 						$last_draw_data = $this->statistics_m->db_row($tbl_name, 0);
@@ -646,7 +650,7 @@ class History extends Admin_Controller {
 							$this->data['lottery']->enhanced_wins = true;
 							$this->data['lottery']->parsed_wins = $enhanced_ball_wins;
 							$this->data['lottery']->parsed_positions = $enhanced_position_wins;
-							$this->data['lottery']->enhanced_point_rankings = $this->calculate_point_rankings($enhanced_ball_wins, $enhanced_position_wins);
+							$this->data['lottery']->enhanced_point_rankings = $this->calculate_point_rankings($enhanced_ball_wins, $enhanced_position_wins, $this->data['lottery']->valid_prize_categories);
 							
 							// Get the actual drawn ball numbers for enhanced display
 							$last_draw_data = $this->statistics_m->db_row($tbl_name, 0);
@@ -781,11 +785,17 @@ class History extends Admin_Controller {
 		$entries = explode('>', $positions_string);
 		$position_index = 1;
 		
+		// Debug logging
+		log_message('debug', "Parsing positions string for Daily Grand: $positions_string");
+		log_message('debug', "Split into " . count($entries) . " entries: " . print_r($entries, true));
+		
 		// Parse each position (1 through max positions + extra)
 		foreach ($entries as $entry) {
 			if (empty($entry)) continue;
 			
 			$values = explode(',', $entry);
+			log_message('debug', "Position $position_index values: " . print_r($values, true));
+			
 			// Map numeric indexes to category names
 			$categorized_wins = array();
 			foreach ($values as $cat_idx => $count) {
@@ -793,10 +803,13 @@ class History extends Admin_Controller {
 					$categorized_wins[$category_names[$cat_idx]] = intval($count);
 				}
 			}
+			
+			log_message('debug', "Position $position_index categorized wins: " . print_r($categorized_wins, true));
 			$parsed[$position_index] = $categorized_wins;
 			$position_index++;
 		}
 		
+		log_message('debug', "Final parsed positions: " . print_r($parsed, true));
 		return $parsed;
 	}
 
@@ -826,7 +839,7 @@ class History extends Admin_Controller {
 	/**
 	 * Calculate point rankings based on the point system for independent extra ball lotteries
 	 */
-	private function calculate_point_rankings($parsed_wins, $parsed_positions)
+	private function calculate_point_rankings($parsed_wins, $parsed_positions, $valid_categories = null)
 	{
 		$ball_rankings = array();
 		$position_rankings = array();
@@ -859,6 +872,11 @@ class History extends Admin_Controller {
 			$total_points = 0;
 			
 			foreach ($wins as $category => $count) {
+				// Skip categories not in the valid prize categories for duplicate_extra_ball lotteries
+				if ($valid_categories && !in_array($category, $valid_categories)) {
+					continue;
+				}
+				
 				if (isset($category_points[$category])) {
 					$total_points += intval($count) * $category_points[$category];
 				}
@@ -871,13 +889,31 @@ class History extends Admin_Controller {
 		foreach ($parsed_positions as $position => $position_wins) {
 			$total_points = 0;
 			
+			log_message('debug', "Calculating points for position $position:");
 			foreach ($position_wins as $category => $count) {
+				// Skip categories not in the valid prize categories for duplicate_extra_ball lotteries
+				if ($valid_categories && !in_array($category, $valid_categories)) {
+					log_message('debug', "  Category $category: $count wins × 0 points (not in valid categories)");
+					continue;
+				}
+				
 				if (isset($category_points[$category])) {
-					$total_points += intval($count) * $category_points[$category];
+					$points_for_category = intval($count) * $category_points[$category];
+					$total_points += $points_for_category;
+					log_message('debug', "  Category $category: $count wins × {$category_points[$category]} points = $points_for_category points");
+				} else {
+					log_message('debug', "  Category $category: $count wins × 0 points (unknown category)");
 				}
 			}
 			
+			log_message('debug', "  Position $position total points: $total_points");
 			$position_rankings[$position] = $total_points;
+		}
+		
+		// Debug logging for position points calculation
+		log_message('debug', "Position rankings calculated for Daily Grand:");
+		foreach ($position_rankings as $pos => $points) {
+			log_message('debug', "Position $pos: $points points");
 		}
 		
 		// Sort by points (highest first)
