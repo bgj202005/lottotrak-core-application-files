@@ -643,7 +643,6 @@ class History extends Admin_Controller {
 						// Use the enhanced follower calculation methods we fixed earlier
 						$enhanced_ball_wins = $this->statistics_m->calculate_independent_extra_follower_wins_OLD($tbl_name, $id, $range);
 						$enhanced_position_wins = $this->statistics_m->calculate_independent_extra_follower_positions_OLD($tbl_name, $id, $range);
-						log_message('debug', "Enhanced position wins generated: " . (empty($enhanced_position_wins) ? 'empty' : 'success'));
 						
 						if (!empty($enhanced_ball_wins) && !empty($enhanced_position_wins)) {
 							// Convert to the format expected by the view
@@ -672,7 +671,6 @@ class History extends Admin_Controller {
 						}
 					} catch (Exception $e) {
 						// Enhanced generation failed, fall back to regular display
-						log_message('error', "Enhanced data generation failed: " . $e->getMessage());
 						$this->data['lottery']->enhanced_wins = false;
 						$this->setup_regular_follower_display($followers, $drawn, $p_group);
 					}
@@ -784,17 +782,11 @@ class History extends Admin_Controller {
 		// Format: pos1_data>pos2_data>pos3_data>pos4_data>pos5_data>extra_data
 		$entries = explode('>', $positions_string);
 		$position_index = 1;
-		
-		// Debug logging
-		log_message('debug', "Parsing positions string for Daily Grand: $positions_string");
-		log_message('debug', "Split into " . count($entries) . " entries: " . print_r($entries, true));
-		
 		// Parse each position (1 through max positions + extra)
 		foreach ($entries as $entry) {
 			if (empty($entry)) continue;
 			
 			$values = explode(',', $entry);
-			log_message('debug', "Position $position_index values: " . print_r($values, true));
 			
 			// Map numeric indexes to category names
 			$categorized_wins = array();
@@ -804,12 +796,10 @@ class History extends Admin_Controller {
 				}
 			}
 			
-			log_message('debug', "Position $position_index categorized wins: " . print_r($categorized_wins, true));
 			$parsed[$position_index] = $categorized_wins;
 			$position_index++;
 		}
 		
-		log_message('debug', "Final parsed positions: " . print_r($parsed, true));
 		return $parsed;
 	}
 
@@ -889,31 +879,19 @@ class History extends Admin_Controller {
 		foreach ($parsed_positions as $position => $position_wins) {
 			$total_points = 0;
 			
-			log_message('debug', "Calculating points for position $position:");
 			foreach ($position_wins as $category => $count) {
 				// Skip categories not in the valid prize categories for duplicate_extra_ball lotteries
 				if ($valid_categories && !in_array($category, $valid_categories)) {
-					log_message('debug', "  Category $category: $count wins × 0 points (not in valid categories)");
 					continue;
 				}
 				
 				if (isset($category_points[$category])) {
 					$points_for_category = intval($count) * $category_points[$category];
 					$total_points += $points_for_category;
-					log_message('debug', "  Category $category: $count wins × {$category_points[$category]} points = $points_for_category points");
-				} else {
-					log_message('debug', "  Category $category: $count wins × 0 points (unknown category)");
 				}
 			}
 			
-			log_message('debug', "  Position $position total points: $total_points");
 			$position_rankings[$position] = $total_points;
-		}
-		
-		// Debug logging for position points calculation
-		log_message('debug', "Position rankings calculated for Daily Grand:");
-		foreach ($position_rankings as $pos => $points) {
-			log_message('debug', "Position $pos: $points points");
 		}
 		
 		// Sort by points (highest first)
