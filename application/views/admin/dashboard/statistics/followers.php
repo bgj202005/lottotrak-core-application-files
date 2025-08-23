@@ -206,34 +206,38 @@
 												endif; 
 											} while(!is_null(key($t_picks)));
 											unset($trailer);?>
-											<p class="card-text">The total number of main ball followers for this <?=($b>$cd ? 'extra ball' : 'main ball');?> is <strong><?=$sum;?></strong>.</p>
+											<p class="card-text">The total number of <?=($lottery->duplicate_extra_ball ? 'main ball ' : '');?>followers for this <?=($b>$cd ? 'extra ball' : 'main ball');?> is <strong><?=$sum;?></strong>.</p>
 										<?php }
 										else{ ?>
-											<p class="card-text">There are no main ball followers with more than 2 occurrences in the range of <?=$lottery->last_drawn['range'];?> draws.</p>
+											<p class="card-text">There are no <?=($lottery->duplicate_extra_ball ? 'main ball ' : '');?>followers with more than 2 occurrences in the range of <?=$lottery->last_drawn['range'];?> draws.</p>
 										<?php }
 										
-										// Display main ball non-followers under Main Balls heading
+										// Display non-followers for all lotteries (regular and independent extra ball lotteries)
+										// Get non-followers data
+										if(isset($lottery->last_drawn[$lottery->last_drawn['extra'].'nf'])):
+											$xtr = (($lottery->duplicate_extra_ball&&$lottery->extra_included) ? $lottery->last_drawn[$lottery->last_drawn['extra'].'nfx'] : $lottery->last_drawn[$lottery->last_drawn['extra'].'nf']);
+										else:
+											$xtr = '0|0';
+										endif;	
+										$nonfollowers = explode('|', ($b>$cd ? $xtr : $lottery->last_drawn[$lottery->last_drawn['ball'.$b].'nf'])); 
+										$non_picks = "";
+										if($nonfollowers[0]): ?>
+											<?php $sum_nf = 0; // Reset the sum counter;
+											$non_picks .= "These ".($lottery->duplicate_extra_ball ? "Main Ball " : "")."Numbers have <strong>NEVER</strong> followed this Ball <strong>".($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b])."</strong> for ".$lottery->last_drawn['range']." Draws:<br />";
+											foreach($nonfollowers as $nf):  
+												$non_picks .= 'Number: <strong>'.$nf.'</strong><br />';
+												$sum_nf++;	
+											endforeach; ?>
+											<p class='card-text'><?php echo $non_picks; ?></p>
+											<?php $plural_nf = (string) ($sum_nf>1 ?  " balls " : " ball "); ?>
+											<p class='card-text'><strong><?php echo $sum_nf.$plural_nf; ?></strong> in this <?=($lottery->duplicate_extra_ball ? 'main ball ' : '');?>non-follower group.</p>
+										<?php endif;
+										unset($nonfollowers);
+										
+										// Display main ball non-followers under Main Balls heading for independent extra ball lotteries
 										if($lottery->duplicate_extra_ball): 
-											// Get main ball non-followers data
-											if(isset($lottery->last_drawn[$lottery->last_drawn['extra'].'nf'])):
-												$xtr = (($lottery->duplicate_extra_ball&&$lottery->extra_included) ? $lottery->last_drawn[$lottery->last_drawn['extra'].'nfx'] : $lottery->last_drawn[$lottery->last_drawn['extra'].'nf']);
-											else:
-												$xtr = '0|0';
-											endif;	
-											$main_nonfollowers = explode('|', ($b>$cd ? $xtr : $lottery->last_drawn[$lottery->last_drawn['ball'.$b].'nf'])); 
-											$main_non_picks = "";
-											if($main_nonfollowers[0]): ?>
-												<?php $main_sum = 0; // Reset the sum counter;
-												$main_non_picks .= "These Numbers have <strong>NEVER</strong> followed this Ball <strong>".($b>$cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b])."</strong> for ".$lottery->last_drawn['range']." Draws:<br />";
-												foreach($main_nonfollowers as $nf):  
-													$main_non_picks .= 'Number: <strong>'.$nf.'</strong><br />';
-													$main_sum++;	
-												endforeach; ?>
-												<p class='card-text'><?php echo $main_non_picks; ?></p>
-												<?php $main_plural = (string) ($main_sum>1 ?  " balls " : " ball "); ?>
-												<p class='card-text'><strong><?php echo $main_sum.$main_plural; ?></strong> in this main non-follower group.</p>
-											<?php endif;
-											unset($main_nonfollowers);
+											// For independent extra ball lotteries, we already displayed the main ball non-followers above
+											// So we don't need to duplicate the display here
 										endif;
 										
 										// Display extra ball section for independent extra ball lotteries
