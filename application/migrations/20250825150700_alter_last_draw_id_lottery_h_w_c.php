@@ -7,14 +7,20 @@ class Migration_Alter_Last_Draw_Id_Lottery_H_w_c extends CI_Migration {
     {
         $field = array(
         'last_draw_id' => array(
-         'name' => 'id_last',
-         'type' => 'INT',
+         'name' => 'draw_id_last',
+         'type' => 'INT'
         ),
     );
     $this->dbforge->modify_column('lottery_h_w_c', $field);
     }
     public function down()
     {
-        $this->dbforge->drop_column('lottery_h_w_c', 'last_draw_id');
+        $field = array(
+            'id_last' => array(
+            'name' => 'last_draw_id',
+            'type' => 'INT'
+            ),
+        );
+        $this->dbforge->modify_Column('lottery_h_w_c', $field);
     }
 }
