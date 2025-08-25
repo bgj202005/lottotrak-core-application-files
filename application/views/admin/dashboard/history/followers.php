@@ -389,6 +389,17 @@
 													$points_total += intval($count) * $category_mapping[$category];
 												}
 											}
+											
+											// Calculate total winners for percentage calculation (enhanced display)
+											$total_winners = 0;
+											foreach ($wins as $category => $count) {
+												if ($lottery->duplicate_extra_ball && isset($lottery->valid_prize_categories)) {
+													if (!in_array($category, $lottery->valid_prize_categories)) {
+														continue; // Skip categories not in the prize profile
+													}
+												}
+												$total_winners += intval($count);
+											}
 										} else {
 											// Regular display
 											$wins = ($b > $cd ? $lottery->last_drawn['extra_win'] : $lottery->last_drawn['ball'.$b.'_win']);
@@ -444,7 +455,7 @@
 														
 														$winners = isset($wins[$category_key]) ? intval($wins[$category_key]) : 0;
 														$points = $winners * $category_info['points'];
-														$percentage = $lottery->last_drawn['range'] > 0 ? round(($winners / $lottery->last_drawn['range']) * 100, 2) : 0;
+														$percentage = $total_winners > 0 ? round(($winners / $total_winners) * 100, 2) : 0;
 														?>
 														<tr>
 															<td><?= $category_info['label'] ?></td>
@@ -459,7 +470,7 @@
 														if (strpos($prize, "_points") !== false) continue; // Only process main categories
 														$points = isset($wins[$prize . '_points']) ? $wins[$prize . '_points'] : 0;
 														$points_total += $points;
-														$percentage = $lottery->last_drawn['range'] > 0 ? round(($winners / $lottery->last_drawn['range']) * 100, 2) : 0;
+														$percentage = $total_winners > 0 ? round(($winners / $total_winners) * 100, 2) : 0;
 														switch ($prize) {
 															case "9_win": $label = "9 out of $cd Winners"; break;
 															case "8_win_extra": $label = "8 out of $cd Winners + Extra"; break;
@@ -622,7 +633,7 @@
 														
 														$winners = isset($positions[$category_key]) ? intval($positions[$category_key]) : 0;
 														$points = $winners * $category_info['points'];
-														$percentage = $lottery->last_drawn['range'] > 0 ? round(($winners / $lottery->last_drawn['range']) * 100, 2) : 0;
+														$percentage = $total_winners_pos > 0 ? round(($winners / $total_winners_pos) * 100, 2) : 0;
 														?>
 														<tr>
 															<td><?= $category_info['label'] ?></td>
@@ -637,7 +648,7 @@
 														if (strpos($prize, "_points") !== false) continue;
 														$points = isset($positions[$prize . '_points']) ? $positions[$prize . '_points'] : 0;
 														$points_total_pos += $points;
-														$percentage = $lottery->last_drawn['range'] > 0 ? round(($winners / $lottery->last_drawn['range']) * 100, 2) : 0;
+														$percentage = $total_winners_pos > 0 ? round(($winners / $total_winners_pos) * 100, 2) : 0;
 														switch ($prize) {
 															case "9_win": $label = "9 out of $cd Winners"; break;
 															case "8_win_extra": $label = "8 out of $cd Winners + Extra"; break;
