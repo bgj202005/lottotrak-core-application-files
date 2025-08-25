@@ -353,7 +353,6 @@ class Predictions extends Admin_Controller {
 						$combinations[] = $full_combo;
 					}
 				}
-				log_message('info', "Generated " . count($combinations) . " total combinations for independent extra ball lottery");
 			}
 		} else {
 			// Standard generation for regular lotteries
@@ -675,8 +674,13 @@ class Predictions extends Admin_Controller {
 			$follow_poswins = explode(">",$this->data['followers']['positions']);
 			
 			// 3. Only populate the numbers with the win record that was actually drawn
-			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'],$p_group,$follower_wins,$follow_poswins);
-			$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $this->data['lottery']->duplicate_extra_ball);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'],$p_group,$follower_wins,$follow_poswins);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $this->data['lottery']->duplicate_extra_ball);
+		
+		// For independent extra ball lotteries, parse dupextra_wins and update extra ball points BEFORE getting sorted ball points
+		if ($this->data['lottery']->duplicate_extra_ball == 1 && !empty($this->data['followers']['dupextra_wins'])) {
+			$this->parse_and_apply_dupextra_wins_to_points();
+		}
 		
 		$ball_points = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
 		// Example $ball_points_labels = ['7 (142)', '+14 (62)', '12 (88)', ...];
@@ -1644,9 +1648,8 @@ class Predictions extends Admin_Controller {
 					$saved_settings = $this->combination_filters_m->get_saved_settings($combo_id);
 					if ($saved_settings && isset($saved_settings['id'])) {
 						$this->data['filter_record_id'] = $saved_settings['id'];
-						log_message('info', "Predictions::combination - Found filter_record_id: {$saved_settings['id']} for combo_id: {$combo_id}, active: " . ($this->data['active'] ? 'true' : 'false'));
 					} else {
-						log_message('info', "Predictions::combination - No saved settings found for combo_id: {$combo_id}");
+						// No saved settings found
 					}
 				}
 				
@@ -2031,9 +2034,8 @@ class Predictions extends Admin_Controller {
 				$saved_settings = $this->combination_filters_m->get_saved_settings($combo_id);
 				if ($saved_settings && isset($saved_settings['id'])) {
 					$this->data['filter_record_id'] = $saved_settings['id'];
-					log_message('info', "Predictions::combination - Found filter_record_id: {$saved_settings['id']} for combo_id: {$combo_id}, active: " . ($this->data['active'] ? 'true' : 'false') . " (session data path)");
 				} else {
-					log_message('info', "Predictions::combination - No saved settings found for combo_id: {$combo_id} (session data path)");
+					// No saved settings found
 				}
 			}
 			
@@ -2525,8 +2527,6 @@ class Predictions extends Admin_Controller {
 		$this->load->model('combination_filters_m');
 		$saved_settings = $this->combination_filters_m->get_saved_settings($record_id);
 		
-		// Debug: Log what we found
-		
 		if (!$saved_settings) {
 			$this->session->set_flashdata('message', '<div class="alert alert-danger">No saved settings found for combination ID: ' . $record_id . '</div>');
 			redirect('admin/predictions/futures/' . $id);
@@ -2860,7 +2860,7 @@ class Predictions extends Admin_Controller {
 		];
 		$this->session->set_userdata('futures_form', $futures_form_data);
 		
-		// Log current session data for debugging					// Set up pagination for existing tickets - respect URL parameters and database CCCC
+		// Set up pagination for existing tickets - respect URL parameters and database CCCC
 					$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
 					$per_page = $this->input->get('per_page') ? (int)$this->input->get('per_page') : 10;
 					$database_cccc = (int)$saved_settings['CCCC'];
@@ -3011,10 +3011,10 @@ class Predictions extends Admin_Controller {
 								// $total_filtered = $dynamic_filtered_count;
 							}
 						} else {
-							log_message('warning', "Refresh method: No session number array found for dynamic filtering");
+							// No session number array found for dynamic filtering
 						}
 					} else {
-						log_message('warning', "Refresh method: Original file not found for dynamic filtering: {$original_file_path}");
+						// Original file not found for dynamic filtering
 					}
 					
 					// Use database CCCC value (NOT file count or dynamic count)
@@ -3103,8 +3103,6 @@ class Predictions extends Admin_Controller {
 		$this->session->set_userdata('futures_form', $session_data);
 		$this->session->set_userdata('combination_file_id', $combo_id);
 		$this->session->set_userdata('combination_file_name', $original_filename);
-		
-		log_message('info', "Refresh method: Session data set, redirecting to combination method for regeneration");
 		
 		// Redirect to combination method with POST data to trigger ticket generation
 		$_POST = [
@@ -3470,5 +3468,166 @@ class Predictions extends Admin_Controller {
 		}
 		
 		return $old_format;
+	}
+
+	/**
+	 * Parse dupextra_wins data and apply points to extra ball
+	 * This method parses the dupextra_wins string and calculates points for the extra ball
+	 * to be used in the "After Ball" dropdown for independent extra ball lotteries
+	 */
+	private function parse_and_apply_dupextra_wins_to_points()
+	{
+		// Get valid prize categories
+		$p_group = $this->statistics_m->prize_group_profile($this->data['lottery']->id);
+		$p_group = $this->statistics_m->prizes_only($p_group, $this->data['lottery']->extra_ball);
+		$valid_categories = array_keys($p_group);
+		$prize_categories = $valid_categories; // Use the category names, not the values
+		
+		// Parse dupextra_wins string - format is position-based data separated by >
+		$dupextra_wins_string = $this->data['followers']['dupextra_wins'];
+		$position_prizes = explode('>', $dupextra_wins_string);
+		
+		// Get the extra ball number and position
+		$extra_ball_number = $this->data['lottery']->last_drawn['extra'] ?? null;
+		if (!$extra_ball_number) return;
+		
+		// Find which position this extra ball number appears in as a main ball
+		$extra_ball_position = null;
+		for ($i = 1; $i <= $this->data['lottery']->balls_drawn; $i++) {
+			if (isset($this->data['lottery']->last_drawn['ball'.$i]) && 
+				$this->data['lottery']->last_drawn['ball'.$i] == $extra_ball_number) {
+				$extra_ball_position = $i;
+				break;
+			}
+		}
+		
+		if ($extra_ball_position && isset($position_prizes[$extra_ball_position - 1])) {
+			// Parse the dupextra_wins data for this position
+			$position_data = $position_prizes[$extra_ball_position - 1];
+			$prizes = explode(',', $position_data);
+			
+			$dupextra_wins = array();
+			foreach($prizes as $index => $count) {
+				if(isset($prize_categories[$index]) && intval($count) > 0) {
+					$dupextra_wins[$prize_categories[$index]] = intval($count);
+				}
+			}
+			
+			if (!empty($dupextra_wins)) {
+				// Calculate points using the same point system as History controller
+				$dupextra_points = 0;
+				$category_points = array(
+					'extra' => 1,
+					'1_win' => 2, '1_win_extra' => 3,
+					'2_win' => 4, '2_win_extra' => 5,
+					'3_win' => 6, '3_win_extra' => 7,
+					'4_win' => 8, '4_win_extra' => 9,
+					'5_win' => 10, '5_win_extra' => 11,
+					'6_win' => 12, '6_win_extra' => 13,
+					'7_win' => 14, '7_win_extra' => 15,
+					'8_win' => 16, '8_win_extra' => 17,
+					'9_win' => 18, '9_win_extra' => 19
+				);
+				
+				foreach ($dupextra_wins as $category => $count) {
+					if (isset($category_points[$category])) {
+						$dupextra_points += intval($count) * $category_points[$category];
+					}
+				}
+				
+				// Set the extra_total field for get_sorted_ball_points method (for "After Ball" dropdown)
+				$this->data['lottery']->last_drawn['extra_total'] = $dupextra_points;
+			}
+		}
+		
+		// Handle position 6 (extra ball position) separately for position table
+		// Position 6 should be the SUM of all individual extra ball points (1-7)
+		// Calculate points for each extra ball from each position in dupextra_wins data
+		$total_position_6_points = 0;
+		$category_points = array(
+			'extra' => 1,
+			'1_win' => 2, '1_win_extra' => 3,
+			'2_win' => 4, '2_win_extra' => 5,
+			'3_win' => 6, '3_win_extra' => 7,
+			'4_win' => 8, '4_win_extra' => 9,
+			'5_win' => 10, '5_win_extra' => 11,
+			'6_win' => 12, '6_win_extra' => 13,
+			'7_win' => 14, '7_win_extra' => 15,
+			'8_win' => 16, '8_win_extra' => 17,
+			'9_win' => 18, '9_win_extra' => 19
+		);
+		
+		// Calculate individual points for each of the 7 positions (representing when each extra ball 1-7 appears)
+		for ($position_index = 0; $position_index < 7; $position_index++) {
+			if (isset($position_prizes[$position_index])) {
+				$position_data = $position_prizes[$position_index];
+				$prizes = explode(',', $position_data);
+				
+				$extra_ball_wins = array();
+				foreach($prizes as $index => $count) {
+					if(isset($prize_categories[$index]) && intval($count) > 0) {
+						$extra_ball_wins[$prize_categories[$index]] = intval($count);
+					}
+				}
+				
+				if (!empty($extra_ball_wins)) {
+					// Calculate points for this extra ball (position represents which extra ball 1-7)
+					$extra_ball_points = 0;
+					foreach ($extra_ball_wins as $category => $count) {
+						if (isset($category_points[$category])) {
+							$extra_ball_points += intval($count) * $category_points[$category];
+						}
+					}
+					
+					$total_position_6_points += $extra_ball_points;
+				}
+			}
+		}
+		
+		// Set position data for the extra ball position (position 6)
+		$this->data['lottery']->last_drawn['position_extra_total'] = $total_position_6_points;
+	}
+
+	/**
+	 * Parse dupextra_wins string into displayable format (same as History controller)
+	 */
+	private function parse_dupextra_wins_string($dupextra_wins_string, $valid_categories)
+	{
+		$parsed = array();
+		
+		if (empty($dupextra_wins_string)) {
+			return $parsed;
+		}
+		
+		// Split by '>' to get prizes for each extra ball
+		$extra_ball_prizes = explode('>', $dupextra_wins_string);
+		
+		// Define all possible prize categories in order
+		$all_categories = array('extra', '1_win', '1_win_extra', '2_win', '2_win_extra', '3_win', '3_win_extra', '4_win', '4_win_extra', '5_win', '5_win_extra', '6_win', '6_win_extra', '7_win', '7_win_extra');
+		
+		// Filter to only include valid (non-NULL) categories
+		$prize_categories = array();
+		foreach($all_categories as $category) {
+			if(in_array($category, $valid_categories)) {
+				$prize_categories[] = $category;
+			}
+		}
+		
+		// Process each extra ball's prizes
+		for($extra_num = 1; $extra_num <= $this->data['lottery']->maximum_extra_ball; $extra_num++) {
+			if(isset($extra_ball_prizes[$extra_num - 1]) && !empty($extra_ball_prizes[$extra_num - 1])) {
+				$prizes = explode(',', $extra_ball_prizes[$extra_num - 1]);
+				
+				$parsed['extra_' . $extra_num] = array();
+				
+				foreach($prizes as $index => $count) {
+					if(isset($prize_categories[$index]) && intval($count) > 0) {
+						$parsed['extra_' . $extra_num][$prize_categories[$index]] = intval($count);
+					}
+				}
+			}
+		}
+		
+		return $parsed;
 	}
 }

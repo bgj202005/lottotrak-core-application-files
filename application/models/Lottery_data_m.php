@@ -69,7 +69,7 @@ class Lottery_data_m extends MY_Model
      */
     public function get_followers($lottery_id)
     {
-        $this->db->select('range, lottery_followers, wins, positions, draw_id, extra_included, extra_draws');
+        $this->db->select('range, lottery_followers, wins, positions, draw_id, extra_included, extra_draws, dupextra_wins');
         $this->db->from('lottery_followers');
         $this->db->where('lottery_id', $lottery_id);
         return $this->db->get()->row_array();

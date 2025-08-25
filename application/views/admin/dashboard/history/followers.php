@@ -341,8 +341,18 @@
 										if ($is_enhanced && isset($lottery->enhanced_parsed_wins)) {
 											// Enhanced display for independent extra ball lotteries
 											$ball_number = ($b > $cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);
-											$wins = isset($lottery->enhanced_parsed_wins[$ball_number]) ? $lottery->enhanced_parsed_wins[$ball_number] : array();
-											$total_winners = array_sum($wins);
+											
+											// For extra ball on independent extra ball lotteries, use dupextra_wins data
+											if ($b > $cd && $lottery->duplicate_extra_ball && !empty($lottery->parsed_dupextra_wins)) {
+												// Use dupextra_wins data for extra ball
+												$extra_ball_key = 'extra_' . $ball_number; // e.g., 'extra_4' for extra ball 4
+												$wins = isset($lottery->parsed_dupextra_wins[$extra_ball_key]) ? $lottery->parsed_dupextra_wins[$extra_ball_key] : array();
+												$total_winners = array_sum($wins);
+											} else {
+												// Regular enhanced display for main balls or non-dupextra extra balls
+												$wins = isset($lottery->enhanced_parsed_wins[$ball_number]) ? $lottery->enhanced_parsed_wins[$ball_number] : array();
+												$total_winners = array_sum($wins);
+											}
 											
 											// Calculate points for enhanced display
 											$points_total = 0;
@@ -501,43 +511,60 @@
 										// Prepare position data based on enhanced vs regular display
 										if ($is_enhanced && isset($lottery->enhanced_parsed_positions)) {
 											// Enhanced display for independent extra ball lotteries - positions
-											$position_number = $b;
-											$positions = isset($lottery->enhanced_parsed_positions[$position_number]) ? $lottery->enhanced_parsed_positions[$position_number] : array();
-											$total_winners_pos = array_sum($positions);
+											$position_key = 'position_' . $b;
+											$positions = isset($lottery->enhanced_parsed_positions[$position_key]) ? $lottery->enhanced_parsed_positions[$position_key] : array();
 											
-											// Calculate points for enhanced position display
-											$points_total_pos = 0;
-											$category_mapping = array(
-												'extra' => 1,
-												'1_win' => 2,
-												'1_win_extra' => 3,
-												'2_win' => 4,
-												'2_win_extra' => 5,
-												'3_win' => 6,
-												'3_win_extra' => 7,
-												'4_win' => 8,
-												'4_win_extra' => 9,
-												'5_win' => 10,
-												'5_win_extra' => 11,
-												'6_win' => 12,
-												'6_win_extra' => 13,
-												'7_win' => 14,
-												'7_win_extra' => 15,
-												'8_win' => 16,
-												'8_win_extra' => 17,
-												'9_win' => 18,
-												'9_win_extra' => 19
-											);
-											foreach ($positions as $category => $count) {
-												// For duplicate_extra_ball lotteries, only calculate points for valid categories
-												if ($lottery->duplicate_extra_ball && isset($lottery->valid_prize_categories)) {
-													if (!in_array($category, $lottery->valid_prize_categories)) {
-														continue; // Skip categories not in the prize profile
+											// Handle special total_points field for aggregated data
+											if (isset($positions['total_points'])) {
+												$points_total_pos = $positions['total_points'];
+												// Calculate total winners excluding the total_points field
+												$total_winners_pos = 0;
+												foreach ($positions as $key => $value) {
+													if ($key !== 'total_points') {
+														$total_winners_pos += intval($value);
 													}
 												}
+											} else {
+												// Normal calculation for positions without total_points
+												$total_winners_pos = array_sum($positions);
 												
-												if (isset($category_mapping[$category])) {
-													$points_total_pos += intval($count) * $category_mapping[$category];
+												// Calculate points for enhanced position display
+												$points_total_pos = 0;
+												$category_mapping = array(
+													'extra' => 1,
+													'1_win' => 2,
+													'1_win_extra' => 3,
+													'2_win' => 4,
+													'2_win_extra' => 5,
+													'3_win' => 6,
+													'3_win_extra' => 7,
+													'4_win' => 8,
+													'4_win_extra' => 9,
+													'5_win' => 10,
+													'5_win_extra' => 11,
+													'6_win' => 12,
+													'6_win_extra' => 13,
+													'7_win' => 14,
+													'7_win_extra' => 15,
+													'8_win' => 16,
+													'8_win_extra' => 17,
+													'9_win' => 18,
+													'9_win_extra' => 19
+												);
+												foreach ($positions as $category => $count) {
+													// Skip total_points field in calculation
+													if ($category === 'total_points') continue;
+													
+													// For duplicate_extra_ball lotteries, only calculate points for valid categories
+													if ($lottery->duplicate_extra_ball && isset($lottery->valid_prize_categories)) {
+														if (!in_array($category, $lottery->valid_prize_categories)) {
+															continue; // Skip categories not in the prize profile
+														}
+													}
+													
+													if (isset($category_mapping[$category])) {
+														$points_total_pos += intval($count) * $category_mapping[$category];
+													}
 												}
 											}
 										} else {

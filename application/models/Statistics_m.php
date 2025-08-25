@@ -2122,14 +2122,16 @@ class Statistics_m extends MY_Model
 								$nonfollowlist = $this->non_followers($followlist, $last_ball);
 								$prize_counts[$b] = $this->followers_prizecounts($row, $followlist, $nonfollowlist, $duple, ($duple ? $duplelist : FALSE), $prize_counts[$b]);
  								if(isset($loc)) $positions[$loc] = $this->followers_positions_prizecounts($positions[$loc]);
-								$first = $lowest_row[0];
-								if(intval($range_ptr-$first['row'])>$range) // Only if the current row pointer
-																			// is out of range of the target range, remove draw. e.g. Range = 100 draws
-								{
-									$followlist = $this->remove_oldfollowers($followlist, $first);
-									if($duple) $duplelist = $this->remove_duplicates($duplelist, $first, $bonus);
-									if(!empty($nonfollowlist)) $nonfollowlist = $this->remove_oldnonfollowers($nonfollowlist, $first);
-									array_shift($lowest_row); // Remove the lowest draw date freom the array, shift it off the beginning of the array
+								if(!empty($lowest_row)) {
+									$first = $lowest_row[0];
+									if(intval($range_ptr-$first['row'])>$range) // Only if the current row pointer
+																				// is out of range of the target range, remove draw. e.g. Range = 100 draws
+									{
+										$followlist = $this->remove_oldfollowers($followlist, $first);
+										if($duple) $duplelist = $this->remove_duplicates($duplelist, $first, $bonus);
+										if(!empty($nonfollowlist)) $nonfollowlist = $this->remove_oldnonfollowers($nonfollowlist, $first);
+										array_shift($lowest_row); // Remove the lowest draw date freom the array, shift it off the beginning of the array
+									}
 								}
 							}
 						 }
@@ -2439,6 +2441,8 @@ class Statistics_m extends MY_Model
 	 */
 	private function remove_oldfollowers($fl, $prev)
 	{
+		if($prev === null || !is_array($prev)) return $fl;
+		
 		unset($prev['draw_date']); 	// Remove the date from the first draw in the range
 		unset($prev['row']);		// Remove the draw number from which it occurred
 		foreach($prev as $before => $drawn)
@@ -2459,6 +2463,8 @@ class Statistics_m extends MY_Model
 	 */
 	private function remove_oldnonfollowers($nonfl,$prev)
 	{
+		if($prev === null || !is_array($prev)) return $nonfl;
+		
 		unset($prev['draw_date']); // Remove the date from the first draw in the range
 		unset($prev['row']);		// Remove the draw number from which it occurred
 
@@ -2558,6 +2564,272 @@ class Statistics_m extends MY_Model
 			}
 		}
 	return substr($str, 0, -1);		// Return the prizes for each number drawn
+	}
+
+	/**
+	 * Calculate and return dupextra_wins string for independent extra ball lotteries (duplicate_extra_ball = 1)
+	 * This method calculates prizes specifically for extra balls, separated from main ball wins
+	 * Follows the same logic as followers_prizes but focuses on independent extra ball wins only
+	 * 
+	 * @param 	string 	$name			specific lottery table name
+	 * @param	array	$ldn			last drawn numbers (index, date, ball1 ... ball N, Extra (Bonus ball), lottery id)
+	 * @param 	integer $max			maximum number of balls drawn
+	 * @param	boolean	$bonus			If an extra / bonus ball is included (1 = TRUE, 0 = False)
+	 * @param	boolean $draws			If extra (bonus) draws are included in the calculation (1 = TRUE, 0 = FALSE)
+	 * @param  	integer	$range			Range of number of draws (default is 100). If less than 100, the number must be set in $range
+	 * @param	integer	$mx_extra		Maximum Extra Ball drawn for the independent and duplicate extra lotteries
+	 * @param	string	$last			last date to calculate for the draws, in yyyy-mm-dd format, it blank skip. useful to back in time through the draws
+	 * @return  string	$dupextra_wins	Dupextra wins string formatted for each extra ball number
+	 */
+	public function calculate_dupextra_wins($name, $ldn, $max, $bonus, $draws = 0, $range = 100, $mx_extra, $last = '')
+	{
+		global $prizes;						// Retrieve Global $prizes array
+		$dupextra_prize_counts = array();	// Array to store extra ball specific prize counts
+		
+		// Initialize dupextra_prize_counts array for each extra ball number (1 to $mx_extra)
+		for($extra_num = 1; $extra_num <= $mx_extra; $extra_num++) {
+			$dupextra_prize_counts[$extra_num] = array();
+			// Initialize each prize category to 0 based on the global prizes array structure
+			if(isset($prizes) && !empty($prizes)) {
+				// Get the structure from any existing ball in prizes array
+				$sample_ball = array_keys($prizes)[0];
+				if(isset($prizes[$sample_ball])) {
+					foreach($prizes[$sample_ball] as $category => $count) {
+						$dupextra_prize_counts[$extra_num][$category] = 0;
+					}
+				}
+			}
+		}
+		
+		$error = $this->inrange($name,$range,$draws);
+		 
+		if(!$error) // The Range is good, let's calculate dupextra wins following the followers_prizes logic
+		{
+			$dbl_range = (int) ($range * 2)-1;  // Must be double the available draws available less the most recent draw
+			
+			// For each extra ball number, calculate followers and then wins
+			for($extra_num = 1; $extra_num <= $mx_extra; $extra_num++) {
+				
+				// Query Builder for main balls + extra ball
+				$s = 'ball'; 
+				$i = 1; 	// Default Ball 1
+				do
+				{	
+					$s .= $i;
+					$i++;
+					if($i<=$max) $s .= ', ball';
+				} 
+				while($i<=$max);
+
+				$s .= ', extra, draw_date'; // Include the draw date and extra ball
+				
+				$w = (!$draws ? ' AND extra <> "0"' : '');
+				$w .= (!empty($last) ? " AND draw_date <= '".$last."'" : "");  		
+				
+				// Get the draw data for this specific extra ball following
+				$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$dbl_range.") as t ORDER BY t.draw_date ASC;";
+				$query = $this->db->query($sql);
+				
+				if($query->num_rows() > 0) {
+					$range_ptr = 1;
+					$row = $query->first_row('array');
+					
+					// Initialize follower tracking for this extra ball
+					$extra_followlist = array();
+					$extra_nonfollowlist = array();
+					$lowest_row = array();
+					
+					// Step 1: Build follower list for this extra ball in first $range draws
+					do {
+						// Check if current draw has our target extra ball
+						if($row['extra'] == $extra_num) {
+							$row = $query->next_row('array');
+							$row['row'] = $range_ptr + 1;
+							array_push($lowest_row, $row);
+							
+							if(!is_null($row)) {
+								unset($row['draw_date']);
+								unset($row['row']);
+								
+								// Update follower list with numbers that followed this extra ball
+								if(!empty($extra_followlist)) {
+									$extra_followlist = $this->update_followers($extra_followlist, $row);
+								} else {
+									$extra_followlist = $this->add_followers($row);
+								}
+							}
+						}
+						
+						// Step 2: When we reach the range, start calculating prizes
+						if($range_ptr >= (int)$range) {
+							$extra_nonfollowlist = $this->non_followers($extra_followlist, $mx_extra);
+							$dupextra_prize_counts[$extra_num] = $this->dupextra_prizecounts($row, $extra_followlist, $extra_nonfollowlist, $dupextra_prize_counts[$extra_num], $max);
+							
+							if(!empty($lowest_row)) {
+								$first = $lowest_row[0];
+								if(intval($range_ptr - $first['row']) > $range) {
+									$extra_followlist = $this->remove_oldfollowers($extra_followlist, $first);
+									if(!empty($extra_nonfollowlist)) $extra_nonfollowlist = $this->remove_oldnonfollowers($extra_nonfollowlist, $first);
+									array_shift($lowest_row);
+								}
+							}
+						} else {
+							$row = $query->next_row('array');
+						}
+						
+						$range_ptr++;
+					} while($range_ptr < $dbl_range && (!is_null($row)));
+					
+					// Clean up
+					unset($extra_followlist);
+					unset($extra_nonfollowlist);
+					$query->free_result();
+				}
+			}
+		}
+		
+		// Format the dupextra_wins string
+		return $this->format_dupextra_wins_string($dupextra_prize_counts);
+	}
+	
+	/**
+	 * Calculate prize counts for dupextra wins based on followers logic
+	 * This mirrors followers_prizecounts but for independent extra balls only
+	 * 
+	 * @param 	array	$r			Current draw row
+	 * @param 	array	$fl			Follower list
+	 * @param 	array	$nonfl		Non-follower list  
+	 * @param 	array	$p			Current prize counts
+	 * @param 	integer $max		Maximum main balls
+	 * @return	array	$hits		Updated prize counts
+	 */
+	private function dupextra_prizecounts($r, $fl, $nonfl, $p, $max)
+	{
+		$hits = $p;
+		$prizes_cnt = 0;
+		$extra_cnt = FALSE;
+		
+		// Remove metadata from row
+		unset($r['draw_date']);
+		unset($r['row']);
+		
+		// Count matches in followers list (both main balls and extra ball)
+		if(!empty($fl)) {
+			foreach($r as $drawn => $dr_value) {
+				foreach($fl as $follower => $fl_value) {
+					if(($dr_value == $follower) && ($fl_value >= 3)) {
+						if($drawn != 'extra') {
+							$prizes_cnt++; // Main ball match
+						} else {
+							$extra_cnt = TRUE; // Extra ball match
+						}
+						break; // Only count each ball once per follower list
+					}
+				}
+			}
+		}
+		
+		// Count matches in non-followers list 
+		if(!empty($nonfl)) {
+			foreach($r as $drawn => $dr_value) {
+				foreach($nonfl as $nonfollower) {
+					if($dr_value == $nonfollower) {
+						if($drawn != 'extra') {
+							$prizes_cnt++; // Main ball match
+						} else {
+							$extra_cnt = TRUE; // Extra ball match  
+						}
+						break; // Only count each ball once per non-follower list
+					}
+				}
+			}
+		}
+		
+		// Update prize counts based on matches found
+		if(!$extra_cnt) {
+			// Main balls only (no extra ball match)
+			switch($prizes_cnt) {
+				case 1:
+					if(array_key_exists('1_win', $hits)) ++$hits['1_win']; 
+					break;
+				case 2:
+					if(array_key_exists('2_win', $hits)) ++$hits['2_win'];
+					break;
+				case 3:
+					if(array_key_exists('3_win', $hits)) ++$hits['3_win'];
+					break;
+				case 4:
+					if(array_key_exists('4_win', $hits)) ++$hits['4_win'];
+					break;
+				case 5:
+					if(array_key_exists('5_win', $hits)) ++$hits['5_win'];
+					break;
+				case 6:
+					if(array_key_exists('6_win', $hits)) ++$hits['6_win'];
+					break;
+				case 7:
+					if(array_key_exists('7_win', $hits)) ++$hits['7_win'];
+					break;
+			}
+		} else {
+			// Extra ball match (with or without main balls)
+			switch($prizes_cnt) {
+				case 0:
+					if(array_key_exists('extra', $hits)) ++$hits['extra']; // Extra only
+					break;
+				case 1:
+					if(array_key_exists('1_win_extra', $hits)) ++$hits['1_win_extra']; // 1 main + extra
+					break;
+				case 2:
+					if(array_key_exists('2_win_extra', $hits)) ++$hits['2_win_extra']; // 2 main + extra
+					break;
+				case 3:
+					if(array_key_exists('3_win_extra', $hits)) ++$hits['3_win_extra']; // 3 main + extra
+					break;
+				case 4:
+					if(array_key_exists('4_win_extra', $hits)) ++$hits['4_win_extra']; // 4 main + extra
+					break;
+				case 5:
+					if(array_key_exists('5_win_extra', $hits)) ++$hits['5_win_extra']; // 5 main + extra
+					break;
+				case 6:
+					if(array_key_exists('6_win_extra', $hits)) ++$hits['6_win_extra']; // 6 main + extra
+					break;
+				case 7:
+					if(array_key_exists('7_win_extra', $hits)) ++$hits['7_win_extra']; // 7 main + extra
+					break;
+			}
+		}
+		
+		return $hits;
+	}
+	
+	/**
+	 * Format the dupextra wins into the required string format
+	 * Format: extra_ball_1_wins>extra_ball_2_wins>...>extra_ball_N_wins
+	 * Each extra_ball_wins: prize1,prize2,prize3,...,prizeN
+	 * 
+	 * @param 	array	$dupextra_prizes	Array of extra ball prizes
+	 * @return  string	$formatted_string	Formatted dupextra wins string
+	 */
+	private function format_dupextra_wins_string($dupextra_prizes)
+	{
+		$formatted_string = "";
+		
+		foreach($dupextra_prizes as $extra_num => $prizes) {
+			$prize_string = "";
+			if(!empty($prizes)) {
+				foreach($prizes as $category => $count) {
+					$prize_string .= $count . ",";
+				}
+				// Remove trailing comma
+				$prize_string = rtrim($prize_string, ",");
+			}
+			$formatted_string .= $prize_string . ">";
+		}
+		
+		// Remove trailing separator
+		return rtrim($formatted_string, ">");
 	}
 
 	/**
@@ -4147,7 +4419,9 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		}
 		
 		$position_wins = array();
-		for ($i = 1; $i <= $balls_drawn + 1; $i++) { // +1 for extra position
+		// For independent extra ball lotteries (duplicate_extra_ball = 1), only include main positions in recalc
+		$max_positions = ($lottery->duplicate_extra_ball == 1) ? $balls_drawn : $balls_drawn + 1;
+		for ($i = 1; $i <= $max_positions; $i++) {
 			$position_wins[$i] = $this->initialize_prize_counters($prize_profile);
 		}
 		
