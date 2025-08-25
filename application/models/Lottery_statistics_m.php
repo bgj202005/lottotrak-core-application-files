@@ -111,8 +111,7 @@ class Lottery_statistics_m extends MY_Model
         
         // For independent extra ball lotteries, add position 6 (extra ball position)
         if ($duplicate_extra_ball && isset($last_drawn['position_extra_total']) && $last_drawn['position_extra_total'] > 0) {
-            $extra_position = $balls_drawn + 1; // Position 6 for Daily Grand (5 balls + 1 extra)
-            $position_points[$extra_position] = $last_drawn['position_extra_total'];
+            $position_points[6] = $last_drawn['position_extra_total']; // Always use position 6 for extra ball
         }
         
         // Sort by points descending
