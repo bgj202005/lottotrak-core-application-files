@@ -51,7 +51,7 @@ class Lotteries extends Admin_Controller {
 		{
 			$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
 			$lottery->last_date = $this->statistics_m->last_date($tbl_name);
-			$lottery->last_draw = $this->statistics_m->last_draw($tbl_name, $lottery->balls_drawn, $lottery->extra_ball);
+			$lottery->last_draw = $this->statistics_m->last_draw($tbl_name, $lottery->balls_drawn, $lottery->extra_ball, $lottery->duplicate_extra_ball);
 		}
 
 		// Load the view
@@ -93,7 +93,7 @@ class Lotteries extends Admin_Controller {
 		{
 			$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
 			$lottery->last_date = $this->statistics_m->last_date($tbl_name);
-			$lottery->last_draw = $this->statistics_m->last_draw($tbl_name, $lottery->balls_drawn, $lottery->extra_ball);
+			$lottery->last_draw = $this->statistics_m->last_draw($tbl_name, $lottery->balls_drawn, $lottery->extra_ball, $lottery->duplicate_extra_ball);
 		}
 
 		// Load the view
