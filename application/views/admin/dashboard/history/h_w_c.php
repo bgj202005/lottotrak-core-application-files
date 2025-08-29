@@ -7,35 +7,8 @@
     box-shadow: 2px 4px 10px 0 rgba(0, 34, 51, 0.05), 2px 4px 10px 0 rgba(0, 34, 51, 0.05);
     border-radius: 0.15rem;
 	}
-	/* Tabs Card *												$position = rtrim($position,'h');  // Remove the special 'h' symbol
-												if($exists) :
-													// Check if this position contains the extra ball for duplicate extra ball lotteries
-													$isExtraBallPosition = false;
-													if($lottery->duplicate_extra_ball) {
-														// Check if any ball in this position is the extra ball
-														$temp_cntr = 0;
-														foreach($lottery->hots_last as $ball => $count) {
-															if($ball) {
-																$temp_cntr++;
-																$cleanBall = rtrim($ball,'*');
-																if($temp_cntr == $position && $cleanBall == $extra_ball) {
-																	$isExtraBallPosition = true;
-																	break;
-																}
-															}
-														}
-													}
-													if(($noEX&&($cntr==$position)) || $isExtraBallPosition):
-														echo "<td class='text-center'>".$position."</td>";
-														echo "<td class='text-center'>".$count."</td>";
-													else:	
-														echo "<td class='text-center bg-danger text-white'>".$position."</td>";
-														echo "<td class='text-center bg-danger text-white'>".$count."</td>";
-													endif;
-												else:
-													echo "<td class='text-center'>".$position."</td>";
-													echo "<td class='text-center'>".$count."</td>";
-												endif;{
+	/* Tabs Card */
+	.tab-card {
 	border:1px solid #eee;
 	}
 	.tab-card-header {
@@ -139,40 +112,6 @@
 	<script src="//code.jquery.com/jquery-1.12.4.js"></script>
   	<script src="//code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
 	<h2><?php echo 'H (Hots), W (Warms) and C (Colds) winners for: '.$lottery->lottery_name; ?></h2>
-	
-	<!-- Debug Information -->
-	<?php if(isset($lottery->debug_drawn)): ?>
-	<div style="background: #f0f0f0; padding: 10px; margin: 10px 0; border: 1px solid #ccc;">
-		<strong>Debug Info:</strong><br>
-		HWC Profile: <?php echo isset($lottery->debug_hwc_profile) ? $lottery->debug_hwc_profile : 'Not set'; ?><br>
-		Total Numbers in Pool: <?php echo isset($lottery->debug_total_numbers) ? $lottery->debug_total_numbers : 'Not set'; ?><br>
-		Drawn Numbers: <?php echo implode(', ', $lottery->debug_drawn); ?> (Total: <?php echo $lottery->debug_total_drawn; ?>)<br>
-		<?php if(isset($lottery->debug_extra_ball)): ?>
-		Extra Ball: <?php echo $lottery->debug_extra_ball; ?> | Duplicate Extra: <?php echo $lottery->debug_duplicate_extra ? 'Yes' : 'No'; ?><br>
-		<?php endif; ?>
-		Drawn in Hots: <?php echo $lottery->debug_drawn_hots; ?> | 
-		Drawn in Warms: <?php echo $lottery->debug_drawn_warms; ?> | 
-		Drawn in Colds: <?php echo $lottery->debug_drawn_colds; ?><br>
-		Expected Total: <?php echo $lottery->debug_drawn_hots + $lottery->debug_drawn_warms + $lottery->debug_drawn_colds; ?><br>
-		<?php if(isset($lottery->debug_positions_last)): ?>
-		<strong>Last Draw Categories:</strong> 
-		<?php foreach($lottery->debug_positions_last as $ball => $category): ?>
-			<?php echo $ball; ?>=<?php echo $category; ?> 
-		<?php endforeach; ?><br>
-		<?php endif; ?>
-		<?php if(isset($lottery->debug_positions)): ?>
-		<strong>Next Draw Categories:</strong> 
-		<?php foreach($lottery->debug_positions as $ball => $category): ?>
-			<?php echo $ball; ?>=<?php echo $category; ?> 
-		<?php endforeach; ?>
-		<?php endif; ?><br>
-		<strong>Dupextra Last:</strong> <?php echo isset($lottery->debug_strdupextra_last) ? $lottery->debug_strdupextra_last : 'NOT SET'; ?><br>
-		<strong>Dupextra:</strong> <?php echo isset($lottery->debug_strdupextra) ? $lottery->debug_strdupextra : 'NOT SET'; ?><br>
-		<strong>Dupextra Last Array:</strong> <?php echo isset($lottery->dupextra_last) ? 'SET ('.count($lottery->dupextra_last).' items)' : 'NOT SET'; ?><br>
-		<strong>Dupextra Array:</strong> <?php echo isset($lottery->dupextra) ? 'SET ('.count($lottery->dupextra).' items)' : 'NOT SET'; ?>
-	</div>
-	<?php endif; ?>
-	
 	<?php $max = $lottery->balls_drawn; 
 	   $b = 1; 
 	   ?>	
@@ -208,12 +147,18 @@
 											echo "<br />";
 											echo date("l, M-d-Y",strtotime(str_replace('/','-',$lottery->last_drawn['draw_date']))); 
 											echo "<br /><br />";
-											
-											// Use the properly formatted last draw string
-											echo $lottery->last_draw_formatted;
-											
-											// Still capture the extra ball for other logic in the page
-											$extra_ball = isset($lottery->last_drawn['extra']) ? $lottery->last_drawn['extra'] : 0;
+											$mx = 1;
+											$extra_ball = 0;	// set extra ball to something, even if not used.
+											$xtr = FALSE;
+											foreach($lottery->draw as $count => $drawn):
+												echo $drawn." ";
+												if($xtr) $extra_ball = $drawn; // capture the extra / bonus ball
+												$mx++;
+												if(($mx>$lottery->balls_drawn)&&($lottery->extra_ball)&&(!$xtr)):
+													echo " + ";
+													$xtr = TRUE;
+												endif;
+											endforeach;
 											?></h4>
 										</div>
 									</div>
@@ -309,7 +254,7 @@
 											else:
 												echo "<tr class='table-danger'><td colspan = '2'>No Hots</td></tr>";
 											endif;
-											if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
+											if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
 												$noEX = TRUE;
 											endif;
 											if(!$noEX):
@@ -384,7 +329,7 @@
 											else:
 												echo "<tr class='table-warning'><td colspan = '2'>No Warms</td></tr>";
 											endif;
-											if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
+											if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
 												$noEX = TRUE;
 											endif;
 											if(!$noEX):
@@ -410,23 +355,7 @@
 												$exists = array_key_exists($position, $lottery->positions_last);
 												$position = rtrim($position,'w');  // Remove the special '*' symbol
 												if($exists) :
-													// Check if this position contains the extra ball for duplicate extra ball lotteries
-													$isExtraBallPosition = false;
-													if($lottery->duplicate_extra_ball) {
-														// Check if any ball in this position is the extra ball
-														$temp_cntr = 0;
-														foreach($lottery->warms_last as $ball => $count_inner) {
-															if($ball) {
-																$temp_cntr++;
-																$cleanBall = rtrim($ball,'*');
-																if($temp_cntr == $position && $cleanBall == $extra_ball) {
-																	$isExtraBallPosition = true;
-																	break;
-																}
-															}
-														}
-													}
-													if(($noEX&&($cntr==$position)) || $isExtraBallPosition):
+													if($noEX&&($cntr==$position)):
 														echo "<td class='text-center'>".$position."</td>";
 														echo "<td class='text-center'>".$count."</td>";
 													else:	
@@ -475,7 +404,7 @@
 											else:
 												echo "<tr class='table-primary'><td colspan = '2'>No Colds</td></tr>";
 											endif;
-											if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
+											if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
 												$noEX = TRUE;
 											endif;
 											if(!$noEX):
@@ -501,23 +430,7 @@
 												$exists = array_key_exists($position, $lottery->positions_last);
 												$position = rtrim($position,'c');  // Remove the special '*' symbol
 												if($exists) :
-													// Check if this position contains the extra ball for duplicate extra ball lotteries
-													$isExtraBallPosition = false;
-													if($lottery->duplicate_extra_ball) {
-														// Check if any ball in this position is the extra ball
-														$temp_cntr = 0;
-														foreach($lottery->colds_last as $ball => $count_inner) {
-															if($ball) {
-																$temp_cntr++;
-																$cleanBall = rtrim($ball,'*');
-																if($temp_cntr == $position && $cleanBall == $extra_ball) {
-																	$isExtraBallPosition = true;
-																	break;
-																}
-															}
-														}
-													}
-													if(($noEX&&($cntr==$position)) || $isExtraBallPosition):
+													if($noEX&&($cntr==$position)):
 														echo "<td class='text-center'>".$position."</td>";
 														echo "<td class='text-center'>".$count."</td>";
 													else:	
@@ -533,7 +446,7 @@
 									</tbody>
 								</table>
 								<!-- Extra Ball if it outside of the balls being drawn and can have a duplicate drawn ball -->
-								<?php if(isset($lottery->dupextra_last)) : ?>
+								<?php if(isset($lottery->dupextra)) : ?>
 								<table class="table">
 									<thead>
 										<tr>
@@ -545,11 +458,11 @@
 										</tr>
 									</thead>
 									<tbody>
-										<?php foreach($lottery->dupextra_last as $ball => $count):	
+										<?php foreach($lottery->dupextra as $ball => $count):	
 												echo "<tr class='table-success'>";
 												if($ball==$lottery->last_drawn['extra']):
-													echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
-													echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+													echo "<td class='text-center bg-info'>".$ball."</td>";
+													echo "<td class='text-center bg-info'>".$count."</td>";
 												else:
 													echo "<td class='text-center'>".$ball."</td>";
 													echo "<td class='text-center'>".$count."</td>";
@@ -588,7 +501,7 @@
 											else:
 												echo "<tr class='table-danger'><td colspan = '2'>No Hots</td></tr>";
 											endif;
-											if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
+											if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
 												$noEX = TRUE;
 											endif;
 											if(!$noEX):
@@ -644,7 +557,7 @@
 											else:
 												echo "<tr class='table-warning'><td colspan = '2'>No Warms</td></tr>";
 											endif;
-											if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
+											if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
 												$noEX = TRUE;
 											endif;
 											if(!$noEX):
@@ -700,7 +613,7 @@
 											else:
 												echo "<tr class='table-primary'><td colspan = '2'>No Colds</td></tr>";
 											endif;
-											if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
+											if($sym=='*'&&!$lottery->extra_included&&$ball==$extra_ball):
 												$noEX = TRUE;
 											endif;
 											if(!$noEX):
@@ -731,7 +644,7 @@
 										endforeach; ?>
 									</tbody>
 								</table>
-								<!-- Extra Ball for Next Draw - no red highlighting -->
+								<!-- Extra Ball if it outside of the balls being drawn and can have a duplicate drawn ball -->
 								<?php if(isset($lottery->dupextra)) : ?>
 								<table class="table">
 									<thead>
@@ -746,9 +659,8 @@
 									<tbody>
 										<?php foreach($lottery->dupextra as $ball => $count):	
 												echo "<tr class='table-success'>";
-												// No red highlighting for Next Draw
-												echo "<td class='text-center'>".$ball."</td>";
-												echo "<td class='text-center'>".$count."</td>";
+													echo "<td class='text-center'>".$ball."</td>";
+													echo "<td class='text-center'>".$count."</td>";
 												echo "</tr>";
 										endforeach; ?>
 									</tbody>

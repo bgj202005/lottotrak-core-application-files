@@ -42,7 +42,7 @@ class History extends Admin_Controller {
 			$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
 
 			$lottery->last_date = $this->statistics_m->last_date($tbl_name);
-			$lottery->last_draw = $this->statistics_m->last_draw($tbl_name, $lottery->balls_drawn, $lottery->extra_ball, $lottery->duplicate_extra_ball);
+			$lottery->last_draw = $this->statistics_m->last_draw($tbl_name, $lottery->balls_drawn, $lottery->extra_ball);
 			$c = $this->statistics_m->lottery_rows($tbl_name);
 			if($c>100) $c = 100;
 		}
@@ -254,7 +254,7 @@ class History extends Admin_Controller {
 			$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
 
 			$lottery->last_date = $this->statistics_m->last_date($tbl_name);
-			$lottery->last_draw = $this->statistics_m->last_draw($tbl_name, $lottery->balls_drawn, $lottery->extra_ball, $lottery->duplicate_extra_ball);
+			$lottery->last_draw = $this->statistics_m->last_draw($tbl_name, $lottery->balls_drawn, $lottery->extra_ball);
 			$c = $this->statistics_m->lottery_rows($tbl_name);
 			if($c>100) $c = 100;
 		}
@@ -297,10 +297,6 @@ class History extends Admin_Controller {
 			redirect('admin/statistics');
 		}
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
-		
-		// Add formatted last draw string using the working Statistics_m method
-		$this->data['lottery']->last_draw_formatted = $this->statistics_m->last_draw($tbl_name, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_ball, $this->data['lottery']->duplicate_extra_ball);
-		
 		$h_w_c = $this->statistics_m->h_w_c_exists($id);
 		if(!is_null($h_w_c))	// Existing HWC?
 		{
@@ -311,29 +307,12 @@ class History extends Admin_Controller {
 				$draw = array(); 		// Temporary draw array
 				$positions = array();	// Temporary position array
 				$positions_last = array();	// Temporary position from last array
-				
-				// For duplicate extra ball lotteries, we want to EXCLUDE the extra ball from main number analysis
-				// The extra ball should only be tracked separately in the dupextra arrays
-				if($dup) {
-					// For duplicate extra ball lotteries, exclude the extra ball from main analysis
-					$draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn, $this->data['lottery']->extra_ball, $dup);
-				} else {
-					// For non-duplicate extra ball lotteries, use normal logic
-					$draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn, $this->data['lottery']->extra_ball, $dup);
-				}
-				
-				// Debug: Let's see what numbers were drawn and how many we expect in each category
-				$this->data['lottery']->debug_drawn = $draw;
-				$this->data['lottery']->debug_total_drawn = count($draw);
-				$this->data['lottery']->debug_extra_ball = $this->data['lottery']->last_drawn['extra'];
-				$this->data['lottery']->debug_duplicate_extra = $dup;
-				
+				$draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn,$this->data['lottery']->extra_ball, $dup);
 				$hots = $h_w_c['h_count'];
 				$warms = $h_w_c['w_count'];
 				$colds = $h_w_c['c_count'];
-				
-				$this->data['lottery']->H = $hots;  // Number of Hots in pool (e.g. 16 Hots)
-				$this->data['lottery']->W = $warms; // Number of Warms in pool (e.g. 18 Warms)
+				$this->data['lottery']->H = $hots;  // Number of Hots Distributed e.g. 16 Hots
+				$this->data['lottery']->W = $warms; // Number of Warms Distributed e.g 18 Colds
 				$this->data['lottery']->C = $colds; // Number of colds Distributed e.g 18 Colds
 				$this->data['lottery']->extra_included = $h_w_c['extra_included'];
 				$this->data['lottery']->extra_draws = $h_w_c['extra_draws'];
@@ -345,12 +324,6 @@ class History extends Admin_Controller {
 				$strwarms = $h_w_c['warms'];	// All counts for Hots, Warms, Colds
 				$strcolds = $h_w_c['colds'];
 				$strdupextra = $h_w_c['dupextra'];
-				$strdupextra_last = isset($h_w_c['dupextra_last']) ? $h_w_c['dupextra_last'] : '';
-				
-				// If dupextra_last is empty but dupextra exists, create dupextra_last from dupextra
-				if(empty($strdupextra_last) && !empty($strdupextra)) {
-					$strdupextra_last = $strdupextra; // Use current data as base
-				}
 				$hots = explode(",", $strhots); // Convert to Arrays
 				$warms = explode(",", $strwarms); 
 				$colds = explode(",", $strcolds);
@@ -358,489 +331,117 @@ class History extends Admin_Controller {
 				$warms_last = explode(",", $strwarms_last); 
 				$colds_last = explode(",", $strcolds_last); 
 				if(!empty($strdupextra)) $dupextra = explode(",", $strdupextra);
-				if(!empty($strdupextra_last)) {
-					$dupextra_last = explode(",", $strdupextra_last);
-				} elseif(!empty($strdupextra)) {
-					// Create dupextra_last from dupextra if dupextra_last is empty
-					$dupextra_last = explode(",", $strdupextra);
-				}
-				// Calculate positions BEFORE sorting to preserve original category assignments
-				$positions_last = array();
-				$positions = array();
-				
-				// IMPORTANT: The database categories might not be correct based on current counts
-				// We need to recalculate categories based on actual count thresholds
-				
-				// For LAST DRAW - combine all numbers and sort by count to determine correct categories
-				$all_numbers_last = array();
-				foreach($hots_last as $all_hots)
-				{
-					$n = strstr($all_hots, '=', TRUE);
-					$c = substr(strstr($all_hots, '='), 1);
-					
-					// Skip extra ball for duplicate extra ball lotteries
-					if($this->data['lottery']->duplicate_extra_ball && $n == $this->data['lottery']->last_drawn['extra']) {
-						continue;
-					}
-					
-					// If this number was drawn, show count before draw
-					if(in_array($n,$draw)) {
-						$c = max(0, $c - 1);
-					}
-					$all_numbers_last[$n] = $c;
-				}
-				foreach($warms_last as $all_warms)
-				{
-					$n = strstr($all_warms, '=', TRUE);
-					$c = substr(strstr($all_warms, '='), 1);
-					
-					// Skip extra ball for duplicate extra ball lotteries
-					if($this->data['lottery']->duplicate_extra_ball && $n == $this->data['lottery']->last_drawn['extra']) {
-						continue;
-					}
-					
-					// If this number was drawn, show count before draw
-					if(in_array($n,$draw)) {
-						$c = max(0, $c - 1);
-					}
-					$all_numbers_last[$n] = $c;
-				}
-				foreach($colds_last as $all_colds)
-				{
-					$n = strstr($all_colds, '=', TRUE);
-					$c = substr(strstr($all_colds, '='), 1);
-					
-					// Skip extra ball for duplicate extra ball lotteries
-					if($this->data['lottery']->duplicate_extra_ball && $n == $this->data['lottery']->last_drawn['extra']) {
-						continue;
-					}
-					
-					// If this number was drawn, show count before draw
-					if(in_array($n,$draw)) {
-						$c = max(0, $c - 1);
-					}
-					$all_numbers_last[$n] = $c;
-				}
-				
-				// Sort by count descending to determine correct category boundaries
-				arsort($all_numbers_last);
-				
-				// Apply H-W-C boundaries based on the profile (e.g., 1-1-4)
-				$hot_count = $this->data['lottery']->H;
-				$warm_count = $this->data['lottery']->W;
-				$cold_count = $this->data['lottery']->C;
-				
-				$position = 0;
-				foreach($all_numbers_last as $number => $count) {
-					if(in_array($number, $draw)) {
-						if($position < $hot_count) {
-							$positions_last[$number] = 'h';
-						} elseif($position < $hot_count + $warm_count) {
-							$positions_last[$number] = 'w';
-						} else {
-							$positions_last[$number] = 'c';
-						}
-					}
-					$position++;
-				}
-				
-				// Also create position-based tracking for the position tables
-				$positions_last_by_index = array();
-				$hot_position = 0;
-				$warm_position = 0;
-				$cold_position = 0;
-				$position = 0;
-				
-				foreach($all_numbers_last as $number => $count) {
-					if($position < $hot_count) {
-						if(in_array($number, $draw)) {
-							$positions_last_by_index[$hot_position.'h'] = 'h';
-						}
-						$hot_position++;
-					} elseif($position < $hot_count + $warm_count) {
-						if(in_array($number, $draw)) {
-							$positions_last_by_index[$warm_position.'w'] = 'w';
-						}
-						$warm_position++;
-					} else {
-						if(in_array($number, $draw)) {
-							$positions_last_by_index[$cold_position.'c'] = 'c';
-						}
-						$cold_position++;
-					}
-					$position++;
-				}
-				
-				// For NEXT DRAW - combine all numbers and sort by count to determine correct categories
-				$all_numbers = array();
-				foreach($hots as $all_hots)
-				{
-					$n = strstr($all_hots, '=', TRUE);
-					$c = substr(strstr($all_hots, '='), 1);
-					
-					// Skip extra ball for duplicate extra ball lotteries
-					if($this->data['lottery']->duplicate_extra_ball && $n == $this->data['lottery']->last_drawn['extra']) {
-						continue;
-					}
-					
-					$all_numbers[$n] = $c;
-				}
-				foreach($warms as $all_warms)
-				{
-					$n = strstr($all_warms, '=', TRUE);
-					$c = substr(strstr($all_warms, '='), 1);
-					
-					// Skip extra ball for duplicate extra ball lotteries
-					if($this->data['lottery']->duplicate_extra_ball && $n == $this->data['lottery']->last_drawn['extra']) {
-						continue;
-					}
-					
-					$all_numbers[$n] = $c;
-				}
-				foreach($colds as $all_colds)
-				{
-					$n = strstr($all_colds, '=', TRUE);
-					$c = substr(strstr($all_colds, '='), 1);
-					
-					// Skip extra ball for duplicate extra ball lotteries
-					if($this->data['lottery']->duplicate_extra_ball && $n == $this->data['lottery']->last_drawn['extra']) {
-						continue;
-					}
-					
-					$all_numbers[$n] = $c;
-				}
-				
-				// Sort by count descending to determine correct category boundaries
-				arsort($all_numbers);
-				
-				// Apply H-W-C boundaries based on the profile (e.g., 1-1-4)
-				$position = 0;
-				foreach($all_numbers as $number => $count) {
-					if(in_array($number, $draw)) {
-						if($position < $hot_count) {
-							$positions[$number] = 'h';
-						} elseif($position < $hot_count + $warm_count) {
-							$positions[$number] = 'w';
-						} else {
-							$positions[$number] = 'c';
-						}
-					}
-					$position++;
-				}
-				
-				// Also create position-based tracking for the position tables
-				$positions_by_index = array();
-				$hot_position = 0;
-				$warm_position = 0;
-				$cold_position = 0;
-				$position = 0;
-				
-				foreach($all_numbers as $number => $count) {
-					if($position < $hot_count) {
-						if(in_array($number, $draw)) {
-							$positions_by_index[$hot_position.'h'] = 'h';
-						}
-						$hot_position++;
-					} elseif($position < $hot_count + $warm_count) {
-						if(in_array($number, $draw)) {
-							$positions_by_index[$warm_position.'w'] = 'w';
-						}
-						$warm_position++;
-					} else {
-						if(in_array($number, $draw)) {
-							$positions_by_index[$cold_position.'c'] = 'c';
-						}
-						$cold_position++;
-					}
-					$position++;
-				}
-				
-				// Debug: Show which category each drawn number was assigned to
-				$this->data['lottery']->debug_positions_last = $positions_last;
-				$this->data['lottery']->debug_positions = $positions;
-				$this->data['lottery']->debug_hwc_profile = "H:{$hot_count} W:{$warm_count} C:{$cold_count}";
-				
-				// For duplicate extra ball lotteries, add 1 back to account for the excluded extra ball
-				// The pool still contains all numbers (1-49 for Daily Grand), we just excluded the extra ball from analysis
-				$total_pool_numbers = count($all_numbers_last);
-				if($this->data['lottery']->duplicate_extra_ball) {
-					$total_pool_numbers++; // Add back the extra ball to show true pool size
-				}
-				$this->data['lottery']->debug_total_numbers = $total_pool_numbers;
-				
-				// NOW rebuild the display arrays based on correct category assignments
-				// Instead of using the old database categories, use our recalculated categories
-				
-				// Rebuild hots_last, warms_last, colds_last arrays based on correct categories
-				$hots_last_corrected = array();
-				$warms_last_corrected = array();
-				$colds_last_corrected = array();
-				
-				$position = 0;
-				foreach($all_numbers_last as $number => $count) {
-					$display_key = $number;
-					if(in_array($number, $draw)) {
-						$display_key = $number . '*'; // Mark drawn numbers
-					}
-					
-					if($position < $hot_count) {
-						$hots_last_corrected[$display_key] = $count;
-					} elseif($position < $hot_count + $warm_count) {
-						$warms_last_corrected[$display_key] = $count;
-					} else {
-						$colds_last_corrected[$display_key] = $count;
-					}
-					$position++;
-				}
-				
-				// Rebuild hots, warms, colds arrays for next draw
-				$hots_corrected = array();
-				$warms_corrected = array();
-				$colds_corrected = array();
-				
-				$position = 0;
-				foreach($all_numbers as $number => $count) {
-					$display_key = $number;
-					if(in_array($number, $draw)) {
-						$display_key = $number . '*'; // Mark drawn numbers
-					}
-					
-					if($position < $hot_count) {
-						$hots_corrected[$display_key] = $count;
-					} elseif($position < $hot_count + $warm_count) {
-						$warms_corrected[$display_key] = $count;
-					} else {
-						$colds_corrected[$display_key] = $count;
-					}
-					$position++;
-				}
-				
-				// Replace the original arrays with corrected ones
-				$this->data['lottery']->hots_last = $hots_last_corrected;
-				$this->data['lottery']->warms_last = $warms_last_corrected;
-				$this->data['lottery']->colds_last = $colds_last_corrected;
-				$this->data['lottery']->hots = $hots_corrected;
-				$this->data['lottery']->warms = $warms_corrected;
-				$this->data['lottery']->colds = $colds_corrected;
-				
-				// NOW process and sort the arrays for display
-				// OLD PROCESSING LOGIC - REPLACED WITH CORRECTED CATEGORY ASSIGNMENTS ABOVE
-				/*
-				// Iterate Hots from last draw - show counts before the draw occurred
-				$hots_last_temp = array();
-				foreach($hots_last as $all_hots)
-				{
-					$n = strstr($all_hots, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
-					$c = substr(strstr($all_hots, '='), 1); // Strip off to the left of the equal sign count
-					
-					// If this number was drawn in the last draw, decrement the count by 1 
-					// to show what the count was BEFORE the last draw occurred
-					if(in_array($n,$draw))
-					{
-						$c = max(0, $c - 1); // Ensure count doesn't go below 0
-						$hots_last_temp[$n.'*'] = $c; // Mark drawn numbers with asterisk
-					}
-					else
-					{
-						$hots_last_temp[$n] = $c;
-					}
-				}
-				// Sort by count descending
-				arsort($hots_last_temp);
-				$this->data['lottery']->hots_last = $hots_last_temp;
-				*/
-				
-				// OLD PROCESSING LOGIC COMMENTED OUT - NOW USING CORRECTED CATEGORY ASSIGNMENTS
-				/*
-				// Iterate Hots for next draw - show current counts after the draw occurred
-				$hots_temp = array();
-				foreach($hots as $all_hots)
-				{
-					$n = strstr($all_hots, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
-					$c = substr(strstr($all_hots, '='), 1); // Strip off to the left of the equal sign count
-					
-					// Show the current counts (after the draw occurred)
-					if(in_array($n,$draw))
-					{
-						$hots_temp[$n.'*'] = $c; // Mark drawn numbers with asterisk
-					}
-					else
-					{
-						$hots_temp[$n] = $c;
-					}
-				}
-				// Sort by count descending
-				arsort($hots_temp);
-				$this->data['lottery']->hots = $hots_temp;
-				// Interate Warms for last draw - show counts before the draw occurred
-				$warms_last_temp = array();
-				foreach($warms_last as $all_warms)
-				{
-					$n = strstr($all_warms, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
-					$c = substr(strstr($all_warms, '='), 1); // Strip off to the left of the equal sign count
-					
-					// If this number was drawn in the last draw, decrement the count by 1 
-					// to show what the count was BEFORE the last draw occurred
-					if(in_array($n,$draw))
-					{
-						$c = max(0, $c - 1); // Ensure count doesn't go below 0
-						$warms_last_temp[$n.'*'] = $c; // Mark drawn numbers with asterisk
-					}
-					else
-					{
-						$warms_last_temp[$n] = $c;
-					}
-				}
-				// Sort by count descending
-				arsort($warms_last_temp);
-				$this->data['lottery']->warms_last = $warms_last_temp;
-				
-				// Interate Warms for next draw - show current counts after the draw occurred
-				$warms_temp = array();
-				foreach($warms as $all_warms)
-				{
-					$n = strstr($all_warms, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
-					$c = substr(strstr($all_warms, '='), 1); // Strip off to the left of the equal sign count
-					
-					// Show the current counts (after the draw occurred)
-					if(in_array($n,$draw))
-					{
-						$warms_temp[$n.'*'] = $c; // Mark drawn numbers with asterisk
-					}
-					else
-					{
-						$warms_temp[$n] = $c;
-					}
-				}
-				// Sort by count descending
-				arsort($warms_temp);
-				$this->data['lottery']->warms = $warms_temp;
-				// Iterate Colds for last draw - show counts before the draw occurred
+				// Iterate Hots from last draw
 				$pos = 0;
-				$colds_last_temp = array();
-				foreach($colds_last as $all_colds)
+				foreach($hots_last as $all_hots)
 				{
-					$n = strstr($all_colds, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
-					$c = substr(strstr($all_colds, '='), 1); // Strip off to the left of the equal sign count
-					
-					// If this number was drawn in the last draw, decrement the count by 1 
-					// to show what the count was BEFORE the last draw occurred
-					if(in_array($n,$draw))
+					$n = strstr($all_hots, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($all_hots, '='), 1); // Strip off to the left of the equal sign count
+					if(!in_array($n,$draw))
 					{
-						$c = max(0, $c - 1); // Ensure count doesn't go below 0
-						$colds_last_temp[$n.'*'] = $c;
-						if(!isset($positions_last[$pos.'c'])) $positions_last[$pos.'c'] = 'c';
+						$this->data['lottery']->hots_last[$n] = $c;
 					}
 					else
 					{
-						$colds_last_temp[$n] = $c;
+						$this->data['lottery']->hots_last[$n.'*'] = $c;
+						$positions_last[$pos.'h'] = 'h';
 					}
 					$pos++;
 				}
-				// Sort by count descending
-				arsort($colds_last_temp);
-				$this->data['lottery']->colds_last = $colds_last_temp;
-				// Iterate Colds for next draw - show current counts after the draw occurred
-				$colds_temp = array();
+				// Iterate Hots for next draw
+				$pos = 0;
+				foreach($hots as $all_hots)
+				{
+					$n = strstr($all_hots, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($all_hots, '='), 1); // Strip off to the left of the equal sign count
+					if(!in_array($n,$draw))
+					{
+						$this->data['lottery']->hots[$n] = $c;
+					}
+					else
+					{
+						$this->data['lottery']->hots[$n.'*'] = $c;
+						$positions[$pos.'h'] = 'h';
+					}
+					$pos++;
+				}
+				// Interate Warms for last draw
+				$pos = 0;
+				foreach($warms_last as $all_warms)
+				{
+					$n = strstr($all_warms, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($all_warms, '='), 1); // Strip off to the left of the equal sign count
+					if(!in_array($n,$draw))
+					{
+						$this->data['lottery']->warms_last[$n] = $c;
+					}
+					else
+					{
+						$this->data['lottery']->warms_last[$n.'*'] = $c;
+						if(!isset($positions_last[$pos.'w'])) $positions_last[$pos.'w'] = 'w';
+					}
+					$pos++;
+				}
+				// Interate Warms for next draw
+				$pos = 0;
+				foreach($warms as $all_warms)
+				{
+					$n = strstr($all_warms, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($all_warms, '='), 1); // Strip off to the left of the equal sign count
+					if(!in_array($n,$draw))
+					{
+						$this->data['lottery']->warms[$n] = $c;
+					}
+					else
+					{
+						$this->data['lottery']->warms[$n.'*'] = $c;
+						if(!isset($positions[$pos.'w'])) $positions[$pos.'w'] = 'w';
+					}
+					$pos++;
+				}
+				// Iterate Colds for last draw
+				$pos = 0;
+				foreach($colds_last as $all_colds)
+				{
+					$n = strstr($all_colds, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
+					$c = substr(strstr($all_colds, '='), 1); // Strip off to the left of the equal sign count
+					if(!in_array($n,$draw))
+					{
+						$this->data['lottery']->colds_last[$n] = $c;
+					}
+					else
+					{
+						$this->data['lottery']->colds_last[$n.'*'] = $c;
+						if(!isset($positions_last[$pos.'c'])) $positions_last[$pos.'c'] = 'c';
+					}
+					$pos++;
+				}
+				// Iterate Colds for last next
+				$pos = 0;
 				foreach($colds as $all_colds)
 				{
 					$n = strstr($all_colds, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
 					$c = substr(strstr($all_colds, '='), 1); // Strip off to the left of the equal sign count
-					
-					// Show the current counts (after the draw occurred)
-					if(in_array($n,$draw))
+					if(!in_array($n,$draw))
 					{
-						$colds_temp[$n.'*'] = $c; // Mark drawn numbers with asterisk
+						$this->data['lottery']->colds[$n] = $c;
 					}
 					else
 					{
-						$colds_temp[$n] = $c;
+						$this->data['lottery']->colds[$n.'*'] = $c;
+						if(!isset($positions[$pos.'c'])) $positions[$pos.'c'] = 'c';
 					}
+					$pos++;
 				}
-				// Sort by count descending
-				arsort($colds_temp);
-				$this->data['lottery']->colds = $colds_temp;
-				*/
-				
-				// Debug: Count how many drawn numbers are in each category
-				$drawn_hots = 0;
-				$drawn_warms = 0;
-				$drawn_colds = 0;
-				
-				foreach($this->data['lottery']->hots_last as $key => $count) {
-					if(strpos($key, '*') !== false) {
-						// For duplicate extra ball lotteries, exclude the extra ball from the count
-						$ball = rtrim($key, '*');
-						if(!($this->data['lottery']->duplicate_extra_ball && $ball == $this->data['lottery']->last_drawn['extra'])) {
-							$drawn_hots++;
-						}
-					}
-				}
-				foreach($this->data['lottery']->warms_last as $key => $count) {
-					if(strpos($key, '*') !== false) {
-						// For duplicate extra ball lotteries, exclude the extra ball from the count
-						$ball = rtrim($key, '*');
-						if(!($this->data['lottery']->duplicate_extra_ball && $ball == $this->data['lottery']->last_drawn['extra'])) {
-							$drawn_warms++;
-						}
-					}
-				}
-				foreach($this->data['lottery']->colds_last as $key => $count) {
-					if(strpos($key, '*') !== false) {
-						// For duplicate extra ball lotteries, exclude the extra ball from the count
-						$ball = rtrim($key, '*');
-						if(!($this->data['lottery']->duplicate_extra_ball && $ball == $this->data['lottery']->last_drawn['extra'])) {
-							$drawn_colds++;
-						}
-					}
-				}
-				
-				$this->data['lottery']->debug_drawn_hots = $drawn_hots;
-				$this->data['lottery']->debug_drawn_warms = $drawn_warms;
-				$this->data['lottery']->debug_drawn_colds = $drawn_colds;
-				
-				// Debug dupextra data
-				$this->data['lottery']->debug_strdupextra_last = isset($strdupextra_last) ? $strdupextra_last : 'NOT SET';
-				$this->data['lottery']->debug_strdupextra = isset($strdupextra) ? $strdupextra : 'NOT SET';
-				
-				if (isset($dupextra_last) && !empty($dupextra_last)) // Process dupextra_last if it exists
+				if (!empty($strdupextra)) // Only if there is the duplicate extra in this lottery?
 				{
-					// Iterate Extra Numbers that can have duplicates of the main balls - for last draw
-					// Show counts before the draw occurred
-					$dupextra_last_temp = array();
-					foreach($dupextra_last as $all_dupextra_last)
-					{
-						$n = strstr($all_dupextra_last, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
-						$c = substr(strstr($all_dupextra_last, '='), 1); // Strip off to the left of the equal sign count
-						
-						// If this extra ball was drawn in the last draw, decrement the count by 1 
-						// to show what the count was BEFORE the last draw occurred
-						if($n == $this->data['lottery']->last_drawn['extra'])
-						{
-							$c = max(0, $c - 1); // Ensure count doesn't go below 0
-						}
-						
-						$dupextra_last_temp[$n] = $c; 
-					}
-					// Sort by count descending
-					arsort($dupextra_last_temp);
-					$this->data['lottery']->dupextra_last = $dupextra_last_temp;
-				}
-				if (isset($dupextra) && !empty($dupextra)) // Process dupextra if it exists
-				{
-					// Iterate Extra Numbers that can have duplicates of the main balls - for next draw
-					// Show current counts after the draw occurred
-					$dupextra_temp = array();
+					// Iterate Extra Numbers that can have duplicates of the main balls
 					foreach($dupextra as $all_dupextra)
 					{
 						$n = strstr($all_dupextra, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
 						$c = substr(strstr($all_dupextra, '='), 1); // Strip off to the left of the equal sign count
-						
-						$dupextra_temp[$n] = $c; 
+						$this->data['lottery']->dupextra[$n] = $c; 
 					}
-					// Sort by count descending
-					arsort($dupextra_temp);
-					$this->data['lottery']->dupextra = $dupextra_temp;
 				}
 			// Pull the winning positions for the Hots, Warms, Colds from last draw
 				$strpositions_last = $hwc_history['position_last'];
@@ -903,76 +504,6 @@ class History extends Admin_Controller {
 					$c = substr(strstr($cold_pos, '='), 1); // Strip off to the left of the equal sign count
 					$this->data['lottery']->colds_pos[$n.'c'] = $c; 
 				}
-				
-				// For duplicate extra ball lotteries, we need to ensure position arrays
-				// match the corrected category assignments (no gaps from excluded extra ball)
-				if($this->data['lottery']->duplicate_extra_ball) {
-					// The position arrays may have gaps where the extra ball was excluded
-					// We need to renumber positions to ensure consecutive numbering
-					
-					// Renumber hot positions
-					if(isset($this->data['lottery']->hots_pos_last)) {
-						$temp_hot_pos_last = array();
-						$new_pos = 1;
-						foreach($this->data['lottery']->hots_pos_last as $key => $count) {
-							$temp_hot_pos_last[$new_pos.'h'] = $count;
-							$new_pos++;
-						}
-						$this->data['lottery']->hots_pos_last = $temp_hot_pos_last;
-					}
-					
-					if(isset($this->data['lottery']->hots_pos)) {
-						$temp_hot_pos = array();
-						$new_pos = 1;
-						foreach($this->data['lottery']->hots_pos as $key => $count) {
-							$temp_hot_pos[$new_pos.'h'] = $count;
-							$new_pos++;
-						}
-						$this->data['lottery']->hots_pos = $temp_hot_pos;
-					}
-					
-					// Renumber warm positions
-					if(isset($this->data['lottery']->warms_pos_last)) {
-						$temp_warm_pos_last = array();
-						$new_pos = 1;
-						foreach($this->data['lottery']->warms_pos_last as $key => $count) {
-							$temp_warm_pos_last[$new_pos.'w'] = $count;
-							$new_pos++;
-						}
-						$this->data['lottery']->warms_pos_last = $temp_warm_pos_last;
-					}
-					
-					if(isset($this->data['lottery']->warms_pos)) {
-						$temp_warm_pos = array();
-						$new_pos = 1;
-						foreach($this->data['lottery']->warms_pos as $key => $count) {
-							$temp_warm_pos[$new_pos.'w'] = $count;
-							$new_pos++;
-						}
-						$this->data['lottery']->warms_pos = $temp_warm_pos;
-					}
-					
-					// Renumber cold positions
-					if(isset($this->data['lottery']->colds_pos_last)) {
-						$temp_cold_pos_last = array();
-						$new_pos = 1;
-						foreach($this->data['lottery']->colds_pos_last as $key => $count) {
-							$temp_cold_pos_last[$new_pos.'c'] = $count;
-							$new_pos++;
-						}
-						$this->data['lottery']->colds_pos_last = $temp_cold_pos_last;
-					}
-					
-					if(isset($this->data['lottery']->colds_pos)) {
-						$temp_cold_pos = array();
-						$new_pos = 1;
-						foreach($this->data['lottery']->colds_pos as $key => $count) {
-							$temp_cold_pos[$new_pos.'c'] = $count;
-							$new_pos++;
-						}
-						$this->data['lottery']->colds_pos = $temp_cold_pos;
-					}
-				}
 			}
 			else
 			{
@@ -990,24 +521,19 @@ class History extends Admin_Controller {
 		//Don't forget to include the last drawn h-w-c
 		$this->data['lottery']->hwc = explode('-',$hwc_history['h_w_c_last_1']);
 		
-		// For display purposes, create a complete draw array that includes the extra ball properly
-		// The $draw array from onlydrawn() behavior:
-		// - For non-duplicate extra ball lotteries ($dup = 0): extra ball is already included in $draw
-		// - For duplicate extra ball lotteries ($dup = 1): extra ball is excluded from $draw
+		// For display purposes, create a complete draw array that includes the extra ball
+		// The $draw array from onlydrawn() excludes extra ball for independent extra ball lotteries
 		$complete_draw = $draw; // Start with main balls
 		if($this->data['lottery']->extra_ball && $dup) {
-			// For duplicate extra ball lotteries, add the extra ball for display
+			// For independent extra ball lotteries, add the extra ball for display
 			$complete_draw[] = $this->data['lottery']->last_drawn['extra'];
 		}
-		// For non-duplicate extra ball lotteries, the extra ball is already included in $draw
 		$this->data['lottery']->draw = $complete_draw;
-		$this->data['lottery']->positions = $positions_by_index;
-		$this->data['lottery']->positions_last = $positions_last_by_index;
+		$this->data['lottery']->positions = $positions;
+		$this->data['lottery']->positions_last = $positions_last;
 		unset($draw);
 		unset($positions);
 		unset($positions_last);
-		unset($positions_by_index);
-		unset($positions_last_by_index);
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the Statistics menu
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);

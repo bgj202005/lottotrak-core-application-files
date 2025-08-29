@@ -603,10 +603,9 @@ class Statistics_m extends MY_Model
 	 * @param	string			$tbl				Current Lottery Data Table Name
 	 * @param	integer			$drawn				Number of Drawn Numbers for this lottery
 	 * @param	boolean			$extra				TRUE, has extra ball,  FALSE, has no extra ball
-	 * @param	boolean			$duplicate_extra_ball	TRUE if extra ball can duplicate main balls, FALSE otherwise
 	 * @return	string								Returns the last drawn numbers in a string format, N! N2 N3 ... + EXTRA		
 	 */
-	public function last_draw($tbl, $drawn, $extra, $duplicate_extra_ball = 0)
+	public function last_draw($tbl, $drawn, $extra)
 	{	
 		if (!$this->lotteries_m->lotto_table_exists($tbl)) return 'NA';	// Draw Database Does not Exist
 		$draw = $this->db_row($tbl, 0);		
@@ -620,34 +619,7 @@ class Statistics_m extends MY_Model
 			if($drawn>6) $s .= ' '.$draw->ball7;
 			if($drawn>7) $s .= ' '.$draw->ball8;
 			if($drawn>9) $s .= ' '.$draw->ball9;
-			
-			// Handle extra ball display based on lottery type
-			if($extra) {
-				if($duplicate_extra_ball) {
-					// For duplicate extra ball lotteries (like Daily Grand), always show the extra ball
-					// The extra ball can be the same as any main ball
-					$s .= ' + '.$draw->extra;
-				} else {
-					// For non-duplicate extra ball lotteries, the extra ball should be different
-					// If it duplicates a main ball, there might be a data issue
-					$main_balls = array();
-					for($i = 1; $i <= $drawn; $i++) {
-						if(isset($draw->{'ball'.$i})) {
-							$main_balls[] = $draw->{'ball'.$i};
-						}
-					}
-					
-					// Check if extra ball duplicates any main ball
-					if(!in_array($draw->extra, $main_balls)) {
-						// Normal case: extra ball is unique
-						$s .= ' + '.$draw->extra;
-					} else {
-						// Duplication detected: for non-duplicate lotteries, show extra ball but mark it
-						// This handles the case where there might be data inconsistency
-						$s .= ' + '.$draw->extra;
-					}
-				}
-			}
+			if($extra) $s .= ' + '.$draw->extra;
 		}
 		else return 'NA';
 	return $s;	// Return Drawn Numbers in 'N1 N2 N3 ... + Extra' Format	
@@ -663,8 +635,7 @@ class Statistics_m extends MY_Model
 	 */
 	public function db_row($tbl, $row = 0)
 	{	
-		// Modified to not exclude rows where extra = "0" since 0 can be a valid extra ball value
-		$query = $this->db->query('SELECT * FROM '.$tbl. ' ORDER BY `draw_date` DESC LIMIT 100');
+		$query = $this->db->query('SELECT * FROM '.$tbl. ' WHERE `extra` <> "0" ORDER BY `draw_date` DESC LIMIT 100');
 		
 		switch($row)
 		{
@@ -3335,6 +3306,7 @@ class Statistics_m extends MY_Model
 		}
 		
 		// Handle non-friends separately if needed
+		// TODO: Determine if non-friends counting is needed and implement correctly		$query->free_result();	// Removes the Memory associated with the result resource ID
 		unset($friends);		// Destroy the old friendlist
 		unset($nonfriends);
 	}	/**
