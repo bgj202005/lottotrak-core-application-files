@@ -378,10 +378,8 @@ class History extends Admin_Controller {
 					$n = strstr($all_hots, '=', TRUE);
 					$c = substr(strstr($all_hots, '='), 1);
 					
-					// Skip extra ball for duplicate extra ball lotteries
-					if($this->data['lottery']->duplicate_extra_ball && $n == $this->data['lottery']->last_drawn['extra']) {
-						continue;
-					}
+					// For duplicate extra ball lotteries (like Daily Grand), do NOT exclude the extra ball
+					// from main number analysis since it's drawn from the same pool as main numbers
 					
 					// If this number was drawn, show count before draw
 					if(in_array($n,$draw)) {
@@ -394,10 +392,8 @@ class History extends Admin_Controller {
 					$n = strstr($all_warms, '=', TRUE);
 					$c = substr(strstr($all_warms, '='), 1);
 					
-					// Skip extra ball for duplicate extra ball lotteries
-					if($this->data['lottery']->duplicate_extra_ball && $n == $this->data['lottery']->last_drawn['extra']) {
-						continue;
-					}
+					// For duplicate extra ball lotteries (like Daily Grand), do NOT exclude the extra ball
+					// from main number analysis since it's drawn from the same pool as main numbers
 					
 					// If this number was drawn, show count before draw
 					if(in_array($n,$draw)) {
@@ -410,10 +406,8 @@ class History extends Admin_Controller {
 					$n = strstr($all_colds, '=', TRUE);
 					$c = substr(strstr($all_colds, '='), 1);
 					
-					// Skip extra ball for duplicate extra ball lotteries
-					if($this->data['lottery']->duplicate_extra_ball && $n == $this->data['lottery']->last_drawn['extra']) {
-						continue;
-					}
+					// For duplicate extra ball lotteries (like Daily Grand), do NOT exclude the extra ball
+					// from main number analysis since it's drawn from the same pool as main numbers
 					
 					// If this number was drawn, show count before draw
 					if(in_array($n,$draw)) {
@@ -478,10 +472,8 @@ class History extends Admin_Controller {
 					$n = strstr($all_hots, '=', TRUE);
 					$c = substr(strstr($all_hots, '='), 1);
 					
-					// Skip extra ball for duplicate extra ball lotteries
-					if($this->data['lottery']->duplicate_extra_ball && $n == $this->data['lottery']->last_drawn['extra']) {
-						continue;
-					}
+					// For duplicate extra ball lotteries (like Daily Grand), do NOT exclude the extra ball
+					// from main number analysis since it's drawn from the same pool as main numbers
 					
 					$all_numbers[$n] = $c;
 				}
@@ -490,10 +482,8 @@ class History extends Admin_Controller {
 					$n = strstr($all_warms, '=', TRUE);
 					$c = substr(strstr($all_warms, '='), 1);
 					
-					// Skip extra ball for duplicate extra ball lotteries
-					if($this->data['lottery']->duplicate_extra_ball && $n == $this->data['lottery']->last_drawn['extra']) {
-						continue;
-					}
+					// For duplicate extra ball lotteries (like Daily Grand), do NOT exclude the extra ball
+					// from main number analysis since it's drawn from the same pool as main numbers
 					
 					$all_numbers[$n] = $c;
 				}
@@ -502,10 +492,8 @@ class History extends Admin_Controller {
 					$n = strstr($all_colds, '=', TRUE);
 					$c = substr(strstr($all_colds, '='), 1);
 					
-					// Skip extra ball for duplicate extra ball lotteries
-					if($this->data['lottery']->duplicate_extra_ball && $n == $this->data['lottery']->last_drawn['extra']) {
-						continue;
-					}
+					// For duplicate extra ball lotteries (like Daily Grand), do NOT exclude the extra ball
+					// from main number analysis since it's drawn from the same pool as main numbers
 					
 					$all_numbers[$n] = $c;
 				}
@@ -560,12 +548,8 @@ class History extends Admin_Controller {
 				$this->data['lottery']->debug_positions = $positions;
 				$this->data['lottery']->debug_hwc_profile = "H:{$hot_count} W:{$warm_count} C:{$cold_count}";
 				
-				// For duplicate extra ball lotteries, add 1 back to account for the excluded extra ball
-				// The pool still contains all numbers (1-49 for Daily Grand), we just excluded the extra ball from analysis
+				// Debug: Show actual pool size (no adjustment needed since we include all numbers)
 				$total_pool_numbers = count($all_numbers_last);
-				if($this->data['lottery']->duplicate_extra_ball) {
-					$total_pool_numbers++; // Add back the extra ball to show true pool size
-				}
 				$this->data['lottery']->debug_total_numbers = $total_pool_numbers;
 				
 				// NOW rebuild the display arrays based on correct category assignments
@@ -913,7 +897,7 @@ class History extends Admin_Controller {
 					// Renumber hot positions
 					if(isset($this->data['lottery']->hots_pos_last)) {
 						$temp_hot_pos_last = array();
-						$new_pos = 1;
+						$new_pos = 0;
 						foreach($this->data['lottery']->hots_pos_last as $key => $count) {
 							$temp_hot_pos_last[$new_pos.'h'] = $count;
 							$new_pos++;
@@ -923,7 +907,7 @@ class History extends Admin_Controller {
 					
 					if(isset($this->data['lottery']->hots_pos)) {
 						$temp_hot_pos = array();
-						$new_pos = 1;
+						$new_pos = 0;
 						foreach($this->data['lottery']->hots_pos as $key => $count) {
 							$temp_hot_pos[$new_pos.'h'] = $count;
 							$new_pos++;
@@ -934,7 +918,7 @@ class History extends Admin_Controller {
 					// Renumber warm positions
 					if(isset($this->data['lottery']->warms_pos_last)) {
 						$temp_warm_pos_last = array();
-						$new_pos = 1;
+						$new_pos = 0;
 						foreach($this->data['lottery']->warms_pos_last as $key => $count) {
 							$temp_warm_pos_last[$new_pos.'w'] = $count;
 							$new_pos++;
@@ -944,7 +928,7 @@ class History extends Admin_Controller {
 					
 					if(isset($this->data['lottery']->warms_pos)) {
 						$temp_warm_pos = array();
-						$new_pos = 1;
+						$new_pos = 0;
 						foreach($this->data['lottery']->warms_pos as $key => $count) {
 							$temp_warm_pos[$new_pos.'w'] = $count;
 							$new_pos++;
@@ -955,7 +939,7 @@ class History extends Admin_Controller {
 					// Renumber cold positions
 					if(isset($this->data['lottery']->colds_pos_last)) {
 						$temp_cold_pos_last = array();
-						$new_pos = 1;
+						$new_pos = 0;
 						foreach($this->data['lottery']->colds_pos_last as $key => $count) {
 							$temp_cold_pos_last[$new_pos.'c'] = $count;
 							$new_pos++;
@@ -965,7 +949,7 @@ class History extends Admin_Controller {
 					
 					if(isset($this->data['lottery']->colds_pos)) {
 						$temp_cold_pos = array();
-						$new_pos = 1;
+						$new_pos = 0;
 						foreach($this->data['lottery']->colds_pos as $key => $count) {
 							$temp_cold_pos[$new_pos.'c'] = $count;
 							$new_pos++;
