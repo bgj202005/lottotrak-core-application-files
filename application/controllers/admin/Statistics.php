@@ -1457,6 +1457,7 @@ class Statistics extends Admin_Controller {
 	 $all = $this->lotteries_m->db_row_count($tbl); 										// Return the total number of draws for this lottery
 	 $lotto->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl);					// Retrieve the last drawn numbers and draw date
 	 $str_dupextra = "";																	// Always empty for all lotteries. 
+	 $prev_draw = array();	// Initialize the previous draw array
 	 $h_w_c = $this->statistics_m->h_w_c_exists($id);
 	 if(!is_null($h_w_c))	// Existing HWC?
 	 {
@@ -1474,7 +1475,11 @@ class Statistics extends Admin_Controller {
 		$strhots = $this->statistics_m->hots($str_hwc);
 		$strwarms = $this->statistics_m->warms($str_hwc);
 		$strcolds = $this->statistics_m->colds($str_hwc);
- 		if(($h_w_c['hots_last']!=$strhots)&&($h_w_c['warms_last']!=$strwarms)&&($h_w_c['colds_last']!=$strcolds)) $h_w_c = $this->statistics_m->hwc_copylasts($h_w_c); // copy last draw hots, warms, colds so the next draw can be calculated
+ 		$prev_draw = $this->statistics_m->hwc_DrawBeforeLast($tbl);// Get the previous draw data
+			$prev_strhwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $prev_draw['draw_date'], $blnduplicate);
+			$h_w_c['hots_last'] = $this->statistics_m->hots($prev_strhwc);
+			$h_w_c['warms_last'] = $this->statistics_m->warms($prev_strhwc);
+			$h_w_c['colds_last'] = $this->statistics_m->colds($prev_strhwc);
 		$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl, $drawn,  $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, '');
 		$hwc = array(
 			'range'				=> $new_range,
@@ -1487,6 +1492,7 @@ class Statistics extends Admin_Controller {
 			'dupextra'			=> $str_dupextra,
 			'overdue'			=> $stroverdue,
 			'draw_id'			=> $lotto->last_drawn['id'],
+			'draw_id_last'		=> $prev_draw['id'],
 			'lottery_id'		=> $id,
 			'extra_included'	=> $h_w_c['extra_included'],
 			'extra_draws'		=> $h_w_c['extra_draws'],
@@ -1519,14 +1525,23 @@ class Statistics extends Admin_Controller {
 		 $strwarms = $this->statistics_m->warms($str_hwc);
 		 $strcolds = $this->statistics_m->colds($str_hwc);
 		 $stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl, $drawn, $new_range);
+		 $prev_draw = $this->statistics_m->hwc_DrawBeforeLast($tbl);// Get the previous draw data
+			$prev_strhwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $prev_draw['draw_date'], $blnduplicate);
+			$h_w_c['hots_last'] = $this->statistics_m->hots($prev_strhwc);
+			$h_w_c['warms_last'] = $this->statistics_m->warms($prev_strhwc);
+			$h_w_c['colds_last'] = $this->statistics_m->colds($prev_strhwc);
 		 $hwc = array(
 					 'range'			=> $new_range,
 					 'hots'				=> $strhots,
 					 'warms'			=> $strwarms,
 					 'colds'			=> $strcolds,
+					 'hots_last'		=> $h_w_c['hots_last'],
+					 'warms_last'		=> $h_w_c['warms_last'],
+					 'colds_last'		=> $h_w_c['colds_last'],
 					 'dupextra'			=> $str_dupextra,
 					 'overdue'			=> $stroverdue,
 					 'draw_id'			=> $this->data['lottery']->last_drawn['id'],
+					 'draw_id_last'		=> $prev_draw['id'],
 					 'lottery_id'		=> $id,
 					 'extra_included'	=> $this->data['lottery']->extra_included,
 					 'extra_draws'		=> $this->data['lottery']->extra_draws,

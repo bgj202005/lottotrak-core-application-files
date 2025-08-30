@@ -3558,12 +3558,13 @@ public function hwc_DrawBeforeLast($lotto_tbl)
     // Build associative array of last previous draw id and the corresponding draw date
 	$last_draw = array();
 	// Build query
-    $sql = 'SELECT draw_date FROM '.$lotto_tbl.' ORDER BY `id` DESC Limit 2;';
+    $sql = 'SELECT `id`,`draw_date` FROM '.$lotto_tbl.' ORDER BY `id` DESC Limit 2;';
     // Execute query
     $query = $this->db->query($sql);
     $result = $query->last_row();		// get the previous draw date and the previous draw id (doesn't mean that all id's are sequential)    
     if (!empty($result)) 
 	{
+		$last_draw['id'] = $result->id;
 		$last_draw['draw_date'] = $result->draw_date;
 		return $last_draw;
     } else 
@@ -3937,21 +3938,6 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		
 		$next =  $query->next_row('array');
 	return (!$next ? FALSE : $next);
-	}
-	
-	/** 
-	* Store the previous h_w_c hots, warms, colds fron the last draw so the next draw can be calculated
-	* 
-	* @param 	array	$heat	copy of the database h_w_c profile array		
-	* @return   array	$heat	updated h_w_c profile array
-	*/
-	public function hwc_copylasts($heats)
-	{
-	// If any of the fields are empty, copy the corresponding values from hots, warms, and colds to hots_last, warms_last, and colds_last, respectively
-		$heats['hots_last'] = $heats['hots'];
-		$heats['warms_last'] = $heats['warms'];
-		$heats['colds_last'] = $heats['colds'];
-	return $heats; 
 	}
 	/** 
 	* Store the previous from db position to the position_last if position_last is null
