@@ -324,13 +324,17 @@ class History extends Admin_Controller {
 				$strwarms = $h_w_c['warms'];	// All counts for Hots, Warms, Colds
 				$strcolds = $h_w_c['colds'];
 				$strdupextra = $h_w_c['dupextra'];
+				$strdupextra_last = $h_w_c['dupextra_last'];
 				$hots = explode(",", $strhots); // Convert to Arrays
 				$warms = explode(",", $strwarms); 
 				$colds = explode(",", $strcolds);
 				$hots_last = explode(",", $strhots_last); // Convert to Arrays
 				$warms_last = explode(",", $strwarms_last); 
 				$colds_last = explode(",", $strcolds_last); 
-				if(!empty($strdupextra)) $dupextra = explode(",", $strdupextra);
+				if(!empty($strdupextra)) {
+					$dupextra = explode(",", $strdupextra);
+					$dupextra_last = explode(",", $strdupextra_last);
+				}
 				// Iterate Hots from last draw
 				$pos = 0;
 				foreach($hots_last as $all_hots)
@@ -438,9 +442,18 @@ class History extends Admin_Controller {
 					// Iterate Extra Numbers that can have duplicates of the main balls
 					foreach($dupextra as $all_dupextra)
 					{
-						$n = strstr($all_dupextra, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
-						$c = substr(strstr($all_dupextra, '='), 1); // Strip off to the left of the equal sign count
+						$n = strstr($all_dupextra, '=', TRUE); 				// Strip off the ball drawn to the right of the equal sign
+						$c = substr(strstr($all_dupextra, '='), 1); 		// Strip off to the left of the equal sign count
 						$this->data['lottery']->dupextra[$n] = $c; 
+					}
+				}
+				if (!empty($strdupextra_last)) // Only if there is the duplicate extra in this lottery?	
+				{	
+					foreach($dupextra_last as $all_dupextra_last)
+					{
+						$n = strstr($all_dupextra_last, '=', TRUE); 		// Strip off the ball drawn to the right of the equal sign
+						$c = substr(strstr($all_dupextra_last, '='), 1); 	// Strip off to the left of the equal sign count
+						$this->data['lottery']->dupextra_last[$n] = $c; 
 					}
 				}
 			// Pull the winning positions for the Hots, Warms, Colds from last draw
