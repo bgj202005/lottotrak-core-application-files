@@ -48,7 +48,7 @@
 	table{
   		border:1px solid black;
   		display:inline-block;
-  		max-width: 178px;
+  		max-width: 168px;
   		margin:20px;
 	}
 	/* hwc */
