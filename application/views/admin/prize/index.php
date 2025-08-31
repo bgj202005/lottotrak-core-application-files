@@ -242,7 +242,7 @@
                                                         <?php echo htmlspecialchars(preg_replace('/ADMIN.*/', '', $record->saved_filename)); ?>
                                                     </button>
                                                 </td>
-                                                <td class="text-center"><?php echo number_format($record->actual_cccc); ?></td>
+                                                <td class="text-center"><?php echo number_format($record->actual_filtered_count); ?></td>
                                                 <td class="text-center">
                                                     <?php if($record->is_active == 'YES'): ?>
                                                         <span class="status-tag status-active">ACTIVE</span>

@@ -75,6 +75,9 @@ class Prize_m extends MY_Model
             // Use stored win records from database instead of recalculating
             $record->win_records = $this->get_stored_win_records($record);
             
+            // Calculate the actual filtered count from the combination file
+            $record->actual_filtered_count = $this->calculate_actual_filtered_count($record);
+            
             // Add row number
             $record->row_number = $offset + $key + 1;
             
@@ -877,5 +880,57 @@ class Prize_m extends MY_Model
         }
         
         return $win_records;
+    }
+    
+    /**
+     * Calculate the actual filtered combination count from the saved combination file
+     * @param object $record Filter record from lottery_combination_filters
+     * @return int Actual count of combinations in the filtered file
+     */
+    private function calculate_actual_filtered_count($record)
+    {
+        // Build file path using the saved filename from the filter
+        $expected_picks = (int)$record->R; // Picks from combination files table
+        $pick_dir = 'pick' . $expected_picks;
+        $file_path = FCPATH . 'combinations/' . $pick_dir . '/' . $record->file_name . '.txt';
+        
+        if (!file_exists($file_path)) {
+            log_message('error', "calculate_actual_filtered_count: File not found: {$file_path}");
+            return 0; // Return 0 if file doesn't exist
+        }
+        
+        // For independent extra ball lotteries (duplicate_extra_ball = 1),
+        // the file contains main numbers + extra ball, so actual count is picks + 1
+        $is_independent_extra_ball = (!empty($record->duplicate_extra_ball) && !empty($record->extra_ball));
+        $expected_numbers_per_line = $expected_picks;
+        if ($is_independent_extra_ball) {
+            $expected_numbers_per_line = $expected_picks + 1; // Main numbers + independent extra ball
+        }
+        
+        // Count valid combinations in the file
+        $file_content = file_get_contents($file_path);
+        $count = 0;
+        
+        if ($file_content) {
+            $lines = explode("\n", $file_content);
+            
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if (empty($line)) {
+                    continue; // Skip empty lines
+                }
+                
+                $numbers = preg_split('/[\s,]+/', $line);
+                $numbers = array_filter($numbers, 'is_numeric');
+                
+                // Validate the expected number count for this lottery type
+                if (count($numbers) == $expected_numbers_per_line) {
+                    $count++;
+                }
+            }
+        }
+        
+        log_message('debug', "calculate_actual_filtered_count: Filter ID {$record->id}, File: {$record->file_name}, Count: {$count}");
+        return $count;
     }
 }
