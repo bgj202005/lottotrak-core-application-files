@@ -23,7 +23,6 @@ class History extends Admin_Controller {
 	 $this->load->model('maintenance_m');
 		 $this->load->helper('file');
 		 $this->load->helper('html');
-		 //$this->output->enable_profiler(TRUE);
 	}
 
 	/**

@@ -54,18 +54,32 @@
   		border: 2px solid #000;
   		border-top: 4px solid #000;
   		width: 100%;
-  		margin: 0;
+  		margin: 0 auto;
   		margin-bottom: 15px;
   		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  		table-layout: fixed;
 	}
 	/* pos */
 	table.pos{
  		border: 2px solid #000;
  		border-top: 4px solid #000;
   		width: 100%;
-		margin: 0;
+		margin: 0 auto;
 		margin-bottom: 15px;
 		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		table-layout: fixed;
+	}
+	
+	/* Center table content */
+	table th, table td {
+		text-align: center !important;
+		vertical-align: middle;
+		padding: 8px;
+	}
+	
+	/* Override Bootstrap text utilities */
+	.table-container .text-center {
+		text-align: center !important;
 	}
 	
 	/* Table container for mobile-friendly layout */
@@ -73,8 +87,12 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 20px;
-		justify-content: flex-start;
+		justify-content: center;
 		align-items: flex-start;
+		width: 100%;
+		max-width: 100%;
+		margin: 0 auto;
+		padding: 0;
 	}
 	
 	/* Table pair wrapper - groups related tables together */
@@ -90,6 +108,14 @@
 	.table-wrapper {
 		flex: 1;
 		min-width: 140px;
+		display: flex;
+		justify-content: center;
+		align-items: flex-start;
+	}
+	
+	.table-wrapper table {
+		width: 100%;
+		max-width: 100%;
 	}
 	
 	/* Extra ball table - full width when present */
@@ -98,6 +124,14 @@
 		min-width: 280px;
 		max-width: 400px;
 		margin: 0 auto;
+		display: flex;
+		justify-content: center;
+		align-items: flex-start;
+	}
+	
+	.extra-table-wrapper table {
+		width: 100%;
+		max-width: 100%;
 	}
 	
 	/* Mobile responsiveness */
@@ -285,7 +319,7 @@
 						</ul>
 						<div class="tab-content" id="myTabContent">
 						<div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
-							<div class="container-fluid" style="margin: 25px;">
+							<div class="container-fluid" style="padding: 25px; margin: 0;">
 								<div class="table-container">
 									<!-- Hot Tables Pair -->
 									<div class="table-pair">
@@ -568,7 +602,7 @@
 							</div>
 						</div>
 						<div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
-							<div class="container-fluid" style="margin: 25px;">
+							<div class="container-fluid" style="padding: 25px; margin: 0;">
 								<div class="table-container">
 									<!-- Hot Tables Pair -->
 									<div class="table-pair">
