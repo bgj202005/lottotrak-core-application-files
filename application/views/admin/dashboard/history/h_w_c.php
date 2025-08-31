@@ -77,6 +77,28 @@
 		padding: 8px;
 	}
 	
+	/* Prevent header text wrapping */
+	table th {
+		white-space: nowrap;
+		font-size: 0.85em;
+		font-weight: bold;
+		min-width: 80px;
+		padding: 6px 4px;
+	}
+	
+	/* Smaller font for second row headers to fit within borders */
+	table thead tr:nth-child(2) th {
+		font-size: 0.75em;
+		padding: 4px 2px;
+		line-height: 1.2;
+	}
+	
+	/* Ensure data cells have consistent sizing */
+	table td {
+		font-size: 0.95em;
+		min-width: 80px;
+	}
+	
 	/* Table container for mobile-friendly layout */
 	.table-container {
 		display: flex;
