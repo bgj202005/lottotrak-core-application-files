@@ -24,7 +24,7 @@ class History_m extends MY_Model
 	 */
     public function load_history($tbl, $lotto_id, $coverage = 100, $e = 0)
     {
-        // Load the range of lottery draws in ascending order
+        // todo: load the range of lottery draws, ascending order
         $this->db->reset_query();	// Clear any previous queries that are cached
         $ex_d = (!$e ?  ' WHERE extra <> "0"' : '');
   
@@ -43,7 +43,7 @@ class History_m extends MY_Model
 	 */
     public function glance_exists($lotto_id)
     {
-        // Check if glance statistics exist for the given lottery ID
+        // todo: load the range of lottery draws, ascending order
         $this->db->reset_query();	// Clear any previous queries in the cache
         $query = $this->db->select('*')
                           ->where('lottery_id', $lotto_id)

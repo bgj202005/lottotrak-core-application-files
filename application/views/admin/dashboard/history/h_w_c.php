@@ -77,22 +77,13 @@
 		padding: 8px;
 	}
 	
-	/* Override Bootstrap text utilities */
-	.table-container .text-center {
-		text-align: center !important;
-	}
-	
 	/* Table container for mobile-friendly layout */
 	.table-container {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 20px;
-		justify-content: center;
+		justify-content: flex-start;
 		align-items: flex-start;
-		width: 100%;
-		max-width: 100%;
-		margin: 0 auto;
-		padding: 0;
 	}
 	
 	/* Table pair wrapper - groups related tables together */
@@ -319,7 +310,7 @@
 						</ul>
 						<div class="tab-content" id="myTabContent">
 						<div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
-							<div class="container-fluid" style="padding: 25px; margin: 0;">
+							<div class="container-fluid" style="margin: 25px;">
 								<div class="table-container">
 									<!-- Hot Tables Pair -->
 									<div class="table-pair">
@@ -602,7 +593,7 @@
 							</div>
 						</div>
 						<div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
-							<div class="container-fluid" style="padding: 25px; margin: 0;">
+							<div class="container-fluid" style="margin: 25px;">
 								<div class="table-container">
 									<!-- Hot Tables Pair -->
 									<div class="table-pair">
