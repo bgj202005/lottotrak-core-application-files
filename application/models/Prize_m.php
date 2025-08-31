@@ -39,6 +39,8 @@ class Prize_m extends MY_Model
         $this->db->select('
             lcf.*,
             lp.lottery_name as lotto_name,
+            lp.duplicate_extra_ball,
+            lp.extra_ball,
             lcfiles.file_name as original_filename,
             lcfiles.N,
             lcfiles.R,
@@ -930,7 +932,6 @@ class Prize_m extends MY_Model
             }
         }
         
-        log_message('debug', "calculate_actual_filtered_count: Filter ID {$record->id}, File: {$record->file_name}, Count: {$count}");
         return $count;
     }
 }
