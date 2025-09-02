@@ -1229,6 +1229,14 @@ class Predictions extends Admin_Controller {
 			$h_w_c_group_options[$value] = $group;
 		}
 		$this->data['h_w_c_group'] = $h_w_c_group_options;
+		// Fetch extra ball occurrences for independent extra ball lotteries only
+		if ($this->data['lottery']->duplicate_extra_ball == 1) {
+			$this->data['extra_ball_occurrences'] = $this->lottery_data_m->get_extra_ball_occurrences($id);
+			$this->data['is_independent_extra_ball'] = true;
+		} else {
+			$this->data['extra_ball_occurrences'] = [];
+			$this->data['is_independent_extra_ball'] = false;
+		}
 		$this->data['followers'] = $this->predictions_m->get_followers($id);
 		// Prepare lottery data for points calculations
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);
@@ -1252,6 +1260,10 @@ class Predictions extends Admin_Controller {
 		}
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $p_group, $follower_wins, $follow_poswins);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $this->data['lottery']->duplicate_extra_ball);
+	// For independent extra ball lotteries, parse dupextra_wins and update extra ball points BEFORE getting sorted ball points
+		if ($this->data['lottery']->duplicate_extra_ball == 1 && !empty($this->data['followers']['dupextra_wins'])) {
+			$this->parse_and_apply_dupextra_wins_to_points();
+		}
 	// Ball points and position points setup
 	$ball_points = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
 	$ball_points_options = [];
@@ -1313,6 +1325,26 @@ class Predictions extends Admin_Controller {
 		$this->data['friends'] = $this->predictions_m->get_friends($id);
 		$this->data['friends_dropdown_options'] = $this->predictions_m->get_friends_dropdown_options($id);
 		$this->data['combo_id'] = NULL; // Reset combo_id to NULL
+		$this->data['active'] = false; // Initialize active flag to false
+		// Check if combo_id is provided in URL parameter (from money icon click)
+		$combo_id_param = $this->input->get('combo_id');
+		if ($combo_id_param) {
+			// Load the combination_filters_m model to check active status
+			$this->load->model('combination_filters_m');
+			
+			$this->data['combo_id'] = $combo_id_param;
+			$this->data['active'] = $this->combination_filters_m->get_active_flag($combo_id_param);
+			
+			// Get the filter record ID for the money icon functionality
+			$saved_settings = $this->combination_filters_m->get_saved_settings($combo_id_param);
+			if ($saved_settings) {
+				$this->data['filter_record_id'] = $saved_settings['id'];
+			} else {
+				$this->data['filter_record_id'] = NULL;
+			}
+		} else {
+			$this->Ffuturedata['filter_record_id'] = NULL;
+		}
 		// Get next draw date
 		$ld = $this->data['lottery']->last_drawn['draw_date'];
 		$day = $this->lotteries_m->return_day($ld);
