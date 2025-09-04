@@ -642,8 +642,8 @@ class Predictions extends Admin_Controller {
 		}
 	
 	// Fetch H-W-C, Followers, and Friends data
-	$this->data['h_w_c'] = $this->lottery_data_m->get_h_w_c($id);
-	$h_w_c_group = $this->lottery_statistics_m->get_h_w_c_range($id);
+	$this->data['h_w_c'] = $this->predictions_m->get_h_w_c($id);
+	$h_w_c_group = $this->predictions_m->get_h_w_c_range($id);
 	// before passing $h_w_c_group to the view
 		$h_w_c_group_options = [];
 		foreach ($h_w_c_group as $group) {
@@ -662,7 +662,7 @@ class Predictions extends Admin_Controller {
 		$this->data['is_independent_extra_ball'] = false;
 	}
 	
-	$this->data['followers'] = $this->lottery_data_m->get_followers($id);
+	$this->data['followers'] = $this->predictions_m->get_followers($id);
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 			// 1. Check for a record for the current lottery in the followers table
 			$p_group = $this->statistics_m->prize_group_profile($id); // Prize Group Profile Only
@@ -679,6 +679,8 @@ class Predictions extends Admin_Controller {
 		
 		// For independent extra ball lotteries, parse dupextra_wins and update extra ball points BEFORE getting sorted ball points
 		if ($this->data['lottery']->duplicate_extra_ball == 1 && !empty($this->data['followers']['dupextra_wins'])) {
+			// Debug: Log the dupextra_wins data
+			error_log("Futures Method - dupextra_wins: " . $this->data['followers']['dupextra_wins']);
 			$this->parse_and_apply_dupextra_wins_to_points();
 		}
 		
@@ -695,7 +697,7 @@ class Predictions extends Admin_Controller {
 		$ball_points_options[$value] = $label;
 		}
 		$this->data['ball_points_options'] = $ball_points_options;
-		$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
+		$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
 		$position_points_options = [];
 		foreach ($position_points as $label) {
 			if (strpos($label, '+') === 0) {
@@ -1240,24 +1242,15 @@ class Predictions extends Admin_Controller {
 		$this->data['followers'] = $this->predictions_m->get_followers($id);
 		// Prepare lottery data for points calculations
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);
+		// 1. Check for a record for the current lottery in the followers table
 		$p_group = $this->statistics_m->prize_group_profile($id);
 		$p_group = $this->statistics_m->prizes_only($p_group, $this->data['lottery']->extra_ball);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_prizegroup($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_ball, $p_group);
-		// Check if this is an independent extra ball lottery and use enhanced follower calculation
-		if ($this->data['lottery']->duplicate_extra_ball == 1) {
-			// For independent extra ball lotteries, use enhanced follower calculation
-			$range = isset($this->data['followers']['range']) ? $this->data['followers']['range'] : 25; // Default to 25 if not set
-			$enhanced_ball_wins = $this->statistics_m->calculate_independent_extra_follower_wins_OLD($tbl_name, $id, $range);
-			$enhanced_position_wins = $this->statistics_m->calculate_independent_extra_follower_positions_OLD($tbl_name, $id, $range);
-			
-			// Convert enhanced associative arrays to old format for compatibility
-			$follower_wins = $this->convert_enhanced_to_old_format($enhanced_ball_wins, $this->data['lottery']->balls_drawn);
-			$follow_poswins = $this->convert_enhanced_to_old_format($enhanced_position_wins, $this->data['lottery']->balls_drawn, true);
-		} else {
-			// For regular lotteries, use old format
+		
+			// 2. Use the same method as history/followers page - extract wins and positions data
 			$follower_wins = explode(">", $this->data['followers']['wins']);
 			$follow_poswins = explode(">", $this->data['followers']['positions']);
-		}
+
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $p_group, $follower_wins, $follow_poswins);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $this->data['lottery']->duplicate_extra_ball);
 	// For independent extra ball lotteries, parse dupextra_wins and update extra ball points BEFORE getting sorted ball points
@@ -1277,7 +1270,7 @@ class Predictions extends Admin_Controller {
 	}
 	$this->data['ball_points_options'] = $ball_points_options;
 	
-	$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
+	$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
 	$position_points_options = [];
 		foreach ($position_points as $label) {
 			if (strpos($label, '+') === 0) {
@@ -1454,7 +1447,7 @@ class Predictions extends Admin_Controller {
 			$ball_points_options[$value] = $label;
 		}
 		$this->data['ball_points_options'] = $ball_points_options;
-		$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
+		$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
 		$position_points_options = [];
 		foreach ($position_points as $label) {
 			$value = (strpos($label, '+') === 0) ? substr($label, 0, strpos($label, ' ')) : strtok($label, ' ');
@@ -2602,15 +2595,15 @@ class Predictions extends Admin_Controller {
 			});
 		}
 		// Set up H-W-C, Followers, and Friends data
-		$this->data['h_w_c'] = $this->lottery_data_m->get_h_w_c($id);
-		$h_w_c_group = $this->lottery_statistics_m->get_h_w_c_range($id);
+		$this->data['h_w_c'] = $this->predictions_m->get_h_w_c($id);
+		$h_w_c_group = $this->predictions_m->get_h_w_c_range($id);
 		$h_w_c_group_options = [];
 		foreach ($h_w_c_group as $group) {
 			$value = substr($group, 0, 5);
 			$h_w_c_group_options[$value] = $group;
 		}
 		$this->data['h_w_c_group'] = $h_w_c_group_options;
-		$this->data['followers'] = $this->lottery_data_m->get_followers($id);
+		$this->data['followers'] = $this->predictions_m->get_followers($id);
 		// Set up lottery data for points calculations
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);
 		$p_group = $this->statistics_m->prize_group_profile($id);
@@ -2645,7 +2638,7 @@ class Predictions extends Admin_Controller {
 			$ball_points_options[$value] = $label;
 		}
 		$this->data['ball_points_options'] = $ball_points_options;
-		$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
+		$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
 		$position_points_options = [];
 		foreach ($position_points as $label) {
 			if (strpos($label, '+') === 0) {
