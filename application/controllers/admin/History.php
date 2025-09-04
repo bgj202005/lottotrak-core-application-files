@@ -635,15 +635,27 @@ class History extends Admin_Controller {
 						// Set data with the names the view expects
 						$this->data['lottery']->enhanced_parsed_wins = $this->data['lottery']->parsed_wins;
 						$this->data['lottery']->enhanced_parsed_positions = $this->data['lottery']->parsed_positions;
-						$this->data['lottery']->enhanced_point_rankings = $this->calculate_point_rankings($this->data['lottery']->parsed_wins, $this->data['lottery']->parsed_positions, $this->data['lottery']->valid_prize_categories);
 						
-						// Convert parsed position data to last_drawn position fields for view compatibility
-						$this->convert_parsed_positions_to_last_drawn($this->data['lottery']->parsed_positions);
-						
-						// Parse dupextra_wins data for independent extra ball lotteries
+						// Parse dupextra_wins data for independent extra ball lotteries BEFORE calculating point rankings
 						if (!empty($enhanced_wins->dupextra_wins)) {
 							$this->data['lottery']->parsed_dupextra_wins = $this->parse_dupextra_wins_string($enhanced_wins->dupextra_wins, $this->data['lottery']->valid_prize_categories);
 						}
+						
+						// Merge dupextra data into parsed_wins for point ranking calculation
+						$merged_wins = $this->data['lottery']->parsed_wins;
+						if (!empty($this->data['lottery']->parsed_dupextra_wins)) {
+							$merged_wins = array_merge($merged_wins, $this->data['lottery']->parsed_dupextra_wins);
+						}
+						
+						// Calculate point rankings including dupextra data
+						$this->data['lottery']->enhanced_point_rankings = $this->calculate_point_rankings(
+							$merged_wins, 
+							$this->data['lottery']->parsed_positions, 
+							$this->data['lottery']->valid_prize_categories
+						);
+						
+						// Convert parsed position data to last_drawn position fields for view compatibility
+						$this->convert_parsed_positions_to_last_drawn($this->data['lottery']->parsed_positions);
 						
 						// Get the actual drawn ball numbers for enhanced display
 						$last_draw_data = $this->statistics_m->db_row($tbl_name, 0);

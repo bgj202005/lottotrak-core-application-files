@@ -157,55 +157,40 @@
 							$ball_rankings = $lottery->enhanced_point_rankings['balls'];
 							$position_rankings = $lottery->enhanced_point_rankings['positions'];
 							
-							if (!empty($ball_rankings)) {
-								$best_ball = key($ball_rankings);
-								$best_ball_points = current($ball_rankings);
-								
-								// Check for ties at the highest point value, but only include drawn balls
-								$tied_balls = array();
-								$drawn_balls = array();
-								
-								// Collect all drawn ball numbers
-								for ($i = 1; $i <= $lottery->balls_drawn; $i++) {
-									if (isset($lottery->last_drawn['ball'.$i])) {
-										$drawn_balls[] = $lottery->last_drawn['ball'.$i];
-									}
-								}
-								if ($lottery->extra_included && isset($lottery->last_drawn['extra'])) {
-									$drawn_balls[] = $lottery->last_drawn['extra'];
-								}
-								
-								// Only consider balls that were actually drawn
-								foreach ($ball_rankings as $ball_num => $points) {
-									if ($points == $best_ball_points && in_array($ball_num, $drawn_balls)) {
-										$tied_balls[] = $ball_num;
-									}
-								}
-								
-								// If no drawn balls have the highest points, find the highest among drawn balls
-								if (empty($tied_balls)) {
-									$max_points_drawn = 0;
-									$tied_balls = array();
-									foreach ($ball_rankings as $ball_num => $points) {
-										if (in_array($ball_num, $drawn_balls)) {
-											if ($points > $max_points_drawn) {
-												$max_points_drawn = $points;
-												$tied_balls = array($ball_num);
-											} elseif ($points == $max_points_drawn) {
-												$tied_balls[] = $ball_num;
-											}
-										}
-									}
-									$best_ball_points = $max_points_drawn;
-								}
-								
-								// Store tie information for display
-								$ball_tie_info = array(
-									'balls' => $tied_balls,
-									'points' => $best_ball_points,
-									'has_tie' => count($tied_balls) > 1
-								);
-							}
+			if (!empty($ball_rankings)) {
+				// Collect all drawn ball numbers first
+				$drawn_balls = array();
+				for ($i = 1; $i <= $lottery->balls_drawn; $i++) {
+					if (isset($lottery->last_drawn['ball'.$i])) {
+						$drawn_balls[] = $lottery->last_drawn['ball'.$i];
+					}
+				}
+				if ($lottery->extra_included && isset($lottery->last_drawn['extra'])) {
+					$drawn_balls[] = $lottery->last_drawn['extra'];
+				}
+				
+				// Find the highest points among ONLY the drawn balls
+				$max_points_drawn = 0;
+				$tied_balls = array();
+				foreach ($ball_rankings as $ball_num => $points) {
+					if (in_array($ball_num, $drawn_balls)) {
+						if ($points > $max_points_drawn) {
+							$max_points_drawn = $points;
+							$tied_balls = array($ball_num);
+						} elseif ($points == $max_points_drawn) {
+							$tied_balls[] = $ball_num;
+						}
+					}
+				}
+				$best_ball_points = $max_points_drawn;
+				
+				// Store tie information for display
+				$ball_tie_info = array(
+					'balls' => $tied_balls,
+					'points' => $best_ball_points,
+					'has_tie' => count($tied_balls) > 1
+				);
+			}
 							
 							if (!empty($position_rankings)) {
 								$best_pos = key($position_rankings);
@@ -230,7 +215,15 @@
 							// Use regular point calculation for standard lotteries
 							for ($i = 1; $i <= $max_balls; $i++) {
 								// Ball points
-								$wins = ($i > $lottery->balls_drawn ? $lottery->last_drawn['extra_win'] : $lottery->last_drawn['ball'.$i.'_win']);
+								if ($i > $lottery->balls_drawn && $lottery->duplicate_extra_ball && !empty($lottery->parsed_dupextra_wins)) {
+									// For duplicate_extra_ball lotteries, use parsed_dupextra_wins for extra ball
+									$ball_number = $lottery->last_drawn['extra'];
+									$wins = isset($lottery->parsed_dupextra_wins[$ball_number]) ? $lottery->parsed_dupextra_wins[$ball_number] : array();
+								} else {
+									// Regular handling for main balls or non-duplicate_extra_ball lotteries
+									$wins = ($i > $lottery->balls_drawn ? $lottery->last_drawn['extra_win'] : $lottery->last_drawn['ball'.$i.'_win']);
+								}
+								
 								$points_total = 0;
 								foreach ($wins as $key => $value) {
 									if (strpos($key, "_points") !== false) $points_total += intval($value);
