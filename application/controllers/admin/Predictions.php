@@ -677,10 +677,9 @@ class Predictions extends Admin_Controller {
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'],$p_group,$follower_wins,$follow_poswins);
 		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $this->data['lottery']->duplicate_extra_ball);
 		
-		// For independent extra ball lotteries, parse dupextra_wins and update extra ball points BEFORE getting sorted ball points
+		// For independent extra ball lotteries, parse dupextra_wins and OVERRIDE extra ball points AFTER History model calculations
 		if ($this->data['lottery']->duplicate_extra_ball == 1 && !empty($this->data['followers']['dupextra_wins'])) {
-			// Debug: Log the dupextra_wins data
-			error_log("Futures Method - dupextra_wins: " . $this->data['followers']['dupextra_wins']);
+			// Now override with our dupextra calculation
 			$this->parse_and_apply_dupextra_wins_to_points();
 		}
 		
@@ -3499,53 +3498,56 @@ class Predictions extends Admin_Controller {
 		$p_group = $this->statistics_m->prize_group_profile($this->data['lottery']->id);
 		$p_group = $this->statistics_m->prizes_only($p_group, $this->data['lottery']->extra_ball);
 		$valid_categories = array_keys($p_group);
-		$prize_categories = $valid_categories; // Use the category names, not the values
 		
-		// Parse dupextra_wins string - format is position-based data separated by >
+		// Parse dupextra_wins string using the proper method
 		$dupextra_wins_string = $this->data['followers']['dupextra_wins'];
-		$position_prizes = explode('>', $dupextra_wins_string);
+		$parsed_dupextra_wins = $this->parse_dupextra_wins_string($dupextra_wins_string, $valid_categories);
 		
 		// Get the extra ball number 
 		$extra_ball_number = $this->data['lottery']->last_drawn['extra'] ?? null;
-		if (!$extra_ball_number) return;
 		
-		// For independent extra ball lotteries, the dupextra_wins positions represent different extra ball numbers (1-7)
-		// Find the points for the specific extra ball number that was drawn
-		$extra_ball_points = 0;
-		$category_points = array(
+		if (!$extra_ball_number || empty($parsed_dupextra_wins)) {
+			return;
+		}
+		
+		// Find the specific extra ball that was drawn
+		$extra_key = 'extra_' . $extra_ball_number;
+		
+		if (!isset($parsed_dupextra_wins[$extra_key])) {
+			return;
+		}
+		
+		// Use the same category mapping as History model for independent extra ball lotteries
+		$category_mapping = array(
 			'extra' => 1,
-			'1_win' => 2, '1_win_extra' => 3,
-			'2_win' => 4, '2_win_extra' => 5,
-			'3_win' => 6, '3_win_extra' => 7,
-			'4_win' => 8, '4_win_extra' => 9,
-			'5_win' => 10, '5_win_extra' => 11,
-			'6_win' => 12, '6_win_extra' => 13,
-			'7_win' => 14, '7_win_extra' => 15,
-			'8_win' => 16, '8_win_extra' => 17,
-			'9_win' => 18, '9_win_extra' => 19
+			'1_win' => 2,
+			'1_win_extra' => 3,
+			'2_win' => 4,
+			'2_win_extra' => 5,
+			'3_win' => 6,
+			'3_win_extra' => 7,
+			'4_win' => 8,
+			'4_win_extra' => 9,
+			'5_win' => 10,
+			'5_win_extra' => 11,
+			'6_win' => 12,
+			'6_win_extra' => 13,
+			'7_win' => 14,
+			'7_win_extra' => 15,
+			'8_win' => 16,
+			'8_win_extra' => 17,
+			'9_win' => 18,
+			'9_win_extra' => 19
 		);
 		
-		// Find the position index that corresponds to this extra ball number
-		// Position index 0 = extra ball 1, position index 1 = extra ball 2, etc.
-		$extra_ball_position_index = $extra_ball_number - 1; // Convert to 0-based index
+		$extra_ball_points = 0;
+		$extra_ball_wins = $parsed_dupextra_wins[$extra_key];
 		
-		if ($extra_ball_position_index >= 0 && $extra_ball_position_index < count($position_prizes)) {
-			$position_data = $position_prizes[$extra_ball_position_index];
-			$prizes = explode(',', $position_data);
-			
-			$extra_ball_wins = array();
-			foreach($prizes as $index => $count) {
-				if(isset($prize_categories[$index]) && intval($count) > 0) {
-					$extra_ball_wins[$prize_categories[$index]] = intval($count);
-				}
-			}
-			
-			if (!empty($extra_ball_wins)) {
-				foreach ($extra_ball_wins as $category => $count) {
-					if (isset($category_points[$category])) {
-						$extra_ball_points += intval($count) * $category_points[$category];
-					}
-				}
+		foreach ($extra_ball_wins as $category => $count) {
+			if (isset($category_mapping[$category])) {
+				$points_per_category = $category_mapping[$category];
+				$points_for_category = intval($count) * $points_per_category;
+				$extra_ball_points += $points_for_category;
 			}
 		}
 		
@@ -3554,83 +3556,25 @@ class Predictions extends Admin_Controller {
 			$this->data['lottery']->last_drawn['extra_total'] = $extra_ball_points;
 		}
 		
-		// Handle position 6 (extra ball position) separately for position table
+		// Handle position calculations for positions dropdown (keep existing logic)
 		// Position 6 should be the SUM of all individual extra ball points (1-7)
 		// Calculate points for each extra ball from each position in dupextra_wins data
 		$total_position_6_points = 0;
-		$category_points = array(
-			'extra' => 1,
-			'1_win' => 2, '1_win_extra' => 3,
-			'2_win' => 4, '2_win_extra' => 5,
-			'3_win' => 6, '3_win_extra' => 7,
-			'4_win' => 8, '4_win_extra' => 9,
-			'5_win' => 10, '5_win_extra' => 11,
-			'6_win' => 12, '6_win_extra' => 13,
-			'7_win' => 14, '7_win_extra' => 15,
-			'8_win' => 16, '8_win_extra' => 17,
-			'9_win' => 18, '9_win_extra' => 19
-		);
 		
-		// Calculate individual points for each position (dynamic based on balls drawn)
-		$max_positions = count($position_prizes); // Use actual number of positions in dupextra data
-		for ($position_index = 0; $position_index < $max_positions; $position_index++) {
-			if (isset($position_prizes[$position_index])) {
-				$position_data = $position_prizes[$position_index];
-				$prizes = explode(',', $position_data);
-				
-				$extra_ball_wins = array();
-				foreach($prizes as $index => $count) {
-					if(isset($prize_categories[$index]) && intval($count) > 0) {
-						$extra_ball_wins[$prize_categories[$index]] = intval($count);
-					}
-				}
-				
-				if (!empty($extra_ball_wins)) {
-					// Calculate points for this extra ball (position represents which extra ball 1-7)
-					$extra_ball_points = 0;
-					foreach ($extra_ball_wins as $category => $count) {
-						if (isset($category_points[$category])) {
-							$extra_ball_points += intval($count) * $category_points[$category];
-						}
-					}
-					
-					$total_position_6_points += $extra_ball_points;
+		// Calculate individual points for each extra ball using parsed dupextra data
+		foreach ($parsed_dupextra_wins as $extra_key => $extra_wins) {
+			$extra_ball_points = 0;
+			foreach ($extra_wins as $category => $count) {
+				if (isset($category_mapping[$category])) {
+					$points_per_category = $category_mapping[$category];
+					$extra_ball_points += intval($count) * $points_per_category;
 				}
 			}
+			$total_position_6_points += $extra_ball_points;
 		}
 		
 		// Set position data for the extra ball position (position 6)
 		$this->data['lottery']->last_drawn['position_extra_total'] = $total_position_6_points;
-		
-		// Also set individual position totals for positions 1-5 based on dupextra data
-		// This ensures the position dropdown shows correct points for each position
-		for ($position_index = 0; $position_index < min(count($position_prizes), $this->data['lottery']->balls_drawn); $position_index++) {
-			if (isset($position_prizes[$position_index])) {
-				$position_data = $position_prizes[$position_index];
-				$prizes = explode(',', $position_data);
-				
-				$position_wins = array();
-				foreach($prizes as $index => $count) {
-					if(isset($prize_categories[$index]) && intval($count) > 0) {
-						$position_wins[$prize_categories[$index]] = intval($count);
-					}
-				}
-				
-				if (!empty($position_wins)) {
-					// Calculate points for this position
-					$position_points = 0;
-					foreach ($position_wins as $category => $count) {
-						if (isset($category_points[$category])) {
-							$position_points += intval($count) * $category_points[$category];
-						}
-					}
-					
-					// Set the position total for this position (1-based indexing)
-					$position_number = $position_index + 1;
-					$this->data['lottery']->last_drawn['position' . $position_number . '_total'] = $position_points;
-				}
-			}
-		}
 	}
 
 	/**

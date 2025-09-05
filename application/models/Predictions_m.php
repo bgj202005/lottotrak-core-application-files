@@ -492,7 +492,7 @@ class Predictions_m extends MY_Model
      */
     public function get_followers($lottery_id)
     {
-        $this->db->select('range, lottery_followers, wins, positions, draw_id, extra_included, extra_draws');
+        $this->db->select('range, lottery_followers, wins, positions, draw_id, extra_included, extra_draws, dupextra_wins');
         $this->db->from('lottery_followers');
         $this->db->where('lottery_id', $lottery_id);
         return $this->db->get()->row_array();
@@ -631,10 +631,11 @@ class Predictions_m extends MY_Model
 				$ball_points[$ball_number] = $points;
 			}
 		}
-		// Extra ball (if exists) and not duplicate
-		if (isset($last_drawn['extra']) && !empty($last_drawn['extra']) && !$duplicate) {
+		// Extra ball (if exists) - now include for both duplicate and non-duplicate lotteries
+		if (isset($last_drawn['extra']) && !empty($last_drawn['extra'])) {
 			$extra_number = $last_drawn['extra'];
 			$extra_points = isset($last_drawn['extra_total']) ? $last_drawn['extra_total'] : 0;
+			
 			$ball_points['+' . $extra_number] = $extra_points;
 		}
 		// Sort by points descending, then by number ascending for same points

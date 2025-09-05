@@ -643,8 +643,15 @@ class History extends Admin_Controller {
 						
 						// Merge dupextra data into parsed_wins for point ranking calculation
 						$merged_wins = $this->data['lottery']->parsed_wins;
-						if (!empty($this->data['lottery']->parsed_dupextra_wins)) {
-							$merged_wins = array_merge($merged_wins, $this->data['lottery']->parsed_dupextra_wins);
+						if (!empty($this->data['lottery']->parsed_dupextra_wins) && isset($this->data['lottery']->last_drawn['extra'])) {
+							// Only include the specific extra ball that was actually drawn
+							$drawn_extra_ball = $this->data['lottery']->last_drawn['extra'];
+							$extra_key = 'extra_' . $drawn_extra_ball;
+							
+							if (isset($this->data['lottery']->parsed_dupextra_wins[$extra_key])) {
+								// Add the drawn extra ball's wins using the actual ball number as the key
+								$merged_wins[$drawn_extra_ball] = $this->data['lottery']->parsed_dupextra_wins[$extra_key];
+							}
 						}
 						
 						// Calculate point rankings including dupextra data
@@ -705,12 +712,7 @@ class History extends Admin_Controller {
 								}
 							}
 							
-							$this->data['lottery']->enhanced_point_rankings = $this->calculate_point_rankings($enhanced_ball_wins, $this->data['lottery']->parsed_positions, $this->data['lottery']->valid_prize_categories);
-							
-							// Convert parsed position data to last_drawn position fields for view compatibility
-							$this->convert_parsed_positions_to_last_drawn($this->data['lottery']->parsed_positions);
-							
-							// Get the actual drawn ball numbers for enhanced display
+							// Get the actual drawn ball numbers for enhanced display FIRST
 							$last_draw_data = $this->statistics_m->db_row($tbl_name, 0);
 							if ($last_draw_data) {
 								// Set actual drawn ball numbers
@@ -725,6 +727,28 @@ class History extends Admin_Controller {
 									$this->data['lottery']->last_drawn['extra'] = $last_draw_data->extra;
 								}
 							}
+							
+							// Parse and merge dupextra data for independent extra ball lotteries
+							$merged_ball_wins = $enhanced_ball_wins;
+							if ($this->data['lottery']->duplicate_extra_ball == 1 && !empty($this->data['followers']['dupextra_wins'])) {
+								$parsed_dupextra_wins = $this->parse_dupextra_wins_string($this->data['followers']['dupextra_wins'], $this->data['lottery']->valid_prize_categories);
+								
+								// Use the drawn extra ball we just retrieved
+								if (isset($this->data['lottery']->last_drawn['extra'])) {
+									$drawn_extra_ball = $this->data['lottery']->last_drawn['extra'];
+									$extra_key = 'extra_' . $drawn_extra_ball;
+									
+									if (isset($parsed_dupextra_wins[$extra_key])) {
+										// Add the drawn extra ball's wins using the actual ball number as the key
+										$merged_ball_wins[$drawn_extra_ball] = $parsed_dupextra_wins[$extra_key];
+									}
+								}
+							}
+							
+							$this->data['lottery']->enhanced_point_rankings = $this->calculate_point_rankings($merged_ball_wins, $this->data['lottery']->parsed_positions, $this->data['lottery']->valid_prize_categories);
+							
+							// Convert parsed position data to last_drawn position fields for view compatibility
+							$this->convert_parsed_positions_to_last_drawn($this->data['lottery']->parsed_positions);
 						} else {
 							throw new Exception("Enhanced calculation returned empty data");
 						}
