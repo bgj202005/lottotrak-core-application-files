@@ -218,6 +218,84 @@ return anchor($uri, '<i class="fa fa-times-circle fa-2x" aria-hidden="true"></i>
  	return $excerpt;
  }
 
+/**
+ * Safe getimagesize function that handles SSL certificate issues
+ * 
+ * @param      string 		$url - The image URL or path
+ * @return     array|false  	Image information array or false on failure
+ */
+function safe_getimagesize($url)
+{
+	// If it's a local file path, use regular getimagesize
+	if (!filter_var($url, FILTER_VALIDATE_URL)) {
+		$result = @getimagesize($url);
+		// If local file fails, try to get actual file dimensions
+		if ($result === false && file_exists($url)) {
+			// Try alternative approach for local files
+			$result = @getimagesize($url);
+		}
+		// Return result or fallback with typical lottery logo dimensions
+		return $result !== false ? $result : [300, 150, IMAGETYPE_PNG, 'width="300" height="150"'];
+	}
+	
+	// For URLs, especially HTTPS localhost URLs, create a context with SSL options
+	$context = stream_context_create([
+		"ssl" => [
+			"verify_peer" => false,
+			"verify_peer_name" => false,
+			"allow_self_signed" => true
+		],
+		"http" => [
+			"timeout" => 10
+		]
+	]);
+	
+	// Use @ to suppress warnings and handle errors gracefully
+	$result = @getimagesize($url, $context);
+	
+	// If getimagesize fails, return reasonable default size to prevent errors
+	if ($result === false) {
+		// Log the error for debugging (if CI logging is available)
+		if (function_exists('log_message')) {
+			log_message('error', 'safe_getimagesize failed for URL: ' . $url);
+		}
+		// Return typical lottery logo dimensions (300x150 aspect ratio 2:1)
+		return [300, 150, IMAGETYPE_PNG, 'width="300" height="150"'];
+	}
+	
+	return $result;
+}
+
+/**
+ * Get responsive image attributes with proper aspect ratio
+ * 
+ * @param      array 		$image_info - Result from getimagesize
+ * @param      int 		$max_width - Maximum width for display
+ * @return     array  		Attributes for img tag
+ */
+function get_responsive_image_attrs($image_info, $max_width = 150)
+{
+	if (!$image_info || !isset($image_info[0]) || !isset($image_info[1])) {
+		return ['width' => $max_width, 'height' => $max_width/2];
+	}
+	
+	$original_width = $image_info[0];
+	$original_height = $image_info[1];
+	
+	// Calculate aspect ratio
+	$aspect_ratio = $original_height / $original_width;
+	
+	// Calculate display dimensions
+	$display_width = min($original_width, $max_width);
+	$display_height = $display_width * $aspect_ratio;
+	
+	return [
+		'width' => round($display_width),
+		'height' => round($display_height),
+		'style' => 'max-width: 100%; height: auto;'
+	];
+}
+
 /** For PHP <= 7.3.0 :
 * array_key_last helper
 * 

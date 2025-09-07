@@ -461,8 +461,9 @@
 				// windows	
 					$path =	base_url().'images/uploads/'.$lottery->lottery_image;
 				}
-				$image_info = getimagesize($path); 
-				$extra = array('width' => $image_info[0]/2, 'height' => $image_info[1]/2, 'alt'	=> '');
+				$image_info = safe_getimagesize($path); 
+				$extra = get_responsive_image_attrs($image_info, 100);
+				$extra['alt'] = '';
 				echo img(base_url().'images/uploads/'.$lottery->lottery_image, FALSE, $extra); 
 			} ?></td>
 		<td style = "text-align:center; font-size: 0.7em;" class="lottery-name"><?php echo anchor('admin/lotteries/edit/'.$lottery->id, $lottery->lottery_name);?></td>

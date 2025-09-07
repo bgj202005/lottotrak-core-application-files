@@ -104,14 +104,14 @@
 								<div class="col-lg-8 col-md-7 col-sm-12">
 										<?php if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') 
 											{
-    											$image_info = getimagesize(base_url().'images/uploads/'.$lottery->lottery_image); 
-												$extra = array('width' => $image_info[0], 'height' => $image_info[1]);
+    											$image_info = safe_getimagesize(base_url().'images/uploads/'.$lottery->lottery_image); 
+												$extra = get_responsive_image_attrs($image_info, 200);
 												echo img(base_url().'images/uploads/'.$lottery->lottery_image, FALSE, $extra);
 											} 
 											else 
 											{
-												$image_info = getimagesize('images/uploads/'.$lottery->lottery_image); 
-												$extra = array('width' => $image_info[0], 'height' => $image_info[1]);
+												$image_info = safe_getimagesize('images/uploads/'.$lottery->lottery_image); 
+												$extra = get_responsive_image_attrs($image_info, 200);
 												echo img('images/uploads/'.$lottery->lottery_image, FALSE, $extra); 
 											} ?>
 								</div>
