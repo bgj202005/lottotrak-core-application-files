@@ -448,7 +448,8 @@
 														
 														$winners = isset($wins[$category_key]) ? intval($wins[$category_key]) : 0;
 														$points = $winners * $category_info['points'];
-														$percentage = $total_winners > 0 ? round(($winners / $total_winners) * 100, 2) : 0;
+														$range = $lottery->last_drawn['range'] ?? 100; // Use range for percentage calculation
+														$percentage = $range > 0 ? round(($winners / $range) * 100, 2) : 0;
 														?>
 														<tr>
 															<td><?= $category_info['label'] ?></td>
@@ -463,7 +464,8 @@
 														if (strpos($prize, "_points") !== false) continue; // Only process main categories
 														$points = isset($wins[$prize . '_points']) ? $wins[$prize . '_points'] : 0;
 														$points_total += $points;
-														$percentage = $total_winners > 0 ? round(($winners / $total_winners) * 100, 2) : 0;
+														$range = $lottery->last_drawn['range'] ?? 100; // Use range for percentage calculation
+														$percentage = $range > 0 ? round(($winners / $range) * 100, 2) : 0;
 														switch ($prize) {
 															case "9_win": $label = "9 out of $cd Winners"; break;
 															case "8_win_extra": $label = "8 out of $cd Winners + Extra"; break;
@@ -626,7 +628,8 @@
 														
 														$winners = isset($positions[$category_key]) ? intval($positions[$category_key]) : 0;
 														$points = $winners * $category_info['points'];
-														$percentage = $total_winners_pos > 0 ? round(($winners / $total_winners_pos) * 100, 2) : 0;
+														$range = $lottery->last_drawn['range'] ?? 100; // Use range for percentage calculation
+														$percentage = $range > 0 ? round(($winners / $range) * 100, 2) : 0;
 														?>
 														<tr>
 															<td><?= $category_info['label'] ?></td>
@@ -641,7 +644,8 @@
 														if (strpos($prize, "_points") !== false) continue;
 														$points = isset($positions[$prize . '_points']) ? $positions[$prize . '_points'] : 0;
 														$points_total_pos += $points;
-														$percentage = $total_winners_pos > 0 ? round(($winners / $total_winners_pos) * 100, 2) : 0;
+														$range = $lottery->last_drawn['range'] ?? 100; // Use range for percentage calculation
+														$percentage = $range > 0 ? round(($winners / $range) * 100, 2) : 0;
 														switch ($prize) {
 															case "9_win": $label = "9 out of $cd Winners"; break;
 															case "8_win_extra": $label = "8 out of $cd Winners + Extra"; break;
