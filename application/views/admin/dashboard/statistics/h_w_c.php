@@ -93,6 +93,15 @@
 				<div class="col-12">
 					<div class="card mt-3 tab-card">
 					<div id = "error"></div>
+					<?php if($this->session->flashdata('heat_message')): ?>
+						<div class="alert alert-info" style="margin: 15px;"><?=$this->session->flashdata('heat_message');?></div>
+					<?php endif; ?>
+					<?php if($this->session->flashdata('pool_message')): ?>
+						<div class="alert alert-success" style="margin: 15px;"><?=$this->session->flashdata('pool_message');?></div>
+					<?php endif; ?>
+					<?php if($this->session->flashdata('error_message')): ?>
+						<div class="alert alert-danger" style="margin: 15px;"><?=$this->session->flashdata('error_message');?></div>
+					<?php endif; ?>
 						<div class="card-header tab-card-header">
 							<div class="d-flex flex-row-reverse">
 								<div class="p-1">
@@ -151,45 +160,89 @@
 									</div>
 								</div>		
 							</div>
-						<div class = "text-center" style = "display:inline-block;">
-							<?php $frm_attr = array('id' => 'frmheat');
-							echo form_open(base_url('admin/statistics/h_w_c/'.$lottery->id), $frm_attr);
-							echo form_label("Hots:", "id => 'lb_hots'");
-							$h_details = array( 'name'          => 'hots',
-												'id'            => 'hots',
-												'value'         => $lottery->H,
-												'min'		    => '1',
-												'max' 	        => '50',
-												'step'			=> '1',
-												'style'         => 'margin:10px 10px -5px; width:3em; height:30px;',
-												'readonly'		=> 'true'
-							);
-							echo form_input($h_details);
-							echo form_label("Warms:", "id => 'lb_warms'");
-							$w_details = array( 'name'          => 'warms',
-												'id'            => 'warms',
-												'value'         => $lottery->W,
-												'min'		    => '1',
-												'max' 	        => '50',
-												'step'			=> '1',
-												'style'         => 'margin:10px 10px -5px; width:3em; height:30px;',
-												'readonly'		=> 'true'
-							);
-							echo form_input($w_details);
-							echo form_label("Colds:", "id => 'lb_colds'");
-							$c_details = array( 'name'          => 'colds',
-												'id'            => 'colds',
-												'value'         => $lottery->C,
-												'min'		    => '1',
-												'max' 	        => '50',
-												'step'			=> '1',
-												'style'         => 'margin:10px 10px -5px; width:3em; height:30px;',
-												'readonly'		=> 'true'
-							);
-							echo form_input($c_details);
-							$attr = array('class'	=> 'btn btn-primary', 'style' => 'margin: 4px; margin-left:10px;');
-							echo form_submit("heat", "Change Heat Levels", $attr);
-							echo form_close(); ?>
+						<div style="padding-top: 20px;">
+							<!-- First Row: Hots, Warms, Colds with Change Heat Levels button on same line -->
+							<div style="margin-bottom: 15px; white-space: nowrap; text-align: center;">
+								<div style="display: inline-block; width: 400px; text-align: center;">
+									<?php $frm_attr = array('id' => 'frmheat', 'style' => 'display:inline-block;');
+									echo form_open(base_url('admin/statistics/h_w_c/'.$lottery->id), $frm_attr);
+									echo form_label("Hots:", "id => 'lb_hots'");
+									$h_details = array( 'name'          => 'hots',
+														'id'            => 'hots',
+														'value'         => $lottery->H,
+														'min'		    => '1',
+														'max' 	        => '50',
+														'step'			=> '1',
+														'style'         => 'margin:5px 8px -5px 5px; width:3em; height:30px;',
+														'readonly'		=> 'true'
+									);
+									echo form_input($h_details);
+									echo form_label("Warms:", "id => 'lb_warms'");
+									$w_details = array( 'name'          => 'warms',
+														'id'            => 'warms',
+														'value'         => $lottery->W,
+														'min'		    => '1',
+														'max' 	        => '50',
+														'step'			=> '1',
+														'style'         => 'margin:5px 8px -5px 5px; width:3em; height:30px;',
+														'readonly'		=> 'true'
+									);
+									echo form_input($w_details);
+									echo form_label("Colds:", "id => 'lb_colds'");
+									$c_details = array( 'name'          => 'colds',
+														'id'            => 'colds',
+														'value'         => $lottery->C,
+														'min'		    => '1',
+														'max' 	        => '50',
+														'step'			=> '1',
+														'style'         => 'margin:5px 8px -5px 5px; width:3em; height:30px;',
+														'readonly'		=> 'true'
+									);
+									echo form_input($c_details);
+									echo form_close(); ?>
+								</div>
+								<div style="display: inline-block; margin-left: 100px; vertical-align: top;">
+									<?php $frm_attr = array('id' => 'frmheat_submit', 'style' => 'display:inline-block;');
+									echo form_open(base_url('admin/statistics/h_w_c/'.$lottery->id), $frm_attr);
+									echo form_hidden('hots', $lottery->H);
+									echo form_hidden('warms', $lottery->W);
+									echo form_hidden('colds', $lottery->C);
+									$attr = array('class'	=> 'btn btn-primary', 'style' => 'vertical-align: top;');
+									echo form_submit("heat", "Change Heat Levels", $attr);
+									echo form_close(); ?>
+								</div>
+							</div>
+							
+							<!-- Second Row: Prediction Number Pool with Change Number Pool button on same line -->
+							<div style="white-space: nowrap; text-align: center;">
+								<div style="display: inline-block; width: 400px; text-align: center;">
+									<?php $frm_attr = array('id' => 'frmnumberpool', 'style' => 'display:inline-block;');
+									echo form_open(base_url('admin/statistics/h_w_c/'.$lottery->id), $frm_attr);
+									echo form_label("Prediction Number Pool:", "id => 'lb_numberpool'");
+									$min_pool = $lottery->balls_drawn; // Minimum is the pick number (e.g., 6 for pick 6)
+									$max_pool = intval($lottery->maximum_ball / 2); // Maximum is half of total numbers
+									$current_pool = isset($lottery->prediction_pool) ? $lottery->prediction_pool : 18; // Default to 18 if not set
+									$pool_details = array( 'name'          => 'prediction_pool',
+														'id'            => 'prediction_pool',
+														'value'         => $current_pool,
+														'min'		    => $min_pool,
+														'max' 	        => $max_pool,
+														'step'			=> '1',
+														'style'         => 'margin:5px 8px -5px 5px; width:4em; height:30px;',
+														'readonly'		=> 'true'
+									);
+									echo form_input($pool_details);
+									echo form_close(); ?>
+								</div>
+								<div style="display: inline-block; margin-left: 100px; vertical-align: top;">
+									<?php $frm_attr = array('id' => 'frmnumberpool_submit', 'style' => 'display:inline-block;');
+									echo form_open(base_url('admin/statistics/h_w_c/'.$lottery->id), $frm_attr);
+									echo form_hidden('prediction_pool', $current_pool);
+									$attr = array('class'	=> 'btn btn-success', 'style' => 'vertical-align: top;');
+									echo form_submit("change_pool", "Change Number Pool", $attr);
+									echo form_close(); ?>
+								</div>
+							</div>
 						</div>
 						<div class="container" id="content" style = "margin:20px;">
 							<div class = "row justify-content-center">
@@ -373,23 +426,71 @@
 	</section>
 	<script>
 	$(document).ready(function(){
-    $('#frmheat').on('submit', function(e){
-        e.preventDefault();
-        var hotValue = $('#hots').val();
-		var warmValue = $('#warms').val();
-		var coldValue = $('#colds').val();
-		var totalValue = parseInt(hotValue)+parseInt(warmValue)+parseInt(coldValue);
-		var maxValue = <?=$lottery->maximum_ball;?>;
-		if(totalValue!=maxValue) {
-			$('#error').html("<h3 class='bg-warning' style = 'margin: 15px; text-align:center;'>The hot Value: <strong>"+hotValue+"</strong> Warm Value: <strong>"+warmValue+"</strong> Cold Value: <strong>"+coldValue+"</strong> does not equal the maximum ball value of "+maxValue+". Please Re-enter values.");
-		}
-		else {
-			$('#error').html("");
-			this.submit();
-		}
+    	$('#frmheat_submit').on('submit', function(e){
+        	e.preventDefault();
+        	var hotValue = $('#hots').val();
+			var warmValue = $('#warms').val();
+			var coldValue = $('#colds').val();
+			var totalValue = parseInt(hotValue)+parseInt(warmValue)+parseInt(coldValue);
+			var maxValue = <?=$lottery->maximum_ball;?>;
+			if(totalValue!=maxValue) {
+				$('#error').html("<h3 class='bg-warning' style = 'margin: 15px; text-align:center;'>The hot Value: <strong>"+hotValue+"</strong> Warm Value: <strong>"+warmValue+"</strong> Cold Value: <strong>"+coldValue+"</strong> does not equal the maximum ball value of "+maxValue+". Please Re-enter values.");
+			}
+			else {
+				// Update hidden fields with current values
+				$('#frmheat_submit input[name="hots"]').val(hotValue);
+				$('#frmheat_submit input[name="warms"]').val(warmValue);
+				$('#frmheat_submit input[name="colds"]').val(coldValue);
+				$('#error').html("");
+				this.submit();
+			}
+    	});
+    	
+    	$('#frmnumberpool_submit').on('submit', function(e){
+        	e.preventDefault();
+        	var poolValue = parseInt($('#prediction_pool').val());
+			var minPool = <?=$lottery->balls_drawn;?>;
+			var maxPool = <?=intval($lottery->maximum_ball / 2);?>;
+			if(poolValue < minPool || poolValue > maxPool) {
+				$('#error').html("<h3 class='bg-warning' style = 'margin: 15px; text-align:center;'>The Prediction Number Pool value <strong>"+poolValue+"</strong> must be between "+minPool+" and "+maxPool+". Please Re-enter value.");
+			}
+			else {
+				// Update hidden field with current value
+				$('#frmnumberpool_submit input[name="prediction_pool"]').val(poolValue);
+				$('#error').html("");
+				this.submit();
+			}
+    	});
+    	
+    	// Update hidden fields when spinner values change
+    	$("#hots").on('spinchange', function() {
+    		$('#frmheat_submit input[name="hots"]').val($(this).val());
+    	});
+    	$("#warms").on('spinchange', function() {
+    		$('#frmheat_submit input[name="warms"]').val($(this).val());
+    	});
+    	$("#colds").on('spinchange', function() {
+    		$('#frmheat_submit input[name="colds"]').val($(this).val());
+    	});
+    	$("#prediction_pool").on('spinchange', function() {
+    		$('#frmnumberpool_submit input[name="prediction_pool"]').val($(this).val());
     	});
 	});
-    $("#hots").spinner();
-	$("#warms").spinner();
-	$("#colds").spinner();
+	
+    $("#hots").spinner({
+    	min: 1,
+    	max: 50
+    });
+	$("#warms").spinner({
+    	min: 1,
+    	max: 50
+    });
+	$("#colds").spinner({
+    	min: 1,
+    	max: 50
+    });
+	$("#prediction_pool").spinner({
+    	min: <?=$lottery->balls_drawn;?>,
+    	max: <?=intval($lottery->maximum_ball / 2);?>
+    });
 </script>

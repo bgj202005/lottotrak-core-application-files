@@ -928,20 +928,52 @@ class Statistics extends Admin_Controller {
 				$c_start = ($max_ball-intval($colds))+1; 			// Return the Cold value
 				$this->data['lottery']->W = $warms;  				// Number of Warms Distributed e.g 18 Colds
 				$this->data['lottery']->C = $colds; 				// Number of Colds Distributed e.g 16 Colds
+				$this->data['lottery']->prediction_pool = isset($h_w_c['prediction_pool']) ? $h_w_c['prediction_pool'] : 18; // Default prediction pool
 			}
 			else
 			{
+				// Handle heat level changes
 				$hot_form = $this->input->post('hots');				// POST values for hots, warms, colds
 				$warm_form = $this->input->post('warms');
 				$cold_form = $this->input->post('colds');
-				if(($hot_form!=$hots)||($warm_form!=$hots)||($cold_form!=$colds))	// Has a change been requested
+				
+				// Handle prediction number pool changes
+				$pool_form = $this->input->post('prediction_pool');
+				$old_pool = isset($h_w_c['prediction_pool']) ? $h_w_c['prediction_pool'] : 18;
+				
+				// Check for heat level changes
+				if(($hot_form!=$hots)||($warm_form!=$warms)||($cold_form!=$colds))	// Has a change been requested
 				{
 					$blnheat = TRUE;								// A change has been made 
 					$w_start = intval($hot_form+1);
 					$this->data['lottery']->H = $hot_form;
 					$c_start = ($max_ball-intval($cold_form))+1;  	
 					$this->data['lottery']->W = $warm_form;  					
-					$this->data['lottery']->C = $cold_form; 
+					$this->data['lottery']->C = $cold_form;
+					
+					// Create heat level change message
+					$heat_changes = array();
+					if($hot_form!=$hots) $heat_changes[] = "Hots changed from $hots to $hot_form";
+					if($warm_form!=$warms) $heat_changes[] = "Warms changed from $warms to $warm_form";
+					if($cold_form!=$colds) $heat_changes[] = "Colds changed from $colds to $cold_form";
+					if(!empty($heat_changes)) {
+						$this->session->set_flashdata('heat_message', implode(', ', $heat_changes));
+					}
+				}
+				
+				// Check for prediction pool changes
+				if($pool_form && $pool_form != $old_pool) {
+					$min_pool = $drawn; // Minimum is the pick number
+					$max_pool = intval($max_ball / 2); // Maximum is half of total numbers
+					
+					// Validate pool range
+					if($pool_form >= $min_pool && $pool_form <= $max_pool) {
+						$this->data['lottery']->prediction_pool = $pool_form;
+						$this->session->set_flashdata('pool_message', "The Prediction Number Pool has changed from $old_pool to $pool_form Numbers");
+						$blnheat = TRUE; // Trigger recalculation
+					} else {
+						$this->session->set_flashdata('error_message', "The Prediction Number Pool value must be between $min_pool and $max_pool");
+					}
 				}
 			}
 			$this->data['lottery']->extra_included = $this->uri->segment(6)=='extra' ? $this->statistics_m->extra_included($id, TRUE, 'lottery_h_w_c') : $this->statistics_m->extra_included($id, FALSE, 'lottery_h_w_c');
@@ -988,7 +1020,8 @@ class Statistics extends Admin_Controller {
 						'c'					=> 	$c_start,
 						'h_count'			=> 	$this->data['lottery']->H,
 						'w_count'			=> 	$this->data['lottery']->W,
-						'c_count'			=> 	$this->data['lottery']->C
+						'c_count'			=> 	$this->data['lottery']->C,
+						'prediction_pool'	=> 	$this->data['lottery']->prediction_pool
 					);
 					$this->statistics_m->hwc_data_save($hwc, TRUE);
 				}
@@ -1017,7 +1050,8 @@ class Statistics extends Admin_Controller {
 			$this->data['lottery']->H = $heat[0];  					// Number of Hots Distributed e.g. 16 Hots
 			$c_start = ($max_ball-intval($heat[2]))+1; 				// Return the Cold value
 			$this->data['lottery']->W = $heat[1];  					// Number of Warms Distributed e.g 18 Colds
-			$this->data['lottery']->C = $heat[2]; 					// Num
+			$this->data['lottery']->C = $heat[2]; 					// Number of Colds Distributed e.g 16 Colds
+			$this->data['lottery']->prediction_pool = 18; 			// Default prediction pool
 			$str_hwc = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '', $blnduplicate);
 			if($blnduplicate&&$this->data['lottery']->extra_included) $strdupextra = $this->statistics_m->hwc_duple_extra($tbl_name, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '');
 			$strhots = $this->statistics_m->hots($str_hwc);
@@ -1046,7 +1080,8 @@ class Statistics extends Admin_Controller {
 						'c'					=> 	$c_start,
 						'h_count'			=> 	$this->data['lottery']->H,
 						'w_count'			=> 	$this->data['lottery']->W,
-						'c_count'			=> 	$this->data['lottery']->C	
+						'c_count'			=> 	$this->data['lottery']->C,
+						'prediction_pool'	=> 	$this->data['lottery']->prediction_pool
 					);
 			$this->statistics_m->hwc_data_save($hwc, FALSE);
 		}
