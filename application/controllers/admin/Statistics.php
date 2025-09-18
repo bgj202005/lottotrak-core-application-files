@@ -932,48 +932,114 @@ class Statistics extends Admin_Controller {
 			}
 			else
 			{
+				// Detect which button was pressed and handle accordingly
+				$heat_button_pressed = $this->input->post('heat');
+				$pool_button_pressed = $this->input->post('change_pool');
+				
 				// Handle heat level changes
-				$hot_form = $this->input->post('hots');				// POST values for hots, warms, colds
-				$warm_form = $this->input->post('warms');
-				$cold_form = $this->input->post('colds');
-				
-				// Handle prediction number pool changes
-				$pool_form = $this->input->post('prediction_pool');
-				$old_pool = isset($h_w_c['prediction_pool']) ? $h_w_c['prediction_pool'] : 18;
-				
-				// Check for heat level changes
-				if(($hot_form!=$hots)||($warm_form!=$warms)||($cold_form!=$colds))	// Has a change been requested
-				{
-					$blnheat = TRUE;								// A change has been made 
-					$w_start = intval($hot_form+1);
-					$this->data['lottery']->H = $hot_form;
-					$c_start = ($max_ball-intval($cold_form))+1;  	
-					$this->data['lottery']->W = $warm_form;  					
-					$this->data['lottery']->C = $cold_form;
+				if($heat_button_pressed) {
+					// Get the submitted values from spinners
+					$hot_form = $this->input->post('hots');
+					$warm_form = $this->input->post('warms');
+					$cold_form = $this->input->post('colds');
 					
-					// Create heat level change message
+					// Get original values for comparison
+					$original_hots = $this->input->post('original_hots');
+					$original_warms = $this->input->post('original_warms');
+					$original_colds = $this->input->post('original_colds');
+					
+					// Use current values as fallback if form values are empty
+					$hot_form = $hot_form ? $hot_form : $hots;
+					$warm_form = $warm_form ? $warm_form : $warms;
+					$cold_form = $cold_form ? $cold_form : $colds;
+					
+					// Check for actual changes by comparing with original values
+					$changes_made = false;
 					$heat_changes = array();
-					if($hot_form!=$hots) $heat_changes[] = "Hots changed from $hots to $hot_form";
-					if($warm_form!=$warms) $heat_changes[] = "Warms changed from $warms to $warm_form";
-					if($cold_form!=$colds) $heat_changes[] = "Colds changed from $colds to $cold_form";
-					if(!empty($heat_changes)) {
+					
+					if($hot_form != $original_hots) {
+						$heat_changes[] = "Hots changed from $original_hots to $hot_form";
+						$changes_made = true;
+					}
+					if($warm_form != $original_warms) {
+						$heat_changes[] = "Warms changed from $original_warms to $warm_form";
+						$changes_made = true;
+					}
+					if($cold_form != $original_colds) {
+						$heat_changes[] = "Colds changed from $original_colds to $cold_form";
+						$changes_made = true;
+					}
+					
+					if($changes_made) {
+						$blnheat = TRUE;
+						$w_start = intval($hot_form + 1);
+						$this->data['lottery']->H = $hot_form;
+						$c_start = ($max_ball - intval($cold_form)) + 1;
+						$this->data['lottery']->W = $warm_form;
+						$this->data['lottery']->C = $cold_form;
+						
+						// Set flash message for changes
 						$this->session->set_flashdata('heat_message', implode(', ', $heat_changes));
+						$this->session->set_userdata('heat_redirect_needed', true); // Flag for redirect after save
+					} else {
+						// No changes made, keep current values
+						$w_start = intval($hots + 1);
+						$this->data['lottery']->H = $hots;
+						$c_start = ($max_ball - intval($colds)) + 1;
+						$this->data['lottery']->W = $warms;
+						$this->data['lottery']->C = $colds;
 					}
 				}
 				
-				// Check for prediction pool changes
-				if($pool_form && $pool_form != $old_pool) {
-					$min_pool = $drawn; // Minimum is the pick number
-					$max_pool = intval($max_ball / 2); // Maximum is half of total numbers
+				// Handle prediction number pool changes - check both button press and presence of pool data
+				if($pool_button_pressed || $this->input->post('prediction_pool')) {
+					$pool_form = $this->input->post('prediction_pool');
+					$original_pool = $this->input->post('original_prediction_pool');
 					
-					// Validate pool range
-					if($pool_form >= $min_pool && $pool_form <= $max_pool) {
-						$this->data['lottery']->prediction_pool = $pool_form;
-						$this->session->set_flashdata('pool_message', "The Prediction Number Pool has changed from $old_pool to $pool_form Numbers");
-						$blnheat = TRUE; // Trigger recalculation
+					// Get current value for fallback
+					$current_pool_value = isset($h_w_c['prediction_pool']) ? $h_w_c['prediction_pool'] : 18;
+					
+					// Only proceed if there's an actual change and form value is valid
+					if($pool_form && $pool_form != $original_pool) {
+						$min_pool = $drawn; // Minimum is the pick number
+						$max_pool = intval($max_ball / 2); // Maximum is half of total numbers
+						
+						// Validate pool range
+						if($pool_form >= $min_pool && $pool_form <= $max_pool) {
+							$this->data['lottery']->prediction_pool = $pool_form;
+							$this->session->set_flashdata('pool_message', "The Prediction Number Pool has changed from $original_pool to $pool_form Numbers");
+							$blnheat = TRUE; // Trigger recalculation
+							$this->session->set_userdata('pool_redirect_needed', true); // Flag for redirect after save
+						} else {
+							$this->session->set_flashdata('error_message', "The Prediction Number Pool value must be between $min_pool and $max_pool");
+							$this->data['lottery']->prediction_pool = $current_pool_value; // Keep current value on error
+						}
 					} else {
-						$this->session->set_flashdata('error_message', "The Prediction Number Pool value must be between $min_pool and $max_pool");
+						// No change made, keep current value
+						$this->data['lottery']->prediction_pool = $current_pool_value;
 					}
+				}
+				
+				// Ensure values are set when buttons are pressed but no changes occur
+				if(!$heat_button_pressed) {
+					$w_start = intval($hots + 1);
+					$this->data['lottery']->H = $hots;
+					$c_start = ($max_ball - intval($colds)) + 1;
+					$this->data['lottery']->W = $warms;
+					$this->data['lottery']->C = $colds;
+				}
+				
+				if(!$pool_button_pressed) {
+					$this->data['lottery']->prediction_pool = isset($h_w_c['prediction_pool']) ? $h_w_c['prediction_pool'] : 18;
+				}
+				
+				// Ensure w_start and c_start are always set when pool button is pressed but heat button is not
+				if($pool_button_pressed && !$heat_button_pressed) {
+					if(!isset($w_start)) $w_start = intval($hots + 1);
+					if(!isset($c_start)) $c_start = ($max_ball - intval($colds)) + 1;
+					if(!isset($this->data['lottery']->H)) $this->data['lottery']->H = $hots;
+					if(!isset($this->data['lottery']->W)) $this->data['lottery']->W = $warms;
+					if(!isset($this->data['lottery']->C)) $this->data['lottery']->C = $colds;
 				}
 			}
 			$this->data['lottery']->extra_included = $this->uri->segment(6)=='extra' ? $this->statistics_m->extra_included($id, TRUE, 'lottery_h_w_c') : $this->statistics_m->extra_included($id, FALSE, 'lottery_h_w_c');
@@ -1230,6 +1296,13 @@ class Statistics extends Admin_Controller {
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
 		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
 		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	 
+		// Check if we need to redirect after successful database save
+		if($this->session->userdata('pool_redirect_needed') || $this->session->userdata('heat_redirect_needed')) {
+			$this->session->unset_userdata('pool_redirect_needed'); // Clear the flags
+			$this->session->unset_userdata('heat_redirect_needed');
+			redirect('admin/statistics/h_w_c/' . $id);
+		}
+		
 		$this->data['subview']  = 'admin/dashboard/statistics/h_w_c';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
