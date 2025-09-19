@@ -317,6 +317,7 @@ class History extends Admin_Controller {
 				$this->data['lottery']->extra_included = $h_w_c['extra_included'];
 				$this->data['lottery']->extra_draws = $h_w_c['extra_draws'];
 				$this->data['lottery']->last_drawn['range'] = $h_w_c['range'];
+				$this->data['lottery']->prediction_pool = isset($h_w_c['prediction_pool']) ? $h_w_c['prediction_pool'] : 18; // Default to 18 if not set
 				$strhots_last = $h_w_c['hots_last']; 		// Pull from DB
 				$strwarms_last = $h_w_c['warms_last'];	// All counts for Hots, Warms, Colds
 				$strcolds_last = $h_w_c['colds_last'];
@@ -547,6 +548,14 @@ class History extends Admin_Controller {
 		unset($draw);
 		unset($positions);
 		unset($positions_last);
+		// Get H-W-C winners data for the Winners tab
+		$hwc_stats = $this->statistics_m->get_hwc_stats($id);
+		if(!empty($hwc_stats) && !empty($hwc_stats['wins'])) {
+			$this->data['hwc_winners'] = $this->parse_hwc_winners($hwc_stats['wins'], $id);
+		} else {
+			$this->data['hwc_winners'] = array();
+		}
+		
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the Statistics menu
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
@@ -1348,5 +1357,168 @@ class History extends Admin_Controller {
 		}
 		
 		return $parsed;
+	}
+	
+	/**
+	 * View the H-W-C winners based on calculated statistics and points
+	 * 
+	 * @param		$id		current id of Lottery related to the draw database of the lottery	
+	 * @return      none
+	 */
+	public function h_w_c_winners($id)
+	{
+		$this->data['message'] = '';	// Defaulted to No Error Messages
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		
+		// Check if lottery exists
+		if(empty($this->data['lottery'])) {
+			$this->session->set_flashdata('message', 'Lottery not found.');
+			redirect('admin/history');
+		}
+		
+		// Retrieve the lottery table name for the database
+		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottery, Pick 5, Pick 6, Pick 7, etc.
+		
+		// Check to see if the actual table exists in the db?
+		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
+		{
+			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
+			redirect('admin/history');
+		}
+		
+		// Get H-W-C statistics data
+		$hwc_stats = $this->statistics_m->get_hwc_stats($id);
+		if(empty($hwc_stats) || empty($hwc_stats['wins'])) {
+			$this->session->set_flashdata('message', 'No H-W-C winner statistics found. Please recalculate H-W-C statistics first.');
+			redirect('admin/history');
+		}
+		
+		// Parse the wins string and calculate points
+		$this->data['hwc_winners'] = $this->parse_hwc_winners($hwc_stats['wins'], $id);
+		
+		// Get lottery profile information for display
+		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);
+		$h_w_c = $this->statistics_m->h_w_c_exists($id);
+		if(!is_null($h_w_c)) {
+			$this->data['lottery']->last_drawn['range'] = $h_w_c['range'];
+			$this->data['lottery']->extra_included = $h_w_c['extra_included'];
+			$this->data['lottery']->extra_draws = $h_w_c['extra_draws'];
+		}
+		
+		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
+		else $this->data['message'] = '';
+		
+		// Load the view
+		$this->data['current'] = $this->uri->segment(2); // Sets the History menu
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	 
+		$this->data['subview'] = 'admin/dashboard/history/h_w_c_winners';
+		$this->data['history'] = $this;										// Access the methods in the view
+		$this->load->view('admin/_layout_main', $this->data);
+	}
+	
+	/**
+	 * Parse H-W-C winners string and calculate points based on follower win system
+	 * 
+	 * @param		string	$wins_string	The encoded wins string from database
+	 * @param		int		$lottery_id		Lottery ID for prize profile lookup
+	 * @return		array					Array of H-W-C patterns with points sorted by points desc
+	 */
+	private function parse_hwc_winners($wins_string, $lottery_id)
+	{
+		$winners = array();
+		
+		// Get prize profile for this lottery to determine point values
+		$prize_profile = $this->statistics_m->get_lottery_prize_profile($lottery_id);
+		if(empty($prize_profile)) {
+			return $winners;
+		}
+		
+		// Define point system based on follower wins (from user documentation)
+		$category_points = array(
+			'extra' => 1,		// Extra/Bonus Ball Only = 1 point
+			'2_win' => 4,		// 2 Balls = 4 points  
+			'2_win_extra' => 5,	// 2 Balls + Extra = 5 points
+			'3_win' => 6,		// 3 Balls = 6 points
+			'3_win_extra' => 7,	// 3 Balls + Extra = 7 points
+			'4_win' => 8,		// 4 Balls = 8 points
+			'4_win_extra' => 9,	// 4 Balls + Extra = 9 points
+			'5_win' => 10,		// 5 Balls = 10 points
+			'5_win_extra' => 11,// 5 Balls + Extra = 11 points
+			'6_win' => 12,		// 6 Balls = 12 points
+			'6_win_extra' => 13,// 6 Balls + Extra = 13 points
+			'7_win' => 14,		// 7 Balls = 14 points
+			'7_win_extra' => 15,// 7 Balls + Extra = 15 points
+			'8_win' => 16,		// 8 Balls = 16 points
+			'8_win_extra' => 17,// 8 Balls + Extra = 17 points
+			'9_win' => 18,		// 9 Balls = 18 points
+			'9_win_extra' => 19	// 9 Balls + Extra = 19 points
+		);
+		
+		// Split the wins string by pipe separator
+		$hwc_entries = explode('|', $wins_string);
+		
+		foreach($hwc_entries as $entry) {
+			if(empty($entry)) continue;
+			
+			// Split H-W-C pattern from win counts
+			$parts = explode('=', $entry);
+			if(count($parts) != 2) continue;
+			
+			$hwc_pattern = $parts[0];  // e.g., "4-1-1"
+			$win_counts = $parts[1];   // e.g., "3,1,5,2,0,2,0"
+			
+			// Parse win counts into array
+			$counts = explode(',', $win_counts);
+			
+			// Get enabled prize categories for this lottery
+			$enabled_categories = array();
+			$category_index = 0;
+			
+			// Build enabled categories array based on prize profile
+			foreach($prize_profile as $category => $enabled) {
+				if($enabled && $category != 'lottery_id' && $category != 'id') {
+					$enabled_categories[$category_index] = $category;
+					$category_index++;
+				}
+			}
+			
+			// Calculate total points for this H-W-C pattern
+			$total_points = 0;
+			$win_breakdown = array();
+			
+			foreach($counts as $index => $count) {
+				$count = intval($count);
+				if($count > 0 && isset($enabled_categories[$index])) {
+					$category = $enabled_categories[$index];
+					if(isset($category_points[$category])) {
+						$points = $count * $category_points[$category];
+						$total_points += $points;
+						$win_breakdown[$category] = $count;
+					}
+				}
+			}
+			
+			// Store the H-W-C pattern with its data
+			if($total_points > 0) {
+				$winners[] = array(
+					'hwc_pattern' => $hwc_pattern,
+					'total_points' => $total_points,
+					'win_breakdown' => $win_breakdown,
+					'enabled_categories' => $enabled_categories
+				);
+			}
+		}
+		
+		// Sort by total points descending
+		usort($winners, function($a, $b) {
+			return $b['total_points'] - $a['total_points'];
+		});
+		
+		return $winners;
 	}
 }	

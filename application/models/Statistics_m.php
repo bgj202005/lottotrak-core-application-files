@@ -6372,4 +6372,40 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		return implode('|', $formatted_parts);
 	}
 
+	/**
+	 * Get H-W-C statistics data including wins string from lottery_h_w_c_stats table
+	 * 
+	 * @param int $lottery_id The lottery ID
+	 * @return array|null Array with wins data or null if not found
+	 */
+	public function get_hwc_stats($lottery_id)
+	{
+		$this->db->where('lottery_id', $lottery_id);
+		$query = $this->db->get('lottery_h_w_c_stats');
+		
+		if ($query->num_rows() > 0) {
+			return $query->row_array();
+		}
+		
+		return null;
+	}
+	
+	/**
+	 * Get lottery prize profile configuration for determining enabled win categories
+	 * 
+	 * @param int $lottery_id The lottery ID
+	 * @return array|null Array with prize profile data or null if not found
+	 */
+	public function get_lottery_prize_profile($lottery_id)
+	{
+		$this->db->where('lottery_id', $lottery_id);
+		$query = $this->db->get('lottery_prize_profiles');
+		
+		if ($query->num_rows() > 0) {
+			return $query->row_array();
+		}
+		
+		return null;
+	}
+
 }
