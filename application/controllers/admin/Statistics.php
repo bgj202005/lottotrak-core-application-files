@@ -1090,6 +1090,11 @@ class Statistics extends Admin_Controller {
 						'prediction_pool'	=> 	$this->data['lottery']->prediction_pool
 					);
 					$this->statistics_m->hwc_data_save($hwc, TRUE);
+					
+					// Calculate H-W-C win statistics when recalculation occurs
+					$this->calculate_hwc_wins($id, $new_range, $this->data['lottery']->prediction_pool, 
+						$this->data['lottery']->H, $this->data['lottery']->W, $this->data['lottery']->C,
+						$this->data['lottery']->extra_included, $this->data['lottery']->extra_draws);
 				}
 				else  
 				{
@@ -1150,6 +1155,11 @@ class Statistics extends Admin_Controller {
 						'prediction_pool'	=> 	$this->data['lottery']->prediction_pool
 					);
 			$this->statistics_m->hwc_data_save($hwc, FALSE);
+			
+			// Calculate H-W-C win statistics for new H-W-C setup
+			$this->calculate_hwc_wins($id, $new_range, $this->data['lottery']->prediction_pool, 
+				$this->data['lottery']->H, $this->data['lottery']->W, $this->data['lottery']->C,
+				$this->data['lottery']->extra_included, $this->data['lottery']->extra_draws);
 		}
 		$hots = explode(",", $strhots); // Convert to Arrays
 		$warms = explode(",", $strwarms); 
@@ -1614,6 +1624,13 @@ class Statistics extends Admin_Controller {
 			'c_count'			=> $lotto->C
 		);
 		$this->statistics_m->hwc_data_save($hwc, TRUE);
+		
+		// Calculate H-W-C win statistics during recalculation
+		$prediction_pool = isset($h_w_c['prediction_pool']) ? $h_w_c['prediction_pool'] : 18;
+		$this->calculate_hwc_wins($id, $new_range, $prediction_pool, 
+			$lotto->H, $lotto->W, $lotto->C,
+			$h_w_c['extra_included'], $h_w_c['extra_draws']);
+			
 		$pos_last = $this->statistics_m->position_copylasts($id);
 		// Recalculation is nesessary
 		$hwc_history = $this->h_w_c_history($id, $tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
@@ -2253,5 +2270,48 @@ class Statistics extends Admin_Controller {
 		}
 		
 		return $parsed;
+	}
+
+	/**
+	 * Calculate H-W-C win statistics - helper method to integrate with recalculation triggers
+	 * 
+	 * @param int $lottery_id The lottery ID
+	 * @param int $range The analysis range
+	 * @param int $prediction_pool The prediction pool size
+	 * @param int $hots Number of hot numbers
+	 * @param int $warms Number of warm numbers
+	 * @param int $colds Number of cold numbers
+	 * @param boolean $extra_included Whether extra ball is included
+	 * @param boolean $extra_draws Whether extra draws are included
+	 * @return boolean Success status
+	 */
+	private function calculate_hwc_wins($lottery_id, $range, $prediction_pool, $hots, $warms, $colds, $extra_included = false, $extra_draws = false)
+	{
+		try {
+			// Call the comprehensive H-W-C win analysis method
+			$wins_string = $this->statistics_m->calculate_hwc_win_statistics(
+				$lottery_id, 
+				$range, 
+				$prediction_pool, 
+				$hots, 
+				$warms, 
+				$colds, 
+				$extra_included, 
+				$extra_draws
+			);
+			
+			if ($wins_string !== FALSE) {
+				// Success - wins string has been calculated and saved to database
+				return TRUE;
+			} else {
+				// Log error or handle failure case
+				log_message('error', "H-W-C win analysis failed for lottery_id: $lottery_id, range: $range");
+				return FALSE;
+			}
+		} catch (Exception $e) {
+			// Handle any exceptions during calculation
+			log_message('error', "H-W-C win analysis error: " . $e->getMessage());
+			return FALSE;
+		}
 	}
 }
