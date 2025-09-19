@@ -220,18 +220,51 @@
         border-color: #eee #eee #fff; /* Ensure active tab blends with content border */
     }
     
-    /* H-W-C Winners Table Styling - No Horizontal Scroll */
+    /* H-W-C Winners Table Styling - Mobile-First Bootstrap Responsive */
     #hwc-winners-table {
         table-layout: auto;
         width: 100%;
         max-width: 100%;
         word-wrap: break-word;
         overflow-wrap: break-word;
+        font-size: 0.95em; /* Match datafont size from Last Draw and Next Draw tabs */
+        min-width: 600px; /* Ensure table has minimum width to maintain readability */
     }
     
     .table-responsive {
-        overflow-x: hidden !important;
+        overflow-x: auto !important; /* Allow horizontal scrolling when needed */
         overflow-y: auto;
+        border-radius: 0.375rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        max-width: 100%;
+    }
+    
+    /* Sticky header for better mobile experience */
+    #hwc-winners-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #343a40 !important;
+    }
+    
+    /* Badge enhancements for mobile */
+    .badge-lg {
+        font-size: 0.875rem;
+        padding: 0.375rem 0.75rem;
+    }
+    
+    /* Mobile-optimized badges */
+    @media (max-width: 576px) {
+        .badge {
+            font-size: 0.8em; /* Proportional to new base font size */
+            padding: 0.25rem 0.5rem;
+        }
+        
+        .badge-lg {
+            font-size: 0.85em; /* Proportional to new base font size */
+            padding: 0.3rem 0.6rem;
+        }
     }
     
     #hwc-winners-table .hwc-row {
@@ -257,7 +290,7 @@
         white-space: nowrap;
         text-align: center;
         padding: 0.5rem 0.25rem;
-        font-size: 0.9em;
+        font-size: 0.95em; /* Match datafont size from Last Draw and Next Draw tabs */
     }
     
     #hwc-winners-table th.col-rank,
@@ -359,54 +392,123 @@
         transform: scale(1.01);
     }
     
-    /* Responsive table for smaller screens - NO HORIZONTAL SCROLL */
-    @media (max-width: 992px) {
+    /* Bootstrap Responsive Enhancement - Mobile-First Design */
+    @media (max-width: 1199.98px) {
         #hwc-winners-table {
-            font-size: 0.85em;
-        }
-        
-        #hwc-winners-table th,
-        #hwc-winners-table td {
-            padding: 0.35rem 0.2rem;
+            font-size: 0.9em; /* Slightly smaller on large tablets */
         }
     }
     
-    @media (max-width: 768px) {
+    @media (max-width: 991.98px) {
         #hwc-winners-table {
-            font-size: 0.75em;
+            font-size: 0.85em; /* Proportional scaling from 0.95em base */
         }
         
         #hwc-winners-table th,
         #hwc-winners-table td {
-            padding: 0.25rem 0.1rem;
+            padding: 0.5rem 0.25rem;
+        }
+    }
+    
+    @media (max-width: 767.98px) {
+        #hwc-winners-table {
+            font-size: 0.8em; /* Proportional scaling for mobile */
         }
         
-        /* Hide separators on mobile to save space */
-        #hwc-winners-table th.col-separator,
-        #hwc-winners-table td.col-separator {
-            display: none;
+        #hwc-winners-table th,
+        #hwc-winners-table td {
+            padding: 0.375rem 0.25rem;
         }
         
-        /* Compact prize columns on mobile */
+        /* Enhanced mobile badge styling - proportionally scaled */
+        .badge {
+            font-size: 0.75em;
+            min-width: 20px;
+        }
+        
+        .badge-lg {
+            font-size: 0.8em;
+            min-width: 25px;
+        }
+    }
+    
+    @media (max-width: 575.98px) {
+        #hwc-winners-table {
+            font-size: 0.75em; /* Proportional scaling from 0.95em base */
+            min-width: 450px; /* Reduced minimum width for very small screens */
+        }
+        
+        #hwc-winners-table th,
+        #hwc-winners-table td {
+            padding: 0.25rem 0.125rem;
+        }
+        
+        /* Ultra-compact mobile view */
+        .badge {
+            font-size: 0.7em;
+            padding: 0.2rem 0.4rem;
+            min-width: 18px;
+        }
+        
+        .badge-lg {
+            font-size: 0.75em;
+            padding: 0.25rem 0.5rem;
+            min-width: 22px;
+        }
+        
+        /* Compact column spacing for mobile */
+        #hwc-winners-table th.col-rank,
+        #hwc-winners-table td.col-rank {
+            width: 35px;
+        }
+        
+        #hwc-winners-table th.col-hot,
+        #hwc-winners-table td.col-hot,
+        #hwc-winners-table th.col-warm,
+        #hwc-winners-table td.col-warm,
+        #hwc-winners-table th.col-cold,
+        #hwc-winners-table td.col-cold {
+            width: 30px;
+        }
+        
+        #hwc-winners-table th.col-points,
+        #hwc-winners-table td.col-points {
+            width: 40px;
+        }
+        
+        /* Make prize columns more compact on mobile */
         #hwc-winners-table th.col-prize,
         #hwc-winners-table td.col-prize {
-            min-width: 35px;
-            max-width: 45px;
-            font-size: 0.8em;
+            width: 28px;
+            padding: 0.2rem 0.1rem;
         }
     }
     
-    @media (max-width: 576px) {
+    /* Extra small screens - horizontal scroll with very compact layout */
+    @media (max-width: 480px) {
         #hwc-winners-table {
-            font-size: 0.7em;
+            min-width: 400px; /* Further reduced for very small screens */
+            font-size: 0.7em; /* Proportional scaling from 0.95em base */
         }
         
         #hwc-winners-table th,
         #hwc-winners-table td {
-            padding: 0.2rem 0.05rem;
+            padding: 0.2rem 0.1rem;
         }
         
-        /* Further compress columns for very small screens */
+        .badge {
+            font-size: 0.65em;
+            padding: 0.15rem 0.3rem;
+            min-width: 16px;
+        }
+        
+        .badge-lg {
+            font-size: 0.7em;
+            padding: 0.2rem 0.4rem;
+            min-width: 20px;
+        }
+        
+        /* Ultra-compact columns */
         #hwc-winners-table th.col-rank,
         #hwc-winners-table td.col-rank,
         #hwc-winners-table th.col-hot,
@@ -415,26 +517,128 @@
         #hwc-winners-table td.col-warm,
         #hwc-winners-table th.col-cold,
         #hwc-winners-table td.col-cold {
-            min-width: 30px;
-            max-width: 35px;
+            width: 25px;
         }
         
         #hwc-winners-table th.col-prize,
         #hwc-winners-table td.col-prize {
-            min-width: 28px;
-            max-width: 35px;
+            width: 24px;
+        }
+        
+        #hwc-winners-table th.col-points,
+        #hwc-winners-table td.col-points {
+            width: 35px;
         }
     }
     
-    /* Ensure container never overflows */
+    /* Mobile Touch-Friendly Enhancements */
+    .nav-tabs .nav-link {
+        min-height: 48px; /* Touch-friendly minimum height */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+    
+    @media (max-width: 767.98px) {
+        .nav-tabs .nav-link {
+            min-height: 44px;
+            padding: 0.5rem 0.25rem;
+            font-size: 0.875rem;
+        }
+        
+        .nav-tabs {
+            margin-left: 10px !important;
+            margin-right: 10px !important;
+        }
+        
+        .tab-content {
+            margin-left: 10px !important;
+            margin-right: 10px !important;
+            padding: 10px !important;
+        }
+    }
+    
+    @media (max-width: 575.98px) {
+        .nav-tabs .nav-link {
+            min-height: 40px;
+            padding: 0.375rem 0.125rem;
+            font-size: 0.8rem;
+        }
+        
+        .nav-tabs {
+            margin-left: 5px !important;
+            margin-right: 5px !important;
+        }
+        
+        .tab-content {
+            margin-left: 5px !important;
+            margin-right: 5px !important;
+            padding: 5px !important;
+        }
+    }
+    
+    /* Responsive container handling */
     .table-responsive {
-        overflow-x: hidden !important;
         max-width: 100% !important;
+        position: relative;
     }
     
     .container-fluid {
-        overflow-x: hidden !important;
         max-width: 100% !important;
+        overflow-x: hidden; /* Prevent page-level horizontal scroll */
+    }
+    
+    /* Horizontal scroll bar styling */
+    .table-responsive::-webkit-scrollbar {
+        height: 8px;
+    }
+    
+    .table-responsive::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .table-responsive::-webkit-scrollbar-thumb {
+        background: #007bff;
+        border-radius: 4px;
+    }
+    
+    .table-responsive::-webkit-scrollbar-thumb:hover {
+        background: #0056b3;
+    }
+    
+    /* Scroll indicator for better UX */
+    .scroll-indicator {
+        position: absolute;
+        bottom: 10px;
+        right: 20px;
+        background: rgba(0, 123, 255, 0.9);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        z-index: 100;
+        animation: fadeInOut 3s ease-in-out;
+        pointer-events: none;
+    }
+    
+    @keyframes fadeInOut {
+        0%, 100% { opacity: 0; }
+        10%, 90% { opacity: 1; }
+    }
+    
+    /* Enhanced mobile summary cards */
+    @media (max-width: 767.98px) {
+        .bg-light.rounded {
+            border: 1px solid #e9ecef;
+            transition: all 0.2s ease;
+        }
+        
+        .bg-light.rounded:hover {
+            background-color: #f8f9fa !important;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
     }
 </style>
 	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
@@ -554,15 +758,30 @@
 								</div>		
 							</div>
 						</div>
-						<ul class="nav nav-tabs" id="myTab" role="tablist" style="margin-left: 20px; margin-right: 20px;">
+						<ul class="nav nav-tabs nav-fill" id="myTab" role="tablist" style="margin-left: 20px; margin-right: 20px;">
 							<li class="nav-item">
-								<a class="nav-link active" id="home-tab" data-toggle="tab" href="#home" role="tab" aria-controls="home" aria-selected="true"><div class = "card-heading">Last Draw</div></a>
+								<a class="nav-link active" id="home-tab" data-toggle="tab" href="#home" role="tab" aria-controls="home" aria-selected="true">
+									<div class="card-heading">
+										<span class="d-none d-md-inline">Last Draw</span>
+										<span class="d-inline d-md-none">Last</span>
+									</div>
+								</a>
 							</li>
 							<li class="nav-item">
-								<a class="nav-link" id="profile-tab" data-toggle="tab" href="#profile" role="tab" aria-controls="profile" aria-selected="false"><div class = "card-heading">Next Draw</div></a>
+								<a class="nav-link" id="profile-tab" data-toggle="tab" href="#profile" role="tab" aria-controls="profile" aria-selected="false">
+									<div class="card-heading">
+										<span class="d-none d-md-inline">Next Draw</span>
+										<span class="d-inline d-md-none">Next</span>
+									</div>
+								</a>
 							</li>
 							<li class="nav-item">
-								<a class="nav-link" id="winners-tab" data-toggle="tab" href="#winners" role="tab" aria-controls="winners" aria-selected="false"><div class = "card-heading">H-W-C Winners</div></a>
+								<a class="nav-link" id="winners-tab" data-toggle="tab" href="#winners" role="tab" aria-controls="winners" aria-selected="false">
+									<div class="card-heading">
+										<span class="d-none d-sm-inline">H-W-C Winners</span>
+										<span class="d-inline d-sm-none">Winners</span>
+									</div>
+								</a>
 							</li>
 						</ul>
 						<div class="tab-content" id="myTabContent">
@@ -1352,78 +1571,153 @@
 
 						<!-- H-W-C Winners Tab Content -->
 						<div class="tab-pane fade" id="winners" role="tabpanel" aria-labelledby="winners-tab">
-							<div class="container-fluid" style="margin: 25px;">
+							<div class="container-fluid px-2 px-md-3 px-lg-4">
 								<div class="row">
 									<div class="col-12">
-										<div class="card">
-											<div class="card-header">
-												<h5 class="card-title">H-W-C Winners Analysis</h5>
-												<p class="card-text">H-W-C patterns sorted by total points based on follower win system</p>
+										<div class="card border-0 shadow-sm">
+											<div class="card-header bg-primary text-white">
+												<h5 class="card-title mb-1 text-white">H-W-C Winners Analysis</h5>
+												<p class="card-text mb-0 text-light small">H-W-C patterns sorted by total points based on follower win system</p>
 											</div>
-											<div class="card-body">
+											<div class="card-body p-2 p-md-3">
 												<?php if(!isset($hwc_winners) || empty($hwc_winners)): ?>
 													<div class="alert alert-warning" role="alert">
 														<strong>No H-W-C winner data available.</strong> 
 														Please recalculate H-W-C statistics from the Statistics page to generate winner analysis.
 													</div>
 												<?php else: ?>
-													<div class="table-responsive">
-														<table class="table table-hover table-striped" id="hwc-winners-table">
-															<thead class="thead-dark">
+													<!-- Mobile Summary Stats (visible only on mobile) -->
+													<div class="d-block d-md-none mb-3">
+														<div class="row">
+															<div class="col-4">
+																<div class="text-center p-2 bg-light rounded">
+																	<small class="text-muted d-block">Patterns</small>
+																	<strong><?= count($hwc_winners) ?></strong>
+																</div>
+															</div>
+															<div class="col-4">
+																<div class="text-center p-2 bg-light rounded">
+																	<small class="text-muted d-block">Top Points</small>
+																	<strong class="text-success"><?= isset($hwc_winners[0]['total_points']) ? $hwc_winners[0]['total_points'] : 0 ?></strong>
+																</div>
+															</div>
+															<div class="col-4">
+																<div class="text-center p-2 bg-light rounded">
+																	<small class="text-muted d-block">Categories</small>
+																	<strong><?= isset($hwc_winners[0]['enabled_categories']) ? count($hwc_winners[0]['enabled_categories']) : 0 ?></strong>
+																</div>
+															</div>
+														</div>
+													</div>
+													
+													<!-- Scroll instruction for narrow screens -->
+													<div class="alert alert-info d-block d-lg-none py-2" role="alert">
+														<small>
+															<i class="fas fa-info-circle"></i>
+															<strong>Tip:</strong> Swipe left/right or use the horizontal scroll bar below to see all columns.
+														</small>
+													</div>
+													
+													<div class="table-responsive" id="hwc-winners-container">
+														<table class="table table-hover table-striped table-sm" id="hwc-winners-table">
+															<thead class="thead-dark sticky-top">
 																<tr>
 																	<th class="text-center col-rank sortable-header" onclick="toggleSort()">
-																		Rank
+																		<span class="d-none d-sm-inline">Rank</span>
+																		<span class="d-inline d-sm-none">#</span>
 																		<span class="sort-arrow desc" id="sort-arrow">▲</span>
 																	</th>
-																	<th class="text-center col-hot">Hot</th>
-																	<th class="text-center col-separator">-</th>
-																	<th class="text-center col-warm">Warm</th>
-																	<th class="text-center col-separator">-</th>
-																	<th class="text-center col-cold">Cold</th>
+																	<th class="text-center col-hot">
+																		<span class="d-none d-sm-inline text-danger">Hot</span>
+																		<span class="d-inline d-sm-none text-danger">H</span>
+																	</th>
+																	<th class="text-center col-separator d-none d-sm-table-cell">-</th>
+																	<th class="text-center col-warm">
+																		<span class="d-none d-sm-inline text-warning">Warm</span>
+																		<span class="d-inline d-sm-none text-warning">W</span>
+																	</th>
+																	<th class="text-center col-separator d-none d-sm-table-cell">-</th>
+																	<th class="text-center col-cold">
+																		<span class="d-none d-sm-inline text-info">Cold</span>
+																		<span class="d-inline d-sm-none text-info">C</span>
+																	</th>
 																	<?php if(isset($hwc_winners[0]['enabled_categories'])): ?>
 																		<?php foreach($hwc_winners[0]['enabled_categories'] as $category): ?>
 																			<?php if($category == 'extra'): ?>
-																				<th class="text-center col-prize">Extra</th>
+																				<th class="text-center col-prize d-none d-md-table-cell">
+																					<span class="d-none d-lg-inline">Extra</span>
+																					<span class="d-inline d-lg-none">E</span>
+																				</th>
 																			<?php elseif($category == '1_win'): ?>
-																				<th class="text-center col-prize">1</th>
+																				<th class="text-center col-prize d-none d-md-table-cell">1</th>
 																			<?php elseif($category == '1_win_extra'): ?>
-																				<th class="text-center col-prize">1 + Extra</th>
+																				<th class="text-center col-prize d-none d-lg-table-cell">
+																					<span class="d-none d-xl-inline">1 + Extra</span>
+																					<span class="d-inline d-xl-none">1+E</span>
+																				</th>
 																			<?php elseif($category == '2_win'): ?>
 																				<th class="text-center col-prize">2</th>
 																			<?php elseif($category == '2_win_extra'): ?>
-																				<th class="text-center col-prize">2 + Extra</th>
+																				<th class="text-center col-prize d-none d-lg-table-cell">
+																					<span class="d-none d-xl-inline">2 + Extra</span>
+																					<span class="d-inline d-xl-none">2+E</span>
+																				</th>
 																			<?php elseif($category == '3_win'): ?>
 																				<th class="text-center col-prize">3</th>
 																			<?php elseif($category == '3_win_extra'): ?>
-																				<th class="text-center col-prize">3 + Extra</th>
+																				<th class="text-center col-prize d-none d-lg-table-cell">
+																					<span class="d-none d-xl-inline">3 + Extra</span>
+																					<span class="d-inline d-xl-none">3+E</span>
+																				</th>
 																			<?php elseif($category == '4_win'): ?>
 																				<th class="text-center col-prize">4</th>
 																			<?php elseif($category == '4_win_extra'): ?>
-																				<th class="text-center col-prize">4 + Extra</th>
+																				<th class="text-center col-prize d-none d-lg-table-cell">
+																					<span class="d-none d-xl-inline">4 + Extra</span>
+																					<span class="d-inline d-xl-none">4+E</span>
+																				</th>
 																			<?php elseif($category == '5_win'): ?>
 																				<th class="text-center col-prize">5</th>
 																			<?php elseif($category == '5_win_extra'): ?>
-																				<th class="text-center col-prize">5 + Extra</th>
+																				<th class="text-center col-prize d-none d-lg-table-cell">
+																					<span class="d-none d-xl-inline">5 + Extra</span>
+																					<span class="d-inline d-xl-none">5+E</span>
+																				</th>
 																			<?php elseif($category == '6_win'): ?>
 																				<th class="text-center col-prize">6</th>
 																			<?php elseif($category == '6_win_extra'): ?>
-																				<th class="text-center col-prize">6 + Extra</th>
+																				<th class="text-center col-prize d-none d-lg-table-cell">
+																					<span class="d-none d-xl-inline">6 + Extra</span>
+																					<span class="d-inline d-xl-none">6+E</span>
+																				</th>
 																			<?php elseif($category == '7_win'): ?>
-																				<th class="text-center col-prize">7</th>
+																				<th class="text-center col-prize d-none d-sm-table-cell">7</th>
 																			<?php elseif($category == '7_win_extra'): ?>
-																				<th class="text-center col-prize">7 + Extra</th>
+																				<th class="text-center col-prize d-none d-lg-table-cell">
+																					<span class="d-none d-xl-inline">7 + Extra</span>
+																					<span class="d-inline d-xl-none">7+E</span>
+																				</th>
 																			<?php elseif($category == '8_win'): ?>
-																				<th class="text-center col-prize">8</th>
+																				<th class="text-center col-prize d-none d-sm-table-cell">8</th>
 																			<?php elseif($category == '8_win_extra'): ?>
-																				<th class="text-center col-prize">8 + Extra</th>
+																				<th class="text-center col-prize d-none d-lg-table-cell">
+																					<span class="d-none d-xl-inline">8 + Extra</span>
+																					<span class="d-inline d-xl-none">8+E</span>
+																				</th>
 																			<?php elseif($category == '9_win'): ?>
-																				<th class="text-center col-prize">9</th>
+																				<th class="text-center col-prize d-none d-sm-table-cell">9</th>
 																			<?php elseif($category == '9_win_extra'): ?>
-																				<th class="text-center col-prize">9 + Extra</th>
+																				<th class="text-center col-prize d-none d-lg-table-cell">
+																					<span class="d-none d-xl-inline">9 + Extra</span>
+																					<span class="d-inline d-xl-none">9+E</span>
+																				</th>
 																			<?php endif; ?>
 																		<?php endforeach; ?>
 																	<?php endif; ?>
-																	<th class="text-center col-points">Points</th>
+																	<th class="text-center col-points">
+																		<span class="d-none d-sm-inline">Points</span>
+																		<span class="d-inline d-sm-none">Pts</span>
+																	</th>
 																</tr>
 															</thead>
 															<tbody>
@@ -1436,18 +1730,43 @@
 																	$cold_count = isset($hwc_parts[2]) ? $hwc_parts[2] : 0;
 																?>
 																	<tr class="hwc-row" data-hwc="<?= $winner['hwc_pattern'] ?>" data-points="<?= $winner['total_points'] ?>" data-rank="<?= $rank ?>">
-																		<td class="text-center font-weight-bold col-rank"><?= $rank ?></td>
-																		<td class="text-center text-danger font-weight-bold col-hot"><?= $hot_count ?></td>
-																		<td class="text-center col-separator">-</td>
-																		<td class="text-center text-warning font-weight-bold col-warm"><?= $warm_count ?></td>
-																		<td class="text-center col-separator">-</td>
-																		<td class="text-center text-info font-weight-bold col-cold"><?= $cold_count ?></td>
+																		<td class="text-center font-weight-bold col-rank">
+																			<span class="badge badge-secondary"><?= $rank ?></span>
+																		</td>
+																		<td class="text-center text-danger font-weight-bold col-hot">
+																			<span class="badge badge-danger"><?= $hot_count ?></span>
+																		</td>
+																		<td class="text-center col-separator d-none d-sm-table-cell">-</td>
+																		<td class="text-center text-warning font-weight-bold col-warm">
+																			<span class="badge badge-warning"><?= $warm_count ?></span>
+																		</td>
+																		<td class="text-center col-separator d-none d-sm-table-cell">-</td>
+																		<td class="text-center text-info font-weight-bold col-cold">
+																			<span class="badge badge-info"><?= $cold_count ?></span>
+																		</td>
 																		<?php foreach($winner['enabled_categories'] as $category): ?>
-																			<td class="text-center col-prize">
-																				<?= isset($winner['win_breakdown'][$category]) ? $winner['win_breakdown'][$category] : 0 ?>
+																			<?php 
+																			$cell_classes = "text-center col-prize";
+																			if($category == 'extra' || strpos($category, '1_win') === 0) {
+																				$cell_classes .= " d-none d-md-table-cell";
+																			} else if(strpos($category, '_extra') !== false && $category != 'extra') {
+																				$cell_classes .= " d-none d-lg-table-cell";
+																			} else if(in_array($category, ['7_win', '8_win', '9_win'])) {
+																				$cell_classes .= " d-none d-sm-table-cell";
+																			}
+																			?>
+																			<td class="<?= $cell_classes ?>">
+																				<?php $win_count = isset($winner['win_breakdown'][$category]) ? $winner['win_breakdown'][$category] : 0; ?>
+																				<?php if($win_count > 0): ?>
+																					<span class="badge badge-success"><?= $win_count ?></span>
+																				<?php else: ?>
+																					<span class="text-muted">0</span>
+																				<?php endif; ?>
 																			</td>
 																		<?php endforeach; ?>
-																		<td class="text-center font-weight-bold text-success col-points"><?= $winner['total_points'] ?></td>
+																		<td class="text-center font-weight-bold text-success col-points">
+																			<span class="badge badge-success badge-lg"><?= $winner['total_points'] ?></span>
+																		</td>
 																	</tr>
 																<?php 
 																	$rank++; 
@@ -1525,34 +1844,222 @@
 			});
 		}
 		
-		// Enhanced row highlighting with smooth transitions
+		// Enhanced row highlighting with touch and mouse support
 		document.addEventListener('DOMContentLoaded', function() {
 			const tableRows = document.querySelectorAll('#hwc-winners-table .hwc-row');
+			const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 			
 			tableRows.forEach(row => {
+				// Mouse events for desktop
 				row.addEventListener('mouseenter', function() {
-					// Add enhanced highlighting class
-					this.style.backgroundColor = '#e3f2fd';
-					this.style.borderLeft = '4px solid #2196f3';
-					this.style.boxShadow = '0 2px 8px rgba(33, 150, 243, 0.3)';
-					this.style.transform = 'scale(1.01)';
-					
-					// Highlight the H-W-C pattern
-					const hwcPattern = this.getAttribute('data-hwc');
-					const points = this.getAttribute('data-points');
-					
-					// Optional: Show tooltip or additional info
-					this.title = `H-W-C Pattern: ${hwcPattern} | Total Points: ${points}`;
+					if (!isTouchDevice) {
+						highlightRow(this);
+					}
 				});
 				
 				row.addEventListener('mouseleave', function() {
-					// Remove highlighting
-					this.style.backgroundColor = '';
-					this.style.borderLeft = '';
-					this.style.boxShadow = '';
-					this.style.transform = '';
-					this.title = '';
+					if (!isTouchDevice) {
+						unhighlightRow(this);
+					}
 				});
+				
+				// Touch events for mobile
+				if (isTouchDevice) {
+					row.addEventListener('touchstart', function(e) {
+						// Clear any existing highlights first
+						tableRows.forEach(r => unhighlightRow(r));
+						highlightRow(this);
+					});
+					
+					// Add tap gesture for mobile info display
+					row.addEventListener('click', function(e) {
+						e.preventDefault();
+						const hwcPattern = this.getAttribute('data-hwc');
+						const points = this.getAttribute('data-points');
+						const rank = this.getAttribute('data-rank');
+						
+						// Show mobile-friendly info modal or toast
+						if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
+							showToast(`Rank ${rank}: ${hwcPattern} (${points} points)`);
+						} else {
+							alert(`Rank ${rank}: H-W-C ${hwcPattern} - ${points} points`);
+						}
+					});
+				}
 			});
+			
+			// Clear highlights when touching outside table on mobile
+			if (isTouchDevice) {
+				document.addEventListener('touchstart', function(e) {
+					if (!e.target.closest('#hwc-winners-table')) {
+						tableRows.forEach(row => unhighlightRow(row));
+					}
+				});
+			}
+			
+			function highlightRow(row) {
+				row.style.backgroundColor = '#e3f2fd';
+				row.style.borderLeft = '4px solid #2196f3';
+				row.style.boxShadow = '0 2px 8px rgba(33, 150, 243, 0.3)';
+				row.style.transform = 'scale(1.01)';
+				
+				const hwcPattern = row.getAttribute('data-hwc');
+				const points = row.getAttribute('data-points');
+				row.title = `H-W-C Pattern: ${hwcPattern} | Total Points: ${points}`;
+			}
+			
+			function unhighlightRow(row) {
+				row.style.backgroundColor = '';
+				row.style.borderLeft = '';
+				row.style.boxShadow = '';
+				row.style.transform = '';
+				row.title = '';
+			}
+			
+			function showToast(message) {
+				// Create and show a bootstrap toast if available
+				const toastHtml = `
+					<div class="toast" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999;">
+						<div class="toast-header">
+							<strong class="mr-auto">H-W-C Info</strong>
+							<button type="button" class="ml-2 mb-1 close" data-dismiss="toast">
+								<span>&times;</span>
+							</button>
+						</div>
+						<div class="toast-body">${message}</div>
+					</div>
+				`;
+				
+				const toastElement = document.createElement('div');
+				toastElement.innerHTML = toastHtml;
+				document.body.appendChild(toastElement.firstElementChild);
+				
+				// Auto remove after 3 seconds
+				setTimeout(() => {
+					const toastEl = document.querySelector('.toast');
+					if (toastEl) toastEl.remove();
+				}, 3000);
+			}
+			
+			// Add scroll management for better UX
+			initializeScrollHandling();
+			
+			function initializeScrollHandling() {
+				const tableContainer = document.querySelector('.table-responsive');
+				if (!tableContainer) return;
+				
+				// Check if horizontal scrolling is needed
+				function checkScrollNeeded() {
+					const needsScroll = tableContainer.scrollWidth > tableContainer.clientWidth;
+					
+					if (needsScroll) {
+						addScrollIndicator(tableContainer);
+						addScrollHints(tableContainer);
+					}
+					
+					return needsScroll;
+				}
+				
+				// Initial check
+				setTimeout(checkScrollNeeded, 100);
+				
+				// Check on window resize
+				window.addEventListener('resize', function() {
+					// Remove existing indicators
+					const existingIndicators = document.querySelectorAll('.scroll-indicator');
+					existingIndicators.forEach(ind => ind.remove());
+					
+					setTimeout(checkScrollNeeded, 100);
+				});
+			}
+			
+			function addScrollIndicator(container) {
+				const indicator = document.createElement('div');
+				indicator.className = 'scroll-indicator';
+				indicator.innerHTML = '← Scroll to see all columns →';
+				container.style.position = 'relative';
+				container.appendChild(indicator);
+				
+				// Hide indicator after scrolling starts
+				let scrollTimer;
+				container.addEventListener('scroll', function() {
+					if (indicator) {
+						indicator.style.display = 'none';
+					}
+					
+					// Clear existing timer
+					clearTimeout(scrollTimer);
+					
+					// Show scroll position indicator briefly
+					showScrollPosition(container);
+				});
+			}
+			
+			function addScrollHints(container) {
+				// Add touch/mouse scroll event listeners for better UX
+				let isScrolling = false;
+				
+				container.addEventListener('scroll', function() {
+					isScrolling = true;
+					
+					// Add visual feedback during scrolling
+					this.style.boxShadow = '0 0.25rem 0.75rem rgba(0, 123, 255, 0.15)';
+					
+					// Remove feedback after scrolling stops
+					clearTimeout(this.scrollTimer);
+					this.scrollTimer = setTimeout(() => {
+						this.style.boxShadow = '0 0.125rem 0.25rem rgba(0, 0, 0, 0.075)';
+						isScrolling = false;
+					}, 150);
+				});
+				
+				// Add keyboard navigation support
+				container.addEventListener('keydown', function(e) {
+					if (e.key === 'ArrowLeft') {
+						e.preventDefault();
+						this.scrollLeft -= 50;
+					} else if (e.key === 'ArrowRight') {
+						e.preventDefault();
+						this.scrollLeft += 50;
+					}
+				});
+				
+				// Make container focusable for keyboard navigation
+				container.setAttribute('tabindex', '0');
+			}
+			
+			function showScrollPosition(container) {
+				// Remove existing position indicator
+				const existingPos = container.querySelector('.scroll-position');
+				if (existingPos) existingPos.remove();
+				
+				// Create position indicator
+				const posIndicator = document.createElement('div');
+				posIndicator.className = 'scroll-position';
+				posIndicator.style.cssText = `
+					position: absolute;
+					top: 10px;
+					right: 20px;
+					background: rgba(0, 0, 0, 0.7);
+					color: white;
+					padding: 2px 8px;
+					border-radius: 10px;
+					font-size: 0.7rem;
+					z-index: 101;
+					pointer-events: none;
+				`;
+				
+				const scrollPercent = Math.round((container.scrollLeft / (container.scrollWidth - container.clientWidth)) * 100);
+				posIndicator.textContent = `${scrollPercent}%`;
+				
+				container.appendChild(posIndicator);
+				
+				// Remove after 1 second
+				setTimeout(() => {
+					if (posIndicator && posIndicator.parentNode) {
+						posIndicator.remove();
+					}
+				}, 1000);
+			}
 		});
 	</script>	
