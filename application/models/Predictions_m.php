@@ -608,6 +608,144 @@ class Predictions_m extends MY_Model
 		}
     return $result;
 	}
+
+	/**
+	 * Retrieves and parses H-W-C data with count and rank for prediction futures dropdown.
+	 * Returns dropdown array sorted by count (descending) with format: 'h-w-c' => 'h-w-c (count|#N ranked)'
+	 *
+	 * @param int $lottery_id The ID of the lottery.
+	 * @return array Dropdown options array for H-W-C with count and rank
+	 */
+	public function get_h_w_c_range_with_rank($lottery_id)
+	{
+		// Get the H-W-C range data (count data)
+		$this->db->select('h_w_c_range');
+		$this->db->from('lottery_h_w_c_stats');
+		$this->db->where('lottery_id', $lottery_id);
+		$row = $this->db->get()->row();
+		
+		$hwc_counts = [];
+		if ($row && !empty($row->h_w_c_range)) {
+			$items = explode(',', $row->h_w_c_range);
+			foreach ($items as $item) {
+				$parts = explode('=', $item);
+				if (count($parts) == 2) {
+					$label = trim($parts[0]);
+					$total = (int)trim($parts[1]);
+					if ($total > 0) { // Only include if total > 0
+						$hwc_counts[$label] = $total;
+					}
+				}
+			}
+		}
+		
+		// Get the wins data to calculate points for ranking
+		$this->db->select('wins');
+		$this->db->from('lottery_h_w_c_stats');
+		$this->db->where('lottery_id', $lottery_id);
+		$wins_row = $this->db->get()->row();
+		
+		$hwc_points = [];
+		if ($wins_row && !empty($wins_row->wins)) {
+			$hwc_points = $this->parse_hwc_points($wins_row->wins, $lottery_id);
+		}
+		
+		// Calculate ranks based on points (highest points = rank #1)
+		$hwc_ranks = [];
+		if (!empty($hwc_points)) {
+			// Sort points in descending order to calculate ranks
+			arsort($hwc_points);
+			$rank = 1;
+			$prev_points = null;
+			$rank_counter = 1;
+			
+			foreach ($hwc_points as $pattern => $points) {
+				if ($prev_points !== null && $points < $prev_points) {
+					$rank = $rank_counter;
+				}
+				$hwc_ranks[$pattern] = $rank;
+				$prev_points = $points;
+				$rank_counter++;
+			}
+		}
+		
+		// Combine counts and ranks, sort by count descending
+		arsort($hwc_counts);
+		
+		$result = [];
+		foreach ($hwc_counts as $pattern => $count) {
+			$rank = isset($hwc_ranks[$pattern]) ? $hwc_ranks[$pattern] : 999; // Default rank for unranked items
+			$rank_display = ($rank == 999) ? 'Unranked' : '#' . $rank . ' ranked';
+			$result[$pattern] = $pattern . ' (' . $count . '|' . $rank_display . ')';
+		}
+		
+		return $result;
+	}
+
+	/**
+	 * Parse wins string to calculate points for each H-W-C pattern
+	 *
+	 * @param string $wins_string The wins string from lottery_h_w_c_stats
+	 * @param int $lottery_id The lottery ID to get prize profile
+	 * @return array Array of H-W-C pattern => points
+	 */
+	private function parse_hwc_points($wins_string, $lottery_id)
+	{
+		// Get prize profile for this lottery to determine point values
+		$this->load->model('statistics_m');
+		$prize_profile = $this->statistics_m->get_lottery_prize_profile($lottery_id);
+		if(empty($prize_profile)) {
+			return [];
+		}
+		
+		// Define point system based on follower wins
+		$category_points = array(
+			'extra' => 1,		'2_win' => 4,		'2_win_extra' => 5,
+			'3_win' => 6,		'3_win_extra' => 7,	'4_win' => 8,
+			'4_win_extra' => 9,	'5_win' => 10,		'5_win_extra' => 11,
+			'6_win' => 12,		'6_win_extra' => 13,'7_win' => 14,
+			'7_win_extra' => 15,'8_win' => 16,		'8_win_extra' => 17,
+			'9_win' => 18,		'9_win_extra' => 19
+		);
+		
+		$hwc_points = [];
+		$hwc_entries = explode('|', $wins_string);
+		
+		foreach($hwc_entries as $entry) {
+			if(empty($entry)) continue;
+			
+			$parts = explode('=', $entry);
+			if(count($parts) != 2) continue;
+			
+			$hwc_pattern = $parts[0];  
+			$win_counts = $parts[1];   
+			$counts = explode(',', $win_counts);
+			
+			// Get enabled prize categories
+			$enabled_categories = array();
+			$category_index = 0;
+			
+			foreach($prize_profile as $category => $enabled) {
+				if($enabled == 1) {
+					$enabled_categories[] = $category;
+				}
+			}
+			
+			// Calculate total points for this H-W-C pattern
+			$total_points = 0;
+			foreach($counts as $index => $count) {
+				if(isset($enabled_categories[$index]) && isset($category_points[$enabled_categories[$index]])) {
+					$points_per_win = $category_points[$enabled_categories[$index]];
+					$total_points += (int)$count * $points_per_win;
+				}
+			}
+			
+			$hwc_points[$hwc_pattern] = $total_points;
+		}
+		
+		return $hwc_points;
+	}
+	
 	/**
 	 * Returns an associative array of actual ball numbers (including extra as +N) 
 	 * mapped to their total points, sorted descending by points.
