@@ -227,7 +227,7 @@
         max-width: 100%;
         word-wrap: break-word;
         overflow-wrap: break-word;
-        font-size: 0.95em; /* Match datafont size from Last Draw and Next Draw tabs */
+        font-size: 0.95em; /* Match datafont size from Last Draw and Future Draw tabs */
         min-width: 600px; /* Ensure table has minimum width to maintain readability */
     }
     
@@ -290,7 +290,7 @@
         white-space: nowrap;
         text-align: center;
         padding: 0.5rem 0.25rem;
-        font-size: 0.95em; /* Match datafont size from Last Draw and Next Draw tabs */
+        font-size: 0.95em; /* Match datafont size from Last Draw and Future Draw tabs */
     }
     
     #hwc-winners-table th.col-rank,
@@ -770,8 +770,8 @@
 							<li class="nav-item">
 								<a class="nav-link" id="profile-tab" data-toggle="tab" href="#profile" role="tab" aria-controls="profile" aria-selected="false">
 									<div class="card-heading">
-										<span class="d-none d-md-inline">Next Draw</span>
-										<span class="d-inline d-md-none">Next</span>
+										<span class="d-none d-md-inline">Future Draw</span>
+										<span class="d-inline d-md-none">Future</span>
 									</div>
 								</a>
 							</li>
@@ -1077,7 +1077,7 @@
 											<table class="table">
 												<thead>
 													<tr>
-														<th class="text-center" colspan="2">Next Hots</th>
+														<th class="text-center" colspan="2">Future Hots</th>
 													</tr>
 													<tr>
 														<th class="text-center">Ball</th>
@@ -1141,7 +1141,7 @@
 											<table class="table">
 												<thead>
 													<tr>
-														<th class="text-center" colspan="2">Next Warms</th>
+														<th class="text-center" colspan="2">Future Warms</th>
 													</tr>
 													<tr>
 														<th class="text-text-center">Ball</th>
@@ -1205,7 +1205,7 @@
 											<table class="table">
 												<thead>
 													<tr>
-														<th class="text-center" colspan="2">Next Colds</th>
+														<th class="text-center" colspan="2">Future Colds</th>
 													</tr>
 													<tr>
 														<th class="text-center">Ball</th>
@@ -1269,7 +1269,7 @@
 										<table class="table">
 											<thead>
 												<tr>
-													<th class="text-center" colspan="2">Next Extra Ball</th>
+													<th class="text-center" colspan="2">Future Extra Ball</th>
 												</tr>
 												<tr>
 													<th class="text-center">Ball</th>
@@ -1291,7 +1291,7 @@
 							</div>
 						</div>
 						
-						<!-- Next Draw Tab Content -->
+						<!-- Future Draw Tab Content -->
 						<div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
 							<div class="container-fluid" style="margin: 25px;">
 								<div class="table-container">
@@ -1301,7 +1301,7 @@
 											<table class="table">
 												<thead>
 													<tr>
-														<th class="text-center" colspan="2">Next Hots</th>
+														<th class="text-center" colspan="2">Future Hots</th>
 													</tr>
 													<tr>
 														<th class="text-center">Ball</th>
@@ -1340,7 +1340,7 @@
 															endif;
 														endforeach;
 														} else {
-															echo "<tr class='table-danger'><td colspan='2'>No Next Draw Hots Available</td></tr>";
+															echo "<tr class='table-danger'><td colspan='2'>No Future Draw Hots Available</td></tr>";
 														}
 														?>
 												</tbody>
@@ -1391,7 +1391,7 @@
 											<table class="table">
 												<thead>
 													<tr>
-														<th class="text-center" colspan="2">Next Warms</th>
+														<th class="text-center" colspan="2">Future Warms</th>
 													</tr>
 													<tr>
 														<th class="text-center">Ball</th>
@@ -1418,7 +1418,7 @@
 																echo "</tr>";
 															endforeach;
 														} else {
-															echo "<tr class='table-warning'><td colspan='2'>No Next Draw Warms Available</td></tr>";
+															echo "<tr class='table-warning'><td colspan='2'>No Future Draw Warms Available</td></tr>";
 														}
 														?>
 												</tbody>
@@ -1469,7 +1469,7 @@
 											<table class="table">
 												<thead>
 													<tr>
-														<th class="text-center" colspan="2">Next Colds</th>
+														<th class="text-center" colspan="2">Future Colds</th>
 													</tr>
 													<tr>
 														<th class="text-center">Ball</th>
@@ -1496,7 +1496,7 @@
 																echo "</tr>";
 															endforeach;
 														} else {
-															echo "<tr class='table-info'><td colspan='2'>No Next Draw Colds Available</td></tr>";
+															echo "<tr class='table-info'><td colspan='2'>No Future Draw Colds Available</td></tr>";
 														}
 														?>
 												</tbody>
@@ -1547,7 +1547,7 @@
 										<table class="table">
 											<thead>
 												<tr>
-													<th class="text-center" colspan="2">Next Extra Ball</th>
+													<th class="text-center" colspan="2">Future Extra Ball</th>
 												</tr>
 												<tr>
 													<th class="text-center">Ball</th>

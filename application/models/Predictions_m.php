@@ -655,17 +655,21 @@ class Predictions_m extends MY_Model
 		if (!empty($hwc_points)) {
 			// Sort points in descending order to calculate ranks
 			arsort($hwc_points);
-			$rank = 1;
+			
+			$current_rank = 1;
 			$prev_points = null;
-			$rank_counter = 1;
+			$position = 0;
 			
 			foreach ($hwc_points as $pattern => $points) {
+				$position++;
+				
+				// If points are different from previous, update rank to current position
 				if ($prev_points !== null && $points < $prev_points) {
-					$rank = $rank_counter;
+					$current_rank = $position;
 				}
-				$hwc_ranks[$pattern] = $rank;
+				
+				$hwc_ranks[$pattern] = $current_rank;
 				$prev_points = $points;
-				$rank_counter++;
 			}
 		}
 		
@@ -727,26 +731,34 @@ class Predictions_m extends MY_Model
 			$win_counts = $parts[1];   
 			$counts = explode(',', $win_counts);
 			
-			// Get enabled prize categories
+			// Get enabled prize categories (matching History controller logic)
 			$enabled_categories = array();
 			$category_index = 0;
 			
 			foreach($prize_profile as $category => $enabled) {
-				if($enabled == 1) {
-					$enabled_categories[] = $category;
+				if($enabled == 1 && $category != 'lottery_id' && $category != 'id') {
+					$enabled_categories[$category_index] = $category;
+					$category_index++;
 				}
 			}
 			
 			// Calculate total points for this H-W-C pattern
 			$total_points = 0;
 			foreach($counts as $index => $count) {
-				if(isset($enabled_categories[$index]) && isset($category_points[$enabled_categories[$index]])) {
-					$points_per_win = $category_points[$enabled_categories[$index]];
-					$total_points += (int)$count * $points_per_win;
+				$count = intval($count);
+				if($count > 0 && isset($enabled_categories[$index])) {
+					$category = $enabled_categories[$index];
+					if(isset($category_points[$category])) {
+						$points_per_win = $category_points[$category];
+						$total_points += $count * $points_per_win;
+					}
 				}
 			}
 			
-			$hwc_points[$hwc_pattern] = $total_points;
+			// Only include patterns with points > 0 (matching History controller logic)
+			if($total_points > 0) {
+				$hwc_points[$hwc_pattern] = $total_points;
+			}
 		}
 		
 		return $hwc_points;
