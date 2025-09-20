@@ -5761,15 +5761,16 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$this->current_colds = $colds;
 		$this->hwc_positions = $hwc_positions;
 
-		// Phase 2: Analyze the next range (e.g., draws 101-200) using sliding window
+		// Phase 2: Analyze the next range (e.g., draws 101-200) using fixed positions
 		$new_win_statistics = $this->analyze_sliding_window($table_name, $range, $hwc_positions, $prediction_pool, 
 			$hots, $warms, $colds, $lottery, $prize_profile, $extra_included);
 
-		// Phase 3: Merge new statistics with existing data
-		$merged_wins_data = $this->merge_win_statistics($existing_wins_data, $new_win_statistics, $prize_profile);
+		// Phase 3: REPLACE existing data instead of merging (this was causing accumulation bug)
+		// $merged_wins_data = $this->merge_win_statistics($existing_wins_data, $new_win_statistics, $prize_profile);
+		$final_wins_data = $new_win_statistics; // Use new statistics only, don't merge with old data
 
 		// Phase 4: Format and save the updated string
-		$final_wins_string = $this->format_win_statistics($merged_wins_data, $prize_profile);
+		$final_wins_string = $this->format_win_statistics($final_wins_data, $prize_profile);
 		$this->save_wins_string($lottery_id, $range, $hots, $warms, $colds, $prediction_pool, $extra_included, $extra_draws, $final_wins_string);
 
 		return $final_wins_string;
@@ -5834,34 +5835,42 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$picks = $lottery->balls_drawn;
 		$win_stats = array();
 
-		// Get draws for analysis (range + 1 to range * 2)
-		$sql = "SELECT * FROM {$table_name} ORDER BY draw_date ASC LIMIT {$range} OFFSET {$range}";
+		// Get ALL draws needed for sliding window (first range + second range)
+		$sql = "SELECT * FROM {$table_name} ORDER BY draw_date ASC LIMIT " . ($range * 2);
 		$query = $this->db->query($sql);
-		$future_draws = $query->result();
-
-		foreach ($future_draws as $draw) {
-			// Step 1: Determine H-W-C pattern for this draw
+		$all_draws = $query->result();
+		
+		// Split into initial draws (1-100) and future draws (101-200)
+		$initial_draws = array_slice($all_draws, 0, $range);
+		$future_draws = array_slice($all_draws, $range, $range);
+		
+		foreach ($future_draws as $draw_index => $draw) {
+			// Step 1: Determine H-W-C pattern for this draw based on CURRENT positions
 			$hwc_pattern = $this->determine_draw_hwc_pattern($draw, $hwc_positions, $picks);
 			
-			// Step 2: Calculate prediction numbers based on the H-W-C pattern and pool size
+			// Step 2: Calculate prediction pool distribution based on H-W-C pattern
 			$prediction_numbers = $this->calculate_prediction_numbers($hwc_pattern, $prediction_pool, $picks);
 			
-			// Step 3: Compare prediction numbers against actual draw and calculate wins
-			$win_categories = $this->calculate_win_categories($prediction_numbers, $draw, $prize_profile, $extra_included);
+			// Step 3: Get actual prediction numbers by cross-referencing H-W-C positions
+			$actual_prediction_numbers = $this->get_prediction_numbers_from_positions($prediction_numbers, $hwc_positions);
 			
-			// Step 4: Accumulate win statistics
+			// Step 4: Compare prediction numbers against actual draw and calculate wins
+			$win_categories = $this->calculate_win_categories_direct($actual_prediction_numbers, $draw, $prize_profile, $extra_included);
+			
+			// Step 5: Accumulate win statistics (maximum 1 win per draw enforced)
 			$pattern_key = implode('-', $hwc_pattern);
 			if (!isset($win_stats[$pattern_key])) {
 				$win_stats[$pattern_key] = $this->initialize_win_categories($prize_profile);
 			}
 			
-			// Add wins to the pattern
+			// Add wins to the pattern (only 1 win per draw possible)
 			foreach ($win_categories as $category => $count) {
 				$win_stats[$pattern_key][$category] += $count;
 			}
 
-			// Update positions for next iteration (sliding window)
-			$this->update_positions($hwc_positions, $draw, $picks, $extra_included);
+			// Step 6: SLIDING WINDOW - Remove oldest draw and add newest draw
+			$old_draw = $initial_draws[$draw_index]; // Draw to remove from window
+			$this->update_sliding_window($hwc_positions, $old_draw, $draw, $picks, $extra_included);
 		}
 
 		return $win_stats;
@@ -5905,6 +5914,8 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 
 	/**
 	 * Calculate prediction numbers based on H-W-C pattern and pool size
+	 * Distributes prediction pool based on H-W-C pattern percentages.
+	 * For 2-2-2 pattern with 18 pool: 6 hot, 6 warm, 6 cold numbers.
 	 * 
 	 * @param array $hwc_pattern The H-W-C pattern [hot, warm, cold]
 	 * @param int $prediction_pool Total prediction pool size
@@ -5915,7 +5926,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	{
 		list($hot_pattern, $warm_pattern, $cold_pattern) = $hwc_pattern;
 
-		// Calculate distribution with proper rounding and imbalance handling
+		// Calculate distribution based on H-W-C pattern percentages
 		$hot_numbers = ceil(($hot_pattern / $picks) * $prediction_pool);
 		$warm_numbers = ceil(($warm_pattern / $picks) * $prediction_pool);
 		
@@ -5942,6 +5953,8 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 
 	/**
 	 * Calculate win categories by comparing predictions against actual draw
+	 * FIXED: Only select exactly the number of balls needed for one combination,
+	 * ensuring maximum 1 winning ticket per draw and 100 per 100-draw range.
 	 * 
 	 * @param array $prediction_numbers Predicted numbers by temperature
 	 * @param object $draw The actual draw
@@ -5960,12 +5973,13 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 		}
 
-		// Get the selected prediction numbers from H-W-C positions
+		// CORRECTED: Select exactly the numbers specified by the H-W-C pattern
+		// For 1-2-3 pattern: get exactly 1 hot, 2 warm, 3 cold numbers
 		$selected_hot_numbers = $this->get_top_numbers_by_temperature('hot', $prediction_numbers['hot']);
 		$selected_warm_numbers = $this->get_top_numbers_by_temperature('warm', $prediction_numbers['warm']);
 		$selected_cold_numbers = $this->get_top_numbers_by_temperature('cold', $prediction_numbers['cold']);
 		
-		// Combine all selected prediction numbers
+		// Combine all selected prediction numbers (should total exactly 6 for Canada 649)
 		$all_prediction_numbers = array_merge($selected_hot_numbers, $selected_warm_numbers, $selected_cold_numbers);
 		
 		// Get the actual drawn numbers
@@ -5976,7 +5990,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$main_matches = count(array_intersect($all_prediction_numbers, $drawn_numbers));
 		$extra_match = ($extra_number && in_array($extra_number, $all_prediction_numbers)) ? 1 : 0;
 		
-		// Determine win categories based on matches
+		// Determine win categories based on matches (already fixed to record only 1 win per draw)
 		$this->determine_win_categories($main_matches, $extra_match, $prize_profile, $wins);
 		
 		return $wins;
@@ -6046,7 +6060,116 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	}
 
 	/**
+	 * Get the number of balls drawn (main balls only, not including extra)
+	 * 
+	 * @param object $draw The draw object
+	 * @return int Number of main balls drawn
+	 */
+	private function get_balls_drawn_count($draw)
+	{
+		$ball_count = 0;
+		$i = 1;
+		
+		// Count main balls (ball1, ball2, etc.)
+		while (isset($draw->{"ball{$i}"})) {
+			$ball_count++;
+			$i++;
+		}
+		
+		return $ball_count;
+	}
+
+	/**
+	 * Get actual prediction numbers by cross-referencing H-W-C positions with hot/warm/cold tables
+	 * 
+	 * @param array $prediction_numbers Number of hot/warm/cold numbers to select
+	 * @param array $hwc_positions Current H-W-C positions with hit counts
+	 * @return array Array of actual prediction numbers
+	 */
+	private function get_prediction_numbers_from_positions($prediction_numbers, $hwc_positions)
+	{
+		$prediction_set = array();
+		
+		// Get hot numbers
+		$hot_numbers = $this->get_top_numbers_by_temperature('hot', $prediction_numbers['hot']);
+		$prediction_set = array_merge($prediction_set, $hot_numbers);
+		
+		// Get warm numbers  
+		$warm_numbers = $this->get_top_numbers_by_temperature('warm', $prediction_numbers['warm']);
+		$prediction_set = array_merge($prediction_set, $warm_numbers);
+		
+		// Get cold numbers
+		$cold_numbers = $this->get_top_numbers_by_temperature('cold', $prediction_numbers['cold']);
+		$prediction_set = array_merge($prediction_set, $cold_numbers);
+		
+		return array_unique($prediction_set); // Remove any duplicates
+	}
+
+	/**
+	 * Calculate win categories by comparing prediction numbers directly against actual draw
+	 * Ensures only 1 win maximum per draw.
+	 * 
+	 * @param array $prediction_numbers Array of predicted numbers
+	 * @param object $draw The actual draw
+	 * @param array $prize_profile Prize profile configuration
+	 * @param boolean $extra_included Whether extra ball is included
+	 * @return array Win counts by category
+	 */
+	private function calculate_win_categories_direct($prediction_numbers, $draw, $prize_profile, $extra_included)
+	{
+		$wins = array();
+		
+		// Initialize all possible win categories
+		foreach ($prize_profile as $category => $enabled) {
+			if ($enabled && $category != 'id' && $category != 'lottery_id') {
+				$wins[$category] = 0;
+			}
+		}
+
+		// Get the actual drawn numbers
+		$drawn_numbers = $this->extract_drawn_numbers($draw);
+		$extra_number = $extra_included && isset($draw->extra) ? $draw->extra : null;
+		
+		// Count matches between predictions and actual draw
+		$main_matches = count(array_intersect($prediction_numbers, $drawn_numbers));
+		$extra_match = ($extra_number && in_array($extra_number, $prediction_numbers)) ? 1 : 0;
+		
+		// Determine win categories based on matches (only highest win recorded)
+		$this->determine_win_categories($main_matches, $extra_match, $prize_profile, $wins);
+		
+		return $wins;
+	}
+
+	/**
+	 * Generate all possible H-W-C patterns for the given parameters
+	 * 
+	 * @param int $hots Number of hot numbers
+	 * @param int $warms Number of warm numbers  
+	 * @param int $colds Number of cold numbers
+	 * @param int $picks Total number of balls drawn
+	 * @return array Array of all possible H-W-C patterns
+	 */
+	private function generate_all_hwc_patterns($hots, $warms, $colds, $picks)
+	{
+		$patterns = array();
+		
+		// Generate all combinations where hot + warm + cold = picks
+		for ($h = 0; $h <= min($hots, $picks); $h++) {
+			for ($w = 0; $w <= min($warms, $picks - $h); $w++) {
+				$c = $picks - $h - $w;
+				if ($c >= 0 && $c <= $colds) {
+					$patterns[] = array($h, $w, $c);
+				}
+			}
+		}
+		
+		return $patterns;
+	}
+
+	/**
 	 * Determine specific win categories based on match counts
+	 * Only increment the HIGHEST matching win category per draw to ensure
+	 * maximum of 1 win per draw and maximum of 100 wins per 100-draw range.
 	 * 
 	 * @param int $main_matches Number of main ball matches
 	 * @param int $extra_match Whether extra ball matched (0 or 1)
@@ -6055,27 +6178,35 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	 */
 	private function determine_win_categories($main_matches, $extra_match, $prize_profile, &$wins)
 	{
-		// Check each possible win category
-		for ($matches = 2; $matches <= 9; $matches++) {
-			if ($main_matches >= $matches) {
-				// Check for main win category
-				$category = "{$matches}_win";
-				if (isset($prize_profile[$category]) && $prize_profile[$category]) {
-					$wins[$category]++;
-				}
-				
-				// Check for extra win category if extra ball matched
+		$win_recorded = false;
+		
+		// Find the HIGHEST win category that matches, starting from 9 down to 2
+		for ($matches = 9; $matches >= 2; $matches--) {
+			if ($main_matches >= $matches && !$win_recorded) {
+				// Check for extra win category first (higher priority if extra ball matched)
 				if ($extra_match) {
 					$extra_category = "{$matches}_win_extra";
 					if (isset($prize_profile[$extra_category]) && $prize_profile[$extra_category]) {
 						$wins[$extra_category]++;
+						$win_recorded = true;
+						break; // Only record one win per draw
+					}
+				}
+				
+				// Check for main win category if no extra win recorded
+				if (!$win_recorded) {
+					$category = "{$matches}_win";
+					if (isset($prize_profile[$category]) && $prize_profile[$category]) {
+						$wins[$category]++;
+						$win_recorded = true;
+						break; // Only record one win per draw
 					}
 				}
 			}
 		}
 		
-		// Check for extra-only win
-		if ($extra_match && isset($prize_profile['extra']) && $prize_profile['extra']) {
+		// Check for extra-only win (only if no other win was recorded)
+		if (!$win_recorded && $extra_match && isset($prize_profile['extra']) && $prize_profile['extra']) {
 			$wins['extra']++;
 		}
 	}
@@ -6099,36 +6230,117 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 
 	/**
 	 * Update positions for sliding window (add new draw, remove old draw)
+	 * Implements proper sliding window: removes oldest draw, adds newest draw, recalculates positions
 	 * 
 	 * @param array &$hwc_positions H-W-C positions (passed by reference)
-	 * @param object $draw New draw to add
+	 * @param object $new_draw New draw to add
 	 * @param int $picks Number of balls drawn
 	 * @param boolean $extra_included Whether extra ball is included
 	 */
-	private function update_positions(&$hwc_positions, $draw, $picks, $extra_included)
+	private function update_positions(&$hwc_positions, $new_draw, $picks, $extra_included)
 	{
-		// Update position counts for the new draw
+		// Add the new draw to positions
 		for ($i = 1; $i <= $picks; $i++) {
 			$ball_property = "ball{$i}";
-			$ball_number = $draw->$ball_property;
+			$ball_number = $new_draw->$ball_property;
 			
 			if (isset($hwc_positions[$ball_number])) {
 				$hwc_positions[$ball_number]['hit_count']++;
 			} else {
 				$hwc_positions[$ball_number] = array(
-					'position' => count($hwc_positions) + 1,
+					'position' => 0, // Will be set after sorting
 					'hit_count' => 1
 				);
 			}
 		}
 
-		if ($extra_included && isset($draw->extra) && $draw->extra) {
-			$extra_number = $draw->extra;
+		// Add extra ball if included
+		if ($extra_included && isset($new_draw->extra) && $new_draw->extra) {
+			$extra_number = $new_draw->extra;
 			if (isset($hwc_positions[$extra_number])) {
 				$hwc_positions[$extra_number]['hit_count']++;
 			} else {
 				$hwc_positions[$extra_number] = array(
-					'position' => count($hwc_positions) + 1,
+					'position' => 0, // Will be set after sorting
+					'hit_count' => 1
+				);
+			}
+		}
+
+		// Re-sort positions by hit count (descending) - this is the key to H-W-C ordering
+		uasort($hwc_positions, function($a, $b) {
+			return $b['hit_count'] - $a['hit_count'];
+		});
+
+		// Update position numbers based on new sort order
+		$position = 1;
+		foreach ($hwc_positions as $number => &$data) {
+			$data['position'] = $position++;
+		}
+		
+		// Store updated positions
+		$this->hwc_positions = $hwc_positions;
+	}
+
+	/**
+	 * Update sliding window by removing old draw and adding new draw
+	 * 
+	 * @param array &$hwc_positions H-W-C positions (passed by reference)
+	 * @param object $old_draw Draw to remove from window
+	 * @param object $new_draw Draw to add to window
+	 * @param int $picks Number of balls drawn
+	 * @param boolean $extra_included Whether extra ball is included
+	 */
+	private function update_sliding_window(&$hwc_positions, $old_draw, $new_draw, $picks, $extra_included)
+	{
+		// Remove the old draw from positions
+		for ($i = 1; $i <= $picks; $i++) {
+			$ball_property = "ball{$i}";
+			$ball_number = $old_draw->$ball_property;
+			
+			if (isset($hwc_positions[$ball_number])) {
+				$hwc_positions[$ball_number]['hit_count']--;
+				// Remove numbers with 0 hits
+				if ($hwc_positions[$ball_number]['hit_count'] <= 0) {
+					unset($hwc_positions[$ball_number]);
+				}
+			}
+		}
+
+		// Remove extra ball from old draw if included
+		if ($extra_included && isset($old_draw->extra) && $old_draw->extra) {
+			$extra_number = $old_draw->extra;
+			if (isset($hwc_positions[$extra_number])) {
+				$hwc_positions[$extra_number]['hit_count']--;
+				if ($hwc_positions[$extra_number]['hit_count'] <= 0) {
+					unset($hwc_positions[$extra_number]);
+				}
+			}
+		}
+
+		// Add the new draw to positions
+		for ($i = 1; $i <= $picks; $i++) {
+			$ball_property = "ball{$i}";
+			$ball_number = $new_draw->$ball_property;
+			
+			if (isset($hwc_positions[$ball_number])) {
+				$hwc_positions[$ball_number]['hit_count']++;
+			} else {
+				$hwc_positions[$ball_number] = array(
+					'position' => 0, // Will be set after sorting
+					'hit_count' => 1
+				);
+			}
+		}
+
+		// Add extra ball from new draw if included
+		if ($extra_included && isset($new_draw->extra) && $new_draw->extra) {
+			$extra_number = $new_draw->extra;
+			if (isset($hwc_positions[$extra_number])) {
+				$hwc_positions[$extra_number]['hit_count']++;
+			} else {
+				$hwc_positions[$extra_number] = array(
+					'position' => 0, // Will be set after sorting
 					'hit_count' => 1
 				);
 			}
@@ -6139,13 +6351,13 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			return $b['hit_count'] - $a['hit_count'];
 		});
 
-		// Update position numbers
+		// Update position numbers based on new sort order
 		$position = 1;
 		foreach ($hwc_positions as $number => &$data) {
 			$data['position'] = $position++;
 		}
 		
-		// Store updated positions for use in win validation
+		// Store updated positions
 		$this->hwc_positions = $hwc_positions;
 	}
 
