@@ -669,14 +669,20 @@ class Predictions_m extends MY_Model
 			}
 		}
 		
-		// Combine counts and ranks, sort by count descending
+		// Sort by count descending (most frequent first)
 		arsort($hwc_counts);
 		
 		$result = [];
 		foreach ($hwc_counts as $pattern => $count) {
-			$rank = isset($hwc_ranks[$pattern]) ? $hwc_ranks[$pattern] : 999; // Default rank for unranked items
-			$rank_display = ($rank == 999) ? 'Unranked' : '#' . $rank . ' ranked';
-			$result[$pattern] = $pattern . ' (' . $count . '|' . $rank_display . ')';
+			$rank = isset($hwc_ranks[$pattern]) ? $hwc_ranks[$pattern] : 999;
+			
+			if ($rank == 999) {
+				// Unranked patterns - show count with unranked label
+				$result[$pattern] = $pattern . ' (' . $count . ') - Unranked';
+			} else {
+				// Ranked patterns - clean and professional format
+				$result[$pattern] = $pattern . ' (' . $count . ') - Rank #' . $rank;
+			}
 		}
 		
 		return $result;
