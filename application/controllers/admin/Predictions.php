@@ -1402,12 +1402,11 @@ class Predictions extends Admin_Controller {
 		$this->data['followers'] = $this->predictions_m->get_followers($id);
 		$this->data['friends'] = $this->predictions_m->get_friends($id);
 		$this->data['friends_dropdown_options'] = $this->predictions_m->get_friends_dropdown_options($id);
-		// Prepare dropdown options
-		$h_w_c_group = $this->predictions_m->get_h_w_c_range($id);
+		// Prepare H-W-C dropdown options with ranking
+		$h_w_c_group_with_rank = $this->predictions_m->get_h_w_c_range_with_rank($id);
 		$h_w_c_group_options = [];
-		foreach ($h_w_c_group as $group) {
-			$value = substr($group, 0, 5);
-			$h_w_c_group_options[$value] = $group;
+		foreach ($h_w_c_group_with_rank as $value => $display) {
+			$h_w_c_group_options[$value] = $display;
 		}
 		$this->data['h_w_c_group'] = $h_w_c_group_options;
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);

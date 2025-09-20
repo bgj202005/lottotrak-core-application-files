@@ -5895,6 +5895,11 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			$ball_property = "ball{$i}";
 			$ball_number = $draw->$ball_property;
 			
+			// Skip null/empty ball numbers (shouldn't happen but safety check)
+			if (empty($ball_number)) {
+				continue;
+			}
+			
 			if (isset($hwc_positions[$ball_number])) {
 				$position = $hwc_positions[$ball_number]['position'];
 				
@@ -5906,6 +5911,10 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 				} else {
 					$cold_count++;
 				}
+			} else {
+				// Ball not in positions array - treat as coldest (lowest frequency)
+				// This ensures all balls are counted in the H-W-C pattern
+				$cold_count++;
 			}
 		}
 

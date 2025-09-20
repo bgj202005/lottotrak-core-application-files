@@ -651,43 +651,47 @@ class Predictions_m extends MY_Model
 		}
 		
 		// Calculate ranks based on points (highest points = rank #1)
+		// Each pattern gets a unique rank, even when points are tied
 		$hwc_ranks = [];
 		if (!empty($hwc_points)) {
-			// Sort points in descending order to calculate ranks
-			arsort($hwc_points);
-			
-			$current_rank = 1;
-			$prev_points = null;
-			$position = 0;
+			// Points are already sorted by parse_hwc_points with tie-breaking
+			$rank = 1;
 			
 			foreach ($hwc_points as $pattern => $points) {
-				$position++;
-				
-				// If points are different from previous, update rank to current position
-				if ($prev_points !== null && $points < $prev_points) {
-					$current_rank = $position;
-				}
-				
-				$hwc_ranks[$pattern] = $current_rank;
-				$prev_points = $points;
+				$hwc_ranks[$pattern] = $rank;
+				$rank++; // Each pattern gets a unique sequential rank
 			}
 		}
 		
-		// Sort by count descending (most frequent first)
+		// Only include patterns that have wins (matching H-W-C Winners Analysis behavior)
+		// Sort hwc_counts by count descending (most frequent first)
 		arsort($hwc_counts);
 		
 		$result = [];
+		
+		// Only add patterns that have performance data (wins/points)
 		foreach ($hwc_counts as $pattern => $count) {
-			$rank = isset($hwc_ranks[$pattern]) ? $hwc_ranks[$pattern] : 999;
-			
-			if ($rank == 999) {
-				// Unranked patterns - show count with unranked label
-				$result[$pattern] = $pattern . ' (' . $count . ') - Unranked';
-			} else {
-				// Ranked patterns - clean and professional format
+			// Only include if pattern has wins AND occurrence count > 0
+			if ($count > 0 && isset($hwc_ranks[$pattern])) {
+				$rank = $hwc_ranks[$pattern];
 				$result[$pattern] = $pattern . ' (' . $count . ') - Rank #' . $rank;
 			}
 		}
+		
+		// Re-assign sequential ranks to maintain proper order
+		$final_result = [];
+		$new_rank = 1;
+		
+		// Use the sorted order from hwc_points to assign sequential ranks
+		foreach ($hwc_points as $pattern => $points) {
+			if (isset($result[$pattern])) {
+				$count = $hwc_counts[$pattern];
+				$final_result[$pattern] = $pattern . ' (' . $count . ') - Rank #' . $new_rank;
+				$new_rank++;
+			}
+		}
+		
+		$result = $final_result;
 		
 		return $result;
 	}
@@ -742,8 +746,11 @@ class Predictions_m extends MY_Model
 				}
 			}
 			
-			// Calculate total points for this H-W-C pattern
+			// Calculate total points and track highest category for tie-breaking
 			$total_points = 0;
+			$highest_category_points = 0;
+			$win_breakdown = [];
+			
 			foreach($counts as $index => $count) {
 				$count = intval($count);
 				if($count > 0 && isset($enabled_categories[$index])) {
@@ -751,17 +758,44 @@ class Predictions_m extends MY_Model
 					if(isset($category_points[$category])) {
 						$points_per_win = $category_points[$category];
 						$total_points += $count * $points_per_win;
+						$win_breakdown[$category] = $count;
+						
+						// Track highest category for tie-breaking
+						if($points_per_win > $highest_category_points) {
+							$highest_category_points = $points_per_win;
+						}
 					}
 				}
 			}
 			
 			// Only include patterns with points > 0 (matching History controller logic)
 			if($total_points > 0) {
-				$hwc_points[$hwc_pattern] = $total_points;
+				$hwc_points[$hwc_pattern] = [
+					'total_points' => $total_points,
+					'highest_category' => $highest_category_points,
+					'win_breakdown' => $win_breakdown
+				];
 			}
 		}
 		
-		return $hwc_points;
+		// Sort by total points first, then by highest category for tie-breaking
+		uasort($hwc_points, function($a, $b) {
+			// Primary sort: by total points (descending)
+			if($a['total_points'] != $b['total_points']) {
+				return $b['total_points'] - $a['total_points'];
+			}
+			
+			// Secondary sort: by highest category points (descending) for tie-breaking
+			return $b['highest_category'] - $a['highest_category'];
+		});
+		
+		// Convert back to simple points array for compatibility with existing code
+		$points_only = [];
+		foreach($hwc_points as $pattern => $data) {
+			$points_only[$pattern] = $data['total_points'];
+		}
+		
+		return $points_only;
 	}
 	
 	/**
