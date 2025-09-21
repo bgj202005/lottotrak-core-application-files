@@ -148,6 +148,60 @@
     margin-right: auto;
 	table-layout: auto;
 	}
+	
+	/* Custom combination dropdown styling */
+	#wheelingDropdown {
+		color: #495057 !important;
+		text-color: #495057 !important;
+	}
+	#wheelingDropdown:hover,
+	#wheelingDropdown:focus,
+	#wheelingDropdown:active,
+	#wheelingDropdown.show {
+		color: #495057 !important;
+		background-color: white !important;
+		border-color: #ced4da !important;
+	}
+	#wheelingSelectedText {
+		color: #495057 !important;
+	}
+	
+	/* Dropdown menu item styling */
+	.dropdown-menu .dropdown-item {
+		color: #212529 !important;
+	}
+	.dropdown-menu .dropdown-item:hover,
+	.dropdown-menu .dropdown-item:focus {
+		color: #212529 !important;
+		background-color: #dee2e6 !important;
+	}
+	.dropdown-menu .dropdown-item.active {
+		color: #212529 !important;
+		background-color: #ced4da !important;
+	}
+	
+	/* Ensure badges remain visible in dropdown items - more specific selector */
+	.dropdown-menu .dropdown-item .badge,
+	.dropdown-menu .dropdown-item .badge-success,
+	.dropdown-menu .dropdown-item .badge-danger {
+		display: inline-block !important;
+		opacity: 1 !important;
+		visibility: visible !important;
+		font-size: 0.75em !important;
+		padding: 0.25em 0.4em !important;
+		margin-right: 0.25em !important;
+	}
+	
+	/* Force badge colors to remain */
+	.dropdown-menu .dropdown-item .badge-success {
+		background-color: #28a745 !important;
+		color: white !important;
+	}
+	.dropdown-menu .dropdown-item .badge-danger {
+		background-color: #dc3545 !important;
+		color: white !important;
+	}
+	
 	#futures-filter-table th,
 	#futures-filter-table td {
 		font-size: 0.75em;
@@ -696,33 +750,19 @@
 							?>
 							<div class="col-6">
 								<?php
-								// Prepare the dropdown options
-								$wheeling_options = ['' => 'Select Combination Table']; // Default option
-								if (!empty($combination_files)) {
-									foreach ($combination_files as $file) {
-										// Use the id|filename format for the value, display filename with details
-										$value = $file['id'] . '|' . $file['file_name']; // e.g., "246|060828"
-										$display = '(' . $file['file_name'] . ')     ' . $file['N'] . ' Numbers - ' . number_format($file['CCCC']) . ' Tickets';
-										$wheeling_options[$value] = $display;
-									}
-								}
-								
-								// Dropdown attributes
-								$extra = ['class' => 'form-control', 'id' => 'wheeling','style' => 'width: 70%;'];
-								if (!empty($disable_combination_dropdown)) {
-									$extra['disabled'] = 'disabled';
-								}
-								
 								// For the selected value, we need to check if it matches the filename part
 								$selected_value = '';
 								if (isset($selected_wheeling)) {
 									// If selected_wheeling is just a filename, find the matching id|filename value
-									foreach ($wheeling_options as $option_value => $option_display) {
-										if (strpos($option_value, '|') !== false) {
-											list($option_id, $option_filename) = explode('|', $option_value, 2);
-											if ($option_filename === $selected_wheeling) {
-												$selected_value = $option_value;
-												break;
+									if (!empty($combination_files)) {
+										foreach ($combination_files as $file) {
+											$value = $file['id'] . '|' . $file['file_name'];
+											if (strpos($value, '|') !== false) {
+												list($option_id, $option_filename) = explode('|', $value, 2);
+												if ($option_filename === $selected_wheeling) {
+													$selected_value = $value;
+													break;
+												}
 											}
 										}
 									}
@@ -734,39 +774,64 @@
 									$selected_value = set_value('wheeling', '');
 								}
 								
-								echo form_dropdown('wheeling', $wheeling_options, $selected_value, $extra);
+								// Build custom dropdown with HTML badge support
+								$disabled_attr = !empty($disable_combination_dropdown) ? 'disabled' : '';
+								?>
+								<div class="dropdown" style="width: 80%;">
+									<button class="btn btn-outline-secondary dropdown-toggle form-control text-left" type="button" id="wheelingDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="background: white; border: 1px solid #ced4da; color: #495057 !important; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" <?= $disabled_attr ?>>
+										<span id="wheelingSelectedText">
+											<?php 
+											if (!empty($selected_value)) {
+												// Find the selected file and display its text without HTML
+												foreach ($combination_files as $file) {
+													$value = $file['id'] . '|' . $file['file_name'];
+													if ($value === $selected_value) {
+														if (isset($file['active'])) {
+															if ($file['active'] === '1' || $file['active'] === 1 || $file['active'] === true) {
+																echo 'Enabled ';
+															} else {
+																echo 'Expired ';
+															}
+														}
+														echo '(' . htmlspecialchars($file['file_name']) . ') ' . $file['N'] . ' Numbers - ' . number_format($file['CCCC']) . ' Tickets';
+														break;
+													}
+												}
+											} else {
+												echo 'Select Combination Table';
+											}
+											?>
+										</span>
+									</button>
+									<div class="dropdown-menu" aria-labelledby="wheelingDropdown" style="width: 100%; max-height: 300px; overflow-y: auto;">
+										<?php if (!empty($combination_files)): ?>
+											<?php foreach ($combination_files as $file): ?>
+												<?php 
+												$value = $file['id'] . '|' . $file['file_name']; // e.g., "246|060828"
+												$status_badge = '';
+												if (isset($file['active'])) {
+													if ($file['active'] === '1' || $file['active'] === 1 || $file['active'] === true) {
+														$status_badge = '<span class="badge badge-success" style="background-color: #28a745; color: white;">Enabled</span> ';
+													} else {
+														$status_badge = '<span class="badge badge-danger" style="background-color: #dc3545; color: white;">Expired</span> ';
+													}
+												}
+												$display = $status_badge . '(' . htmlspecialchars($file['file_name']) . ') ' . $file['N'] . ' Numbers - ' . number_format($file['CCCC']) . ' Tickets';
+												$selected_class = ($selected_value === $value) ? 'active' : '';
+												?>
+												<a class="dropdown-item <?= $selected_class ?>" href="#" data-value="<?= htmlspecialchars($value) ?>" onclick="selectCombination('<?= htmlspecialchars($value, ENT_QUOTES) ?>', this.innerHTML); return false;"><?= $display ?></a>
+											<?php endforeach; ?>
+										<?php endif; ?>
+									</div>
+								</div>
+								<!-- Hidden input to store the selected value -->
+								<input type="hidden" id="wheeling" name="wheeling" value="<?= htmlspecialchars($selected_value) ?>">
+								<?php
 								// Display form error if any
 								echo form_error('wheeling', '<div class="bg-warning mt-2 p-2 text-center text-white">', '</div>');
 								?>
 							</div>
 						</div>
-						
-						<!-- Saved Combinations Tile -->
-						<?php if (!empty($saved_combinations)): ?>
-						<div class="row" style="margin-bottom: 2em;">
-							<div class="col-md-12">
-								<div class="table-section" style="border:2px solid #17a2b8; border-radius:8px; padding:1em;">
-									<div class="table-title" style="font-weight:bold; font-size:1.2em; background:#e9ecef; border-bottom:1px solid #17a2b8; padding:0.5em 1em; border-radius:6px 6px 0 0; margin:-1em -1em 1em -1em;">
-										SAVED COMBINATIONS (<?= count($saved_combinations) ?>)
-									</div>
-									<div class="saved-combinations-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; margin-top: 10px;">
-										<?php foreach ($saved_combinations as $combo): ?>
-											<div class="combination-item" style="border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; background: #f8f9fa; display: flex; justify-content: space-between; align-items: center;">
-												<div style="font-weight: bold; font-size: 1em; flex-grow: 1;">
-													<?= htmlspecialchars($combo['display_filename']) ?>
-												</div>
-												<div>
-													<?= $combo['active'] 
-														? '<span class="badge badge-success">Active</span>' 
-														: '<span class="badge badge-danger">Expired</span>'; ?>
-												</div>
-											</div>
-										<?php endforeach; ?>
-									</div>
-								</div>
-							</div>
-						</div>
-						<?php endif; ?>
 						
 						<div class="row">
 							<div class="col-md-12">
@@ -1215,6 +1280,81 @@
     
     // Global variable to track active status (updated by AJAX)
     var isActive = <?php if (isset($active) && $active == 1) { echo 'true'; } else { echo 'false'; } ?>;
+    
+    // Function to handle combination selection from custom dropdown
+    window.selectCombination = function(value, displayHtml) {
+        // Set the hidden input value
+        const hiddenInput = document.getElementById('wheeling');
+        if (hiddenInput) {
+            hiddenInput.value = value;
+        }
+        
+        // Update the dropdown button text (strip HTML for button display)
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = displayHtml;
+        const textContent = tempDiv.textContent || tempDiv.innerText || '';
+        const selectedTextElement = document.getElementById('wheelingSelectedText');
+        if (selectedTextElement) {
+            selectedTextElement.textContent = textContent;
+        }
+        
+        // Close the dropdown
+        const dropdownButton = document.getElementById('wheelingDropdown');
+        if (dropdownButton) {
+            try {
+                // Try jQuery/Bootstrap dropdown method first
+                if (typeof $ !== 'undefined' && $.fn.dropdown) {
+                    $(dropdownButton).dropdown('hide');
+                } else {
+                    // Fallback: manually close dropdown by removing show class
+                    dropdownButton.classList.remove('show');
+                    dropdownButton.setAttribute('aria-expanded', 'false');
+                    const dropdownMenu = dropdownButton.nextElementSibling;
+                    if (dropdownMenu && dropdownMenu.classList.contains('dropdown-menu')) {
+                        dropdownMenu.classList.remove('show');
+                    }
+                }
+            } catch (error) {
+                // Continue execution even if dropdown close fails
+            }
+        }
+        
+        // Manually enable elements that should be enabled when a combination is selected
+        if (value) {
+            // Enable Generate Tickets button
+            const generateBtn = document.getElementById('submit-btn');
+            if (generateBtn) {
+                generateBtn.disabled = false;
+            }
+            
+            // Enable all preset checkboxes (including H-W-C and Followers)
+            const presetCheckboxes = document.querySelectorAll('.preset-checkbox');
+            const presetOptions = document.querySelectorAll('.preset-option');
+            
+            presetCheckboxes.forEach(checkbox => {
+                checkbox.disabled = false;
+            });
+            
+            presetOptions.forEach(option => {
+                option.classList.remove('disabled');
+                option.classList.add('enabled');
+            });
+        }
+        
+        // Trigger change event for other listeners
+        if (hiddenInput) {
+            const changeEvent = new Event('change', { bubbles: true });
+            hiddenInput.dispatchEvent(changeEvent);
+        }
+        
+        // Update active class
+        document.querySelectorAll('.dropdown-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        if (event && event.target) {
+            event.target.classList.add('active');
+        }
+    }
     
     // Run your script after the page is loaded
     document.addEventListener('DOMContentLoaded', function () {
@@ -1706,7 +1846,13 @@
     function viewCombinationWinners(comboId) {
         // Use the filter record ID if available, otherwise show error
         <?php if (!empty($filter_record_id)): ?>
-            var filterRecordId = <?= $filter_record_id ?>;
+            var filterRecordId = <?= $filter_record_id ?: 'null' ?>;
+            
+            // Check if filter record exists
+            if (!filterRecordId || filterRecordId === null) {
+                alert('No saved filter found. Please save filtered tickets first using the "Save Filtered Tickets" button, then try again.');
+                return;
+            }
             
             // Check the global isActive variable (which gets updated by AJAX)
             if (!isActive) {

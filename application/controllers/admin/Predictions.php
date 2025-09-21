@@ -619,15 +619,25 @@ class Predictions extends Admin_Controller {
 		$this->data['state_prov_code'] = $this->lottery_data_m->get_lottery_state_prov($id);
 		// Fetch combination files for the lottery
     	$this->data['combination_files'] = $this->predictions_m->get_combination_files($id);
+		// Get saved combinations status before processing combination files
+		$user_id = $this->session->userdata('id');
+		$saved_combinations = $this->lottery_data_m->get_all_user_combination_filters($id, $user_id);
+		$combo_status = [];
+		foreach ($saved_combinations as $saved_combo) {
+			$combo_status[$saved_combo['combo_id']] = $saved_combo['active'];
+		}
+
 		// Before passing $combination_files to the view
 		if (!empty($this->data['combination_files'])) {
-			 // Transform the combination files to include id|filename in value
+			 // Transform the combination files to include id|filename in value and status
 			foreach ($this->data['combination_files'] as $index => &$file) {
 				$file_path = $this->combination_files_m->full_path($file['file_name']);
 				$file_content = file_get_contents($file_path); // Read file content
 				if (!empty(trim($file_content))) {
 					$file['value'] = $file['id'] . '|' . $file['file_name']; // e.g., "246|060828"
 					$file['display'] = $file['file_name']; // Keep original filename for display
+					// Add status information
+					$file['active'] = isset($combo_status[$file['id']]) ? $combo_status[$file['id']] : null;
 				}
 				else {
 					unset($this->data['combination_files'][$index]); // Remove file with no content
@@ -734,9 +744,8 @@ class Predictions extends Admin_Controller {
 				$this->Ffuturedata['filter_record_id'] = NULL;
 			}
 			
-			// Get all saved combination filters for the user
-			$user_id = $this->session->userdata('id');
-			$this->data['saved_combinations'] = $this->lottery_data_m->get_all_user_combination_filters($id, $user_id);
+			// Get all saved combination filters for the user (saved for view data, but also used above)
+			$this->data['saved_combinations'] = $saved_combinations;
 			
 			$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
 			$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);

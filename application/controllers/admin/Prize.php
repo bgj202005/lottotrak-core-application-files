@@ -776,8 +776,19 @@ class Prize extends Admin_Controller
         $filter = $this->db->get()->row();
         
         if (!$filter) {
-            log_message('error', 'Filter not found or access denied for filter_id: ' . $filter_id . ', admin_id: ' . $admin_id);
-            show_error('Filter not found or access denied', 404);
+            // Check if filter exists but with different user restrictions
+            $this->db->select('lcf.id, lcf.user, lcf.user_id');
+            $this->db->from('lottery_combination_filters lcf');
+            $this->db->where('lcf.id', $filter_id);
+            $check_filter = $this->db->get()->row();
+            
+            if ($check_filter) {
+                log_message('error', 'Filter access denied for filter_id: ' . $filter_id . ', admin_id: ' . $admin_id . '. Filter belongs to user_id: ' . $check_filter->user_id);
+                show_error('Access denied: This filter belongs to a different user.', 403);
+            } else {
+                log_message('error', 'Filter not found for filter_id: ' . $filter_id);
+                show_error('Filter not found. The filter may have been deleted or never existed.', 404);
+            }
         }
         
         // Debug logging to see what filter values we retrieved
