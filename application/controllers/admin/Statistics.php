@@ -1092,8 +1092,12 @@ class Statistics extends Admin_Controller {
 					$this->statistics_m->hwc_data_save($hwc, TRUE);
 					
 					// Calculate H-W-C win statistics when recalculation occurs
+					// Calculate counts from the actual hot/warm/cold arrays, not from non-existent properties
+					$hot_count = count(explode(',', $strhots));
+					$warm_count = count(explode(',', $strwarms));
+					$cold_count = count(explode(',', $strcolds));
 					$this->calculate_hwc_wins($id, $new_range, $this->data['lottery']->prediction_pool, 
-						$this->data['lottery']->H, $this->data['lottery']->W, $this->data['lottery']->C,
+						$hot_count, $warm_count, $cold_count,
 						$this->data['lottery']->extra_included, $this->data['lottery']->extra_draws);
 				}
 				else  
@@ -1157,8 +1161,12 @@ class Statistics extends Admin_Controller {
 			$this->statistics_m->hwc_data_save($hwc, FALSE);
 			
 			// Calculate H-W-C win statistics for new H-W-C setup
+			// Calculate counts from the actual hot/warm/cold arrays, not from non-existent properties
+			$hot_count = count(explode(',', $strhots));
+			$warm_count = count(explode(',', $strwarms));
+			$cold_count = count(explode(',', $strcolds));
 			$this->calculate_hwc_wins($id, $new_range, $this->data['lottery']->prediction_pool, 
-				$this->data['lottery']->H, $this->data['lottery']->W, $this->data['lottery']->C,
+				$hot_count, $warm_count, $cold_count,
 				$this->data['lottery']->extra_included, $this->data['lottery']->extra_draws);
 		}
 		$hots = explode(",", $strhots); // Convert to Arrays
@@ -1627,8 +1635,12 @@ class Statistics extends Admin_Controller {
 		
 		// Calculate H-W-C win statistics during recalculation
 		$prediction_pool = isset($h_w_c['prediction_pool']) ? $h_w_c['prediction_pool'] : 18;
+		// Calculate counts from the actual hot/warm/cold arrays, not from non-existent properties
+		$hot_count = count(explode(',', $strhots));
+		$warm_count = count(explode(',', $strwarms));
+		$cold_count = count(explode(',', $strcolds));
 		$this->calculate_hwc_wins($id, $new_range, $prediction_pool, 
-			$lotto->H, $lotto->W, $lotto->C,
+			$hot_count, $warm_count, $cold_count,
 			$h_w_c['extra_included'], $h_w_c['extra_draws']);
 			
 		$pos_last = $this->statistics_m->position_copylasts($id);

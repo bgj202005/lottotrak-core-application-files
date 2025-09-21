@@ -551,7 +551,8 @@ class History extends Admin_Controller {
 		// Get H-W-C winners data for the Winners tab
 		$hwc_stats = $this->statistics_m->get_hwc_stats($id);
 		if(!empty($hwc_stats) && !empty($hwc_stats['wins'])) {
-			$this->data['hwc_winners'] = $this->parse_hwc_winners($hwc_stats['wins'], $id);
+			$h_w_c_range = isset($hwc_stats['h_w_c_range']) ? $hwc_stats['h_w_c_range'] : '';
+			$this->data['hwc_winners'] = $this->parse_hwc_winners($hwc_stats['wins'], $id, $h_w_c_range);
 		} else {
 			$this->data['hwc_winners'] = array();
 		}
@@ -1453,8 +1454,6 @@ class History extends Admin_Controller {
 			}
 		}
 		
-
-		
 		// Get prize profile for this lottery to determine point values
 		$prize_profile = $this->statistics_m->get_lottery_prize_profile($lottery_id);
 		if(empty($prize_profile)) {
@@ -1526,25 +1525,25 @@ class History extends Admin_Controller {
 				}
 			}
 			
-			// Store the H-W-C pattern with its data
-			if($total_points > 0) {
-				// Get occurrence count for display (try multiple formats for matching)
-				$pattern_count = 0;
-				if (isset($hwc_counts[$hwc_pattern])) {
-					$pattern_count = $hwc_counts[$hwc_pattern];
-				} else {
-					// Try alternative formats (with spaces, without spaces)
-					$pattern_with_spaces = str_replace('-', ' - ', $hwc_pattern);
-					$pattern_no_spaces = str_replace('-', '', $hwc_pattern);
-					
-					if (isset($hwc_counts[$pattern_with_spaces])) {
-						$pattern_count = $hwc_counts[$pattern_with_spaces];
-					} elseif (isset($hwc_counts[$pattern_no_spaces])) {
-						$pattern_count = $hwc_counts[$pattern_no_spaces];
-					}
-				}
+			// Get occurrence count for display (try multiple formats for matching)
+			$pattern_count = 0;
+			if (isset($hwc_counts[$hwc_pattern])) {
+				$pattern_count = $hwc_counts[$hwc_pattern];
+			} else {
+				// Try alternative formats (with spaces, without spaces)
+				$pattern_with_spaces = str_replace('-', ' - ', $hwc_pattern);
+				$pattern_no_spaces = str_replace('-', '', $hwc_pattern);
 				
-				// Show all patterns with wins (include those with 0 count for completeness)
+				if (isset($hwc_counts[$pattern_with_spaces])) {
+					$pattern_count = $hwc_counts[$pattern_with_spaces];
+				} elseif (isset($hwc_counts[$pattern_no_spaces])) {
+					$pattern_count = $hwc_counts[$pattern_no_spaces];
+				}
+			}
+			
+			// Show patterns that actually occurred in the analyzed range, regardless of points
+			// This includes patterns with 0 points but occurrence_count > 0
+			if ($pattern_count > 0) {
 				$winners[] = array(
 					'hwc_pattern' => $hwc_pattern,
 					'total_points' => $total_points,
