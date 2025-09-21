@@ -5857,7 +5857,8 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			// Step 4: Compare prediction numbers against actual draw and calculate wins
 			$win_categories = $this->calculate_win_categories_direct($actual_prediction_numbers, $draw, $prize_profile, $extra_included);
 			
-			// Step 5: Accumulate win statistics (maximum 1 win per draw enforced)
+			// Step 5: Accumulate win statistics for ALL patterns (no filtering)
+			// This ensures we track wins for every H-W-C pattern that appears
 			$pattern_key = implode('-', $hwc_pattern);
 			if (!isset($win_stats[$pattern_key])) {
 				$win_stats[$pattern_key] = $this->initialize_win_categories($prize_profile);

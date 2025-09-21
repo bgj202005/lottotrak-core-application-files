@@ -663,35 +663,51 @@ class Predictions_m extends MY_Model
 			}
 		}
 		
-		// Only include patterns that have wins (matching H-W-C Winners Analysis behavior)
 		// Sort hwc_counts by count descending (most frequent first)
 		arsort($hwc_counts);
 		
+		// Start with patterns that have occurrence counts (these definitely occurred)
 		$result = [];
 		
-		// Only add patterns that have performance data (wins/points)
+		// First pass: Add all patterns with counts > 0, with their ranks if available
 		foreach ($hwc_counts as $pattern => $count) {
-			// Only include if pattern has wins AND occurrence count > 0
-			if ($count > 0 && isset($hwc_ranks[$pattern])) {
-				$rank = $hwc_ranks[$pattern];
-				$result[$pattern] = $pattern . ' (' . $count . ') - Rank #' . $rank;
+			if ($count > 0) {
+				$rank = isset($hwc_ranks[$pattern]) ? $hwc_ranks[$pattern] : 999;
+				
+				if ($rank == 999) {
+					$result[$pattern] = $pattern . ' (' . $count . ') - Unranked';
+				} else {
+					$result[$pattern] = $pattern . ' (' . $count . ') - Rank #' . $rank;
+				}
 			}
 		}
 		
-		// Re-assign sequential ranks to maintain proper order
-		$final_result = [];
-		$new_rank = 1;
-		
-		// Use the sorted order from hwc_points to assign sequential ranks
-		foreach ($hwc_points as $pattern => $points) {
-			if (isset($result[$pattern])) {
+		// Get patterns that need rank reassignment (only ranked ones with counts > 0)
+		$ranked_patterns = [];
+		foreach ($result as $pattern => $display) {
+			if (strpos($display, 'Rank #') !== false) {
+				$rank = isset($hwc_ranks[$pattern]) ? $hwc_ranks[$pattern] : 999;
 				$count = $hwc_counts[$pattern];
-				$final_result[$pattern] = $pattern . ' (' . $count . ') - Rank #' . $new_rank;
+				$points = isset($hwc_points[$pattern]) ? $hwc_points[$pattern] : 0;
+				
+				$ranked_patterns[$pattern] = [
+					'count' => $count,
+					'original_rank' => $rank,
+					'points' => $points
+				];
+			}
+		}
+		
+		// Sort ranked patterns to get proper sequential order (already sorted by parse_hwc_points)
+		// Re-assign sequential ranks starting from 1
+		$new_rank = 1;
+		foreach ($hwc_points as $pattern => $points) {
+			if (isset($ranked_patterns[$pattern])) {
+				$count = $ranked_patterns[$pattern]['count'];
+				$result[$pattern] = $pattern . ' (' . $count . ') - Rank #' . $new_rank;
 				$new_rank++;
 			}
 		}
-		
-		$result = $final_result;
 		
 		return $result;
 	}

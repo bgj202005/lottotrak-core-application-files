@@ -1394,8 +1394,9 @@ class History extends Admin_Controller {
 			redirect('admin/history');
 		}
 		
-		// Parse the wins string and calculate points
-		$this->data['hwc_winners'] = $this->parse_hwc_winners($hwc_stats['wins'], $id);
+		// Parse the wins string and calculate points, filtering by occurrence counts if available
+		$h_w_c_range = isset($hwc_stats['h_w_c_range']) ? $hwc_stats['h_w_c_range'] : '';
+		$this->data['hwc_winners'] = $this->parse_hwc_winners($hwc_stats['wins'], $id, $h_w_c_range);
 		
 		// Get lottery profile information for display
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);
@@ -1428,9 +1429,31 @@ class History extends Admin_Controller {
 	 * @param		int		$lottery_id		Lottery ID for prize profile lookup
 	 * @return		array					Array of H-W-C patterns with points sorted by points desc
 	 */
-	private function parse_hwc_winners($wins_string, $lottery_id)
+	private function parse_hwc_winners($wins_string, $lottery_id, $h_w_c_range = '')
 	{
 		$winners = array();
+		
+		// Parse H-W-C occurrence counts to filter out patterns that never occurred
+		$hwc_counts = array();
+		if (!empty($h_w_c_range)) {
+			$items = explode(',', $h_w_c_range);
+			foreach ($items as $item) {
+				$parts = explode('=', $item);
+				if (count($parts) == 2) {
+					$label = trim($parts[0]);
+					$total = (int)trim($parts[1]);
+					$hwc_counts[$label] = $total;
+					
+					// Also store without spaces for matching flexibility
+					$label_no_spaces = str_replace(' ', '', $label);
+					if ($label_no_spaces != $label) {
+						$hwc_counts[$label_no_spaces] = $total;
+					}
+				}
+			}
+		}
+		
+
 		
 		// Get prize profile for this lottery to determine point values
 		$prize_profile = $this->statistics_m->get_lottery_prize_profile($lottery_id);
@@ -1505,11 +1528,29 @@ class History extends Admin_Controller {
 			
 			// Store the H-W-C pattern with its data
 			if($total_points > 0) {
+				// Get occurrence count for display (try multiple formats for matching)
+				$pattern_count = 0;
+				if (isset($hwc_counts[$hwc_pattern])) {
+					$pattern_count = $hwc_counts[$hwc_pattern];
+				} else {
+					// Try alternative formats (with spaces, without spaces)
+					$pattern_with_spaces = str_replace('-', ' - ', $hwc_pattern);
+					$pattern_no_spaces = str_replace('-', '', $hwc_pattern);
+					
+					if (isset($hwc_counts[$pattern_with_spaces])) {
+						$pattern_count = $hwc_counts[$pattern_with_spaces];
+					} elseif (isset($hwc_counts[$pattern_no_spaces])) {
+						$pattern_count = $hwc_counts[$pattern_no_spaces];
+					}
+				}
+				
+				// Show all patterns with wins (include those with 0 count for completeness)
 				$winners[] = array(
 					'hwc_pattern' => $hwc_pattern,
 					'total_points' => $total_points,
 					'win_breakdown' => $win_breakdown,
-					'enabled_categories' => $enabled_categories
+					'enabled_categories' => $enabled_categories,
+					'occurrence_count' => $pattern_count
 				);
 			}
 		}
