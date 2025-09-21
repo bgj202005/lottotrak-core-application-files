@@ -98,6 +98,35 @@
 		font-size: 0.95em;
 		min-width: 80px;
 	}
+
+	/* H-W-C Winners Table - Increase font size by 20% */
+	/* Override Bootstrap table-sm class which makes fonts smaller */
+	#hwc-winners-table {
+		font-size: 1.2em !important;
+	}
+	
+	#hwc-winners-table.table-sm th {
+		font-size: 1.02em !important; /* Override Bootstrap table-sm header size */
+		padding: 0.75rem !important; /* Override Bootstrap table-sm padding */
+	}
+	
+	#hwc-winners-table.table-sm td {
+		font-size: 1.14em !important; /* Override Bootstrap table-sm cell size */
+		padding: 0.75rem !important; /* Override Bootstrap table-sm padding */
+	}
+	
+	/* Maintain responsive text sizes for H-W-C Winners on different screens */
+	@media (max-width: 576px) {
+		#hwc-winners-table {
+			font-size: 1.1em !important; /* Slightly smaller increase on mobile */
+		}
+		#hwc-winners-table th {
+			font-size: 0.95em !important;
+		}
+		#hwc-winners-table td {
+			font-size: 1.05em !important;
+		}
+	}
 	
 	/* Table container for mobile-friendly layout */
 	.table-container {
