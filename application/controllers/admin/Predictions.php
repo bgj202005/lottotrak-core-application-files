@@ -1242,11 +1242,11 @@ class Predictions extends Admin_Controller {
 	}
 		// Fetch H-W-C, Followers, and Friends data
 		$this->data['h_w_c'] = $this->predictions_m->get_h_w_c($id);
-		$h_w_c_group = $this->predictions_m->get_h_w_c_range($id);
+		// Get H-W-C data with rank for the futures dropdown (consistent with futures method)
+		$h_w_c_group_with_rank = $this->predictions_m->get_h_w_c_range_with_rank($id);
 		$h_w_c_group_options = [];
-		foreach ($h_w_c_group as $group) {
-			$value = substr($group, 0, 5);
-			$h_w_c_group_options[$value] = $group;
+		foreach ($h_w_c_group_with_rank as $pattern => $display) {
+			$h_w_c_group_options[$pattern] = $display;
 		}
 		$this->data['h_w_c_group'] = $h_w_c_group_options;
 		// Fetch extra ball occurrences for independent extra ball lotteries only
