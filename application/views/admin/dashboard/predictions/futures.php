@@ -860,7 +860,7 @@
 													if ($value === $selected_value) {
 														if (isset($file['active'])) {
 															if ($file['active'] === '1' || $file['active'] === 1 || $file['active'] === true) {
-																echo 'Enabled ';
+																echo 'Active ';
 															} else {
 																echo 'Expired ';
 															}
@@ -883,7 +883,7 @@
 												$status_badge = '';
 												if (isset($file['active'])) {
 													if ($file['active'] === '1' || $file['active'] === 1 || $file['active'] === true) {
-														$status_badge = '<span class="badge badge-success" style="background-color: #28a745; color: white;">Enabled</span> ';
+														$status_badge = '<span class="badge badge-success" style="background-color: #28a745; color: white;">Active</span> ';
 													} else {
 														$status_badge = '<span class="badge badge-danger" style="background-color: #dc3545; color: white;">Expired</span> ';
 													}
