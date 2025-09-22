@@ -202,6 +202,78 @@
 		color: white !important;
 	}
 	
+	/* Mobile-specific CSS */
+	@media (max-width: 768px) {
+		/* Make form labels full width and left-aligned on mobile */
+		.form-group .col-form-label {
+			text-align: left !important;
+			margin-bottom: 0.5rem;
+		}
+		
+		/* Ensure form controls are touch-friendly */
+		.form-control, .btn {
+			min-height: 44px;
+			font-size: 16px; /* Prevents zoom on iOS */
+		}
+		
+		/* Improve table responsiveness on mobile */
+		.table-responsive {
+			border: none;
+			margin-bottom: 0;
+		}
+		
+		/* Stack table sections with proper spacing */
+		.table-section {
+			margin-bottom: 1rem !important;
+			padding: 0.75rem !important;
+		}
+		
+		/* Optimize table title for mobile */
+		.table-title {
+			font-size: 1rem !important;
+			padding: 0.5rem !important;
+			line-height: 1.3;
+		}
+		
+		/* Better button spacing on mobile */
+		.btn {
+			margin-bottom: 0.5rem;
+			touch-action: manipulation;
+		}
+		
+		/* Improve dropdown menu on mobile */
+		.dropdown-menu {
+			max-height: 250px;
+			overflow-y: auto;
+			-webkit-overflow-scrolling: touch;
+		}
+		
+		/* Better spacing for form groups */
+		.form-group {
+			margin-bottom: 1rem;
+		}
+		
+		/* Optimize alerts for mobile */
+		.alert {
+			font-size: 0.9rem;
+			padding: 0.75rem;
+		}
+	}
+	
+	/* Tablet-specific optimizations */
+	@media (min-width: 768px) and (max-width: 992px) {
+		/* Adjust button sizing for tablets */
+		.btn-lg {
+			padding: 0.75rem 1.5rem;
+			font-size: 1.1rem;
+		}
+		
+		/* Optimize table for tablet view */
+		.table-section {
+			padding: 1rem;
+		}
+	}
+	
 	#futures-filter-table th,
 	#futures-filter-table td {
 		font-size: 0.75em;
@@ -725,30 +797,30 @@
 						<!-- Country -->
 						<div class="form-group row justify-content-center">
 							<?php
-							$extra = ['class' => 'col-4 col-form-label col-form-label-md text-right'];
+							$extra = ['class' => 'col-sm-4 col-12 col-form-label col-form-label-md text-sm-right text-left'];
 							echo form_label('Country:', 'country', $extra);
 							?>
-							<div class="col-6" style = "margin-top: 0.5em;">
+							<div class="col-sm-6 col-12" style = "margin-top: 0.5em;">
 								<span id="country-name"></span>
 							</div>
 						</div>
 						<!-- Province/State -->
 						<div class="form-group row justify-content-center">
 							<?php
-							$extra = ['class' => 'col-4 col-form-label col-form-label-md text-right'];
+							$extra = ['class' => 'col-sm-4 col-12 col-form-label col-form-label-md text-sm-right text-left'];
 							echo form_label('Province/State:', 'province', $extra);
 							?>
-							<div class="col-6" style = "margin-top: 0.5em;">
+							<div class="col-sm-6 col-12" style = "margin-top: 0.5em;">
 								<span id="state-name"></span>
 							</div>
 						</div>
 						<div class="form-group row justify-content-center">
 							<?php
 							// Label for the dropdown
-							$extra = ['class' => 'col-4 col-form-label col-form-label-md text-right'];
+							$extra = ['class' => 'col-sm-4 col-12 col-form-label col-form-label-md text-sm-right text-left'];
 							echo form_label('Combination Table:', 'wheeling', $extra);
 							?>
-							<div class="col-6">
+							<div class="col-sm-6 col-12">
 								<?php
 								// For the selected value, we need to check if it matches the filename part
 								$selected_value = '';
@@ -778,7 +850,7 @@
 								$disabled_attr = !empty($disable_combination_dropdown) ? 'disabled' : '';
 								?>
 								<div class="dropdown" style="width: 80%;">
-									<button class="btn btn-outline-secondary dropdown-toggle form-control text-left" type="button" id="wheelingDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="background: white; border: 1px solid #ced4da; color: #495057 !important; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" <?= $disabled_attr ?>>
+									<button class="btn btn-outline-secondary dropdown-toggle form-control text-left" type="button" id="wheelingDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="background: white; border: 1px solid #ced4da; color: #495057 !important; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 38px; touch-action: manipulation;" <?= $disabled_attr ?>>
 										<span id="wheelingSelectedText">
 											<?php 
 											if (!empty($selected_value)) {
@@ -834,7 +906,7 @@
 						</div>
 						
 						<div class="row">
-							<div class="col-md-12">
+							<div class="col-12">
 								<!-- First Table: Presets Control Panel -->
 								<div class="table-section" style="border:2px solid #007bff; border-radius:8px; margin-bottom:2em; padding:1em;">
 									<div class="table-title" style="font-weight:bold; font-size:1.2em; background:#f8f9fa; border-bottom:1px solid #007bff; padding:0.5em 1em; border-radius:6px 6px 0 0; margin:-1em -1em 1em -1em;">
@@ -923,7 +995,7 @@
 							</div>
 						</div>
 						<div class="row">
-							<div class="col-md-12">
+							<div class="col-12">
 								<!-- Second Table: Actual Win History Filtering -->
 								<div class="table-section" style="border:2px solid #28a745; border-radius:8px; margin-bottom:2em; padding:1em; overflow: hidden; position: relative;">
 									<div class="table-title" style="font-weight:bold; font-size:1.2em; background:#f8f9fa; border-bottom:1px solid #28a745; padding:0.5em 1em; border-radius:6px 6px 0 0; margin:-1em -1em 1em -1em;">
@@ -1042,32 +1114,50 @@
 						</div>
 						<!-- Submit Button -->
 						<div class="form-group text-center mt-3">
-							<?php
-							$extra = ['class' => 'btn btn-primary btn-lg', 'id' => 'submit-btn'];
-							if ($disable_generate_button) {
-								$extra['disabled'] = 'disabled';
-							}
-							echo form_submit('submit', 'Generate Tickets', $extra);
-						// Both buttons are disabled by default
-							echo form_button([
-								'type' => 'button',
-								'class' => 'btn btn-success btn-lg mx-2',
-								'id' => 'save-filtered-btn',
-								'disabled' => 'disabled'
-							], 'Save Filtered Tickets');
-							echo form_button([
-								'type' => 'button',
-								'class' => 'btn btn-warning btn-lg mx-2',
-								'id' => 'reset-settings-btn',
-								'disabled' => 'disabled'
-							], 'Reset Settings');
-							echo form_button([
-								'type' => 'button',
-								'class' => 'btn btn-danger btn-lg mx-2',
-								'id' => 'delete-filtered-btn',
-								'disabled' => 'disabled'
-							], 'Delete Filtered Tickets');
-							?>	
+							<div class="row justify-content-center">
+								<div class="col-lg-3 col-md-6 col-12 mb-2">
+									<?php
+									$extra = ['class' => 'btn btn-primary btn-lg w-100', 'id' => 'submit-btn', 'style' => 'touch-action: manipulation; min-height: 48px;'];
+									if ($disable_generate_button) {
+										$extra['disabled'] = 'disabled';
+									}
+									echo form_submit('submit', 'Generate Tickets', $extra);
+									?>
+								</div>
+								<div class="col-lg-3 col-md-6 col-12 mb-2">
+									<?php
+									echo form_button([
+										'type' => 'button',
+										'class' => 'btn btn-success btn-lg w-100',
+										'id' => 'save-filtered-btn',
+										'disabled' => 'disabled',
+										'style' => 'touch-action: manipulation; min-height: 48px;'
+									], 'Save Filtered Tickets');
+									?>
+								</div>
+								<div class="col-lg-3 col-md-6 col-12 mb-2">
+									<?php
+									echo form_button([
+										'type' => 'button',
+										'class' => 'btn btn-warning btn-lg w-100',
+										'id' => 'reset-settings-btn',
+										'disabled' => 'disabled',
+										'style' => 'touch-action: manipulation; min-height: 48px;'
+									], 'Reset Settings');
+									?>
+								</div>
+								<div class="col-lg-3 col-md-6 col-12 mb-2">
+									<?php
+									echo form_button([
+										'type' => 'button',
+										'class' => 'btn btn-danger btn-lg w-100',
+										'id' => 'delete-filtered-btn',
+										'disabled' => 'disabled',
+										'style' => 'touch-action: manipulation; min-height: 48px;'
+									], 'Delete Filtered Tickets');
+									?>
+								</div>
+							</div>
 							<?= form_close(); ?>
 						</div>
 						<?php if (!empty($number_array)): ?>

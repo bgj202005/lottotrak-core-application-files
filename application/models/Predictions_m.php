@@ -669,14 +669,13 @@ class Predictions_m extends MY_Model
 		// Start with patterns that have occurrence counts (these definitely occurred)
 		$result = [];
 		
-		// First pass: Add all patterns with counts > 0, with their ranks if available
+		// First pass: Add only patterns with counts > 0 AND ranks (exclude unranked patterns)
 		foreach ($hwc_counts as $pattern => $count) {
 			if ($count > 0) {
 				$rank = isset($hwc_ranks[$pattern]) ? $hwc_ranks[$pattern] : 999;
 				
-				if ($rank == 999) {
-					$result[$pattern] = $pattern . ' (' . $count . ') - Unranked';
-				} else {
+				// Only include ranked patterns (exclude unranked patterns with rank = 999)
+				if ($rank != 999) {
 					$result[$pattern] = $pattern . ' (' . $count . ') - Rank #' . $rank;
 				}
 			}
