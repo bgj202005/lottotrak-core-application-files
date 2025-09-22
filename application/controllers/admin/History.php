@@ -102,6 +102,18 @@ class History extends Admin_Controller {
 			redirect('admin/history'); 
 		}
 
+		// Check if lottery highlights need updating and update if necessary
+		$this->load->model('prize_m');
+		$highlight_check = $this->prize_m->check_and_update_lottery_highlights($id);
+		
+		// Set message based on highlight check result
+		if ($highlight_check['status'] === 'updated') {
+			$this->data['message'] = $highlight_check['message'];
+		} elseif ($highlight_check['status'] === 'error') {
+			$this->session->set_flashdata('message', $highlight_check['message']);
+			redirect('admin/history');
+		}
+
 		$all = $this->lotteries_m->db_row_count($tbl_name); // Return the total number of draws for this lottery
 		if($all>100)
 		{
