@@ -23,7 +23,7 @@
     					</div>
 					</article>
 				</div>
-				<?php if(!is_null($article->raw)): ?>
+				<?php if(!empty($article->raw) && trim($article->raw) != ''): ?>
 				<div class="row">
 					<div class="article-raw-content">
 						<?php echo stripslashes($article->raw); ?> 
