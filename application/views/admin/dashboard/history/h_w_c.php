@@ -313,13 +313,47 @@
         color: #1976d2;
     }
     
-    /* Flexible column width optimization - no fixed widths */
-    #hwc-winners-table th,
-    #hwc-winners-table td {
-        white-space: nowrap;
-        text-align: center;
-        padding: 0.5rem 0.25rem;
-        font-size: 0.95em; /* Match datafont size from Last Draw and Future Draw tabs */
+    /* Force font size overrides for Bootstrap table classes */
+    #hwc-winners-table.table th,
+    #hwc-winners-table.table td,
+    #hwc-winners-table.table-sm th,
+    #hwc-winners-table.table-sm td {
+        font-size: 0.97em !important; /* Increased by 10% from 0.88em (0.88 * 1.1 = 0.968 ≈ 0.97) */
+        padding: 0.3rem 0.15rem !important; /* Override Bootstrap padding */
+        white-space: nowrap !important;
+        text-align: center !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        line-height: 1.2 !important; /* Tighter line height */
+    }
+    
+    /* Ensure table container allows proper scrolling */
+    #hwc-winners-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    }
+    
+    /* Override Bootstrap table header styles specifically */
+    .thead-dark th {
+        font-size: inherit !important;
+        padding: inherit !important;
+        font-weight: 600 !important; /* Slightly reduce font weight for smaller text */
+    }
+    
+    /* Force override any external Bootstrap Table CSS */
+    .table-responsive .table th,
+    .table-responsive .table td {
+        font-size: inherit !important;
+        padding: inherit !important;
+    }
+    
+    /* Ultimate override for desktop display - very specific selector */
+    div.table-responsive#hwc-winners-container table#hwc-winners-table.table.table-hover.table-striped.table-sm th,
+    div.table-responsive#hwc-winners-container table#hwc-winners-table.table.table-hover.table-striped.table-sm td {
+        font-size: 0.88em !important; /* Increased by 10% from 0.80em (0.80 * 1.1 = 0.88) */
+        padding: 0.25rem 0.1rem !important;
+        line-height: 1.1 !important;
+        border: 1px solid #dee2e6 !important; /* Maintain borders */
     }
     
     #hwc-winners-table th.col-rank,
@@ -347,8 +381,9 @@
     
     #hwc-winners-table th.col-prize,
     #hwc-winners-table td.col-prize { 
-        min-width: 45px;
-        max-width: 65px;
+        min-width: 35px !important; /* Reduced further for compact display */
+        max-width: 70px !important; /* Allow more flexibility for "Extra" text */
+        width: auto !important; /* Let content determine width */
     }
     
     #hwc-winners-table th.col-points,
@@ -421,32 +456,28 @@
         transform: scale(1.01);
     }
     
-    /* Bootstrap Responsive Enhancement - Mobile-First Design */
+    /* Bootstrap Responsive Enhancement with !important overrides */
     @media (max-width: 1199.98px) {
-        #hwc-winners-table {
-            font-size: 0.9em; /* Slightly smaller on large tablets */
+        #hwc-winners-table.table th,
+        #hwc-winners-table.table td {
+            font-size: 0.88em !important; /* Increased by 10% from 0.80em (0.80 * 1.1 = 0.88) */
+            padding: 0.25rem 0.1rem !important;
         }
     }
     
     @media (max-width: 991.98px) {
-        #hwc-winners-table {
-            font-size: 0.85em; /* Proportional scaling from 0.95em base */
-        }
-        
-        #hwc-winners-table th,
-        #hwc-winners-table td {
-            padding: 0.5rem 0.25rem;
+        #hwc-winners-table.table th,
+        #hwc-winners-table.table td {
+            font-size: 0.83em !important; /* Increased by 10% from 0.75em (0.75 * 1.1 ≈ 0.83) */
+            padding: 0.2rem 0.08rem !important;
         }
     }
     
     @media (max-width: 767.98px) {
-        #hwc-winners-table {
-            font-size: 0.8em; /* Proportional scaling for mobile */
-        }
-        
-        #hwc-winners-table th,
-        #hwc-winners-table td {
-            padding: 0.375rem 0.25rem;
+        #hwc-winners-table.table th,
+        #hwc-winners-table.table td {
+            font-size: 0.77em !important; /* Increased by 10% from 0.70em (0.70 * 1.1 = 0.77) */
+            padding: 0.15rem 0.05rem !important;
         }
         
         /* Enhanced mobile badge styling - proportionally scaled */
@@ -462,14 +493,15 @@
     }
     
     @media (max-width: 575.98px) {
-        #hwc-winners-table {
-            font-size: 0.75em; /* Proportional scaling from 0.95em base */
-            min-width: 450px; /* Reduced minimum width for very small screens */
+        #hwc-winners-table.table th,
+        #hwc-winners-table.table td {
+            font-size: 0.70em !important; /* Increased by 10% from 0.64em (0.64 * 1.1 ≈ 0.70) */
+            padding: 0.1rem 0.03rem !important; /* Minimal padding */
+            min-width: unset !important; /* Allow columns to be as narrow as needed */
         }
         
-        #hwc-winners-table th,
-        #hwc-winners-table td {
-            padding: 0.25rem 0.125rem;
+        #hwc-winners-table {
+            min-width: 400px !important; /* Reduce minimum table width */
         }
         
         /* Ultra-compact mobile view */
@@ -1681,64 +1713,64 @@
 																				<th class="text-center col-prize d-none d-md-table-cell">1</th>
 																			<?php elseif($category == '1_win_extra'): ?>
 																				<th class="text-center col-prize d-none d-lg-table-cell">
-																					<span class="d-none d-xl-inline">1 + Extra</span>
-																					<span class="d-inline d-xl-none">1+E</span>
+																					<span class="d-none d-lg-inline">1 + Extra</span>
+																					<span class="d-inline d-lg-none">1+</span>
 																				</th>
 																			<?php elseif($category == '2_win'): ?>
 																				<th class="text-center col-prize">2</th>
 																			<?php elseif($category == '2_win_extra'): ?>
 																				<th class="text-center col-prize d-none d-lg-table-cell">
-																					<span class="d-none d-xl-inline">2 + Extra</span>
-																					<span class="d-inline d-xl-none">2+E</span>
+																					<span class="d-none d-lg-inline">2 + Extra</span>
+																					<span class="d-inline d-lg-none">2+</span>
 																				</th>
 																			<?php elseif($category == '3_win'): ?>
 																				<th class="text-center col-prize">3</th>
 																			<?php elseif($category == '3_win_extra'): ?>
 																				<th class="text-center col-prize d-none d-lg-table-cell">
-																					<span class="d-none d-xl-inline">3 + Extra</span>
-																					<span class="d-inline d-xl-none">3+E</span>
+																					<span class="d-none d-lg-inline">3 + Extra</span>
+																					<span class="d-inline d-lg-none">3+</span>
 																				</th>
 																			<?php elseif($category == '4_win'): ?>
 																				<th class="text-center col-prize">4</th>
 																			<?php elseif($category == '4_win_extra'): ?>
 																				<th class="text-center col-prize d-none d-lg-table-cell">
-																					<span class="d-none d-xl-inline">4 + Extra</span>
-																					<span class="d-inline d-xl-none">4+E</span>
+																					<span class="d-none d-lg-inline">4 + Extra</span>
+																					<span class="d-inline d-lg-none">4+</span>
 																				</th>
 																			<?php elseif($category == '5_win'): ?>
 																				<th class="text-center col-prize">5</th>
 																			<?php elseif($category == '5_win_extra'): ?>
 																				<th class="text-center col-prize d-none d-lg-table-cell">
-																					<span class="d-none d-xl-inline">5 + Extra</span>
-																					<span class="d-inline d-xl-none">5+E</span>
+																					<span class="d-none d-lg-inline">5 + Extra</span>
+																					<span class="d-inline d-lg-none">5+</span>
 																				</th>
 																			<?php elseif($category == '6_win'): ?>
 																				<th class="text-center col-prize">6</th>
 																			<?php elseif($category == '6_win_extra'): ?>
 																				<th class="text-center col-prize d-none d-lg-table-cell">
-																					<span class="d-none d-xl-inline">6 + Extra</span>
-																					<span class="d-inline d-xl-none">6+E</span>
+																					<span class="d-none d-lg-inline">6 + Extra</span>
+																					<span class="d-inline d-lg-none">6+</span>
 																				</th>
 																			<?php elseif($category == '7_win'): ?>
 																				<th class="text-center col-prize d-none d-sm-table-cell">7</th>
 																			<?php elseif($category == '7_win_extra'): ?>
 																				<th class="text-center col-prize d-none d-lg-table-cell">
-																					<span class="d-none d-xl-inline">7 + Extra</span>
-																					<span class="d-inline d-xl-none">7+E</span>
+																					<span class="d-none d-lg-inline">7 + Extra</span>
+																					<span class="d-inline d-lg-none">7+</span>
 																				</th>
 																			<?php elseif($category == '8_win'): ?>
 																				<th class="text-center col-prize d-none d-sm-table-cell">8</th>
 																			<?php elseif($category == '8_win_extra'): ?>
 																				<th class="text-center col-prize d-none d-lg-table-cell">
-																					<span class="d-none d-xl-inline">8 + Extra</span>
-																					<span class="d-inline d-xl-none">8+E</span>
+																					<span class="d-none d-lg-inline">8 + Extra</span>
+																					<span class="d-inline d-lg-none">8+</span>
 																				</th>
 																			<?php elseif($category == '9_win'): ?>
 																				<th class="text-center col-prize d-none d-sm-table-cell">9</th>
 																			<?php elseif($category == '9_win_extra'): ?>
 																				<th class="text-center col-prize d-none d-lg-table-cell">
-																					<span class="d-none d-xl-inline">9 + Extra</span>
-																					<span class="d-inline d-xl-none">9+E</span>
+																					<span class="d-none d-lg-inline">9 + Extra</span>
+																					<span class="d-inline d-lg-none">9+</span>
 																				</th>
 																			<?php endif; ?>
 																		<?php endforeach; ?>
