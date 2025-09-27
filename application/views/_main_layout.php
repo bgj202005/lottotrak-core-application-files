@@ -254,7 +254,11 @@ $(document).ready(function() {
 					$('#validation_success_message').html(data.success).removeClass('d-none');
 					$('#validation_error').addClass('d-none');
 					setTimeout(function() {
-						window.location.href = "<?php echo base_url(); ?>member/validate_email";
+						if(data.redirect_url) {
+							window.location.href = data.redirect_url;
+						} else {
+							window.location.href = "<?php echo base_url(); ?>member/terms_agreement";
+						}
 					}, 2000);
 					$('#register_form')[0].reset();
 				}

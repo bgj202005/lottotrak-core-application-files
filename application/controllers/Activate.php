@@ -50,6 +50,7 @@ class Activate extends Frontend_Controller {
                 $this->data['alert_message'] = "You can not tamper with this form.";    
             }
          // Default View
+    $this->data['maintenance'] = $this->maintenance_m->maintenance_check();
     $this->data['subview'] = 'member/activate';
     $this->load->view('_main_layout', $this->data); 
     }

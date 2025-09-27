@@ -72,6 +72,7 @@ class Member_m extends MY_Model
         $member->lottery_id = 0;
         $member->member_active = 0; // 0 = Member not active, 1 = Member Active
         $member->ip_address = 0;    // IP address field as integer
+        $member->terms_agreement = NULL; // NULL = not asked, TRUE = agreed, FALSE = declined
 		
 		return $member;
     }

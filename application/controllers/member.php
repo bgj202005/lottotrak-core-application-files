@@ -53,9 +53,13 @@ class Member extends Frontend_Controller
 
             // We can save and redirect
             $data = $this->member_m->array_from_post(array('first_name', 'last_name', 'email', 'username', 
-            'reg_time', 'city', 'state_prov', 'country_id','lottery_id', 'member_active', 'subscription_key', 'ip_address'));
+            'reg_time', 'city', 'state_prov', 'country_id','lottery_id', 'member_active', 'subscription_key', 'ip_address', 'terms_agreement'));
             $data['username'] = $member['username'];
             $data['email'] = $member['email'];
+            // Set terms agreement if provided
+            if (isset($member['terms_agreement'])) {
+                $data['terms_agreement'] = $member['terms_agreement'];
+            }
             // Get the user's IP address using the same method as login
             $ip = $this->page_m->getIP();
             $data['ip_address'] = sprintf("%u", ip2long($ip)); // Convert to INT format like in login
@@ -108,33 +112,136 @@ class Member extends Frontend_Controller
         } 
         else
         {
-            // Use Token to send a message to validate Email Address before Activating Account.
-            $this->session->set_flashdata('token', 'validate');
-            $this->session->set_flashdata('member', $new_data_member);
+            // Store member data in session and redirect to terms agreement
+            $this->session->set_userdata('terms_pending', 'active');
+            $this->session->set_userdata('pending_member_data', $new_data_member);
             $array = array(
-                'success' => '<div class="alert alert-success"><p>You are now registered with Lottotrak. <br />You\'re account has been created.<br />
-                Redirecting to dashboard in 3 seconds. <br />Please wait...</p></div>'
+                'success' => '<div class="alert alert-success"><p>Registration data validated. <br />Redirecting to Terms of Service agreement...<br />
+                Please wait...</p></div>',
+                'redirect_url' => site_url('member/terms_agreement')
            );
         }
         echo json_encode($array);
     }
 
+    /**
+     * Display terms and conditions agreement page
+     */
+    public function terms_agreement()
+    {
+        // Check if user has valid registration session
+        $has_valid_session = ($this->session->userdata('terms_pending') == 'active' && 
+                             $this->session->userdata('pending_member_data'));
+        
+        if ($has_valid_session) 
+        {
+            // Add maintenance check if maintenance model is available
+            if (method_exists($this, 'maintenance_m') || isset($this->maintenance_m)) {
+                $this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+            }
+            
+            // Show terms agreement page
+            $this->data['subview'] = 'member/terms_agreement';
+            $this->load->view('_main_layout', $this->data);
+        } 
+        else 
+        {
+            // No valid registration session, redirect to home
+            redirect('home');         
+        } 
+    }
+
+    /**
+     * Process the terms agreement response (agree/decline)
+     */
+    public function process_terms()
+    {
+        // Debug: Log what we received
+        error_log("DEBUG process_terms: POST data = " . print_r($_POST, true));
+        error_log("DEBUG process_terms: terms_pending = " . $this->session->userdata('terms_pending'));
+        error_log("DEBUG process_terms: pending_member exists = " . ($this->session->userdata('pending_member_data') ? 'YES' : 'NO'));
+        
+        // Get pending member data from session
+        $pending_member = $this->session->userdata('pending_member_data');
+        
+        // Verify valid registration session
+        if (!$pending_member || $this->session->userdata('terms_pending') != 'active') {
+            // No pending member data or invalid session, redirect to home
+            error_log("DEBUG process_terms: FAILED session validation - redirecting to home");
+            redirect('home');
+            return;
+        }
+
+        $terms_response = $this->input->post('terms_response');
+        error_log("DEBUG process_terms: terms_response = " . ($terms_response ?: 'NULL'));
+        
+        if ($terms_response === 'agree') {
+            // User agreed to terms - create the account
+            error_log("DEBUG process_terms: User agreed to terms");
+            $pending_member['terms_agreement'] = TRUE;
+            
+            // Clear registration session data
+            $this->session->unset_userdata('terms_pending');
+            $this->session->unset_userdata('pending_member_data');
+            
+            // Use Token to send a message to validate Email Address before Activating Account.
+            $this->session->set_userdata('validate_token', 'validate');
+            $this->session->set_userdata('validate_member', $pending_member);
+            
+            error_log("DEBUG process_terms: Set validate_token and validate_member, redirecting to validate_email");
+            redirect('member/validate_email');
+        } 
+        else if ($terms_response === 'decline') {
+            // User declined terms - clear session and show decline page
+            $this->session->unset_userdata('terms_pending');
+            $this->session->unset_userdata('pending_member_data');
+            
+            // Add maintenance check if maintenance model is available
+            if (method_exists($this, 'maintenance_m') || isset($this->maintenance_m)) {
+                $this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+            }
+            
+            $this->data['subview'] = 'member/terms_declined';
+            $this->load->view('_main_layout', $this->data);
+        } 
+        else {
+            // Invalid response, clear session and redirect to home
+            $this->session->unset_userdata('registration_token');
+            $this->session->unset_userdata('pending_member_data');
+            redirect('home');
+        }
+    }
+
     public function validate_email()
     {
-        if ($this->session->flashdata('token')=='validate') 
+        // Check for valid validation token (must come from terms agreement)
+        $has_validate_token = ($this->session->userdata('validate_token') == 'validate');
+        
+        if ($has_validate_token) 
         {
-            $new_member = $this->session->flashdata('member');
-            // Create member account
+            $new_member = $this->session->userdata('validate_member');
+            
+            // CRITICAL: Verify that terms were actually agreed to
+            if (!isset($new_member['terms_agreement']) || $new_member['terms_agreement'] !== TRUE) {
+                exit('Account creation blocked: Terms of service must be accepted first.');
+            }
+            
+            // Create member account ONLY after terms verification
             $member = $this->member_update(NULL, $new_member);
             $this->data['maintenance'] = $this->maintenance_m->maintenance_check();
             // Send Confirmation email
             $this->member_m->send_confirmation_message($member['urlsecuretoken'], $member['email']);  
+            
+            // Clean up validation session data after use
+            $this->session->unset_userdata('validate_token');
+            $this->session->unset_userdata('validate_member');
+            
             $this->data['subview'] = 'member/validate_email'; 
             $this->load->view('_main_layout', $this->data);
         } 
         else 
         {
-            exit('Unauthorized. Intrusion Detected.');         
+            exit('Unauthorized. Intrusion Detected. You must complete the terms of service agreement first.');         
         } 
     }
 
