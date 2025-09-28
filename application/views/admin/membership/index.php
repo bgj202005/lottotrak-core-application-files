@@ -35,7 +35,9 @@
 				<th scope="col">City</th>
 				<th scope="col">State/Province</th>
 				<th scope="col">Country</th>
-				<th scope="col">Lotteries</th>
+				<th scope="col">IP Address</th>
+				<th scope="col">Detected Location</th>
+				<th scope="col">Lotteries (Count)</th>
 				<th scope="col">Edit</th>
 				<th scope="col"> Delete</th>
 				<th scope="col">Account Active?</th>
@@ -52,7 +54,40 @@
 		<td><?=$member->city;?></td>
 		<td><span class="bfh-states" data-country="<?=$member->country_id; ?>" data-state="<?=$member->state_prov; ?>"></span></td>
 		<td><span class="bfh-countries" data-country="<?=$member->country_id;?>" data-flags="true"></span></td>
-		<td class = "btn-sm"><?=$member->lottery_names;?></td>
+		<td style="font-family: monospace; font-size: 0.9em;">
+			<?php if (!empty($member->ip_address_readable)): ?>
+				<span style="color: #c7254e; background: #f9f2f4; padding: 2px 4px; border-radius: 3px;">
+					<?=$member->ip_address_readable;?>
+				</span>
+			<?php else: ?>
+				<span class="text-muted">Not recorded</span>
+			<?php endif; ?>
+		</td>
+		<td style="font-size: 0.85em;">
+			<?php if (!empty($member->location_city) || !empty($member->location_country)): ?>
+				<div>
+					<i class="fa fa-map-marker" style="color: #28a745;"></i>
+					<?php
+					$location_parts = array();
+					if (!empty($member->location_city)) $location_parts[] = $member->location_city;
+					if (!empty($member->location_region)) $location_parts[] = $member->location_region;
+					if (!empty($member->location_country)) $location_parts[] = $member->location_country;
+					echo !empty($location_parts) ? implode(', ', $location_parts) : 'Unknown';
+					?>
+				</div>
+				<?php if (!empty($member->location_detected_at)): ?>
+					<small class="text-muted">Detected: <?=date('M j, Y', strtotime($member->location_detected_at));?></small>
+				<?php endif; ?>
+			<?php else: ?>
+				<span class="text-muted">Location not detected</span>
+			<?php endif; ?>
+		</td>
+		<td class = "btn-sm">
+			<?=$member->lottery_names;?>
+			<div style="background: #007bff; color: white; display: inline-block; padding: 2px 6px; border-radius: 10px; font-size: 0.8em; margin-top: 5px;">
+				<?=$member->lottery_count;?> selected
+			</div>
+		</td>
 	    <td><?php echo btn_edit('admin/membership/edit/'.$member->id); ?></td>
 		<td><?php echo btn_delete('admin/membership/delete/'.$member->id); ?></td>
 		<td><?=($member->member_active ? 'Yes' : 'No'); ?></td>

@@ -4,23 +4,25 @@
 	   <div class="row">
             <div class="col-xs-12 col-md-8">
 			<div class="row">	
-				<h1>An Email has been sent your inbox.</h1>
-				<h2>Please Click on the email link to validate your account</h2>	
+				<h1 style="color: #333333;">Check Your Email</h1>
+				<h2 style="color: #555555;">An activation email has been sent to your inbox</h2>	
 			</div>
+			
 			<div class="row">
-				<div class="col-md-4">
+				<div class="col-md-12">
+					<div class="alert alert-info">
+						<h4><i class="fa fa-envelope"></i> Email Activation Required</h4>
+						<p>Your account has been created but <strong>requires email activation</strong> before you can log in.</p>
+						<p>Please check your email inbox and click the activation link to complete your registration.</p>
+					</div>
+					
+					<div class="alert alert-warning">
+						<h4><i class="fa fa-clock-o"></i> Important Reminder</h4>
+						<p>You must activate your account within <strong>5 days</strong> or it will be automatically deleted.</p>
+						<p>If you don't see the email, please check your spam/junk folder.</p>
+					</div>
 				</div>
-				<div class="col-md-4">
-					</div>
-				<div class="col-md-4">
-					</div>
 			</div>
-				<div class="row">
-					<div class="col-md-4">
-					</div>
-					<div class="col-md-4">
-					</div>
-				</div>
 			</div>
 			<!--  Sidebar -->
 			<div class="col-xs-12 col-md-4 sidebar">

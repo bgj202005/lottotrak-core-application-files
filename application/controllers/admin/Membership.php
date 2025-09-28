@@ -26,6 +26,7 @@ class Membership extends Admin_Controller
 			foreach($this->data['members'] as $member)
 			{
 				$member->lottery_names = $this->membership_m->lotteries_selected($member->lottery_id); 
+				$member->lottery_count = $this->membership_m->lotteries_count($member->lottery_id);
 			}
 		}
 		$this->data['current'] = $this->uri->segment(2); // Sets the membership menu

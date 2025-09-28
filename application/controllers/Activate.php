@@ -68,19 +68,42 @@ class Activate extends Frontend_Controller {
                 
                 $id = $this->activate_m->validate_member($urlsecuretoken);
                 if ($id) {
-                    if ($this->activate_m->update_status($urlsecuretoken, 0)==TRUE) // Change this to 1 after debugging //
-                    {
-                        $this->data['member'] = $this->activate_m->get_member($id);
-                        $this->data['alert_message'] = "Your Account has been activated.";
-                        $this->data['status'] = TRUE; 
+                    // Email validated - now get member info for profile completion
+                    $member = $this->activate_m->get_member($id);
+                    if ($member) {
+                        // Set session for profile completion
+                        $this->session->set_userdata('profile_completion_member', array(
+                            'email' => $member->email,
+                            'username' => $member->username,
+                            'urlsecuretoken' => $urlsecuretoken,
+                            'member_id' => $member->id,
+                            'email_validated' => TRUE
+                        ));
+                        
+                        // Redirect to profile completion
+                        redirect('member/complete_profile');
+                        return;
                     }
-                }
-                    else
-                    {
+                } else {
+                    // Check why validation failed
+                    $member_check = $this->activate_m->get_member_by_token($urlsecuretoken);
+                    
+                    if ($member_check) {
+                        if ($member_check->member_active == 1) {
+                            $this->data['status'] = FALSE; 
+                            $this->data['alert_message'] = "Account Already Activated";
+                            $this->data['second_message'] = "This account has already been activated. You can now log in with your credentials.";
+                        } else {
+                            $this->data['status'] = FALSE; 
+                            $this->data['alert_message'] = "Activation Link Expired";
+                            $this->data['second_message'] = "This activation link has expired. All accounts not validated in 5 days are removed. Please register again.";
+                        }
+                    } else {
                         $this->data['status'] = FALSE; 
-                        $this->data['alert_message'] = "There is a problem with the url security token.";
-                        $this->data['second_message'] = "All accounts not validated in 5 days are removed. Please Re-register.";
-                    } 
+                        $this->data['alert_message'] = "Invalid Activation Link";
+                        $this->data['second_message'] = "The activation link is invalid or has been removed. Please register again.";
+                    }
+                } 
         }     
         else 
         {

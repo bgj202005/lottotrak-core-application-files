@@ -131,6 +131,40 @@
 						<?=date('l, F, d Y h:i:s A', strtotime($member->reg_time)); ?>
 					</div>
 				</div>
+				<!-- IP Address -->
+				<div class="form-group form-group-lg row"> 
+					<?php $extra = array('class' => 'col-4 col-form-label col-form-label-lg');
+					echo form_label('IP Address:', 'ip_address', $extra); ?>
+					<div class="col-8" style = "margin-top:10px;">
+						<span style="font-family: monospace; color: #c7254e; background: #f9f2f4; padding: 4px 8px; border-radius: 4px;">
+							<?php echo !empty($member->ip_address_readable) ? $member->ip_address_readable : 'Not recorded'; ?>
+						</span>
+					</div>
+				</div>
+				<!-- Detected Location -->
+				<div class="form-group form-group-lg row"> 
+					<?php $extra = array('class' => 'col-4 col-form-label col-form-label-lg');
+					echo form_label('Detected Location:', 'location', $extra); ?>
+					<div class="col-8" style = "margin-top:10px;">
+						<?php if (!empty($member->location_city) || !empty($member->location_country)): ?>
+							<div>
+								<i class="fa fa-map-marker" style="color: #28a745; margin-right: 5px;"></i>
+								<?php
+								$location_parts = array();
+								if (!empty($member->location_city)) $location_parts[] = $member->location_city;
+								if (!empty($member->location_region)) $location_parts[] = $member->location_region;
+								if (!empty($member->location_country)) $location_parts[] = $member->location_country;
+								echo !empty($location_parts) ? implode(', ', $location_parts) : 'Unknown Location';
+								?>
+							</div>
+							<?php if (!empty($member->location_detected_at)): ?>
+								<small class="text-muted">Detected: <?=date('l, F d, Y g:i A', strtotime($member->location_detected_at));?></small>
+							<?php endif; ?>
+						<?php else: ?>
+							<span class="text-muted">Location not detected</span>
+						<?php endif; ?>
+					</div>
+				</div>
 				<!-- Account Active? -->
 				<div class="form-group form-group-lg row"> 
 					<?php $extra = array('class' => 'col-4 col-form-label col-form-label-lg');
