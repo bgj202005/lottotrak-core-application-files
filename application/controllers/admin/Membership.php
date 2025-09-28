@@ -49,8 +49,26 @@ class Membership extends Admin_Controller
 		{
 			$this->data['member'] = $this->membership_m->get($id);
 			is_object($this->data['member']) || $this->data['errors'][] = 'Member could not be found'; //deprecated php 7.2+ count($this->data['member']) 
-			$this->data['lotteries']['selected'] = (!empty($this->input->post('lottery_id')) ? $this->input->post('lottery_id') : explode(',', $this->data['member']->lottery_id));	// Retrieve Number of Lotteries (Max of 3) the member wants to play
+			
+			// Debug lottery selection
+			$lottery_ids_raw = $this->data['member']->lottery_id;
+			$lottery_ids_exploded = explode(',', $lottery_ids_raw);
+			
+			// Log for debugging (only in development)
+			if (ENVIRONMENT === 'development') {
+				error_log("DEBUG Admin Edit - Member ID: {$id}");
+				error_log("DEBUG Admin Edit - Raw lottery_id: " . $lottery_ids_raw);
+				error_log("DEBUG Admin Edit - Exploded lottery_id: " . print_r($lottery_ids_exploded, true));
+			}
+			
+			$this->data['lotteries']['selected'] = (!empty($this->input->post('lottery_id')) ? $this->input->post('lottery_id') : $lottery_ids_exploded);	// Retrieve Number of Lotteries (Max of 3) the member wants to play
 			$this->data['lotteries']['list'] = $this->membership_m->lotteries_list($this->data['member']->country_id);
+			
+			// More debug info
+			if (ENVIRONMENT === 'development') {
+				error_log("DEBUG Admin Edit - Available lotteries: " . print_r($this->data['lotteries']['list'], true));
+				error_log("DEBUG Admin Edit - Selected lotteries: " . print_r($this->data['lotteries']['selected'], true));
+			}
 		} 
 		else 
 		{
@@ -111,6 +129,68 @@ class Membership extends Admin_Controller
 	{
 		$this->membership_m->delete($id);
 		redirect('admin/membership');
+	}
+	
+	/**
+	 * Debug method to check lottery selection data for a specific member
+	 */
+	public function debug_lottery($id = NULL)
+	{
+		// Only allow in development
+		if (ENVIRONMENT !== 'development') {
+			show_404();
+			return;
+		}
+		
+		if (!$id) {
+			echo "<p>Please provide a member ID. Usage: /admin/membership/debug_lottery/41</p>";
+			return;
+		}
+		
+		echo "<h3>Lottery Selection Debug for Member ID: {$id}</h3>";
+		
+		// Get member data
+		$member = $this->membership_m->get($id);
+		if (!$member) {
+			echo "<p style='color: red;'>Member not found!</p>";
+			return;
+		}
+		
+		echo "<h4>Member Information:</h4>";
+		echo "<p><strong>Username:</strong> {$member->username}</p>";
+		echo "<p><strong>Email:</strong> {$member->email}</p>";
+		echo "<p><strong>Country ID:</strong> {$member->country_id}</p>";
+		echo "<p><strong>Raw lottery_id:</strong> '{$member->lottery_id}'</p>";
+		
+		// Test the explode
+		$lottery_ids_array = explode(',', $member->lottery_id);
+		echo "<h4>Exploded Lottery IDs:</h4>";
+		echo "<pre>" . print_r($lottery_ids_array, true) . "</pre>";
+		
+		// Get available lotteries for this country
+		$available_lotteries = $this->membership_m->lotteries_list($member->country_id);
+		echo "<h4>Available Lotteries for Country '{$member->country_id}':</h4>";
+		echo "<pre>" . print_r($available_lotteries, true) . "</pre>";
+		
+		// Check which ones should be selected
+		echo "<h4>Selection Analysis:</h4>";
+		foreach ($lottery_ids_array as $lottery_id) {
+			$lottery_id = trim($lottery_id);
+			if (isset($available_lotteries[$lottery_id])) {
+				echo "<p style='color: green;'>✓ Lottery ID {$lottery_id}: '{$available_lotteries[$lottery_id]}' - SHOULD be selected</p>";
+			} else {
+				echo "<p style='color: red;'>✗ Lottery ID {$lottery_id}: Not found in available lotteries</p>";
+			}
+		}
+		
+		// Test the multiselect data structure
+		$lotteries_data = array(
+			'list' => $available_lotteries,
+			'selected' => $lottery_ids_array
+		);
+		
+		echo "<h4>Form Multiselect Data Structure:</h4>";
+		echo "<pre>" . print_r($lotteries_data, true) . "</pre>";
 	}
 	
 		
