@@ -49,6 +49,16 @@
 		line-height: 1.1;
 	}
 	
+	/* Darken text-muted elements in membership table */
+	.members-table .text-muted {
+		color: #495057 !important; /* Darker gray instead of Bootstrap's light #6c757d */
+	}
+	
+	.members-table .compact-date .text-muted {
+		color: #343a40 !important; /* Even darker for timestamps */
+		font-weight: 500;
+	}
+	
 	.lottery-badge {
 		background: #007bff;
 		color: white;
