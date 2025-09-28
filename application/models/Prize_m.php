@@ -1055,21 +1055,26 @@ class Prize_m extends MY_Model
                 );
             }
             
-            // Calculate all statistics
-            $trends = $this->history_m->trend_history($drawings, $lottery->balls_drawn, 0);
-            $repeats = $this->history_m->repeat_history($drawings, $lottery->balls_drawn, 0);
+            // Check if highlights record exists and preserve existing settings
+            $existing_highlights = $this->history_m->glance_exists($lottery_id);
+            $extra_included = ($existing_highlights) ? $existing_highlights->extra_included : 0;
+            $extra_draws = ($existing_highlights) ? $existing_highlights->extra_draws : 0;
+            
+            // Calculate all statistics using the preserved settings
+            $trends = $this->history_m->trend_history($drawings, $lottery->balls_drawn, $extra_included);
+            $repeats = $this->history_m->repeat_history($drawings, $lottery->balls_drawn, $extra_included);
             
             // Load drawings with extra draws for other calculations
-            $drawings_with_extra = $this->history_m->load_history($table_name, $lottery_id, $range, 0);
+            $drawings_with_extra = $this->history_m->load_history($table_name, $lottery_id, $range, $extra_draws);
             
-            $consecutives = $this->history_m->consecutive_history($drawings_with_extra, $lottery->balls_drawn, 0, 0);
+            $consecutives = $this->history_m->consecutive_history($drawings_with_extra, $lottery->balls_drawn, $extra_draws, $extra_included);
             $adjacents = $this->history_m->adjacents_history($drawings_with_extra, $lottery->balls_drawn);
             $sums_history = $this->history_m->sums_history($drawings_with_extra);
             $digits_history = $this->history_m->digits_history($drawings_with_extra);
             $range_history = $this->history_m->range_history($drawings_with_extra, $lottery->balls_drawn);
-            $parity_history = $this->history_m->parity_history($drawings_with_extra, $lottery->balls_drawn, 0, $table_name);
+            $parity_history = $this->history_m->parity_history($drawings_with_extra, $lottery->balls_drawn, $extra_draws, $table_name);
             
-            // Prepare data for saving
+            // Prepare data for saving with preserved settings
             $highlight_data = array(
                 'range' => $range,
                 'trends' => $trends,
@@ -1082,12 +1087,9 @@ class Prize_m extends MY_Model
                 'parity' => $parity_history,
                 'draw_id' => $latest_draw->id,
                 'lottery_id' => $lottery_id,
-                'extra_included' => 0,
-                'extra_draws' => 0
+                'extra_included' => $extra_included,
+                'extra_draws' => $extra_draws
             );
-            
-            // Check if highlights record exists
-            $existing_highlights = $this->history_m->glance_exists($lottery_id);
             
             // Save the updated highlights
             $save_result = $this->history_m->glance_data_save($highlight_data, $existing_highlights);

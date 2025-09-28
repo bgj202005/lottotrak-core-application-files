@@ -136,6 +136,13 @@ $b = 1;
 									?>
 								</div>
 							</div>
+							<?php if (!empty($message)): ?>
+								<div class="p-3">
+									<div class="alert alert-success" role="alert" style="margin-top:-8px;">
+										<i class="fas fa-check-circle"></i> <?= $message; ?>
+									</div>
+								</div>
+							<?php endif; ?>
 						</div>
 					</div>
 					<div class="content">
