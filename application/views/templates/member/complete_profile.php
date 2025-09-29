@@ -84,14 +84,48 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="password"><strong>Password *</strong></label>
-                                        <input type="password" class="form-control" id="password" name="password" required placeholder="Create a password" minlength="6">
-                                        <small class="help-block">Minimum 6 characters</small>
+                                        <input type="password" class="form-control" id="password" name="password" required placeholder="Create a secure password" minlength="8">
+                                        
+                                        <!-- Password Requirements -->
+                                        <div class="password-requirements" style="margin-top: 8px; font-size: 12px;">
+                                            <strong>Requirements:</strong>
+                                            <ul style="margin: 5px 0 0 15px; padding: 0;">
+                                                <li id="req-length" class="req-item" style="color: #dc3545;">
+                                                    <i class="fa fa-times" style="margin-right: 4px;"></i>At least 8 characters
+                                                </li>
+                                                <li id="req-uppercase" class="req-item" style="color: #dc3545;">
+                                                    <i class="fa fa-times" style="margin-right: 4px;"></i>One uppercase letter (A-Z)
+                                                </li>
+                                                <li id="req-lowercase" class="req-item" style="color: #dc3545;">
+                                                    <i class="fa fa-times" style="margin-right: 4px;"></i>One lowercase letter (a-z)
+                                                </li>
+                                                <li id="req-number" class="req-item" style="color: #dc3545;">
+                                                    <i class="fa fa-times" style="margin-right: 4px;"></i>One number (0-9)
+                                                </li>
+                                                <li id="req-special" class="req-item" style="color: #dc3545;">
+                                                    <i class="fa fa-times" style="margin-right: 4px;"></i>One special character (!@#$%^&*)
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        
+                                        <!-- Password Strength Indicator -->
+                                        <div class="password-strength" style="margin-top: 8px;">
+                                            <div class="strength-bar" style="height: 4px; background: #e9ecef; border-radius: 2px; overflow: hidden;">
+                                                <div class="strength-fill" style="height: 100%; width: 0%; transition: all 0.3s ease; background: #dc3545;"></div>
+                                            </div>
+                                            <small class="strength-text" style="font-size: 11px; color: #6c757d; margin-top: 2px; display: block;">Password strength: <span id="strength-level">Weak</span></small>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="confirm_password"><strong>Confirm Password *</strong></label>
                                         <input type="password" class="form-control" id="confirm_password" name="confirm_password" required placeholder="Confirm your password">
+                                        
+                                        <!-- Password Match Indicator -->
+                                        <div id="password-match" style="margin-top: 8px; font-size: 12px; display: none;">
+                                            <span id="match-text"></span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -262,29 +296,126 @@ $(document).ready(function() {
         });
     }
 
-    // Password confirmation validation
-    $('#confirm_password').on('keyup blur', function() {
-        var password = $('#password').val();
-        var confirmPassword = $(this).val();
+    // Password validation functions
+    function validatePasswordStrength(password) {
+        var requirements = {
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            lowercase: /[a-z]/.test(password),
+            number: /[0-9]/.test(password),
+            special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\?\/]/.test(password)
+        };
         
-        if (confirmPassword && password !== confirmPassword) {
-            $(this).addClass('error');
-            if (!$('.password-error').length) {
-                $(this).after('<small class="password-error text-danger">Passwords do not match</small>');
+        // Update visual indicators
+        updateRequirement('req-length', requirements.length);
+        updateRequirement('req-uppercase', requirements.uppercase);
+        updateRequirement('req-lowercase', requirements.lowercase);
+        updateRequirement('req-number', requirements.number);
+        updateRequirement('req-special', requirements.special);
+        
+        // Calculate strength
+        var score = Object.values(requirements).filter(Boolean).length;
+        updateStrengthBar(score);
+        
+        return Object.values(requirements).every(Boolean);
+    }
+    
+    function updateRequirement(id, met) {
+        var element = $('#' + id);
+        var icon = element.find('i');
+        
+        if (met) {
+            element.css('color', '#28a745');
+            icon.removeClass('fa-times').addClass('fa-check');
+        } else {
+            element.css('color', '#dc3545');
+            icon.removeClass('fa-check').addClass('fa-times');
+        }
+    }
+    
+    function updateStrengthBar(score) {
+        var strengthFill = $('.strength-fill');
+        var strengthLevel = $('#strength-level');
+        var width = (score / 5) * 100;
+        
+        strengthFill.css('width', width + '%');
+        
+        if (score === 5) {
+            strengthFill.css('background', '#28a745');
+            strengthLevel.text('Strong').css('color', '#28a745');
+        } else if (score >= 3) {
+            strengthFill.css('background', '#ffc107');
+            strengthLevel.text('Fair').css('color', '#ffc107');
+        } else {
+            strengthFill.css('background', '#dc3545');
+            strengthLevel.text('Weak').css('color', '#dc3545');
+        }
+    }
+    
+    function validatePasswordMatch() {
+        var password = $('#password').val();
+        var confirmPassword = $('#confirm_password').val();
+        var matchDiv = $('#password-match');
+        var matchText = $('#match-text');
+        
+        if (confirmPassword.length > 0) {
+            matchDiv.show();
+            
+            if (password === confirmPassword) {
+                matchText.html('<i class="fa fa-check" style="color: #28a745; margin-right: 4px;"></i>Passwords match')
+                         .css('color', '#28a745');
+                $('#confirm_password').removeClass('is-invalid').addClass('is-valid');
+                return true;
+            } else {
+                matchText.html('<i class="fa fa-times" style="color: #dc3545; margin-right: 4px;"></i>Passwords do not match')
+                         .css('color', '#dc3545');
+                $('#confirm_password').removeClass('is-valid').addClass('is-invalid');
+                return false;
             }
         } else {
-            $(this).removeClass('error');
-            $('.password-error').remove();
+            matchDiv.hide();
+            $('#confirm_password').removeClass('is-valid is-invalid');
+            return false;
         }
+    }
+    
+    // Password field validation
+    $('#password').on('keyup input', function() {
+        var password = $(this).val();
+        var isValid = validatePasswordStrength(password);
+        
+        if (password.length > 0) {
+            if (isValid) {
+                $(this).removeClass('is-invalid').addClass('is-valid');
+            } else {
+                $(this).removeClass('is-valid').addClass('is-invalid');
+            }
+        } else {
+            $(this).removeClass('is-valid is-invalid');
+        }
+        
+        // Recheck password match when password changes
+        validatePasswordMatch();
+    });
+    
+    // Confirm password validation
+    $('#confirm_password').on('keyup input', function() {
+        validatePasswordMatch();
     });
 
     // Form submission
     $('#profile_form').submit(function(e) {
         e.preventDefault();
         
-        // Check password confirmation
+        // Check password strength and confirmation
         var password = $('#password').val();
         var confirmPassword = $('#confirm_password').val();
+        
+        if (!validatePasswordStrength(password)) {
+            $('#validation_error').html('<div class="alert alert-danger">Password does not meet security requirements. Please check the requirements above.</div>').removeClass('d-none');
+            return false;
+        }
+        
         if (password !== confirmPassword) {
             $('#validation_error').html('<div class="alert alert-danger">Passwords do not match.</div>').removeClass('d-none');
             return false;

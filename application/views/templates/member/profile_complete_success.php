@@ -12,7 +12,11 @@
                     <div class="col-md-12">
                         <div class="alert alert-success">
                             <h4><i class="fa fa-check-circle"></i> Registration Complete</h4>
-                            <p><strong>Congratulations!</strong> Your Lottotrak account has been successfully activated.</p>
+                            <?php if ($this->session->userdata('member_logged_in')): ?>
+                                <p><strong>Congratulations <?php echo htmlspecialchars($this->session->userdata('member_first_name')); ?>!</strong> Your Lottotrak account has been successfully activated and you are now logged in.</p>
+                            <?php else: ?>
+                                <p><strong>Congratulations!</strong> Your Lottotrak account has been successfully activated.</p>
+                            <?php endif; ?>
                         </div>
 
                         <div class="alert alert-info">
@@ -28,7 +32,11 @@
                                 <ul class="list-unstyled" style="margin: 15px;">
                                     <li style="margin-bottom: 10px;"><i class="fa fa-check text-success"></i> <strong>Account Status:</strong> Fully activated and ready to use</li>
                                     <li style="margin-bottom: 10px;"><i class="fa fa-check text-success"></i> <strong>Profile:</strong> Location and lottery preferences saved</li>
-                                    <li style="margin-bottom: 10px;"><i class="fa fa-check text-success"></i> <strong>Access:</strong> You can now log in and access all features</li>
+                                    <?php if ($this->session->userdata('member_logged_in')): ?>
+                                        <li style="margin-bottom: 10px;"><i class="fa fa-check text-success"></i> <strong>Login Status:</strong> You are now logged in and can access all features</li>
+                                    <?php else: ?>
+                                        <li style="margin-bottom: 10px;"><i class="fa fa-exclamation-triangle text-warning"></i> <strong>Next Step:</strong> Please log in to access all features</li>
+                                    <?php endif; ?>
                                     <li style="margin-bottom: 10px;"><i class="fa fa-star text-warning"></i> <strong>Predictions:</strong> Lottery predictions available for your selected games</li>
                                 </ul>
                             </div>
@@ -38,9 +46,15 @@
                             <a href="<?php echo site_url('home'); ?>" class="btn btn-primary btn-lg" style="margin-right: 15px;">
                                 <i class="fa fa-home"></i> Go to Homepage
                             </a>
-                            <a href="#" onclick="showLoginModal();" class="btn btn-success btn-lg">
-                                <i class="fa fa-sign-in"></i> Login Now
-                            </a>
+                            <?php if ($this->session->userdata('member_logged_in')): ?>
+                                <a href="<?php echo site_url('member/dashboard'); ?>" class="btn btn-success btn-lg">
+                                    <i class="fa fa-user"></i> View My Dashboard
+                                </a>
+                            <?php else: ?>
+                                <a href="<?php echo site_url('home'); ?>#login" class="btn btn-warning btn-lg">
+                                    <i class="fa fa-sign-in"></i> Login Now
+                                </a>
+                            <?php endif; ?>
                         </div>
 
                         <div class="text-center">
@@ -63,10 +77,4 @@
     </div>
 </section>
 
-<script>
-function showLoginModal() {
-    // If you have a login modal, trigger it here
-    // Otherwise, redirect to login page
-    window.location.href = '<?php echo site_url("home"); ?>#login';
-}
-</script>
+<!-- Auto-login functionality handled in controller -->

@@ -352,7 +352,7 @@ class Member extends Frontend_Controller
         $this->form_validation->set_rules('first_name', 'First Name', 'required|min_length[2]|max_length[50]');
         $this->form_validation->set_rules('last_name', 'Last Name', 'required|min_length[2]|max_length[50]');
         $this->form_validation->set_rules('city', 'City', 'required|min_length[2]|max_length[100]');
-        $this->form_validation->set_rules('password', 'Password', 'required|min_length[6]|max_length[50]');
+        $this->form_validation->set_rules('password', 'Password', 'required|min_length[8]|max_length[50]|callback__validate_secure_password');
         $this->form_validation->set_rules('confirm_password', 'Confirm Password', 'required|matches[password]');
         $this->form_validation->set_rules('country_id', 'Country', 'required');
         $this->form_validation->set_rules('state_province', 'State/Province', 'required');
@@ -483,6 +483,28 @@ class Member extends Frontend_Controller
                 }
 
                 if ($success) {
+                    // Get the updated member data for auto-login
+                    $member_data = $this->db->where('id', $profile_member['member_id'])->get('members')->row();
+                    
+                    if ($member_data) {
+                        // Automatically log in the user after successful profile completion
+                        $session_data = array(
+                            'member_name' => $member_data->username,
+                            'member_email' => $member_data->email,
+                            'member_first_name' => $member_data->first_name,
+                            'member_last_name' => $member_data->last_name,
+                            'member_city' => $member_data->city,
+                            'member_state_prov' => $member_data->state_prov,
+                            'member_country_id' => $member_data->country_id,
+                            'member_lottery_id' => $member_data->lottery_id,
+                            'member_id' => $member_data->id,
+                            'member_logged_in' => TRUE
+                        );
+                        
+                        $this->session->set_userdata($session_data);
+                        log_message('debug', 'Profile completion - User automatically logged in: ' . $member_data->username);
+                    }
+                    
                     // Send account activation welcome email
                     $this->member_m->send_welcome_email($profile_member['email']);
                     
@@ -490,7 +512,7 @@ class Member extends Frontend_Controller
                     $this->session->unset_userdata('profile_completion_member');
                     
                     $array = array(
-                        'success' => '<div class="alert alert-success"><strong>Account Activated!</strong> Your profile has been completed and your account is now active. Check your email for confirmation.</div>',
+                        'success' => '<div class="alert alert-success"><strong>Account Activated!</strong> Your profile has been completed and your account is now active. You are now logged in!</div>',
                         'redirect_url' => site_url('member/profile_complete_success')
                     );
                 } else {
@@ -1051,6 +1073,47 @@ class Member extends Frontend_Controller
 		}
 		return TRUE;
     }
+    
+    /**
+     * Validate secure password requirements
+     * @param string $password
+     * @return boolean
+     */
+    public function _validate_secure_password($password)
+    {
+        // Check minimum length (8 characters)
+        if (strlen($password) < 8) {
+            $this->form_validation->set_message('_validate_secure_password', 'Password must be at least 8 characters long.');
+            return FALSE;
+        }
+        
+        // Check for at least one uppercase letter
+        if (!preg_match('/[A-Z]/', $password)) {
+            $this->form_validation->set_message('_validate_secure_password', 'Password must contain at least one uppercase letter.');
+            return FALSE;
+        }
+        
+        // Check for at least one lowercase letter
+        if (!preg_match('/[a-z]/', $password)) {
+            $this->form_validation->set_message('_validate_secure_password', 'Password must contain at least one lowercase letter.');
+            return FALSE;
+        }
+        
+        // Check for at least one digit
+        if (!preg_match('/[0-9]/', $password)) {
+            $this->form_validation->set_message('_validate_secure_password', 'Password must contain at least one number.');
+            return FALSE;
+        }
+        
+        // Check for at least one special character
+        if (!preg_match('/[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\?\/]/', $password)) {
+            $this->form_validation->set_message('_validate_secure_password', 'Password must contain at least one special character (!@#$%^&*()_+-=[]{};\':"|,.<>?/).');
+            return FALSE;
+        }
+        
+        return TRUE;
+    }
+    
     public function forgotpassword() 
 	{
 	   

@@ -1,4 +1,4 @@
-<!-- Membership Table Styles -->
+ <!-- Membership Table Styles -->
 <style> 
 	.members-table {
 		width: 100%;
