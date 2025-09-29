@@ -480,8 +480,6 @@
 <?php endif; ?>
 <script type="text/javascript">
 $(document).ready(function() {
-  console.log('Document ready - starting lottery datepicker setup');
-  
   // Enhanced datepicker initialization with proper view mode for lottery
   $('#firstdate').datepicker({
     format: 'dd-mm-yyyy',
@@ -494,8 +492,6 @@ $(document).ready(function() {
     maxViewMode: 2 // Allow going up to years
   });
   
-  console.log('Lottery datepicker initialized on firstdate field');
-  
   // Handle calendar icon clicks
   $('.calendar-trigger').click(function(e) {
     e.preventDefault();
@@ -504,13 +500,10 @@ $(document).ready(function() {
     var targetId = $(this).attr('data-target');
     var targetElement = $(targetId);
     
-    console.log('Calendar trigger clicked for:', targetId);
-    
     if (targetElement.length > 0) {
       // Small delay to ensure proper positioning
       setTimeout(function() {
         targetElement.datepicker('show');
-        console.log('Datepicker shown for:', targetId);
       }, 50);
     }
   });
@@ -519,8 +512,6 @@ $(document).ready(function() {
   $('#firstdate').click(function(e) {
     e.preventDefault();
     e.stopPropagation();
-    
-    console.log('Input field clicked: firstdate');
     
     // Small delay to ensure proper positioning
     var self = this;

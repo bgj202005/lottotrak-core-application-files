@@ -244,7 +244,6 @@ $(document).ready(function() {
 				$('#register_button').attr('disabled', 'disabled').text('Processing...');
 			},
 			success:function(data) {
-				console.log(data);
 				if (data.error) {
 					if (data.validation_error != '') {
 						$('#validation_error').html(data.validation_error).removeClass('d-none');
@@ -283,7 +282,6 @@ $(document).ready(function() {
 				$('#login_button').attr('disabled', 'disabled').text('Logging in...');
 			},
 			success:function(data) {
-				console.log(data);
 				if (data.error) {
 					if (data.validation_error != '') {
 						$('#login_error_message').html(data.validation_error).removeClass('d-none');
@@ -318,7 +316,6 @@ $(document).ready(function() {
 				$('#forgotpassword').attr('disabled', 'disabled').text('Processing...');
 			},
 			success:function(data) {
-				console.log(data);
 				if (data.error) {
 					if (data.validation_error != '') {
 						$('#forgot_error_message').html(data.validation_error).removeClass('d-none');

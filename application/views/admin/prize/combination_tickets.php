@@ -906,8 +906,6 @@ $(document).ready(function() {
         $.each(rows, function(index, row) {
             $tbody.append(row);
         });
-        
-        console.log('Check Results sorted:', newSort);
     });
 
     
@@ -1196,26 +1194,17 @@ $(document).ready(function() {
     }
     
     function updateDrawHeader(response) {
-        // DEBUG: Log what we're receiving
-        console.log('DEBUG - updateDrawHeader called with:');
-        console.log('display_mode:', response.display_mode);
-        console.log('next_draw_date:', response.next_draw_date);
-        console.log('next_draw_date_for_js:', response.next_draw_date_for_js);
-        console.log('draw_info:', response.draw_info);
-        
         // Update draw information header based on display mode
         if (response.display_mode === 'tbd') {
             // For TBD mode, use pre-formatted date if available, otherwise format from MySQL date
             var displayDate;
             if (response.next_draw_date) {
                 displayDate = response.next_draw_date; // Use pre-formatted date from server
-                console.log('DEBUG - Using pre-formatted date:', displayDate);
             } else if (response.next_draw_date_for_js) {
                 // Parse MySQL format date and format it
                 var nextDrawDate = new Date(response.next_draw_date_for_js);
                 var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
                 displayDate = nextDrawDate.toLocaleDateString('en-US', options);
-                console.log('DEBUG - Parsed JS date:', displayDate);
             } else {
                 displayDate = 'Unknown';
             }
@@ -1227,19 +1216,16 @@ $(document).ready(function() {
             var displayDate;
             if (response.next_draw_date) {
                 displayDate = response.next_draw_date; // Use pre-formatted date from server
-                console.log('DEBUG - Using pre-formatted draw date:', displayDate);
             } else if (response.next_draw_date_for_js) {
                 // Parse MySQL format date and format it
                 var drawDate = new Date(response.next_draw_date_for_js);
                 var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
                 displayDate = drawDate.toLocaleDateString('en-US', options);
-                console.log('DEBUG - Parsed JS draw date:', displayDate);
             } else {
                 // Fallback to parsing draw_info date
                 var drawDate = new Date(response.draw_info.draw_date);
                 var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
                 displayDate = drawDate.toLocaleDateString('en-US', options);
-                console.log('DEBUG - Fallback draw date:', displayDate);
             }
             
             $('.draw-header-box h4').html('<strong>Draw Date:</strong> ' + displayDate);

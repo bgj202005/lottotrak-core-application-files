@@ -13,6 +13,7 @@ class Statistics extends Admin_Controller {
 		 $this->load->model('maintenance_m');
 		 $this->load->helper('file');
 		 $this->load->helper('html');
+		 $this->load->config('statistics_optimization');
 		// $this->output->enable_profiler(TRUE);
 	}
 
@@ -158,28 +159,212 @@ class Statistics extends Admin_Controller {
 			redirect('admin/statistics'); 
 		}
 
-		$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $new_range, $this->data['trend']);
-		if (!$this->data['draws'])
-		{
-			$this->session->set_flashdata('message', 'There are no draws associated with this lottery. Please    draws.');
-			redirect('admin/statistics'); 
+		// Check threshold BEFORE loading draws to avoid timeouts
+		$ajax_threshold = $this->config->item('ajax_pagination_threshold') ?: 200;
+		
+		if ($new_range > $ajax_threshold) {
+			// For large datasets, don't pre-load draws - use AJAX pagination instead
+			$this->data['draws'] = []; // Empty array to prevent view errors
+			$this->data['subview'] = 'admin/dashboard/statistics/view_optimized';
+		} else {
+			// For smaller datasets, load draws normally and use original method
+			$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $new_range, $this->data['trend']);
+			if (!$this->data['draws'])
+			{
+				$this->session->set_flashdata('message', 'There are no draws associated with this lottery. Please add draws.');
+				redirect('admin/statistics'); 
+			}
+			$this->data['subview'] = 'admin/dashboard/statistics/view';
 		}
+		
 		$this->data['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['sel_range'] = $sel_range;		// What was selected for the range in the previous page
 		$this->data['range'] = $new_range;
 		$this->data['all'] = $all;
-		$this->data['statistics'] = $this->statistics_m->get_by('lottery_id='.$id, TRUE);
-		$this->data['evensodds'] = $this->statistics_m->evensodds_sum($tbl_name, $this->data['trend']);
+		$this->data['statistics'] = $this->statistics_m->get_lottery_stats_cached($id);
+		$this->data['evensodds'] = $this->statistics_m->evensodds_sum_cached($tbl_name, $this->data['trend']);
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->session->set_userdata('range', $new_range);
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/view_draws'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
 		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
-		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	
-		$this->data['subview']  = 'admin/dashboard/statistics/view';
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins
+		
 		$this->data['stat_method'] = $this;				// Access the methods in the view
 		$this->load->view('admin/_layout_main', $this->data);
+	}
+
+	/**
+	 * AJAX endpoint for loading draws data with pagination
+	 * 
+	 * @param       int $id		lottery id
+	 * @return      json		JSON response with draws data
+	 */
+	public function ajax_load_draws($id)
+	{
+		// Set JSON header
+		$this->output->set_content_type('application/json');
+		
+		// Add error logging for debugging
+		log_message('debug', "AJAX load_draws called for lottery ID: $id");
+		
+		// Allow AJAX requests and direct access for debugging
+		// In production, you might want to re-enable this check
+		// if (!$this->input->is_ajax_request()) {
+		// 	show_404();
+		// 	return;
+		// }
+
+		try {
+			$lottery = $this->lotteries_m->get($id);
+			if (!$lottery) {
+				log_message('error', "Lottery not found for ID: $id");
+				$this->output->set_output(json_encode(['error' => 'Lottery not found with ID: ' . $id]));
+				return;
+			}
+		} catch (Exception $e) {
+			log_message('error', "Database error getting lottery $id: " . $e->getMessage());
+			$this->output->set_output(json_encode(['error' => 'Database error: ' . $e->getMessage()]));
+			return;
+		}
+
+		$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+		
+		// Check if table exists
+		if (!$this->lotteries_m->lotto_table_exists($tbl_name)) {
+			log_message('error', "Lottery table does not exist: $tbl_name");
+			$this->output->set_output(json_encode(['error' => 'Lottery table does not exist: ' . $tbl_name]));
+			return;
+		}
+		
+		// Get pagination parameters
+		$page = (int)$this->input->get('page', TRUE) ?: 1;
+		$limit = (int)$this->input->get('limit', TRUE) ?: 10; // Default to 10 rows for better UX with large datasets
+		$trend = (int)$this->input->get('trend', TRUE) ?: 0;
+		$requested_range = (int)$this->input->get('range', TRUE) ?: 100; // The requested range (200, 300, etc.)
+		$search = $this->input->get('search', TRUE) ?: '';
+		
+		log_message('debug', "AJAX params - Page: $page, Limit: $limit, Trend: $trend, Range: $requested_range, Table: $tbl_name");
+		
+		// Calculate offset
+		$offset = ($page - 1) * $limit;
+		
+		try {
+			// Get total count for pagination
+			$total_count = $this->lotteries_m->get_draws_count($tbl_name, $trend);
+			log_message('debug', "Total draws count: $total_count");
+			
+			if ($total_count === 0) {
+				$this->output->set_output(json_encode(['error' => 'No draws found in this lottery table: ' . $tbl_name]));
+				return;
+			}
+			
+			// Limit the requested range to available draws to prevent negative numbering
+			$effective_range = min($requested_range, $total_count);
+			log_message('debug', "Requested range: $requested_range, Available draws: $total_count, Effective range: $effective_range");
+			
+		} catch (Exception $e) {
+			log_message('error', "Error getting draws count: " . $e->getMessage());
+			$this->output->set_output(json_encode(['error' => 'Database error getting count: ' . $e->getMessage()]));
+			return;
+		}
+		
+		// Load draws with pagination - use effective range for numbering and limiting
+		$draws = $this->lotteries_m->load_draws_paginated($tbl_name, $limit, $offset, $trend, $effective_range);
+		
+		if (!$draws) {
+			$this->output->set_output(json_encode(['error' => 'Failed to load draws data']));
+			return;
+		}
+		
+		// Process draws for display (minimal processing for performance)
+		$processed_draws = [];
+		
+		foreach ($draws as $key => $draw) {
+			$next_draw = isset($draws[$key + 1]) ? $draws[$key + 1] : null;
+			$repeaters = [];
+			
+			// Calculate repeaters if we have a next draw (independent of trend setting)
+			if ($next_draw) {
+				$repeaters = $this->last_repeaters($next_draw, $draw, $lottery->balls_drawn);
+			}
+			
+			$processed_draw = [
+				'id' => $draw->id,
+				'draw' => $draw->draw,
+				'draw_date' => date("D, M d, Y", strtotime(str_replace('/', '-', $draw->draw_date))),
+				'ball1' => $draw->ball1,
+				'ball2' => $draw->ball2,
+				'ball3' => $draw->ball3,
+				'sum_draw' => $draw->sum_draw,
+				'sum_digits' => $draw->sum_digits,
+				'odd' => $draw->odd,
+				'even' => $draw->even,
+				'range_draw' => $draw->range_draw,
+				'repeat_decade' => $draw->repeat_decade,
+				'repeat_last' => $draw->repeat_last,
+				'repeaters' => $repeaters,
+				'trends' => []  // Initialize trends array
+			];
+			
+			// Add trend arrows if enabled and we have a next draw (previous chronologically)
+			// Note: next_draw is chronologically previous since draws are ordered DESC by date
+			if ($trend && $next_draw !== null) {
+				$processed_draw['trends']['ball1'] = $this->trend($next_draw->ball1, $draw->ball1);
+				$processed_draw['trends']['ball2'] = $this->trend($next_draw->ball2, $draw->ball2);
+				$processed_draw['trends']['ball3'] = $this->trend($next_draw->ball3, $draw->ball3);
+				
+				// Add trend arrows for additional balls based on lottery configuration
+				if (intval($lottery->balls_drawn) >= 4) {
+					$processed_draw['trends']['ball4'] = $this->trend($next_draw->ball4, $draw->ball4);
+				}
+				if (intval($lottery->balls_drawn) >= 5) {
+					$processed_draw['trends']['ball5'] = $this->trend($next_draw->ball5, $draw->ball5);
+				}
+				if (intval($lottery->balls_drawn) >= 6) {
+					$processed_draw['trends']['ball6'] = $this->trend($next_draw->ball6, $draw->ball6);
+				}
+				if (intval($lottery->balls_drawn) >= 7) {
+					$processed_draw['trends']['ball7'] = $this->trend($next_draw->ball7, $draw->ball7);
+				}
+				if (intval($lottery->balls_drawn) >= 8) {
+					$processed_draw['trends']['ball8'] = $this->trend($next_draw->ball8, $draw->ball8);
+				}
+				if (intval($lottery->balls_drawn) == 9) {
+					$processed_draw['trends']['ball9'] = $this->trend($next_draw->ball9, $draw->ball9);
+				}
+				if (intval($lottery->extra_ball) == 1) {
+					$processed_draw['trends']['extra'] = $this->trend($next_draw->extra, $draw->extra);
+				}
+			}
+			
+			// Add additional balls based on lottery configuration
+			if (intval($lottery->balls_drawn) >= 4) $processed_draw['ball4'] = $draw->ball4;
+			if (intval($lottery->balls_drawn) >= 5) $processed_draw['ball5'] = $draw->ball5;
+			if (intval($lottery->balls_drawn) >= 6) $processed_draw['ball6'] = $draw->ball6;
+			if (intval($lottery->balls_drawn) >= 7) $processed_draw['ball7'] = $draw->ball7;
+			if (intval($lottery->balls_drawn) >= 8) $processed_draw['ball8'] = $draw->ball8;
+			if (intval($lottery->balls_drawn) == 9) $processed_draw['ball9'] = $draw->ball9;
+			if (intval($lottery->extra_ball) == 1) $processed_draw['extra'] = $draw->extra;
+			
+			$processed_draws[] = $processed_draw;
+		}
+		
+		// Return JSON response
+		$this->output->set_output(json_encode([
+			'draws' => $processed_draws,
+			'pagination' => [
+				'total' => $effective_range, // Use effective range for pagination, not total database count
+				'per_page' => $limit,
+				'current_page' => $page,
+				'last_page' => ceil($effective_range / $limit)
+			],
+			'lottery_config' => [
+				'balls_drawn' => $lottery->balls_drawn,
+				'extra_ball' => $lottery->extra_ball
+			]
+		]));
 	}
 
 	/**

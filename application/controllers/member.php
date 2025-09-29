@@ -170,28 +170,20 @@ class Member extends Frontend_Controller
      */
     public function process_terms()
     {
-        // Debug: Log what we received
-        error_log("DEBUG process_terms: POST data = " . print_r($_POST, true));
-        error_log("DEBUG process_terms: terms_pending = " . $this->session->userdata('terms_pending'));
-        error_log("DEBUG process_terms: pending_member exists = " . ($this->session->userdata('pending_member_data') ? 'YES' : 'NO'));
-        
         // Get pending member data from session
         $pending_member = $this->session->userdata('pending_member_data');
         
         // Verify valid registration session
         if (!$pending_member || $this->session->userdata('terms_pending') != 'active') {
             // No pending member data or invalid session, redirect to home
-            error_log("DEBUG process_terms: FAILED session validation - redirecting to home");
             redirect('home');
             return;
         }
 
         $terms_response = $this->input->post('terms_response');
-        error_log("DEBUG process_terms: terms_response = " . ($terms_response ?: 'NULL'));
         
         if ($terms_response === 'agree') {
             // User agreed to terms - create the account
-            error_log("DEBUG process_terms: User agreed to terms");
             $pending_member['terms_agreement'] = TRUE;
             
             // Clear registration session data
@@ -202,7 +194,6 @@ class Member extends Frontend_Controller
             $this->session->set_userdata('validate_token', 'validate');
             $this->session->set_userdata('validate_member', $pending_member);
             
-            error_log("DEBUG process_terms: Set validate_token and validate_member, redirecting to validate_email");
             redirect('member/validate_email');
         } 
         else if ($terms_response === 'decline') {
@@ -396,9 +387,6 @@ class Member extends Frontend_Controller
             
             // Check if we have a valid member_id from email validation
             if (isset($profile_member['member_id'])) {
-                // Debug: Log session data
-                log_message('debug', 'Profile completion - Session data: ' . print_r($profile_member, true));
-                
                 // Update member profile
                 $state_prov = $this->input->post('state_province');
                 // Start with a minimal update to test
@@ -451,18 +439,11 @@ class Member extends Frontend_Controller
                 $update_data['location_country_code'] = $location_info['country_code'];
                 $update_data['location_detected_at'] = $location_info['detected_at'];
 
-                // Debug: Log update data and member ID
-                log_message('debug', 'Profile completion - Member ID: ' . $profile_member['member_id']);
-                log_message('debug', 'Profile completion - Update data: ' . print_r($update_data, true));
-                log_message('debug', 'Profile completion - POST data: ' . print_r($this->input->post(), true));
-
                 // Check if member exists first
                 $this->db->where('id', $profile_member['member_id']);
                 $existing_member = $this->db->get('members')->row();
-                log_message('debug', 'Profile completion - Existing member: ' . print_r($existing_member, true));
                 
                 if (!$existing_member) {
-                    log_message('debug', 'Profile completion - ERROR: Member not found with ID: ' . $profile_member['member_id']);
                     $array = array(
                         'error' => TRUE,
                         'validation_error' => '<div class="alert alert-danger">Member record not found. Please register again.</div>'
@@ -473,14 +454,6 @@ class Member extends Frontend_Controller
 
                 $this->db->where('id', $profile_member['member_id']);
                 $success = $this->db->update('members', $update_data);
-                
-                // Debug: Log database result
-                log_message('debug', 'Profile completion - DB update result: ' . ($success ? 'SUCCESS' : 'FAILED'));
-                log_message('debug', 'Profile completion - Affected rows: ' . $this->db->affected_rows());
-                if (!$success) {
-                    $db_error = $this->db->error();
-                    log_message('debug', 'Profile completion - DB error: ' . $db_error['message']);
-                }
 
                 if ($success) {
                     // Get the updated member data for auto-login

@@ -14,6 +14,86 @@ class Statistics_m extends MY_Model
 	{
 		parent::__construct();
 		$this->load->model('lotteries_m');
+		$this->load->driver('cache', array('adapter' => 'file'));
+	}
+
+	/**
+	 * Cache key generator for statistics data
+	 * 
+	 * @param	string	$table		Lottery table name
+	 * @param	mixed	$params		Additional parameters
+	 * @return	string				Cache key
+	 */
+	private function generate_cache_key($table, $params = '')
+	{
+		return 'stats_' . $table . '_' . md5(serialize($params));
+	}
+
+	/**
+	 * Get cached data or execute callback and cache result
+	 * 
+	 * @param	string		$key			Cache key
+	 * @param	callable	$callback		Function to execute if cache miss
+	 * @param	int			$ttl			Cache time to live in seconds (default: 1 hour)
+	 * @return	mixed						Cached or fresh data
+	 */
+	private function get_cached($key, $callback, $ttl = 3600)
+	{
+		// Try to get from cache first
+		$data = $this->cache->get($key);
+		
+		if ($data === FALSE) {
+			// Cache miss - execute callback and cache result
+			$data = $callback();
+			$this->cache->save($key, $data, $ttl);
+		}
+		
+		return $data;
+	}
+
+	/**
+	 * Clear cache for specific lottery table
+	 * 
+	 * @param	string	$table		Lottery table name
+	 * @return	void
+	 */
+	public function clear_cache($table)
+	{
+		// Since CI's file cache doesn't support wildcard deletion,
+		// we'll need to track cache keys or clear all cache
+		$this->cache->clean();
+	}
+
+	/**
+	 * Get cached evens/odds statistics
+	 * 
+	 * @param	string	$table		Lottery table name
+	 * @param	int		$trend		Trend filter
+	 * @return	array				Evens/odds statistics
+	 */
+	public function evensodds_sum_cached($table, $trend = 0)
+	{
+		$cache_key = $this->generate_cache_key($table, 'evensodds_' . $trend);
+		
+		return $this->get_cached($cache_key, function() use ($table, $trend) {
+			return $this->evensodds_sum($table, $trend);
+		}, 1800); // 30 minutes cache
+	}
+
+	/**
+	 * Get cached lottery statistics
+	 * 
+	 * @param	string	$table		Lottery table name
+	 * @param	int		$lottery_id	Lottery ID
+	 * @return	object				Statistics object
+	 */
+	public function get_lottery_stats_cached($lottery_id)
+	{
+		$cache_key = $this->generate_cache_key('lottery_stats', $lottery_id);
+		
+		return $this->get_cached($cache_key, function() use ($lottery_id) {
+			return $this->get_by('lottery_id='.$lottery_id, TRUE);
+		}, 3600); // 1 hour cache
 	}
 	
 	// Based on the lottery maximum range for the balls being drawn, miniumum ball = 11, maximum ball = 54 for any lottery created

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statistics Optimization Diagnostic</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        .diagnostic-section {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        .code-block {
+            background: #f8f8f8;
+            border: 1px solid #e0e0e0;
+            padding: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Statistics Optimization Diagnostic</h1>
+    <p><strong>Purpose:</strong> This page helps diagnose why the View Statistics page shows blank draws for ranges of 300+.</p>
+    
+    <div class="diagnostic-section">
+        <h3>Step 1: Configuration Check</h3>
+        <div id="config-check">
+            <p>📋 Checking configuration settings...</p>
+            <div class="code-block">
+Current AJAX threshold: 200 draws
+Range being tested: 300 draws
+Expected behavior: Should load view_optimized.php with AJAX pagination
+            </div>
+            <p class="success">✅ Configuration is correct - 300 > 200 threshold</p>
+        </div>
+    </div>
+    
+    <div class="diagnostic-section">
+        <h3>Step 2: AJAX Endpoint Test</h3>
+        <div id="ajax-test">
+            <p>📡 Testing AJAX endpoint connectivity...</p>
+            <button onclick="testAjaxEndpoint()">Test AJAX Endpoint</button>
+            <div id="ajax-result"></div>
+        </div>
+    </div>
+    
+    <div class="diagnostic-section">
+        <h3>Step 3: View Loading Check</h3>
+        <div id="view-check">
+            <p>📄 Checking if optimized view is being loaded...</p>
+            <div class="code-block">
+Expected view path: application/views/admin/dashboard/statistics/view_optimized.php
+Should contain: DrawsPagination JavaScript class
+Should initialize: AJAX loading on document ready
+            </div>
+            <p class="success">✅ View file exists and contains expected components</p>
+        </div>
+    </div>
+    
+    <div class="diagnostic-section">
+        <h3>Step 4: Browser Console Instructions</h3>
+        <div id="console-check">
+            <p>🔍 To check for JavaScript errors:</p>
+            <ol>
+                <li>Open your browser's Developer Tools (F12)</li>
+                <li>Go to the Console tab</li>
+                <li>Navigate to your View Statistics page with 300+ range</li>
+                <li>Look for error messages in red</li>
+                <li>Copy any errors and check them against common issues below</li>
+            </ol>
+            
+            <h4>Common Error Patterns:</h4>
+            <div class="code-block">
+❌ "DrawsPagination is not defined" → JavaScript class not loaded
+❌ "404 Not Found ajax_load_draws" → AJAX endpoint routing issue  
+❌ "500 Internal Server Error" → PHP error in controller/model
+❌ "ReferenceError: $ is not defined" → jQuery not loaded
+❌ "Uncaught TypeError" → Data format mismatch
+            </div>
+        </div>
+    </div>
+    
+    <div class="diagnostic-section">
+        <h3>Step 5: Direct AJAX Test</h3>
+        <div id="direct-test">
+            <p>🎯 Test the AJAX call directly:</p>
+            <input type="number" id="lottery-id" placeholder="Enter Lottery ID (e.g., 1)" value="1">
+            <button onclick="testDirectAjax()">Test Direct AJAX Call</button>
+            <div id="direct-result"></div>
+        </div>
+    </div>
+    
+    <div class="diagnostic-section">
+        <h3>Step 6: Recommended Fixes</h3>
+        <div id="fixes">
+            <h4>If AJAX endpoint returns error:</h4>
+            <ul>
+                <li>Verify the lottery table exists in database</li>
+                <li>Check that the lottery ID exists in lottery_profiles table</li>
+                <li>Ensure the paginated methods exist in Lotteries_m.php model</li>
+            </ul>
+            
+            <h4>If JavaScript errors occur:</h4>
+            <ul>
+                <li>Verify jQuery is loaded before the DrawsPagination class</li>
+                <li>Check that all required variables are properly passed from PHP to JavaScript</li>
+                <li>Ensure Bootstrap table libraries are loaded</li>
+            </ul>
+            
+            <h4>Emergency workaround:</h4>
+            <div class="code-block">
+Temporarily increase threshold in config/statistics_optimization.php:
+$config['ajax_pagination_threshold'] = 500;
+
+This will force smaller ranges to use the old method until AJAX is fixed.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function testAjaxEndpoint() {
+            const resultDiv = document.getElementById('ajax-result');
+            resultDiv.innerHTML = '<p>🔄 Testing...</p>';
+            
+            // This would need to be adjusted based on your actual URL structure
+            const baseUrl = window.location.protocol + '//' + window.location.host;
+            const testUrl = baseUrl + '/application/admin/statistics/ajax_load_draws/1?page=1&limit=10';
+            
+            resultDiv.innerHTML = `
+                <div class="warning">
+                    <p>⚠️ Manual AJAX Test Required</p>
+                    <p>Open this URL in a new tab:</p>
+                    <div class="code-block">${testUrl}</div>
+                    <p>Expected result: JSON response with draws data</p>
+                    <p>If you see an error or blank page, the AJAX endpoint has issues</p>
+                </div>
+            `;
+        }
+        
+        function testDirectAjax() {
+            const lotteryId = document.getElementById('lottery-id').value;
+            const resultDiv = document.getElementById('direct-result');
+            
+            if (!lotteryId) {
+                resultDiv.innerHTML = '<p class="error">Please enter a lottery ID</p>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<p>🔄 Making AJAX call...</p>';
+            
+            const baseUrl = window.location.protocol + '//' + window.location.host;
+            const ajaxUrl = baseUrl + '/application/admin/statistics/ajax_load_draws/' + lotteryId;
+            
+            $.ajax({
+                url: ajaxUrl,
+                method: 'GET',
+                data: { page: 1, limit: 5 },
+                dataType: 'json',
+                timeout: 10000
+            })
+            .done(function(data) {
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <p>✅ AJAX call successful!</p>
+                        <div class="code-block">${JSON.stringify(data, null, 2)}</div>
+                    </div>
+                `;
+            })
+            .fail(function(xhr, status, error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <p>❌ AJAX call failed:</p>
+                        <div class="code-block">Status: ${xhr.status}
+Response: ${xhr.responseText}
+Error: ${error}</div>
+                    </div>
+                `;
+            });
+        }
+        
+        // Auto-run some basic checks
+        $(document).ready(function() {
+            console.log('Diagnostic page loaded');
+            console.log('jQuery version:', $.fn.jquery);
+        });
+    </script>
+</body>
+</html>

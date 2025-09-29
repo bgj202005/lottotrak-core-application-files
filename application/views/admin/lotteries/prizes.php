@@ -114,7 +114,6 @@
 														// if($row%4==0): echo "<div class='col-md-6>"; endif; ?>
 														<div class="form-check" style = "word-wrap: none; margin-bottom:5px;">
 															<?php $extra = array('class' => 'checkbox');
-															//var_dump($lottery->set_prizes[$prize]);
 															echo form_checkbox($prize, set_value($prize, '1'), set_checkbox($prize, '1', (isset($lottery->set_prizes[$prize]))), $extra); ?>
 															<label>
 															<?php if ($prize=='extra'): echo "Extra / Bonus Ball Only"; endif;
