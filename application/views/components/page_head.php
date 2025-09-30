@@ -38,6 +38,43 @@ if (isset($meta_canonical)&&$meta_canonical) echo '<link rel="canonical" href="'
 				function(){$(this).find('span').css({'left':$(this).width()/2, 'height':$(this).height()}).stop().animate({width: $(this).width(), left: 0}, 200);},
 				function(){$(this).find('span').stop().animate({width: 0, left: $(this).width()/2}, 200)}
 			)
+			
+			// Enhanced menu hover functionality
+			$('.enhanced-nav .dropdown').hover(
+				function() {
+					// On hover enter
+					$(this).addClass('show');
+					$(this).find('.dropdown-menu').addClass('show');
+				},
+				function() {
+					// On hover leave with small delay
+					var $dropdown = $(this);
+					setTimeout(function() {
+						if (!$dropdown.is(':hover')) {
+							$dropdown.removeClass('show');
+							$dropdown.find('.dropdown-menu').removeClass('show');
+						}
+					}, 100);
+				}
+			);
+			
+			// Prevent dropdown from closing when hovering over dropdown menu
+			$('.enhanced-dropdown-menu').hover(
+				function() {
+					$(this).parent().addClass('show');
+					$(this).addClass('show');
+				}
+			);
+			
+			// Enhanced arrow animation
+			$('.enhanced-dropdown').hover(
+				function() {
+					$(this).find('.dropdown-arrow').addClass('rotated');
+				},
+				function() {
+					$(this).find('.dropdown-arrow').removeClass('rotated');
+				}
+			);
 		}); 
    </script>
     <!--[if lt IE 8]>
