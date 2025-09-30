@@ -136,15 +136,19 @@ $b = 1;
 									?>
 								</div>
 							</div>
-							<?php if (!empty($message)): ?>
-								<div class="p-3">
-									<div class="alert alert-success" role="alert" style="margin-top:-8px;">
+						</div>
+					</div>
+					<?php if (!empty($message)): ?>
+						<div class="container-fluid">
+							<div class="row">
+								<div class="col-12">
+									<div class="alert alert-success" role="alert" style="margin-bottom: 20px;">
 										<i class="fas fa-check-circle"></i> <?= $message; ?>
 									</div>
 								</div>
-							<?php endif; ?>
+							</div>
 						</div>
-					</div>
+					<?php endif; ?>
 					<div class="content">
 						<div class="container-fluid">
 							<div class="row">
