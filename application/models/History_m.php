@@ -296,47 +296,53 @@ class History_m extends MY_Model
     return $c_text;                         
     }
     /**
-	 * adjacent_history averages the number of adjacents of each ball position for balls 1 and 2 = 1, 2 and 3 = 2, 3 and 4 = 3, 4 and 5 = 4, 5 and 6 = 5 for a pick 6 game. 
+     * adjacent_history averages the number of adjacents of each ball position for balls 1 and 2 = 1, 2 and 3 = 2, 3 and 4 = 3, 4 and 5 = 4, 5 and 6 = 5 for a pick 6 game. 
      * 6 and 7 = 6 for Pick 7. 7 and 8 = 7 for Pick 8, etc. The maximum separation is included between any balls is included. 2 = 14. e.g for balls 2 and 3, the maximum
      * difference is 14 for balls 2 and 3 over all other balls selected in the given range.
-	 * 
-	 * @param       array       $draws          Array of draws for a given range
+     * 
+     * @param       array       $draws          Array of draws for a given range
      * @param       integer     $pick           Pick Game. Pick 7, Pick 6, Pick 5 
-	 * @return      string		$adj_text       Concatenated String. Format: . e.g. Pick 6 average difference, 1=5,2=5,3=2,4=7,5=5|2=14
-	 */
+     * @return      string      $adj_text       Concatenated String. Format: . e.g. Pick 6 average difference, 1=5,2=5,3=2,4=7,5=5|2=14
+     */
     public function adjacents_history($draws, $pick)
     {
         $total = count($draws);
-        $lg_diff = 0;           // Largest difference for any draw
-        $adjacents = $this->zeroed(new SplFixedArray($pick), $pick);    // include the zero adacents, this is now zero based with zero occurrences
+        $lg_diff = 0;           // Largest difference across all positions and draws
+        $adj = 1;               // Position where largest difference occurred
+        $adjacents = $this->zeroed(new SplFixedArray($pick), $pick);    // Zero-based array for positions 0 to pick-1
+        $processed_draws = 0;   // Count of actually processed draws
         
-        $adj = 1;   // Set to the ball 1 to ball 2
         foreach($draws as $count => $draw)
         {
-            if(($total-1)!=$count)
+            $processed_draws++;
+            for($c = 1; $c < $pick; $c++)  // Iterate through adjacent ball positions
             {
-                for($c=1; $c<$pick; $c++)                     // Interate the draw for changes from the previous draw and the next draw
+                $diff = intval($draw['ball'.($c+1)]) - intval($draw['ball'.$c]);
+                $adjacents[$c-1] += $diff;  // Use zero-based indexing for array
+                
+                // Track the largest difference and its position across all draws
+                if($lg_diff < $diff) 
                 {
-                    $diff = intval($draw['ball'.($c+1)])-intval($draw['ball'.$c]);
-                    $adjacents[$c]  += $diff;
-                    if($lg_diff<$diff) 
-                    {
-                        $lg_diff = $diff;     // The current (diff)erence for any draw is now the largest (lgdiff)erence     
-                        $adj = $c;            // Where did this occur?  
-                    }
+                    $lg_diff = $diff;     // Current difference is now the largest     
+                    $adj = $c;            // Position between balls where this occurred
                 }
             }
         }
+        
         $adj_text = '';
         unset($draws);
-        for($c=1; $c<$pick; $c++)
+        
+        // Calculate averages and build output string
+        for($c = 1; $c < $pick; $c++)
         {
-            $adjacents[$c] = round(($adjacents[$c] / $total)); // Nearest int <.5 or >.5
-            $adj_text .= $c.'='.$adjacents[$c].',';
+            $average = round(($adjacents[$c-1] / $processed_draws)); // Average difference for this position
+            $adj_text .= $c.'='.$average.',';
         }
-        $adj_text = substr_replace($adj_text, '|', -1);	    // Replace the ',' with the '|' (pipe)
-        $adj_text .= $adj.'='.$lg_diff;                     // include the last draw date of consecutive occurrence
-    return $adj_text;                        
+        
+        $adj_text = substr_replace($adj_text, '|', -1);    // Replace last ',' with '|'
+        $adj_text .= $adj.'='.$lg_diff;                    // Include position and value of largest difference
+        
+        return $adj_text;                        
     }
     /**
 	 * sums_history summarizes the winning sums over a given range of draws. Only the top 10 Winning sums if they have occurred more than once, will be retained. 
