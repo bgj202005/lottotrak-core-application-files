@@ -704,6 +704,20 @@ class Statistics extends Admin_Controller {
 			} 
 
 			$p_group = $this->statistics_m->prize_group_profile($id); // Prize Group Profile Only
+			
+			// Handle case where no prize profile exists
+			if (empty($p_group)) {
+				// Use default prize structure if no profile found
+				$p_group = array(
+					'extra' => 1,
+					'1_win' => 1, '1_win_extra' => 1,
+					'2_win' => 1, '2_win_extra' => 1,
+					'3_win' => 1, '3_win_extra' => 1,
+					'4_win' => 1, '4_win_extra' => 1,
+					'5_win' => 1, '5_win_extra' => 1
+				);
+			}
+			
 			$p_group = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_ball);
  			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
 
@@ -764,6 +778,20 @@ class Statistics extends Admin_Controller {
 		else // 3. If does not exist, calculate for the given draw range, return results and save to follower table
 		{
 			$p_group = $this->statistics_m->prize_group_profile($id); // Prize Group Profile Only
+			
+			// Handle case where no prize profile exists
+			if (empty($p_group)) {
+				// Use default prize structure if no profile found
+				$p_group = array(
+					'extra' => 1,
+					'1_win' => 1, '1_win_extra' => 1,
+					'2_win' => 1, '2_win_extra' => 1,
+					'3_win' => 1, '3_win_extra' => 1,
+					'4_win' => 1, '4_win_extra' => 1,
+					'5_win' => 1, '5_win_extra' => 1
+				);
+			}
+			
 			$prizes = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_ball);
 			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
 
@@ -1317,7 +1345,7 @@ class Statistics extends Admin_Controller {
 			$strhots = $this->statistics_m->hots($str_hwc);
 			$strwarms = $this->statistics_m->warms($str_hwc);
 			$strcolds = $this->statistics_m->colds($str_hwc);
-			$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl_name, $drawn, $new_range);
+			$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range);
 			$strhots_last = $h_w_c['hots_last'];
 			$strwarms_last = $h_w_c['warms_last'];
 			$strcolds_last = $h_w_c['colds_last'];
@@ -1849,7 +1877,7 @@ class Statistics extends Admin_Controller {
 		 $strhots = $this->statistics_m->hots($str_hwc);
 		 $strwarms = $this->statistics_m->warms($str_hwc);
 		 $strcolds = $this->statistics_m->colds($str_hwc);
-		 $stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl, $drawn, $new_range);
+		 $stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range);
 		 $prev_draw = $this->statistics_m->hwc_DrawBeforeLast($tbl);// Get the previous draw data
 			$prev_strhwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $prev_draw['draw_date'], $blnduplicate);
 			if($blnduplicate&&$h_w_c['extra_included']) $prev_str_dupextra = $this->statistics_m->hwc_duple_extra($tbl, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $prev_draw['draw_date']);	
@@ -1964,6 +1992,20 @@ class Statistics extends Admin_Controller {
 		{
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
 			$p_group = $this->statistics_m->prize_group_profile($id);
+			
+			// Handle case where no prize profile exists
+			if (empty($p_group)) {
+				// Use default prize structure if no profile found
+				$p_group = array(
+					'extra' => 1,
+					'1_win' => 1, '1_win_extra' => 1,
+					'2_win' => 1, '2_win_extra' => 1,
+					'3_win' => 1, '3_win_extra' => 1,
+					'4_win' => 1, '4_win_extra' => 1,
+					'5_win' => 1, '5_win_extra' => 1
+				);
+			}
+			
 			$p_group = $this->statistics_m->prizes_only($p_group,$lottery_extra);
  			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $followers['extra_included']);
@@ -2011,6 +2053,20 @@ class Statistics extends Admin_Controller {
 			// range is set with either less than 100 rows (based on the exact number of draws) or calculate the number of followers using only 100 rows
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
 			$p_group = $this->statistics_m->prize_group_profile($id);
+			
+			// Handle case where no prize profile exists
+			if (empty($p_group)) {
+				// Use default prize structure if no profile found
+				$p_group = array(
+					'extra' => 1,
+					'1_win' => 1, '1_win_extra' => 1,
+					'2_win' => 1, '2_win_extra' => 1,
+					'3_win' => 1, '3_win_extra' => 1,
+					'4_win' => 1, '4_win_extra' => 1,
+					'5_win' => 1, '5_win_extra' => 1
+				);
+			}
+			
 			$p_group = $this->statistics_m->prizes_only($p_group,$lottery_extra);
  			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $followers['extra_included']);

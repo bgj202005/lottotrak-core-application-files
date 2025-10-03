@@ -2017,6 +2017,10 @@ class Statistics_m extends MY_Model
 	 */
 	private function prize_group_nonnulls(array $p)
 	{	
+		// Check if array is empty or doesn't have required data
+		if (empty($p) || !isset($p[0])) {
+			return array(); // Return empty array if no prize profile found
+		}
 
 		$pool = $p[0];
 		unset($pool['lottery_id']); // both lottery id and id not required for this return
@@ -5698,7 +5702,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$balls_drawn = $lottery->balls_drawn;
 		
 		// Get prize group profile for categories
-		$prize_group = $this->prize_group_profile($lottery_id);
+		$prize_group = $this->get_prize_profile($lottery_id);
 		$prize_categories = $this->prizes_only($prize_group, $lottery->extra_ball);
 		
 		// Initialize position results array
@@ -6658,7 +6662,8 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	 */
 	private function save_wins_string($lottery_id, $range, $hots, $warms, $colds, $prediction_pool, $extra_included, $extra_draws, $wins_string)
 	{
-
+		// Create h_w_c_range field based on the distribution pattern
+		$h_w_c_range = $hots . '-' . $warms . '-' . $colds . '=' . $range;
 		
 		// Use only lottery_id for querying lottery_h_w_c_stats table
 		// The H-W-C parameters are stored in lottery_h_w_c table, not lottery_h_w_c_stats
@@ -6666,19 +6671,33 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			'lottery_id' => $lottery_id
 		);
 
-		$data = array(
-			'lottery_id' => $lottery_id,
-			'wins' => $wins_string
-		);
-
 		// Check if record exists
 		$query = $this->db->get_where('lottery_h_w_c_stats', $where);
 		
 		if ($query->num_rows() > 0) {
-			// Update existing record
-			return $this->db->update('lottery_h_w_c_stats', array('wins' => $wins_string), $where);
+			// Update existing record - only update wins, range, and h_w_c_range fields
+			$update_data = array(
+				'wins' => $wins_string,
+				'range' => $range,
+				'h_w_c_range' => $h_w_c_range
+			);
+			return $this->db->update('lottery_h_w_c_stats', $update_data, $where);
 		} else {
-			// Insert new record
+			// Insert new record with all required fields and default values
+			$data = array(
+				'lottery_id' => $lottery_id,
+				'range' => $range,
+				'h_w_c_range' => $h_w_c_range,
+				'h_w_c_last_1' => '',  // Default empty string
+				'h_w_c_last_10' => '', // Default empty string
+				'position' => '',      // Default empty string
+				'position_last' => '', // Default empty string
+				'draw_id' => 0,        // Default 0
+				'draw_id_last' => 0,   // Default 0
+				'extra_included' => $extra_included,
+				'extra_draws' => $extra_draws,
+				'wins' => $wins_string
+			);
 			return $this->db->insert('lottery_h_w_c_stats', $data);
 		}
 	}
