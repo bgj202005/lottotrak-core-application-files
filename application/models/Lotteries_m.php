@@ -1057,6 +1057,10 @@ class Lotteries_m extends MY_Model
 	**/
 	public function prize_nulled($submit_prizes, $db_prizes)
 	{
+		// If no existing prize profile exists, just return the submitted prizes
+		if (empty($db_prizes) || !is_array($db_prizes)) {
+			return (!empty($submit_prizes) ? $submit_prizes : FALSE);
+		}
 		
 		foreach ($db_prizes as $prize => $active)
 		{

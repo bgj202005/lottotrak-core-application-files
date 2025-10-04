@@ -1729,19 +1729,31 @@ class Statistics extends Admin_Controller {
 	 */
 	public function recalc($id)
 	{
+		log_message('error', "=== MAIN RECALC METHOD STARTED for lottery_id=$id ===");
 		// 1. Determine if the draws have the columns with the Statistics data
 		$this->data['message'] = '';	// Defaulted to No Error Messages
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		log_message('info', "Recalc: lottery_name=" . $this->data['lottery']->lottery_name . ", table_name=$tbl_name");
 	
 		$recalc = FALSE;
-		if($this->statistics_m->last_stats_exist($tbl_name)) /** First Check to see that the lottery db exists and statistics exist */
+		$stats_exist = $this->statistics_m->last_stats_exist($tbl_name);
+		log_message('error', "Recalc: last_stats_exist($tbl_name) returned: " . ($stats_exist ? 'TRUE' : 'FALSE'));
+		
+		if($stats_exist) /** First Check to see that the lottery db exists and statistics exist */
 		{
 			$draw_id = $this->statistics_m->last_id($tbl_name);
-			if($this->statistics_m->recalc_update($id, $draw_id)) // Second, if a new draw has been entered or manually entered, return true to recalc //
+			log_message('info', "Recalc: last_id($tbl_name) returned: $draw_id");
+			
+			$needs_update = $this->statistics_m->recalc_update($id, $draw_id);
+			log_message('error', "Recalc: recalc_update($id, $draw_id) returned: " . ($needs_update ? 'TRUE' : 'FALSE'));
+			
+			if($needs_update) // Second, if a new draw has been entered or manually entered, return true to recalc //
 			{
 				$recalc = TRUE;
+				log_message('info', "Recalc: Starting recalculation process for lottery_id=$id");
+				
 				// Initialize extra_included and extra_draws properties
 				if(!isset($this->data['lottery']->extra_included)) {
 					$this->data['lottery']->extra_included = 0;
@@ -1752,17 +1764,22 @@ class Statistics extends Admin_Controller {
 				
 				// Verified the Draw Statistics have been completed
 				// 1. The H (Hots) - W (Warms) - C (Colds) will be RE-CALC'd
+				log_message('error', "Recalc: About to call recalc_hwc for lottery_id=$id");
 				$this->recalc_hwc($id,$this->data['lottery']);
+				log_message('error', "Recalc: Finished recalc_hwc for lottery_id=$id");
 				
 				// 2. The Followers will be RE-CALC'd
 				$this->recalc_followers($id,$this->data['lottery']);
 
 				// 3. The Friends of numbers will be RE-CALC'd	
 				$this->recalc_friends($id, $this->data['lottery']);
+			} else {
+				log_message('info', "Recalc: recalc_update returned FALSE - no recalculation needed for lottery_id=$id");
 			}
 		}
 		else
 		{	// Verfied that the Draw Statistics have not been completed, exit action with an error message
+			log_message('error', "Recalc: last_stats_exist returned FALSE for table=$tbl_name - statistics don't exist");
 			$this->session->set_flashdata('message', 'The latest Draw has not been completed. Please enter the next draw and click the Calculator to complete the draw statistics.');
 			redirect('admin/statistics');
 		}
@@ -1782,6 +1799,7 @@ class Statistics extends Admin_Controller {
 	 */
 	public function recalc_hwc($id, $lotto)
 	{
+	 log_message('info', "=== H-W-C RECALCULATION STARTED for lottery_id=$id, name=" . $lotto->lottery_name . " ===");
 	 // Retrieve the lottery table name for the database
 	 $tbl = $this->lotteries_m->lotto_table_convert($lotto->lottery_name);
 	 $blnduplicate = ($lotto->duplicate_extra_ball ? TRUE : FALSE);
@@ -1799,8 +1817,10 @@ class Statistics extends Admin_Controller {
 	 $prev_str_dupextra = ""; // Empty String
 	 $prev_draw = array();	// Initialize the previous draw array
 	 $h_w_c = $this->statistics_m->h_w_c_exists($id);
+	 log_message('info', "H-W-C Recalc: h_w_c_exists($id) returned: " . ($h_w_c ? 'EXISTS' : 'NULL'));
 	 if(!is_null($h_w_c))	// Existing HWC?
 	 {
+		log_message('info', "H-W-C Recalc: Taking IF branch (existing H-W-C data) for lottery_id=$id");
 		$new_range = $h_w_c['range'];
 		$hots = $h_w_c['h_count'];
 		$warms = $h_w_c['w_count'];
@@ -1863,9 +1883,11 @@ class Statistics extends Admin_Controller {
 	 }
 	 else 
 	 {
+		 log_message('info', "H-W-C Recalc: Entering ELSE branch (new lottery path) for lottery_id=$id");
 		 $this->data['lottery']->extra_included = 0; // No Extra Ball as part of the calculation
 		 $this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
 		 $new_range = ($all<100 ? $all : 100);
+		 log_message('info', "H-W-C Recalc: Using range=$new_range for lottery_id=$id (total_draws=$all)");
 		 $heat = explode('-', $this->statistics_m->hwc_defaults[$max_ball]); 	// Break out the H-W-C into a new array
 		 $w_start = intval($heat[0]+1);					// Warms
 		 $this->data['lottery']->H = $heat[0];  						// Number of Hots Distributed e.g. 16 Hots
@@ -1878,6 +1900,18 @@ class Statistics extends Admin_Controller {
 		 $strwarms = $this->statistics_m->warms($str_hwc);
 		 $strcolds = $this->statistics_m->colds($str_hwc);
 		 $stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range);
+		 
+		 // Calculate H-W-C win statistics for new lottery setup
+		 $hot_count = count(explode(',', $strhots));
+		 $warm_count = count(explode(',', $strwarms));
+		 $cold_count = count(explode(',', $strcolds));
+		 $prediction_pool = 18; // Default prediction pool for new lotteries
+		 log_message('info', "H-W-C Recalc: About to call calculate_hwc_wins for lottery_id=$id, range=$new_range, hots=$hot_count, warms=$warm_count, colds=$cold_count");
+		 $this->calculate_hwc_wins($id, $new_range, $prediction_pool, 
+			$hot_count, $warm_count, $cold_count,
+			$this->data['lottery']->extra_included, $this->data['lottery']->extra_draws);
+		 log_message('info', "H-W-C Recalc: Finished calculate_hwc_wins call for lottery_id=$id");
+		 
 		 $prev_draw = $this->statistics_m->hwc_DrawBeforeLast($tbl);// Get the previous draw data
 			$prev_strhwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $prev_draw['draw_date'], $blnduplicate);
 			if($blnduplicate&&$h_w_c['extra_included']) $prev_str_dupextra = $this->statistics_m->hwc_duple_extra($tbl, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $prev_draw['draw_date']);	
@@ -2541,6 +2575,9 @@ class Statistics extends Admin_Controller {
 	private function calculate_hwc_wins($lottery_id, $range, $prediction_pool, $hots, $warms, $colds, $extra_included = false, $extra_draws = false)
 	{
 		try {
+			// Debug logging
+			log_message('info', "Starting H-W-C win calculation for lottery_id: $lottery_id, range: $range, hots: $hots, warms: $warms, colds: $colds");
+			
 			// Call the comprehensive H-W-C win analysis method
 			$wins_string = $this->statistics_m->calculate_hwc_win_statistics(
 				$lottery_id, 
@@ -2555,10 +2592,11 @@ class Statistics extends Admin_Controller {
 			
 			if ($wins_string !== FALSE) {
 				// Success - wins string has been calculated and saved to database
+				log_message('info', "H-W-C win analysis SUCCESS for lottery_id: $lottery_id - wins data saved");
 				return TRUE;
 			} else {
 				// Log error or handle failure case
-				log_message('error', "H-W-C win analysis failed for lottery_id: $lottery_id, range: $range");
+				log_message('error', "H-W-C win analysis FAILED for lottery_id: $lottery_id, range: $range");
 				return FALSE;
 			}
 		} catch (Exception $e) {

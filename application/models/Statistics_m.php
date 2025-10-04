@@ -5825,12 +5825,25 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 
 		// Get total draws available
 		$total_draws = $this->lotteries_m->db_row_count($table_name);
+		log_message('info', "H-W-C win stats: lottery_id=$lottery_id, total_draws=$total_draws, requested_range=$range");
+		
+		// Adjust range for lotteries with fewer draws
+		$adjusted_range = $range;
+		$minimum_required = $range + 50; // More flexible requirement
+		
 		if ($total_draws < ($range * 2)) {
-			return FALSE; // Need at least double the range for analysis
+			if ($total_draws >= $minimum_required) {
+				// Use a smaller range that fits available data
+				$adjusted_range = max(50, intval($total_draws / 2));
+				log_message('info', "H-W-C win stats: Adjusting range from $range to $adjusted_range for lottery_id=$lottery_id");
+			} else {
+				log_message('error', "H-W-C win stats: Insufficient draws for lottery_id=$lottery_id. Has $total_draws, needs at least $minimum_required");
+				return FALSE;
+			}
 		}
 
-		// Get existing wins string from database
-		$existing_wins_string = $this->get_existing_wins_string($lottery_id, $range, $hots, $warms, $colds, $prediction_pool, $extra_included, $extra_draws);
+		// Get existing wins string from database (using adjusted range)
+		$existing_wins_string = $this->get_existing_wins_string($lottery_id, $adjusted_range, $hots, $warms, $colds, $prediction_pool, $extra_included, $extra_draws);
 		$existing_wins_data = $this->parse_wins_string($existing_wins_string, $prize_profile);
 
 		// Store H-W-C ranges first so they can be used in calculate_hwc_positions
@@ -5840,17 +5853,18 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		
 
 		
-		// Phase 1: Calculate positions for the first range (e.g., draws 1-100)
-		$hwc_positions = $this->calculate_hwc_positions($table_name, $range, $lottery, $extra_included, $extra_draws);
+		// Phase 1: Calculate positions for the adjusted range
+		$hwc_positions = $this->calculate_hwc_positions($table_name, $adjusted_range, $lottery, $extra_included, $extra_draws);
 		if (!$hwc_positions) {
+			log_message('error', "H-W-C win stats: Failed to calculate positions for lottery_id=$lottery_id, range=$adjusted_range");
 			return FALSE;
 		}
 		$this->hwc_positions = $hwc_positions;
 		
 
 
-		// Phase 2: Analyze the next range (e.g., draws 101-200) using fixed positions
-		$new_win_statistics = $this->analyze_sliding_window($table_name, $range, $hwc_positions, $prediction_pool, 
+		// Phase 2: Analyze the next range using fixed positions
+		$new_win_statistics = $this->analyze_sliding_window($table_name, $adjusted_range, $hwc_positions, $prediction_pool, 
 			$hots, $warms, $colds, $lottery, $prize_profile, $extra_included);
 
 		// Phase 3: REPLACE existing data instead of merging (this was causing accumulation bug)
@@ -5863,8 +5877,9 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		// Phase 5: Format and save the updated string
 		$final_wins_string = $this->format_win_statistics($final_wins_data, $prize_profile);
 		
-		$this->save_wins_string($lottery_id, $range, $hots, $warms, $colds, $prediction_pool, $extra_included, $extra_draws, $final_wins_string);
-
+		$this->save_wins_string($lottery_id, $adjusted_range, $hots, $warms, $colds, $prediction_pool, $extra_included, $extra_draws, $final_wins_string);
+		
+		log_message('info', "H-W-C win stats: Successfully saved wins data for lottery_id=$lottery_id, range=$adjusted_range");
 		return $final_wins_string;
 	}
 
@@ -6805,7 +6820,8 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$query = $this->db->get('lottery_h_w_c_stats');
 		
 		if ($query->num_rows() > 0) {
-			return $query->row_array();
+			$result = $query->row_array();
+			return $result;
 		}
 		
 		return null;

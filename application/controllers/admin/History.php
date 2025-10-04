@@ -562,6 +562,7 @@ class History extends Admin_Controller {
 		unset($positions_last);
 		// Get H-W-C winners data for the Winners tab
 		$hwc_stats = $this->statistics_m->get_hwc_stats($id);
+		
 		if(!empty($hwc_stats) && !empty($hwc_stats['wins'])) {
 			$h_w_c_range = isset($hwc_stats['h_w_c_range']) ? $hwc_stats['h_w_c_range'] : '';
 			$this->data['hwc_winners'] = $this->parse_hwc_winners($hwc_stats['wins'], $id, $h_w_c_range);
@@ -1470,9 +1471,7 @@ class History extends Admin_Controller {
 		$prize_profile = $this->statistics_m->get_lottery_prize_profile($lottery_id);
 		if(empty($prize_profile)) {
 			return $winners;
-		}
-		
-		// Define point system based on follower wins (from user documentation)
+		}		// Define point system based on follower wins (from user documentation)
 		$category_points = array(
 			'extra' => 1,		// Extra/Bonus Ball Only = 1 point
 			'2_win' => 4,		// 2 Balls = 4 points  
@@ -1496,12 +1495,14 @@ class History extends Admin_Controller {
 		// Split the wins string by pipe separator
 		$hwc_entries = explode('|', $wins_string);
 		
-		foreach($hwc_entries as $entry) {
+		foreach($hwc_entries as $entry_index => $entry) {
 			if(empty($entry)) continue;
 			
 			// Split H-W-C pattern from win counts
 			$parts = explode('=', $entry);
-			if(count($parts) != 2) continue;
+			if(count($parts) != 2) {
+				continue;
+			}
 			
 			$hwc_pattern = $parts[0];  // e.g., "4-1-1"
 			$win_counts = $parts[1];   // e.g., "3,1,5,2,0,2,0"
