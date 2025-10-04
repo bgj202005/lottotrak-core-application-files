@@ -1448,14 +1448,31 @@
     
     // Run your script after the page is loaded
     document.addEventListener('DOMContentLoaded', function () {
-        console.log('Country Code:', countryCode);
-        console.log('State/Province Code:', stateProvCode);
-
-        // Example: Use the codes to display full names
-        const countryName = BFHCountriesList[countryCode] || 'Unknown Country';
-        const stateName = stateProvCode
-            ? (BFHStatesList[countryCode] && BFHStatesList[countryCode][stateProvCode]) || 'Unknown State/Province'
-            : (countryCode === 'CA' ? 'All Provinces' : countryCode === 'US' ? 'All States' : 'All Regions');
+        // Use the codes to display full names
+        const countryName = (typeof BFHCountriesList !== 'undefined' && BFHCountriesList[countryCode]) || 'Unknown Country';
+        
+        let stateName = 'Unknown State/Province';
+        if (stateProvCode && typeof BFHStatesList !== 'undefined' && BFHStatesList[countryCode]) {
+            // BFHStatesList structure is numbered objects with code/name properties
+            // Need to search through the numbered objects to find matching code
+            const countryStates = BFHStatesList[countryCode];
+            let foundState = null;
+            
+            // Loop through numbered objects (1, 2, 3, etc.)
+            for (let key in countryStates) {
+                if (countryStates[key] && countryStates[key].code === stateProvCode) {
+                    foundState = countryStates[key];
+                    break;
+                }
+            }
+            
+            if (foundState) {
+                stateName = foundState.name;
+            }
+        } else if (!stateProvCode) {
+            // No specific state/province selected - show "All" for the country
+            stateName = countryCode === 'CA' ? 'All Provinces' : countryCode === 'US' ? 'All States' : 'All Regions';
+        }
 
         // Display the names in the view
         document.getElementById('country-name').textContent = countryName;
