@@ -2772,6 +2772,7 @@ class Predictions_m extends MY_Model
 	/**
 	 * Counts the number of consecutive pairs in the combination.
 	 * Returns 0 if no consecutive numbers, 1 for one pair, etc.
+	 * For independent extra ball lotteries, only considers main numbers (excludes extra ball).
 	 *
 	 * @param array $combo Associative array of balls (e.g., ['ball1'=>2, ...])
 	 * @param int   $max   Number of balls in the combination
@@ -2779,7 +2780,16 @@ class Predictions_m extends MY_Model
 	 */
 	public function has_consecutive($combo, $max)
 	{
-		$numbers = array_values($combo);
+		// For independent extra ball lotteries, exclude the extra ball from consecutive calculation
+		$numbers = [];
+		
+		// Extract main numbers only (exclude 'extra' key)
+		foreach ($combo as $key => $value) {
+			if ($key !== 'extra') {
+				$numbers[] = $value;
+			}
+		}
+		
 		sort($numbers, SORT_NUMERIC);
 		$consecutive_count = 0;
 		$actual_count = count($numbers);
