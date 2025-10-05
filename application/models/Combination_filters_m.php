@@ -959,8 +959,9 @@ class Combination_filters_m extends MY_Model
 
     /**
      * Count the number of repeaters in a combination
+     * For independent extra ball lotteries, only counts main number repeaters (excludes extra ball)
      *
-     * @param array $combo Combination to check
+     * @param array $combo Combination to check (main numbers only, no extra ball)
      * @param int $max Maximum number in range
      * @param array $last_draw Last draw data
      * @return int Number of repeaters found
@@ -971,6 +972,7 @@ class Combination_filters_m extends MY_Model
             return 0;
         }
         
+        // Extract main numbers only from last draw (exclude extra ball)
         $last_drawn_numbers = [];
         foreach ($last_draw as $key => $value) {
             if (strpos($key, 'ball') === 0 && is_numeric($value)) {
@@ -978,6 +980,8 @@ class Combination_filters_m extends MY_Model
             }
         }
         
+        // Count intersections between combination main numbers and last drawn main numbers
+        // Note: $combo should already be main numbers only (extra ball removed in apply_other_filters)
         $repeaters = array_intersect($combo, $last_drawn_numbers);
         return count($repeaters);
     }

@@ -2738,6 +2738,7 @@ class Predictions_m extends MY_Model
 	/**
 	 * Counts how many numbers in $combo are also in $last_draw (repeaters).
 	 * Returns the number of repeaters (0, 1, ...).
+	 * For independent extra ball lotteries, only compares main numbers (excludes extra ball).
 	 *
 	 * @param array $combo     Associative array of balls (e.g., ['ball1'=>2, ...])
 	 * @param int   $max       Number of balls in the combination
@@ -2746,16 +2747,26 @@ class Predictions_m extends MY_Model
 	 */
 	public function is_repeater($combo, $max, $last_draw)
 	{
-		// Extract just the numbers from both arrays
-		$combo_numbers = array_values($combo);
+		// For independent extra ball lotteries, exclude the extra ball from repeater calculation
+		$combo_numbers = [];
 		$last_numbers = [];
+		
+		// Extract main numbers only (exclude 'extra' key)
+		foreach ($combo as $key => $value) {
+			if ($key !== 'extra') {
+				$combo_numbers[] = $value;
+			}
+		}
+		
+		// Extract main numbers from last draw (exclude 'extra' key)
 		for ($i = 1; $i <= $max; $i++) {
 			if (isset($last_draw['ball'.$i])) {
 				$last_numbers[] = $last_draw['ball'.$i];
 			}
 		}
-		// Count how many numbers are repeated
-	return count(array_intersect($combo_numbers, $last_numbers));
+		
+		// Count how many main numbers are repeated (excludes extra ball matches)
+		return count(array_intersect($combo_numbers, $last_numbers));
 	}
 
 	/**
