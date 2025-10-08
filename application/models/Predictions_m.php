@@ -2739,6 +2739,7 @@ class Predictions_m extends MY_Model
 	 * Counts how many numbers in $combo are also in $last_draw (repeaters).
 	 * Returns the number of repeaters (0, 1, ...).
 	 * For independent extra ball lotteries, only compares main numbers (excludes extra ball).
+	 * For regular lotteries, compares all numbers including extra balls.
 	 *
 	 * @param array $combo     Associative array of balls (e.g., ['ball1'=>2, ...])
 	 * @param int   $max       Number of balls in the combination
@@ -2747,25 +2748,44 @@ class Predictions_m extends MY_Model
 	 */
 	public function is_repeater($combo, $max, $last_draw)
 	{
-		// For independent extra ball lotteries, exclude the extra ball from repeater calculation
+		// Check if this is an independent extra ball lottery by looking for 'extra' key in combo
+		$is_independent_extra_ball = isset($combo['extra']);
+		
 		$combo_numbers = [];
 		$last_numbers = [];
 		
-		// Extract main numbers only (exclude 'extra' key)
-		foreach ($combo as $key => $value) {
-			if ($key !== 'extra') {
-				$combo_numbers[] = $value;
+		if ($is_independent_extra_ball) {
+			// For independent extra ball lotteries, exclude the extra ball from repeater calculation
+			foreach ($combo as $key => $value) {
+				if ($key !== 'extra') {
+					$combo_numbers[] = $value;
+				}
+			}
+			
+			// Extract main numbers from last draw (exclude 'extra' key)
+			for ($i = 1; $i <= $max; $i++) {
+				if (isset($last_draw['ball'.$i])) {
+					$last_numbers[] = $last_draw['ball'.$i];
+				}
+			}
+		} else {
+			// For regular lotteries, include all numbers (main + extra if present)
+			$combo_numbers = array_values($combo);
+			
+			// Extract all numbers from last draw (main + extra if present)
+			for ($i = 1; $i <= $max; $i++) {
+				if (isset($last_draw['ball'.$i])) {
+					$last_numbers[] = $last_draw['ball'.$i];
+				}
+			}
+			
+			// Include extra ball if present in last draw
+			if (isset($last_draw['extra'])) {
+				$last_numbers[] = $last_draw['extra'];
 			}
 		}
 		
-		// Extract main numbers from last draw (exclude 'extra' key)
-		for ($i = 1; $i <= $max; $i++) {
-			if (isset($last_draw['ball'.$i])) {
-				$last_numbers[] = $last_draw['ball'.$i];
-			}
-		}
-		
-		// Count how many main numbers are repeated (excludes extra ball matches)
+		// Count how many numbers are repeated
 		return count(array_intersect($combo_numbers, $last_numbers));
 	}
 
@@ -2773,6 +2793,7 @@ class Predictions_m extends MY_Model
 	 * Counts the number of consecutive pairs in the combination.
 	 * Returns 0 if no consecutive numbers, 1 for one pair, etc.
 	 * For independent extra ball lotteries, only considers main numbers (excludes extra ball).
+	 * For regular lotteries, considers all numbers including extra balls.
 	 *
 	 * @param array $combo Associative array of balls (e.g., ['ball1'=>2, ...])
 	 * @param int   $max   Number of balls in the combination
@@ -2780,14 +2801,21 @@ class Predictions_m extends MY_Model
 	 */
 	public function has_consecutive($combo, $max)
 	{
-		// For independent extra ball lotteries, exclude the extra ball from consecutive calculation
+		// Check if this is an independent extra ball lottery by looking for 'extra' key in combo
+		$is_independent_extra_ball = isset($combo['extra']);
+		
 		$numbers = [];
 		
-		// Extract main numbers only (exclude 'extra' key)
-		foreach ($combo as $key => $value) {
-			if ($key !== 'extra') {
-				$numbers[] = $value;
+		if ($is_independent_extra_ball) {
+			// For independent extra ball lotteries, exclude the extra ball from consecutive calculation
+			foreach ($combo as $key => $value) {
+				if ($key !== 'extra') {
+					$numbers[] = $value;
+				}
 			}
+		} else {
+			// For regular lotteries, include all numbers
+			$numbers = array_values($combo);
 		}
 		
 		sort($numbers, SORT_NUMERIC);

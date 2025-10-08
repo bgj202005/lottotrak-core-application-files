@@ -960,8 +960,9 @@ class Combination_filters_m extends MY_Model
     /**
      * Count the number of repeaters in a combination
      * For independent extra ball lotteries, only counts main number repeaters (excludes extra ball)
+     * For regular lotteries, includes extra ball in repeater calculation
      *
-     * @param array $combo Combination to check (main numbers only, no extra ball)
+     * @param array $combo Combination to check
      * @param int $max Maximum number in range
      * @param array $last_draw Last draw data
      * @return int Number of repeaters found
@@ -972,16 +973,31 @@ class Combination_filters_m extends MY_Model
             return 0;
         }
         
-        // Extract main numbers only from last draw (exclude extra ball)
+        // Determine lottery type by checking if last_draw has 'extra' key
+        // For independent extra ball lotteries, last_draw will have 'extra' key
+        $is_independent_extra_ball = isset($last_draw['extra']);
+        
         $last_drawn_numbers = [];
-        foreach ($last_draw as $key => $value) {
-            if (strpos($key, 'ball') === 0 && is_numeric($value)) {
-                $last_drawn_numbers[] = intval($value);
+        
+        if ($is_independent_extra_ball) {
+            // For independent extra ball lotteries, extract main numbers only (exclude extra ball)
+            foreach ($last_draw as $key => $value) {
+                if (strpos($key, 'ball') === 0 && is_numeric($value)) {
+                    $last_drawn_numbers[] = intval($value);
+                }
+            }
+        } else {
+            // For regular lotteries, include all numbers (main + extra if present)
+            foreach ($last_draw as $key => $value) {
+                if ((strpos($key, 'ball') === 0 || $key === 'extra') && is_numeric($value)) {
+                    $last_drawn_numbers[] = intval($value);
+                }
             }
         }
         
-        // Count intersections between combination main numbers and last drawn main numbers
-        // Note: $combo should already be main numbers only (extra ball removed in apply_other_filters)
+        // Count intersections between combination numbers and last drawn numbers
+        // Note: For independent extra ball lotteries, $combo already has extra ball removed in apply_other_filters
+        // For regular lotteries, $combo contains all numbers including extra ball
         $repeaters = array_intersect($combo, $last_drawn_numbers);
         return count($repeaters);
     }
