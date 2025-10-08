@@ -905,6 +905,26 @@
 							</div>
 						</div>
 						
+						<!-- Status Display Area (shown when dropdown selection is made) -->
+						<div id="combination-status-display" class="row mt-3" style="display: none;">
+							<div class="col-12">
+								<div class="status-display-panel" style="border: 2px solid #007bff; border-radius: 8px; background: #f8f9fa; padding: 1em; margin-bottom: 1em;">
+									<div class="d-flex align-items-center justify-content-between flex-wrap">
+										<div class="status-info d-flex align-items-center flex-wrap">
+											<span id="status-badge" class="badge badge-success mr-3" style="font-size: 0.9rem;">Active</span>
+											<span id="file-info" class="mr-3" style="font-weight: bold; color: #495057;">File Info</span>
+											<span id="tickets-count" class="mr-3" style="color: #28a745; font-weight: bold;">Filtered Tickets: 0</span>
+										</div>
+										<div class="action-icons d-flex align-items-center">
+											<i id="restore-icon" class="fa fa-eye fa-2x mr-2" title="Restore previous Combination Filter Settings" style="color: #007bff; cursor: pointer;" onclick="restoreFromStatus()"></i>
+											<i id="winners-icon" class="fa fa-money fa-2x mr-2" title="View Combination Ticket Winners" style="color: #28a745; cursor: pointer;" onclick="viewWinnersFromStatus()"></i>
+											<i id="delete-icon" class="fa fa-trash-o fa-2x" title="Delete this file and Combination Table Filtered Tickets" style="color: #dc3545; cursor: pointer;" onclick="deleteFromStatus()"></i>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						
 						<div class="row">
 							<div class="col-12">
 								<!-- First Table: Presets Control Panel -->

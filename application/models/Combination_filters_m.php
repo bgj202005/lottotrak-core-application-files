@@ -705,8 +705,12 @@ class Combination_filters_m extends MY_Model
             $max = $lottery_highlights['range'] ?? 49;
             $last_draw = $filter_select['lottery_last_drawn'] ?? [];
             
+            // Use the original combo array to maintain consistency with display logic
+            // For filtering, we need to use the full combo, not just main_numbers_values
+            $combo_for_counting = $combo;
+            
             // Get the count of repeaters, not just if there are any
-            $repeater_count = $this->count_repeaters($main_numbers_values, $max, $last_draw);
+            $repeater_count = $this->count_repeaters_from_combo($combo_for_counting, $max, $last_draw, $filter_select);
             $expected_repeater_count = (int)$filter_select['selected_repeaters'];
             
             // Check if the combination has the exact number of repeaters expected
@@ -1000,6 +1004,63 @@ class Combination_filters_m extends MY_Model
         // For regular lotteries, $combo contains all numbers including extra ball
         $repeaters = array_intersect($combo, $last_drawn_numbers);
         return count($repeaters);
+    }
+
+    /**
+     * Count repeaters using the same logic as display calculation
+     * This ensures consistency between filtering and display
+     */
+    private function count_repeaters_from_combo($combo, $max_number, $last_draw, $filter_select) {
+        if (empty($last_draw) || empty($combo)) {
+            return 0;
+        }
+        
+        // Use same lottery type detection as Predictions_m.php
+        $lottery_id = $filter_select['lottery_id'] ?? 0;
+        $is_independent_extra_ball = false;
+        
+        // Check duplicate_extra_ball from lottery data
+        if (isset($filter_select['lottery_data'])) {
+            $lottery_data = $filter_select['lottery_data'];
+            if (isset($lottery_data['duplicate_extra_ball'])) {
+                $is_independent_extra_ball = ($lottery_data['duplicate_extra_ball'] == 1);
+            }
+        }
+        
+        // If no lottery data available, fallback to checking extra key presence
+        if (!isset($filter_select['lottery_data']) && isset($last_draw['extra']) && !empty($last_draw['extra'])) {
+            // For Canada 649 (lottery_id = 1), it's a regular lottery, not independent extra ball
+            $is_independent_extra_ball = false;
+        }
+        
+        // Prepare combo numbers for comparison
+        $combo_numbers = array_map('intval', $combo);
+        
+        // Create array of last drawn numbers
+        $last_numbers = [];
+        
+        // Always include main draw numbers (ball1-ball6)
+        for ($i = 1; $i <= 6; $i++) {
+            if (isset($last_draw["ball$i"]) && $last_draw["ball$i"] != '') {
+                $last_numbers[] = (int)$last_draw["ball$i"];
+            }
+        }
+        
+        // Handle extra ball based on lottery type
+        if (!$is_independent_extra_ball && isset($last_draw['extra']) && $last_draw['extra'] != '') {
+            // For regular lotteries, include extra ball in comparison
+            $last_numbers[] = (int)$last_draw['extra'];
+        }
+        
+        // Count repeaters
+        $repeater_count = 0;
+        foreach ($combo_numbers as $number) {
+            if (in_array($number, $last_numbers)) {
+                $repeater_count++;
+            }
+        }
+        
+        return $repeater_count;
     }
 
     /**

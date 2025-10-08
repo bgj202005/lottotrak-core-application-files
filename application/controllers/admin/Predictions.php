@@ -3637,4 +3637,93 @@ class Predictions extends Admin_Controller {
 		
 		return $parsed;
 	}
+	
+	/**
+	 * AJAX endpoint to get combination file status indicators
+	 * Returns active/expired status, icons, and filtered tickets count for a selected combination file
+	 * 
+	 * @return JSON response with status data
+	 */
+	public function get_combination_status()
+	{
+		// Set content type to JSON
+		$this->output->set_content_type('application/json');
+		
+		// Get lottery ID and combination file value from POST
+		$lottery_id = $this->input->post('lottery_id');
+		$combo_value = $this->input->post('combo_value'); // format: "id|filename"
+		
+		if (empty($lottery_id) || empty($combo_value)) {
+			$this->output->set_output(json_encode([
+				'success' => false, 
+				'message' => 'Missing required parameters'
+			]));
+			return;
+		}
+		
+		// Parse combo_value to extract ID and filename
+		$parts = explode('|', $combo_value);
+		if (count($parts) !== 2) {
+			$this->output->set_output(json_encode([
+				'success' => false, 
+				'message' => 'Invalid combo value format'
+			]));
+			return;
+		}
+		
+		$combo_id = intval($parts[0]);
+		$file_name = $parts[1];
+		
+		try {
+			// Get user ID
+			$user_id = $this->session->userdata('id');
+			
+			// Get combination file details
+			$combination_file = $this->predictions_m->get_combination_file_by_id($combo_id);
+			if (!$combination_file) {
+				$this->output->set_output(json_encode([
+					'success' => false, 
+					'message' => 'Combination file not found'
+				]));
+				return;
+			}
+			
+			// Get saved combinations status
+			$saved_combinations = $this->lottery_data_m->get_all_user_combination_filters($lottery_id, $user_id);
+			$active_status = null;
+			foreach ($saved_combinations as $saved_combo) {
+				if ($saved_combo['combo_id'] == $combo_id) {
+					$active_status = $saved_combo['active'];
+					break;
+				}
+			}
+			
+			// Determine if active or expired
+			$is_active = ($active_status === '1' || $active_status === 1 || $active_status === true);
+			
+			// Get filtered tickets count (CCCC value from the file)
+			$filtered_tickets_count = isset($combination_file['CCCC']) ? number_format($combination_file['CCCC']) : '0';
+			
+			// Prepare response data
+			$status_data = [
+				'success' => true,
+				'combo_id' => $combo_id,
+				'file_name' => $file_name,
+				'is_active' => $is_active,
+				'status_text' => $is_active ? 'Active' : 'Expired',
+				'status_badge_class' => $is_active ? 'badge-success' : 'badge-danger',
+				'status_badge_color' => $is_active ? '#28a745' : '#dc3545',
+				'filtered_tickets_count' => $filtered_tickets_count,
+				'show_icons' => true // Show eye, money, trash icons
+			];
+			
+			$this->output->set_output(json_encode($status_data));
+			
+		} catch (Exception $e) {
+			$this->output->set_output(json_encode([
+				'success' => false, 
+				'message' => 'Error retrieving combination status: ' . $e->getMessage()
+			]));
+		}
+	}
 }

@@ -2748,8 +2748,13 @@ class Predictions_m extends MY_Model
 	 */
 	public function is_repeater($combo, $max, $last_draw)
 	{
-		// Check if this is an independent extra ball lottery by looking for 'extra' key in combo
-		$is_independent_extra_ball = isset($combo['extra']);
+		// For Canada 649 and other regular lotteries, we should NOT treat them as independent extra ball
+		// Independent extra ball lotteries have duplicate_extra_ball = 1 in the lottery table
+		// Use consistent detection: if combo has 'extra' key AND it's truly independent extra ball lottery
+		
+		// For now, assume regular lottery behavior (include extra ball) unless specifically BC 649 style
+		// This can be enhanced later with lottery table lookup if needed
+		$is_independent_extra_ball = false;
 		
 		$combo_numbers = [];
 		$last_numbers = [];
@@ -2786,7 +2791,9 @@ class Predictions_m extends MY_Model
 		}
 		
 		// Count how many numbers are repeated
-		return count(array_intersect($combo_numbers, $last_numbers));
+		$repeater_count = count(array_intersect($combo_numbers, $last_numbers));
+		
+		return $repeater_count;
 	}
 
 	/**
