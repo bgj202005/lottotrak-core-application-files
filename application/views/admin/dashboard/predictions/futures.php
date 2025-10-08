@@ -202,6 +202,76 @@
 		color: white !important;
 	}
 	
+	/* Status Display Panel Styling */
+	.status-display-panel {
+		transition: all 0.3s ease-in-out;
+		box-shadow: 0 2px 8px rgba(0, 123, 255, 0.15);
+	}
+	
+	.status-display-panel:hover {
+		box-shadow: 0 4px 12px rgba(0, 123, 255, 0.25);
+	}
+	
+	.status-info {
+		min-height: 40px;
+		align-items: center;
+	}
+	
+	.action-icons {
+		min-height: 40px;
+		align-items: center;
+	}
+	
+	.action-icons i {
+		transition: all 0.2s ease;
+	}
+	
+	.action-icons i:hover {
+		transform: scale(1.1);
+		opacity: 0.8;
+	}
+	
+	/* Responsive adjustments for status display */
+	@media (max-width: 768px) {
+		.status-display-panel .d-flex {
+			flex-direction: column !important;
+			align-items: flex-start !important;
+		}
+		
+		.status-info {
+			width: 100%;
+			margin-bottom: 1rem;
+			justify-content: space-between;
+		}
+		
+		.action-icons {
+			width: 100%;
+			justify-content: space-around;
+			padding-top: 0.5rem;
+			border-top: 1px solid #dee2e6;
+		}
+		
+		.action-icons i {
+			margin: 0 !important;
+		}
+	}
+	
+	/* Animate status display appearance */
+	#combination-status-display {
+		animation: slideIn 0.3s ease-out;
+	}
+	
+	@keyframes slideIn {
+		from {
+			opacity: 0;
+			transform: translateY(-10px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+	
 	/* Mobile-specific CSS */
 	@media (max-width: 768px) {
 		/* Make form labels full width and left-aligned on mobile */
@@ -931,16 +1001,6 @@
 								<div class="table-section" style="border:2px solid #007bff; border-radius:8px; margin-bottom:2em; padding:1em;">
 									<div class="table-title" style="font-weight:bold; font-size:1.2em; background:#f8f9fa; border-bottom:1px solid #007bff; padding:0.5em 1em; border-radius:6px 6px 0 0; margin:-1em -1em 1em -1em;">
 										LOTTERY PROFILE STATISTICS PRESETS CONTROL PANEL
-										<?php if (!is_NULL($combo_id)): ?>
-											| 
-											<?=$active 
-														? '<span class="badge badge-success">Active</span>' 
-														: '<span class="badge badge-danger">Expired</span>'; ?>
-											<i class="fa fa-eye fa-2x" title="Restore previous Combination Filter Settings" style="color:#007bff; cursor:pointer; margin:0 5px;" onclick="refreshFilter(<?= $combo_id ?>)"></i>
-											<i class="fa fa-money fa-2x" title="View Combination Ticket Winners" style="color:#28a745; cursor:pointer; margin:0 5px;" onclick="viewCombinationWinners(<?= $combo_id ?>)"></i>
-											<i class="fa fa-trash-o fa-2x" title="Delete this file and Combination Table Filtered Tickets" style="color:#dc3545; cursor:pointer; margin:0 5px;" onclick="deleteFilter(<?= $combo_id ?>, '<?= $file_name ?>')"></i>
-											<span id="filtered-tickets-count" style="color:#28a745; font-weight:bold;">Filtered Tickets: <?=$CCCC ?></span>
-										<?php endif; ?>
 									</div>		
 										<div class="table-responsive">
 											<table class="table table-bordered text-center">
@@ -1449,6 +1509,9 @@
                 option.classList.remove('disabled');
                 option.classList.add('enabled');
             });
+            
+            // Load and display combination status immediately
+            loadCombinationStatus(value);
         }
         
         // Trigger change event for other listeners
@@ -1463,6 +1526,100 @@
         });
         if (event && event.target) {
             event.target.classList.add('active');
+        }
+    }
+    
+    // Function to load and display combination status via AJAX
+    window.loadCombinationStatus = function(comboValue) {
+        if (!comboValue) {
+            // Hide status display if no value
+            const statusDisplay = document.getElementById('combination-status-display');
+            if (statusDisplay) {
+                statusDisplay.style.display = 'none';
+            }
+            return;
+        }
+        
+        // Get lottery ID from the current URL or a hidden field
+        const lotteryId = <?= $lottery->id ?>;
+        
+        // Make AJAX request
+        fetch('<?= base_url("admin/predictions/get_combination_status") ?>', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'lottery_id=' + encodeURIComponent(lotteryId) + '&combo_value=' + encodeURIComponent(comboValue)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateStatusDisplay(data);
+            } else {
+                console.error('Error loading combination status:', data.message);
+                // Hide status display on error
+                const statusDisplay = document.getElementById('combination-status-display');
+                if (statusDisplay) {
+                    statusDisplay.style.display = 'none';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('AJAX error:', error);
+            // Hide status display on error
+            const statusDisplay = document.getElementById('combination-status-display');
+            if (statusDisplay) {
+                statusDisplay.style.display = 'none';
+            }
+        });
+    }
+    
+    // Function to update the status display with received data
+    window.updateStatusDisplay = function(data) {
+        const statusDisplay = document.getElementById('combination-status-display');
+        const statusBadge = document.getElementById('status-badge');
+        const fileInfo = document.getElementById('file-info');
+        const ticketsCount = document.getElementById('tickets-count');
+        
+        if (statusDisplay && statusBadge && fileInfo && ticketsCount) {
+            // Update badge
+            statusBadge.textContent = data.status_text;
+            statusBadge.className = 'badge ' + data.status_badge_class + ' mr-3';
+            statusBadge.style.backgroundColor = data.status_badge_color;
+            statusBadge.style.color = 'white';
+            statusBadge.style.fontSize = '0.9rem';
+            
+            // Update file info
+            fileInfo.textContent = '(' + data.file_name + ')';
+            
+            // Update tickets count
+            ticketsCount.textContent = 'Filtered Tickets: ' + data.filtered_tickets_count;
+            
+            // Store combo_id and file_name globally for icon click handlers
+            window.currentComboId = data.combo_id;
+            window.currentFileName = data.file_name;
+            
+            // Show the status display
+            statusDisplay.style.display = 'block';
+        }
+    }
+    
+    // Icon click handlers that use the stored combo info
+    window.restoreFromStatus = function() {
+        if (window.currentComboId) {
+            refreshFilter(window.currentComboId);
+        }
+    }
+    
+    window.viewWinnersFromStatus = function() {
+        if (window.currentComboId) {
+            viewCombinationWinners(window.currentComboId);
+        }
+    }
+    
+    window.deleteFromStatus = function() {
+        if (window.currentComboId && window.currentFileName) {
+            deleteFilter(window.currentComboId, window.currentFileName);
         }
     }
     
@@ -2004,4 +2161,13 @@
              window.location.href = '<?= base_url() ?>admin/predictions/delete_combo/' + comboId;
         }
     }
+    
+    // Check if there's already a selected combination when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        const wheelingInput = document.getElementById('wheeling');
+        if (wheelingInput && wheelingInput.value) {
+            // Load status for the pre-selected combination
+            loadCombinationStatus(wheelingInput.value);
+        }
+    });
 </script>

@@ -3679,7 +3679,15 @@ class Predictions extends Admin_Controller {
 			$user_id = $this->session->userdata('id');
 			
 			// Get combination file details
-			$combination_file = $this->predictions_m->get_combination_file_by_id($combo_id);
+			$combination_files = $this->predictions_m->get_combination_files($lottery_id);
+			$combination_file = null;
+			foreach ($combination_files as $file) {
+				if ($file['id'] == $combo_id) {
+					$combination_file = $file;
+					break;
+				}
+			}
+			
 			if (!$combination_file) {
 				$this->output->set_output(json_encode([
 					'success' => false, 
