@@ -928,7 +928,7 @@
 												foreach ($combination_files as $file) {
 													$value = $file['id'] . '|' . $file['file_name'];
 													if ($value === $selected_value) {
-														if (isset($file['active'])) {
+														if (isset($file['active']) && $file['active'] !== null) {
 															if ($file['active'] === '1' || $file['active'] === 1 || $file['active'] === true) {
 																echo 'Active ';
 															} else {
@@ -951,7 +951,7 @@
 												<?php 
 												$value = $file['id'] . '|' . $file['file_name']; // e.g., "246|060828"
 												$status_badge = '';
-												if (isset($file['active'])) {
+												if (isset($file['active']) && $file['active'] !== null) {
 													if ($file['active'] === '1' || $file['active'] === 1 || $file['active'] === true) {
 														$status_badge = '<span class="badge badge-success" style="background-color: #28a745; color: white;">Active</span> ';
 													} else {
@@ -1577,9 +1577,20 @@
     // Function to update the status display with received data
     window.updateStatusDisplay = function(data) {
         const statusDisplay = document.getElementById('combination-status-display');
+        
+        // Check if status should be shown
+        if (!data.show_status) {
+            // Hide status display if no saved filter exists for this lottery
+            if (statusDisplay) {
+                statusDisplay.style.display = 'none';
+            }
+            return;
+        }
+        
         const statusBadge = document.getElementById('status-badge');
         const fileInfo = document.getElementById('file-info');
         const ticketsCount = document.getElementById('tickets-count');
+        const actionIcons = document.querySelector('.action-icons');
         
         if (statusDisplay && statusBadge && fileInfo && ticketsCount) {
             // Update badge
@@ -1594,6 +1605,11 @@
             
             // Update tickets count
             ticketsCount.textContent = 'Filtered Tickets: ' + data.filtered_tickets_count;
+            
+            // Show/hide action icons based on whether icons should be shown
+            if (actionIcons) {
+                actionIcons.style.display = data.show_icons ? 'flex' : 'none';
+            }
             
             // Store combo_id and file_name globally for icon click handlers
             window.currentComboId = data.combo_id;

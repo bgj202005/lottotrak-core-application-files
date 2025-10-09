@@ -3706,6 +3706,20 @@ class Predictions extends Admin_Controller {
 				}
 			}
 			
+			// Check if a saved combination filter exists for this lottery
+			if ($active_status === null) {
+				// No saved combination filter exists for this lottery - don't show status
+				$this->output->set_output(json_encode([
+					'success' => true,
+					'combo_id' => $combo_id,
+					'file_name' => $file_name,
+					'show_status' => false, // Don't show status indicators
+					'filtered_tickets_count' => isset($combination_file['CCCC']) ? number_format($combination_file['CCCC']) : '0',
+					'show_icons' => false // Don't show icons if no saved filter exists
+				]));
+				return;
+			}
+			
 			// Determine if active or expired
 			$is_active = ($active_status === '1' || $active_status === 1 || $active_status === true);
 			
@@ -3717,6 +3731,7 @@ class Predictions extends Admin_Controller {
 				'success' => true,
 				'combo_id' => $combo_id,
 				'file_name' => $file_name,
+				'show_status' => true,
 				'is_active' => $is_active,
 				'status_text' => $is_active ? 'Active' : 'Expired',
 				'status_badge_class' => $is_active ? 'badge-success' : 'badge-danger',

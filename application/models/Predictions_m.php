@@ -2769,7 +2769,7 @@ class Predictions_m extends MY_Model
 			
 			// Extract main numbers from last draw (exclude 'extra' key)
 			for ($i = 1; $i <= $max; $i++) {
-				if (isset($last_draw['ball'.$i])) {
+				if (isset($last_draw['ball'.$i])) { 
 					$last_numbers[] = $last_draw['ball'.$i];
 				}
 			}
