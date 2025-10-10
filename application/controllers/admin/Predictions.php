@@ -3268,6 +3268,160 @@ class Predictions extends Admin_Controller {
 	}
 	
 	/**
+	 * Delete combination filter records by lottery_id, file_name, and admin_id
+	 * This removes all saved filter records for a specific combination file for the current admin
+	 * 
+	 * @param int $lottery_id The lottery ID
+	 * @param string $file_name The combination file name (with ADMIN suffix)
+	 * @param int $admin_id The admin user ID for verification
+	 * @return void
+	 */
+	public function delete_combination_file_filters($lottery_id = null, $file_name = null, $admin_id = null) {
+		try {
+			// Decode URL parameters
+			$lottery_id = urldecode($lottery_id);
+			$file_name = urldecode($file_name);
+			$admin_id = urldecode($admin_id);
+			
+			// Validate parameters
+			if (empty($lottery_id) || empty($file_name) || empty($admin_id)) {
+				$this->session->set_flashdata('error_message', 'Missing required parameters for deletion.');
+				redirect('admin/predictions/futures/' . ($lottery_id ?: ''));
+				return;
+			}
+			
+			// Convert to proper data types
+			$lottery_id = (int)$lottery_id;
+			$admin_id = (int)$admin_id;
+			
+			// Get current user session info
+			$current_user_id = $this->session->userdata('id');
+			
+			// Extract and verify ADMIN suffix from filename
+			$admin_match = [];
+			if (preg_match('/ADMIN(\d+)/', $file_name, $admin_match)) {
+				$file_admin_number = (int)$admin_match[1];
+				
+				// Convert current_user_id to integer for proper comparison
+				$current_user_id = (int)$current_user_id;
+				
+				// Verify the ADMIN number matches current user ID
+				if ($file_admin_number !== $current_user_id) {
+					$this->session->set_flashdata('error_message', 'Admin verification failed. File has ADMIN' . str_pad($file_admin_number, 2, '0', STR_PAD_LEFT) . ' but user is ID ' . $current_user_id . '. You can only delete combination files with ADMIN' . str_pad($current_user_id, 2, '0', STR_PAD_LEFT) . ' suffix.');
+					redirect('admin/predictions/futures/' . $lottery_id);
+					return;
+				}
+			} else {
+				$this->session->set_flashdata('error_message', 'Invalid filename format. Expected filename with ADMIN suffix. Received: ' . $file_name);
+				redirect('admin/predictions/futures/' . $lottery_id);
+				return;
+			}
+			
+			// Extract base file name for pattern matching
+			$base_file_name = preg_replace('/ADMIN\d+/', '', $file_name);
+			$base_file_name = str_replace('.txt', '', $base_file_name);
+			
+			// Get lottery details
+			$this->db->select('lottery_name, balls_drawn');
+			$this->db->from('lottery_profiles');
+			$this->db->where('id', $lottery_id);
+			$lottery = $this->db->get()->row();
+			
+			if (!$lottery) {
+				$this->session->set_flashdata('error_message', 'Lottery not found.');
+				redirect('admin/predictions');
+				return;
+			}
+			
+			// Get all records that match the criteria before deletion (for counting and file cleanup)
+			$this->db->select('combo_id, file_name, user_id, CCCC');
+			$this->db->from('lottery_combination_filters');
+			$this->db->where('lottery_id', $lottery_id);
+			$this->db->where('file_name LIKE', $base_file_name . 'ADMIN%'); // Match base filename with ADMIN suffix
+			$this->db->where('user_id', $current_user_id); // Only delete records belonging to current admin
+			$records_to_delete = $this->db->get()->result();
+			
+			if (empty($records_to_delete)) {
+				$this->session->set_flashdata('info_message', 'No saved combination filter records found for this file and admin.');
+				redirect('admin/predictions/futures/' . $lottery_id);
+				return;
+			}
+			
+			// Begin transaction
+			$this->db->trans_start();
+			
+			// Delete all matching records
+			$this->db->where('lottery_id', $lottery_id);
+			$this->db->where('file_name LIKE', $base_file_name . 'ADMIN%');
+			$this->db->where('user_id', $current_user_id);
+			$delete_result = $this->db->delete('lottery_combination_filters');
+			
+			// Complete transaction
+			$this->db->trans_complete();
+			
+			if ($this->db->trans_status() === FALSE || !$delete_result) {
+				throw new Exception('Failed to delete combination filter records from database.');
+			}
+			
+			// Clean up associated files
+			$directory = FCPATH . 'combinations/pick' . $lottery->balls_drawn . '/';
+			$files_deleted = 0;
+			$files_not_found = 0;
+			
+			foreach ($records_to_delete as $record) {
+				$full_file_path = $directory . $record->file_name . '.txt';
+				if (file_exists($full_file_path)) {
+					if (unlink($full_file_path)) {
+						$files_deleted++;
+					} else {
+						log_message('error', 'Failed to delete file: ' . $full_file_path);
+					}
+				} else {
+					$files_not_found++;
+				}
+			}
+			
+			// Get combination file details for success message
+			$combination_files = $this->predictions_m->get_combination_files($lottery_id);
+			$combination_file = null;
+			foreach ($combination_files as $file) {
+				if (strpos($file['file_name'], $base_file_name) === 0) {
+					$combination_file = $file;
+					break;
+				}
+			}
+			
+			// Prepare success message
+			if ($combination_file) {
+				$numbers_count = $combination_file['N'] ?? '0';
+				$tickets_count = isset($combination_file['CCCC']) ? number_format($combination_file['CCCC']) : '0';
+				$message = "Successfully removed Previous Settings for ({$base_file_name}) {$numbers_count} Numbers - {$tickets_count} Tickets.";
+			} else {
+				// Fallback message if combination file details not found
+				$record_count = count($records_to_delete);
+				$message = "Successfully removed Previous Settings for ({$base_file_name}).";
+			}
+			
+			$this->session->set_flashdata('success_message', $message);
+			
+			// Clear session data that might be related to deleted combinations
+			$this->session->unset_userdata('futures_form');
+			$this->session->unset_userdata('futures_number_array');
+			$this->session->unset_userdata('combination_file_name');
+			$this->session->unset_userdata('combination_file_id');
+			$this->session->unset_userdata('generated_combos');
+			$this->session->unset_userdata('selected_wheeling');
+			
+		} catch (Exception $e) {
+			$this->session->set_flashdata('error_message', 'Error deleting combination file filters: ' . $e->getMessage());
+			log_message('error', 'Delete combination file filters error: ' . $e->getMessage());
+		}
+		
+		// Stay in the Prediction Futures view
+		redirect('admin/predictions/futures/' . $lottery_id);
+	}
+	
+	/**
 	 * Compare two filter arrays to check if they match (for optimization)
 	 * 
 	 * @param array $filters1 First filter array
@@ -3699,9 +3853,11 @@ class Predictions extends Admin_Controller {
 			// Get saved combinations status
 			$saved_combinations = $this->lottery_data_m->get_all_user_combination_filters($lottery_id, $user_id);
 			$active_status = null;
+			$actual_file_name = $file_name; // Default to base filename
 			foreach ($saved_combinations as $saved_combo) {
 				if ($saved_combo['combo_id'] == $combo_id) {
 					$active_status = $saved_combo['active'];
+					$actual_file_name = $saved_combo['file_name']; // Get the actual filename with ADMIN suffix
 					break;
 				}
 			}
@@ -3712,7 +3868,7 @@ class Predictions extends Admin_Controller {
 				$this->output->set_output(json_encode([
 					'success' => true,
 					'combo_id' => $combo_id,
-					'file_name' => $file_name,
+					'file_name' => $file_name, // Use base filename when no saved filter
 					'show_status' => false, // Don't show status indicators
 					'filtered_tickets_count' => isset($combination_file['CCCC']) ? number_format($combination_file['CCCC']) : '0',
 					'show_icons' => false // Don't show icons if no saved filter exists
@@ -3730,7 +3886,7 @@ class Predictions extends Admin_Controller {
 			$status_data = [
 				'success' => true,
 				'combo_id' => $combo_id,
-				'file_name' => $file_name,
+				'file_name' => $actual_file_name, // Use actual filename with ADMIN suffix
 				'show_status' => true,
 				'is_active' => $is_active,
 				'status_text' => $is_active ? 'Active' : 'Expired',

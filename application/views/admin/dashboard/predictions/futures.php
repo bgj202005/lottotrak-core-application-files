@@ -1635,7 +1635,16 @@
     
     window.deleteFromStatus = function() {
         if (window.currentComboId && window.currentFileName) {
-            deleteFilter(window.currentComboId, window.currentFileName);
+            // Get the required parameters for enhanced deletion
+            const lotteryId = <?= $lottery->id ?? 0 ?>; // Get lottery ID from lottery data
+            const fullFileName = window.currentFileName; // Keep full filename with ADMIN suffix
+            const adminId = <?= $this->session->userdata('id') ?? 0 ?>; // Get current admin user ID
+            
+            if (lotteryId && fullFileName && adminId) {
+                deleteCombinationFileFilters(lotteryId, fullFileName, adminId);
+            } else {
+                alert('Unable to determine all required parameters for deletion.\nLottery ID: ' + lotteryId + '\nFile Name: ' + fullFileName + '\nAdmin ID: ' + adminId);
+            }
         }
     }
     
@@ -2175,6 +2184,63 @@
         if (confirm('You are about to delete the Combination Ticket file: ' + fileName.replace(/ADMIN.*/, '') + '. This will REMOVE ALL winning data. Do You want to Continue? (Y/N)')) {
             // Future implementation for delete functionality
              window.location.href = '<?= base_url() ?>admin/predictions/delete_combo/' + comboId;
+        }
+    }
+    
+    // Enhanced deletion function for combination file filters
+    function deleteCombinationFileFilters(lotteryId, fullFileName, adminId) {
+        const baseFileName = fullFileName.replace(/ADMIN.*/, '').replace(/\.txt$/, '');
+        
+        if (confirm('You are about to delete ALL combination filter records for file: "' + baseFileName + '".\n\n' +
+                   'This will remove:\n' +
+                   '• All saved filter settings for this file\n' +
+                   '• All associated combination files\n' +
+                   '• All winning data for this combination\n\n' +
+                   'This action cannot be undone. Do you want to continue?')) {
+            
+            // Show loading indicator
+            const statusDisplay = document.getElementById('combination-status-display');
+            if (statusDisplay) {
+                statusDisplay.innerHTML = '<div class="col-12 text-center"><i class="fa fa-spinner fa-spin"></i> Deleting previously saved settings...</div>';
+            }
+            
+            // Call the new simplified deletion method
+            window.location.href = '<?= base_url() ?>admin/predictions/delete_combination_file_filters/' + 
+                                  lotteryId + '/' + encodeURIComponent(fullFileName) + '/' + adminId;
+        }
+    }
+    
+    // Function to refresh the dropdown options and remove badges after deletion
+    function refreshDropdownAfterDeletion() {
+        const wheelingDropdown = document.getElementById('wheeling');
+        if (wheelingDropdown) {
+            // Find and update options that might have had badges
+            const options = wheelingDropdown.options;
+            for (let i = 0; i < options.length; i++) {
+                const option = options[i];
+                // Remove any existing badges from option text
+                if (option.text && (option.text.includes('Active') || option.text.includes('Expired'))) {
+                    // Clean the option text by removing badge HTML/text
+                    option.text = option.text.replace(/\s*(Active|Expired)\s*$/, '').trim();
+                }
+            }
+            
+            // Reset the dropdown selection
+            wheelingDropdown.selectedIndex = 0;
+            
+            // Hide the status display
+            const statusDisplay = document.getElementById('combination-status-display');
+            if (statusDisplay) {
+                statusDisplay.style.display = 'none';
+            }
+            
+            // Clear global variables
+            window.currentComboId = null;
+            window.currentFileName = null;
+            
+            // Trigger change event to ensure any dependent elements are updated
+            const event = new Event('change', { bubbles: true });
+            wheelingDropdown.dispatchEvent(event);
         }
     }
     
