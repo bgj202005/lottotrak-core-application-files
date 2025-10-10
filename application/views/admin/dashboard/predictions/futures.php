@@ -2151,9 +2151,45 @@
         }
     }
     
-    // Function to view combination ticket winners (for control panel only)
+    // Function to view combination ticket winners
     function viewCombinationWinners(comboId) {
-        // Use the filter record ID if available, otherwise show error
+        // If comboId is passed (from status area), use dynamic lookup
+        if (comboId && comboId !== 'undefined') {
+            // Make AJAX call to get filter record ID for this combo
+            fetch('<?= base_url("admin/predictions/get_filter_record_id") ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'combo_id=' + encodeURIComponent(comboId) + '&lottery_id=' + <?= $lottery->id ?>
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.filter_record_id) {
+                    // Check if filter is active or expired
+                    const isActive = data.is_active;
+                    
+                    if (!isActive) {
+                        // Show warning for expired filters but still allow navigation
+                        if (confirm('This filter is EXPIRED. You can still view the combination ticket winners, but results will be based on historical data. Continue?')) {
+                            window.location.href = '<?= base_url() ?>admin/prize/view_combination_tickets/' + data.filter_record_id + '?referrer=futures&lottery_id=<?= $lottery->id ?>&combo_id=' + comboId;
+                        }
+                    } else {
+                        // Active filter - navigate directly without warning
+                        window.location.href = '<?= base_url() ?>admin/prize/view_combination_tickets/' + data.filter_record_id + '?referrer=futures&lottery_id=<?= $lottery->id ?>&combo_id=' + comboId;
+                    }
+                } else {
+                    alert('No saved filter found. Please save filtered tickets first before viewing combination winners.');
+                }
+            })
+            .catch(error => {
+                console.error('Error getting filter record ID:', error);
+                alert('Error loading combination data. Please try again.');
+            });
+            return;
+        }
+        
+        // Fallback to original logic for page-loaded combinations
         <?php if (!empty($filter_record_id)): ?>
             var filterRecordId = <?= $filter_record_id ?: 'null' ?>;
             

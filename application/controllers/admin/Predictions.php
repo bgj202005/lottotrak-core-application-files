@@ -3905,4 +3905,60 @@ class Predictions extends Admin_Controller {
 			]));
 		}
 	}
+	
+	/**
+	 * Get filter record ID for a combination to view winners
+	 * Used by AJAX call when clicking money icon from status display
+	 */
+	public function get_filter_record_id()
+	{
+		// Set content type to JSON
+		$this->output->set_content_type('application/json');
+		
+		// Get combo ID and lottery ID from POST
+		$combo_id = $this->input->post('combo_id');
+		$lottery_id = $this->input->post('lottery_id');
+		
+		if (empty($combo_id) || empty($lottery_id)) {
+			$this->output->set_output(json_encode([
+				'success' => false, 
+				'message' => 'Missing required parameters'
+			]));
+			return;
+		}
+		
+		try {
+			// Get user ID
+			$user_id = $this->session->userdata('id');
+			
+			// Get the filter record for this combination and user
+			$this->db->select('id, active');
+			$this->db->from('lottery_combination_filters');
+			$this->db->where('combo_id', $combo_id);
+			$this->db->where('lottery_id', $lottery_id);
+			$this->db->where('user_id', $user_id);
+			$this->db->order_by('id', 'DESC'); // Get most recent if multiple
+			$query = $this->db->get();
+			
+			if ($query->num_rows() > 0) {
+				$filter_record = $query->row();
+				
+				$this->output->set_output(json_encode([
+					'success' => true,
+					'filter_record_id' => $filter_record->id,
+					'is_active' => ($filter_record->active === '1' || $filter_record->active === 1 || $filter_record->active === true)
+				]));
+			} else {
+				$this->output->set_output(json_encode([
+					'success' => false,
+					'message' => 'No filter record found for this combination'
+				]));
+			}
+		} catch (Exception $e) {
+			$this->output->set_output(json_encode([
+				'success' => false, 
+				'message' => 'Error retrieving filter record: ' . $e->getMessage()
+			]));
+		}
+	}
 }
