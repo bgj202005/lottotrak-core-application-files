@@ -402,6 +402,7 @@
 												if (strpos($key, "_points") === false) $total_winners += intval($value);
 											}
 										}
+										$percentage_total = 0; // Initialize percentage total for both enhanced and regular display
 										?>
 										<table class="table table-bordered table-sm mb-3 w-100 mx-auto">
 											<thead class="thead-light">
@@ -450,6 +451,7 @@
 														$points = $winners * $category_info['points'];
 														$range = $lottery->last_drawn['range'] ?? 100; // Use range for percentage calculation
 														$percentage = $range > 0 ? round(($winners / $range) * 100, 2) : 0;
+														$percentage_total += $percentage; // Add to percentage total
 														?>
 														<tr>
 															<td><?= $category_info['label'] ?></td>
@@ -466,6 +468,7 @@
 														$points_total += $points;
 														$range = $lottery->last_drawn['range'] ?? 100; // Use range for percentage calculation
 														$percentage = $range > 0 ? round(($winners / $range) * 100, 2) : 0;
+														$percentage_total += $percentage; // Add to percentage total
 														switch ($prize) {
 															case "9_win": $label = "9 out of $cd Winners"; break;
 															case "8_win_extra": $label = "8 out of $cd Winners + Extra"; break;
@@ -502,7 +505,7 @@
 												<tr>
 													<th colspan="2" class="text-right">Total Points:</th>
 													<th><?= $points_total ?></th>
-													<th></th>
+													<th><?= round($percentage_total, 2) ?>%</th>
 												</tr>
 											</tfoot>
 										</table>
@@ -582,6 +585,7 @@
 												if (strpos($key, "_points") === false) $total_winners_pos += intval($value);
 											}
 										}
+										$percentage_total_pos = 0; // Initialize percentage total for both enhanced and regular display
 										?>
 										<table class="table table-bordered table-sm mb-3 w-100 mx-auto">
 											<thead class="thead-light">
@@ -630,6 +634,7 @@
 														$points = $winners * $category_info['points'];
 														$range = $lottery->last_drawn['range'] ?? 100; // Use range for percentage calculation
 														$percentage = $range > 0 ? round(($winners / $range) * 100, 2) : 0;
+														$percentage_total_pos += $percentage; // Add to percentage total
 														?>
 														<tr>
 															<td><?= $category_info['label'] ?></td>
@@ -646,6 +651,7 @@
 														$points_total_pos += $points;
 														$range = $lottery->last_drawn['range'] ?? 100; // Use range for percentage calculation
 														$percentage = $range > 0 ? round(($winners / $range) * 100, 2) : 0;
+														$percentage_total_pos += $percentage; // Add to percentage total
 														switch ($prize) {
 															case "9_win": $label = "9 out of $cd Winners"; break;
 															case "8_win_extra": $label = "8 out of $cd Winners + Extra"; break;
@@ -682,7 +688,7 @@
 												<tr>
 													<th colspan="2" class="text-right">Total Points:</th>
 													<th><?= $points_total_pos ?></th>
-													<th></th>
+													<th><?= round($percentage_total_pos, 2) ?>%</th>
 												</tr>
 											</tfoot>
 										</table>
