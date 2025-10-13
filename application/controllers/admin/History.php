@@ -1213,17 +1213,18 @@ class History extends Admin_Controller {
 			}
 		}
 		
-		// Process each extra ball's prizes
-		for($extra_num = 1; $extra_num <= $this->data['lottery']->maximum_extra_ball; $extra_num++) {
-			if(isset($extra_ball_prizes[$extra_num - 1]) && !empty($extra_ball_prizes[$extra_num - 1])) {
-				$prizes = explode(',', $extra_ball_prizes[$extra_num - 1]);
-				
-				$parsed['extra_' . $extra_num] = array();
-				
-				foreach($prizes as $index => $count) {
-					if(isset($prize_categories[$index]) && intval($count) > 0) {
-						$parsed['extra_' . $extra_num][$prize_categories[$index]] = intval($count);
-					}
+		// Process the single extra ball result - calculate_dupextra_wins now only returns data for drawn extra ball
+		$extra_num = 1;
+		if(isset($extra_ball_prizes[$extra_num - 1]) && !empty($extra_ball_prizes[$extra_num - 1])) {
+			$prizes = explode(',', $extra_ball_prizes[$extra_num - 1]);
+			
+			// Get the drawn extra ball number for the key
+			$drawn_extra = isset($this->data['lottery']->last_drawn['extra']) ? intval($this->data['lottery']->last_drawn['extra']) : 1;
+			$parsed['extra_' . $drawn_extra] = array();
+			
+			foreach($prizes as $index => $count) {
+				if(isset($prize_categories[$index]) && intval($count) > 0) {
+					$parsed['extra_' . $drawn_extra][$prize_categories[$index]] = intval($count);
 				}
 			}
 		}

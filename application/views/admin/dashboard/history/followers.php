@@ -215,14 +215,8 @@
 							// Use regular point calculation for standard lotteries
 							for ($i = 1; $i <= $max_balls; $i++) {
 								// Ball points
-								if ($i > $lottery->balls_drawn && $lottery->duplicate_extra_ball && !empty($lottery->parsed_dupextra_wins)) {
-									// For duplicate_extra_ball lotteries, use parsed_dupextra_wins for extra ball
-									$ball_number = $lottery->last_drawn['extra'];
-									$wins = isset($lottery->parsed_dupextra_wins[$ball_number]) ? $lottery->parsed_dupextra_wins[$ball_number] : array();
-								} else {
-									// Regular handling for main balls or non-duplicate_extra_ball lotteries
-									$wins = ($i > $lottery->balls_drawn ? $lottery->last_drawn['extra_win'] : $lottery->last_drawn['ball'.$i.'_win']);
-								}
+								// Regular handling for all balls including duplicate extra balls
+								$wins = ($i > $lottery->balls_drawn ? $lottery->last_drawn['extra_win'] : $lottery->last_drawn['ball'.$i.'_win']);
 								
 								$points_total = 0;
 								foreach ($wins as $key => $value) {
@@ -335,17 +329,9 @@
 											// Enhanced display for independent extra ball lotteries
 											$ball_number = ($b > $cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);
 											
-											// For extra ball on independent extra ball lotteries, use dupextra_wins data
-											if ($b > $cd && $lottery->duplicate_extra_ball && !empty($lottery->parsed_dupextra_wins)) {
-												// Use dupextra_wins data for extra ball
-												$extra_ball_key = 'extra_' . $ball_number; // e.g., 'extra_4' for extra ball 4
-												$wins = isset($lottery->parsed_dupextra_wins[$extra_ball_key]) ? $lottery->parsed_dupextra_wins[$extra_ball_key] : array();
-												$total_winners = array_sum($wins);
-											} else {
-												// Regular enhanced display for main balls or non-dupextra extra balls
-												$wins = isset($lottery->enhanced_parsed_wins[$ball_number]) ? $lottery->enhanced_parsed_wins[$ball_number] : array();
-												$total_winners = array_sum($wins);
-											}
+											// Regular enhanced display for all balls including duplicate extra balls
+											$wins = isset($lottery->enhanced_parsed_wins[$ball_number]) ? $lottery->enhanced_parsed_wins[$ball_number] : array();
+											$total_winners = array_sum($wins);
 											
 											// Calculate points for enhanced display
 											$points_total = 0;

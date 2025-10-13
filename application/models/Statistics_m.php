@@ -2118,7 +2118,7 @@ class Statistics_m extends MY_Model
 	 * @return  boolean	$error 			Default is False, True is exceeding the lottery draws range and in error.
 	 * 								 
 	 */
-	public function followers_prizes($name, $ldn, $max, $bonus, $draws = 0, $range = 100, $top, $last = '', $duple = FALSE)
+	public function followers_prizes($name, $ldn, $max, $bonus, $draws = 0, $range = 100, $top, $last = '', $duple = FALSE, $mx_ex = 7)
 	{
 		$error = $this->inrange($name,$range,$draws);
 		 
@@ -2242,7 +2242,7 @@ class Statistics_m extends MY_Model
 			
 			// Now calculate positions correctly - once per position, not per ball
 			// Use $b_max (original balls count) instead of $max (which was incremented for bonus)
-			$this->calculate_position_followers_correctly($name, $ldn, $b_max, $bonus, $draws, $range, $last, $duple);
+			$this->calculate_position_followers_correctly($name, $ldn, $b_max, $bonus, $draws, $range, $last, $duple, $mx_ex);
 		}
 	return $error;
 	}
@@ -2251,30 +2251,148 @@ class Statistics_m extends MY_Model
 	 * Calculate position followers correctly - each position runs its own follower analysis
 	 * For position 1: analyze ball 17's followers, for position 2: analyze ball 22's followers, etc.
 	 */
-	private function calculate_position_followers_correctly($name, $ldn, $max, $bonus, $draws, $range, $last, $duple)
+	private function calculate_position_followers_correctly($name, $ldn, $max, $bonus, $draws, $range, $last, $duple, $mx_ex = 7)
 	{
 		global $positions;
 		
 		$b_max = $max;  // Store original max (6 for Canada 649)
 		$total_positions = $bonus ? $b_max + 1 : $b_max;
 		
-		// For each position, run a complete follower analysis for the ball in that position
-		for($pos = 1; $pos <= $total_positions; $pos++) {
-			// Determine position key and get the ball from that position
-			$position_key = ($pos <= $b_max) ? $pos : 'E';
-			$position_ball = ($pos <= $b_max) ? $ldn['ball'.$pos] : $ldn['extra'];
+		// For duplicate extra ball lotteries, exclude the extra position from regular position calculations
+		// The extra ball is handled entirely by the separate calculate_dupextra_wins method
+		$max_positions_to_process = $duple ? $b_max : $total_positions;
+		
+
+		
+		// Get the most common balls for each position from recent draws
+		$position_balls = $this->get_position_representative_balls($name, $b_max, $last);
+		
+		// Get the dynamic maximum extra ball value for this lottery
+		$max_extra_ball = $this->get_lottery_max_extra_ball($name);
+		
+		// For each position, run a complete follower analysis for the representative ball
+		for($pos = 1; $pos <= $max_positions_to_process; $pos++) {
+			// Use the representative ball for this position instead of latest draw
+			$position_key = $pos;
+			$position_ball = isset($position_balls[$pos]) ? $position_balls[$pos] : $ldn['ball'.$pos];
 			
-			if(!isset($positions[$position_key]) || empty($position_ball)) continue;
+			if(!isset($positions[$position_key]) || empty($position_ball)) {
+				continue;
+			}
 			
-			// Run follower analysis for this specific ball (like the main ball followers do)
-			$this->calculate_single_position_followers($name, $ldn, $position_ball, $position_key, $b_max, $bonus, $draws, $range, $last, $duple);
+			// Regular follower analysis for main balls only (extra handled separately for duplicate extra)
+			$this->calculate_single_position_followers($name, $ldn, $position_ball, $position_key, $b_max, $bonus, $draws, $range, $last, $duple, $max_extra_ball);
 		}
+		
+		// Process Extra ball position (E) if it exists
+		if($bonus && isset($positions['E']) && isset($ldn['extra'])) {
+			// For extra ball, we analyze the extra ball from the latest draw
+			$this->calculate_single_position_followers($name, $ldn, $ldn['extra'], 'E', $b_max, $bonus, $draws, $range, $last, $duple, $max_extra_ball);
+		}
+	}
+
+	/**
+	 * Get representative balls for each position based on recent draw analysis
+	 * For each position, find the ball that appears most frequently in that position
+	 */
+	private function get_position_representative_balls($name, $max_balls, $last)
+	{
+		$position_balls = array();
+		
+		// Build SQL to get recent draws - dynamically include ball columns based on max_balls
+		$ball_columns = array();
+		for($i = 1; $i <= $max_balls; $i++) {
+			$ball_columns[] = 'ball'.$i;
+		}
+		$columns = implode(', ', $ball_columns);
+		
+		$w = (!empty($last) ? " WHERE draw_date <= '".$last."'" : "");
+		$sql = "SELECT ".$columns." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT 50";
+		
+		$query = $this->db->query($sql);
+		$results = $query->result_array();
+		
+		if(empty($results)) {
+			// Fallback to numbered balls if no data
+			for($i = 1; $i <= $max_balls; $i++) {
+				$position_balls[$i] = $i;
+			}
+			return $position_balls;
+		}
+		
+		// Count frequency of each ball in each position
+		$position_frequency = array();
+		
+		foreach($results as $row) {
+			for($pos = 1; $pos <= $max_balls; $pos++) {
+				$ball = $row['ball'.$pos];
+				if(!empty($ball)) {
+					if(!isset($position_frequency[$pos][$ball])) {
+						$position_frequency[$pos][$ball] = 0;
+					}
+					$position_frequency[$pos][$ball]++;
+				}
+			}
+		}
+		
+		// Find most frequent ball for each position
+		for($pos = 1; $pos <= $max_balls; $pos++) {
+			if(isset($position_frequency[$pos])) {
+				// Sort by frequency descending and get the most common ball
+				arsort($position_frequency[$pos]);
+				$position_balls[$pos] = array_key_first($position_frequency[$pos]);
+			} else {
+				// Fallback to position number if no data
+				$position_balls[$pos] = $pos;
+			}
+		}
+		
+		return $position_balls;
+	}
+
+	/**
+	 * Get lottery maximum extra ball value from table name
+	 */
+	private function get_lottery_max_extra_ball($table_name)
+	{
+		// Load lotteries model if not already loaded
+		if (!isset($this->lotteries_m)) {
+			$this->load->model('lotteries_m');
+		}
+		
+		// Query lottery profiles to find the lottery with this table name
+		// Clean the table name for matching
+		$clean_table_name = str_replace('_', ' ', $table_name);
+		$clean_table_name_nospace = str_replace('_', '', $table_name);
+		
+		// Use a single WHERE clause with OR conditions to avoid parameter binding issues
+		$where_sql = "(LOWER(REPLACE(lottery_name, ' ', '_')) = '" . $this->db->escape_str(strtolower($table_name)) . "' OR " .
+					 "LOWER(REPLACE(lottery_name, ' ', '')) = '" . $this->db->escape_str(strtolower($clean_table_name_nospace)) . "' OR " .
+					 "LOWER(lottery_name) = '" . $this->db->escape_str(strtolower($clean_table_name)) . "')";
+		
+		$this->db->select('maximum_extra_ball');
+		$this->db->where($where_sql);
+		$query = $this->db->get('lottery_profiles');
+		
+		if ($query->num_rows() > 0) {
+			$result = $query->row();
+			return $result->maximum_extra_ball ? $result->maximum_extra_ball : 7; // Default to 7 if null
+		}
+		
+		// Fallback for specific known lotteries
+		$table_name_lower = strtolower($table_name);
+		if (strpos($table_name_lower, 'daily_grand') !== false) {
+			return 7; // Daily Grand extra ball range is 1-7
+		}
+		
+		// Default fallback
+		return 49;
 	}
 
 	/**
 	 * Calculate followers for a single position's ball (replicates the main followers_prizes logic)
 	 */
-	private function calculate_single_position_followers($name, $ldn, $ball_number, $position_key, $b_max, $bonus, $draws, $range, $last, $duple)
+	private function calculate_single_position_followers($name, $ldn, $ball_number, $position_key, $b_max, $bonus, $draws, $range, $last, $duple, $mx_ex = 7)
 	{
 		global $positions;
 		
@@ -2334,7 +2452,9 @@ class Statistics_m extends MY_Model
 				
 				// Step 2: Check for prize wins in second range
 				if($range_ptr >= (int)$range) {
-					$nonfollowlist = $this->non_followers($followlist, 49); // Assuming max ball 49 for Canada 649
+					// Use appropriate ball range: extra ball range for position E, main ball range for others
+					$ball_range = ($position_key === 'E') ? $mx_ex : 49; // Use mx_ex for extra, 49 for main balls
+					$nonfollowlist = $this->non_followers($followlist, $ball_range);
 					$positions[$position_key] = $this->followers_prizecounts($row, $followlist, $nonfollowlist, $duple, ($duple ? $duplelist : FALSE), $positions[$position_key]);
 					
 					if(!empty($lowest_row)) {
@@ -2369,6 +2489,7 @@ class Statistics_m extends MY_Model
 		
 		$pos_number = null; // Initialize to null
 		$key = array_search($bl,$dw);  // Returns the key
+		
 		if($key !== false && $key != 'extra')
 		{
 			$pos_number = filter_var($key, FILTER_SANITIZE_NUMBER_INT); // Strip the string portion
@@ -2377,6 +2498,7 @@ class Statistics_m extends MY_Model
 		{
 			$pos_number = 'E'; // (E)xtra / Bonus position
 		}
+		
 	return $pos_number;
 	}
 
@@ -2782,6 +2904,7 @@ class Statistics_m extends MY_Model
 	public function followers_positions_prize_string($p)
 	{
 		$str = "";	// Start with an empty string and the left bracket
+		
 		if(!is_null($p))
 		{
 			foreach($p as $ball => $prizes)
@@ -2817,17 +2940,16 @@ class Statistics_m extends MY_Model
 		global $prizes;						// Retrieve Global $prizes array
 		$dupextra_prize_counts = array();	// Array to store extra ball specific prize counts
 		
-		// Initialize dupextra_prize_counts array for each extra ball number (1 to $mx_extra)
-		for($extra_num = 1; $extra_num <= $mx_extra; $extra_num++) {
-			$dupextra_prize_counts[$extra_num] = array();
-			// Initialize each prize category to 0 based on the global prizes array structure
-			if(isset($prizes) && !empty($prizes)) {
-				// Get the structure from any existing ball in prizes array
-				$sample_ball = array_keys($prizes)[0];
-				if(isset($prizes[$sample_ball])) {
-					foreach($prizes[$sample_ball] as $category => $count) {
-						$dupextra_prize_counts[$extra_num][$category] = 0;
-					}
+		// Initialize dupextra_prize_counts array for ONLY the drawn extra ball number
+		$drawn_extra_num = intval($ldn['extra']); // Get the actual drawn extra ball
+		$dupextra_prize_counts[$drawn_extra_num] = array();
+		// Initialize each prize category to 0 based on the global prizes array structure
+		if(isset($prizes) && !empty($prizes)) {
+			// Get the structure from any existing ball in prizes array
+			$sample_ball = array_keys($prizes)[0];
+			if(isset($prizes[$sample_ball])) {
+				foreach($prizes[$sample_ball] as $category => $count) {
+					$dupextra_prize_counts[$drawn_extra_num][$category] = 0;
 				}
 			}
 		}
@@ -2838,8 +2960,8 @@ class Statistics_m extends MY_Model
 		{
 			$dbl_range = (int) ($range * 2)-1;  // Must be double the available draws available less the most recent draw
 			
-			// For each extra ball number, calculate followers and then wins
-			for($extra_num = 1; $extra_num <= $mx_extra; $extra_num++) {
+			// Only calculate followers for the DRAWN extra ball number, not all possible extra balls
+			$extra_num = $drawn_extra_num; // Process only the drawn extra ball
 				
 				// Query Builder for main balls + extra ball
 				$s = 'ball'; 
@@ -2889,12 +3011,14 @@ class Statistics_m extends MY_Model
 									$extra_followlist = $this->add_followers($row);
 								}
 							}
+						} else {
+							$row = $query->next_row('array');
 						}
 						
 						// Step 2: When we reach the range, start calculating prizes
 						if($range_ptr >= (int)$range) {
 							$extra_nonfollowlist = $this->non_followers($extra_followlist, $mx_extra);
-							$dupextra_prize_counts[$extra_num] = $this->dupextra_prizecounts($row, $extra_followlist, $extra_nonfollowlist, $dupextra_prize_counts[$extra_num], $max);
+							$dupextra_prize_counts[$drawn_extra_num] = $this->dupextra_prizecounts($row, $extra_followlist, $extra_nonfollowlist, $dupextra_prize_counts[$drawn_extra_num], $max);
 							
 							if(!empty($lowest_row)) {
 								$first = $lowest_row[0];
@@ -2916,7 +3040,6 @@ class Statistics_m extends MY_Model
 					unset($extra_nonfollowlist);
 					$query->free_result();
 				}
-			}
 		}
 		
 		// Format the dupextra_wins string

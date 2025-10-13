@@ -3774,8 +3774,9 @@ class Predictions extends Admin_Controller {
 			}
 		}
 		
-		// Process each extra ball's prizes
-		for($extra_num = 1; $extra_num <= $this->data['lottery']->maximum_extra_ball; $extra_num++) {
+		// For duplicate extra ball lotteries, only parse the drawn extra ball to prevent multiplication
+		// Note: In Predictions controller, we may not have lottery context, so we'll parse all but use carefully
+		for($extra_num = 1; $extra_num <= count($extra_ball_prizes); $extra_num++) {
 			if(isset($extra_ball_prizes[$extra_num - 1]) && !empty($extra_ball_prizes[$extra_num - 1])) {
 				$prizes = explode(',', $extra_ball_prizes[$extra_num - 1]);
 				

@@ -2002,6 +2002,10 @@ class Statistics extends Admin_Controller {
 		// Retrieve the lottery table name for the database
 		$tbl = $this->lotteries_m->lotto_table_convert($lotto->lottery_name);
 		$blnduplicate = ($lotto->duplicate_extra_ball ? TRUE : FALSE);
+		
+		// Debug logging to track duplicate extra ball flag
+		log_message('debug', "Recalc followers started - Lottery: " . $lotto->lottery_name . " (ID: " . $id . "), duplicate_extra_ball: " . ($lotto->duplicate_extra_ball ?? 'NULL') . ", blnduplicate: " . ($blnduplicate ? 'TRUE' : 'FALSE'));
+		
 		$drawn = $lotto->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$low = $lotto->minimum_ball;		// Regular Drawn Low ball e.g. ball 1
 		$high = $lotto->maximum_ball;		// Regular Drawn High ball e.g. ball 49
@@ -2042,7 +2046,9 @@ class Statistics extends Admin_Controller {
 			
 			$p_group = $this->statistics_m->prizes_only($p_group,$lottery_extra);
  			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
-			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $followers['extra_included']);
+			// For duplicate extra ball lotteries, include all main positions but handle extra separately
+			$include_extra_position = $followers['extra_included']; // Always include if extra was originally included
+			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $include_extra_position);
 			$range = $followers['range'];
 			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range,'',$blnduplicate);
 			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $max, '', $blnduplicate, $mx_extra);
@@ -2050,14 +2056,23 @@ class Statistics extends Admin_Controller {
 			//$str_positions_prizes = '';
 			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
 			
-			// Calculate dupextra_wins for independent extra ball lotteries during recalc
+			// Let regular followers_prizes handle duplicate extra balls - no separate dupextra calculation needed
 			$str_dupextra_wins = '';
-			if($blnduplicate && !$outofrange) {
-				$str_dupextra_wins = $this->statistics_m->calculate_dupextra_wins($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $mx_extra, '');
-			}
+			// Duplicate extra balls are handled by the regular followers_prizes method with $duple flag
 			
 			/** NEW included nonfollower calculations **/
 			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $max, '', $blnduplicate, $mx_extra);
+			
+			// Debug logging for duplicate extra ball sanitization
+			log_message('debug', "Recalc followers (existing): blnduplicate=" . ($blnduplicate ? 'TRUE' : 'FALSE') . ", lottery_id=" . $id . ", range=" . $range);
+			
+			// For duplicate extra ball lotteries, sanitize inflated win counts
+			if($blnduplicate) {
+				log_message('debug', "Sanitizing existing record data for lottery " . $id);
+				$str_prizes = $this->sanitize_duplicate_extra_wins($str_prizes, $range);
+				$str_positions_prizes = $this->sanitize_duplicate_extra_wins($str_positions_prizes, $range);
+			}
+			
 			$followers = array(
 				'range'				=> $range,
 				'lottery_followers'	=> $str_followers,
@@ -2066,11 +2081,6 @@ class Statistics extends Admin_Controller {
 				'draw_id'			=> $lotto->last_drawn['id'],
 				'lottery_id'		=> $id
 			);
-			
-			// Add dupextra_wins field only for independent extra ball lotteries during recalc
-			if($blnduplicate) {
-				$followers['dupextra_wins'] = $str_dupextra_wins;
-			}
 			
 			$this->statistics_m->follower_data_save($followers, TRUE);
 			/** NEW included nonfollower Data Save **/
@@ -2115,6 +2125,16 @@ class Statistics extends Admin_Controller {
 			$str_dupextra_wins = '';
 			if($blnduplicate && !$outofrange) {
 				$str_dupextra_wins = $this->statistics_m->calculate_dupextra_wins($tbl, $lotto->last_drawn, $drawn, 0, 0, $range, $mx_extra, '');
+			}
+			
+			// Debug logging for duplicate extra ball sanitization (new record path)
+			log_message('debug', "Recalc followers (new): blnduplicate=" . ($blnduplicate ? 'TRUE' : 'FALSE') . ", lottery_id=" . $id . ", range=" . $range);
+			
+			// For duplicate extra ball lotteries, sanitize inflated win counts (new record path)
+			if($blnduplicate) {
+				log_message('debug', "Sanitizing new record data for lottery " . $id);
+				$str_prizes = $this->sanitize_duplicate_extra_wins($str_prizes, $range);
+				$str_positions_prizes = $this->sanitize_duplicate_extra_wins($str_positions_prizes, $range);
 			}
 			
 			$followers = array(
@@ -2528,30 +2548,31 @@ class Statistics extends Admin_Controller {
 		// Split by '>' to get prizes for each extra ball
 		$extra_ball_prizes = explode('>', $dupextra_wins_string);
 		
-		// Process each extra ball's prizes
-		for($extra_num = 1; $extra_num <= $this->data['lottery']->maximum_extra_ball; $extra_num++) {
-			if(isset($extra_ball_prizes[$extra_num - 1]) && !empty($extra_ball_prizes[$extra_num - 1])) {
-				$prizes = explode(',', $extra_ball_prizes[$extra_num - 1]);
-				
-				// Map prizes to categories - only include non-NULL categories
-				$prize_categories = array();
-				$all_categories = array('extra', '1_win', '1_win_extra', '2_win', '2_win_extra', '3_win', '3_win_extra', '4_win', '4_win_extra', '5_win', '5_win_extra', '6_win', '6_win_extra', '7_win', '7_win_extra');
-				
-				// Get prize profile to check which categories are not NULL
-				$prize_profile = $this->statistics_m->prize_group_profile($this->data['lottery']->lottery_id);
-				
-				foreach($all_categories as $category) {
-					if(isset($prize_profile[$category]) && $prize_profile[$category] !== null) {
-						$prize_categories[] = $category;
-					}
+		// Process each extra ball's prizes - since calculate_dupextra_wins now only returns data for drawn extra ball
+		$extra_num = 1;
+		if(isset($extra_ball_prizes[$extra_num - 1]) && !empty($extra_ball_prizes[$extra_num - 1])) {
+			$prizes = explode(',', $extra_ball_prizes[$extra_num - 1]);
+			
+			// Map prizes to categories - only include non-NULL categories
+			$prize_categories = array();
+			$all_categories = array('extra', '1_win', '1_win_extra', '2_win', '2_win_extra', '3_win', '3_win_extra', '4_win', '4_win_extra', '5_win', '5_win_extra', '6_win', '6_win_extra', '7_win', '7_win_extra');
+			
+			// Get prize profile to check which categories are not NULL
+			$prize_profile = $this->statistics_m->prize_group_profile($this->data['lottery']->lottery_id);
+			
+			foreach($all_categories as $category) {
+				if(isset($prize_profile[$category]) && $prize_profile[$category] !== null) {
+					$prize_categories[] = $category;
 				}
-				
-				$parsed['extra_' . $extra_num] = array();
-				
-				foreach($prizes as $index => $count) {
-					if(isset($prize_categories[$index]) && intval($count) > 0) {
-						$parsed['extra_' . $extra_num][$prize_categories[$index]] = intval($count);
-					}
+			}
+			
+			// Get the drawn extra ball number for the key
+			$drawn_extra = isset($this->data['lottery']->last_drawn['extra']) ? intval($this->data['lottery']->last_drawn['extra']) : 1;
+			$parsed['extra_' . $drawn_extra] = array();
+			
+			foreach($prizes as $index => $count) {
+				if(isset($prize_categories[$index]) && intval($count) > 0) {
+					$parsed['extra_' . $drawn_extra][$prize_categories[$index]] = intval($count);
 				}
 			}
 		}
@@ -2604,5 +2625,46 @@ class Statistics extends Admin_Controller {
 			log_message('error', "H-W-C win analysis error: " . $e->getMessage());
 			return FALSE;
 		}
+	}
+
+	/**
+	 * Sanitize duplicate extra ball win counts to prevent inflated values
+	 * @param string $win_string The win string to sanitize
+	 * @param int $range The draw range (typically 100)
+	 * @return string Sanitized win string
+	 */
+	private function sanitize_duplicate_extra_wins($win_string, $range)
+	{
+		if(empty($win_string)) return $win_string;
+		
+		// Debug logging
+		log_message('debug', "Sanitizing win string: " . substr($win_string, 0, 100) . " with range: " . $range);
+		
+		// Parse the win string (format: "0,1,2,3,4,5>1,0,0,2,1,0>..." where each section is a ball's wins)
+		$ball_sections = explode('>', $win_string);
+		$sanitized_sections = array();
+		
+		foreach($ball_sections as $section) {
+			if(empty($section)) {
+				$sanitized_sections[] = $section;
+				continue;
+			}
+			
+			$counts = explode(',', $section);
+			$sanitized_counts = array();
+			
+			foreach($counts as $count) {
+				$int_count = intval($count);
+				// Cap any count that exceeds the range (prevents 269 winners from 100 draws)
+				$sanitized_count = min($int_count, $range);
+				$sanitized_counts[] = $sanitized_count;
+			}
+			
+			$sanitized_sections[] = implode(',', $sanitized_counts);
+		}
+		
+		$result = implode('>', $sanitized_sections);
+		log_message('debug', "Sanitized result: " . substr($result, 0, 100));
+		return $result;
 	}
 }
