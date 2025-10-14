@@ -3227,6 +3227,7 @@ class Statistics_m extends MY_Model
 	 */
 	private function inrange($tbl, $r, $dr)
 	{
+ 		$original_r = $r;
  		$r = $r * 2; 		// The range must be twice the range of draws 
 		//$r = $r - 100;	// The range will be a minimum of 100 draws 
 		// for the follower totals and then the wins of those followers
@@ -3234,7 +3235,9 @@ class Statistics_m extends MY_Model
 		$query = $this->db->query('SELECT `draw_date` FROM '.$tbl.$where.' ORDER BY `draw_date` DESC LIMIT '.$r.';');
 		if (!$query) return TRUE;	// Draw Database Does not Exist, error = TRUE
 		$total = $query->num_rows();
-	return ($total > $r ? TRUE : FALSE); // Range is more existing draws, error else the range exists.
+		$result = ($total < $r ? TRUE : FALSE); // Fixed logic: error if we have FEWER draws than needed
+		
+	return $result;
 	}
 
 	/**
