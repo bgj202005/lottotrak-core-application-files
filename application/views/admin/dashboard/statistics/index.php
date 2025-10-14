@@ -10,6 +10,23 @@
     	margin-bottom: .5rem;
     	margin-top: .5rem;
 }
+/* Reset button styling */
+.reset-followers {
+	background-color: #f0ad4e;
+	border-color: #eea236;
+	color: #fff;
+	font-size: 0.8em;
+	padding: 0.25rem 0.5rem;
+}
+.reset-followers:hover {
+	background-color: #ec971f;
+	border-color: #d58512;
+	color: #fff;
+}
+.reset-followers:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
 </style>	
 <section>
 	<h2>Lottery Profile Statistics</h2>
@@ -37,6 +54,7 @@
 				<th>Friends</th>
 				<th>Calculate</th>
 				<th style = "text-align:center; white-space: nowrap;">ReCalc?</th>
+				<th style = "text-align:center; white-space: nowrap;">Reset</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -68,16 +86,30 @@
 		<td style = "text-align:center;"><?=$lottery->repeaters; ?></td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_stat('admin/statistics/view_draws/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_hwc('admin/statistics/h_w_c/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><?php echo $statistics->btn_followers('admin/statistics/followers/'.$lottery->id); ?></td>
+		<td style = "text-align:center;">
+			<?php echo $statistics->btn_followers('admin/statistics/followers/'.$lottery->id); ?>
+			<?php if($lottery->needs_recalc): ?>
+				<br><small style="color: #d9534f; font-weight: bold;">ReCalc Required</small>
+			<?php endif; ?>
+		</td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_friends('admin/statistics/friends/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_calculate('admin/statistics/calculate/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><input type="checkbox" name="recalc" value="<?=$lottery->id;?>" class="recalc<?=$lottery->id;?>" id="recalc" <?=($lottery->last_draw!='NA' ? '' : 'disabled');?> >
+		<td style = "text-align:center;">
+			<button type="button" class="btn btn-sm btn-warning reset-followers" 
+					data-lottery-id="<?=$lottery->id;?>"
+					data-lottery-name="<?=htmlspecialchars($lottery->lottery_name);?>"
+					title="Reset follower statistics to start from scratch"
+					<?=($lottery->last_draw!='NA' ? '' : 'disabled');?>>
+				<i class="fa fa-undo fa-lg" aria-hidden="true"></i> Reset
+			</button>
+		</td>
 	</tr>
 	<?php endforeach; ?> 
 	
 	<?php else: ?>
 		<tr>
-			<td colspan="12" style = "text-align:center">No Lotteries are available.</td>
+			<td colspan="16" style = "text-align:center">No Lotteries are available.</td>
 		</tr>
 <?php endif; ?>
 		</tbody>
@@ -126,10 +158,61 @@ $(document).ready(function(){
 	$('#message').css('display', 'none'); 
 	document.getElementById("status").innerHTML = "Retrieving the Friends of numbers and History for the next draw. Please Wait.";
 	});
+	
+	// Handle reset followers button clicks
+	$('.reset-followers').click(function(e) {
+		e.preventDefault();
+		var lotteryId = $(this).data('lottery-id');
+		var lotteryName = $(this).data('lottery-name');
+		
+		if (confirm('Are you sure you want to reset the follower statistics for ' + lotteryName + '?\n\nThis will clear all cached follower data and force the next ReCalc to start from scratch.')) {
+			resetFollowerStatistics(lotteryId, lotteryName);
+		}
+	});
+	
 	function fade_out() {
       $("#status").fadeOut();
     }
 });
+
 function redirect(url) {
-   window.location.href = url; }   
+   window.location.href = url; 
+}
+
+function resetFollowerStatistics(lotteryId, lotteryName) {
+	// Show status message
+	$('#status').css('display', 'block');
+	$('#message').css('display', 'none'); 
+	document.getElementById("status").innerHTML = "Resetting follower statistics for " + lotteryName + ". Please wait...";
+	
+	$.ajax({
+		url: '<?php echo site_url("admin/statistics/reset_followers"); ?>',
+		type: 'POST',
+		data: {
+			lottery_id: lotteryId
+		},
+		dataType: 'json',
+		success: function(response) {
+			$('#status').css('display', 'none');
+			if (response.success) {
+				$('#message').removeClass('bg-warning').addClass('bg-success');
+				$('#message').html(response.message);
+				$('#message').css('display', 'block');
+				setTimeout(function() {
+					$('#message').fadeOut();
+				}, 5000);
+			} else {
+				$('#message').removeClass('bg-success').addClass('bg-warning');
+				$('#message').html('Error: ' + response.message);
+				$('#message').css('display', 'block');
+			}
+		},
+		error: function(xhr, status, error) {
+			$('#status').css('display', 'none');
+			$('#message').removeClass('bg-success').addClass('bg-warning');
+			$('#message').html('Error resetting follower statistics. Server responded with: ' + xhr.status + ' ' + xhr.statusText);
+			$('#message').css('display', 'block');
+		}
+	});
+}
 </script>
