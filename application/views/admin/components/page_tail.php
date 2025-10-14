@@ -25,8 +25,8 @@ $(document).ready(function() {
 		
 		// If Font Awesome didn't load, apply fallback CSS
 		if (!hasFA) {
-			// Try to fix Font Awesome icons by applying additional CSS
-			$('<style type="text/css">.fa, [class^="fa-"], [class*=" fa-"] { font-family: FontAwesome, "Font Awesome 5 Free", "Font Awesome 5 Pro" !important; }</style>').appendTo('head');
+			// Try to fix Font Awesome icons by applying additional CSS for FontAwesome 4.7.0
+			$('<style type="text/css">.fa, [class^="fa-"], [class*=" fa-"] { font-family: FontAwesome !important; }</style>').appendTo('head');
 		}
 	}, 1000);
 });

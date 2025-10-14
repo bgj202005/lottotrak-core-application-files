@@ -10,18 +10,18 @@
     	margin-bottom: .5rem;
     	margin-top: .5rem;
 }
-/* Reset button styling */
+/* Reset button styling - match prize history */
 .reset-followers {
-	background-color: #f0ad4e;
-	border-color: #eea236;
-	color: #fff;
-	font-size: 0.8em;
-	padding: 0.25rem 0.5rem;
+	padding: 4px 8px;
+	font-size: 11px;
+	background-color: #ffc107;
+	border-color: #ffc107;
+	color: #212529;
 }
 .reset-followers:hover {
-	background-color: #ec971f;
-	border-color: #d58512;
-	color: #fff;
+	background-color: #e0a800;
+	border-color: #d39e00;
+	color: #212529;
 }
 .reset-followers:disabled {
 	opacity: 0.6;
@@ -101,7 +101,7 @@
 					data-lottery-name="<?=htmlspecialchars($lottery->lottery_name);?>"
 					title="Reset follower statistics to start from scratch"
 					<?=($lottery->last_draw!='NA' ? '' : 'disabled');?>>
-				<i class="fa fa-undo fa-lg" aria-hidden="true"></i> Reset
+				<i class="fa fa-undo fa-lg" aria-hidden="true"></i> reset
 			</button>
 		</td>
 	</tr>

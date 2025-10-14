@@ -89,7 +89,7 @@ class Statistics extends Admin_Controller {
 	 */
 	public function btn_followers($uri)
 	{
-		return anchor($uri, '<i class="fa fa-retweet fa-2x" aria-hidden="true">', array('title' => 'View Historic Follower Statistics after the last draw', 'class' => 'followers'));
+		return anchor($uri, '<i class="fa fa-retweet fa-2x" aria-hidden="true" style="color: #007bff;"></i>', array('title' => 'View Historic Follower Statistics after the last draw', 'class' => 'followers followers-btn'));
 	}
 
 	/**
@@ -211,7 +211,7 @@ class Statistics extends Admin_Controller {
 		$this->output->set_content_type('application/json');
 		
 		// Add error logging for debugging
-		log_message('debug', "AJAX load_draws called for lottery ID: $id");
+
 		
 		// Allow AJAX requests and direct access for debugging
 		// In production, you might want to re-enable this check
@@ -249,7 +249,7 @@ class Statistics extends Admin_Controller {
 		$requested_range = (int)$this->input->get('range', TRUE) ?: 100; // The requested range (200, 300, etc.)
 		$search = $this->input->get('search', TRUE) ?: '';
 		
-		log_message('debug', "AJAX params - Page: $page, Limit: $limit, Trend: $trend, Range: $requested_range, Table: $tbl_name");
+
 		
 		// Calculate offset
 		$offset = ($page - 1) * $limit;
@@ -257,7 +257,7 @@ class Statistics extends Admin_Controller {
 		try {
 			// Get total count for pagination
 			$total_count = $this->lotteries_m->get_draws_count($tbl_name, $trend);
-			log_message('debug', "Total draws count: $total_count");
+
 			
 			if ($total_count === 0) {
 				$this->output->set_output(json_encode(['error' => 'No draws found in this lottery table: ' . $tbl_name]));
@@ -266,7 +266,7 @@ class Statistics extends Admin_Controller {
 			
 			// Limit the requested range to available draws to prevent negative numbering
 			$effective_range = min($requested_range, $total_count);
-			log_message('debug', "Requested range: $requested_range, Available draws: $total_count, Effective range: $effective_range");
+
 			
 		} catch (Exception $e) {
 			log_message('error', "Error getting draws count: " . $e->getMessage());
@@ -694,47 +694,114 @@ class Statistics extends Admin_Controller {
 		$url_extra_included = ($this->uri->segment(6)=='extra' || $this->uri->segment(7)=='extra') ? 1 : 0;
 		$url_extra_draws = ($this->uri->segment(6)=='draws' || $this->uri->segment(7)=='draws') ? 1 : 0;
 		
-		$this->data['lottery']->extra_included = $url_extra_included;
-		$this->data['lottery']->extra_draws = $url_extra_draws;
+		// Don't set lottery object values yet - determine source first (URL vs Database)
 		$outofrange = FALSE;						// default is not out of range for the prize pool
 		$blnEX = false;								// Extra Bonus Ball / Draws flag are no change or update
+		
+
+		
+		// Determine if we have actual parameter segments (extra/draws), not just range or lottery_id
+		$has_extra_param = ($this->uri->segment(6) == 'extra' || $this->uri->segment(7) == 'extra');
+		$has_draws_param = ($this->uri->segment(6) == 'draws' || $this->uri->segment(7) == 'draws');
+		$has_param_segments = ($has_extra_param || $has_draws_param);
+
+		
+		// Session-based preference management: restore user's last checkbox settings when returning from stats dashboard
+		// Check if user is coming from external navigation (referer is not followers page)
+		$referer = $this->input->server('HTTP_REFERER');
+		$coming_from_followers = ($referer && strpos($referer, '/followers/') !== false);
+		
+		if(!$has_param_segments && !$coming_from_followers) {
+			// No URL parameters AND not coming from followers page - check if we have saved preferences for this lottery
+			$saved_prefs = $this->session->userdata('followers_preferences');
+			if($saved_prefs && isset($saved_prefs[$id])) {
+				// User has saved preferences for this lottery - redirect to URL with saved parameters
+				$saved_extra = $saved_prefs[$id]['extra_included'];
+				$saved_draws = $saved_prefs[$id]['extra_draws'];
+
+				
+				// Only redirect if saved preferences are different from current URL (which has no parameters)
+				if($saved_extra || $saved_draws) {
+					// Build URL with saved parameters
+					$range = $this->uri->segment(5, 100);
+					$redirect_url = "admin/statistics/followers/$id/$range";
+					if($saved_extra) $redirect_url .= '/extra';
+					if($saved_draws) $redirect_url .= '/draws';
+					
+
+					redirect($redirect_url);
+					return;
+				}
+			}
+		}
+		
+		// Always save current URL state as user preferences (whether parameters are present or not)
+		$prefs = $this->session->userdata('followers_preferences') ?: array();
+		$prefs[$id] = array(
+			'extra_included' => $url_extra_included,
+			'extra_draws' => $url_extra_draws
+		);
+		$this->session->set_userdata('followers_preferences', $prefs);
+
 		
 		if(!is_null($followers))
 		{
 			// Check if followers data is empty (after reset) - preserve URL parameters or database values
 			$followers_data_empty = empty($followers['lottery_followers']);
 			
-			// Handle extra_included parameter independently
-			if($url_extra_included) {
-				$this->data['lottery']->extra_included = 1;
-				if(!$followers_data_empty) {
-					$this->statistics_m->extra_included($id, TRUE, 'lottery_followers');
-					$this->statistics_m->extra_included($id, TRUE, 'lottery_nonfollowers');
-					$blnEX = true;
-				}
-			}
+			// URL parameters are handled below in the comprehensive change detection logic
 			
-			// Handle extra_draws parameter independently  
-			if($url_extra_draws) {
-				$this->data['lottery']->extra_draws = 1;
-				if(!$followers_data_empty) {
-					$this->statistics_m->extra_draws($id, TRUE, 'lottery_followers');
-					$this->statistics_m->extra_draws($id, TRUE, 'lottery_nonfollowers');
-					$blnEX = true;
-				}
-			}
-			
-			// If no URL parameters, get values from database
-			if(!$url_extra_included && !$url_extra_draws) {
-				if($followers_data_empty) {
-					// After reset, preserve existing settings from database
-					$this->data['lottery']->extra_included = isset($followers['extra_included']) ? $followers['extra_included'] : 0;
-					$this->data['lottery']->extra_draws = isset($followers['extra_draws']) ? $followers['extra_draws'] : 0;
+			// Check if URL parameters differ from stored database values to trigger recalculation
+			if(!$followers_data_empty) {
+				$db_extra_included = $this->statistics_m->extra_included($id, FALSE, 'lottery_followers');
+				$db_extra_draws = $this->statistics_m->extra_draws($id, FALSE, 'lottery_followers');
+				
+				// Only update database if we have actual parameter segments (extra/draws), not just range
+				if($has_param_segments) {
+
+					if($url_extra_included != $db_extra_included || $url_extra_draws != $db_extra_draws) {
+						$blnEX = true;
+
+						// Update database with new URL parameter state using direct database update
+						$this->set_extra_included_value($id, $url_extra_included, 'lottery_followers');
+						$this->set_extra_included_value($id, $url_extra_included, 'lottery_nonfollowers');
+						$this->set_extra_draws_value($id, $url_extra_draws, 'lottery_followers');
+						$this->set_extra_draws_value($id, $url_extra_draws, 'lottery_nonfollowers');
+					} else {
+
+					}
 				} else {
-					// Normal operation - get from database
-					$this->data['lottery']->extra_included = $this->statistics_m->extra_included($id, FALSE, 'lottery_followers');
-					$this->data['lottery']->extra_draws = $this->statistics_m->extra_draws($id, FALSE, 'lottery_followers');
+
 				}
+			}
+			
+			// URL parameters always take precedence over database values
+			// If no parameter segments, treat as if user wants both parameters OFF (0)
+			if(!$has_param_segments) {
+
+				// Update database to reflect URL state (both parameters OFF)
+				if(!$followers_data_empty) {
+					$db_extra_included = $this->statistics_m->extra_included($id, FALSE, 'lottery_followers');
+					$db_extra_draws = $this->statistics_m->extra_draws($id, FALSE, 'lottery_followers');
+					// Update database if current state differs from URL (both should be 0)
+					if($db_extra_included != 0 || $db_extra_draws != 0) {
+						$blnEX = true;
+						log_message('info', "Database state differs from URL - updating database to match URL (both OFF)");
+						$this->set_extra_included_value($id, 0, 'lottery_followers');
+						$this->set_extra_included_value($id, 0, 'lottery_nonfollowers');
+						$this->set_extra_draws_value($id, 0, 'lottery_followers');
+						$this->set_extra_draws_value($id, 0, 'lottery_nonfollowers');
+					}
+				}
+				// Always use URL state (both OFF when no segments)
+				$this->data['lottery']->extra_included = 0;
+				$this->data['lottery']->extra_draws = 0;
+				log_message('info', "No URL segments - set both parameters to 0: extra_included=0, extra_draws=0");
+			} else {
+				// URL segments present - use URL parameter values
+				$this->data['lottery']->extra_included = $url_extra_included;
+				$this->data['lottery']->extra_draws = $url_extra_draws;
+				log_message('info', "URL segments present - using URL parameter values: extra_included=" . $this->data['lottery']->extra_included . ", extra_draws=" . $this->data['lottery']->extra_draws);
 			} 
 
 			$p_group = $this->statistics_m->prize_group_profile($id); // Prize Group Profile Only
@@ -768,19 +835,32 @@ class Statistics extends Admin_Controller {
 				{
 					$max = $this->data['lottery']->maximum_ball;
 					$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
-					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, '', $blnduplicate);
-					$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
+					
+					// When extra parameters change ($blnEX), use double the range for full recalculation
+					// This matches ReCalc behavior: if range=100, go back 200 draws (1-100 followers, 101-200 win categories)  
+					$calculation_range = $blnEX ? ($range * 2) : $range;
+					
+					// Ensure calculation range doesn't exceed available draws
+					$total_draws = $this->lotteries_m->db_row_count($tbl_name);
+					if($calculation_range > $total_draws) {
+						$calculation_range = $total_draws;
+					}
+					
+					log_message('info', "Followers calculation: range=$range, calculation_range=$calculation_range, blnEX=" . ($blnEX ? 'TRUE' : 'FALSE') . ", total_draws=$total_draws");
+					
+					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $calculation_range, '', $blnduplicate);
+					$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $calculation_range, $max, '', $blnduplicate, $mx_extra);
 					$str_prizes  = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
 					$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
 					
 					// Calculate dupextra_wins for independent extra ball lotteries only
 					$str_dupextra_wins = '';
 					if($blnduplicate && !$outofrange) {
-						$str_dupextra_wins = $this->statistics_m->calculate_dupextra_wins($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $mx_extra, '');
+						$str_dupextra_wins = $this->statistics_m->calculate_dupextra_wins($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $calculation_range, $mx_extra, '');
 					}
 					
 					/** NEW included nonfollower calculations **/
-					$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
+					$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $calculation_range, $max, '', $blnduplicate, $mx_extra);
 					$followers = array(
  						'range'				=> $range,
 						'lottery_followers'	=> $str_followers,
@@ -896,7 +976,9 @@ class Statistics extends Admin_Controller {
 						$this->data['lottery']->last_drawn[$n.'_extra'] = $extra_followers; // Store extra followers separately
 					}
 				}
-				if(($this->data['lottery']->extra_included)&&($this->data['lottery']->last_drawn['extra']==$n))
+				// Always generate extra ball data when lottery has extra ball, regardless of extra_included setting
+				// The extra_included setting controls calculation logic, not data availability for display
+				if(($this->data['lottery']->extra_ball)&&($this->data['lottery']->last_drawn['extra']==$n))
 				{
 					$this->data['lottery']->last_drawn[$n.'x'] = $main_followers; // Main followers for extra ball
 					$this->data['lottery']->last_drawn[$n.'x_extra'] = $extra_followers; // Extra followers for extra ball
@@ -907,11 +989,12 @@ class Statistics extends Admin_Controller {
 				{
 					if(($this->data['lottery']->last_drawn['ball'.$b]==$n)&&(!isset($this->data['lottery']->last_drawn[$n]))) $this->data['lottery']->last_drawn[$n] = $f;
 				}
-				if(($this->data['lottery']->extra_included)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
+				// Always generate extra ball data when lottery has extra ball, regardless of extra_included setting
+				if(($this->data['lottery']->extra_ball)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
 				{
 					$this->data['lottery']->last_drawn[$n] = $f;
 				}
-				elseif(($this->data['lottery']->extra_included)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
+				elseif(($this->data['lottery']->extra_ball)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
 				{
 					$this->data['lottery']->last_drawn[$n.'x'] = $f; // denotes x for 'duplicate' extra
 				}
@@ -938,7 +1021,9 @@ class Statistics extends Admin_Controller {
 						$this->data['lottery']->last_drawn[$n.'nf_extra'] = $extra_nonfollowers; // Store extra nonfollowers separately
 					}
 				}
-				if(($this->data['lottery']->extra_included)&&($this->data['lottery']->last_drawn['extra']==$n))
+				// Always generate extra ball data when lottery has extra ball, regardless of extra_included setting
+				// The extra_included setting controls calculation logic, not data availability for display
+				if(($this->data['lottery']->extra_ball)&&($this->data['lottery']->last_drawn['extra']==$n))
 				{
 					$this->data['lottery']->last_drawn[$n.'nfx'] = $main_nonfollowers; // Main nonfollowers for extra ball
 					$this->data['lottery']->last_drawn[$n.'nfx_extra'] = $extra_nonfollowers; // Extra nonfollowers for extra ball
@@ -949,11 +1034,12 @@ class Statistics extends Admin_Controller {
 				{
 					if(($this->data['lottery']->last_drawn['ball'.$b]==$n)&&(!isset($this->data['lottery']->last_drawn[$n.'nf']))) $this->data['lottery']->last_drawn[$n.'nf'] = $nf;
 				}
-				if(($this->data['lottery']->extra_included)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
+				// Always generate extra ball data when lottery has extra ball, regardless of extra_included setting
+				if(($this->data['lottery']->extra_ball)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
 				{
 					$this->data['lottery']->last_drawn[$n.'nf'] = $nf;
 				}
-				elseif(($this->data['lottery']->extra_included)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
+				elseif(($this->data['lottery']->extra_ball)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
 				{
 					$this->data['lottery']->last_drawn[$n.'nfx'] = $nf;
 				}
@@ -1795,12 +1881,18 @@ class Statistics extends Admin_Controller {
 				$recalc = TRUE;
 				log_message('info', "Recalc: Starting recalculation process for lottery_id=$id");
 				
-				// Initialize extra_included and extra_draws properties
+				// Initialize extra_included and extra_draws properties from database (preserve user settings)
 				if(!isset($this->data['lottery']->extra_included)) {
-					$this->data['lottery']->extra_included = 0;
+					// Read saved checkbox state from database instead of defaulting to 0
+					$saved_extra_included = $this->statistics_m->extra_included($id, FALSE, 'lottery_followers');
+					$this->data['lottery']->extra_included = $saved_extra_included ? 1 : 0;
+					log_message('info', "Recalc: Read extra_included from database: " . $this->data['lottery']->extra_included);
 				}
 				if(!isset($this->data['lottery']->extra_draws)) {
-					$this->data['lottery']->extra_draws = 0;
+					// Read saved checkbox state from database instead of defaulting to 0  
+					$saved_extra_draws = $this->statistics_m->extra_draws($id, FALSE, 'lottery_followers');
+					$this->data['lottery']->extra_draws = $saved_extra_draws ? 1 : 0;
+					log_message('info', "Recalc: Read extra_draws from database: " . $this->data['lottery']->extra_draws);
 				}
 				
 				// Verified the Draw Statistics have been completed
@@ -2184,11 +2276,16 @@ class Statistics extends Admin_Controller {
 			$p_group = $this->statistics_m->prizes_only($p_group,$lottery_extra);
  			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
 			// For duplicate extra ball lotteries, include all main positions but handle extra separately
-			$include_extra_position = $followers['extra_included']; // Always include if extra was originally included
+			// Use current saved checkbox states from lottery object, not old database record
+			$recalc_extra_included = isset($lotto->extra_included) ? $lotto->extra_included : $followers['extra_included'];
+			$recalc_extra_draws = isset($lotto->extra_draws) ? $lotto->extra_draws : $followers['extra_draws'];
+			log_message('info', "Recalc followers using: extra_included=$recalc_extra_included, extra_draws=$recalc_extra_draws (from lottery object), old values were: extra_included=" . $followers['extra_included'] . ", extra_draws=" . $followers['extra_draws']);
+			
+			$include_extra_position = $recalc_extra_included; // Use current checkbox state
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $include_extra_position);
 			$range = $followers['range'];
-			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range,'',$blnduplicate);
-			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $max, '', $blnduplicate, $mx_extra);
+			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range,'',$blnduplicate);
+			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
 			$str_prizes = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
 			//$str_positions_prizes = '';
 			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
@@ -2198,7 +2295,7 @@ class Statistics extends Admin_Controller {
 			// Duplicate extra balls are handled by the regular followers_prizes method with $duple flag
 			
 			/** NEW included nonfollower calculations **/
-			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $max, '', $blnduplicate, $mx_extra);
+			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
 			
 			// Debug logging for duplicate extra ball sanitization
 			log_message('debug', "Recalc followers (existing): blnduplicate=" . ($blnduplicate ? 'TRUE' : 'FALSE') . ", lottery_id=" . $id . ", range=" . $range);
@@ -2216,7 +2313,9 @@ class Statistics extends Admin_Controller {
 				'wins'				=> $str_prizes,
 				'positions'			=> $str_positions_prizes,
 				'draw_id'			=> $lotto->last_drawn['id'],
-				'lottery_id'		=> $id
+				'lottery_id'		=> $id,
+				'extra_included'	=> $recalc_extra_included,
+				'extra_draws'		=> $recalc_extra_draws
 			);
 			
 			$this->statistics_m->follower_data_save($followers, TRUE);
@@ -2233,6 +2332,12 @@ class Statistics extends Admin_Controller {
 		{
 			// range is set with either less than 100 rows (based on the exact number of draws) or calculate the number of followers using only 100 rows
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
+			
+			// Use current saved checkbox states from lottery object for new record calculation
+			$recalc_extra_included = isset($lotto->extra_included) ? $lotto->extra_included : 0;
+			$recalc_extra_draws = isset($lotto->extra_draws) ? $lotto->extra_draws : 0;
+			log_message('info', "Recalc followers (new record): Using lottery object checkbox state: extra_included=$recalc_extra_included, extra_draws=$recalc_extra_draws");
+			
 			$p_group = $this->statistics_m->prize_group_profile($id);
 			
 			// Handle case where no prize profile exists
@@ -2250,18 +2355,18 @@ class Statistics extends Admin_Controller {
 			
 			$p_group = $this->statistics_m->prizes_only($p_group,$lottery_extra);
  			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
-			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $lotto->extra_included);
+			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $recalc_extra_included);
 			$range = ($all<100 ? $all : 100);
-			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $lotto->extra_included, $lotto->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
+			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
 			$str_prizes = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
 			//$str_positions_prizes = '';
 			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
-			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $lotto->extra_included, $lotto->extra_draws, $range,'',$blnduplicate);
+			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range,'',$blnduplicate);
 			
 			// Calculate dupextra_wins for independent extra ball lotteries during recalc (new record)
 			$str_dupextra_wins = '';
 			if($blnduplicate && !$outofrange) {
-				$str_dupextra_wins = $this->statistics_m->calculate_dupextra_wins($tbl, $lotto->last_drawn, $drawn, $lotto->extra_included, $lotto->extra_draws, $range, $mx_extra, '');
+				$str_dupextra_wins = $this->statistics_m->calculate_dupextra_wins($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $mx_extra, '');
 			}
 			
 			// Debug logging for duplicate extra ball sanitization (new record path)
@@ -2280,7 +2385,9 @@ class Statistics extends Admin_Controller {
 				'wins'				=> $str_prizes,
 				'positions'			=> $str_positions_prizes,
 				'draw_id'			=> $lotto->last_drawn['id'],
-				'lottery_id'		=> $id
+				'lottery_id'		=> $id,
+				'extra_included'	=> $recalc_extra_included,
+				'extra_draws'		=> $recalc_extra_draws
 			);
 			
 			// Add dupextra_wins field only for independent extra ball lotteries during recalc (new record)
@@ -2289,7 +2396,7 @@ class Statistics extends Admin_Controller {
 			}
 			
 			$this->statistics_m->follower_data_save($followers, FALSE);
-			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl, $lotto->last_drawn, $drawn, $lotto->extra_included, $lotto->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
+			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
 			$nonfollowers = array(
 			'range'					=> $range,
 			'lottery_nonfollowers'	=> $str_nonfollowers,
@@ -2803,5 +2910,39 @@ class Statistics extends Admin_Controller {
 		$result = implode('>', $sanitized_sections);
 		log_message('debug', "Sanitized result: " . substr($result, 0, 100));
 		return $result;
+	}
+	
+	/**
+	 * Set extra_included value directly without toggling
+	 * 
+	 * @param	integer	$lottery_id		Lottery ID
+	 * @param	integer	$value			Value to set (0 or 1)  
+	 * @param	string	$table			Table name (lottery_followers or lottery_nonfollowers)
+	 * @return	void
+	 */
+	private function set_extra_included_value($lottery_id, $value, $table)
+	{
+		$this->db->set('extra_included', intval($value));
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update($table);
+		
+		log_message('info', "Set extra_included=$value for lottery_id=$lottery_id in table=$table");
+	}
+	
+	/**
+	 * Set extra_draws value directly without toggling
+	 * 
+	 * @param	integer	$lottery_id		Lottery ID
+	 * @param	integer	$value			Value to set (0 or 1)
+	 * @param	string	$table			Table name (lottery_followers or lottery_nonfollowers)  
+	 * @return	void
+	 */
+	private function set_extra_draws_value($lottery_id, $value, $table)
+	{
+		$this->db->set('extra_draws', intval($value));
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update($table);
+		
+		log_message('info', "Set extra_draws=$value for lottery_id=$lottery_id in table=$table");
 	}
 }

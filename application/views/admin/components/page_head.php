@@ -158,6 +158,41 @@ i[class*=" fa-"] {
 	font-style: normal !important;
 }
 
+/* Followers button icon styling - prevent duplication and conflicts */
+a.followers .fa-retweet {
+	color: #007bff !important;
+}
+
+/* Ensure followers link styling */
+a.followers {
+	text-decoration: none !important;
+}
+
+/* DIRECT FIX: Target the specific followers button and override conflicts */
+
+/* Prevent Bootstrap .mb-0 > a:after from adding chevron to followers */
+a.followers-btn:after,
+a.followers:after {
+	content: none !important;
+	display: none !important;
+}
+
+/* Ensure the followers button displays and functions correctly */
+a.followers-btn,
+a.followers {
+	text-decoration: none !important;
+	display: inline-block !important;
+	position: relative !important;
+}
+
+/* Force the correct icon styling - inline style should handle this */
+a.followers-btn i.fa-retweet,
+a.followers i.fa-retweet {
+	color: #007bff !important;
+	font-family: FontAwesome !important;
+	display: inline-block !important;
+}
+
 /* Admin Font Weight Fix - Exclude Font Awesome */
 /* Navigation elements */
 .navbar:not(.fa),

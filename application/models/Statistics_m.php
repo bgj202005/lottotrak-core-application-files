@@ -2616,7 +2616,7 @@ class Statistics_m extends MY_Model
 		for($pos = 1; $pos <= $max_positions_to_process; $pos++) {
 			// Use the representative ball for this position instead of latest draw
 			$position_key = $pos;
-			$position_ball = isset($position_balls[$pos]) ? $position_balls[$pos] : $ldn['ball'.$pos];
+			$position_ball = isset($position_balls[$pos]) ? $position_balls[$pos] : (isset($ldn['ball'.$pos]) ? $ldn['ball'.$pos] : null);
 			
 			if(!isset($positions[$position_key]) || empty($position_ball)) {
 				continue;
