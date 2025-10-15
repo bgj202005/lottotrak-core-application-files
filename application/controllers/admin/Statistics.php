@@ -815,7 +815,11 @@ class Statistics extends Admin_Controller {
 					'2_win' => 1, '2_win_extra' => 1,
 					'3_win' => 1, '3_win_extra' => 1,
 					'4_win' => 1, '4_win_extra' => 1,
-					'5_win' => 1, '5_win_extra' => 1
+					'5_win' => 1, '5_win_extra' => 1,
+					'6_win' => 1, '6_win_extra' => 1,
+					'7_win' => 1, '7_win_extra' => 1,
+					'8_win' => 1, '8_win_extra' => 1,
+					'9_win' => 1, '9_win_extra' => 1
 				);
 			}
 			
@@ -917,7 +921,11 @@ class Statistics extends Admin_Controller {
 					'2_win' => 1, '2_win_extra' => 1,
 					'3_win' => 1, '3_win_extra' => 1,
 					'4_win' => 1, '4_win_extra' => 1,
-					'5_win' => 1, '5_win_extra' => 1
+					'5_win' => 1, '5_win_extra' => 1,
+					'6_win' => 1, '6_win_extra' => 1,
+					'7_win' => 1, '7_win_extra' => 1,
+					'8_win' => 1, '8_win_extra' => 1,
+					'9_win' => 1, '9_win_extra' => 1
 				);
 			}
 			
@@ -2289,7 +2297,11 @@ class Statistics extends Admin_Controller {
 					'2_win' => 1, '2_win_extra' => 1,
 					'3_win' => 1, '3_win_extra' => 1,
 					'4_win' => 1, '4_win_extra' => 1,
-					'5_win' => 1, '5_win_extra' => 1
+					'5_win' => 1, '5_win_extra' => 1,
+					'6_win' => 1, '6_win_extra' => 1,
+					'7_win' => 1, '7_win_extra' => 1,
+					'8_win' => 1, '8_win_extra' => 1,
+					'9_win' => 1, '9_win_extra' => 1
 				);
 			}
 			
@@ -2387,7 +2399,11 @@ class Statistics extends Admin_Controller {
 					'2_win' => 1, '2_win_extra' => 1,
 					'3_win' => 1, '3_win_extra' => 1,
 					'4_win' => 1, '4_win_extra' => 1,
-					'5_win' => 1, '5_win_extra' => 1
+					'5_win' => 1, '5_win_extra' => 1,
+					'6_win' => 1, '6_win_extra' => 1,
+					'7_win' => 1, '7_win_extra' => 1,
+					'8_win' => 1, '8_win_extra' => 1,
+					'9_win' => 1, '9_win_extra' => 1
 				);
 			}
 			
@@ -2841,7 +2857,7 @@ class Statistics extends Admin_Controller {
 			
 			// Map prizes to categories - only include non-NULL categories
 			$prize_categories = array();
-			$all_categories = array('extra', '1_win', '1_win_extra', '2_win', '2_win_extra', '3_win', '3_win_extra', '4_win', '4_win_extra', '5_win', '5_win_extra', '6_win', '6_win_extra', '7_win', '7_win_extra');
+			$all_categories = array('extra', '1_win', '1_win_extra', '2_win', '2_win_extra', '3_win', '3_win_extra', '4_win', '4_win_extra', '5_win', '5_win_extra', '6_win', '6_win_extra', '7_win', '7_win_extra', '8_win', '8_win_extra', '9_win', '9_win_extra');
 			
 			// Get prize profile to check which categories are not NULL
 			$prize_profile = $this->statistics_m->prize_group_profile($this->data['lottery']->lottery_id);
