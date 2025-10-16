@@ -2151,6 +2151,16 @@ class Statistics_m extends MY_Model
 	 */
 	private function can_use_sliding_window($lottery_id, $range, $bonus, $draws, $duple, $mx_ex)
 	{
+		// Check if there's a force recalculation flag for this lottery (set when parameters change)
+		$CI =& get_instance();
+		$force_flag = $CI->session->userdata('force_recalc_lottery_' . $lottery_id);
+		if ($force_flag) {
+			// Remove the flag after checking (one-time use)
+			$CI->session->unset_userdata('force_recalc_lottery_' . $lottery_id);
+			log_message('info', "Force recalculation flag found for lottery_id=$lottery_id - triggering complete recalc");
+			return false;
+		}
+		
 		// Get existing follower data
 		$existing = $this->followers_exists($lottery_id);
 		

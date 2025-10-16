@@ -755,16 +755,17 @@ class Statistics extends Admin_Controller {
 					// URL has explicit parameters - update database to match URL
 					if($url_extra_included != $db_extra_included || $url_extra_draws != $db_extra_draws) {
 						$blnEX = true;
-						log_message('info', "URL has parameters - updating database: extra_included=$url_extra_included, extra_draws=$url_extra_draws");
 						$this->set_extra_included_value($id, $url_extra_included, 'lottery_followers');
 						$this->set_extra_included_value($id, $url_extra_included, 'lottery_nonfollowers');
 						$this->set_extra_draws_value($id, $url_extra_draws, 'lottery_followers');
 						$this->set_extra_draws_value($id, $url_extra_draws, 'lottery_nonfollowers');
+						
+						// Set a flag to force complete recalculation for this request
+						$this->session->set_userdata('force_recalc_lottery_' . $id, time());
 					}
 					// Use URL values
 					$this->data['lottery']->extra_included = $url_extra_included;
 					$this->data['lottery']->extra_draws = $url_extra_draws;
-					log_message('info', "Using URL parameter values: extra_included=$url_extra_included, extra_draws=$url_extra_draws");
 				} else {
 					// NO URL parameters - check user intent based on navigation source
 					$coming_from_stats = ($referer && (strpos($referer, '/statistics') !== false || strpos($referer, '/admin/statistics') !== false));
@@ -773,12 +774,10 @@ class Statistics extends Admin_Controller {
 						// Coming from stats page (reset/recalc) - preserve database state
 						$this->data['lottery']->extra_included = $db_extra_included;
 						$this->data['lottery']->extra_draws = $db_extra_draws;
-						log_message('info', "Coming from stats page - preserving database values: extra_included=$db_extra_included, extra_draws=$db_extra_draws");
 					} else {
 						// Direct navigation or from followers page - user wants to uncheck (URL has no params)
 						if($db_extra_included != 0 || $db_extra_draws != 0) {
 							$blnEX = true;
-							log_message('info', "Direct navigation with no URL params - updating database to OFF: extra_included=0, extra_draws=0");
 							$this->set_extra_included_value($id, 0, 'lottery_followers');
 							$this->set_extra_included_value($id, 0, 'lottery_nonfollowers');
 							$this->set_extra_draws_value($id, 0, 'lottery_followers');
@@ -786,7 +785,6 @@ class Statistics extends Admin_Controller {
 						}
 						$this->data['lottery']->extra_included = 0;
 						$this->data['lottery']->extra_draws = 0;
-						log_message('info', "Direct navigation - using URL values (off): extra_included=0, extra_draws=0");
 					}
 				}
 			} else {
@@ -851,20 +849,13 @@ class Statistics extends Admin_Controller {
 					$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
 					$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
 					
-					log_message('info', "Followers calculation: range=$range, blnEX=" . ($blnEX ? 'TRUE' : 'FALSE') . ", total_draws=$total_draws");
-					log_message('info', "Current extra_included=" . $this->data['lottery']->extra_included . ", extra_draws=" . $this->data['lottery']->extra_draws);
-					
 					// Extra validation: When extra parameters change, ensure clean calculation
 					if ($blnEX) {
-						log_message('info', "Extra parameters changed - forcing complete prize/position recalculation");
 						// Reinitialize global prizes array to ensure clean state
 						$GLOBALS['prizes'] = array();
 						$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
 						$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
 					}
-					
-					log_message('info', "Before followers_prizes: prizes array initialized for " . count($prizes) . " balls");
-					log_message('info', "P_GROUP structure for extra_included=" . $current_extra_state . ": " . implode(', ', array_keys($p_group)));
 					
 					// Validate arrays before passing to model methods to prevent null parameter errors
 					if (!is_array($prizes)) {
@@ -878,7 +869,6 @@ class Statistics extends Admin_Controller {
 					
 					// Validate last_drawn array to prevent undefined offset errors
 					if (!is_array($this->data['lottery']->last_drawn) || empty($this->data['lottery']->last_drawn)) {
-						log_message('error', "Invalid last_drawn data detected: " . print_r($this->data['lottery']->last_drawn, true));
 						$this->session->set_flashdata('message', 'Invalid lottery draw data. Please check the lottery configuration.');
 						redirect('admin/statistics');
 						return;
@@ -887,22 +877,57 @@ class Statistics extends Admin_Controller {
 					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, '', $blnduplicate);
 					$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
 					
-					// CRITICAL FIX: Filter model results to match p_group structure when extra_included=0
+					// CRITICAL FIX: When extra_included=0, consolidate extra wins into base categories
 					if (!$current_extra_state && is_array($prizes)) {
-						log_message('info', "Filtering prizes to remove extra categories for extra_included=0");
+						$consolidated_count = 0;
+						$filtered_count = 0;
+						$preserved_count = 0;
 						foreach ($prizes as $ball => $categories) {
 							if (is_array($categories)) {
-								// Remove all *_extra categories and higher categories beyond p_group structure
+								// Count wins before processing
+								$ball_wins_before = array_sum($categories);
+								
+								// First, consolidate *_extra categories into their base categories
 								foreach ($categories as $cat => $count) {
-									if (strpos($cat, '_extra') !== false || !array_key_exists($cat, $p_group)) {
-										unset($prizes[$ball][$cat]);
+									if (strpos($cat, '_extra') !== false && $count > 0) {
+										$base_cat = str_replace('_extra', '_win', $cat);
+										// If base category exists, add the extra wins to it
+										if (array_key_exists($base_cat, $categories)) {
+											$categories[$base_cat] += $count;
+											$consolidated_count++;
+										}
+										// Remove the extra category after consolidation
+										unset($categories[$cat]);
 									}
+								}
+								
+								// Then filter out non-base categories (7_win, 8_win, 9_win, etc.)
+								foreach ($categories as $cat => $count) {
+									// Keep 1_win and categories in p_group, filter out everything else
+									if (!array_key_exists($cat, $p_group) && $cat !== '1_win') {
+										if ($count > 0) {
+											$filtered_count++;
+										}
+										unset($categories[$cat]);
+									}
+								}
+								
+								// Update the prizes array with consolidated results
+								$prizes[$ball] = $categories;
+								
+								// Count wins after processing
+								$ball_wins_after = array_sum($categories);
+								if ($ball_wins_before > 0 || $ball_wins_after > 0) {
+									$preserved_count++;
+								}
+								
+								// Remove balls with no remaining wins
+								if (array_sum($categories) == 0) {
+									unset($prizes[$ball]);
 								}
 							}
 						}
 					}
-					
-					log_message('info', "After followers_prizes: " . (is_array($prizes) ? count($prizes) . " balls processed" : "invalid prizes array") . ", outofrange=" . ($outofrange ? 'TRUE' : 'FALSE'));
 					
 					// Additional validation before string conversion to prevent array_key_exists errors
 					if (!is_array($prizes)) {
@@ -915,7 +940,6 @@ class Statistics extends Admin_Controller {
 					}
 					
 					$str_prizes  = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : '');
-					log_message('info', "Generated str_prizes: " . $str_prizes);
 					$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');					// Calculate dupextra_wins for independent extra ball lotteries only
 					$str_dupextra_wins = '';
 					if($blnduplicate && !$outofrange) {
@@ -1001,7 +1025,6 @@ class Statistics extends Admin_Controller {
 			$range = $this->get_current_range($id, $tbl_name);
 			$max = $this->data['lottery']->maximum_ball;
 			$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
-			log_message('info', "New followers: Before followers_prizes: prizes=" . print_r($prizes, true));
 			
 			// Validate arrays before passing to model methods
 			if (!is_array($prizes)) {
@@ -1024,16 +1047,53 @@ class Statistics extends Admin_Controller {
 			$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, '', $blnduplicate);
 			$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
 			
-			// CRITICAL FIX: Filter model results to match p_group structure when extra_included=0
+			// CRITICAL FIX: When extra_included=0, consolidate extra wins into base categories
 			if (!$current_extra_state && is_array($prizes)) {
-				log_message('info', "New followers: Filtering prizes to remove extra categories for extra_included=0");
+				$consolidated_count = 0;
+				$filtered_count = 0;
+				$preserved_count = 0;
 				foreach ($prizes as $ball => $categories) {
 					if (is_array($categories)) {
-						// Remove all *_extra categories and higher categories beyond p_group structure
+						// Count wins before processing
+						$ball_wins_before = array_sum($categories);
+						
+						// First, consolidate *_extra categories into their base categories
 						foreach ($categories as $cat => $count) {
-							if (strpos($cat, '_extra') !== false || !array_key_exists($cat, $p_group)) {
-								unset($prizes[$ball][$cat]);
+							if (strpos($cat, '_extra') !== false && $count > 0) {
+								$base_cat = str_replace('_extra', '_win', $cat);
+								// If base category exists, add the extra wins to it
+								if (array_key_exists($base_cat, $categories)) {
+									$categories[$base_cat] += $count;
+									$consolidated_count++;
+								}
+								// Remove the extra category after consolidation
+								unset($categories[$cat]);
 							}
+						}
+						
+						// Then filter out non-base categories (7_win, 8_win, 9_win, etc.)
+						foreach ($categories as $cat => $count) {
+							// Keep 1_win and categories in p_group, filter out everything else
+							if (!array_key_exists($cat, $p_group) && $cat !== '1_win') {
+								if ($count > 0) {
+									$filtered_count++;
+								}
+								unset($categories[$cat]);
+							}
+						}
+						
+						// Update the prizes array with consolidated results
+						$prizes[$ball] = $categories;
+						
+						// Count wins after processing
+						$ball_wins_after = array_sum($categories);
+						if ($ball_wins_before > 0 || $ball_wins_after > 0) {
+							$preserved_count++;
+						}
+						
+						// Remove balls with no remaining wins
+						if (array_sum($categories) == 0) {
+							unset($prizes[$ball]);
 						}
 					}
 				}
@@ -1049,9 +1109,7 @@ class Statistics extends Admin_Controller {
 				$positions = array();
 			}
 			
-			log_message('info', "New followers: After followers_prizes: prizes=" . print_r($prizes, true) . ", outofrange=" . ($outofrange ? 'TRUE' : 'FALSE'));
 			$str_prizes = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : '');
-			log_message('info', "New followers: Generated str_prizes: " . $str_prizes);
 			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');			// Calculate dupextra_wins for independent extra ball lotteries only
 			$str_dupextra_wins = '';
 			if($blnduplicate && !$outofrange) {
@@ -2016,13 +2074,11 @@ class Statistics extends Admin_Controller {
 					// Read saved checkbox state from database instead of defaulting to 0
 					$saved_extra_included = $this->statistics_m->extra_included($id, FALSE, 'lottery_followers');
 					$this->data['lottery']->extra_included = $saved_extra_included ? 1 : 0;
-					log_message('info', "Recalc: Read extra_included from database: " . $this->data['lottery']->extra_included);
 				}
 				if(!isset($this->data['lottery']->extra_draws)) {
 					// Read saved checkbox state from database instead of defaulting to 0  
 					$saved_extra_draws = $this->statistics_m->extra_draws($id, FALSE, 'lottery_followers');
 					$this->data['lottery']->extra_draws = $saved_extra_draws ? 1 : 0;
-					log_message('info', "Recalc: Read extra_draws from database: " . $this->data['lottery']->extra_draws);
 				}
 				
 				// Verified the Draw Statistics have been completed
@@ -2158,7 +2214,6 @@ class Statistics extends Admin_Controller {
 	 */
 	public function recalc_hwc($id, $lotto)
 	{
-	 log_message('info', "=== H-W-C RECALCULATION STARTED for lottery_id=$id, name=" . $lotto->lottery_name . " ===");
 	 // Retrieve the lottery table name for the database
 	 $tbl = $this->lotteries_m->lotto_table_convert($lotto->lottery_name);
 	 $blnduplicate = ($lotto->duplicate_extra_ball ? TRUE : FALSE);
@@ -2176,10 +2231,8 @@ class Statistics extends Admin_Controller {
 	 $prev_str_dupextra = ""; // Empty String
 	 $prev_draw = array();	// Initialize the previous draw array
 	 $h_w_c = $this->statistics_m->h_w_c_exists($id);
-	 log_message('info', "H-W-C Recalc: h_w_c_exists($id) returned: " . ($h_w_c ? 'EXISTS' : 'NULL'));
 	 if(!is_null($h_w_c))	// Existing HWC?
 	 {
-		log_message('info', "H-W-C Recalc: Taking IF branch (existing H-W-C data) for lottery_id=$id");
 		$new_range = $h_w_c['range'];
 		$hots = $h_w_c['h_count'];
 		$warms = $h_w_c['w_count'];
@@ -2242,11 +2295,9 @@ class Statistics extends Admin_Controller {
 	 }
 	 else 
 	 {
-		 log_message('info', "H-W-C Recalc: Entering ELSE branch (new lottery path) for lottery_id=$id");
 		 $this->data['lottery']->extra_included = 0; // No Extra Ball as part of the calculation
 		 $this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
 		 $new_range = ($all<100 ? $all : 100);
-		 log_message('info', "H-W-C Recalc: Using range=$new_range for lottery_id=$id (total_draws=$all)");
 		 $heat = explode('-', $this->statistics_m->hwc_defaults[$max_ball]); 	// Break out the H-W-C into a new array
 		 $w_start = intval($heat[0]+1);					// Warms
 		 $this->data['lottery']->H = $heat[0];  						// Number of Hots Distributed e.g. 16 Hots
@@ -2265,11 +2316,9 @@ class Statistics extends Admin_Controller {
 		 $warm_count = count(explode(',', $strwarms));
 		 $cold_count = count(explode(',', $strcolds));
 		 $prediction_pool = 18; // Default prediction pool for new lotteries
-		 log_message('info', "H-W-C Recalc: About to call calculate_hwc_wins for lottery_id=$id, range=$new_range, hots=$hot_count, warms=$warm_count, colds=$cold_count");
 		 $this->calculate_hwc_wins($id, $new_range, $prediction_pool, 
 			$hot_count, $warm_count, $cold_count,
 			$this->data['lottery']->extra_included, $this->data['lottery']->extra_draws);
-		 log_message('info', "H-W-C Recalc: Finished calculate_hwc_wins call for lottery_id=$id");
 		 
 		 $prev_draw = $this->statistics_m->hwc_DrawBeforeLast($tbl);// Get the previous draw data
 			$prev_strhwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $prev_draw['draw_date'], $blnduplicate);
@@ -2436,29 +2485,62 @@ class Statistics extends Admin_Controller {
 			    $recalc_extra_draws != $old_extra_draws ||
 			    $range != $old_range) {
 				log_message('info', "Parameter changes detected - performing FULL RECALCULATION:");
-				log_message('info', "  Extra included: $old_extra_included -> $recalc_extra_included");
-				log_message('info', "  Extra draws: $old_extra_draws -> $recalc_extra_draws");
 				log_message('info', "  Range: $old_range -> $range");
 			}
 			
 			$include_extra_position = $recalc_extra_included; // Use current checkbox state
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $include_extra_position);
 			
-			log_message('info', "ReCalc existing: Using current range=$range vs old range=" . $followers['range']);
-			
 			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range,'',$blnduplicate);
 			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
 			
-			// CRITICAL FIX: Filter model results to match p_group structure when extra_included=0
+			// CRITICAL FIX: When extra_included=0, consolidate extra wins into base categories
 			if (!$recalc_extra_included && is_array($prizes)) {
-				log_message('info', "ReCalc existing: Filtering prizes to remove extra categories for extra_included=0");
+				$consolidated_count = 0;
+				$filtered_count = 0;
+				$preserved_count = 0;
 				foreach ($prizes as $ball => $categories) {
 					if (is_array($categories)) {
-						// Remove all *_extra categories and higher categories beyond p_group structure
+						// Count wins before processing
+						$ball_wins_before = array_sum($categories);
+						
+						// First, consolidate *_extra categories into their base categories
 						foreach ($categories as $cat => $count) {
-							if (strpos($cat, '_extra') !== false || !array_key_exists($cat, $p_group)) {
-								unset($prizes[$ball][$cat]);
+							if (strpos($cat, '_extra') !== false && $count > 0) {
+								$base_cat = str_replace('_extra', '_win', $cat);
+								// If base category exists, add the extra wins to it
+								if (array_key_exists($base_cat, $categories)) {
+									$categories[$base_cat] += $count;
+									$consolidated_count++;
+								}
+								// Remove the extra category after consolidation
+								unset($categories[$cat]);
 							}
+						}
+						
+						// Then filter out non-base categories (7_win, 8_win, 9_win, etc.)
+						foreach ($categories as $cat => $count) {
+							// Keep 1_win and categories in p_group, filter out everything else
+							if (!array_key_exists($cat, $p_group) && $cat !== '1_win') {
+								if ($count > 0) {
+									$filtered_count++;
+								}
+								unset($categories[$cat]);
+							}
+						}
+						
+						// Update the prizes array with consolidated results
+						$prizes[$ball] = $categories;
+						
+						// Count wins after processing
+						$ball_wins_after = array_sum($categories);
+						if ($ball_wins_before > 0 || $ball_wins_after > 0) {
+							$preserved_count++;
+						}
+						
+						// Remove balls with no remaining wins
+						if (array_sum($categories) == 0) {
+							unset($prizes[$ball]);
 						}
 					}
 				}
@@ -2510,7 +2592,6 @@ class Statistics extends Admin_Controller {
 			// Use current saved checkbox states from lottery object for new record calculation
 			$recalc_extra_included = isset($lotto->extra_included) ? $lotto->extra_included : 0;
 			$recalc_extra_draws = isset($lotto->extra_draws) ? $lotto->extra_draws : 0;
-			log_message('info', "Recalc followers (new record): Using lottery object checkbox state: extra_included=$recalc_extra_included, extra_draws=$recalc_extra_draws");
 			
 			$p_group = $this->statistics_m->prize_group_profile($id);
 			
@@ -2540,19 +2621,56 @@ class Statistics extends Admin_Controller {
 			$current_range = $this->get_current_range($id, $tbl);
 			$range = $current_range; // Use current range, not just default logic
 			
-			log_message('info', "ReCalc new: Using current range=$range (all draws=$all, default would be " . ($all<100 ? $all : 100) . ")");
 			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
 			
-			// CRITICAL FIX: Filter model results to match p_group structure when extra_included=0
+			// CRITICAL FIX: When extra_included=0, consolidate extra wins into base categories
 			if (!$recalc_extra_included && is_array($prizes)) {
-				log_message('info', "ReCalc new: Filtering prizes to remove extra categories for extra_included=0");
+				$consolidated_count = 0;
+				$filtered_count = 0;
+				$preserved_count = 0;
 				foreach ($prizes as $ball => $categories) {
 					if (is_array($categories)) {
-						// Remove all *_extra categories and higher categories beyond p_group structure
+						// Count wins before processing
+						$ball_wins_before = array_sum($categories);
+						
+						// First, consolidate *_extra categories into their base categories
 						foreach ($categories as $cat => $count) {
-							if (strpos($cat, '_extra') !== false || !array_key_exists($cat, $p_group)) {
-								unset($prizes[$ball][$cat]);
+							if (strpos($cat, '_extra') !== false && $count > 0) {
+								$base_cat = str_replace('_extra', '_win', $cat);
+								// If base category exists, add the extra wins to it
+								if (array_key_exists($base_cat, $categories)) {
+									$categories[$base_cat] += $count;
+									$consolidated_count++;
+								}
+								// Remove the extra category after consolidation
+								unset($categories[$cat]);
 							}
+						}
+						
+						// Then filter out non-base categories (7_win, 8_win, 9_win, etc.)
+						foreach ($categories as $cat => $count) {
+							// Keep 1_win and categories in p_group, filter out everything else
+							if (!array_key_exists($cat, $p_group) && $cat !== '1_win') {
+								if ($count > 0) {
+									log_message('info', "ReCalc new: Ball $ball: Filtering out non-base category $cat=$count");
+									$filtered_count++;
+								}
+								unset($categories[$cat]);
+							}
+						}
+						
+						// Update the prizes array with consolidated results
+						$prizes[$ball] = $categories;
+						
+						// Count wins after processing
+						$ball_wins_after = array_sum($categories);
+						if ($ball_wins_before > 0 || $ball_wins_after > 0) {
+							$preserved_count++;
+						}
+						
+						// Remove balls with no remaining wins
+						if (array_sum($categories) == 0) {
+							unset($prizes[$ball]);
 						}
 					}
 				}
@@ -3038,9 +3156,6 @@ class Statistics extends Admin_Controller {
 	private function calculate_hwc_wins($lottery_id, $range, $prediction_pool, $hots, $warms, $colds, $extra_included = false, $extra_draws = false)
 	{
 		try {
-			// Debug logging
-			log_message('info', "Starting H-W-C win calculation for lottery_id: $lottery_id, range: $range, hots: $hots, warms: $warms, colds: $colds");
-			
 			// Call the comprehensive H-W-C win analysis method
 			$wins_string = $this->statistics_m->calculate_hwc_win_statistics(
 				$lottery_id, 
@@ -3055,7 +3170,6 @@ class Statistics extends Admin_Controller {
 			
 			if ($wins_string !== FALSE) {
 				// Success - wins string has been calculated and saved to database
-				log_message('info', "H-W-C win analysis SUCCESS for lottery_id: $lottery_id - wins data saved");
 				return TRUE;
 			} else {
 				// Log error or handle failure case

@@ -426,6 +426,11 @@
 													);
 													
 													foreach ($category_mapping as $category_key => $category_info) {
+														// Skip extra categories when extra_included = 0
+														if (!$lottery->extra_included && (strpos($category_key, '_extra') !== false || $category_key === 'extra')) {
+															continue;
+														}
+														
 														// For duplicate_extra_ball lotteries, only show categories that exist in lottery_prize_profiles
 														if ($lottery->duplicate_extra_ball && isset($lottery->valid_prize_categories)) {
 															if (!in_array($category_key, $lottery->valid_prize_categories)) {
@@ -450,6 +455,12 @@
 													// Regular display
 													foreach ($wins as $prize => $winners) {
 														if (strpos($prize, "_points") !== false) continue; // Only process main categories
+														
+														// Skip extra categories when extra_included = 0
+														if (!$lottery->extra_included && (strpos($prize, '_extra') !== false || $prize === 'extra')) {
+															continue;
+														}
+														
 														$points = isset($wins[$prize . '_points']) ? $wins[$prize . '_points'] : 0;
 														$points_total += $points;
 														$range = $lottery->last_drawn['range'] ?? 100; // Use range for percentage calculation
@@ -609,6 +620,11 @@
 													);
 													
 													foreach ($category_mapping as $category_key => $category_info) {
+														// Skip extra categories when extra_included = 0
+														if (!$lottery->extra_included && (strpos($category_key, '_extra') !== false || $category_key === 'extra')) {
+															continue;
+														}
+														
 														// For duplicate_extra_ball lotteries, only show categories that exist in lottery_prize_profiles
 														if ($lottery->duplicate_extra_ball && isset($lottery->valid_prize_categories)) {
 															if (!in_array($category_key, $lottery->valid_prize_categories)) {
@@ -633,6 +649,12 @@
 													// Regular display
 													foreach ($positions as $prize => $winners) {
 														if (strpos($prize, "_points") !== false) continue;
+														
+														// Skip extra categories when extra_included = 0
+														if (!$lottery->extra_included && (strpos($prize, '_extra') !== false || $prize === 'extra')) {
+															continue;
+														}
+														
 														$points = isset($positions[$prize . '_points']) ? $positions[$prize . '_points'] : 0;
 														$points_total_pos += $points;
 														$range = $lottery->last_drawn['range'] ?? 100; // Use range for percentage calculation
