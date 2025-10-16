@@ -823,15 +823,14 @@ class Statistics extends Admin_Controller {
 				);
 			}
 			
-			$p_group = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_ball);
- 			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
+			// CRITICAL FIX: Use actual extra_included state, not just lottery extra_ball config
+			// When user unchecks extra, we should filter out extra categories from p_group
+			$current_extra_state = $this->data['lottery']->extra_included;
+			$p_group = $this->statistics_m->prizes_only($p_group, $current_extra_state);
 
-			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
-			$range = $this->uri->segment(5,0); // Return segment range
-			if(!$range) {
-				$range = $followers ? $followers['range'] : 100; // Default to 100 if no existing data
-			}
+			// Use same range logic as recalc_followers method for consistency
+			$range = $this->get_current_range($id, $tbl_name);
 			if($range>100) $sel_range = intval($range / 100);
 			if($range!=0)	
 			{
@@ -840,38 +839,100 @@ class Statistics extends Admin_Controller {
 					$max = $this->data['lottery']->maximum_ball;
 					$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
 					
-					// When extra parameters change ($blnEX), use double the range for full recalculation
-					// This matches ReCalc behavior: if range=100, go back 200 draws (1-100 followers, 101-200 win categories)  
-					$calculation_range = $blnEX ? ($range * 2) : $range;
-					
-					// Ensure calculation range doesn't exceed available draws
+					// Ensure range doesn't exceed available draws
 					$total_draws = $this->lotteries_m->db_row_count($tbl_name);
-					if($calculation_range > $total_draws) {
-						$calculation_range = $total_draws;
+					if($range > $total_draws) {
+						$range = $total_draws;
 					}
 					
-					log_message('info', "Followers calculation: range=$range, calculation_range=$calculation_range, blnEX=" . ($blnEX ? 'TRUE' : 'FALSE') . ", total_draws=$total_draws");
+					// CRITICAL FIX: Create prize and position arrays INSIDE calculation block 
+					// with current extra_included state to avoid stale data when checkbox changes
+					global $prizes; // Explicitly reference global to ensure no local variable shadowing
+					$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
+					$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
 					
-					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $calculation_range, '', $blnduplicate);
-					$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $calculation_range, $max, '', $blnduplicate, $mx_extra);
-					$str_prizes  = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
-					$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
+					log_message('info', "Followers calculation: range=$range, blnEX=" . ($blnEX ? 'TRUE' : 'FALSE') . ", total_draws=$total_draws");
+					log_message('info', "Current extra_included=" . $this->data['lottery']->extra_included . ", extra_draws=" . $this->data['lottery']->extra_draws);
 					
-					// Calculate dupextra_wins for independent extra ball lotteries only
+					// Extra validation: When extra parameters change, ensure clean calculation
+					if ($blnEX) {
+						log_message('info', "Extra parameters changed - forcing complete prize/position recalculation");
+						// Reinitialize global prizes array to ensure clean state
+						$GLOBALS['prizes'] = array();
+						$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
+						$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
+					}
+					
+					log_message('info', "Before followers_prizes: prizes array initialized for " . count($prizes) . " balls");
+					log_message('info', "P_GROUP structure for extra_included=" . $current_extra_state . ": " . implode(', ', array_keys($p_group)));
+					
+					// Validate arrays before passing to model methods to prevent null parameter errors
+					if (!is_array($prizes)) {
+						log_message('error', "Invalid prizes array detected, reinitializing");
+						$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
+					}
+					if (!is_array($positions)) {
+						log_message('error', "Invalid positions array detected, reinitializing");  
+						$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
+					}
+					
+					// Validate last_drawn array to prevent undefined offset errors
+					if (!is_array($this->data['lottery']->last_drawn) || empty($this->data['lottery']->last_drawn)) {
+						log_message('error', "Invalid last_drawn data detected: " . print_r($this->data['lottery']->last_drawn, true));
+						$this->session->set_flashdata('message', 'Invalid lottery draw data. Please check the lottery configuration.');
+						redirect('admin/statistics');
+						return;
+					}
+					
+					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, '', $blnduplicate);
+					$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
+					
+					// CRITICAL FIX: Filter model results to match p_group structure when extra_included=0
+					if (!$current_extra_state && is_array($prizes)) {
+						log_message('info', "Filtering prizes to remove extra categories for extra_included=0");
+						foreach ($prizes as $ball => $categories) {
+							if (is_array($categories)) {
+								// Remove all *_extra categories and higher categories beyond p_group structure
+								foreach ($categories as $cat => $count) {
+									if (strpos($cat, '_extra') !== false || !array_key_exists($cat, $p_group)) {
+										unset($prizes[$ball][$cat]);
+									}
+								}
+							}
+						}
+					}
+					
+					log_message('info', "After followers_prizes: " . (is_array($prizes) ? count($prizes) . " balls processed" : "invalid prizes array") . ", outofrange=" . ($outofrange ? 'TRUE' : 'FALSE'));
+					
+					// Additional validation before string conversion to prevent array_key_exists errors
+					if (!is_array($prizes)) {
+						log_message('error', "Prizes is not an array after followers_prizes call, setting to empty");
+						$prizes = array();
+					}
+					if (!is_array($positions)) {
+						log_message('error', "Positions is not an array, setting to empty");
+						$positions = array();
+					}
+					
+					$str_prizes  = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : '');
+					log_message('info', "Generated str_prizes: " . $str_prizes);
+					$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');					// Calculate dupextra_wins for independent extra ball lotteries only
 					$str_dupextra_wins = '';
 					if($blnduplicate && !$outofrange) {
-						$str_dupextra_wins = $this->statistics_m->calculate_dupextra_wins($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $calculation_range, $mx_extra, '');
+						$str_dupextra_wins = $this->statistics_m->calculate_dupextra_wins($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $mx_extra, '');
 					}
 					
 					/** NEW included nonfollower calculations **/
-					$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $calculation_range, $max, '', $blnduplicate, $mx_extra);
+					$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
 					$followers = array(
  						'range'				=> $range,
 						'lottery_followers'	=> $str_followers,
 						'wins'				=> $str_prizes,
 						'positions'			=> $str_positions_prizes,
 						'draw_id'			=> $this->data['lottery']->last_drawn['id'],
-						'lottery_id'		=> $id
+						'lottery_id'		=> $id,
+						'extra_included'	=> $this->data['lottery']->extra_included,
+						'extra_draws'		=> $this->data['lottery']->extra_draws
 					);
 					
 					// Add dupextra_wins field only for independent extra ball lotteries
@@ -929,23 +990,69 @@ class Statistics extends Admin_Controller {
 				);
 			}
 			
-			$prizes = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_ball);
+			// CRITICAL FIX: Use actual extra_included state, not just lottery extra_ball config
+			// When user unchecks extra, we should filter out extra categories from p_group
+			$current_extra_state = $this->data['lottery']->extra_included;
+			$p_group = $this->statistics_m->prizes_only($p_group, $current_extra_state);
 			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
 
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
-			// Get range from URL or use calculated default
-			$range = $this->uri->segment(5,0); // Return segment range
-			if(!$range) {
-				$range = ($all<100 ? $all : 100); // Default calculation if no URL parameter
-			}
+			// Get range using same logic as recalc_followers method for consistency
+			$range = $this->get_current_range($id, $tbl_name);
 			$max = $this->data['lottery']->maximum_ball;
 			$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
+			log_message('info', "New followers: Before followers_prizes: prizes=" . print_r($prizes, true));
+			
+			// Validate arrays before passing to model methods
+			if (!is_array($prizes)) {
+				log_message('error', "New followers: Invalid prizes array detected, reinitializing");
+				$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
+			}
+			if (!is_array($positions)) {
+				log_message('error', "New followers: Invalid positions array detected, reinitializing");
+				$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
+			}
+			
+			// Validate last_drawn array to prevent undefined offset errors
+			if (!is_array($this->data['lottery']->last_drawn) || empty($this->data['lottery']->last_drawn)) {
+				log_message('error', "New followers: Invalid last_drawn data detected: " . print_r($this->data['lottery']->last_drawn, true));
+				$this->session->set_flashdata('message', 'Invalid lottery draw data. Please check the lottery configuration.');
+				redirect('admin/statistics');
+				return;
+			}
+			
 			$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, '', $blnduplicate);
 			$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
-			$str_prizes = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
-			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
 			
-			// Calculate dupextra_wins for independent extra ball lotteries only
+			// CRITICAL FIX: Filter model results to match p_group structure when extra_included=0
+			if (!$current_extra_state && is_array($prizes)) {
+				log_message('info', "New followers: Filtering prizes to remove extra categories for extra_included=0");
+				foreach ($prizes as $ball => $categories) {
+					if (is_array($categories)) {
+						// Remove all *_extra categories and higher categories beyond p_group structure
+						foreach ($categories as $cat => $count) {
+							if (strpos($cat, '_extra') !== false || !array_key_exists($cat, $p_group)) {
+								unset($prizes[$ball][$cat]);
+							}
+						}
+					}
+				}
+			}
+			
+			// Additional validation before string conversion
+			if (!is_array($prizes)) {
+				log_message('error', "New followers: Prizes is not an array after followers_prizes call, setting to empty");
+				$prizes = array();
+			}
+			if (!is_array($positions)) {
+				log_message('error', "New followers: Positions is not an array, setting to empty");
+				$positions = array();
+			}
+			
+			log_message('info', "New followers: After followers_prizes: prizes=" . print_r($prizes, true) . ", outofrange=" . ($outofrange ? 'TRUE' : 'FALSE'));
+			$str_prizes = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : '');
+			log_message('info', "New followers: Generated str_prizes: " . $str_prizes);
+			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');			// Calculate dupextra_wins for independent extra ball lotteries only
 			$str_dupextra_wins = '';
 			if($blnduplicate && !$outofrange) {
 				$str_dupextra_wins = $this->statistics_m->calculate_dupextra_wins($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $mx_extra, '');
@@ -957,7 +1064,9 @@ class Statistics extends Admin_Controller {
 				'wins'				=> $str_prizes,
 				'positions'			=> $str_positions_prizes,
 				'draw_id'			=> $this->data['lottery']->last_drawn['id'],
-				'lottery_id'		=> $id
+				'lottery_id'		=> $id,
+				'extra_included'	=> $this->data['lottery']->extra_included,
+				'extra_draws'		=> $this->data['lottery']->extra_draws
 			);
 			
 			// Add dupextra_wins field only for independent extra ball lotteries
@@ -2305,17 +2414,23 @@ class Statistics extends Admin_Controller {
 				);
 			}
 			
-			$p_group = $this->statistics_m->prizes_only($p_group,$lottery_extra);
- 			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
-			// For duplicate extra ball lotteries, include all main positions but handle extra separately
 			// Use current saved checkbox states from lottery object, not old database record
 			$recalc_extra_included = isset($lotto->extra_included) ? $lotto->extra_included : $followers['extra_included'];
 			$recalc_extra_draws = isset($lotto->extra_draws) ? $lotto->extra_draws : $followers['extra_draws'];
+			
+			// CRITICAL FIX: Use actual extra_included state for p_group filtering
+			$p_group = $this->statistics_m->prizes_only($p_group, $recalc_extra_included);
+ 			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
+			// For duplicate extra ball lotteries, include all main positions but handle extra separately
 			
 			// Detect and log parameter changes that trigger full recalculation
 			$old_extra_included = $followers['extra_included'];
 			$old_extra_draws = $followers['extra_draws'];  
 			$old_range = $followers['range'];
+			
+			// **CRITICAL FIX**: Use current range from URL/parameters, NOT old database range
+			$current_range = $this->get_current_range($id, $tbl);
+			$range = $current_range; // Force use of current range for parameter changes
 			
 			if ($recalc_extra_included != $old_extra_included || 
 			    $recalc_extra_draws != $old_extra_draws ||
@@ -2329,16 +2444,25 @@ class Statistics extends Admin_Controller {
 			$include_extra_position = $recalc_extra_included; // Use current checkbox state
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $include_extra_position);
 			
-			// **CRITICAL FIX**: Use current range from URL/parameters, NOT old database range
-			$current_range = $this->get_current_range($id, $tbl);
-			$range = $current_range; // Force use of current range for parameter changes
-			
 			log_message('info', "ReCalc existing: Using current range=$range vs old range=" . $followers['range']);
 			
 			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range,'',$blnduplicate);
 			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
 			
-
+			// CRITICAL FIX: Filter model results to match p_group structure when extra_included=0
+			if (!$recalc_extra_included && is_array($prizes)) {
+				log_message('info', "ReCalc existing: Filtering prizes to remove extra categories for extra_included=0");
+				foreach ($prizes as $ball => $categories) {
+					if (is_array($categories)) {
+						// Remove all *_extra categories and higher categories beyond p_group structure
+						foreach ($categories as $cat => $count) {
+							if (strpos($cat, '_extra') !== false || !array_key_exists($cat, $p_group)) {
+								unset($prizes[$ball][$cat]);
+							}
+						}
+					}
+				}
+			}
 			
 			$str_prizes = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : '');
 			//$str_positions_prizes = '';
@@ -2407,7 +2531,8 @@ class Statistics extends Admin_Controller {
 				);
 			}
 			
-			$p_group = $this->statistics_m->prizes_only($p_group,$lottery_extra);
+			// CRITICAL FIX: Use actual extra_included state for p_group filtering
+			$p_group = $this->statistics_m->prizes_only($p_group, $recalc_extra_included);
  			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $recalc_extra_included);
 			
@@ -2417,6 +2542,21 @@ class Statistics extends Admin_Controller {
 			
 			log_message('info', "ReCalc new: Using current range=$range (all draws=$all, default would be " . ($all<100 ? $all : 100) . ")");
 			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
+			
+			// CRITICAL FIX: Filter model results to match p_group structure when extra_included=0
+			if (!$recalc_extra_included && is_array($prizes)) {
+				log_message('info', "ReCalc new: Filtering prizes to remove extra categories for extra_included=0");
+				foreach ($prizes as $ball => $categories) {
+					if (is_array($categories)) {
+						// Remove all *_extra categories and higher categories beyond p_group structure
+						foreach ($categories as $cat => $count) {
+							if (strpos($cat, '_extra') !== false || !array_key_exists($cat, $p_group)) {
+								unset($prizes[$ball][$cat]);
+							}
+						}
+					}
+				}
+			}
 			
 
 			
