@@ -1099,8 +1099,20 @@ class Statistics_m extends MY_Model
 		$b = 1; // ball 1
 		// Initialize and create blank associate array
 		$followers = '';	// set as a blank string
+		
+		// Add safety counter for main loop
+		$main_safety_counter = 0;
+		$max_main_iterations = $max + 10; // Should never need more than $max iterations plus buffer
+		
 		do
 		{
+			// Safety check for main loop
+			$main_safety_counter++;
+			if ($main_safety_counter > $max_main_iterations) {
+				log_message('error', "followers_calculate: Main loop safety break triggered after $main_safety_counter iterations (max=$max)");
+				break;
+			}
+			
 			$blnExDup = ($bonus&&$duple&&($b>$b_max) ? TRUE : FALSE); // Has reached the extra number that is an independent and duplicate Extra ball (TRUE) or everything else is FALSE
 			$c_b = ($bonus&&($b>$b_max) ? $ldn['extra'] : $ldn['ball'.$b]); // If there is an Extra / Bonus Ball and this bonus ball has exceeded the regularly drawn numbers, retrieve the extra ball
 			
@@ -1114,8 +1126,19 @@ class Statistics_m extends MY_Model
 				$extra_followlist = array(); // array for extra ball numbers that follow when this main ball is drawn
 				$combined_followlist = array(); // array for combined main+extra followers
 				
+				// Add safety counter to prevent infinite loops
+				$safety_counter = 0;
+				$max_iterations = $range * 2; // Safety limit
+				
 				do 
 				{
+					// Safety check to prevent infinite loops
+					$safety_counter++;
+					if ($safety_counter > $max_iterations) {
+						log_message('error', "followers_calculate: Safety break triggered for ball $b after $safety_counter iterations");
+						break;
+					}
+					
 					if($this->is_drawn($c_b, $row, $b_max, $bonus))
 					{
 						$row = $query->next_row('array');
@@ -1613,8 +1636,20 @@ class Statistics_m extends MY_Model
 		$b = 1; // ball 1
 		// Initialize and create blank associate array
 		$nonfollowers = '';	// set as a blank string
+		
+		// Add safety counter for main loop
+		$main_safety_counter = 0;
+		$max_main_iterations = $max + 10; // Should never need more than $max iterations plus buffer
+		
 		do
 		{
+			// Safety check for main loop
+			$main_safety_counter++;
+			if ($main_safety_counter > $max_main_iterations) {
+				log_message('error', "nonfollowers_calculate: Main loop safety break triggered after $main_safety_counter iterations (max=$max)");
+				break;
+			}
+			
 			$blnExDup = ($bonus&&$duple&&($b>$b_max) ? TRUE : FALSE); // Has reached the extra number that is an independent and duplicate Extra ball (TRUE) or everything else is FALSE
 			if($blnExDup) $top = $mx_ex;	// Swap over the Top Extra ball as the top number instead of the regular balls
 			$c_b = ($bonus&&($b>$b_max) ? $ldn['extra'] : $ldn['ball'.$b]); // If there is an Extra / Bonus Ball and this bonus ball has exceeded the regularly drawn numbers, retrieve the extra ball
@@ -1633,8 +1668,19 @@ class Statistics_m extends MY_Model
 				$extra_nonfollowlist = array();
 				$combined_nonfollowlist = array();
 				
+				// Add safety counter to prevent infinite loops
+				$safety_counter = 0;
+				$max_iterations = $range * 2; // Safety limit
+				
 				do 
 				{
+					// Safety check to prevent infinite loops
+					$safety_counter++;
+					if ($safety_counter > $max_iterations) {
+						log_message('error', "nonfollowers_calculate: Safety break triggered for ball $b after $safety_counter iterations");
+						break;
+					}
+					
 					if($this->is_drawn($c_b, $row, $b_max, $bonus))
 					{
 						$row = $query->next_row('array');
@@ -3640,8 +3686,20 @@ class Statistics_m extends MY_Model
 		$friends = '';	// set as a blank string
 		$nonfriends = '';	// set as a blank string
 		$b = 1; // Number 1 to Number N from the size of the Lottery
+		
+		// Add safety counter for main loop to prevent infinite loops
+		$main_safety_counter = 0;
+		$max_main_iterations = $top + 10; // Should never need more than $top iterations plus some buffer
+		
 		do
 		{
+			// Safety check for main loop
+			$main_safety_counter++;
+			if ($main_safety_counter > $max_main_iterations) {
+				log_message('error', "friends_calculate: Main loop safety break triggered after $main_safety_counter iterations (top=$top)");
+				break;
+			}
+			
 			// Calculate
  			
 			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
@@ -3650,7 +3708,18 @@ class Statistics_m extends MY_Model
 			$row = $query->first_row('array'); // Doing the reverse to the first row because of the descending order.
 			$friendlist = array();
 			
+			// Add safety counter to prevent infinite loops
+			$safety_counter = 0;
+			$max_iterations = $range * 2; // Safety limit: twice the range should be more than enough
+			
 			do {
+				// Safety check to prevent infinite loops
+				$safety_counter++;
+				if ($safety_counter > $max_iterations) {
+					log_message('error', "friends_calculate: Safety break triggered for ball $b after $safety_counter iterations");
+					break;
+				}
+				
 				$blnExDup = ($bonus&&$duple&&($b==$row['extra']) ? TRUE : FALSE); // Has reached the extra number that is an independent and 
 																				  // duplicate Extra ball (TRUE) or everything else is FALSE
 				if($this->is_drawn($b, $row, $max, $bonus)&&(!$blnExDup))		  // Must always be FALSE to place on the friends list

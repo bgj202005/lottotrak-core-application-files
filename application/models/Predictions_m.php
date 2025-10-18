@@ -1445,7 +1445,14 @@ class Predictions_m extends MY_Model
 		foreach ($groups as $nums) {
 			$total_numbers += count($nums);
 		}
+		
+		// Early validation: Check if we have enough numbers
 		if ($total_numbers == 0) {
+			return FALSE;
+		}
+		
+		if ($total_numbers < $combination_size) {
+			log_message('error', "followers_only: Insufficient follower numbers for lottery $lottery_id - need $combination_size, have $total_numbers");
 			return FALSE;
 		}
 		// --- Improved: Ensure at least one pick from each group if possible ---
@@ -1468,14 +1475,32 @@ class Predictions_m extends MY_Model
 				$picks[$weight] += $to_add;
 				$remaining -= $to_add;
 			}
-			// If still remaining, fill in order
-			while ($remaining > 0) {
+			// If still remaining, fill in order with safety check
+			$safety_counter = 0;
+			$max_iterations = $combination_size * 2; // Should never need more than twice the combination size
+			
+			while ($remaining > 0 && $safety_counter < $max_iterations) {
+				$progress_made = false;
 				foreach ($groups as $weight => $nums) {
 					if ($remaining > 0 && $picks[$weight] < count($nums)) {
 						$picks[$weight]++;
 						$remaining--;
+						$progress_made = true;
 					}
 				}
+				
+				// If no progress was made in this iteration, we've exhausted all available numbers
+				if (!$progress_made) {
+					log_message('error', "followers_only: Insufficient follower numbers - needed $combination_size, available " . ($combination_size - $remaining));
+					break;
+				}
+				
+				$safety_counter++;
+			}
+			
+			// If we hit the safety limit, log an error
+			if ($safety_counter >= $max_iterations) {
+				log_message('error', "followers_only: Safety break triggered after $safety_counter iterations");
 			}
 		}
 		// Select numbers from each group (first N)
