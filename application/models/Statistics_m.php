@@ -5063,6 +5063,27 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	return $_previous; // Return the formatted string for the previous draw positions
 	}
 
+	// Cache for H-W-C parsed data to avoid repeated processing
+	private static $hwc_cache = [];
+	
+	/**
+	 * Clear H-W-C classification cache
+	 */
+	public static function clear_hwc_cache()
+	{
+		self::$hwc_cache = [];
+	}
+	
+	/**
+	 * Check and clear HWC cache if memory usage is high
+	 */
+	private static function manage_hwc_cache_memory()
+	{
+		if (count(self::$hwc_cache) > 10) { // Clear cache if too many lotteries cached
+			self::$hwc_cache = [];
+		}
+	}
+	
 	/**
 	 * Get H-W-C classification for a specific number in a lottery
 	 * 
@@ -5072,42 +5093,83 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	 */
 	public function get_number_hwc_classification($lottery_id, $number)
 	{
-		// Get H-W-C data for the lottery
-		$hwc_data = $this->h_w_c_exists($lottery_id);
+		// Manage memory usage
+		self::manage_hwc_cache_memory();
 		
-		if (!$hwc_data) {
+		// Check if data is already cached
+		$cache_key = 'hwc_' . $lottery_id;
+		if (!isset(self::$hwc_cache[$cache_key])) {
+			// Get H-W-C data for the lottery
+			$hwc_data = $this->h_w_c_exists($lottery_id);
+			
+			if (!$hwc_data) {
+				self::$hwc_cache[$cache_key] = null;
+				return null;
+			}
+			
+			// Parse and cache the hot, warm, and cold numbers
+			$parsed_data = [
+				'hots' => [],
+				'warms' => [],
+				'colds' => []
+			];
+			
+			// Parse hots with safety check
+			if (!empty($hwc_data['hots'])) {
+				$hot_parts = explode(',', $hwc_data['hots']);
+				if (count($hot_parts) < 1000) { // Safety limit to prevent excessive processing
+					foreach ($hot_parts as $part) {
+						if (strpos($part, '=') !== false) {
+							$parsed_data['hots'][] = intval(explode('=', $part)[0]);
+						}
+					}
+				}
+			}
+			
+			// Parse warms with safety check
+			if (!empty($hwc_data['warms'])) {
+				$warm_parts = explode(',', $hwc_data['warms']);
+				if (count($warm_parts) < 1000) { // Safety limit to prevent excessive processing
+					foreach ($warm_parts as $part) {
+						if (strpos($part, '=') !== false) {
+							$parsed_data['warms'][] = intval(explode('=', $part)[0]);
+						}
+					}
+				}
+			}
+			
+			// Parse colds with safety check
+			if (!empty($hwc_data['colds'])) {
+				$cold_parts = explode(',', $hwc_data['colds']);
+				if (count($cold_parts) < 1000) { // Safety limit to prevent excessive processing
+					foreach ($cold_parts as $part) {
+						if (strpos($part, '=') !== false) {
+							$parsed_data['colds'][] = intval(explode('=', $part)[0]);
+						}
+					}
+				}
+			}
+			
+			self::$hwc_cache[$cache_key] = $parsed_data;
+		}
+		
+		$parsed_data = self::$hwc_cache[$cache_key];
+		
+		if ($parsed_data === null) {
 			return null;
 		}
 		
-		// Parse the hot, warm, and cold numbers
-		if (!empty($hwc_data['hots'])) {
-			$hots = array_map('intval', array_map(function($v){ 
-				return explode('=', $v)[0]; 
-			}, explode(',', $hwc_data['hots'])));
-			
-			if (in_array($number, $hots)) {
-				return 'hot';
-			}
+		// Check classification using cached parsed data
+		if (in_array($number, $parsed_data['hots'])) {
+			return 'hot';
 		}
 		
-		if (!empty($hwc_data['warms'])) {
-			$warms = array_map('intval', array_map(function($v){ 
-				return explode('=', $v)[0]; 
-			}, explode(',', $hwc_data['warms'])));
-			
-			if (in_array($number, $warms)) {
-				return 'warm';
-			}
+		if (in_array($number, $parsed_data['warms'])) {
+			return 'warm';
 		}
 		
-		if (!empty($hwc_data['colds'])) {
-			$colds = array_map('intval', array_map(function($v){ 
-				return explode('=', $v)[0]; 
-			}, explode(',', $hwc_data['colds'])));
-			
-			if (in_array($number, $colds)) {
-				return 'cold';
-			}
+		if (in_array($number, $parsed_data['colds'])) {
+			return 'cold';
 		}
 		
 		return null;

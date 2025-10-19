@@ -594,8 +594,14 @@ class Predictions extends Admin_Controller {
 	 */
 	public function futures($id)
 	{
-		$this->data['message'] = '';					// Defaulted to No Error Messages
-		$this->data['disable_generate_button'] = true; // Used to disable the generate button in the view
+		// Check if this is a timeout redirect from combination generation
+		if ($this->input->get('timeout') === '1') {
+			$this->data['message'] = 'Generate Tickets is longer than 3 seconds. Please change settings.';
+			$this->data['disable_generate_button'] = false; // Allow user to retry with different settings
+		} else {
+			$this->data['message'] = '';					// Defaulted to No Error Messages
+			$this->data['disable_generate_button'] = true; // Used to disable the generate button in the view
+		}
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		
 		// Check if lottery was found
@@ -1389,8 +1395,18 @@ class Predictions extends Admin_Controller {
      */
 	public function combination($id)
 	{
-		// Set a maximum execution time of 7 seconds for this operation
-		set_time_limit(7);
+		// Track start time for timeout monitoring without affecting CodeIgniter core operations
+		$start_time = microtime(true);
+		$timeout_seconds = 3; // Allow 3 seconds for combination generation
+		
+		// Register shutdown function to handle fatal errors including timeouts
+		$this->register_shutdown_function($id, $start_time, $timeout_seconds);
+		
+		// Clear HWC cache to prevent memory issues
+		$this->load->model('Statistics_m');
+		$this->Statistics_m::clear_hwc_cache();
+		
+
 		
 		$this->data['message'] = '';
 		$this->data['disable_generate_button'] = false; // Used to disable the generate button in the view
@@ -1818,12 +1834,25 @@ class Predictions extends Admin_Controller {
 				return;
 			} 
 			
+			// Check for timeout before starting heavy operations
+			if ($this->check_timeout($start_time, $timeout_seconds)) {
+				$this->display_timeout_error($id, $per_page, $tbl_name);
+				return;
+			}
+			
 			// Wrap number generation in try-catch to handle timeouts gracefully
 			try {
 				if ($hwc_checked && !$followers_checked) {
 					$number_series = $this->predictions_m->hwc_only($id, $selections, $h_w_c_group);
+					
+					// Check for timeout after hwc_only call
+					if ($this->check_timeout($start_time, $timeout_seconds)) {
+						$this->display_timeout_error($id, $per_page, $tbl_name);
+						return;
+					}
+					
 					if(!$number_series) { 
-						$this->data['message'] = 'Could not return a series of numbers for inserting in the Combination Tickets File.';
+						$this->data['message'] = "The settings H-W-C ($h_w_c_group) did not generate any predictions. The Combination Table requires $selections numbers to be generated. Please change settings.";
 						$this->data['combos_paginated'] = [];
 						$this->data['pagination'] = [
 							'current' => 1,
@@ -1872,8 +1901,16 @@ class Predictions extends Admin_Controller {
 				} elseif (!$hwc_checked && $followers_checked) {
 					$follower_select = ($followers_type === 'after_ball') ? $selected_ball_points : $selected_position_points;
 					$number_series = $this->predictions_m->followers_only($id, $selections, $followers_type, $follower_select);
+					
+					// Check for timeout after followers_only call
+					if ($this->check_timeout($start_time, $timeout_seconds)) {
+						$this->display_timeout_error($id, $per_page, $tbl_name);
+						return;
+					}
+					
 					if(!$number_series) { 
-						$this->data['message'] = 'Could not return a series of numbers for inserting in the Combination Tickets File.';
+						$follower_name = ($followers_type === 'after_ball') ? "After Ball $follower_select" : "After Position $follower_select";
+						$this->data['message'] = "The settings Followers and $follower_name did not generate any predictions. The Combination Table requires $selections numbers to be generated. Please change settings.";
 						$this->data['combos_paginated'] = [];
 						$this->data['pagination'] = [
 							'current' => 1,
@@ -1922,8 +1959,16 @@ class Predictions extends Admin_Controller {
 				} elseif ($hwc_checked && $followers_checked) {
 					$follower_select = ($followers_type == 'after_ball') ?  $selected_ball_points : $selected_position_points;
 					$number_series = $this->predictions_m->hwc_followers($id, $selections, $h_w_c_group, $followers_type, $follower_select);
+					
+					// Check for timeout after hwc_followers call
+					if ($this->check_timeout($start_time, $timeout_seconds)) {
+						$this->display_timeout_error($id, $per_page, $tbl_name);
+						return;
+					}
+					
 					if(!$number_series) { 
-						$this->data['message'] = 'Could not return a series of numbers for inserting in the Combination Tickets File.';
+						$follower_name = ($followers_type === 'after_ball') ? "After Ball $follower_select" : "After Position $follower_select";
+						$this->data['message'] = "The settings H-W-C ($h_w_c_group), Followers and $follower_name did not generate any predictions. The Combination Table requires $selections numbers to be generated. Please change settings.";
 						$this->data['combos_paginated'] = [];
 						$this->data['pagination'] = [
 							'current' => 1,
@@ -1972,28 +2017,11 @@ class Predictions extends Admin_Controller {
 				}
 			} catch (Exception $e) {
 				// Handle timeout or other errors gracefully
-				$error_message = '';
 				if (strpos($e->getMessage(), 'Maximum execution time') !== false) {
-					$error_message = 'Processing timeout - the combination generation took longer than expected. ';
+					$error_message = 'Generate Tickets is longer than 3 seconds. Please change settings.';
 				} else {
-					$error_message = 'An error occurred during number generation. ';
+					$error_message = 'An error occurred during number generation. Please check your settings and try again.';
 				}
-				
-				// Determine what filters are active to provide specific guidance
-				$filter_info = [];
-				if ($hwc_checked && !empty($h_w_c_group)) {
-					$filter_info[] = "H-W-C ($h_w_c_group)";
-				}
-				if ($followers_checked) {
-					$follower_select = ($followers_type === 'after_ball') ? $selected_ball_points : $selected_position_points;
-					$filter_info[] = "After Ball ($follower_select)";
-				}
-				
-				if (!empty($filter_info)) {
-					$error_message .= "Based on " . implode(' and ', $filter_info) . ", there may be insufficient Predicted Numbers to fill the " . $selections . " Number Combination Table. ";
-				}
-				
-				$error_message .= "Adjust Actual Win History Filtering Settings.";
 				
 				$this->data['message'] = $error_message;
 				$this->data['combos_paginated'] = [];
@@ -2335,7 +2363,7 @@ class Predictions extends Admin_Controller {
 				];
 				
 				// OPTIMIZATION: Get filtered count first (efficient - no loading all data)
-				$total_filtered_count = $this->combination_filters_m->get_filtered_combinations_count($filepath, $number_array, $filters);
+				$total_filtered_count = $this->combination_filters_m->get_filtered_combinations_count($filepath, $number_array, $filters, $start_time, $timeout_seconds, $id);
 				
 				// OPTIMIZATION: Get only current page's combinations (lazy loading)
 				$raw_combos_slice = $this->combination_filters_m->get_filtered_combinations($filepath, $number_array, $filters, $page, $per_page);
@@ -3432,12 +3460,12 @@ class Predictions extends Admin_Controller {
 						// Calculate dynamic filtered count using session number array
 						$session_number_array = $this->session->userdata('futures_number_array');
 						if (is_array($session_number_array) && !empty($session_number_array)) {
-							$dynamic_filtered_count = $this->predictions_m->get_filtered_combinations_count($original_file_path, $session_number_array, $filters);
+							$dynamic_filtered_count = $this->predictions_m->get_filtered_combinations_count($original_file_path, $session_number_array, $filters, $start_time, $timeout_seconds, $id);
 							
 							// Generate the actual filtered combinations for display (not just count)
 							$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
 							$per_page = $this->input->get('per_page') ? (int)$this->input->get('per_page') : 10;
-							$dynamic_combos = $this->predictions_m->insert_number_combination($original_file_path, $session_number_array, $page, $per_page, $filters);
+							$dynamic_combos = $this->predictions_m->insert_number_combination($original_file_path, $session_number_array, $page, $per_page, $filters, $start_time, $timeout_seconds, $id);
 							
 							if (!empty($dynamic_combos)) {
 								// DO NOT replace saved file combinations with dynamically filtered ones
@@ -4362,4 +4390,147 @@ class Predictions extends Admin_Controller {
 			]));
 		}
 	}
+	
+	/**
+	 * Check if execution time has exceeded the timeout limit
+	 * @param float $start_time Start time from microtime(true)
+	 * @param int $timeout_seconds Maximum allowed seconds
+	 * @return bool True if timeout exceeded
+	 */
+	private function check_timeout($start_time, $timeout_seconds)
+	{
+		$elapsed = microtime(true) - $start_time;
+		return $elapsed >= $timeout_seconds;
+	}
+	
+	/**
+	 * Display timeout error message and load the futures view
+	 * @param int $id Lottery ID
+	 * @param int $per_page Pagination per page setting
+	 * @param string $tbl_name Lottery table name
+	 */
+	private function display_timeout_error($id, $per_page, $tbl_name)
+	{
+		$this->data['message'] = 'Generate Tickets is longer than 3 seconds. Please change settings.';
+		$this->data['combos_paginated'] = [];
+		$this->data['pagination'] = [
+			'current' => 1,
+			'total' => 1,
+			'per_page' => $per_page,
+			'total_filtered' => 0
+		];
+		
+		// Set required view variables
+		$this->data['current'] = $this->uri->segment(2);
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		$this->data['users'] = $this->maintenance_m->logged_online(0);
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();
+		
+		// Ensure lottery data is available for the view
+		if (!isset($this->data['lottery'])) {
+			$this->data['lottery'] = $this->lotteries_m->get($id);
+		}
+		
+		// Set up lottery highlights and filter dropdown data
+		if (!isset($this->data['lottery']->highlights)) {
+			$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
+			$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);
+			$this->data['lottery']->winning_digits = $this->predictions_m->get_digit_sums($this->data['lottery']->highlights['winning_digits']);
+			$this->data['lottery']->winning_sums = $this->predictions_m->get_sums($this->data['lottery']->highlights['winning_sums']);
+			$this->data['lottery']->repeaters = $this->predictions_m->get_repeaters($this->data['lottery']->highlights['repeats']);
+			$this->data['lottery']->consecutives = $this->predictions_m->get_consecutives($this->data['lottery']->highlights['consecutives']);
+			$this->data['lottery']->parity = $this->predictions_m->get_parity($this->data['lottery']->highlights['parity']);
+			$this->data['lottery']->decades = $this->predictions_m->get_decade($tbl_name, $this->data['lottery']->highlights['range']);
+			$this->data['lottery']->last_digits = $this->predictions_m->get_last($tbl_name, $this->data['lottery']->highlights['range']);
+			$this->data['lottery']->number_range = $this->predictions_m->get_range($this->data['lottery']->highlights['number_range']);
+			$this->data['lottery']->adjacents = $this->predictions_m->get_adjacents($this->data['lottery']->highlights['adjacents']);
+		}
+		
+		// Set up lottery draw date information
+		if (!isset($this->data['lottery']->last_drawn)) {
+			$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);
+		}
+		if (!isset($this->data['lottery']->next_draw_date)) {
+			$ld = $this->data['lottery']->last_drawn['draw_date'];
+			$day = $this->lotteries_m->return_day($ld);
+			$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
+		}
+		
+		// Load the view with timeout error message
+		$this->data['subview'] = 'admin/dashboard/predictions/futures';
+		$this->load->view('admin/_layout_main', $this->data);
+	}
+	
+
+	
+	/**
+	 * Register shutdown function to handle fatal timeout errors
+	 * @param int $id Lottery ID
+	 * @param float $start_time Start time from microtime(true)
+	 * @param int $timeout_seconds Maximum allowed seconds
+	 */
+	private function register_shutdown_function($id, $start_time, $timeout_seconds)
+	{
+		register_shutdown_function(function() use ($id, $start_time, $timeout_seconds) {
+			$error = error_get_last();
+			
+			// Check if this is a timeout fatal error
+			if ($error && $error['type'] === E_ERROR) {
+				if (strpos($error['message'], 'Maximum execution time') !== false) {
+					
+					// Clear any output buffer completely
+					while (ob_get_level()) {
+						ob_end_clean();
+					}
+					
+					// Send proper headers to prevent caching
+					header('HTTP/1.1 200 OK');
+					header('Content-Type: text/html; charset=UTF-8');
+					header('Cache-Control: no-cache, no-store, must-revalidate');
+					header('Pragma: no-cache');
+					header('Expires: 0');
+					
+					// Output complete HTML response with immediate redirect
+					echo '<!DOCTYPE html>';
+					echo '<html><head><title>Timeout</title></head><body>';
+					echo '<div style="padding: 20px; background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; margin: 20px; font-family: Arial, sans-serif;">';
+					echo '<strong>Generate Tickets is longer than 3 seconds. Please change settings.</strong>';
+					echo '</div>';
+					echo '<script>';
+					echo 'setTimeout(function() {';
+					echo '  window.location.href = window.location.pathname.replace("/combination/", "/futures/") + "?timeout=1";';
+					echo '}, 1000);';
+					echo '</script>';
+					echo '</body></html>';
+					exit;
+				}
+			}
+		});
+	}
+	
+	/**
+	 * Check if operation has exceeded timeout and redirect if necessary
+	 * @param float $start_time Start time from microtime(true)
+	 * @param int $timeout_seconds Maximum allowed seconds
+	 * @param int $id Lottery ID for redirect
+	 * @return bool True if timeout occurred and redirect happened, false if ok to continue
+	 */
+	public function check_timeout_and_redirect($start_time, $timeout_seconds = 3, $id = null)
+	{
+		$elapsed = microtime(true) - $start_time;
+		if ($elapsed > $timeout_seconds) {
+			// Timeout occurred - redirect to futures page with timeout message
+			if ($id) {
+				redirect('admin/predictions/futures/' . $id . '?timeout=1');
+			} else {
+				// Generic timeout message
+				$this->session->set_flashdata('message', 'Generate Tickets is longer than 3 seconds. Please change settings.');
+				redirect('admin/predictions');
+			}
+			return true;
+		}
+		return false;
+	}
+
 }

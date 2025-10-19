@@ -147,10 +147,6 @@ class Combination_filters_m extends MY_Model
         $extra_ball = $filter_select['extra_ball'] ?? 0;
         $selected_trends = $filter_select['selected_trends'] ?? 'ALL';
         
-        // Debug logging
-        log_message('debug', "get_filtered_combinations: page={$page}, per_page={$per_page}, selected_trends={$selected_trends}");
-        log_message('debug', "get_filtered_combinations: filter_select keys: " . implode(', ', array_keys($filter_select)));
-        
         // Prepare last drawn numbers for trend filtering
         $last_drawn_numbers = [];
         if ($selected_trends !== 'ALL' && !empty($last_drawn)) {
@@ -238,8 +234,6 @@ class Combination_filters_m extends MY_Model
             fclose($handle);
         }
         
-        log_message('debug', "get_filtered_combinations: Processed {$total_lines_processed} lines, {$passed_filters} passed filters, returning " . count($combinations) . " combinations");
-        
         return $combinations;
     }
 
@@ -251,10 +245,12 @@ class Combination_filters_m extends MY_Model
      * @param array  $filter_select Array of filters to apply
      * @return int Total count of filtered combinations
      */
-    public function get_filtered_combinations_count($filepath, $number_array, $filter_select = [])
+    public function get_filtered_combinations_count($filepath, $number_array, $filter_select = [], $start_time = null, $timeout_seconds = 3, $lottery_id = null)
     {
-        log_message('info', "get_filtered_combinations_count: STARTING - source: {$filepath}");
-        log_message('info', "get_filtered_combinations_count: Filters being used: " . print_r($filter_select, true));
+        // Set start time if not provided
+        if ($start_time === null) {
+            $start_time = microtime(true);
+        }
         
         if (!file_exists($filepath)) {
             return 0;
@@ -267,13 +263,10 @@ class Combination_filters_m extends MY_Model
         $is_independent_extra_ball = !empty($filter_select['duplicate_extra_ball']) && !empty($filter_select['extra_ball']);
         $selected_extra_ball = $filter_select['selected_extra_ball'] ?? 'ALL';
         
-        log_message('debug', "get_filtered_combinations_count: selected_trends={$selected_trends}, has_other_filters=" . ($has_other_filters ? 'YES' : 'NO') . ", is_independent_extra_ball=" . ($is_independent_extra_ball ? 'YES' : 'NO'));
-        
         // For independent extra ball lotteries, we must always process combinations due to different structure
         // even when filters are 'ALL', because the combinations need proper parsing
         if ($selected_trends === 'ALL' && !$has_other_filters && !$is_independent_extra_ball) {
             $total_lines = count(file($filepath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
-            log_message('debug', "get_filtered_combinations_count: No filters applied, returning total lines: {$total_lines}");
             return $total_lines;
         }
         
@@ -300,6 +293,20 @@ class Combination_filters_m extends MY_Model
         // Count combinations that pass filters
         if (($handle = fopen($filepath, 'r')) !== false) {
             while (($line = fgets($handle)) !== false) {
+                // Check for timeout every 1000 lines to avoid excessive overhead
+                if ($total_lines % 1000 === 0 && $start_time !== null) {
+                    $elapsed = microtime(true) - $start_time;
+                    if ($elapsed > $timeout_seconds) {
+                        fclose($handle);
+                        // Get CI instance to access controller
+                        $CI =& get_instance();
+                        if (method_exists($CI, 'check_timeout_and_redirect')) {
+                            $CI->check_timeout_and_redirect($start_time, $timeout_seconds, $lottery_id);
+                        }
+                        return $count; // Return partial count if timeout
+                    }
+                }
+                
                 $line = trim($line);
                 if (empty($line)) continue;
                 
@@ -351,7 +358,6 @@ class Combination_filters_m extends MY_Model
             fclose($handle);
         }
         
-        log_message('info', "get_filtered_combinations_count: FINAL RESULT - {$count} passed out of {$total_lines} total combinations");
         return $count;
     }
 
@@ -367,8 +373,6 @@ class Combination_filters_m extends MY_Model
      */
     public function save_prefiltered_combinations_to_file($filtered_combinations, $output_file_path, $filters = [])
     {
-        log_message('info', "save_prefiltered_combinations_to_file: Saving " . count($filtered_combinations) . " pre-filtered combinations to {$output_file_path}");
-        
         $output_handle = fopen($output_file_path, 'w');
         if (!$output_handle) {
             log_message('error', "save_prefiltered_combinations_to_file: Could not open output file: {$output_file_path}");
@@ -396,7 +400,6 @@ class Combination_filters_m extends MY_Model
 
         fclose($output_handle);
         
-        log_message('info', "save_prefiltered_combinations_to_file: Successfully saved {$saved_count} combinations (no re-filtering needed)");
         return $saved_count > 0;
     }
 
@@ -414,9 +417,6 @@ class Combination_filters_m extends MY_Model
      */
     public function save_filtered_combinations_to_file($filepath, $number_array, $filters, $output_file_path)
     {
-        log_message('info', "save_filtered_combinations_to_file: STARTING - source: {$filepath}, output: {$output_file_path}");
-        log_message('info', "save_filtered_combinations_to_file: Filters being used: " . print_r($filters, true));
-        
         if (!file_exists($filepath)) {
             log_message('error', "save_filtered_combinations_to_file: Source file not found: {$filepath}");
             return false;
@@ -503,15 +503,11 @@ class Combination_filters_m extends MY_Model
         fclose($handle);
         fclose($output_handle);
         
-        // Log the filtering results for debugging
-        log_message('info', "save_filtered_combinations_to_file: Processed {$processed_count} combinations, saved {$saved_count} to {$output_file_path}");
-        
         // If no combinations were saved, log the filter criteria for debugging
         if ($saved_count == 0) {
             log_message('warning', "save_filtered_combinations_to_file: No combinations passed filters. Filters: " . print_r($filters, true));
         }
 
-        log_message('info', "save_filtered_combinations_to_file: COMPLETED - returning " . ($saved_count > 0 ? 'true' : 'false'));
         return $saved_count > 0;
     }
 
@@ -524,8 +520,6 @@ class Combination_filters_m extends MY_Model
      */
     public function save_prefiltered_combinations_to_database($combinations, $filters)
     {
-        log_message('info', "save_prefiltered_combinations_to_database: Starting with " . count($combinations) . " pre-filtered combinations");
-        
         if (empty($combinations)) {
             log_message('warning', "save_prefiltered_combinations_to_database: No combinations provided");
             return false;
@@ -547,13 +541,11 @@ class Combination_filters_m extends MY_Model
             // Insert into database
             if ($this->db->insert('lottery_combination_filters', $data)) {
                 $saved_count++;
-                log_message('debug', "save_prefiltered_combinations_to_database: Saved combination: " . $combination . " (CCCC: " . $cccc_count . ")");
             } else {
                 log_message('error', "save_prefiltered_combinations_to_database: Failed to save combination: " . $combination);
             }
         }
 
-        log_message('info', "save_prefiltered_combinations_to_database: Saved $saved_count out of " . count($combinations) . " combinations to database");
         return $saved_count > 0;
     }
 

@@ -2323,8 +2323,12 @@ class Predictions_m extends MY_Model
 	 * @param array  $filter_select Array of filters to apply (e.g., trends, winning sums, etc.).
 	 * @return array $result        Array of updated combinations (each as an array of numbers).
 	 */
-	public function insert_number_combination($filepath, $number_array, $page = 1, $per_page = 10, $filter_select = [])
+	public function insert_number_combination($filepath, $number_array, $page = 1, $per_page = 10, $filter_select = [], $start_time = null, $timeout_seconds = 3, $lottery_id = null)
 	{
+		// Set start time if not provided
+		if ($start_time === null) {
+			$start_time = microtime(true);
+		}
 		// - lottery_data (for stats calculations)
 		// $filter_select array contains:
     	// 1 - selected_trends
@@ -2368,6 +2372,20 @@ class Predictions_m extends MY_Model
 			// Simple pagination for unfiltered results
 			if (($handle = fopen($filepath, 'r')) !== false) {
 				while (($line = fgets($handle)) !== false) {
+					// Check for timeout every 1000 lines to avoid excessive overhead
+					if ($line_count % 1000 === 0 && $start_time !== null) {
+						$elapsed = microtime(true) - $start_time;
+						if ($elapsed > $timeout_seconds) {
+							fclose($handle);
+							// Get CI instance to access controller
+							$CI =& get_instance();
+							if (method_exists($CI, 'check_timeout_and_redirect')) {
+								$CI->check_timeout_and_redirect($start_time, $timeout_seconds, $lottery_id);
+							}
+							return $result; // Return partial results if timeout
+						}
+					}
+					
 					$line = trim($line);
 					if (empty($line)) continue;
 					
@@ -3172,11 +3190,16 @@ class Predictions_m extends MY_Model
 	 * @param array  $filter_select Array of filters to apply
 	 * @return int Total count of filtered combinations
 	 */
-	public function get_filtered_combinations_count($filepath, $number_array, $filter_select = [])
+	public function get_filtered_combinations_count($filepath, $number_array, $filter_select = [], $start_time = null, $timeout_seconds = 3, $lottery_id = null)
 	{
 		if (!file_exists($filepath)) {
 			log_message('error', "get_filtered_combinations_count: File does not exist: {$filepath}");
 			return 0;
+		}
+		
+		// Set start time if not provided
+		if ($start_time === null) {
+			$start_time = microtime(true);
 		}
 		
 		// If no filters are applied, return total file lines
@@ -3216,6 +3239,20 @@ class Predictions_m extends MY_Model
 		if (($handle = fopen($filepath, 'r')) !== false) {
 			$line_number = 0;
 			while (($line = fgets($handle)) !== false) {
+				// Check for timeout every 1000 lines to avoid excessive overhead
+				if ($line_number % 1000 === 0 && $start_time !== null) {
+					$elapsed = microtime(true) - $start_time;
+					if ($elapsed > $timeout_seconds) {
+						fclose($handle);
+						// Get CI instance to access controller
+						$CI =& get_instance();
+						if (method_exists($CI, 'check_timeout_and_redirect')) {
+							$CI->check_timeout_and_redirect($start_time, $timeout_seconds, $lottery_id);
+						}
+						return $count; // Return partial count if timeout
+					}
+				}
+				
 				$line = trim($line);
 				if (empty($line)) continue;
 				
