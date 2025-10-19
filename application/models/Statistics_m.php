@@ -2258,23 +2258,67 @@ class Statistics_m extends MY_Model
 		
 		$table_name = $CI->lotteries_m->lotto_table_convert($lottery->lottery_name);
 		
-		// Simple and reliable approach: Check if we have more total draws than would be reasonable for sliding window
+		// REFINED LOGIC: Detect recent bulk import activity, not total database size
 		
-		// Get total draws in the lottery table
-		$total_query = $this->db->query("SELECT COUNT(*) as total FROM {$table_name}");
-		$total_result = $total_query->row();
-		$total_draws = $total_result ? $total_result->total : 0;
+		// 1. Check if there's a stored timestamp of last follower calculation
+		$last_calc_time = isset($existing_data['last_updated']) ? strtotime($existing_data['last_updated']) : 0;
+		$time_threshold = time() - (24 * 60 * 60); // 24 hours ago
 		
-		// Get the range from existing data
+		// 2. If no recent calculation timestamp, check draw date patterns for bulk imports
+		if ($last_calc_time < $time_threshold) {
+			// Look for evidence of bulk import: multiple draws added recently with non-sequential dates
+			$recent_draws_query = $this->db->query("
+				SELECT draw_date, id 
+				FROM {$table_name} 
+				ORDER BY id DESC 
+				LIMIT 10
+			");
+			$recent_draws = $recent_draws_query->result();
+			
+			if (count($recent_draws) >= 3) {
+				// Check for bulk import pattern: multiple draws with dates spanning more than expected
+				$latest_db_id = $recent_draws[0]->id;
+				$third_latest_db_id = $recent_draws[2]->id;
+				$id_gap = $latest_db_id - $third_latest_db_id; // Should be 2 for sequential draws
+				
+				$latest_date = strtotime($recent_draws[0]->draw_date);
+				$third_latest_date = strtotime($recent_draws[2]->draw_date);
+				$date_gap_days = abs($latest_date - $third_latest_date) / (60 * 60 * 24);
+				
+				// BULK IMPORT INDICATORS:
+				// - Database IDs are sequential (gap = 2) BUT
+				// - Draw dates span more than 2 weeks (indicating historical data import)
+				if ($id_gap <= 3 && $date_gap_days > 14) {
+					log_message('info', "Bulk import detected for lottery_id={$lottery_id}: Sequential IDs but {$date_gap_days} day date span indicates historical import");
+					return true;
+				}
+				
+				// Alternative indicator: More than 5 draws added in very short timeframe
+				if (count($recent_draws) >= 5) {
+					$oldest_in_batch = $recent_draws[4];
+					$batch_id_span = $latest_db_id - $oldest_in_batch->id;
+					
+					// If 5+ draws were added with sequential IDs, likely bulk import
+					if ($batch_id_span <= 5) {
+						log_message('info', "Bulk import detected for lottery_id={$lottery_id}: 5+ draws added with sequential IDs");
+						return true;
+					}
+				}
+			}
+		}
+		
+		// 3. Check for parameter mismatch indicating forced recalc needed
 		$current_range = isset($existing_data['range']) ? $existing_data['range'] : 100;
+		$current_total_draws = $this->db->query("SELECT COUNT(*) as total FROM {$table_name}")->row()->total;
 		
-		// For BC 649 and similar lotteries with many historical draws, force complete recalc
-		// if we have more than 3x the range in total draws (indicates bulk historical data)
-		if ($total_draws > ($current_range * 3)) {
-			log_message('info', "Bulk data detected for lottery_id={$lottery_id}: {$total_draws} total draws > {$current_range}*3 threshold");
+		// If we have excessive draws relative to range AND no recent sliding window activity, 
+		// likely indicates accumulated historical data needing complete recalc
+		if ($current_total_draws > ($current_range * 5) && $last_calc_time < $time_threshold) {
+			log_message('info', "Historical data accumulation detected for lottery_id={$lottery_id}: {$current_total_draws} draws vs range {$current_range}, no recent calculation");
 			return true;
 		}
 		
+		// DEFAULT: Allow sliding window for normal single-draw operations
 		return false;
 	}
 	
