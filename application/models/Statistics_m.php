@@ -2231,7 +2231,51 @@ class Statistics_m extends MY_Model
 			return false; // Missing data, need complete recalc
 		}
 		
+		// CRITICAL: Check for bulk import scenario
+		// If multiple new draws have been added since last follower calculation, force complete recalc
+		if ($this->detect_bulk_import_scenario($lottery_id, $existing)) {
+			return false; // Bulk import detected, need complete recalc for proper win accumulation
+		}
+		
 		return true; // Can use sliding window
+	}
+	
+	/**
+	 * Detect bulk import scenario - multiple new draws added since last calculation
+	 */
+	private function detect_bulk_import_scenario($lottery_id, $existing_data)
+	{
+		// Get the lottery table name using lotteries model
+		$CI =& get_instance();
+		if (!isset($CI->lotteries_m)) {
+			$CI->load->model('lotteries_m');
+		}
+		
+		$lottery = $CI->lotteries_m->get($lottery_id);
+		if (!$lottery) {
+			return false;
+		}
+		
+		$table_name = $CI->lotteries_m->lotto_table_convert($lottery->lottery_name);
+		
+		// Simple and reliable approach: Check if we have more total draws than would be reasonable for sliding window
+		
+		// Get total draws in the lottery table
+		$total_query = $this->db->query("SELECT COUNT(*) as total FROM {$table_name}");
+		$total_result = $total_query->row();
+		$total_draws = $total_result ? $total_result->total : 0;
+		
+		// Get the range from existing data
+		$current_range = isset($existing_data['range']) ? $existing_data['range'] : 100;
+		
+		// For BC 649 and similar lotteries with many historical draws, force complete recalc
+		// if we have more than 3x the range in total draws (indicates bulk historical data)
+		if ($total_draws > ($current_range * 3)) {
+			log_message('info', "Bulk data detected for lottery_id={$lottery_id}: {$total_draws} total draws > {$current_range}*3 threshold");
+			return true;
+		}
+		
+		return false;
 	}
 	
 	/**
