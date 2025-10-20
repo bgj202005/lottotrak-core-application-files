@@ -612,6 +612,13 @@ class Predictions extends Admin_Controller {
 		}
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		
+		// Check if lottery is out of date and set warning message/disable combination table
+		$lottery_status = $this->check_lottery_outdated_status($id, $tbl_name);
+		$this->data['lottery_outdated'] = $lottery_status['is_outdated'];
+		$this->data['draws_behind'] = $lottery_status['draws_behind'];
+		$this->data['last_draw_date'] = $lottery_status['last_draw_date'];
+		$this->data['expected_next_date'] = $lottery_status['expected_next_date'];
+		
 		// Check for outdated combination files that need to be expired
 		$this->check_outdated_combinations($id);
 		
@@ -3876,12 +3883,157 @@ class Predictions extends Admin_Controller {
 			$value2 = $filters2[$filter] ?? null;
 			
 			if ($value1 !== $value2) {
-				log_message('debug', "filters_match: Mismatch on {$filter} - {$value1} vs {$value2}");
 				return false;
 			}
 		}
 		
 		return true;
+	}
+	
+	/**
+	 * Check if lottery is out of date and calculate how many draws behind
+	 * @param int $lottery_id Lottery ID to check
+	 * @param string $tbl_name Lottery table name
+	 * @return array Array with lottery status information
+	 */
+	public function check_lottery_outdated_status($lottery_id, $tbl_name)
+	{
+		$result = [
+			'is_outdated' => false,
+			'draws_behind' => 0,
+			'last_draw_date' => null,
+			'expected_next_date' => null
+		];
+		
+		try {
+			// Get lottery information
+			$lottery = $this->lotteries_m->get($lottery_id);
+			if (!$lottery) {
+				return $result;
+			}
+			
+			// Get the last draw from the lottery table
+			$last_draw = $this->lotteries_m->last_draw_db($tbl_name);
+			if (!$last_draw || empty($last_draw->draw_date)) {
+				return $result;
+			}
+			
+			$result['last_draw_date'] = $last_draw->draw_date;
+			
+			// Parse lottery name to determine expected frequency
+			$draw_frequency = $this->get_lottery_draw_frequency($lottery->lottery_name);
+			
+			// Calculate expected next draw date
+			$last_date = new DateTime($last_draw->draw_date);
+			$expected_next = clone $last_date;
+			$expected_next->add(new DateInterval('P' . $draw_frequency . 'D'));
+			$result['expected_next_date'] = $expected_next->format('Y-m-d');
+			
+			// Calculate how many draws behind
+			$current_date = new DateTime();
+			$days_passed = $current_date->diff($last_date)->days;
+			
+		// If the last draw was very recent (within 2 days), don't mark as outdated
+		// This handles cases where lotteries were just imported
+		if ($days_passed <= 2) {
+			return $result;
+		}			// For Daily Grand and other twice-weekly lotteries, use a more sophisticated calculation
+			if (strpos(strtolower($lottery->lottery_name), 'daily grand') !== false) {
+				// Daily Grand draws twice weekly (Monday and Thursday)
+				// Calculate based on actual draw days rather than simple division
+				$draws_behind = $this->calculate_daily_grand_draws_behind($last_date, $current_date);
+			} else {
+				$draws_behind = floor($days_passed / $draw_frequency);
+			}
+			
+		// Consider outdated if more than the threshold
+		// Be more lenient with the threshold to avoid false positives
+		// Especially for recently imported lotteries
+		$threshold = ($draw_frequency <= 3) ? 4 : 3; // Allow 4 missed draws for twice-weekly, 3 for others
+		
+		if ($draws_behind > $threshold) {
+			$result['is_outdated'] = true;
+			$result['draws_behind'] = $draws_behind;
+		}		} catch (Exception $e) {
+			log_message('error', 'Error checking lottery outdated status: ' . $e->getMessage());
+		}
+		
+		return $result;
+	}
+	
+	/**
+	 * Determine lottery draw frequency based on lottery name
+	 * @param string $lottery_name Name of the lottery
+	 * @return int Number of days between draws
+	 */
+	private function get_lottery_draw_frequency($lottery_name)
+	{
+		$lottery_name_lower = strtolower($lottery_name);
+		
+		// Special case for Daily Grand (Canadian lottery - draws twice weekly on Monday and Thursday)
+		if (strpos($lottery_name_lower, 'daily grand') !== false) {
+			return 3; // Twice weekly (every 3-4 days average)
+		}
+		
+		// Daily lotteries
+		if (strpos($lottery_name_lower, 'daily') !== false || 
+			strpos($lottery_name_lower, 'pick 3') !== false || 
+			strpos($lottery_name_lower, 'pick 4') !== false ||
+			strpos($lottery_name_lower, 'pick3') !== false || 
+			strpos($lottery_name_lower, 'pick4') !== false) {
+			return 1; // Daily
+		}
+		
+		// Weekly lotteries (most common)
+		if (strpos($lottery_name_lower, 'weekly') !== false ||
+			strpos($lottery_name_lower, 'powerball') !== false ||
+			strpos($lottery_name_lower, 'mega') !== false ||
+			strpos($lottery_name_lower, 'lotto') !== false ||
+			strpos($lottery_name_lower, 'euromillions') !== false) {
+			return 7; // Weekly
+		}
+		
+		// Twice weekly
+		if (strpos($lottery_name_lower, 'twice') !== false) {
+			return 3; // Roughly every 3-4 days
+		}
+		
+		// Default to weekly for unknown lotteries
+		return 7;
+	}
+	
+	/**
+	 * Calculate how many Daily Grand draws have been missed
+	 * Daily Grand draws on Monday and Thursday each week
+	 * @param DateTime $last_date Last draw date
+	 * @param DateTime $current_date Current date
+	 * @return int Number of draws behind
+	 */
+	private function calculate_daily_grand_draws_behind($last_date, $current_date)
+	{
+		$draws_missed = 0;
+		$check_date = clone $last_date;
+		
+		// Only check if more than 4 days have passed to avoid false positives
+		if ($current_date->diff($last_date)->days <= 4) {
+			return 0;
+		}
+		
+		while ($check_date < $current_date) {
+			$check_date->add(new DateInterval('P1D'));
+			$day_of_week = $check_date->format('N'); // 1 = Monday, 4 = Thursday
+			
+			if ($day_of_week == 1 || $day_of_week == 4) { // Monday or Thursday
+				$draws_missed++;
+			}
+			
+			// Safety break to prevent infinite loops
+			if ($draws_missed > 10) {
+				break;
+			}
+		}
+		
+		return $draws_missed;
 	}
 	
 	/**
@@ -3906,7 +4058,6 @@ class Predictions extends Admin_Controller {
 			
 			// Store alert message in session for display on Predictions Futures page
 			$this->session->set_flashdata('predictions_alert', $alert_message);
-			log_message('info', "Predictions: Expired {$expired_info['count']} outdated combination files for lottery {$lottery_id}");
 		}
 	}
 	
@@ -3935,12 +4086,9 @@ class Predictions extends Admin_Controller {
 			
 			$active_filters = $this->db->get()->result();
 			
-			if (empty($active_filters)) {
-				log_message('info', "expire_outdated_combination_files: No active filters found");
-				return array('count' => 0, 'filenames' => array());
-			}
-			
-			// Load required models
+		if (empty($active_filters)) {
+			return array('count' => 0, 'filenames' => array());
+		}			// Load required models
 			$this->load->model('Lotteries_m', 'lotteries_m');
 			
 			foreach ($active_filters as $filter) {
@@ -3989,25 +4137,18 @@ class Predictions extends Admin_Controller {
 					$this->db->limit(1);
 					$latest_draw = $this->db->get()->row();
 					
-					if (!$latest_draw) {
-						log_message('info', "expire_outdated_combination_files: No draws found for {$table_name}");
-						continue;
-					}
+				if (!$latest_draw) {
+					continue;
+				}				// Compare the most recent draw date with the expected next draw date
+				// If the most recent draw is newer than the expected next draw, the combination is outdated
+				if ($latest_draw->draw_date > $expected_next_draw_mysql) {
+					// This combination file is outdated - expire it
+					$this->db->where('id', $filter->id);
+					$this->db->update('lottery_combination_filters', array('active' => 0));
 					
-					// Compare the most recent draw date with the expected next draw date
-					// If the most recent draw is newer than the expected next draw, the combination is outdated
-					if ($latest_draw->draw_date > $expected_next_draw_mysql) {
-						// This combination file is outdated - expire it
-						$this->db->where('id', $filter->id);
-						$this->db->update('lottery_combination_filters', array('active' => 0));
-						
-						$expired_count++;
-						$expired_filenames[] = $filter->file_name; // Collect the filename
-						
-						log_message('info', "expire_outdated_combination_files: Expired filter {$filter->id} ({$filter->file_name}) - latest draw ({$latest_draw->draw_date}) is newer than expected next draw ({$expected_next_draw_mysql})");
-					}
-					
-				} catch (Exception $e) {
+					$expired_count++;
+					$expired_filenames[] = $filter->file_name; // Collect the filename
+				}				} catch (Exception $e) {
 					log_message('error', "expire_outdated_combination_files: Error processing filter {$filter->id}: " . $e->getMessage());
 					continue;
 				}

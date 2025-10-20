@@ -558,6 +558,41 @@
 		}
 	}
 	/* Add this to your style section */
+	
+	/* Lottery outdated greyed-out styles */
+	.lottery-outdated-disabled {
+		opacity: 0.5;
+		pointer-events: none;
+		background-color: #f8f9fa;
+		border: 1px solid #dee2e6;
+		position: relative;
+	}
+	
+	.lottery-outdated-disabled::before {
+		content: "LOTTERY OUT OF DATE - UPDATE REQUIRED";
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		background-color: rgba(220, 53, 69, 0.9);
+		color: white;
+		padding: 0.5rem 1rem;
+		border-radius: 0.25rem;
+		font-weight: bold;
+		font-size: 0.9rem;
+		z-index: 1000;
+		white-space: nowrap;
+		text-align: center;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+	}
+	
+	.lottery-outdated-disabled input,
+	.lottery-outdated-disabled select,
+	.lottery-outdated-disabled button,
+	.lottery-outdated-disabled textarea {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
 	.d-flex {
     display: flex;
     align-items: center;
@@ -850,6 +885,18 @@
 							</div>
 						<?php endif; ?>
 						
+						<!-- Lottery Out of Date Warning -->
+						<?php if (!empty($lottery_outdated) && $lottery_outdated): ?>
+							<div class="alert alert-danger alert-dismissible fade show" role="alert">
+								<i class="fas fa-exclamation-circle"></i> 
+								<strong><?= htmlspecialchars($lottery->lottery_name) ?> is out of date by <?= $draws_behind ?> draw<?= $draws_behind > 1 ? 's' : '' ?>.</strong>
+								Import or manually add the new draws on the Lotteries Edit or Lotteries Import page.
+								<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+									<span aria-hidden="true">&times;</span>
+								</button>
+							</div>
+						<?php endif; ?>
+						
 						<?php if (!empty($message)) ?> <h3 class="bg-warning" style = "text-align:center;"><?=$message; ?></h3>
 						
 						<!-- Friendship Warning Messages -->
@@ -862,6 +909,7 @@
 							</div>
 						<?php endif; ?>
 						<?php echo validation_errors('<H2><div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">','</div></H2>'); ?>
+						<div class="prediction-form-container <?= (!empty($lottery_outdated) && $lottery_outdated) ? 'lottery-outdated-disabled' : '' ?>">
 						<?php echo form_open(base_url().'admin/predictions/combination/'.$lottery->id); ?>
 						<hr>
 						<!-- Country -->
@@ -1239,7 +1287,7 @@
 								</div>
 							</div>
 							<?= form_close(); ?>
-						</div>
+						</div> <!-- Close prediction-form-container -->
 						<?php if (!empty($number_array)): ?>
 							<div class="alert alert-info text-center mb-2" style="font-weight:bold;">
 								GENERATED NUMBERS ARE: <?= implode(', ', $number_array); ?>
@@ -1247,6 +1295,7 @@
 						<?php endif; ?>
 						<?php if (!empty($combos_paginated)): 
 							?>
+							<div class="combination-results-container <?= (!empty($lottery_outdated) && $lottery_outdated) ? 'lottery-outdated-disabled' : '' ?>">
 							<form method="get" class="mb-3" id="pagination-size-form" action="<?= base_url('admin/predictions/combination/' . $lottery->id) ?>">
 								<label for="per_page" class="me-2">Combinations per page:</label>
 								<select name="per_page" id="per_page" class="form-select d-inline-block w-auto" onchange="document.getElementById('pagination-size-form').submit();">
@@ -1439,6 +1488,7 @@
 								<?php endif; // End pagination condition ?>
 							</div>
 						<?php endif; ?>
+						</div> <!-- Close combination-results-container -->
 					</div>
 				</div>
 			</div>
@@ -2108,11 +2158,9 @@
 				filterControlVisible: false, // Start with filters hidden
 				onRefresh: function() {
 					// Custom refresh logic if needed
-					console.log('Table refreshed');
 				},
 				onToggle: function() {
 					// Handle table view toggle
-					console.log('Table view toggled');
 				},
 				onPostBody: function() {
 					// Ensure all filters are blank after table is rendered
