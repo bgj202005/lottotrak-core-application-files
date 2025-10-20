@@ -4420,20 +4420,22 @@ class Predictions extends Admin_Controller {
 				return;
 			}
 			
-			// Get saved combinations status
-			$saved_combinations = $this->lottery_data_m->get_all_user_combination_filters($lottery_id, $user_id);
-			$active_status = null;
-			$actual_file_name = $file_name; // Default to base filename
-			foreach ($saved_combinations as $saved_combo) {
-				if ($saved_combo['combo_id'] == $combo_id) {
-					$active_status = $saved_combo['active'];
-					$actual_file_name = $saved_combo['file_name']; // Get the actual filename with ADMIN suffix
-					break;
-				}
+		// Get saved combinations status
+		$saved_combinations = $this->lottery_data_m->get_all_user_combination_filters($lottery_id, $user_id);
+		$active_status = null;
+		$actual_file_name = $file_name; // Default to base filename
+		$saved_combination_data = null; // Store the full saved combination data
+		foreach ($saved_combinations as $saved_combo) {
+			if ($saved_combo['combo_id'] == $combo_id) {
+				$active_status = $saved_combo['active'];
+				$actual_file_name = $saved_combo['file_name']; // Get the actual filename with ADMIN suffix
+				$saved_combination_data = $saved_combo; // Store full data for CCCC extraction
+				break;
 			}
-			
-			// Check if a saved combination filter exists for this lottery
-			if ($active_status === null) {
+		}
+		
+		// Check if a saved combination filter exists for this lottery
+		if ($active_status === null) {
 				// No saved combination filter exists for this lottery - don't show status
 				$this->output->set_output(json_encode([
 					'success' => true,
@@ -4446,14 +4448,18 @@ class Predictions extends Admin_Controller {
 				return;
 			}
 			
-			// Determine if active or expired
-			$is_active = ($active_status === '1' || $active_status === 1 || $active_status === true);
-			
-			// Get filtered tickets count (CCCC value from the file)
-			$filtered_tickets_count = isset($combination_file['CCCC']) ? number_format($combination_file['CCCC']) : '0';
-			
-			// Prepare response data
-			$status_data = [
+		// Determine if active or expired
+		$is_active = ($active_status === '1' || $active_status === 1 || $active_status === true);
+		
+		// Get filtered tickets count from saved combination data (CCCC field from lottery_combination_filters table)
+		// This represents the actual number of filtered combinations, not the original total
+		$filtered_tickets_count = '0';
+		if ($saved_combination_data && isset($saved_combination_data['CCCC'])) {
+			$filtered_tickets_count = number_format($saved_combination_data['CCCC']);
+		}
+		
+		// Prepare response data
+		$status_data = [
 				'success' => true,
 				'combo_id' => $combo_id,
 				'file_name' => $actual_file_name, // Use actual filename with ADMIN suffix
