@@ -1127,7 +1127,7 @@
 								<!-- Second Table: Actual Win History Filtering -->
 								<div class="table-section" style="border:2px solid #28a745; border-radius:8px; margin-bottom:2em; padding:1em; overflow: hidden; position: relative;">
 									<div class="table-title" style="font-weight:bold; font-size:1.2em; background:#f8f9fa; border-bottom:1px solid #28a745; padding:0.5em 1em; border-radius:6px 6px 0 0; margin:-1em -1em 1em -1em;">
-										Actual Win History Filtering for <?= htmlspecialchars($lottery->next_draw_date); ?>
+										Actual Win History Filtering for <?= htmlspecialchars(isset($lottery->next_draw_date) ? $lottery->next_draw_date : 'Next Draw'); ?>
 									</div>
 									
 									<!-- Table responsive container -->
@@ -1157,7 +1157,10 @@
 											<tbody>
 												<tr>
 													<td data-label="H-W-C Selection">
-														<?= form_dropdown('h_w_c_group', $h_w_c_group, isset($selected_h_w_c_group) ? $selected_h_w_c_group : '', 'class="form-control" id="h_w_c_group"') ?>
+														<?php 
+														$hwc_disabled = isset($disable_hwc_dropdown) && $disable_hwc_dropdown ? ' disabled' : '';
+														?>
+														<?= form_dropdown('h_w_c_group', $h_w_c_group, isset($selected_h_w_c_group) ? $selected_h_w_c_group : '', 'class="form-control" id="h_w_c_group"' . $hwc_disabled) ?>
 													</td>
 													<?php if (isset($is_independent_extra_ball) && $is_independent_extra_ball): ?>
 													<td data-label="Extra Ball Filter">
@@ -1172,24 +1175,29 @@
 													<?php endif; ?>
 													<td data-label="After Ball">
 														<div class="d-flex align-items-center" style="gap:0.4em;">
-															<?= form_radio([
+															<?php 
+															$followers_disabled = isset($disable_followers_controls) && $disable_followers_controls;
+															$radio_disabled = $followers_disabled ? ['disabled' => true] : [];
+															$dropdown_disabled = $followers_disabled ? ' disabled' : '';
+															?>
+															<?= form_radio(array_merge([
 																	'name' => 'followers_type',
 																	'id' => 'after_ball_radio',
 																	'value' => 'after_ball',
 																	'checked' => (isset($selected_followers_type) && $selected_followers_type == 'after_ball')
-																]); ?>
-															<?= form_dropdown('ball_points', $ball_points_options, isset($selected_ball_points) ? $selected_ball_points : '', 'class="form-control" id="ball_points"') ?>
+																], $radio_disabled)); ?>
+															<?= form_dropdown('ball_points', isset($ball_points_options) ? $ball_points_options : [], isset($selected_ball_points) ? $selected_ball_points : '', 'class="form-control" id="ball_points"' . $dropdown_disabled) ?>
 														</div>
 													</td>
 													<td data-label="Position">
 														<div class="d-flex align-items-center" style="gap:0.4em;">
-															<?= form_radio([
+															<?= form_radio(array_merge([
 																'name' => 'followers_type',
 																'id' => 'position_radio',
 																'value' => 'position',
 																'checked' => (isset($selected_followers_type) && $selected_followers_type == 'position')
-															]); ?>
-															<?= form_dropdown('position_points', $position_points_options, isset($selected_position_points) ? $selected_position_points : '', 'class="form-control" id="position_points"') ?>
+															], $radio_disabled)); ?>
+															<?= form_dropdown('position_points', isset($position_points_options) ? $position_points_options : [], isset($selected_position_points) ? $selected_position_points : '', 'class="form-control" id="position_points"' . $dropdown_disabled) ?>
 														</div>
 													</td>
 													<td data-label="Friends">
@@ -1204,34 +1212,34 @@
 															'class="form-control" id="friends"') ?>
 													</td>
 													<td data-label="Trends">
-														<?= form_dropdown('trends', $lottery->trends, isset($selected_trends) ? $selected_trends : '', 'class="form-control"') ?>
+														<?= form_dropdown('trends', isset($lottery->trends) ? $lottery->trends : [], isset($selected_trends) ? $selected_trends : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Sums">
-														<?= form_dropdown('winning_sums', $lottery->winning_sums, isset($selected_winning_sums) ? $selected_winning_sums : '', 'class="form-control"') ?>
+														<?= form_dropdown('winning_sums', isset($lottery->winning_sums) ? $lottery->winning_sums : [], isset($selected_winning_sums) ? $selected_winning_sums : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Digit Sums">
-														<?= form_dropdown('winning_digits', $lottery->winning_digits, isset($selected_winning_digits) ? $selected_winning_digits : '', 'class="form-control"') ?>
+														<?= form_dropdown('winning_digits', isset($lottery->winning_digits) ? $lottery->winning_digits : [], isset($selected_winning_digits) ? $selected_winning_digits : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Repeaters">
-														<?= form_dropdown('repeaters', $lottery->repeaters,  isset($selected_repeaters) ? $selected_repeaters : '', 'class="form-control"') ?>
+														<?= form_dropdown('repeaters', isset($lottery->repeaters) ? $lottery->repeaters : [],  isset($selected_repeaters) ? $selected_repeaters : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Consecutives">
-														<?= form_dropdown('consecutives', $lottery->consecutives, isset($selected_consecutives) ? $selected_consecutives : '', 'class="form-control"') ?>
+														<?= form_dropdown('consecutives', isset($lottery->consecutives) ? $lottery->consecutives : [], isset($selected_consecutives) ? $selected_consecutives : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Odd/Even">
-														<?= form_dropdown('parity', $lottery->parity, isset($selected_parity) ? $selected_parity : '', 'class="form-control"') ?>
+														<?= form_dropdown('parity', isset($lottery->parity) ? $lottery->parity : [], isset($selected_parity) ? $selected_parity : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Decades">
-														<?= form_dropdown('decades', $lottery->decades, isset($selected_decades) ? $selected_decades : '', 'class="form-control"') ?>
+														<?= form_dropdown('decades', isset($lottery->decades) ? $lottery->decades : [], isset($selected_decades) ? $selected_decades : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Last">
-														<?= form_dropdown('last_digits', $lottery->last_digits, isset($selected_last_digits) ? $selected_last_digits : '', 'class="form-control"') ?>
+														<?= form_dropdown('last_digits', isset($lottery->last_digits) ? $lottery->last_digits : [], isset($selected_last_digits) ? $selected_last_digits : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Range">
-														<?= form_dropdown('number_range', $lottery->number_range, isset($selected_number_range) ? $selected_number_range : '', 'class="form-control"') ?>
+														<?= form_dropdown('number_range', isset($lottery->number_range) ? $lottery->number_range : [], isset($selected_number_range) ? $selected_number_range : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Adjacent">
-														<?= form_dropdown('adjacents', $lottery->adjacents, isset($selected_adjacents) ? $selected_adjacents : '', 'class="form-control"') ?>
+														<?= form_dropdown('adjacents', isset($lottery->adjacents) ? $lottery->adjacents : [], isset($selected_adjacents) ? $selected_adjacents : '', 'class="form-control"') ?>
 													</td>
 												</tr>
 											</tbody>
@@ -1861,10 +1869,10 @@
 					form.insertBefore(messageDiv, form.firstChild);
 					
 					// Update the Filtered Tickets count if provided in response
-					if (data.filtered_count) {
-						const filteredTicketsElement = document.getElementById('filtered-tickets-count');
+					if (data.filtered_tickets_count) {
+						const filteredTicketsElement = document.getElementById('tickets-count');
 						if (filteredTicketsElement) {
-							filteredTicketsElement.textContent = 'Filtered Tickets: ' + data.filtered_count.toLocaleString();
+							filteredTicketsElement.textContent = 'Filtered Tickets: ' + data.filtered_tickets_count;
 						}
 					}
 					
@@ -2195,7 +2203,7 @@
     // Function to refresh filter settings
     function refreshFilter(comboId) {
         if (confirm('Loading the Previous Saved Settings. Do you want to continue? (Y/N)')) {
-            window.location.href = '<?= base_url() ?>admin/predictions/refresh/<?= $lottery->id ?>?combo_id=' + comboId;
+            window.location.href = '<?= base_url() ?>admin/predictions/restore_settings/<?= $lottery->id ?>?combo_id=' + comboId;
         }
     }
     

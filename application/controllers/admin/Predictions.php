@@ -1565,10 +1565,10 @@ class Predictions extends Admin_Controller {
 			$this->session->set_userdata('combination_file_name', $combination_file);
 			if ($session_data) {
 				// Use POST values if available, otherwise fall back to session values
-				// For checkboxes, if form was submitted but checkbox not present in POST, it means unchecked
-				$hwc_checked = ($this->input->post() && !$this->input->post('hwc')) ? false : ($this->input->post('hwc') ? (($this->input->post('hwc') == '1') ? true : false) : $session_data['selected_hwc']);
-				$followers_checked = ($this->input->post() && !$this->input->post('followers')) ? false : ($this->input->post('followers') ? (($this->input->post('followers') == '1') ? true : false) : $session_data['selected_followers']);
-				$friends_checked = ($this->input->post() && !$this->input->post('friends')) ? false : ($this->input->post('friends') ? (($this->input->post('friends') == '1') ? true : false) : $session_data['selected_friends_checkbox']);
+				// Simplified logic: if checkbox is posted and equals '1', it's checked; otherwise use session value
+				$hwc_checked = ($this->input->post('hwc') == '1') ? true : (isset($session_data['selected_hwc']) ? (bool)$session_data['selected_hwc'] : false);
+				$followers_checked = ($this->input->post('followers') == '1') ? true : (isset($session_data['selected_followers']) ? (bool)$session_data['selected_followers'] : false);
+				$friends_checked = ($this->input->post('friends') == '1') ? true : (isset($session_data['selected_friends_checkbox']) ? (bool)$session_data['selected_friends_checkbox'] : false);
  				$h_w_c_group = ($this->input->post('h_w_c_group') ? $this->input->post('h_w_c_group') : $this->session->userdata('selected_h_w_c_group'));
 				$selected_extra_ball = ($this->input->post('extra_ball_filter') ? $this->input->post('extra_ball_filter') : $this->session->userdata('selected_extra_ball'));
 				
@@ -1627,9 +1627,10 @@ class Predictions extends Admin_Controller {
 				$this->data['disable_combination_dropdown'] = true;
 			} else {
 				// Get all POST values and save to session for future pagination
-				$hwc_checked = ($this->input->post('hwc') == '1') ? true : false;
-				$followers_checked = ($this->input->post('followers') == '1') ? true : false;
-				$friends_checked = ($this->input->post('friends') == '1') ? true : false;
+				// Also check session as fallback for restored settings
+				$hwc_checked = ($this->input->post('hwc') == '1') ? true : (bool)$this->session->userdata('selected_hwc');
+				$followers_checked = ($this->input->post('followers') == '1') ? true : (bool)$this->session->userdata('selected_followers');
+				$friends_checked = ($this->input->post('friends') == '1') ? true : (bool)$this->session->userdata('selected_friends_checkbox');
 				
 				$h_w_c_group = $this->input->post('h_w_c_group', TRUE);
 				$selected_extra_ball = $this->input->post('extra_ball_filter', TRUE);
@@ -2875,6 +2876,7 @@ class Predictions extends Admin_Controller {
 							'success' => true,
 							'message' => $message,
 							'filtered_count' => $filtered_count, // Add filtered count for AJAX update
+							'filtered_tickets_count' => number_format($filtered_count), // For consistency with other AJAX responses
 							'status_changed' => true, // Indicate that combination is now active
 							'new_status' => 'Active' // New status for display
 						]));
@@ -2956,6 +2958,270 @@ class Predictions extends Admin_Controller {
 			redirect('admin/predictions/futures/' . $id);
 		}
 	}
+	
+	/**
+	 * Restore previous settings without regenerating tickets
+	 * Simple method that just restores form settings and shows success message
+	 */
+	public function restore_settings($id)
+	{
+		$this->data['message'] = '';
+		$this->data['disable_generate_button'] = false;
+		$this->data['disable_combination_dropdown'] = true;
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		
+		// Set navigation and user data for the layout template
+		$this->data['current'] = $this->uri->segment(2);
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/restore_settings'.($id ? '/'.$id : ''));
+		$this->data['users'] = $this->maintenance_m->logged_online(0);
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();
+		
+		// Get the record_id from the URL parameter
+		$record_id = $this->input->get('combo_id') ?: $this->input->post('combo_id');
+		
+		// If record_id comes from dropdown value format (253|06077), extract just the ID
+		if ($record_id && strpos($record_id, '|') !== false) {
+			list($record_id, $filename) = explode('|', $record_id, 2);
+			$record_id = (int)$record_id;
+		} else {
+			$record_id = (int)$record_id;
+		}
+		
+		if (!$record_id) {
+			$this->session->set_flashdata('message', '<div class="alert alert-danger">No combination ID found for restore.</div>');
+			redirect('admin/predictions/futures/' . $id);
+			return;
+		}
+		
+		// Load the combination_filters_m model to get saved settings
+		$this->load->model('combination_filters_m');
+		$saved_settings = $this->combination_filters_m->get_saved_settings($record_id);
+		
+		if (!$saved_settings) {
+			$this->session->set_flashdata('message', '<div class="alert alert-danger">No saved settings found for combination ID: ' . $record_id . '</div>');
+			redirect('admin/predictions/futures/' . $id);
+			return;
+		}
+		
+
+		
+		// Get lottery data
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		if (!$this->data['lottery']) {
+			$this->session->set_flashdata('message', '<div class="alert alert-danger">Lottery not found with ID: ' . $id . '</div>');
+			redirect('admin/predictions');
+			return;
+		}
+		
+		// Extract original combination file name (remove ADMIN## suffix)
+		$original_filename = $this->combination_filters_m->extract_original_filename($saved_settings['file_name']);
+		$combo_id = $saved_settings['combo_id'];
+		
+		// Set up basic lottery data needed for the view
+		$this->data['country_code'] = $this->lottery_data_m->get_lottery_country($id);
+		$this->data['state_prov_code'] = $this->lottery_data_m->get_lottery_state_prov($id);
+		$this->data['combination_files'] = $this->predictions_m->get_combination_files($id);
+		
+		// Sort combination files numerically and set up the dropdown value format
+		if (!empty($this->data['combination_files'])) {
+			foreach ($this->data['combination_files'] as &$file) {
+				$file['value'] = $file['id'] . '|' . $file['file_name'];
+				$file['display'] = $file['file_name'];
+			}
+			usort($this->data['combination_files'], function($a, $b) {
+				$numA = intval(preg_replace('/\D/', '', $a['file_name']));
+				$numB = intval(preg_replace('/\D/', '', $b['file_name']));
+				return $numA - $numB;
+			});
+		}
+		
+		// Get basic lottery data needed for form options
+		$this->data['h_w_c'] = $this->predictions_m->get_h_w_c($id);
+		$h_w_c_group = $this->predictions_m->get_h_w_c_range($id);
+		$h_w_c_group_options = [];
+		foreach ($h_w_c_group as $group) {
+			$value = substr($group, 0, 5);
+			$h_w_c_group_options[$value] = $group;
+		}
+		$this->data['h_w_c_group'] = $h_w_c_group_options;
+		$this->data['followers'] = $this->predictions_m->get_followers($id);
+		$this->data['friends'] = $this->predictions_m->get_friends($id);
+		$this->data['friends_dropdown_options'] = $this->predictions_m->get_friends_dropdown_options($id);
+		
+		// Get lottery highlights for filter dropdowns
+		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
+		$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);
+		$this->data['lottery']->winning_digits = $this->predictions_m->get_digit_sums($this->data['lottery']->highlights['winning_digits']);
+		$this->data['lottery']->winning_sums = $this->predictions_m->get_sums($this->data['lottery']->highlights['winning_sums']);
+		$this->data['lottery']->repeaters = $this->predictions_m->get_repeaters($this->data['lottery']->highlights['repeats']);
+		$this->data['lottery']->consecutives = $this->predictions_m->get_consecutives($this->data['lottery']->highlights['consecutives']);
+		$this->data['lottery']->parity = $this->predictions_m->get_parity($this->data['lottery']->highlights['parity']);
+		$this->data['lottery']->decades = $this->predictions_m->get_decade($tbl_name, $this->data['lottery']->highlights['range']);
+		$this->data['lottery']->last_digits = $this->predictions_m->get_last($tbl_name, $this->data['lottery']->highlights['range']);
+		$this->data['lottery']->number_range = $this->predictions_m->get_range($this->data['lottery']->highlights['number_range']);
+		$this->data['lottery']->adjacents = $this->predictions_m->get_adjacents($this->data['lottery']->highlights['adjacents']);
+		
+		// Set up last drawn data and next draw date (required for the view)
+		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);
+		$ld = $this->data['lottery']->last_drawn['draw_date'];	// Return last draw date
+		$day = $this->lotteries_m->return_day($ld);			// Returns the day of draw, Saturday, Sunday, etc.
+		$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
+		
+		// Set up ball and position points options (required for the followers dropdowns)
+		$drawn = $this->data['lottery']->balls_drawn; // Get the number of balls drawn for this lottery
+		
+		// Enrich last_drawn data with prize group and follower information (needed for position points)
+		$p_group = $this->statistics_m->prize_group_profile($id);
+		$p_group = $this->statistics_m->prizes_only($p_group, $this->data['lottery']->extra_ball);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_prizegroup($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_ball, $p_group);
+		
+		// Add wins and positions data from followers
+		$follower_wins = explode(">", $this->data['followers']['wins']);
+		$follow_poswins = explode(">", $this->data['followers']['positions']);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $p_group, $follower_wins, $follow_poswins);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $this->data['followers']['extra_included'], $this->data['lottery']->duplicate_extra_ball);
+		
+		// For independent extra ball lotteries, parse dupextra_wins and OVERRIDE extra ball points
+		if ($this->data['lottery']->duplicate_extra_ball == 1 && !empty($this->data['followers']['dupextra_wins'])) {
+			$this->parse_and_apply_dupextra_wins_to_points();
+		}
+		$ball_points = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
+		$ball_points_options = [];
+		foreach ($ball_points as $label) {
+			// Extract value: if it starts with '+', keep '+', else just the number before space
+			if (strpos($label, '+') === 0) {
+				$value = substr($label, 0, strpos($label, ' ')); // '+14'
+			} else {
+				$value = strtok($label, ' '); // '7'
+			}
+			$ball_points_options[$value] = $label;
+		}
+		$this->data['ball_points_options'] = $ball_points_options;
+		
+		$position_points = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
+		$position_points_options = [];
+		foreach ($position_points as $label) {
+			if (strpos($label, '+') === 0) {
+				$value = substr($label, 0, strpos($label, ' ')); // '+14'
+			} else {
+				$value = strtok($label, ' '); // '7'
+			}
+			$position_points_options[$value] = $label;
+		}
+		$this->data['position_points_options'] = $position_points_options;
+		
+		// **RESTORE ALL SAVED SETTINGS TO FORM VARIABLES**
+		$this->data['selected_wheeling'] = $record_id . '|' . $original_filename;
+		$this->data['selected_h_w_c_group'] = $saved_settings['h_w_c_group'] ?? '';
+		$this->data['selected_extra_ball'] = $saved_settings['extra_balls'] ?? 'ALL';
+		$this->data['selected_followers_type'] = $saved_settings['follower_type'] ?? '';
+		
+		// Handle ball points with fallback for unavailable values (silent fallback)
+		$saved_ball_points = $saved_settings['ball_points'] ?? '';
+		if (!empty($saved_ball_points) && !array_key_exists($saved_ball_points, $ball_points_options)) {
+			// Saved value not available, use closest available option without notification
+			$this->data['selected_ball_points'] = !empty($ball_points_options) ? array_keys($ball_points_options)[0] : '';
+		} else {
+			$this->data['selected_ball_points'] = $saved_ball_points;
+		}
+		
+		// Handle position points with fallback for unavailable values (silent fallback)
+		$saved_position_points = $saved_settings['position_points'] ?? '';
+		if (!empty($saved_position_points) && !array_key_exists($saved_position_points, $position_points_options)) {
+			// Saved value not available, use closest available option without notification
+			$this->data['selected_position_points'] = !empty($position_points_options) ? array_keys($position_points_options)[0] : '';
+		} else {
+			$this->data['selected_position_points'] = $saved_position_points;
+		}
+		
+		$this->data['selected_friends'] = $saved_settings['selected_friends'] ?? '';
+		$this->data['selected_hwc'] = (bool)($saved_settings['hwc'] ?? false);
+		$this->data['selected_followers'] = (bool)($saved_settings['followers'] ?? false);
+		$this->data['selected_friends_checkbox'] = (bool)($saved_settings['friends'] ?? false);
+		
+		// Determine which elements should be disabled based on checkbox states
+		$hwc_only = $this->data['selected_hwc'] && !$this->data['selected_followers'];
+		$followers_only = !$this->data['selected_hwc'] && $this->data['selected_followers'];
+		
+		// Set disable states for form controls
+		$this->data['disable_hwc_dropdown'] = $followers_only;
+		$this->data['disable_followers_controls'] = $hwc_only;
+
+		$this->data['selected_trends'] = $saved_settings['trends'] ?? '';
+		$this->data['selected_winning_sums'] = $saved_settings['winning_sums'] ?? '';
+		$this->data['selected_winning_digits'] = $saved_settings['winning_digits'] ?? '';
+		$this->data['selected_repeaters'] = $saved_settings['repeaters'] ?? '';
+		$this->data['selected_consecutives'] = $saved_settings['consecutives'] ?? '';
+		$this->data['selected_parity'] = $saved_settings['parity'] ?? '';
+		$this->data['selected_decades'] = $saved_settings['decades'] ?? '';
+		$this->data['selected_last_digits'] = $saved_settings['last_digits'] ?? '';
+		$this->data['selected_number_range'] = $saved_settings['number_range'] ?? '';
+		$this->data['selected_adjacents'] = $saved_settings['adjacents'] ?? '';
+		
+		// Store session data for consistency (using the processed values with fallbacks)
+		$session_data = [
+			'selected_h_w_c_group' => $saved_settings['h_w_c_group'] ?? '',
+			'selected_extra_ball' => $saved_settings['extra_balls'] ?? 'ALL',
+			'selected_followers_type' => $saved_settings['follower_type'] ?? '',
+			'selected_ball_points' => $this->data['selected_ball_points'],
+			'selected_position_points' => $this->data['selected_position_points'],
+			'selected_friends' => $saved_settings['selected_friends'] ?? '',
+			'selected_hwc' => (bool)($saved_settings['hwc'] ?? false),
+			'selected_followers' => (bool)($saved_settings['followers'] ?? false),
+			'selected_friends_checkbox' => (bool)($saved_settings['friends'] ?? false),
+			'selected_wheeling' => $record_id . '|' . $original_filename,
+			'selected_trends' => $saved_settings['trends'] ?? '',
+			'selected_winning_sums' => $saved_settings['winning_sums'] ?? '',
+			'selected_winning_digits' => $saved_settings['winning_digits'] ?? '',
+			'selected_repeaters' => $saved_settings['repeaters'] ?? '',
+			'selected_consecutives' => $saved_settings['consecutives'] ?? '',
+			'selected_parity' => $saved_settings['parity'] ?? '',
+			'selected_decades' => $saved_settings['decades'] ?? '',
+			'selected_last_digits' => $saved_settings['last_digits'] ?? '',
+			'selected_number_range' => $saved_settings['number_range'] ?? '',
+			'selected_adjacents' => $saved_settings['adjacents'] ?? '',
+			'selected_combo_id' => $record_id,
+		];
+		$this->session->set_userdata('futures_form', $session_data);
+		$this->session->set_userdata('combination_file_id', $combo_id);
+		$this->session->set_userdata('combination_file_name', $original_filename);
+		
+		// Set up empty results (no tickets displayed, user needs to generate)
+		$this->data['combos_paginated'] = [];
+		$this->data['total_filtered'] = 0;
+		$this->data['pagination'] = [
+			'current' => 1,
+			'total' => 0, 
+			'per_page' => 10,
+			'total_filtered' => 0
+		];
+		
+		// Get saved combinations for display
+		$user_id = $this->session->userdata('id');
+		$this->data['saved_combinations'] = $this->lottery_data_m->get_all_user_combination_filters($id, $user_id);
+		
+		// Set up extra ball data if needed
+		$is_independent_extra_ball = !empty($this->data['lottery']->duplicate_extra_ball);
+		$this->data['is_independent_extra_ball'] = $is_independent_extra_ball;
+		if ($is_independent_extra_ball) {
+			$this->data['extra_ball_occurrences'] = $this->lottery_data_m->get_extra_ball_occurrences($id);
+		} else {
+			$this->data['extra_ball_occurrences'] = [];
+		}
+		
+		// Set filter record ID for navigation
+		$this->data['filter_record_id'] = $record_id;
+		
+		// Show success message directly (not flashdata since we're not redirecting)
+		$this->data['message'] = '<div class="alert alert-success">Previous settings have been restored successfully. Click "Generate Tickets" to create new filtered combinations.</div>';
+		
+		// Load the futures view with restored settings
+		$this->data['subview'] = 'admin/dashboard/predictions/futures';
+		$this->load->view('admin/_layout_main', $this->data);
+	}
+	
 	/**
 	 * Refresh method to restore previously saved combination filter settings
 	 * 
@@ -3542,64 +3808,44 @@ class Predictions extends Admin_Controller {
 			log_message('error', "Refresh method: Filtered tickets file does not exist at: " . $file_path);
 		}
 		
-		log_message('error', "Refresh method: Could not load existing filtered tickets, falling back to regeneration");
+		log_message('error', "Refresh method: Could not load existing filtered tickets, falling back to form restoration only");
 		
-		// **FALLBACK: REGENERATE TICKETS IF EXISTING ONES CAN'T BE LOADED**
-		// Set the session data that the combination method expects
-		$session_data = [
-			'selected_h_w_c_group' => $saved_settings['h_w_c_group'],
-			'selected_extra_ball' => $saved_settings['extra_balls'] ?? 'ALL', // Restore extra ball filter to session
-			'selected_followers_type' => $saved_settings['follower_type'],
-			'selected_ball_points' => $saved_settings['ball_points'],
-			'selected_position_points' => $saved_settings['position_points'],
-			'selected_friends' => $saved_settings['selected_friends'],
-			'selected_hwc' => (bool)$saved_settings['hwc'],
-			'selected_followers' => (bool)$saved_settings['followers'],
-			'selected_friends_checkbox' => (bool)$saved_settings['friends'],
-			'selected_wheeling' => $record_id . '|' . $original_filename,
-			'selected_trends' => $saved_settings['trends'],
-			'selected_winning_sums' => $saved_settings['winning_sums'],
-			'selected_winning_digits' => $saved_settings['winning_digits'],
-			'selected_repeaters' => $saved_settings['repeaters'],
-			'selected_consecutives' => $saved_settings['consecutives'],
-			'selected_parity' => $saved_settings['parity'],
-			'selected_decades' => $saved_settings['decades'],
-			'selected_last_digits' => $saved_settings['last_digits'],
-			'selected_number_range' => $saved_settings['number_range'],
-			'selected_adjacents' => $saved_settings['adjacents'],
-			'selected_combo_id' => $record_id,
+		// **FALLBACK: RESTORE FORM SETTINGS WITHOUT REGENERATING TICKETS**
+		// If we can't load existing tickets, just restore the form settings and show empty results
+		// This prevents timeout errors and allows user to manually regenerate if needed
+		
+		// Set up basic lottery data and empty results
+		$this->data['combos_paginated'] = [];
+		$this->data['total_filtered'] = 0;
+		$this->data['pagination'] = [
+			'current' => 1,
+			'total' => 0,
+			'per_page' => 10,
+			'total_filtered' => 0
 		];
 		
-		$this->session->set_userdata('futures_form', $session_data);
-		$this->session->set_userdata('combination_file_id', $combo_id);
-		$this->session->set_userdata('combination_file_name', $original_filename);
+		// Get all saved combination filters for the user 
+		$user_id = $this->session->userdata('id');
+		$this->data['saved_combinations'] = $this->lottery_data_m->get_all_user_combination_filters($id, $user_id);
 		
-		// Redirect to combination method with POST data to trigger ticket generation
-		$_POST = [
-			'h_w_c_group' => $saved_settings['h_w_c_group'],
-			'extra_ball_filter' => $saved_settings['extra_balls'] ?? 'ALL', // Add extra ball filter
-			'hwc' => $saved_settings['hwc'] ? '1' : '0',
-			'followers' => $saved_settings['followers'] ? '1' : '0',
-			'friends' => $saved_settings['friends'] ? '1' : '0',
-			'followers_type' => $saved_settings['follower_type'],
-			'ball_points' => $saved_settings['ball_points'],
-			'position_points' => $saved_settings['position_points'],
-			'friends_dropdown' => $saved_settings['selected_friends'],
-			'combination_file' => $record_id . '|' . $original_filename,
-			'trends' => $saved_settings['trends'],
-			'winning_sums' => $saved_settings['winning_sums'],
-			'winning_digits' => $saved_settings['winning_digits'],
-			'repeaters' => $saved_settings['repeaters'],
-			'consecutives' => $saved_settings['consecutives'],
-			'parity' => $saved_settings['parity'],
-			'decades' => $saved_settings['decades'],
-			'last_digits' => $saved_settings['last_digits'],
-			'number_range' => $saved_settings['number_range'],
-			'adjacents' => $saved_settings['adjacents']
-		];
+		// Set up extra ball related variables for the view
+		$is_independent_extra_ball = !empty($this->data['lottery']->duplicate_extra_ball);
+		$this->data['is_independent_extra_ball'] = $is_independent_extra_ball;
+		if ($is_independent_extra_ball) {
+			$this->data['extra_ball_occurrences'] = $this->lottery_data_m->get_extra_ball_occurrences($id);
+		} else {
+			$this->data['extra_ball_occurrences'] = [];
+		}
 		
-		// Call the combination method directly with the POST data
-		return $this->combination($id);
+		// Set filter record ID for navigation
+		$this->data['filter_record_id'] = $record_id;
+		
+		// Show message that settings were restored but tickets need to be regenerated
+		$this->session->set_flashdata('message', '<div class="alert alert-info">Previous settings have been restored. Click "Generate Tickets" to create new filtered combinations.</div>');
+		
+		// Load the futures view with restored settings but no tickets
+		$this->data['subview'] = 'admin/dashboard/predictions/futures';
+		$this->load->view('admin/_layout_main', $this->data);
 	}
 	/**
 	 * Delete combination filter record and associated file
