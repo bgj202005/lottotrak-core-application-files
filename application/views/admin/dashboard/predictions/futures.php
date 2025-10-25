@@ -1072,12 +1072,8 @@
 														<!-- H-W-C -->
 														<td data-label="H-W-C">
 															<?php
-															// Don't render as disabled if there's an error message - let JavaScript handle it
-															$disabled_attr = '';
-															if (empty($message) || strpos($message, 'Either Hot - Warm - Cold checkbox or Follower checkbox') === false) {
-																$disabled_attr = 'disabled';
-															}
-															$js = 'id="hwc-checkbox" class="preset-checkbox" ' . $disabled_attr;
+															// Always allow checkbox to be interactable
+															$js = 'id="hwc-checkbox" class="preset-checkbox"';
 															echo form_checkbox('hwc', '1', !empty($selected_hwc), $js);
 															?>
 														</td>
@@ -1087,12 +1083,8 @@
 														<!-- Followers -->
 														<td data-label="Followers">
 															<?php
-															// Don't render as disabled if there's an error message - let JavaScript handle it
-															$disabled_attr = '';
-															if (empty($message) || strpos($message, 'Either Hot - Warm - Cold checkbox or Follower checkbox') === false) {
-																$disabled_attr = 'disabled';
-															}
-															$js = 'id="followers-checkbox" class="preset-checkbox" ' . $disabled_attr;
+															// Always allow checkbox to be interactable
+															$js = 'id="followers-checkbox" class="preset-checkbox"';
 															echo form_checkbox('followers', '1', !empty($selected_followers), $js);
 															?>
 														</td>
@@ -1102,12 +1094,8 @@
 														<!-- Friends -->
 														<td data-label="Friends">
 															<?php
-															// Don't render as disabled if there's an error message - let JavaScript handle it
-															$disabled_attr = '';
-															if (empty($message) || strpos($message, 'Either Hot - Warm - Cold checkbox or Follower checkbox') === false) {
-																$disabled_attr = 'disabled';
-															}
-															$js = 'id="friends-checkbox" class="preset-checkbox" ' . $disabled_attr;
+															// Always allow checkbox to be interactable
+															$js = 'id="friends-checkbox" class="preset-checkbox"';
 															echo form_checkbox('friends', '1', !empty($selected_friends_checkbox), $js);
 															?>
 														</td>

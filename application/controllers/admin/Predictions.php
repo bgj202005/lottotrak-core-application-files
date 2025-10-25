@@ -1564,11 +1564,20 @@ class Predictions extends Admin_Controller {
 			$this->session->set_userdata('combination_file_id', $combo_id);
 			$this->session->set_userdata('combination_file_name', $combination_file);
 			if ($session_data) {
-				// Use POST values if available, otherwise fall back to session values
-				// Simplified logic: if checkbox is posted and equals '1', it's checked; otherwise use session value
-				$hwc_checked = ($this->input->post('hwc') == '1') ? true : (isset($session_data['selected_hwc']) ? (bool)$session_data['selected_hwc'] : false);
-				$followers_checked = ($this->input->post('followers') == '1') ? true : (isset($session_data['selected_followers']) ? (bool)$session_data['selected_followers'] : false);
-				$friends_checked = ($this->input->post('friends') == '1') ? true : (isset($session_data['selected_friends_checkbox']) ? (bool)$session_data['selected_friends_checkbox'] : false);
+				// Detect if this is a form submission by checking for the submit button
+				$is_form_submission = ($this->input->post('submit') === 'Generate Tickets');
+				
+				if ($is_form_submission) {
+					// This is a form submission - use POST values (unchecked checkboxes will be false)
+					$hwc_checked = ($this->input->post('hwc') == '1');
+					$followers_checked = ($this->input->post('followers') == '1');
+					$friends_checked = ($this->input->post('friends') == '1');
+				} else {
+					// This is not a form submission (page load/restore) - use session values
+					$hwc_checked = isset($session_data['selected_hwc']) ? (bool)$session_data['selected_hwc'] : false;
+					$followers_checked = isset($session_data['selected_followers']) ? (bool)$session_data['selected_followers'] : false;
+					$friends_checked = isset($session_data['selected_friends_checkbox']) ? (bool)$session_data['selected_friends_checkbox'] : false;
+				}
  				$h_w_c_group = ($this->input->post('h_w_c_group') ? $this->input->post('h_w_c_group') : $this->session->userdata('selected_h_w_c_group'));
 				$selected_extra_ball = ($this->input->post('extra_ball_filter') ? $this->input->post('extra_ball_filter') : $this->session->userdata('selected_extra_ball'));
 				
@@ -1627,10 +1636,20 @@ class Predictions extends Admin_Controller {
 				$this->data['disable_combination_dropdown'] = true;
 			} else {
 				// Get all POST values and save to session for future pagination
-				// Also check session as fallback for restored settings
-				$hwc_checked = ($this->input->post('hwc') == '1') ? true : (bool)$this->session->userdata('selected_hwc');
-				$followers_checked = ($this->input->post('followers') == '1') ? true : (bool)$this->session->userdata('selected_followers');
-				$friends_checked = ($this->input->post('friends') == '1') ? true : (bool)$this->session->userdata('selected_friends_checkbox');
+				// Detect if this is a form submission by checking for the submit button
+				$is_form_submission = ($this->input->post('submit') === 'Generate Tickets');
+				
+				if ($is_form_submission) {
+					// This is a form submission - use POST values (unchecked checkboxes will be false)
+					$hwc_checked = ($this->input->post('hwc') == '1');
+					$followers_checked = ($this->input->post('followers') == '1');
+					$friends_checked = ($this->input->post('friends') == '1');
+				} else {
+					// This is not a form submission (page load/restore) - use session values as fallback
+					$hwc_checked = (bool)$this->session->userdata('selected_hwc');
+					$followers_checked = (bool)$this->session->userdata('selected_followers');
+					$friends_checked = (bool)$this->session->userdata('selected_friends_checkbox');
+				}
 				
 				$h_w_c_group = $this->input->post('h_w_c_group', TRUE);
 				$selected_extra_ball = $this->input->post('extra_ball_filter', TRUE);
@@ -1990,7 +2009,7 @@ class Predictions extends Admin_Controller {
 							$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);
 							$this->data['lottery']->winning_sums = $this->predictions_m->get_sums($this->data['lottery']->highlights['winning_sums']);
 							$this->data['lottery']->winning_digits = $this->predictions_m->get_digit_sums($this->data['lottery']->highlights['winning_digits']);
-							$this->data['lottery']->repeaters = $this->predictions_m->get_repeaters($this->data['lottery']->highlights['repeaters']);
+							$this->data['lottery']->repeaters = $this->predictions_m->get_repeaters($this->data['lottery']->highlights['repeats']);
 							$this->data['lottery']->consecutives = $this->predictions_m->get_consecutives($this->data['lottery']->highlights['consecutives']);
 							$this->data['lottery']->parity = $this->predictions_m->get_parity($this->data['lottery']->highlights['parity']);
 							$this->data['lottery']->decades = $this->predictions_m->get_decade($tbl_name, $this->data['lottery']->highlights['range']);
