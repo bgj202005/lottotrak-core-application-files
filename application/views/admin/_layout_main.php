@@ -10,11 +10,11 @@
     <!-- Collect the nav links, forms, and other content for toggling -->
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav" style="font-weight: normal;">
-        <li class="nav-item<?= ($current=='dashboard' ? ' active' : ''); ?>" style ="margin-top:8px;"><a href="<?php echo site_url('admin/dashboard');?>" style="font-weight: normal;">Dashboard</a></li>
-        <li class="nav-item<?= ($current=='page' ? ' active' : ''); ?>"><?php echo anchor('admin/page', 'Pages', 'class = "nav-link" style="font-weight: normal;"');?></li>
-        <li class="nav-item<?= ($current=='article' ? ' active' : ''); ?>"><?php echo anchor('admin/article', 'Lottery News Articles','class = "nav-link" style="font-weight: normal;"');?></li>
-        <li class="nav-item<?= ($current=='membership' ? ' active' : ''); ?>"><?php echo anchor('admin/membership', 'Members', 'class = "nav-link" style="font-weight: normal;"');?></li>
-        <li class="nav-item dropdown<?= ($current=='lotteries' ? ' active' : ''); ?>">
+        <li class="nav-item<?= (isset($current) && $current=='dashboard' ? ' active' : ''); ?>" style ="margin-top:8px;"><a href="<?php echo site_url('admin/dashboard');?>" style="font-weight: normal;">Dashboard</a></li>
+        <li class="nav-item<?= (isset($current) && $current=='page' ? ' active' : ''); ?>"><?php echo anchor('admin/page', 'Pages', 'class = "nav-link" style="font-weight: normal;"');?></li>
+        <li class="nav-item<?= (isset($current) && $current=='article' ? ' active' : ''); ?>"><?php echo anchor('admin/article', 'Lottery News Articles','class = "nav-link" style="font-weight: normal;"');?></li>
+        <li class="nav-item<?= (isset($current) && $current=='membership' ? ' active' : ''); ?>"><?php echo anchor('admin/membership', 'Members', 'class = "nav-link" style="font-weight: normal;"');?></li>
+        <li class="nav-item dropdown<?= (isset($current) && $current=='lotteries' ? ' active' : ''); ?>">
         <?php $attr = array('class' => "nav-link dropdown-toggle", 'id' => "navbarDropdown", 'role'=> "button", 
         'data-toggle'=> "dropdown",  'aria-haspopup' => "true", 'aria-expanded' => "false");
         echo anchor('admin/lotteries', 'Lotteries', $attr);?>
@@ -23,7 +23,7 @@
             <?php echo anchor('admin/lotteries/edit', 'Add New Lottery Profile', 'class = "dropdown-item" style="font-weight: normal;"'); ?>
           </div> 
         </li>
-        <li class="nav-item dropdown<?= ($current=='statistics' ? ' active' : ''); ?>">
+        <li class="nav-item dropdown<?= (isset($current) && $current=='statistics' ? ' active' : ''); ?>">
         <?php $attr = array('class' => "nav-link dropdown-toggle", 'id' => "navbarDropdown", 'role'=> "button", 
         'data-toggle'=> "dropdown",  'aria-haspopup' => "true", 'aria-expanded' => "false");
         echo anchor('admin/statistics', 'Statistics', $attr);?>
@@ -32,7 +32,7 @@
             <?php echo anchor('admin/history', 'View Lottery Win History', 'class = "dropdown-item" style="font-weight: normal;"'); ?>
           </div> 
         </li>
-        <li class="nav-item dropdown<?= ($current=='predictions' ? ' active' : ''); ?>">
+        <li class="nav-item dropdown<?= (isset($current) && $current=='predictions' ? ' active' : ''); ?>">
         <?php $attr = array('class' => "nav-link dropdown-toggle", 'id' => "navbarDropdown", 'role'=> "button", 
         'data-toggle'=> "dropdown",  'aria-haspopup' => "true", 'aria-expanded' => "false");
         echo anchor('admin/predictions', 'Predictions', $attr);?>
@@ -40,7 +40,7 @@
             <?php echo anchor('admin/predictions', 'View Lottery Predictions', 'class = "dropdown-item" style="font-weight: normal;"'); ?>
           </div> 
         </li>
-        <li class="nav-item dropdown<?= (($current=='0'||$current=='1'||$current=='2') ? ' active' : ''); ?>">
+        <li class="nav-item dropdown<?= (isset($current) && ($current=='0'||$current=='1'||$current=='2') ? ' active' : ''); ?>">
         <?php $attr = array('class' => "nav-link dropdown-toggle", 'id' => "navbarDropdown", 'role'=> "button", 
         'data-toggle'=> "dropdown",  'aria-haspopup' => "true", 'aria-expanded' => "false");
         echo anchor('admin/menuorder', 'Menu Order', $attr);?>
@@ -50,7 +50,7 @@
             <?php echo anchor('admin/page/order/2', 'Footer Outside Order', 'class = "dropdown-item" style="font-weight: normal;"'); ?>
           </div> 
         </li>
-        <li class="nav-item<?= ($current=='user' ? ' active' : ''); ?>"><?php echo anchor('admin/user', 'Admins', 'class = "nav-link" style="font-weight: normal;"');?></li>
+        <li class="nav-item<?= (isset($current) && $current=='user' ? ' active' : ''); ?>"><?php echo anchor('admin/user', 'Admins', 'class = "nav-link" style="font-weight: normal;"');?></li>
         <li class="nav-item"><?php echo anchor_popup(base_url(), '<i class="fa fa-globe" style="color:#fff; padding: 5px; margin-top:5px;"></i>')?></li>        
       </ul>
     </div><!-- /.navbar-collapse -->
@@ -151,7 +151,7 @@
 		    		<section><!--   <h3><?php //echo $status; ?></h3> -->
 		    		 </section>
 		    		<section>
-		    			<?php   $this->load->view($subview); ?>
+		    			<?php if(isset($subview)) { $this->load->view($subview); } ?>
 		    		</section>
 		    	</div>
 		    <!--  Sidebar -->
@@ -161,17 +161,17 @@
             <br />
             <?php echo anchor('admin/user/edit/'.$this->session->userdata['id'], '<i class="fa fa-user" style="margin-right:15px; color: #4183C4; text-decoration: none; background-color: transparent;"></i> '.$this->session->userdata['email'], 'style="font-weight: normal !important;"');?>
             <br />
-            <?php if($maintenance):
+            <?php if(isset($maintenance) && $maintenance):
                 echo anchor('admin/maintenance/', '<i class="fa fa-toggle-off" style="margin-right:10px; color: #4183C4; text-decoration: none; background-color: transparent;"></i> frontend offline', 'style="font-weight: normal !important;"');
                 else: 
                 echo anchor('admin/maintenance/', '<i class="fa fa-toggle-on" style="margin-right:10px; color: #4183C4; text-decoration: none; background-color: transparent;"></i> frontend online', 'style="font-weight: normal !important;"');
                 endif;?><br />
             <i class="fa fa-user-circle-o" aria-hidden="true" style="margin-right:10px; color: #4183C4; text-decoration: none; background-color: transparent;">
-            <span style = "margin-left:10px; font-weight: normal;"><span id = "admins" style="font-weight: normal;"><?php echo sprintf("%02d", $admins); ?></span> Admins Online</span></i> <br />
+            <span style = "margin-left:10px; font-weight: normal;"><span id = "admins" style="font-weight: normal;"><?php echo sprintf("%02d", isset($admins) ? $admins : 0); ?></span> Admins Online</span></i> <br />
             <i class="fa fa-users" aria-hidden="true" style="margin-right:10px; color: #4183C4; text-decoration: none; background-color: transparent;">
-            <span style = "margin-left:10px; font-weight: normal;"><span id = "members" style="font-weight: normal;"><?php echo sprintf("%02d", $users); ?></span> Members Online</span></i><br />
+            <span style = "margin-left:10px; font-weight: normal;"><span id = "members" style="font-weight: normal;"><?php echo sprintf("%02d", isset($users) ? $users : 0); ?></span> Members Online</span></i><br />
             <i class="fa fa-user-times" aria-hidden="true" style="margin-right:10px; color: #4183C4; text-decoration: none; background-color: transparent;">
-            <span style = "margin-left:10px; font-weight: normal;"><span id = "visitors" style="font-weight: normal;"><?php echo sprintf("%02d", $visitors); ?></span> Visitors Online</span></i><br />
+            <span style = "margin-left:10px; font-weight: normal;"><span id = "visitors" style="font-weight: normal;"><?php echo sprintf("%02d", isset($visitors) ? $visitors : 0); ?></span> Visitors Online</span></i><br />
 		    	<br />
 		    	</section>
 		    </div>

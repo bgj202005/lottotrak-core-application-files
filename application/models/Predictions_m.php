@@ -1541,12 +1541,22 @@ class Predictions_m extends MY_Model
 	public function hwc_followers($lottery_id, $combination_size, $h_w_c, $follower_type, $follower_select)
 	{
 	// 1. Parse H-W-C group (e.g., "4-3-3")
-	preg_match('/(\d+)-(\d+)-(\d+)/', $h_w_c, $matches);
+	if (empty($h_w_c) || !preg_match('/(\d+)-(\d+)-(\d+)/', $h_w_c, $matches)) {
+		// If no valid H-W-C group provided, return false
+		return FALSE;
+	}
+	
 	$h = (int)$matches[1];
 	$w = (int)$matches[2];
 	$c = (int)$matches[3];
+	
 	// 2. Calculate scaled totals for combination size
 	$total = $h + $w + $c;
+	if ($total == 0) {
+		// Prevent division by zero
+		return FALSE;
+	}
+	
 	$h_total = round(($h / $total) * $combination_size);
 	$w_total = round(($w / $total) * $combination_size);
 	$c_total = $combination_size - $h_total - $w_total;
