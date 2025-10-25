@@ -1030,7 +1030,6 @@
 									<div class="d-flex align-items-center justify-content-between flex-wrap">
 										<div class="status-info d-flex align-items-center flex-wrap">
 											<span id="status-badge" class="badge badge-success mr-3" style="font-size: 0.9rem;">Active</span>
-											<span id="file-info" class="mr-3" style="font-weight: bold; color: #495057;">File Info</span>
 											<span id="tickets-count" class="mr-3" style="color: #28a745; font-weight: bold;">Filtered Tickets: 0</span>
 										</div>
 										<div class="action-icons d-flex align-items-center">
@@ -1646,20 +1645,16 @@
         }
         
         const statusBadge = document.getElementById('status-badge');
-        const fileInfo = document.getElementById('file-info');
         const ticketsCount = document.getElementById('tickets-count');
         const actionIcons = document.querySelector('.action-icons');
-        
-        if (statusDisplay && statusBadge && fileInfo && ticketsCount) {
+
+        if (statusDisplay && statusBadge && ticketsCount) {
             // Update badge
             statusBadge.textContent = data.status_text;
             statusBadge.className = 'badge ' + data.status_badge_class + ' mr-3';
             statusBadge.style.backgroundColor = data.status_badge_color;
             statusBadge.style.color = 'white';
             statusBadge.style.fontSize = '0.9rem';
-            
-            // Update file info
-            fileInfo.textContent = '(' + data.file_name + ')';
             
             // Update tickets count
             ticketsCount.textContent = 'Filtered Tickets: ' + data.filtered_tickets_count;
