@@ -2862,11 +2862,16 @@ class Predictions extends Admin_Controller {
 		// Grab the next draw date
 		$ld = $this->data['lottery']->last_drawn['draw_date'];
 		$mysql_date = $this->lottery_data_m->format_date_to_mysql($ld);
+		
+		// Format the generated numbers as comma-separated string (e.g., "46,24,1,42,30,19,44")
+		$numbers_string = is_array($number_array) ? implode(',', $number_array) : '';
+		
 		$save_data = [
   			'file_name' => $file_name,
 			'N' => $N,
 			'R' => $R,
 			'CCCC' => $filtered_count, // Use actual filtered count
+			'numbers' => $numbers_string, // Store generated numbers as comma-separated string
 			'hwc' => $session_data['selected_hwc'] ? 1 : 0,
 			'followers' => $session_data['selected_followers'] ? 1 : 0,
 			'friends' => $session_data['selected_friends_checkbox'] ? 1 : 0,
