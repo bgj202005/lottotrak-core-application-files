@@ -155,6 +155,64 @@
                         </div>
                     </div>
 
+                    <!-- Predicted Numbers Section -->
+                    <div class="predicted-numbers-container" style="margin-bottom: 15px; padding: 15px; background: #e8f4fd; border-radius: 8px; border: 1px solid #b8daff;">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="predicted-numbers-display" id="predicted-numbers-display">
+                                    <?php if (!empty($filter->numbers)): ?>
+                                        <h5 style="margin-bottom: 10px; color: #0c5aa6;"><strong>Predicted Numbers:</strong></h5>
+                                        <div class="predicted-numbers-list">
+                                            <?php
+                                            // Parse the comma-separated numbers
+                                            $predicted_numbers = explode(',', $filter->numbers);
+                                            $drawn_numbers = array();
+                                            $bonus_numbers = array();
+                                            
+                                            // Get drawn numbers if available
+                                            if ($draw_info) {
+                                                // Collect main drawn numbers
+                                                for ($i = 1; $i <= $filter->N; $i++) {
+                                                    $ball_field = 'ball' . $i;
+                                                    if (property_exists($draw_info, $ball_field)) {
+                                                        $drawn_numbers[] = $draw_info->$ball_field;
+                                                    }
+                                                }
+                                                
+                                                // Collect bonus numbers if they exist
+                                                if (!empty($filter->extra_ball) && property_exists($draw_info, 'bonus')) {
+                                                    $bonus_numbers[] = $draw_info->bonus;
+                                                }
+                                            }
+                                            
+                                            // Display each predicted number with appropriate highlighting
+                                            foreach ($predicted_numbers as $number) {
+                                                $number = trim($number);
+                                                $class = 'combination-number';
+                                                
+                                                if (in_array($number, $drawn_numbers)) {
+                                                    $class .= ' winning-number';
+                                                } elseif (in_array($number, $bonus_numbers)) {
+                                                    $class .= ' bonus-number-match';
+                                                }
+                                                
+                                                echo '<span class="' . $class . '" style="margin-right: 8px;">' . sprintf('%02d', $number) . '</span>';
+                                            }
+                                            
+                                            // Add (TBD) indicator if draw is not available
+                                            if (isset($display_mode) && $display_mode == 'tbd') {
+                                                echo '<span style="margin-left: 15px; color: #6c757d; font-style: italic;">(TBD)</span>';
+                                            }
+                                            ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <h5 style="margin-bottom: 0; color: #6c757d;"><strong>No Predicted Numbers are available.</strong></h5>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Number Highlighting Legend -->
                     <div class="legend-container" style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
                         <div class="row">
@@ -1255,6 +1313,65 @@ $(document).ready(function() {
             
             $('.drawn-numbers-display').html(numbersHtml);
         }
+        
+        // Update predicted numbers display
+        updatePredictedNumbers(response);
+    }
+    
+    function updatePredictedNumbers(response) {
+        var predictedContainer = $('#predicted-numbers-display');
+        
+        if (!response.filter.numbers || response.filter.numbers.trim() === '') {
+            // No predicted numbers available
+            predictedContainer.html('<h5 style="margin-bottom: 0; color: #6c757d;"><strong>No Predicted Numbers are available.</strong></h5>');
+            return;
+        }
+        
+        // Parse predicted numbers
+        var predictedNumbers = response.filter.numbers.split(',');
+        var drawnNumbers = [];
+        var bonusNumbers = [];
+        
+        // Get drawn numbers if available
+        if (response.draw_info) {
+            // Collect main drawn numbers
+            for (var i = 1; i <= response.filter.N; i++) {
+                var ballField = 'ball' + i;
+                if (response.draw_info[ballField]) {
+                    drawnNumbers.push(response.draw_info[ballField].toString());
+                }
+            }
+            
+            // Collect bonus numbers if they exist
+            if (response.filter.extra_ball && response.draw_info.bonus) {
+                bonusNumbers.push(response.draw_info.bonus.toString());
+            }
+        }
+        
+        // Build predicted numbers HTML
+        var numbersHtml = '<h5 style="margin-bottom: 10px; color: #0c5aa6;"><strong>Predicted Numbers:</strong></h5>';
+        numbersHtml += '<div class="predicted-numbers-list">';
+        
+        for (var i = 0; i < predictedNumbers.length; i++) {
+            var number = predictedNumbers[i].trim();
+            var className = 'combination-number';
+            
+            if (drawnNumbers.indexOf(number) !== -1) {
+                className += ' winning-number';
+            } else if (bonusNumbers.indexOf(number) !== -1) {
+                className += ' bonus-number-match';
+            }
+            
+            numbersHtml += '<span class="' + className + '" style="margin-right: 8px;">' + String(number).padStart(2, '0') + '</span>';
+        }
+        
+        // Add (TBD) indicator if draw is not available
+        if (response.display_mode === 'tbd') {
+            numbersHtml += '<span style="margin-left: 15px; color: #6c757d; font-style: italic;">(TBD)</span>';
+        }
+        
+        numbersHtml += '</div>';
+        predictedContainer.html(numbersHtml);
     }
     
     function getResultSortValue(category) {
