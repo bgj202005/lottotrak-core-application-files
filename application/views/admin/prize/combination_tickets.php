@@ -916,10 +916,14 @@ $(document).ready(function() {
     var filterId = <?php echo $filter->id; ?>;
     var currentPage = <?php echo $current_page; ?>;
     var totalPages = <?php echo $total_pages; ?>;
+    var currentSortColumn = null; // Track current sort column
+    var currentSortOrder = 'asc'; // Track current sort order
+    var currentPerPage = <?php echo $per_page; ?>; // Track current per page setting
     
     // Handle per page change - ORIGINAL FUNCTIONALITY RESTORED
     $('#per_page_select').change(function() {
         var per_page = $(this).val();
+        currentPerPage = per_page;
         loadPage(1, per_page);
     });
     
@@ -944,26 +948,12 @@ $(document).ready(function() {
         var icon = newSort === 'asc' ? '↑' : '↓';
         $this.find('.sort-icon').text(icon);
         
-        // Sort the table rows
-        var $tbody = $('#tickets-tbody');
-        var rows = $tbody.find('tr').get();
+        // Store current sort settings globally
+        currentSortOrder = newSort;
+        currentSortColumn = 'check_results';
         
-        rows.sort(function(a, b) {
-            var aValue = parseInt($(a).data('check-results')) || 999;
-            var bValue = parseInt($(b).data('check-results')) || 999;
-            
-            if (newSort === 'asc') {
-                return aValue - bValue;
-            } else {
-                return bValue - aValue;
-            }
-        });
-        
-        // Re-append sorted rows
-        $tbody.empty();
-        $.each(rows, function(index, row) {
-            $tbody.append(row);
-        });
+        // Reload the first page with new sorting applied to all results
+        loadPage(1, currentPerPage);
     });
 
     
@@ -980,7 +970,9 @@ $(document).ready(function() {
             data: {
                 filter_id: filterId,
                 page: page,
-                per_page: per_page
+                per_page: per_page,
+                sort_column: currentSortColumn,
+                sort_order: currentSortOrder
             },
             success: function(response) {
                 if (response.success) {

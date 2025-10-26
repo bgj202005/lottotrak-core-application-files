@@ -1046,6 +1046,8 @@ class Prize extends Admin_Controller
             $filter_id = $this->input->post('filter_id');
             $page = $this->input->post('page') ? (int)$this->input->post('page') : 1;
             $per_page = $this->input->post('per_page') ? (int)$this->input->post('per_page') : 10;
+            $sort_column = $this->input->post('sort_column');
+            $sort_order = $this->input->post('sort_order') === 'desc' ? 'desc' : 'asc';
             $admin_id = $this->session->userdata('id');
             
             if (!$admin_id || !$filter_id) {
@@ -1077,7 +1079,7 @@ class Prize extends Admin_Controller
             // Calculate offset
             $offset = ($page - 1) * $per_page;
             
-            // Get combination tickets
+            // Get combination tickets (sorting handled separately below)
             $tickets = $this->get_paginated_combination_tickets($filter, $per_page, $offset);
             
             $total_tickets = $this->count_combination_tickets($filter);
@@ -1199,9 +1201,36 @@ class Prize extends Admin_Controller
                 $filter->active = 0;
             }
             
-            // Calculate win results for each ticket
-            foreach ($tickets as &$ticket) {
-                $ticket['win_result'] = $this->calculate_ticket_win_result($ticket['numbers'], $draw_info, $filter, $display_mode, $next_draw_date);
+            // Handle sorting by check results - need to get ALL tickets when sorting is requested
+            if ($sort_column === 'check_results') {
+                // Get all tickets for sorting
+                $all_tickets = $this->get_paginated_combination_tickets($filter, $total_tickets, 0);
+                
+                // Calculate win results for all tickets
+                foreach ($all_tickets as &$ticket) {
+                    $ticket['win_result'] = $this->calculate_ticket_win_result($ticket['numbers'], $draw_info, $filter, $display_mode, $next_draw_date);
+                }
+                
+                // Sort tickets by win result value
+                usort($all_tickets, function($a, $b) use ($sort_order) {
+                    $a_value = $this->get_win_sort_value($a['win_result']['category']);
+                    $b_value = $this->get_win_sort_value($b['win_result']['category']);
+                    
+                    if ($sort_order === 'desc') {
+                        return $b_value - $a_value; // Highest winners first
+                    } else {
+                        return $a_value - $b_value; // Non-winners first
+                    }
+                });
+                
+                // Apply pagination to sorted results
+                $tickets = array_slice($all_tickets, $offset, $per_page);
+            } else {
+                // No sorting - use regular pagination
+                // Calculate win results for current page tickets only
+                foreach ($tickets as &$ticket) {
+                    $ticket['win_result'] = $this->calculate_ticket_win_result($ticket['numbers'], $draw_info, $filter, $display_mode, $next_draw_date);
+                }
             }
             
             // Calculate pagination data
@@ -2523,6 +2552,67 @@ class Prize extends Admin_Controller
         
         // Fallback to default range
         return range(1, 49);
+    }
+    
+    /**
+     * Get sort value for win result categories
+     * Higher values = better wins (for descending sort to show best wins first)
+     * @param string $category Win result category
+     * @return int Sort value
+     */
+    private function get_win_sort_value($category)
+    {
+        // Handle MAJOR PRIZE (jackpot) - highest priority
+        if (strpos($category, 'MAJOR PRIZE') !== false || strpos($category, 'GRAND PRIZE') !== false) {
+            // Extract match count for fine-tuning within jackpot category
+            preg_match('/(\d+)/', $category, $matches);
+            $match_count = isset($matches[1]) ? (int)$matches[1] : 0;
+            return 1000 + $match_count;
+        }
+        
+        // Handle Winning Numbers (minor wins)
+        if (strpos($category, 'Winning Numbers') !== false || strpos($category, 'Main Numbers') !== false) {
+            preg_match('/(\d+)/', $category, $matches);
+            $match_count = isset($matches[1]) ? (int)$matches[1] : 0;
+            return 800 + $match_count;
+        }
+        
+        // Handle Winners + Bonus (bonus wins)
+        if (strpos($category, 'Winners + Bonus') !== false || strpos($category, '+ Extra Winner') !== false) {
+            preg_match('/(\d+)/', $category, $matches);
+            $match_count = isset($matches[1]) ? (int)$matches[1] : 0;
+            return 700 + $match_count;
+        }
+        
+        // Handle Extra/Bonus only wins
+        if (strpos($category, 'Extra / Bonus Winner') !== false || strpos($category, 'Extra Winner') !== false) {
+            return 600;
+        }
+        
+        // Handle TBD
+        if (strpos($category, 'TBD') !== false) {
+            return 50;
+        }
+        
+        // Handle "not a Winner!" categories (but with matches)
+        if (strpos($category, 'not a Winner!') !== false) {
+            preg_match('/(\d+)/', $category, $matches);
+            $match_count = isset($matches[1]) ? (int)$matches[1] : 0;
+            return 100 + $match_count; // Low base value but differentiate by match count
+        }
+        
+        // Handle No Matches
+        if (strpos($category, 'No Matches') !== false) {
+            return 10;
+        }
+        
+        // Handle expired or other no-win scenarios
+        if (strpos($category, 'Expired') !== false || strpos($category, 'No Draw Data') !== false) {
+            return 5;
+        }
+        
+        // Default for unknown categories
+        return 0;
     }
     
     /**
