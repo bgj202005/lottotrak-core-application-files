@@ -113,6 +113,7 @@ class User_M extends MY_Model
 						'email' => $user->email,
 						'id' => $user->id,
 						'loggedin' => TRUE,
+						'last_activity' => time(), // Initialize session activity tracking
 						'uri'	=> 'admin/dashboard/' 
 				);
 				$this->session->set_userdata ( $data );

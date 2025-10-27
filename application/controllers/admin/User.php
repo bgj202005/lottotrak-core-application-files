@@ -54,10 +54,16 @@ class User extends Admin_Controller
 		{
 				
 			// We can save and redirect
-			$data = $this->user_m->array_from_post(array('username', 'name', 'email', 'password'));
+			$data = $this->user_m->array_from_post(array('username', 'name', 'email', 'password', 'inactivity_timeout'));
 
 			//$data['password'] = $this->user_m->hash($data['password'], $this->user_m->unique_salt());
 			$data['password'] = $this->user_m->hash($data['password']);
+			
+			// Validate inactivity_timeout range (5 minutes to 4 hours)
+			$inactivity_timeout = (int)$data['inactivity_timeout'];
+			if ($inactivity_timeout < 300 || $inactivity_timeout > 14400) {
+				$data['inactivity_timeout'] = 1800; // Default to 30 minutes if invalid
+			}
 
 			$this->user_m->save($data, $id);
 			redirect('admin/user');
@@ -343,5 +349,37 @@ class User extends Admin_Controller
 
 	   $this->load->view('admin/_layout_modal', $this->data);
 	   $this->session->sess_destroy();
+	}
+	
+	/**
+	 * AJAX endpoint for session keepalive
+	 */
+	public function keepalive()
+	{
+		header('Content-Type: application/json');
+		
+		if ($this->input->post('keepalive')) {
+			$user_id = $this->session->userdata('id');
+			
+			if ($user_id && $this->user_m->loggedin()) {
+				// Update last activity timestamp
+				$this->session->set_userdata('last_activity', time());
+				
+				echo json_encode(array(
+					'status' => 'active',
+					'message' => 'Session updated'
+				));
+			} else {
+				echo json_encode(array(
+					'status' => 'expired',
+					'message' => 'Session expired'
+				));
+			}
+		} else {
+			echo json_encode(array(
+				'status' => 'error',
+				'message' => 'Invalid request'
+			));
+		}
 	}
 }

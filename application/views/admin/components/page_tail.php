@@ -32,5 +32,47 @@ $(document).ready(function() {
 });
 </script>
 
+<!-- Session Activity Tracker -->
+<script type="text/javascript">
+$(document).ready(function() {
+	// Track user activity to prevent unnecessary session timeouts
+	var activityTimer;
+	var keepaliveInterval = 5 * 60 * 1000; // Send keepalive every 5 minutes
+	
+	// Reset activity timer on user interactions
+	function resetActivityTimer() {
+		clearTimeout(activityTimer);
+		activityTimer = setTimeout(function() {
+			// Send keepalive ping to server
+			$.ajax({
+				url: '<?php echo site_url("admin/user/keepalive"); ?>',
+				type: 'POST',
+				dataType: 'json',
+				data: { keepalive: true },
+				success: function(response) {
+					if (response && response.status === 'active') {
+						console.log('Session keepalive successful');
+					} else if (response && response.status === 'expired') {
+						// Session expired, redirect to login
+						window.location.href = '<?php echo site_url("admin/user/login"); ?>';
+					}
+				},
+				error: function() {
+					console.log('Keepalive request failed');
+				}
+			});
+		}, keepaliveInterval);
+	}
+	
+	// Monitor user activity events
+	$(document).on('click keypress scroll mousemove', function() {
+		resetActivityTimer();
+	});
+	
+	// Initialize activity timer
+	resetActivityTimer();
+});
+</script>
+
 </body>
 </html>
