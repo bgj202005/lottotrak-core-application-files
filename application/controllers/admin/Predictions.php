@@ -754,7 +754,7 @@ class Predictions extends Admin_Controller {
 					$this->data['filter_record_id'] = NULL;
 				}
 			} else {
-				$this->Ffuturedata['filter_record_id'] = NULL;
+				$this->data['filter_record_id'] = NULL;
 			}
 			
 			// Get all saved combination filters for the user (saved for view data, but also used above)
@@ -778,6 +778,19 @@ class Predictions extends Admin_Controller {
 			$ld = $this->data['lottery']->last_drawn['draw_date'];	// Return last draw date
 			$day = $this->lotteries_m->return_day($ld);				// Returns the day of draw, Saturday, Sunday, etc.
 			$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
+
+		// Check if combination dropdown should be disabled (if a combination is already selected)
+		$futures_form = $this->session->userdata('futures_form');
+		$this->data['disable_combination_dropdown'] = !empty($futures_form['selected_wheeling']);
+		
+		// Set the selected wheeling value from session (to show the previously selected combination)
+		$this->data['selected_wheeling'] = $futures_form['selected_wheeling'] ?? '';
+		
+		// Enable Generate Tickets and Reset Settings buttons when a combination is already selected
+		if (!empty($futures_form['selected_wheeling'])) {
+			$this->data['disable_generate_button'] = false; // Enable Generate Tickets button
+		}
+
 		// Load the view
 		unset($this->data['lottery']->highlights);
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
@@ -1367,7 +1380,7 @@ class Predictions extends Admin_Controller {
 				$this->data['filter_record_id'] = NULL;
 			}
 		} else {
-			$this->Ffuturedata['filter_record_id'] = NULL;
+			$this->data['filter_record_id'] = NULL;
 		}
 		// Get next draw date
 		$ld = $this->data['lottery']->last_drawn['draw_date'];
@@ -3282,8 +3295,18 @@ class Predictions extends Admin_Controller {
 		// Set filter record ID for navigation
 		$this->data['filter_record_id'] = $record_id;
 		
-		// Show success message directly (not flashdata since we're not redirecting)
-		$this->data['message'] = '<div class="alert alert-success">Previous settings have been restored successfully. Click "Generate Tickets" to create new filtered combinations.</div>';
+		// Check if this is a back navigation from combination winners
+		$from_winners = $this->input->get('from_winners') === '1';
+		
+		if ($from_winners) {
+			// Coming back from combination winners - just redirect to futures with current session state
+			// Don't load from database, just use what's already in session
+			redirect('admin/predictions/futures/' . $id);
+			return;
+		} else {
+			// Show success message for regular restore operations
+			$this->data['message'] = '<div class="alert alert-success">Previous settings have been restored successfully. Click "Generate Tickets" to create new filtered combinations.</div>';
+		}
 		
 		// Load the futures view with restored settings
 		$this->data['subview'] = 'admin/dashboard/predictions/futures';

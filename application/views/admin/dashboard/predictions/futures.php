@@ -1739,40 +1739,36 @@
 		
 		// Initial state
 		saveBtn.disabled = true;
-		resetBtn.disabled = true;
+		resetBtn.disabled = false; // Reset Settings should always be active
 		deleteBtn.disabled = true;
 		
 		// Check if tickets have been generated (number_array exists)
 		<?php if (!empty($number_array)): ?>
-		// Tickets have been generated, enable Save and Reset buttons
+		// Tickets have been generated, enable Save button
 		saveBtn.disabled = false;
-		resetBtn.disabled = false;
 		<?php endif; ?>
-		//generateBtn.disabled = true;
 		
 		// Enable Generate Tickets when a combination table is selected
 		combinationDropdown.addEventListener('change', function () {
 			if (combinationDropdown.value) {
 				generateBtn.disabled = false;
-				// Only disable Save/Reset buttons if tickets haven't been generated yet
+				// Only disable Save button if tickets haven't been generated yet
 				<?php if (empty($number_array)): ?>
 				saveBtn.disabled = true;
-				resetBtn.disabled = true;
 				<?php endif; ?>
 				deleteBtn.disabled = true;
+				// Reset Settings should always remain active
 			} else {
 				generateBtn.disabled = true;
 				saveBtn.disabled = true;
-				resetBtn.disabled = true;
 				deleteBtn.disabled = true;
+				// Reset Settings should always remain active
 			}
 		});
 		generateBtn.addEventListener('click', function (e) {
-        	// You may want to check if tickets are actually generated before enabling
 			setTimeout(function() {
 				saveBtn.disabled = false;
-				resetBtn.disabled = false;
-			}, 500); // Adjust delay as needed for your ticket generation process
+			}, 500);
 		});
 
 		// After Save Filtered Tickets is clicked, enable Delete Filtered Tickets

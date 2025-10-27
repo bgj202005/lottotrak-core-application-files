@@ -970,8 +970,8 @@ class Prize extends Admin_Controller
         $combo_id = $this->input->get('combo_id');
         
         if ($referrer === 'futures' && $lottery_id && $combo_id) {
-            // User came from prediction futures - set up back navigation to futures
-            $this->data['back_link'] = base_url('admin/predictions/refresh/' . $lottery_id . '?combo_id=' . $combo_id);
+            // User came from prediction futures - set up back navigation to futures (restore settings method)
+            $this->data['back_link'] = base_url('admin/predictions/restore_settings/' . $lottery_id . '?combo_id=' . $combo_id . '&from_winners=1');
             $this->data['back_text'] = 'Back to Prediction Futures';
             log_message('info', "Prize::view_combination_tickets - Setting futures back navigation: lottery_id={$lottery_id}, combo_id={$combo_id}");
         } else {
