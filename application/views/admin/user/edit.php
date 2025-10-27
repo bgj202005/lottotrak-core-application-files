@@ -45,7 +45,7 @@
 				'14400' => '4 hours'
 			);
 			$selected_timeout = isset($user->inactivity_timeout) ? $user->inactivity_timeout : 1800;
-			echo form_dropdown('inactivity_timeout', $timeout_options, set_value('inactivity_timeout', $selected_timeout), 'class="form-control"');
+			echo form_dropdown('inactivity_timeout', $timeout_options, set_value('inactivity_timeout', $selected_timeout), 'style="width: auto; max-width: 200px;"');
 			?>
 			<small class="form-text text-muted">Set how long before automatic logout due to inactivity (default: 30 minutes)</small>
 		</td>
