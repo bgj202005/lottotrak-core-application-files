@@ -94,6 +94,7 @@ class User_M extends MY_Model
 	function __construct() 
 	{
 		parent::__construct();
+		$this->load->model('Maintenance_m', 'maintenance_m');
 	}
 	
 	public function login() 
