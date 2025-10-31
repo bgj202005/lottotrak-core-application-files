@@ -179,9 +179,15 @@
                                                     }
                                                 }
                                                 
-                                                // Collect bonus numbers if they exist
-                                                if (!empty($filter->extra_ball) && property_exists($draw_info, 'bonus')) {
-                                                    $bonus_numbers[] = $draw_info->bonus;
+                                                // Collect bonus numbers if they exist (check multiple possible field names)
+                                                if (!empty($filter->extra_ball) && $draw_info->extra_ball_included) {
+                                                    $bonus_fields = array('extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number');
+                                                    foreach ($bonus_fields as $field) {
+                                                        if (property_exists($draw_info, $field) && !is_null($draw_info->$field)) {
+                                                            $bonus_numbers[] = $draw_info->$field;
+                                                            break; // Only get the first bonus number found
+                                                        }
+                                                    }
                                                 }
                                             }
                                             
@@ -1334,9 +1340,16 @@ $(document).ready(function() {
                 }
             }
             
-            // Collect bonus numbers if they exist
-            if (response.filter.extra_ball && response.draw_info.bonus) {
-                bonusNumbers.push(response.draw_info.bonus.toString());
+            // Collect bonus numbers if they exist (check multiple possible field names)
+            if (response.filter.extra_ball && response.draw_info.extra_ball_included) {
+                var bonusFields = ['extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number'];
+                for (var j = 0; j < bonusFields.length; j++) {
+                    var field = bonusFields[j];
+                    if (response.draw_info[field] && response.draw_info[field] != null) {
+                        bonusNumbers.push(response.draw_info[field].toString());
+                        break; // Only get the first bonus number found
+                    }
+                }
             }
         }
         
