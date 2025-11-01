@@ -108,6 +108,9 @@ class User_M extends MY_Model
 			$hashed_password = $user->password;
 			if ($this->check_password($this->input->post('password'), $hashed_password)) 
 			{ 
+				// Reset any stale login flags for this user before setting new session
+				$this->force_logout_user($user->id);
+				
 				$data = array (
 						'username' => $user->username,
 						'name' => $user->name,
@@ -133,7 +136,10 @@ class User_M extends MY_Model
 	
 	public function logout() 
 	{
-		$this->maintenance_m->logged($this->session->userdata('id'),0); // Admin is actively not logged
+		$user_id = $this->session->userdata('id');
+		if ($user_id) {
+			$this->maintenance_m->logged($user_id, 0); // Admin is actively not logged
+		}
 		$this->session->unset_userdata('username');
 		$this->session->unset_userdata('name');
 		$this->session->unset_userdata('email');
@@ -146,6 +152,20 @@ class User_M extends MY_Model
 	public function loggedin() 
 	{
 		return (bool) $this->session->userdata('loggedin');
+	}
+	
+	/**
+	 * Force logout a specific user by resetting their logged_in flag
+	 * This is useful when a user's session has timed out but the database flag is still set
+	 * 
+	 * @param int $user_id The user ID to force logout
+	 */
+	public function force_logout_user($user_id) 
+	{
+		if ($user_id) {
+			$this->db->where('id', $user_id);
+			$this->db->update('users', array('logged_in' => 0, 'last_active' => time()));
+		}
 	}
 	
 	public function get_new() 

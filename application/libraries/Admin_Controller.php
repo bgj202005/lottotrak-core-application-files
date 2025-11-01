@@ -70,7 +70,8 @@ class Admin_Controller extends MY_Controller
 			
 			// Check if session has timed out
 			if (($current_time - $last_activity) > $timeout_seconds) {
-				// Session timed out - logout and redirect to login
+				// Session timed out - ensure user is logged out in database even if session is corrupted
+				$this->user_m->force_logout_user($user_id);
 				$this->user_m->logout();
 				$this->session->set_flashdata('timeout_message', 'Your session has expired due to inactivity. Please log in again.');
 				redirect('admin/user/login');
