@@ -2876,6 +2876,22 @@ class Predictions extends Admin_Controller {
 		$ld = $this->data['lottery']->last_drawn['draw_date'];
 		$mysql_date = $this->lottery_data_m->format_date_to_mysql($ld);
 		
+		// Check if there's an existing record for this combo_id and user_id
+		$existing_record = null;
+		$status_changed = false;
+		$this->db->where('combo_id', $combo_id);
+		$this->db->where('user_id', $current_user_id);
+		$this->db->where('user', 1); // Admin records only
+		$query = $this->db->get('lottery_combination_filters');
+		
+		if ($query->num_rows() > 0) {
+			$existing_record = $query->row_array();
+			// If existing record is EXPIRED (active = 0), we'll update it to ACTIVE
+			if ($existing_record['active'] == 0) {
+				$status_changed = true;
+			}
+		}
+		
 		// Format the generated numbers as comma-separated string (e.g., "46,24,1,42,30,19,44")
 		$numbers_string = is_array($number_array) ? implode(',', $number_array) : '';
 		
@@ -2931,8 +2947,17 @@ class Predictions extends Admin_Controller {
 			'lastdate' => $mysql_date,		// Next draw date 
 			'lottery_id' => $id
 		];
-		// Save to database
-		$saved = $this->predictions_m->save_combination_filter($save_data);
+		
+		// Save to database - either update existing record or create new one
+		$saved = false;
+		if ($existing_record) {
+			// Update existing record with new data and set to ACTIVE
+			$this->db->where('id', $existing_record['id']);
+			$saved = $this->db->update('lottery_combination_filters', $save_data);
+		} else {
+			// Create new record
+			$saved = $this->predictions_m->save_combination_filter($save_data);
+		}
 		
 		if ($saved) {
 			// Create Pick subdirectory in combinations directory if it doesn't exist
@@ -2951,16 +2976,23 @@ class Predictions extends Admin_Controller {
 				if ($is_ajax) {
 					// Clean output buffer and send clean JSON
 					ob_clean();
+					$response = [
+						'success' => true,
+						'message' => $message,
+						'filtered_count' => $filtered_count, // Add filtered count for AJAX update
+						'filtered_tickets_count' => number_format($filtered_count), // For consistency with other AJAX responses
+						'status_changed' => $status_changed, // True if combination was EXPIRED and is now ACTIVE
+						'new_status' => 'Active' // New status for display
+					];
+					
+					// Add additional message if status changed from EXPIRED to ACTIVE
+					if ($status_changed) {
+						$response['message'] .= ' Status updated from EXPIRED to ACTIVE.';
+					}
+					
 					$this->output
 						->set_content_type('application/json')
-						->set_output(json_encode([
-							'success' => true,
-							'message' => $message,
-							'filtered_count' => $filtered_count, // Add filtered count for AJAX update
-							'filtered_tickets_count' => number_format($filtered_count), // For consistency with other AJAX responses
-							'status_changed' => true, // Indicate that combination is now active
-							'new_status' => 'Active' // New status for display
-						]));
+						->set_output(json_encode($response));
 					return;
 				}
 				$this->session->set_flashdata('message', '<div class="alert alert-success">' . $message . '</div>');

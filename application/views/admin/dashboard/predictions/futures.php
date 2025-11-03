@@ -1860,10 +1860,13 @@
 					
 					// Update status badge if status changed from Expired to Active
 					if (data.status_changed && data.new_status) {
-						// Find the status badge in the control panel and update it
-						const statusBadge = document.querySelector('.table-title .badge');
+						// Find the status badge and update it
+						const statusBadge = document.getElementById('status-badge');
 						if (statusBadge) {
-							statusBadge.className = 'badge badge-success';
+							statusBadge.className = 'badge badge-success mr-3';
+							statusBadge.style.backgroundColor = '#28a745'; // Green background
+							statusBadge.style.color = 'white';
+							statusBadge.style.fontSize = '0.9rem';
 							statusBadge.textContent = data.new_status;
 						}
 					}
