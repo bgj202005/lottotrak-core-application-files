@@ -1147,12 +1147,25 @@ class Combination_filters_m extends MY_Model
      * Get saved settings from lottery_combination_filters table by record ID or combo_id
      * 
      * @param int $id The record ID or combo_id to retrieve settings for
+     * @param int $user_id Optional user ID to filter by (defaults to session user)
      * @return array|false The saved settings array or false if not found
      */
-    public function get_saved_settings($id)
+    public function get_saved_settings($id, $user_id = null)
     {
+        // Get CodeIgniter instance for session access
+        $CI =& get_instance();
+        
+        // If no user_id provided, get from session
+        if ($user_id === null) {
+            $user_id = $CI->session->userdata('id');
+        }
+        
         // First try to find by record id
         $this->db->where('id', $id);
+        if ($user_id) {
+            $this->db->where('user', 1); // Must be admin record
+            $this->db->where('user_id', $user_id); // Must belong to current admin
+        }
         $this->db->limit(1);
         
         $query = $this->db->get('lottery_combination_filters');
@@ -1163,6 +1176,10 @@ class Combination_filters_m extends MY_Model
         
         // If not found by id, try by combo_id
         $this->db->where('combo_id', $id);
+        if ($user_id) {
+            $this->db->where('user', 1); // Must be admin record
+            $this->db->where('user_id', $user_id); // Must belong to current admin
+        }
         $this->db->order_by('id', 'DESC'); // Get the most recent record if multiple exist
         $this->db->limit(1);
         

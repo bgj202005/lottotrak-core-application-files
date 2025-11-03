@@ -2904,7 +2904,7 @@ class Predictions extends Admin_Controller {
 			'last_digits' => $session_data['selected_last_digits'],
 			'number_range' => $session_data['selected_number_range'],
 			'adjacents' => $session_data['selected_adjacents'],
-			'user' => 1, // Admin user
+			'user' => 1, // Admin role (1 = admin, 0 = member)
 			'user_id' => $current_user_id,
 			'member_id' => 0, // Default for admin
 			'extra' => 0,
@@ -3119,11 +3119,11 @@ class Predictions extends Admin_Controller {
 		
 		// Get basic lottery data needed for form options
 		$this->data['h_w_c'] = $this->predictions_m->get_h_w_c($id);
-		$h_w_c_group = $this->predictions_m->get_h_w_c_range($id);
+		// Get H-W-C data with rank for the futures dropdown (consistent with other methods)
+		$h_w_c_group_with_rank = $this->predictions_m->get_h_w_c_range_with_rank($id);
 		$h_w_c_group_options = [];
-		foreach ($h_w_c_group as $group) {
-			$value = substr($group, 0, 5);
-			$h_w_c_group_options[$value] = $group;
+		foreach ($h_w_c_group_with_rank as $pattern => $display) {
+			$h_w_c_group_options[$pattern] = $display;
 		}
 		$this->data['h_w_c_group'] = $h_w_c_group_options;
 		$this->data['followers'] = $this->predictions_m->get_followers($id);
@@ -3195,7 +3195,7 @@ class Predictions extends Admin_Controller {
 		
 		// **RESTORE ALL SAVED SETTINGS TO FORM VARIABLES**
 		$this->data['selected_wheeling'] = $record_id . '|' . $original_filename;
-		$this->data['selected_h_w_c_group'] = $saved_settings['h_w_c_group'] ?? '';
+		$this->data['selected_h_w_c_group'] = !empty($saved_settings['h_w_c_group']) ? urldecode($saved_settings['h_w_c_group']) : '';
 		$this->data['selected_extra_ball'] = $saved_settings['extra_balls'] ?? 'ALL';
 		$this->data['selected_followers_type'] = $saved_settings['follower_type'] ?? '';
 		
@@ -3230,6 +3230,7 @@ class Predictions extends Admin_Controller {
 		$this->data['disable_hwc_dropdown'] = $followers_only;
 		$this->data['disable_followers_controls'] = $hwc_only;
 
+		// Restore filter settings (use raw database values as they are stored correctly)
 		$this->data['selected_trends'] = $saved_settings['trends'] ?? '';
 		$this->data['selected_winning_sums'] = $saved_settings['winning_sums'] ?? '';
 		$this->data['selected_winning_digits'] = $saved_settings['winning_digits'] ?? '';
