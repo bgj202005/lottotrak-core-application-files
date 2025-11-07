@@ -632,25 +632,17 @@ class Predictions extends Admin_Controller {
 		$this->data['state_prov_code'] = $this->lottery_data_m->get_lottery_state_prov($id);
 		// Fetch combination files for the lottery
     	$this->data['combination_files'] = $this->predictions_m->get_combination_files($id);
-		// Get saved combinations status before processing combination files
-		$user_id = $this->session->userdata('id');
-		$saved_combinations = $this->lottery_data_m->get_all_user_combination_filters($id, $user_id);
-		$combo_status = [];
-		foreach ($saved_combinations as $saved_combo) {
-			$combo_status[$saved_combo['combo_id']] = $saved_combo['active'];
-		}
-
 		// Before passing $combination_files to the view
 		if (!empty($this->data['combination_files'])) {
 			 // Transform the combination files to include id|filename in value and status
+			 // Note: active status is now provided directly by get_combination_files() method
 			foreach ($this->data['combination_files'] as $index => &$file) {
 				$file_path = $this->combination_files_m->full_path($file['file_name']);
 				$file_content = file_get_contents($file_path); // Read file content
 				if (!empty(trim($file_content))) {
 					$file['value'] = $file['id'] . '|' . $file['file_name']; // e.g., "246|060828"
 					$file['display'] = $file['file_name']; // Keep original filename for display
-					// Add status information
-					$file['active'] = isset($combo_status[$file['id']]) ? $combo_status[$file['id']] : null;
+					// Active status is already set by get_combination_files() - no need to override
 				}
 				else {
 					unset($this->data['combination_files'][$index]); // Remove file with no content
@@ -663,6 +655,10 @@ class Predictions extends Admin_Controller {
 				return $numA - $numB;
 			});
 		}
+		
+		// Get saved combinations for other view purposes (not for active status)
+		$user_id = $this->session->userdata('id');
+		$this->data['saved_combinations'] = $this->lottery_data_m->get_all_user_combination_filters($id, $user_id);
 	
 	// Fetch H-W-C, Followers, and Friends data
 	$this->data['h_w_c'] = $this->predictions_m->get_h_w_c($id);
@@ -756,9 +752,6 @@ class Predictions extends Admin_Controller {
 			} else {
 				$this->data['filter_record_id'] = NULL;
 			}
-			
-			// Get all saved combination filters for the user (saved for view data, but also used above)
-			$this->data['saved_combinations'] = $saved_combinations;
 			
 			$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
 			$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);
@@ -3092,16 +3085,22 @@ class Predictions extends Admin_Controller {
 		
 		// Get the record_id from the URL parameter
 		$record_id = $this->input->get('combo_id') ?: $this->input->post('combo_id');
+		$current_user_id = $this->session->userdata('id');
+		
+		// Add debugging
+		log_message('debug', "restore_settings called - lottery_id: $id, combo_id: $record_id, current_user_id: $current_user_id");
 		
 		// If record_id comes from dropdown value format (253|06077), extract just the ID
 		if ($record_id && strpos($record_id, '|') !== false) {
 			list($record_id, $filename) = explode('|', $record_id, 2);
 			$record_id = (int)$record_id;
+			log_message('debug', "Extracted combo_id from dropdown format: $record_id, filename: $filename");
 		} else {
 			$record_id = (int)$record_id;
 		}
 		
 		if (!$record_id) {
+			log_message('error', "restore_settings failed - no combo_id provided");
 			$this->session->set_flashdata('message', '<div class="alert alert-danger">No combination ID found for restore.</div>');
 			redirect('admin/predictions/futures/' . $id);
 			return;
@@ -3112,11 +3111,13 @@ class Predictions extends Admin_Controller {
 		$saved_settings = $this->combination_filters_m->get_saved_settings($record_id);
 		
 		if (!$saved_settings) {
-			$this->session->set_flashdata('message', '<div class="alert alert-danger">No saved settings found for combination ID: ' . $record_id . '</div>');
+			log_message('error', "restore_settings failed - no saved settings found for combo_id: $record_id, user_id: $current_user_id");
+			$this->session->set_flashdata('message', '<div class="alert alert-danger">No saved settings found for combination ID: ' . $record_id . ' for current administrator (ID: ' . $current_user_id . '). This combination may belong to a different administrator or may have been deleted.</div>');
 			redirect('admin/predictions/futures/' . $id);
 			return;
 		}
 		
+		log_message('debug', "restore_settings success - found settings for file: {$saved_settings['file_name']}, user_id: {$saved_settings['user_id']}");
 
 		
 		// Get lottery data

@@ -976,12 +976,17 @@
 												foreach ($combination_files as $file) {
 													$value = $file['id'] . '|' . $file['file_name'];
 													if ($value === $selected_value) {
-														if (isset($file['active']) && $file['active'] !== null) {
-															if ($file['active'] === '1' || $file['active'] === 1 || $file['active'] === true) {
-																echo 'Active ';
-															} else {
-																echo 'Expired ';
-															}
+														// More robust check for active status
+														$is_active = false;
+														if (isset($file['active'])) {
+															$active_val = $file['active'];
+															$is_active = ($active_val == 1 || $active_val === '1' || $active_val === 1 || $active_val === true);
+														}
+														
+														if ($is_active) {
+															echo 'Active ';
+														} else {
+															echo 'Expired ';
 														}
 														echo '(' . htmlspecialchars($file['file_name']) . ') ' . $file['N'] . ' Numbers - ' . number_format($file['CCCC']) . ' Tickets';
 														break;
@@ -999,12 +1004,17 @@
 												<?php 
 												$value = $file['id'] . '|' . $file['file_name']; // e.g., "246|060828"
 												$status_badge = '';
-												if (isset($file['active']) && $file['active'] !== null) {
-													if ($file['active'] === '1' || $file['active'] === 1 || $file['active'] === true) {
-														$status_badge = '<span class="badge badge-success" style="background-color: #28a745; color: white;">Active</span> ';
-													} else {
-														$status_badge = '<span class="badge badge-danger" style="background-color: #dc3545; color: white;">Expired</span> ';
-													}
+												// More robust check for active status - handle string/int/bool values
+												$is_active = false;
+												if (isset($file['active'])) {
+													$active_val = $file['active'];
+													$is_active = ($active_val == 1 || $active_val === '1' || $active_val === 1 || $active_val === true);
+												}
+												
+												if ($is_active) {
+													$status_badge = '<span class="badge badge-success" style="background-color: #28a745; color: white;">Active</span> ';
+												} else {
+													$status_badge = '<span class="badge badge-danger" style="background-color: #dc3545; color: white;">Expired</span> ';
 												}
 												$display = $status_badge . '(' . htmlspecialchars($file['file_name']) . ') ' . $file['N'] . ' Numbers - ' . number_format($file['CCCC']) . ' Tickets';
 												$selected_class = ($selected_value === $value) ? 'active' : '';

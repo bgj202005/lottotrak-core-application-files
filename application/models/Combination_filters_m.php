@@ -1160,6 +1160,9 @@ class Combination_filters_m extends MY_Model
             $user_id = $CI->session->userdata('id');
         }
         
+        // Add debugging log
+        log_message('debug', "get_saved_settings called with ID: $id, user_id: $user_id");
+        
         // First try to find by record id
         $this->db->where('id', $id);
         if ($user_id) {
@@ -1171,10 +1174,30 @@ class Combination_filters_m extends MY_Model
         $query = $this->db->get('lottery_combination_filters');
         
         if ($query->num_rows() > 0) {
-            return $query->row_array();
+            $result = $query->row_array();
+            log_message('debug', "Found by record ID - file_name: {$result['file_name']}, user_id: {$result['user_id']}");
+            return $result;
         }
         
-        // If not found by id, try by combo_id
+        // If not found by id, try by combo_id - but only if we're sure this admin should have access
+        // First check if any record exists with this combo_id for current admin
+        $this->db->select('COUNT(*) as count');
+        $this->db->where('combo_id', $id);
+        $this->db->where('user', 1);
+        $this->db->where('user_id', $user_id);
+        $count_query = $this->db->get('lottery_combination_filters');
+        $count_result = $count_query->row_array();
+        
+        if ($count_result['count'] == 0) {
+            log_message('debug', "No records found for combo_id: $id, user_id: $user_id - access denied");
+            return false; // No records for this admin, don't allow access
+        }
+        
+        if ($count_result['count'] > 1) {
+            log_message('error', "Multiple records found for combo_id: $id, user_id: $user_id - returning most recent");
+        }
+        
+        // Get the actual record
         $this->db->where('combo_id', $id);
         if ($user_id) {
             $this->db->where('user', 1); // Must be admin record
@@ -1186,9 +1209,12 @@ class Combination_filters_m extends MY_Model
         $query = $this->db->get('lottery_combination_filters');
         
         if ($query->num_rows() > 0) {
-            return $query->row_array();
+            $result = $query->row_array();
+            log_message('debug', "Found by combo_id - file_name: {$result['file_name']}, user_id: {$result['user_id']}");
+            return $result;
         }
         
+        log_message('debug', "No settings found for ID: $id, user_id: $user_id");
         return false;
     }
 

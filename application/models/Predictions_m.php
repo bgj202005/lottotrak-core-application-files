@@ -448,7 +448,7 @@ class Predictions_m extends MY_Model
 		return $result > 0;
 	}
 	/**
-     * Get combination files for a lottery
+     * Get combination files for a lottery with active status based on saved filters
      * @param int $lottery_id
      * @return array
      */
@@ -463,12 +463,21 @@ class Predictions_m extends MY_Model
             return []; // Return an empty array if the lottery is not found
         }
         $balls_drawn = $lottery->balls_drawn;
-        // Fetch combination files that match the balls_drawn value
-        $this->db->select('id, file_name, N, R, CCCC');
-        $this->db->from('lottery_combination_files');
-        $this->db->where('R', $balls_drawn); // Match the balls_drawn value
-        $this->db->order_by('file_name', 'ASC');
-		$query = $this->db->get();
+        
+        // Get current user ID for active status check
+        $CI =& get_instance();
+        $current_user_id = $CI->session->userdata('id');
+        
+        // Fetch combination files with left join to check for active saved filters
+        $this->db->select('lcf.id, lcf.file_name, lcf.N, lcf.R, lcf.CCCC, 
+                          COALESCE(MAX(lfc.active), 0) as active');
+        $this->db->from('lottery_combination_files lcf');
+        $this->db->join('lottery_combination_filters lfc', 
+                       'lcf.id = lfc.combo_id AND lfc.user = 1 AND lfc.user_id = ' . (int)$current_user_id, 'left');
+        $this->db->where('lcf.R', $balls_drawn); // Match the balls_drawn value
+        $this->db->group_by('lcf.id, lcf.file_name, lcf.N, lcf.R, lcf.CCCC');
+        $this->db->order_by('lcf.file_name', 'ASC');
+        $query = $this->db->get();
         return $query->result_array(); // Return the result as an array
     }
 	/**
