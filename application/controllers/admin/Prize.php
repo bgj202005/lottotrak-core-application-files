@@ -942,11 +942,19 @@ class Prize extends Admin_Controller
         // Calculate total winners across the entire file
         $total_winners = $this->count_total_winners($filter, $draw_info, $display_mode, $next_draw_date);
         
+        // Get extra ball occurrences for independent extra ball lotteries
+        $extra_ball_occurrences = [];
+        if (!empty($filter->duplicate_extra_ball) && $filter->duplicate_extra_ball == 1) {
+            $this->load->model('Lottery_data_m', 'lottery_data_m');
+            $extra_ball_occurrences = $this->lottery_data_m->get_extra_ball_occurrences($filter->lottery_id);
+        }
+
         $this->data['filter'] = $filter;
         $this->data['tickets'] = $tickets;
         $this->data['draw_info'] = $draw_info;
         $this->data['total_tickets'] = $total_tickets;
         $this->data['total_winners'] = $total_winners;
+        $this->data['extra_ball_occurrences'] = $extra_ball_occurrences;
         $this->data['per_page'] = $per_page;
         $this->data['current_page'] = $page;
         $this->data['total_pages'] = ceil($total_tickets / $per_page);
@@ -1256,7 +1264,8 @@ class Prize extends Admin_Controller
                 'draw_info' => $draw_info,
                 'display_mode' => $display_mode,
                 'next_draw_date' => $next_draw_date,
-                'next_draw_date_for_js' => $next_draw_date_for_js // MySQL format for reliable JavaScript parsing
+                'next_draw_date_for_js' => $next_draw_date_for_js, // MySQL format for reliable JavaScript parsing
+                'extra_ball_occurrences' => $extra_ball_occurrences
             ]);
             
         } catch (Exception $e) {

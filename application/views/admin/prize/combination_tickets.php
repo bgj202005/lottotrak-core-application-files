@@ -222,7 +222,27 @@
                                                 if (!empty($filter->extra_balls)) {
                                                     // Check if it's "ALL" or specific numbers
                                                     if ($filter->extra_balls === 'ALL') {
-                                                        echo '<span style="color: #6c757d; font-style: italic;">All extra numbers included</span>';
+                                                        // Display all possible extra numbers from occurrences data
+                                                        if (!empty($extra_ball_occurrences)) {
+                                                            // Sort extra ball numbers numerically
+                                                            $sorted_extra_balls = $extra_ball_occurrences;
+                                                            usort($sorted_extra_balls, function($a, $b) {
+                                                                return intval($a['value']) - intval($b['value']);
+                                                            });
+                                                            
+                                                            foreach ($sorted_extra_balls as $occurrence) {
+                                                                $extra_number = $occurrence['value'];
+                                                                $extra_class = 'combination-number';
+                                                                
+                                                                if (in_array($extra_number, $bonus_numbers)) {
+                                                                    $extra_class .= ' bonus-number-match';
+                                                                }
+                                                                
+                                                                echo '<span class="' . $extra_class . '" style="margin-right: 8px;">' . sprintf('%02d', $extra_number) . '</span>';
+                                                            }
+                                                        } else {
+                                                            echo '<span style="color: #6c757d; font-style: italic;">All extra numbers included</span>';
+                                                        }
                                                     } else {
                                                         $extra_numbers = explode(',', $filter->extra_balls);
                                                         foreach ($extra_numbers as $extra_number) {
@@ -1444,7 +1464,27 @@ $(document).ready(function() {
             
             if (response.filter.extra_balls) {
                 if (response.filter.extra_balls === 'ALL') {
-                    numbersHtml += '<span style="color: #6c757d; font-style: italic;">All extra numbers included</span>';
+                    // Display all possible extra numbers from occurrences data
+                    if (response.extra_ball_occurrences && response.extra_ball_occurrences.length > 0) {
+                        // Sort extra ball numbers numerically
+                        var sortedExtraBalls = response.extra_ball_occurrences.slice().sort(function(a, b) {
+                            return parseInt(a.value) - parseInt(b.value);
+                        });
+                        
+                        for (var k = 0; k < sortedExtraBalls.length; k++) {
+                            var occurrence = sortedExtraBalls[k];
+                            var extraNumber = occurrence.value;
+                            var extraClassName = 'combination-number';
+                            
+                            if (bonusNumbers.indexOf(extraNumber.toString()) !== -1) {
+                                extraClassName += ' bonus-number-match';
+                            }
+                            
+                            numbersHtml += '<span class="' + extraClassName + '" style="margin-right: 8px;">' + String(extraNumber).padStart(2, '0') + '</span>';
+                        }
+                    } else {
+                        numbersHtml += '<span style="color: #6c757d; font-style: italic;">All extra numbers included</span>';
+                    }
                 } else {
                     var extraNumbers = response.filter.extra_balls.split(',');
                     for (var j = 0; j < extraNumbers.length; j++) {
