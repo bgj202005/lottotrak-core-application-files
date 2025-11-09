@@ -2861,9 +2861,11 @@ class Predictions extends Admin_Controller {
 		// CCCC is the actual filtered count from get_filtered_combinations_count() method
 		// This will be the actual number of tickets after filtering (e.g., 5 tickets after sum filtering)
 		// Prepare data for saving
-		// Grab the next draw date
+		// Grab the next draw date (not last drawn date) to prevent immediate expiration
 		$ld = $this->data['lottery']->last_drawn['draw_date'];
-		$mysql_date = $this->lottery_data_m->format_date_to_mysql($ld);
+		$day = $this->lotteries_m->return_day($ld);
+		$next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
+		$mysql_date = $this->lottery_data_m->format_date_to_mysql($next_draw_date);
 		
 		// Check if there's an existing record for this combo_id and user_id
 		$existing_record = null;
