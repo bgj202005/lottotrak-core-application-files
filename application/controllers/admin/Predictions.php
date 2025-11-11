@@ -2861,12 +2861,14 @@ class Predictions extends Admin_Controller {
 		// CCCC is the actual filtered count from get_filtered_combinations_count() method
 		// This will be the actual number of tickets after filtering (e.g., 5 tickets after sum filtering)
 		// Prepare data for saving
-		// Grab the next draw date (not last drawn date) to prevent immediate expiration
-		$ld = $this->data['lottery']->last_drawn['draw_date'];
-		$day = $this->lotteries_m->return_day($ld);
-		$next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
-		$mysql_date = $this->lottery_data_m->format_date_to_mysql($next_draw_date);
-		
+		// For new records, set initial lastdate; for existing records, preserve existing lastdate
+		$initial_lastdate = null;
+		if (!$existing_record) {
+			// For new records, set lastdate to lottery's last drawn date (will be processed by prize history)
+			$ld = $this->data['lottery']->last_drawn['draw_date'];
+			$initial_lastdate = $this->lottery_data_m->format_date_to_mysql($ld);
+		}
+
 		// Check if there's an existing record for this combo_id and user_id
 		$existing_record = null;
 		$status_changed = false;
@@ -2935,18 +2937,24 @@ class Predictions extends Admin_Controller {
 			'9_win_extra' => 0,
 			'active' => 1,
 			'combo_id' => $combo_id, 		// Store the id from the combination_table_files table
-			'lastdate' => $mysql_date,		// Next draw date 
 			'lottery_id' => $id
 		];
+		
+		// Only include lastdate for new records; preserve existing lastdate for updates
+		if ($initial_lastdate !== null) {
+			$save_data['lastdate'] = $initial_lastdate;
+		}
 		
 		// Save to database - either update existing record or create new one
 		$saved = false;
 		if ($existing_record) {
-			// Update existing record with new data and set to ACTIVE
+			// Update existing record - exclude lastdate to preserve existing value
+			$update_data = $save_data;
+			unset($update_data['lastdate']); // Don't update lastdate for existing records
 			$this->db->where('id', $existing_record['id']);
-			$saved = $this->db->update('lottery_combination_filters', $save_data);
+			$saved = $this->db->update('lottery_combination_filters', $update_data);
 		} else {
-			// Create new record
+			// Create new record (includes initial lastdate if set)
 			$saved = $this->predictions_m->save_combination_filter($save_data);
 		}
 		
@@ -3582,28 +3590,25 @@ class Predictions extends Admin_Controller {
 		$this->data['selected_number_range'] = $saved_settings['number_range'] ?? '';
 		$this->data['selected_adjacents'] = $saved_settings['adjacents'] ?? '';
 		
-		// Get next draw date
+		// Get next draw date (for display purposes only)
 		$ld = $this->data['lottery']->last_drawn['draw_date'];
 		$day = $this->lotteries_m->return_day($ld);
 		$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
 		
-		// **PREVENT IMMEDIATE EXPIRATION**
-		// Update the lastdate to the next draw date to prevent the filter from being expired
-		// when verify_active_date runs on page load
-		$mysql_next_date = date('Y-m-d H:i:s', strtotime($this->data['lottery']->next_draw_date));
-		
+		// **DO NOT UPDATE LASTDATE**
+		// The lastdate should only be updated by prize history processing when wins are checked
+		// Only update active status to reactivate the filter
 		$update_data = [
-			'lastdate' => $mysql_next_date,
-			'active' => 1  // Ensure it stays active
+			'active' => 1  // Reactivate the filter without changing lastdate
 		];
 		
 		$this->db->where('id', $record_id);
 		$update_result = $this->db->update('lottery_combination_filters', $update_data);
 		
 		if ($update_result) {
-			// Successfully updated
+			// Successfully updated active status
 		} else {
-			log_message('error', "Refresh method: Failed to update lastdate for record {$record_id}");
+			log_message('error', "Refresh method: Failed to update active status for record {$record_id}");
 		}
 		// **END EXPIRATION PREVENTION**
 		// **LOAD EXISTING FILTERED TICKETS INSTEAD OF REGENERATING**
