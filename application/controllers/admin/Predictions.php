@@ -598,6 +598,15 @@ class Predictions extends Admin_Controller {
 		if ($this->input->get('timeout') === '1') {
 			$this->data['message'] = 'Generate Tickets is longer than 3 seconds. Please change settings.';
 			$this->data['disable_generate_button'] = false; // Allow user to retry with different settings
+			
+			// Restore form data from session if available
+			$timeout_form_data = $this->session->userdata('timeout_form_data');
+			if ($timeout_form_data) {
+				// Simulate POST data restoration by setting the values to be used in form rendering
+				$this->data['timeout_restore_data'] = $timeout_form_data;
+				// Clear the timeout form data from session after use
+				$this->session->unset_userdata('timeout_form_data');
+			}
 		} else {
 			$this->data['message'] = '';					// Defaulted to No Error Messages
 			$this->data['disable_generate_button'] = true; // Used to disable the generate button in the view
@@ -725,11 +734,35 @@ class Predictions extends Admin_Controller {
 				}
 				$position_points_options[$value] = $label;
 			}
-    		$this->data['selected_followers_type'] = 'after_ball'; // or 'position' as your default
-		    $this->data['selected_hwc'] = true; // preset value for H-W-C
-		    $this->data['selected_followers'] = true; // preset value for Followers
-		    $this->data['selected_friends_checkbox'] = true; // preset value for Friends
-			$this->data['position_points_options'] = $position_points_options;
+			
+		// Check if we have timeout restore data and use it, otherwise use defaults
+		if (isset($this->data['timeout_restore_data'])) {
+			$restore_data = $this->data['timeout_restore_data'];
+			$this->data['selected_h_w_c_group'] = $restore_data['h_w_c_group'] ?: 'ALL';
+			$this->data['selected_extra_ball'] = $restore_data['extra_ball_filter'] ?: 'ALL';
+			$this->data['selected_followers_type'] = $restore_data['followers_type'] ?: 'after_ball';
+			$this->data['selected_hwc'] = ($restore_data['hwc'] == '1');
+			$this->data['selected_followers'] = ($restore_data['followers'] == '1');
+			$this->data['selected_friends_checkbox'] = ($restore_data['friends'] == '1');
+			$this->data['selected_friends'] = $restore_data['selected_friends'] ?: '';
+			$this->data['selected_wheeling'] = $restore_data['wheeling'] ?: '';
+			$this->data['selected_ball_points'] = $restore_data['ball_points'];
+			$this->data['selected_position_points'] = $restore_data['position_points'];
+		} else {
+			// Use defaults when no timeout restore data
+			$this->data['selected_h_w_c_group'] = 'ALL';
+			$this->data['selected_extra_ball'] = 'ALL';
+			$this->data['selected_followers_type'] = 'after_ball'; // or 'position' as your default
+			$this->data['selected_hwc'] = true; // preset value for H-W-C
+			$this->data['selected_followers'] = true; // preset value for Followers
+			$this->data['selected_friends_checkbox'] = true; // preset value for Friends
+			$this->data['selected_friends'] = '';
+			$this->data['selected_wheeling'] = '';
+			$this->data['selected_ball_points'] = '';
+			$this->data['selected_position_points'] = '';
+		}
+    	
+		$this->data['position_points_options'] = $position_points_options;
 			$this->data['combo_id'] = NULL; // Initialize combo_id to NULL
 			$this->data['active'] = false; // Initialize active flag to false
 			
@@ -4933,12 +4966,113 @@ class Predictions extends Admin_Controller {
 			'total_filtered' => 0
 		];
 		
+		// PRESERVE USER'S FORM SETTINGS: Capture all POST data to maintain user's selections
+		// This prevents settings reset after timeout and allows users to refine their settings
+		if ($this->input->method() === 'post') {
+			// Preserve main form selections
+			$this->data['selected_h_w_c_group'] = $this->input->post('h_w_c_group', TRUE) ?: 'ALL';
+			$this->data['selected_extra_ball'] = $this->input->post('extra_ball_filter', TRUE) ?: 'ALL';
+			$this->data['selected_followers_type'] = $this->input->post('followers_type', TRUE) ?: 'after_ball';
+			$this->data['selected_hwc'] = ($this->input->post('hwc') == '1');
+			$this->data['selected_followers'] = ($this->input->post('followers') == '1');
+			$this->data['selected_friends_checkbox'] = ($this->input->post('friends') == '1');
+			$this->data['selected_friends'] = $this->input->post('selected_friends', TRUE) ?: '';
+			$this->data['selected_wheeling'] = $this->input->post('wheeling', TRUE) ?: '';
+			$this->data['selected_ball_points'] = $this->input->post('ball_points', TRUE);
+			$this->data['selected_position_points'] = $this->input->post('position_points', TRUE);
+			
+			// Parse combination file value if provided
+			$combination_file_value = $this->input->post('wheeling', TRUE);
+			if ($combination_file_value && strpos($combination_file_value, '|') !== false) {
+				list($combo_id, $combination_file) = explode('|', $combination_file_value, 2);
+				$this->data['combo_id'] = (int)$combo_id;
+			}
+		} else {
+			// If not POST, try to restore from session or set defaults
+			$session_data = $this->session->userdata('futures_form');
+			if ($session_data) {
+				$this->data['selected_h_w_c_group'] = $session_data['selected_h_w_c_group'] ?? 'ALL';
+				$this->data['selected_extra_ball'] = $session_data['selected_extra_ball'] ?? 'ALL';
+				$this->data['selected_followers_type'] = $session_data['selected_followers_type'] ?? 'after_ball';
+				$this->data['selected_hwc'] = $session_data['selected_hwc'] ?? false;
+				$this->data['selected_followers'] = $session_data['selected_followers'] ?? false;
+				$this->data['selected_friends_checkbox'] = $session_data['selected_friends_checkbox'] ?? false;
+				$this->data['selected_friends'] = $session_data['selected_friends'] ?? '';
+				$this->data['selected_wheeling'] = $session_data['selected_wheeling'] ?? '';
+			} else {
+				// Set defaults
+				$this->data['selected_h_w_c_group'] = 'ALL';
+				$this->data['selected_extra_ball'] = 'ALL';
+				$this->data['selected_followers_type'] = 'after_ball';
+				$this->data['selected_hwc'] = false;
+				$this->data['selected_followers'] = false;
+				$this->data['selected_friends_checkbox'] = false;
+				$this->data['selected_friends'] = '';
+				$this->data['selected_wheeling'] = '';
+			}
+		}
+		
 		// Set required view variables
 		$this->data['current'] = $this->uri->segment(2);
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);
 		$this->data['admins'] = $this->maintenance_m->logged_online(1);
 		$this->data['visitors'] = $this->maintenance_m->active_visitors();
+		
+		// Set disable generate button to false to allow retry with different settings
+		$this->data['disable_generate_button'] = false;
+		
+		// Ensure all required dropdown data is available for the form
+		if (!isset($this->data['lottery'])) {
+			$this->data['lottery'] = $this->lotteries_m->get($id);
+		}
+		
+		if (!isset($this->data['combination_files'])) {
+			$this->data['combination_files'] = $this->predictions_m->get_combination_files($id);
+			// Sort combination files numerically
+			if (!empty($this->data['combination_files'])) {
+				usort($this->data['combination_files'], function($a, $b) {
+					$numA = intval(preg_replace('/\D/', '', $a['file_name']));
+					$numB = intval(preg_replace('/\D/', '', $b['file_name']));
+					return $numA - $numB;
+				});
+			}
+		}
+		
+		if (!isset($this->data['h_w_c'])) {
+			$this->data['h_w_c'] = $this->predictions_m->get_h_w_c($id);
+		}
+		
+		if (!isset($this->data['h_w_c_group'])) {
+			// Prepare H-W-C dropdown options with ranking
+			$h_w_c_group_with_rank = $this->predictions_m->get_h_w_c_range_with_rank($id);
+			$h_w_c_group_options = [];
+			foreach ($h_w_c_group_with_rank as $value => $display) {
+				$h_w_c_group_options[$value] = $display;
+			}
+			$this->data['h_w_c_group'] = $h_w_c_group_options;
+		}
+		
+		if (!isset($this->data['followers'])) {
+			$this->data['followers'] = $this->predictions_m->get_followers($id);
+		}
+		
+		if (!isset($this->data['friends'])) {
+			$this->data['friends'] = $this->predictions_m->get_friends($id);
+			$this->data['friends_dropdown_options'] = $this->predictions_m->get_friends_dropdown_options($id);
+		}
+		
+		// Set up additional required data
+		$this->data['country_code'] = $this->lottery_data_m->get_lottery_country($id);
+		$this->data['state_prov_code'] = $this->lottery_data_m->get_lottery_state_prov($id);
+		$this->data['is_independent_extra_ball'] = ($this->data['lottery']->duplicate_extra_ball && $this->data['lottery']->extra_ball);
+		
+		// Fetch extra ball occurrences for independent extra ball lotteries
+		if ($this->data['lottery']->duplicate_extra_ball == 1) {
+			$this->data['extra_ball_occurrences'] = $this->lottery_data_m->get_extra_ball_occurrences($id);
+		} else {
+			$this->data['extra_ball_occurrences'] = [];
+		}
 		
 		// Ensure lottery data is available for the view
 		if (!isset($this->data['lottery'])) {
@@ -4992,6 +5126,24 @@ class Predictions extends Admin_Controller {
 			if ($error && $error['type'] === E_ERROR) {
 				if (strpos($error['message'], 'Maximum execution time') !== false) {
 					
+					// Save POST data to session before redirect (for shutdown function)
+					if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST)) {
+						$_SESSION['timeout_form_data'] = [
+							'h_w_c_group' => $_POST['h_w_c_group'] ?? null,
+							'extra_ball_filter' => $_POST['extra_ball_filter'] ?? null,
+							'followers_type' => $_POST['followers_type'] ?? null,
+							'hwc' => $_POST['hwc'] ?? null,
+							'followers' => $_POST['followers'] ?? null,
+							'friends' => $_POST['friends'] ?? null,
+							'selected_friends' => $_POST['selected_friends'] ?? null,
+							'wheeling' => $_POST['wheeling'] ?? null,
+							'ball_points' => $_POST['ball_points'] ?? null,
+							'position_points' => $_POST['position_points'] ?? null,
+							'per_page' => $_POST['per_page'] ?? null,
+							'submit' => $_POST['submit'] ?? null
+						];
+					}
+					
 					// Clear any output buffer completely
 					while (ob_get_level()) {
 						ob_end_clean();
@@ -5033,7 +5185,26 @@ class Predictions extends Admin_Controller {
 	{
 		$elapsed = microtime(true) - $start_time;
 		if ($elapsed > $timeout_seconds) {
-			// Timeout occurred - redirect to futures page with timeout message
+			// Timeout occurred - save POST data to session before redirect
+			if ($this->input->method() === 'post') {
+				$timeout_form_data = [
+					'h_w_c_group' => $this->input->post('h_w_c_group', TRUE),
+					'extra_ball_filter' => $this->input->post('extra_ball_filter', TRUE),
+					'followers_type' => $this->input->post('followers_type', TRUE),
+					'hwc' => $this->input->post('hwc', TRUE),
+					'followers' => $this->input->post('followers', TRUE),
+					'friends' => $this->input->post('friends', TRUE),
+					'selected_friends' => $this->input->post('selected_friends', TRUE),
+					'wheeling' => $this->input->post('wheeling', TRUE),
+					'ball_points' => $this->input->post('ball_points', TRUE),
+					'position_points' => $this->input->post('position_points', TRUE),
+					'per_page' => $this->input->post('per_page', TRUE),
+					'submit' => $this->input->post('submit', TRUE)
+				];
+				$this->session->set_userdata('timeout_form_data', $timeout_form_data);
+			}
+			
+			// Redirect to futures page with timeout message
 			if ($id) {
 				redirect('admin/predictions/futures/' . $id . '?timeout=1');
 			} else {
