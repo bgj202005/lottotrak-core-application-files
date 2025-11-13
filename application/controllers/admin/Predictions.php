@@ -636,6 +636,10 @@ class Predictions extends Admin_Controller {
 		if (!$expired_check) {
 			$this->session->set_flashdata('message', '<div class="alert alert-danger">Unable to update expired combination tables before entering the prediction futures view.</div>');
 		}
+		
+		// Update expired combination filters with outdated lastdate to most recent draw
+		$this->update_expired_combination_filters_lastdate($id, $tbl_name);
+		
 		$drawn = $this->data['lottery']->balls_drawn; // Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$this->data['country_code'] = $this->lottery_data_m->get_lottery_country($id);
 		$this->data['state_prov_code'] = $this->lottery_data_m->get_lottery_state_prov($id);
@@ -4446,17 +4450,10 @@ class Predictions extends Admin_Controller {
 		// Check for outdated combination files that need to be expired
 		$expired_info = $this->expire_outdated_combination_files($lottery_id);
 		
+		// Note: Expired combination filters are now automatically updated to most recent draw
+		// in update_expired_combination_filters_lastdate() method, so no user message needed
 		if (is_array($expired_info) && isset($expired_info['count']) && $expired_info['count'] > 0) {
-			// Create alert message with specific filenames
-			if (!empty($expired_info['filenames'])) {
-				$alert_message = "Combination Ticket Filenames " . implode(', ', $expired_info['filenames']) . 
-				               " Statuses have changed from ACTIVE to EXPIRED because the draw is out of date. Please Regenerate Tickets";
-			} else {
-				$alert_message = "Expired {$expired_info['count']} outdated combination file(s) due to newer draws being imported. Please Regenerate Tickets";
-			}
-			
-			// Store alert message in session for display on Predictions Futures page
-			$this->session->set_flashdata('predictions_alert', $alert_message);
+			log_message('info', "Auto-expired {$expired_info['count']} outdated combination file(s) for lottery {$lottery_id}. Filters automatically updated to most recent draw.");
 		}
 	}
 	
@@ -5215,6 +5212,69 @@ class Predictions extends Admin_Controller {
 			return true;
 		}
 		return false;
+	}
+	
+	/**
+	 * Update expired combination filters with outdated lastdate to most recent draw
+	 * This ensures expired combinations predict for the current most recent draw
+	 * @param int $id Lottery ID
+	 * @param string $tbl_name Lottery table name
+	 */
+	private function update_expired_combination_filters_lastdate($id, $tbl_name)
+	{
+		try {
+			// Get the most recent draw date from the lottery table
+			$this->db->select('draw_date');
+			$this->db->from($tbl_name);
+			$this->db->where('extra > 0'); // Only valid draws with extra ball
+			$this->db->order_by('draw_date', 'DESC');
+			$this->db->limit(1);
+			$latest_draw = $this->db->get()->row();
+			
+			if (!$latest_draw) {
+				log_message('info', "No valid draws found in {$tbl_name} for updating expired combination filters");
+				return false;
+			}
+			
+			$most_recent_draw_date = $latest_draw->draw_date;
+			
+			// Find all expired combination filters for this lottery with outdated lastdate
+			$this->db->select('id, lastdate, combo_id');
+			$this->db->from('lottery_combination_filters');
+			$this->db->where('lottery_id', $id);
+			$this->db->where('active', 0); // Only expired filters
+			$this->db->where('lastdate !=', $most_recent_draw_date); // Only outdated lastdate
+			$expired_filters = $this->db->get()->result();
+			
+			if (empty($expired_filters)) {
+				log_message('info', "No expired combination filters with outdated lastdate found for lottery {$id}");
+				return true;
+			}
+			
+			// Update each expired filter's lastdate to the most recent draw
+			$updated_count = 0;
+			foreach ($expired_filters as $filter) {
+				$this->db->where('id', $filter->id);
+				$this->db->update('lottery_combination_filters', [
+					'lastdate' => $most_recent_draw_date
+				]);
+				
+				if ($this->db->affected_rows() > 0) {
+					$updated_count++;
+					log_message('info', "Updated expired combination filter {$filter->id} (combo_id: {$filter->combo_id}) lastdate from {$filter->lastdate} to {$most_recent_draw_date}");
+				}
+			}
+			
+			if ($updated_count > 0) {
+				log_message('info', "Successfully updated {$updated_count} expired combination filters for lottery {$id} to most recent draw date: {$most_recent_draw_date}");
+			}
+			
+			return true;
+			
+		} catch (Exception $e) {
+			log_message('error', "Error updating expired combination filters lastdate for lottery {$id}: " . $e->getMessage());
+			return false;
+		}
 	}
 
 }
