@@ -13,6 +13,7 @@ class Prize extends Admin_Controller
         $this->load->model('user_m');
         $this->load->model('lotteries_m'); 
         $this->load->model('maintenance_m');
+        $this->load->model('lottery_data_m');
     }
         
     public function index($lottery_id = null) 
@@ -1059,7 +1060,6 @@ class Prize extends Admin_Controller
             $admin_id = $this->session->userdata('id');
             
             if (!$admin_id || !$filter_id) {
-                log_message('error', 'AJAX validation failed: missing admin_id or filter_id');
                 echo json_encode(['success' => false, 'message' => 'Invalid request']);
                 return;
             }
@@ -1073,16 +1073,26 @@ class Prize extends Admin_Controller
             $this->db->where('lcf.user', 1);
             $this->db->where('lcf.user_id', $admin_id);
             
-            $filter = $this->db->get()->row();
+            $query = $this->db->get();
+            
+            if ($this->db->error()['code'] != 0) {
+                $db_error = $this->db->error();
+                echo json_encode(['success' => false, 'message' => 'Database error occurred']);
+                return;
+            }
+            
+            $filter = $query->row();
             
             if (!$filter) {
-                log_message('error', 'AJAX filter not found or access denied');
                 echo json_encode(['success' => false, 'message' => 'Filter not found or access denied']);
                 return;
             }
             
-            // Debug logging to see what filter values we retrieved in AJAX
-            log_message('debug', "load_combination_tickets: Filter ID {$filter->id}, selected_trends: " . ($filter->selected_trends ?? 'NULL') . ", selected_winning_sums: " . ($filter->selected_winning_sums ?? 'NULL'));
+            // Load extra ball occurrences for independent extra ball lotteries
+            $extra_ball_occurrences = [];
+            if (!empty($filter->duplicate_extra_ball) && $filter->duplicate_extra_ball == 1) {
+                $extra_ball_occurrences = $this->lottery_data_m->get_extra_ball_occurrences($filter->lottery_id);
+            }
             
             // Calculate offset
             $offset = ($page - 1) * $per_page;
@@ -1209,30 +1219,61 @@ class Prize extends Admin_Controller
                 $filter->active = 0;
             }
             
-            // Handle sorting by check results - need to get ALL tickets when sorting is requested
+            // Handle sorting by check results - use memory-efficient approach
             if ($sort_column === 'check_results') {
-                // Get all tickets for sorting
-                $all_tickets = $this->get_paginated_combination_tickets($filter, $total_tickets, 0);
-                
-                // Calculate win results for all tickets
-                foreach ($all_tickets as &$ticket) {
-                    $ticket['win_result'] = $this->calculate_ticket_win_result($ticket['numbers'], $draw_info, $filter, $display_mode, $next_draw_date);
+                // Check if dataset is too large for in-memory sorting (limit to 50,000 tickets)
+                if ($total_tickets > 50000) {
+                    log_message('warning', "Dataset too large for sorting: {$total_tickets} tickets. Sorting disabled.");
+                    echo json_encode([
+                        'success' => false, 
+                        'message' => "Dataset too large for sorting ({$total_tickets} tickets). Please use filters to reduce the dataset size first."
+                    ]);
+                    return;
                 }
                 
-                // Sort tickets by win result value
-                usort($all_tickets, function($a, $b) use ($sort_order) {
-                    $a_value = $this->get_win_sort_value($a['win_result']['category']);
-                    $b_value = $this->get_win_sort_value($b['win_result']['category']);
+                try {
+                    // Get all tickets for sorting with memory monitoring
+                    $memory_before = memory_get_usage();
+                    $all_tickets = $this->get_paginated_combination_tickets($filter, $total_tickets, 0);
+                    $memory_after = memory_get_usage();
+                    $memory_used = ($memory_after - $memory_before) / 1024 / 1024; // Convert to MB
                     
-                    if ($sort_order === 'desc') {
-                        return $b_value - $a_value; // Highest winners first
-                    } else {
-                        return $a_value - $b_value; // Non-winners first
+                    log_message('info', "Loaded {$total_tickets} tickets for sorting. Memory used: {$memory_used} MB");
+                    
+                    if (empty($all_tickets)) {
+                        log_message('error', 'No tickets loaded for sorting');
+                        echo json_encode(['success' => false, 'message' => 'No tickets found for sorting']);
+                        return;
                     }
-                });
-                
-                // Apply pagination to sorted results
-                $tickets = array_slice($all_tickets, $offset, $per_page);
+                    
+                    // Calculate win results for all tickets
+                    foreach ($all_tickets as &$ticket) {
+                        $ticket['win_result'] = $this->calculate_ticket_win_result($ticket['numbers'], $draw_info, $filter, $display_mode, $next_draw_date);
+                    }
+                    
+                    // Sort tickets by win result value
+                    usort($all_tickets, function($a, $b) use ($sort_order) {
+                        $a_value = $this->get_win_sort_value($a['win_result']['category']);
+                        $b_value = $this->get_win_sort_value($b['win_result']['category']);
+                        
+                        if ($sort_order === 'desc') {
+                            return $b_value - $a_value; // Highest winners first
+                        } else {
+                            return $a_value - $b_value; // Non-winners first
+                        }
+                    });
+                    
+                    // Apply pagination to sorted results
+                    $tickets = array_slice($all_tickets, $offset, $per_page);
+                    
+                } catch (Exception $e) {
+                    log_message('error', 'Sorting failed: ' . $e->getMessage());
+                    echo json_encode([
+                        'success' => false, 
+                        'message' => 'Sorting failed due to memory or processing limits. Please try reducing the dataset size.'
+                    ]);
+                    return;
+                }
             } else {
                 // No sorting - use regular pagination
                 // Calculate win results for current page tickets only
@@ -1269,8 +1310,11 @@ class Prize extends Admin_Controller
             ]);
             
         } catch (Exception $e) {
-            log_message('error', 'AJAX exception: ' . $e->getMessage());
-            echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+            log_message('error', 'AJAX exception in load_combination_tickets: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Server error occurred while loading tickets. Please try again.']);
+        } catch (Error $e) {
+            log_message('error', 'PHP Fatal Error in load_combination_tickets: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Fatal error occurred. Please try again.']);
         }
     }
 
@@ -1289,7 +1333,6 @@ class Prize extends Admin_Controller
                 'session_id' => $this->session->userdata('id')
             ]);
         } catch (Exception $e) {
-            log_message('error', 'test_ajax exception: ' . $e->getMessage());
             echo json_encode([
                 'success' => false,
                 'message' => 'Error: ' . $e->getMessage()

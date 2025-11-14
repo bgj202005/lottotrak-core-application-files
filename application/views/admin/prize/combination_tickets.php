@@ -1021,11 +1021,18 @@ $(document).ready(function() {
         }
     });
     
-    // Custom Check Results Sorting - ONLY BOOTSTRAP TABLE FEATURE KEPT
-    $('.sortable-check-results').click(function() {
+    // Custom Check Results Sorting
+    $(document).on('click', '.sortable-check-results', function(e) {
+        e.preventDefault();
+        
         var $this = $(this);
         var currentSort = $this.data('sort') || 'asc';
         var newSort = currentSort === 'asc' ? 'desc' : 'asc';
+        
+        // Show loading indicator immediately for sorting
+        $('#loading-indicator').show();
+        $('#tickets-table').hide();
+        $('#pagination-container').hide();
         
         // Update sort indicator
         $this.removeClass('asc desc').addClass(newSort).data('sort', newSort);
@@ -1060,6 +1067,7 @@ $(document).ready(function() {
                 sort_column: currentSortColumn,
                 sort_order: currentSortOrder
             },
+            timeout: 30000, // 30 second timeout
             success: function(response) {
                 if (response.success) {
                     // Update table content
@@ -1079,7 +1087,8 @@ $(document).ready(function() {
                     totalPages = response.pagination.total_pages;
                     
                 } else {
-                    alert('Error loading tickets: ' + response.message);
+                    var errorMessage = response.message || 'Unknown error occurred';
+                    alert('Error: ' + errorMessage);
                 }
                 
                 // Hide loading indicator
@@ -1089,7 +1098,35 @@ $(document).ready(function() {
             },
             error: function(xhr, status, error) {
                 console.error('AJAX Error:', error);
-                alert('Error loading tickets. Please try again.');
+                
+                var errorMessage = 'Error loading tickets. Please try again.';
+                
+                // Check for timeout
+                if (status === 'timeout') {
+                    errorMessage = 'Request timed out. The operation may be taking too long.';
+                }
+                // Check for specific HTTP errors
+                else if (xhr.status === 500) {
+                    errorMessage = 'Server error (500). Please check the server logs.';
+                }
+                else if (xhr.status === 404) {
+                    errorMessage = 'Endpoint not found (404). Please check the URL.';
+                }
+                else if (xhr.status === 403) {
+                    errorMessage = 'Access denied (403). Please check your session.';
+                }
+                
+                // Try to parse JSON response for specific error message
+                try {
+                    var response = JSON.parse(xhr.responseText);
+                    if (response && response.message) {
+                        errorMessage = response.message;
+                    }
+                } catch (e) {
+                    // Use default message if JSON parsing fails
+                }
+                
+                alert(errorMessage);
                 
                 // Hide loading indicator
                 $('#loading-indicator').hide();
