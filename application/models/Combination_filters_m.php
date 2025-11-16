@@ -1534,4 +1534,168 @@ class Combination_filters_m extends MY_Model
         }
         return array_values($unique);
     }
+
+    /**
+     * Check if any combinations contain the required friendship type
+     * Returns true if at least one combination has the required friendship, false otherwise
+     */
+    public function check_friendship_occurrences($filepath, $number_array, $lottery_id, $friendship_type)
+    {
+        if ($friendship_type === 'all' || $friendship_type === 'none' || empty($friendship_type)) {
+            return true; // No friendship requirement
+        }
+
+        // Get friendship data from database
+        $row = $this->db->get_where('lottery_friends', ['lottery_id' => $lottery_id])->row_array();
+        if (!$row || empty($row['wins'])) {
+            return true; // No friendship data available
+        }
+
+        // Parse friendship data - same logic as validate_combination_friendships
+        $friend_str = trim($row['wins']);
+        $parts = explode('|', $friend_str);
+        
+        if (count($parts) > 1) {
+            $friend_str = trim($parts[1]);
+        } else {
+            $friend_str = trim($parts[0]);
+        }
+        
+        $friendships = array_filter(array_map('trim', explode(',', $friend_str)));
+        
+        $oneway = [];  // 1-way friendships
+        $twoway = [];  // 2-way friendships
+        
+        foreach ($friendships as $idx => $f) {
+            $ball = $idx + 1; // Ball number (1-based)
+            if (strpos($f, '<>') !== false) {
+                $friend = (int)trim(str_replace('<>', '', $f));
+                $twoway[] = [$ball, $friend];
+            } elseif (strpos($f, '>') !== false) {
+                $friend = (int)trim(str_replace('>', '', $f));
+                $oneway[] = [$ball, $friend];
+            }
+        }
+        
+        $twoway = $this->twoway_unique($twoway);
+        
+        // Check a sample of combinations to see if any contain the required friendship type
+        $sample_size = min(1000, $this->get_total_combinations_count($filepath)); // Check up to 1000 combinations
+        $combinations = $this->load_combinations_from_file($filepath, 1, $sample_size);
+        
+        foreach ($combinations as $combo) {
+            $combo_numbers = $this->convert_combo_to_numbers($combo, $number_array);
+            
+            if ($friendship_type === '1') {
+                // Check for at least one complete 1-way friendship
+                foreach ($oneway as $pair) {
+                    list($a, $b) = $pair;
+                    if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+                        // Found complete 1-way friendship - check no 2-way friendships exist
+                        $has_twoway = false;
+                        foreach ($twoway as $twopair) {
+                            list($ta, $tb) = $twopair;
+                            if (in_array($ta, $combo_numbers) && in_array($tb, $combo_numbers)) {
+                                $has_twoway = true;
+                                break;
+                            }
+                        }
+                        if (!$has_twoway) {
+                            return true; // Found valid 1-way friendship occurrence
+                        }
+                    }
+                }
+            } elseif ($friendship_type === '2') {
+                // Check for at least one complete 2-way friendship
+                foreach ($twoway as $pair) {
+                    list($a, $b) = $pair;
+                    if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+                        // Found complete 2-way friendship - check no 1-way friendships exist
+                        $has_oneway = false;
+                        foreach ($oneway as $onepair) {
+                            list($oa, $ob) = $onepair;
+                            if (in_array($oa, $combo_numbers) && in_array($ob, $combo_numbers)) {
+                                $has_oneway = true;
+                                break;
+                            }
+                        }
+                        if (!$has_oneway) {
+                            return true; // Found valid 2-way friendship occurrence
+                        }
+                    }
+                }
+            }
+        }
+        
+        return false; // No required friendship type found in any combination
+    }
+
+    /**
+     * Get total count of combinations in file
+     */
+    private function get_total_combinations_count($filepath)
+    {
+        if (!file_exists($filepath)) {
+            return 0;
+        }
+        
+        $count = 0;
+        if (($handle = fopen($filepath, 'r')) !== false) {
+            while (($line = fgets($handle)) !== false) {
+                $line = trim($line);
+                if (!empty($line)) {
+                    $count++;
+                }
+            }
+            fclose($handle);
+        }
+        return $count;
+    }
+
+    /**
+     * Load combinations from file with pagination
+     */
+    private function load_combinations_from_file($filepath, $page, $per_page)
+    {
+        if (!file_exists($filepath)) {
+            return [];
+        }
+
+        $start_line = ($page - 1) * $per_page + 1;
+        $end_line = $start_line + $per_page;
+        $current_line = 1;
+        $combinations = [];
+
+        if (($handle = fopen($filepath, 'r')) !== false) {
+            while (($line = fgets($handle)) !== false && $current_line < $end_line) {
+                if ($current_line >= $start_line) {
+                    $line = trim($line);
+                    if (!empty($line)) {
+                        $positions = array_map('intval', explode(' ', $line));
+                        $combinations[] = $positions;
+                    }
+                }
+                $current_line++;
+            }
+            fclose($handle);
+        }
+        
+        return $combinations;
+    }
+
+    /**
+     * Convert combination positions to actual numbers
+     */
+    private function convert_combo_to_numbers($combo_positions, $number_array)
+    {
+        $combo_numbers = [];
+        
+        foreach ($combo_positions as $pos) {
+            if ($pos > 0 && isset($number_array[$pos - 1])) {
+                $combo_numbers[] = $number_array[$pos - 1];
+            }
+        }
+        
+        return $combo_numbers;
+    }
 }

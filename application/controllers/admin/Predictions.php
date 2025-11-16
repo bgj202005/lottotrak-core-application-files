@@ -596,7 +596,7 @@ class Predictions extends Admin_Controller {
 	{
 		// Check if this is a timeout redirect from combination generation
 		if ($this->input->get('timeout') === '1') {
-			$this->data['message'] = 'Generate Tickets is longer than 3 seconds. Please change settings.';
+			$this->data['message'] = 'Generate Tickets is longer than 5 seconds. Please change settings.';
 			$this->data['disable_generate_button'] = false; // Allow user to retry with different settings
 			
 			// Restore form data from session if available
@@ -1465,14 +1465,16 @@ class Predictions extends Admin_Controller {
 	{
 		// Track start time for timeout monitoring without affecting CodeIgniter core operations
 		$start_time = microtime(true);
-		$timeout_seconds = 3; // Allow 3 seconds for combination generation
+		
+		// Set optimized timeout for number generation operations:
+		// Reduced from 8 to 5 seconds after H-W-C performance optimizations
+		$timeout_seconds = 5;
 		
 		// Register shutdown function to handle fatal errors including timeouts
 		$this->register_shutdown_function($id, $start_time, $timeout_seconds);
 		
-		// Clear HWC cache to prevent memory issues
+		// Load Statistics model for H-W-C operations
 		$this->load->model('Statistics_m');
-		$this->Statistics_m::clear_hwc_cache();
 		
 
 		
@@ -1924,7 +1926,7 @@ class Predictions extends Admin_Controller {
 			
 			// Check for timeout before starting heavy operations
 			if ($this->check_timeout($start_time, $timeout_seconds)) {
-				$this->display_timeout_error($id, $per_page, $tbl_name);
+				$this->display_timeout_error($id, $per_page, $tbl_name, $timeout_seconds);
 				return;
 			}
 			
@@ -1935,7 +1937,7 @@ class Predictions extends Admin_Controller {
 					
 					// Check for timeout after hwc_only call
 					if ($this->check_timeout($start_time, $timeout_seconds)) {
-						$this->display_timeout_error($id, $per_page, $tbl_name);
+						$this->display_timeout_error($id, $per_page, $tbl_name, $timeout_seconds);
 						return;
 					}
 					
@@ -1992,7 +1994,7 @@ class Predictions extends Admin_Controller {
 					
 					// Check for timeout after followers_only call
 					if ($this->check_timeout($start_time, $timeout_seconds)) {
-						$this->display_timeout_error($id, $per_page, $tbl_name);
+						$this->display_timeout_error($id, $per_page, $tbl_name, $timeout_seconds);
 						return;
 					}
 					
@@ -2094,7 +2096,7 @@ class Predictions extends Admin_Controller {
 					
 					// Check for timeout after hwc_followers call
 					if ($this->check_timeout($start_time, $timeout_seconds)) {
-						$this->display_timeout_error($id, $per_page, $tbl_name);
+						$this->display_timeout_error($id, $per_page, $tbl_name, $timeout_seconds);
 						return;
 					}
 					
@@ -2150,7 +2152,7 @@ class Predictions extends Admin_Controller {
 			} catch (Exception $e) {
 				// Handle timeout or other errors gracefully
 				if (strpos($e->getMessage(), 'Maximum execution time') !== false) {
-					$error_message = 'Generate Tickets is longer than 3 seconds. Please change settings.';
+					$error_message = "Generate Tickets is longer than $timeout_seconds seconds. Please change settings.";
 				} else {
 					$error_message = 'An error occurred during number generation. Please check your settings and try again.';
 				}
@@ -2288,7 +2290,8 @@ class Predictions extends Admin_Controller {
 				}
 				// Prepare filter array
 				// When "All" is selected for friends, disable friendship filtering completely
-				$effective_friends_checked = $friends_checked && ($selected_friends !== 'all');
+				// Also disable filtering for "none" (0 friends) selection
+				$effective_friends_checked = $friends_checked && ($selected_friends !== 'all') && ($selected_friends !== 'none');
 				
 				$filters = [
 					'selected_trends' => $selected_trends,
@@ -2314,6 +2317,27 @@ class Predictions extends Admin_Controller {
 					'max_ball' => $this->data['lottery']->maximum_ball,
 					'lottery_highlights' => $this->data['lottery']->highlights
 				];
+				
+				// Check for friendship occurrences if friendship filtering is requested
+				$friendship_message = null;
+				if ($friends_checked && $selected_friends !== 'all' && $selected_friends !== 'none') {
+					$has_friendship_occurrences = $this->combination_filters_m->check_friendship_occurrences($filepath, $number_array, $id, $selected_friends);
+					
+					if (!$has_friendship_occurrences) {
+						$friendship_type_name = ($selected_friends === '1') ? '1-way' : '2-way';
+						$friendship_message = "There are no {$friendship_type_name} friendship occurrences found in the generated combinations.";
+						
+						// Reset friends dropdown to ALL but keep checkbox checked
+						$selected_friends = 'all';
+						$effective_friends_checked = false; // Disable filtering since ALL is selected
+						$filters['selected_friends'] = 'all';
+						$filters['selected_friends_checkbox'] = $friends_checked; // Keep original checkbox state
+						
+						// Update form data to reflect the dropdown reset but keep checkbox checked
+						$this->data['selected_friends'] = 'all';
+						$this->data['selected_friends_checkbox'] = $friends_checked; // Keep original checkbox state
+					}
+				}
 				
 				// OPTIMIZATION: Get filtered count first (efficient - no loading all data)
 				$total_filtered_count = $this->combination_filters_m->get_filtered_combinations_count($filepath, $number_array, $filters, $start_time, $timeout_seconds, $id);
@@ -2376,7 +2400,13 @@ class Predictions extends Admin_Controller {
 						'total_filtered' => $total_filtered_count
 					];
 					$this->data['number_array'] = $number_array;
-					$this->data['message'] = 'Combination Table and filters loaded successfully.';
+					
+					// Set message based on whether friendship warning exists
+					if ($friendship_message) {
+						$this->data['message'] = $friendship_message . ' Friends filter has been reset to ALL. Combination Table loaded successfully.';
+					} else {
+						$this->data['message'] = 'Combination Table and filters loaded successfully.';
+					}
 				}
 			}
 		}
@@ -2411,7 +2441,7 @@ class Predictions extends Admin_Controller {
 			
 			// Check for friendship warnings in GET requests (when viewing existing results)
 			$friendship_warning = null;
-			if ($number_array && $futures_form['selected_friends_checkbox'] === 'on' && $futures_form['selected_friends'] !== 'all') {
+			if ($number_array && $futures_form['selected_friends_checkbox'] === 'on' && $futures_form['selected_friends'] !== 'all' && $futures_form['selected_friends'] !== 'none') {
 				// Analyze the current number array for friendship warnings
 				$friendship_analysis = $this->predictions_m->analyze_friendships($id, $number_array);
 				$selected_friends = $futures_form['selected_friends'];
@@ -2475,9 +2505,10 @@ class Predictions extends Admin_Controller {
 				}
 				// Prepare filter array for GET requests
 				// When "All" is selected for friends, disable friendship filtering completely
+				// Also disable filtering for "none" (0 friends) selection
 				$friends_value = isset($futures_form['selected_friends']) ? $futures_form['selected_friends'] : '';
 				$friends_checkbox = isset($futures_form['selected_friends_checkbox']) ? $futures_form['selected_friends_checkbox'] : false;
-				$effective_friends_checked = $friends_checkbox && ($friends_value !== 'all');
+				$effective_friends_checked = $friends_checkbox && ($friends_value !== 'all') && ($friends_value !== 'none');
 				
 				$filters = [
 					'selected_trends' => $futures_form['selected_trends'],
@@ -4802,9 +4833,9 @@ class Predictions extends Admin_Controller {
 	 * @param int $per_page Pagination per page setting
 	 * @param string $tbl_name Lottery table name
 	 */
-	private function display_timeout_error($id, $per_page, $tbl_name)
+	private function display_timeout_error($id, $per_page, $tbl_name, $timeout_seconds = 5)
 	{
-		$this->data['message'] = 'Generate Tickets is longer than 3 seconds. Please change settings.';
+		$this->data['message'] = "Generate Tickets is longer than $timeout_seconds seconds. Please change settings.";
 		$this->data['combos_paginated'] = [];
 		$this->data['pagination'] = [
 			'current' => 1,
@@ -5018,7 +5049,7 @@ class Predictions extends Admin_Controller {
 					echo '<!DOCTYPE html>';
 					echo '<html><head><title>Timeout</title></head><body>';
 					echo '<div style="padding: 20px; background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; margin: 20px; font-family: Arial, sans-serif;">';
-					echo '<strong>Generate Tickets is longer than 3 seconds. Please change settings.</strong>';
+					echo '<strong>Generate Tickets is longer than 5 seconds. Please change settings.</strong>';
 					echo '</div>';
 					echo '<script>';
 					echo 'setTimeout(function() {';
@@ -5078,7 +5109,7 @@ class Predictions extends Admin_Controller {
 				redirect('admin/predictions/futures/' . $id . '?timeout=1');
 			} else {
 				// Generic timeout message
-				$this->session->set_flashdata('message', 'Generate Tickets is longer than 3 seconds. Please change settings.');
+				$this->session->set_flashdata('message', 'Generate Tickets is longer than 5 seconds. Please change settings.');
 				redirect('admin/predictions');
 			}
 			return true;

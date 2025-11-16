@@ -1288,41 +1288,162 @@ class Predictions_m extends MY_Model
 	 */
 	public function hwc_only($lottery_id, $combination_size, $h_w_c)
 	{
-		// 1. Parse H-W-C group (e.g., "3-3-3 (17)")
-		preg_match('/(\d+)-(\d+)-(\d+)/', $h_w_c, $matches);
+		// Start performance timer for optimization tracking
+		$start_time = microtime(true);
+		
+		// 1. Parse H-W-C group (e.g., "3-3-3 (17)") - optimized regex
+		if (!preg_match('/(\d+)-(\d+)-(\d+)/', $h_w_c, $matches)) {
+			log_message('error', "Invalid H-W-C format: $h_w_c");
+			return FALSE;
+		}
+		
 		$h = (int)$matches[1];
 		$w = (int)$matches[2];
 		$c = (int)$matches[3];
-		// 2. Calculate scaled totals for combination size
+		
+		// 2. Calculate scaled totals for combination size - optimized calculation
 		$total = $h + $w + $c;
+		if ($total == 0) {
+			log_message('error', "Invalid H-W-C totals: $h-$w-$c");
+			return FALSE;
+		}
+		
 		$h_total = round(($h / $total) * $combination_size);
 		$w_total = round(($w / $total) * $combination_size);
 		$c_total = $combination_size - $h_total - $w_total; // Ensure total matches
-		// 3. Get HWC data from DB
+		
+		// 3. Get HWC data from DB with optimized caching
+		$hwc_data = $this->get_cached_hwc_data($lottery_id);
+		if (!$hwc_data) {
+			log_message('error', "H-W-C data not found for lottery $lottery_id");
+			return FALSE;
+		}
+		
+		// 4. Extract pre-parsed data from cache
+		$hots = $hwc_data['hots'];
+		$warms = $hwc_data['warms'];
+		$colds = $hwc_data['colds'];
+		$h_positions = $hwc_data['h_positions'];
+		$w_positions = $hwc_data['w_positions'];
+		$c_positions = $hwc_data['c_positions'];
+		
+		// 5. Select numbers for each group by top position counts - optimized selection
+		$selected = [];
+		$selected = array_merge($selected, $this->select_by_position_index_optimized($h_positions, $hots, $h_total));
+		$selected = array_merge($selected, $this->select_by_position_index_optimized($w_positions, $warms, $w_total));
+		$selected = array_merge($selected, $this->select_by_position_index_optimized($c_positions, $colds, $c_total));
+
+		$elapsed = microtime(true) - $start_time;
+		log_message('info', "H-W-C generation completed in " . round($elapsed * 1000, 2) . "ms for lottery $lottery_id");
+		
+		return implode(',', $selected);
+	}
+	/**
+	 * Optimized version of select_by_position_index with improved performance
+	 */
+	private function select_by_position_index_optimized($positions, $numbers, $limit) {
+		if ($limit <= 0) return [];
+		
+		// Sort positions by count (descending) - more efficient than arsort for smaller arrays
+		uasort($positions, function($a, $b) { return $b - $a; });
+		
+		$selected = [];
+		$selected_lookup = []; // Use array for faster duplicate checking
+		
+		foreach ($positions as $pos => $count) {
+			if (isset($numbers[$pos]) && !isset($selected_lookup[$numbers[$pos]])) {
+				$number = $numbers[$pos];
+				$selected[] = $number;
+				$selected_lookup[$number] = true;
+				if (count($selected) >= $limit) break;
+			}
+		}
+		return $selected;
+	}
+	
+	/**
+	 * Get cached H-W-C data with optimized parsing and caching
+	 */
+	private function get_cached_hwc_data($lottery_id) {
+		// Check static cache first
+		static $hwc_cache = [];
+		$cache_key = "hwc_data_$lottery_id";
+		
+		if (isset($hwc_cache[$cache_key])) {
+			return $hwc_cache[$cache_key];
+		}
+		
+		// Get raw data from database
 		$hwc = $this->statistics_m->h_w_c_exists($lottery_id);
 		$position_row = $this->statistics_m->hwc_history_exists($lottery_id);
-		if (!$hwc) {
-			return show_error('Hots Warms and Colds data not found for this lottery.');
-		} elseif(!$position_row || empty($position_row['position'])) {
-			return show_error('Position data not found for this lottery.');
+		
+		if (!$hwc || !$position_row || empty($position_row['position'])) {
+			return FALSE;
 		}
-		// 4. Parse numbers for each group (discard counts, keep order)
-		$hots = array_map('intval', array_map(function($v){ return explode('=', $v)[0]; }, explode(',', $hwc['hots'])));
-		$warms = array_map('intval', array_map(function($v){ return explode('=', $v)[0]; }, explode(',', $hwc['warms'])));
-		$colds = array_map('intval', array_map(function($v){ return explode('=', $v)[0]; }, explode(',', $hwc['colds'])));
-		// 5. Parse positions for each group
+		
+		// Parse and cache the data
+		$parsed_data = [
+			'hots' => $this->parse_hwc_numbers($hwc['hots']),
+			'warms' => $this->parse_hwc_numbers($hwc['warms']),
+			'colds' => $this->parse_hwc_numbers($hwc['colds']),
+		];
+		
+		// Parse positions efficiently
 		$parts = explode('|', $position_row['position']);
-		$h_positions = $this->parse_position_part($parts[0]); // [position => count]
-		$w_positions = $this->parse_position_part($parts[1]);
-		$c_positions = $this->parse_position_part($parts[2]);
-		// 6. Select numbers for each group by top position counts
-		$selected = [];
-		$selected = array_merge($selected, $this->select_by_position_index($h_positions, $hots, $h_total));
-		$selected = array_merge($selected, $this->select_by_position_index($w_positions, $warms, $w_total));
-		$selected = array_merge($selected, $this->select_by_position_index($c_positions, $colds, $c_total));
-
-	return implode(',', $selected);
+		$parsed_data['h_positions'] = $this->parse_position_part_optimized($parts[0]);
+		$parsed_data['w_positions'] = $this->parse_position_part_optimized($parts[1]);
+		$parsed_data['c_positions'] = $this->parse_position_part_optimized($parts[2]);
+		
+		// Cache the parsed data
+		$hwc_cache[$cache_key] = $parsed_data;
+		
+		// Prevent memory bloat - keep only last 5 lotteries in cache
+		if (count($hwc_cache) > 5) {
+			$hwc_cache = array_slice($hwc_cache, -5, 5, true);
+		}
+		
+		return $parsed_data;
 	}
+	
+	/**
+	 * Optimized parsing of H-W-C numbers (removes counts, keeps order)
+	 */
+	private function parse_hwc_numbers($hwc_string) {
+		if (empty($hwc_string)) return [];
+		
+		// Use more efficient parsing - split once and extract numbers
+		$pairs = explode(',', $hwc_string);
+		$numbers = [];
+		foreach ($pairs as $pair) {
+			$eq_pos = strpos($pair, '=');
+			if ($eq_pos !== false) {
+				$numbers[] = (int)substr($pair, 0, $eq_pos);
+			}
+		}
+		return $numbers;
+	}
+	
+	/**
+	 * Optimized version of parse_position_part
+	 */
+	private function parse_position_part_optimized($str) {
+		// Remove prefix more efficiently
+		$str = preg_replace('/^[HWC]>/', '', $str);
+		if (empty($str)) return [];
+		
+		$pairs = explode(',', $str);
+		$arr = [];
+		foreach ($pairs as $pair) {
+			$eq_pos = strpos($pair, '=');
+			if ($eq_pos !== false) {
+				$pos = (int)substr($pair, 0, $eq_pos);
+				$count = (int)substr($pair, $eq_pos + 1);
+				$arr[$pos] = $count;
+			}
+		}
+		return $arr;
+	}
+	
 	/**
 	 * Parses a position part string (e.g., "H>0=21,1=16,...") into an associative array.
 	 * The returned array maps position indices to their counts.
