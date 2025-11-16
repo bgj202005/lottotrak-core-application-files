@@ -11,58 +11,119 @@ class Number_generation_m extends MY_Model
     protected $_order_by = 'id';
 
     /**
-     * Generate numbers using H-W-C (Hot, Warm, Cold) logic only
+     * Generate numbers using H-W-C (Hot, Warm, Cold) logic only with position count ranking
      * @param int $lottery_id Lottery ID
      * @param int $combination_size Number of numbers to generate
-     * @param string $h_w_c H-W-C selection criteria
+     * @param string $h_w_c H-W-C selection criteria (e.g., "2-2-2")
      * @return array Generated numbers
      */
     public function hwc_only($lottery_id, $combination_size, $h_w_c)
     {
-        $this->load->model('lottery_data_m');
-        $heat_map = $this->get_heat_map($lottery_id);
-        
-        if (empty($heat_map)) {
-            return [];
-        }
-        
-        $selected_numbers = [];
+        $this->load->model('statistics_m');
         
         // Parse H-W-C criteria (e.g., "2-2-2")
-        $hwc_parts = explode('-', $h_w_c);
-        if (count($hwc_parts) != 3) {
+        preg_match('/^(\d+)-(\d+)-(\d+)/', $h_w_c, $matches);
+        if (count($matches) < 4) {
             return [];
         }
         
-        $hot_count = intval($hwc_parts[0]);
-        $warm_count = intval($hwc_parts[1]);
-        $cold_count = intval($hwc_parts[2]);
+        $h_ratio = intval($matches[1]);
+        $w_ratio = intval($matches[2]);
+        $c_ratio = intval($matches[3]);
+        $total_ratio = $h_ratio + $w_ratio + $c_ratio;
         
-        // Sort heat map by frequency
-        arsort($heat_map);
-        $sorted_numbers = array_keys($heat_map);
-        $total_numbers = count($sorted_numbers);
+        // Get H-W-C data from database
+        $hwc_data = $this->statistics_m->h_w_c_exists($lottery_id);
+        $position_data = $this->statistics_m->hwc_history_exists($lottery_id);
         
-        // Determine thresholds for hot, warm, cold
-        $hot_threshold = floor($total_numbers / 3);
-        $warm_threshold = floor($total_numbers * 2 / 3);
+        if (!$hwc_data || !$position_data || empty($position_data['position'])) {
+            return [];
+        }
         
-        $hot_numbers = array_slice($sorted_numbers, 0, $hot_threshold);
-        $warm_numbers = array_slice($sorted_numbers, $hot_threshold, $warm_threshold - $hot_threshold);
-        $cold_numbers = array_slice($sorted_numbers, $warm_threshold);
+        // Calculate base allocation using ratio
+        $base_h = floor(($h_ratio / $total_ratio) * $combination_size);
+        $base_w = floor(($w_ratio / $total_ratio) * $combination_size);
+        $base_c = floor(($c_ratio / $total_ratio) * $combination_size);
         
-        // Select numbers according to H-W-C criteria
-        $selected_numbers = array_merge(
-            array_slice($hot_numbers, 0, $hot_count),
-            array_slice($warm_numbers, 0, $warm_count),
-            array_slice($cold_numbers, 0, $cold_count)
-        );
+        // Calculate remaining numbers to allocate
+        $remaining = $combination_size - ($base_h + $base_w + $base_c);
         
-        // Fill remaining slots if needed
-        while (count($selected_numbers) < $combination_size) {
-            $remaining = array_diff($sorted_numbers, $selected_numbers);
-            if (empty($remaining)) break;
-            $selected_numbers[] = $remaining[0];
+        // Get actual counts from lottery_h_w_c table for tie-breaking
+        $h_count = isset($hwc_data['h_count']) ? intval($hwc_data['h_count']) : 0;
+        $w_count = isset($hwc_data['w_count']) ? intval($hwc_data['w_count']) : 0;
+        $c_count = isset($hwc_data['c_count']) ? intval($hwc_data['c_count']) : 0;
+        
+        // Create array for sorting by actual counts (tie-breaker)
+        $categories = [
+            ['type' => 'w', 'count' => $w_count, 'allocated' => $base_w],
+            ['type' => 'h', 'count' => $h_count, 'allocated' => $base_h],
+            ['type' => 'c', 'count' => $c_count, 'allocated' => $base_c]
+        ];
+        
+        // Sort by actual count descending (largest count gets priority for extra numbers)
+        usort($categories, function($a, $b) {
+            return $b['count'] - $a['count'];
+        });
+        
+        // Distribute remaining numbers to categories with highest counts
+        for ($i = 0; $i < $remaining; $i++) {
+            $categories[0]['allocated']++;
+        }
+        
+        // Extract final allocations
+        $hot_count = 0;
+        $warm_count = 0;
+        $cold_count = 0;
+        
+        foreach ($categories as $category) {
+            switch ($category['type']) {
+                case 'h':
+                    $hot_count = $category['allocated'];
+                    break;
+                case 'w':
+                    $warm_count = $category['allocated'];
+                    break;
+                case 'c':
+                    $cold_count = $category['allocated'];
+                    break;
+            }
+        }
+        
+        // Parse H-W-C numbers and position counts
+        $hot_numbers = $this->parse_hwc_numbers($hwc_data['hots']);
+        $warm_numbers = $this->parse_hwc_numbers($hwc_data['warms']);
+        $cold_numbers = $this->parse_hwc_numbers($hwc_data['colds']);
+        
+        // Parse position counts for each category
+        $position_parts = explode('|', $position_data['position']);
+        $hot_positions = $this->parse_position_counts($position_parts[0]);
+        $warm_positions = $this->parse_position_counts($position_parts[1]);
+        $cold_positions = $this->parse_position_counts($position_parts[2]);
+        
+        // Select numbers by highest position counts within each category
+        $selected_numbers = [];
+        
+        // Select hot numbers by position count ranking
+        $selected_hot = $this->select_by_position_ranking($hot_positions, $hot_numbers, $hot_count);
+        $selected_numbers = array_merge($selected_numbers, $selected_hot);
+        
+        // Select warm numbers by position count ranking
+        $selected_warm = $this->select_by_position_ranking($warm_positions, $warm_numbers, $warm_count);
+        $selected_numbers = array_merge($selected_numbers, $selected_warm);
+        
+        // Select cold numbers by position count ranking
+        $selected_cold = $this->select_by_position_ranking($cold_positions, $cold_numbers, $cold_count);
+        $selected_numbers = array_merge($selected_numbers, $selected_cold);
+        
+        // If not enough numbers, fill from remaining numbers in order of preference (hot -> warm -> cold)
+        if (count($selected_numbers) < $combination_size) {
+            $all_numbers = array_merge($hot_numbers, $warm_numbers, $cold_numbers);
+            foreach ($all_numbers as $number) {
+                if (!in_array($number, $selected_numbers)) {
+                    $selected_numbers[] = $number;
+                    if (count($selected_numbers) >= $combination_size) break;
+                }
+            }
         }
         
         sort($selected_numbers);
@@ -264,6 +325,99 @@ class Number_generation_m extends MY_Model
         }
         
         return $heat_map;
+    }
+    
+    /**
+     * Parse H-W-C numbers from database format (e.g., "7=15,23=12,34=11")
+     * @param string $hwc_string Database string with number=count format
+     * @return array Array of numbers in order
+     */
+    private function parse_hwc_numbers($hwc_string)
+    {
+        $numbers = [];
+        if (empty($hwc_string)) {
+            return $numbers;
+        }
+        
+        $pairs = explode(',', $hwc_string);
+        foreach ($pairs as $pair) {
+            $parts = explode('=', $pair);
+            if (count($parts) == 2) {
+                $numbers[] = intval(trim($parts[0]));
+            }
+        }
+        
+        return $numbers;
+    }
+    
+    /**
+     * Parse position counts from database format (e.g., "H>0=17,1=18,2=16")
+     * @param string $position_string Database string with position=count format
+     * @return array Array of position => count
+     */
+    private function parse_position_counts($position_string)
+    {
+        $positions = [];
+        if (empty($position_string)) {
+            return $positions;
+        }
+        
+        // Remove category prefix (H>, W>, C>)
+        $cleaned = preg_replace('/^[HWC]>/', '', $position_string);
+        
+        $pairs = explode(',', $cleaned);
+        foreach ($pairs as $pair) {
+            $parts = explode('=', $pair);
+            if (count($parts) == 2) {
+                $position = intval(trim($parts[0]));
+                $count = intval(trim($parts[1]));
+                $positions[$position] = $count;
+            }
+        }
+        
+        return $positions;
+    }
+    
+    /**
+     * Select numbers by highest position counts within a category
+     * @param array $position_counts Array of position => count
+     * @param array $numbers Array of available numbers in category
+     * @param int $limit Maximum numbers to select
+     * @return array Selected numbers
+     */
+    private function select_by_position_ranking($position_counts, $numbers, $limit)
+    {
+        $selected = [];
+        if ($limit <= 0 || empty($numbers)) {
+            return $selected;
+        }
+        
+        // Sort positions by count (highest first)
+        arsort($position_counts);
+        
+        // Select numbers at positions with highest counts
+        foreach ($position_counts as $position => $count) {
+            if (isset($numbers[$position]) && !in_array($numbers[$position], $selected)) {
+                $selected[] = $numbers[$position];
+                if (count($selected) >= $limit) {
+                    break;
+                }
+            }
+        }
+        
+        // If still need more numbers, fill from remaining numbers in order
+        if (count($selected) < $limit) {
+            foreach ($numbers as $number) {
+                if (!in_array($number, $selected)) {
+                    $selected[] = $number;
+                    if (count($selected) >= $limit) {
+                        break;
+                    }
+                }
+            }
+        }
+        
+        return $selected;
     }
 
     /**
