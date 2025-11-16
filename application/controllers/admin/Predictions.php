@@ -748,10 +748,21 @@ class Predictions extends Admin_Controller {
 			$this->data['selected_hwc'] = ($restore_data['hwc'] == '1');
 			$this->data['selected_followers'] = ($restore_data['followers'] == '1');
 			$this->data['selected_friends_checkbox'] = ($restore_data['friends'] == '1');
-			$this->data['selected_friends'] = $restore_data['selected_friends'] ?: '';
+			$this->data['selected_friends'] = isset($restore_data['friends_select']) ? $restore_data['friends_select'] : '';
 			$this->data['selected_wheeling'] = $restore_data['wheeling'] ?: '';
 			$this->data['selected_ball_points'] = $restore_data['ball_points'];
 			$this->data['selected_position_points'] = $restore_data['position_points'];
+			// Restore all filter settings - preserve exact values to prevent defaulting to 'ALL'
+			$this->data['selected_trends'] = isset($restore_data['trends']) ? $restore_data['trends'] : '';
+			$this->data['selected_winning_sums'] = isset($restore_data['winning_sums']) ? $restore_data['winning_sums'] : '';
+			$this->data['selected_winning_digits'] = isset($restore_data['winning_digits']) ? $restore_data['winning_digits'] : '';
+			$this->data['selected_repeaters'] = isset($restore_data['repeaters']) ? $restore_data['repeaters'] : '';
+			$this->data['selected_consecutives'] = isset($restore_data['consecutives']) ? $restore_data['consecutives'] : '';
+			$this->data['selected_parity'] = isset($restore_data['parity']) ? $restore_data['parity'] : '';
+			$this->data['selected_decades'] = isset($restore_data['decades']) ? $restore_data['decades'] : '';
+			$this->data['selected_last_digits'] = isset($restore_data['last_digits']) ? $restore_data['last_digits'] : '';
+			$this->data['selected_number_range'] = isset($restore_data['number_range']) ? $restore_data['number_range'] : '';
+			$this->data['selected_adjacents'] = isset($restore_data['adjacents']) ? $restore_data['adjacents'] : '';
 		} else {
 			// Use defaults when no timeout restore data
 			$this->data['selected_h_w_c_group'] = 'ALL';
@@ -764,6 +775,17 @@ class Predictions extends Admin_Controller {
 			$this->data['selected_wheeling'] = '';
 			$this->data['selected_ball_points'] = '';
 			$this->data['selected_position_points'] = '';
+			// Initialize all filter defaults
+			$this->data['selected_trends'] = '';
+			$this->data['selected_winning_sums'] = '';
+			$this->data['selected_winning_digits'] = '';
+			$this->data['selected_repeaters'] = '';
+			$this->data['selected_consecutives'] = '';
+			$this->data['selected_parity'] = '';
+			$this->data['selected_decades'] = '';
+			$this->data['selected_last_digits'] = '';
+			$this->data['selected_number_range'] = '';
+			$this->data['selected_adjacents'] = '';
 		}
     	
 		$this->data['position_points_options'] = $position_points_options;
@@ -4960,12 +4982,23 @@ class Predictions extends Admin_Controller {
 							'hwc' => $_POST['hwc'] ?? null,
 							'followers' => $_POST['followers'] ?? null,
 							'friends' => $_POST['friends'] ?? null,
-							'selected_friends' => $_POST['selected_friends'] ?? null,
+							'friends_select' => $_POST['friends_select'] ?? null,
 							'wheeling' => $_POST['wheeling'] ?? null,
 							'ball_points' => $_POST['ball_points'] ?? null,
 							'position_points' => $_POST['position_points'] ?? null,
 							'per_page' => $_POST['per_page'] ?? null,
-							'submit' => $_POST['submit'] ?? null
+							'submit' => $_POST['submit'] ?? null,
+							// Include all filter fields
+							'trends' => $_POST['trends'] ?? null,
+							'winning_sums' => $_POST['winning_sums'] ?? null,
+							'winning_digits' => $_POST['winning_digits'] ?? null,
+							'repeaters' => $_POST['repeaters'] ?? null,
+							'consecutives' => $_POST['consecutives'] ?? null,
+							'parity' => $_POST['parity'] ?? null,
+							'decades' => $_POST['decades'] ?? null,
+							'last_digits' => $_POST['last_digits'] ?? null,
+							'number_range' => $_POST['number_range'] ?? null,
+							'adjacents' => $_POST['adjacents'] ?? null
 						];
 					}
 					
@@ -5019,12 +5052,23 @@ class Predictions extends Admin_Controller {
 					'hwc' => $this->input->post('hwc', TRUE),
 					'followers' => $this->input->post('followers', TRUE),
 					'friends' => $this->input->post('friends', TRUE),
-					'selected_friends' => $this->input->post('selected_friends', TRUE),
+					'friends_select' => $this->input->post('friends_select', TRUE),
 					'wheeling' => $this->input->post('wheeling', TRUE),
 					'ball_points' => $this->input->post('ball_points', TRUE),
 					'position_points' => $this->input->post('position_points', TRUE),
 					'per_page' => $this->input->post('per_page', TRUE),
-					'submit' => $this->input->post('submit', TRUE)
+					'submit' => $this->input->post('submit', TRUE),
+					// Include all filter fields
+					'trends' => $this->input->post('trends', TRUE),
+					'winning_sums' => $this->input->post('winning_sums', TRUE),
+					'winning_digits' => $this->input->post('winning_digits', TRUE),
+					'repeaters' => $this->input->post('repeaters', TRUE),
+					'consecutives' => $this->input->post('consecutives', TRUE),
+					'parity' => $this->input->post('parity', TRUE),
+					'decades' => $this->input->post('decades', TRUE),
+					'last_digits' => $this->input->post('last_digits', TRUE),
+					'number_range' => $this->input->post('number_range', TRUE),
+					'adjacents' => $this->input->post('adjacents', TRUE)
 				];
 				$this->session->set_userdata('timeout_form_data', $timeout_form_data);
 			}
