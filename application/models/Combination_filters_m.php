@@ -852,6 +852,37 @@ class Combination_filters_m extends MY_Model
             }
         }
         
+        // Filter by friendship relationships - only apply if friendship checkbox is checked
+        if (isset($filter_select['selected_friends_checkbox']) && $filter_select['selected_friends_checkbox']) {
+            $friends_value = $filter_select['selected_friends'] ?? '';
+            log_message('info', "FRIENDSHIP FILTER DEBUG: Checkbox checked, friends value: '$friends_value'");
+            
+            if (!empty($friends_value) && strtolower($friends_value) !== 'all') {
+                log_message('info', "FRIENDSHIP FILTER DEBUG: Applying friendship filter for type: $friends_value");
+            } else {
+                log_message('info', "FRIENDSHIP FILTER DEBUG: Skipping friendship filter - value is 'All' or empty");
+            }
+        }
+        
+        if (isset($filter_select['selected_friends_checkbox']) && $filter_select['selected_friends_checkbox'] && 
+            isset($filter_select['selected_friends']) && 
+            !empty($filter_select['selected_friends']) && 
+            strtolower($filter_select['selected_friends']) !== 'all') {
+            
+            $lottery_id = $filter_select['lottery_id'] ?? null;
+            $friendship_type = $filter_select['selected_friends'];
+            
+            if ($lottery_id) {
+                // Get the combination numbers as an array
+                $combo_numbers = array_values($combo);
+                
+                // Validate the friendship requirements for this combination
+                if (!$this->validate_combination_friendships($lottery_id, $combo_numbers, $friendship_type)) {
+                    return false;
+                }
+            }
+        }
+        
         // If we reach here, combination passed all filters
         return true;
     }
@@ -1309,5 +1340,198 @@ class Combination_filters_m extends MY_Model
         }
         
         return $cccc_count;
+    }
+    
+    /**
+     * Validate that a combination respects friendship filtering rules
+     * 
+     * @param int $lottery_id The lottery ID
+     * @param array $combo_numbers Array of numbers in the combination
+     * @param string $friendship_type The friendship filter type ('none', '1', '2')
+     * @return bool True if combination respects friendship rules, false otherwise
+     */
+    private function validate_combination_friendships($lottery_id, $combo_numbers, $friendship_type)
+    {
+        // Get friendship data from database
+        $row = $this->db->get_where('lottery_friends', ['lottery_id' => $lottery_id])->row_array();
+        if (!$row || empty($row['wins'])) {
+            return true; // No friendship data, allow all combinations
+        }
+        
+        // Parse friendship data - split on pipe character first
+        $friend_str = trim($row['wins']);
+        $parts = explode('|', $friend_str);
+        
+        // Friendships are in the part after the pipe
+        if (count($parts) > 1) {
+            $friend_str = trim($parts[1]);
+        } else {
+            $friend_str = trim($parts[0]);
+        }
+        
+        $friendships = array_filter(array_map('trim', explode(',', $friend_str)));
+        
+        $oneway = [];  // 1-way friendships
+        $twoway = [];  // 2-way friendships
+        
+        foreach ($friendships as $idx => $f) {
+            $ball = $idx + 1; // Ball number (1-based)
+            if (strpos($f, '<>') !== false) {
+                $friend = (int)trim(str_replace('<>', '', $f));
+                $twoway[] = [$ball, $friend];
+            } elseif (strpos($f, '>') !== false) {
+                $friend = (int)trim(str_replace('>', '', $f));
+                $oneway[] = [$ball, $friend];
+            }
+        }
+        
+        // Make sure 2-way friendships are unique (remove duplicates like [1,2] and [2,1])
+        $twoway = $this->twoway_unique($twoway);
+        
+        // Check friendship rules based on selected filter type
+        switch ($friendship_type) {
+            case 'none':
+                // No friendships should exist
+                return $this->validate_no_friendships($combo_numbers, $oneway, $twoway);
+                
+            case '1':
+                // Only 1-way friendships allowed (no 2-way friendships)
+                $result = $this->validate_oneway_friendships_only($combo_numbers, $oneway, $twoway);
+                if (!$result) {
+                    // Log specific violation for debugging
+                    foreach ($oneway as $pair) {
+                        list($a, $b) = $pair;
+                        if (in_array($a, $combo_numbers) && !in_array($b, $combo_numbers)) {
+                            log_message('info', "FRIENDSHIP VIOLATION: 1-way {$a}>{$b} incomplete (missing {$b}) in combination [" . implode(',', $combo_numbers) . "]");
+                        }
+                    }
+                }
+                return $result;
+                
+            case '2':
+                // Only 2-way friendships allowed (no 1-way friendships)
+                return $this->validate_twoway_friendships_only($combo_numbers, $oneway, $twoway);
+                
+            default:
+                return true; // 'all' or unknown type - allow everything
+        }
+    }
+    
+    /**
+     * Validate that combination has no friendships
+     */
+    private function validate_no_friendships($combo_numbers, $oneway, $twoway)
+    {
+        // Check for any 2-way friendships
+        foreach ($twoway as $pair) {
+            list($a, $b) = $pair;
+            if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+                return false; // Found 2-way friendship
+            }
+        }
+        
+        // Check for any 1-way friendships
+        foreach ($oneway as $pair) {
+            list($a, $b) = $pair;
+            if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+                return false; // Found 1-way friendship
+            }
+        }
+        
+        return true; // No friendships found
+    }
+    
+    /**
+     * Validate that combination only has 1-way friendships (no 2-way friendships)
+     * For 1-way friendships to be valid: if A>B and A is in combo, then B MUST also be in combo
+     * Must have at least one complete 1-way friendship
+     */
+    private function validate_oneway_friendships_only($combo_numbers, $oneway, $twoway)
+    {
+        log_message('info', "FRIENDSHIP DEBUG: Validating 1-way friendships for combo [" . implode(',', $combo_numbers) . "]");
+        
+        // First, check that no 2-way friendships exist
+        foreach ($twoway as $pair) {
+            list($a, $b) = $pair;
+            if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+                log_message('info', "FRIENDSHIP DEBUG: Found 2-way friendship {$a}-{$b} - REJECTING");
+                return false; // Found 2-way friendship - not allowed
+            }
+        }
+        
+        $found_complete_oneway = false;
+        
+        // Check that 1-way friendships are complete (if A>B and A is present, B must be present)
+        foreach ($oneway as $pair) {
+            list($a, $b) = $pair;
+            if (in_array($a, $combo_numbers) && !in_array($b, $combo_numbers)) {
+                log_message('info', "FRIENDSHIP DEBUG: Found incomplete 1-way friendship {$a}>{$b} (missing {$b}) - REJECTING");
+                return false; // Found incomplete 1-way friendship
+            }
+            if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+                log_message('info', "FRIENDSHIP DEBUG: Found complete 1-way friendship {$a}>{$b} - OK");
+                $found_complete_oneway = true;
+            }
+        }
+        
+        if (!$found_complete_oneway) {
+            log_message('info', "FRIENDSHIP DEBUG: No 1-way friendships found - REJECTING");
+            return false; // Must have at least one complete 1-way friendship
+        }
+        
+        log_message('info', "FRIENDSHIP DEBUG: 1-way validation PASSED");
+        return true; // Only valid 1-way friendships found
+    }
+    
+    /**
+     * Validate that combination only has 2-way friendships (no 1-way friendships)
+     * For 2-way friendships to be valid: if A-B and either A or B is in combo, then both must be in combo
+     * Must have at least one complete 2-way friendship
+     */
+    private function validate_twoway_friendships_only($combo_numbers, $oneway, $twoway)
+    {
+        // First, check that no 1-way friendships exist
+        foreach ($oneway as $pair) {
+            list($a, $b) = $pair;
+            if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+                return false; // Found 1-way friendship - not allowed
+            }
+        }
+        
+        $found_complete_twoway = false;
+        
+        // Check that 2-way friendships are complete (if A-B and A is present, B must be present)
+        foreach ($twoway as $pair) {
+            list($a, $b) = $pair;
+            if ((in_array($a, $combo_numbers) && !in_array($b, $combo_numbers)) ||
+                (in_array($b, $combo_numbers) && !in_array($a, $combo_numbers))) {
+                return false; // Found incomplete 2-way friendship
+            }
+            if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+                $found_complete_twoway = true;
+            }
+        }
+        
+        if (!$found_complete_twoway) {
+            return false; // Must have at least one complete 2-way friendship
+        }
+        
+        return true; // Only valid 2-way friendships found
+    }
+    
+    /**
+     * Remove duplicates from 2-way friendship array (e.g., [1,2] and [2,1] become just [1,2])
+     */
+    private function twoway_unique($tw) {
+        $unique = [];
+        foreach ($tw as $pair) {
+            // Sort the pair so [10,11] and [11,10] become [10,11]
+            sort($pair, SORT_NUMERIC);
+            $key = implode('<>', $pair);
+            if (!isset($unique[$key])) {
+                $unique[$key] = $pair;
+            }
+        }
+        return array_values($unique);
     }
 }
