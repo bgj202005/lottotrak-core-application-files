@@ -1295,13 +1295,17 @@
 								</div>
 								<div class="col-lg-3 col-md-6 col-12 mb-2">
 									<?php
-									echo form_button([
+									$save_button_attributes = [
 										'type' => 'button',
 										'class' => 'btn btn-success btn-lg w-100',
 										'id' => 'save-filtered-btn',
-										'disabled' => 'disabled',
 										'style' => 'touch-action: manipulation; min-height: 48px;'
-									], 'Save Filtered Tickets');
+									];
+									// Only disable if no tickets have been generated
+									if (empty($combos_paginated)) {
+										$save_button_attributes['disabled'] = 'disabled';
+									}
+									echo form_button($save_button_attributes, 'Save Filtered Tickets');
 									?>
 								</div>
 								<div class="col-lg-3 col-md-6 col-12 mb-2">
@@ -1310,7 +1314,6 @@
 										'type' => 'button',
 										'class' => 'btn btn-warning btn-lg w-100',
 										'id' => 'reset-settings-btn',
-										'disabled' => 'disabled',
 										'style' => 'touch-action: manipulation; min-height: 48px;'
 									], 'Reset Settings');
 									?>
@@ -1775,39 +1778,20 @@
     	var resetBtn = document.getElementById('reset-settings-btn');
     	var deleteBtn = document.getElementById('delete-filtered-btn');
 		
-		// Initial state
-		saveBtn.disabled = true;
-		resetBtn.disabled = false; // Reset Settings should always be active
-		deleteBtn.disabled = true;
-		
-		// Check if tickets have been generated (number_array exists)
-		<?php if (!empty($number_array)): ?>
-		// Tickets have been generated, enable Save button
-		saveBtn.disabled = false;
-		<?php endif; ?>
+		// Simplified logic - PHP now handles initial button states correctly
+		// JavaScript only handles Generate button and combination dropdown interaction
 		
 		// Enable Generate Tickets when a combination table is selected
 		combinationDropdown.addEventListener('change', function () {
 			if (combinationDropdown.value) {
 				generateBtn.disabled = false;
-				// Only disable Save button if tickets haven't been generated yet
-				<?php if (empty($number_array)): ?>
-				saveBtn.disabled = true;
-				<?php endif; ?>
-				deleteBtn.disabled = true;
-				// Reset Settings should always remain active
 			} else {
 				generateBtn.disabled = true;
-				saveBtn.disabled = true;
-				deleteBtn.disabled = true;
-				// Reset Settings should always remain active
 			}
+			// Don't modify Save/Reset button states - PHP handles this correctly based on $combos_paginated
 		});
-		generateBtn.addEventListener('click', function (e) {
-			setTimeout(function() {
-				saveBtn.disabled = false;
-			}, 500);
-		});
+		
+		// No need to modify button states on generate click - PHP handles this after page reload
 
 		// After Save Filtered Tickets is clicked, enable Delete Filtered Tickets
 		saveBtn.addEventListener('click', function (e) {
@@ -2183,9 +2167,9 @@
 			sortOrder: 'asc',
 			classes: 'table table-bordered table-striped'
 		});
-		
+		}); // Close $(document).ready
 		<?php endif; ?>
-    });
+    }); // Close DOMContentLoaded function
     
     // Function to refresh filter settings
     function refreshFilter(comboId) {
