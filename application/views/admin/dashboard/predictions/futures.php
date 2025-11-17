@@ -1969,7 +1969,7 @@
 			}
 			// Second, try to get from PHP variables if they exist
 			else {
-				<?php if (!is_null($combo_id) && !empty($file_name)): ?>
+				<?php if (isset($combo_id) && !is_null($combo_id) && isset($file_name) && !empty($file_name)): ?>
 					comboId = <?= $combo_id ?>;
 					fileName = '<?= $file_name ?>';
 				<?php endif; ?>
@@ -2231,12 +2231,12 @@
                 // Show warning for expired filters but still allow navigation
                 if (confirm('This filter is EXPIRED. You can still view the combination ticket winners, but results will be based on historical data. Continue?')) {
                     // Add referrer parameter to indicate we came from prediction futures
-                    window.location.href = '<?= base_url() ?>admin/prize/view_combination_tickets/' + filterRecordId + '?referrer=futures&lottery_id=<?= $lottery->id ?>&combo_id=<?= $combo_id ?>';
+                    window.location.href = '<?= base_url() ?>admin/prize/view_combination_tickets/' + filterRecordId + '?referrer=futures&lottery_id=<?= $lottery->id ?><?= (isset($combo_id) && !is_null($combo_id)) ? '&combo_id=' . $combo_id : '' ?>';
                 }
                 // If user cancels, do nothing (return from function)
             } else {
                 // Active filter - navigate directly without warning
-                window.location.href = '<?= base_url() ?>admin/prize/view_combination_tickets/' + filterRecordId + '?referrer=futures&lottery_id=<?= $lottery->id ?>&combo_id=<?= $combo_id ?>';
+                window.location.href = '<?= base_url() ?>admin/prize/view_combination_tickets/' + filterRecordId + '?referrer=futures&lottery_id=<?= $lottery->id ?><?= (isset($combo_id) && !is_null($combo_id)) ? '&combo_id=' . $combo_id : '' ?>';
             }
         <?php else: ?>
             alert('No saved filter found. Please save filtered tickets first before viewing combination winners.');

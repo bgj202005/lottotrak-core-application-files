@@ -3081,6 +3081,10 @@ class Predictions extends Admin_Controller {
 		$original_filename = $this->combination_filters_m->extract_original_filename($saved_settings['file_name']);
 		$combo_id = $saved_settings['combo_id'];
 		
+		// Pass combo_id and file_name to view for JavaScript usage
+		$this->data['combo_id'] = $combo_id;
+		$this->data['file_name'] = $original_filename;
+		
 		// Set up basic lottery data needed for the view
 		$this->data['country_code'] = $this->lottery_data_m->get_lottery_country($id);
 		$this->data['state_prov_code'] = $this->lottery_data_m->get_lottery_state_prov($id);
