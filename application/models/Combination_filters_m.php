@@ -265,6 +265,7 @@ class Combination_filters_m extends MY_Model
         
         // For independent extra ball lotteries, we must always process combinations due to different structure
         // even when filters are 'ALL', because the combinations need proper parsing
+        // ALSO: Never skip filtering when ANY filter is active, including repeaters
         if ($selected_trends === 'ALL' && !$has_other_filters && !$is_independent_extra_ball) {
             $total_lines = count(file($filepath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
             return $total_lines;
@@ -702,7 +703,7 @@ class Combination_filters_m extends MY_Model
             $combo_for_counting = $combo;
             
             // Get the count of repeaters, not just if there are any
-            $repeater_count = $this->count_repeaters_from_combo($combo_for_counting, $max, $last_draw, $filter_select);
+            $repeater_count = (int)$this->count_repeaters_from_combo($combo_for_counting, $max, $last_draw, $filter_select);
             $expected_repeater_count = (int)$filter_select['selected_repeaters'];
             
             // Check if the combination has the exact number of repeaters expected
@@ -1042,8 +1043,12 @@ class Combination_filters_m extends MY_Model
         $lottery_id = $filter_select['lottery_id'] ?? 0;
         $is_independent_extra_ball = false;
         
-        // Check duplicate_extra_ball from lottery data
-        if (isset($filter_select['lottery_data'])) {
+        // Check duplicate_extra_ball directly from filter_select (new format)
+        if (isset($filter_select['duplicate_extra_ball'])) {
+            $is_independent_extra_ball = ($filter_select['duplicate_extra_ball'] == 1);
+        } 
+        // Fallback: Check duplicate_extra_ball from lottery data (old format)
+        elseif (isset($filter_select['lottery_data'])) {
             $lottery_data = $filter_select['lottery_data'];
             if (isset($lottery_data['duplicate_extra_ball'])) {
                 $is_independent_extra_ball = ($lottery_data['duplicate_extra_ball'] == 1);
@@ -1057,13 +1062,38 @@ class Combination_filters_m extends MY_Model
         }
         
         // Prepare combo numbers for comparison
-        $combo_numbers = array_map('intval', $combo);
+        // Extract only the main numbers (exclude extra ball for independent extra ball lotteries)
+        $combo_numbers = [];
+        
+        // For independent extra ball lotteries, only count main numbers for repeaters
+        if ($is_independent_extra_ball) {
+            // Extract main numbers only (ball1, ball2, etc, but not extra)
+            foreach ($combo as $key => $value) {
+                if (strpos($key, 'ball') === 0) {
+                    $combo_numbers[] = (int)$value;
+                }
+            }
+        } else {
+            // For regular lotteries, we need to check if there's an extra ball and handle it appropriately
+            foreach ($combo as $key => $value) {
+                if (strpos($key, 'ball') === 0) {
+                    $combo_numbers[] = (int)$value;
+                }
+                // Include extra ball for regular lotteries only if the lottery actually uses extra ball in repeater calculation
+                elseif ($key === 'extra' && isset($filter_select['extra_ball']) && $filter_select['extra_ball'] == 1) {
+                    $combo_numbers[] = (int)$value;
+                }
+            }
+        }
         
         // Create array of last drawn numbers
         $last_numbers = [];
         
-        // Always include main draw numbers (ball1-ball6)
-        for ($i = 1; $i <= 6; $i++) {
+        // Get the number of balls drawn for this lottery
+        $balls_drawn = $filter_select['drawn'] ?? 6;
+        
+        // Include main draw numbers (ball1 through drawn count)
+        for ($i = 1; $i <= $balls_drawn; $i++) {
             if (isset($last_draw["ball$i"]) && $last_draw["ball$i"] != '') {
                 $last_numbers[] = (int)$last_draw["ball$i"];
             }
@@ -1078,12 +1108,17 @@ class Combination_filters_m extends MY_Model
         // Count repeaters
         $repeater_count = 0;
         foreach ($combo_numbers as $number) {
-            if (in_array($number, $last_numbers)) {
-                $repeater_count++;
+            // Ensure both values are integers for proper comparison
+            $combo_num = (int)$number;
+            foreach ($last_numbers as $last_num) {
+                if ($combo_num === (int)$last_num) {
+                    $repeater_count++;
+                    break; // Avoid counting the same number multiple times
+                }
             }
         }
         
-        return $repeater_count;
+        return (int)$repeater_count;
     }
 
     /**

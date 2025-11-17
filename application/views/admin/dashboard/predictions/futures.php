@@ -401,9 +401,9 @@
 	#futures-filter-table.with-extra-ball th:nth-child(5) { width: 5%; }   /* Friends */
 	#futures-filter-table.with-extra-ball th:nth-child(6) { width: 5%; }   /* Trends */
 	#futures-filter-table.with-extra-ball th:nth-child(7) { width: 5%; }   /* Sums */
-	#futures-filter-table.with-extra-ball th:nth-child(8) { width: 5%; }   /* Digit Sums */
-	#futures-filter-table.with-extra-ball th:nth-child(9) { width: 6%; }   /* Repeaters */
-	#futures-filter-table.with-extra-ball th:nth-child(10) { width: 6%; }  /* Consecutives */
+	#futures-filter-table.with-extra-ball th:nth-child(8) { width: 8%; }   /* Digit Sums */
+	#futures-filter-table.with-extra-ball th:nth-child(9) { width: 8%; }   /* Repeaters */
+	#futures-filter-table.with-extra-ball th:nth-child(10) { width: 9%; }  /* Consecutives */
 	#futures-filter-table.with-extra-ball th:nth-child(11) { width: 6%; }  /* Odd/Even */
 	#futures-filter-table.with-extra-ball th:nth-child(12) { width: 6%; }  /* Decades */
 	#futures-filter-table.with-extra-ball th:nth-child(13) { width: 5%; }  /* Last */
@@ -437,9 +437,9 @@
 	#futures-filter-table:not(.with-extra-ball) th:nth-child(4) { width: 7%; }   /* Friends */
 	#futures-filter-table:not(.with-extra-ball) th:nth-child(5) { width: 7%; }   /* Trends */
 	#futures-filter-table:not(.with-extra-ball) th:nth-child(6) { width: 7%; }   /* Sums */
-	#futures-filter-table:not(.with-extra-ball) th:nth-child(7) { width: 7%; }   /* Digit Sums */
-	#futures-filter-table:not(.with-extra-ball) th:nth-child(8) { width: 7%; }   /* Repeaters */
-	#futures-filter-table:not(.with-extra-ball) th:nth-child(9) { width: 7%; }   /* Consecutives */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(7) { width: 9%; }   /* Digit Sums */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(8) { width: 9%; }   /* Repeaters */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(9) { width: 10%; }  /* Consecutives */
 	#futures-filter-table:not(.with-extra-ball) th:nth-child(10) { width: 7%; }  /* Odd/Even */
 	#futures-filter-table:not(.with-extra-ball) th:nth-child(11) { width: 7%; }  /* Decades */
 	#futures-filter-table:not(.with-extra-ball) th:nth-child(12) { width: 6%; }  /* Last */
@@ -510,6 +510,42 @@
 		table-layout: fixed !important;
 		margin: 0 !important;
 	}
+	
+	/* Results table column width optimization */
+	#generated-tickets-table th:nth-child(1) { width: 6%; }    /* # */
+	#generated-tickets-table th:nth-child(2) { width: 22%; }   /* Combination */
+	#generated-tickets-table th:nth-child(3) { width: 7%; }    /* Sum */
+	#generated-tickets-table th:nth-child(4) { width: 9%; }    /* Digit Sum */
+	#generated-tickets-table th:nth-child(5) { width: 9%; }    /* Repeaters */
+	#generated-tickets-table th:nth-child(6) { width: 11%; }   /* Consecutives */
+	#generated-tickets-table th:nth-child(7) { width: 7%; }    /* Odd */
+	#generated-tickets-table th:nth-child(8) { width: 7%; }    /* Even */
+	#generated-tickets-table th:nth-child(9) { width: 8%; }    /* Decade */
+	#generated-tickets-table th:nth-child(10) { width: 7%; }   /* Last */
+	#generated-tickets-table th:nth-child(11) { width: 7%; }   /* Range */
+	
+	#generated-tickets-table {
+		max-width: 100% !important;
+		width: 100% !important;
+		table-layout: fixed !important;
+		margin: 0 !important;
+	}
+	
+	#generated-tickets-table th {
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		overflow: hidden;
+		padding: 0.5rem 0.25rem !important;
+		font-size: 0.9rem;
+	}
+	
+	#generated-tickets-table td {
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		overflow: hidden;
+		padding: 0.4rem 0.25rem !important;
+	}
+	
 	@media (max-width: 991px) {
 		.table-responsive {
 			overflow-x: auto;
@@ -1326,29 +1362,21 @@
 										class="table table-bordered table-striped generated-tickets-table" 
 										style="width:100%; margin:0 auto;"
 										data-toggle="table"
-										data-filter-control="true"
-										data-show-filter-control-switch="true"
-										data-filter-show-clear="true"
 										data-sort-name="ticket"
-										data-sort-order="asc"
-										data-pagination="false"
-										data-search="true"
-										data-show-refresh="true"
-										data-show-toggle="true"
-										data-show-columns="true">
+										data-sort-order="asc">
 										<thead class="table-dark">
 											<tr>
 												<th data-field="ticket" data-sortable="true">#</th>
 												<th data-field="combination" data-sortable="false">Combination</th>
-												<th data-field="sum" data-sortable="true" data-filter-control="select" data-align="center">Sum</th>
-												<th data-field="digit_sum" data-sortable="true" data-filter-control="select" data-align="center">Digit Sum</th>
-												<th data-field="repeaters" data-sortable="true" data-filter-control="select" data-align="center">Repeaters</th>
-												<th data-field="consecutive" data-sortable="true" data-filter-control="select" data-align="center">Consecutive</th>
-												<th data-field="odd" data-sortable="true" data-filter-control="select" data-align="center">Odd</th>
-												<th data-field="even" data-sortable="true" data-filter-control="select" data-align="center">Even</th>
-												<th data-field="decade" data-sortable="true" data-filter-control="select" data-align="center">Decade</th>
-												<th data-field="last" data-sortable="true" data-filter-control="select" data-align="center">Last</th>
-												<th data-field="range" data-sortable="true" data-filter-control="select" data-align="center">Range</th>
+												<th data-field="sum" data-sortable="false">Sum</th>
+												<th data-field="digit_sum" data-sortable="false">Digit Sum</th>
+												<th data-field="repeaters" data-sortable="false">Repeaters</th>
+												<th data-field="consecutive" data-sortable="false">Consecutives</th>
+												<th data-field="odd" data-sortable="false">Odd</th>
+												<th data-field="even" data-sortable="false">Even</th>
+												<th data-field="decade" data-sortable="false">Decade</th>
+												<th data-field="last" data-sortable="false">Last</th>
+												<th data-field="range" data-sortable="false">Range</th>
 											</tr>
 										</thead>
 										<tbody>
@@ -2144,49 +2172,16 @@
 		// Initialize Bootstrap Table for Generated Combination Tickets
 		<?php if (!empty($combos_paginated)): ?>
 		$(document).ready(function() {
-			$('#generated-tickets-table').bootstrapTable({
-				filterControl: true,
-				filterShowClear: true,
-				pagination: false,
-				search: true,
-				showRefresh: true,
-				showToggle: true,
-				showColumns: true,
-				sortName: 'ticket',
-				sortOrder: 'asc',
-				classes: 'table table-bordered table-striped',
-				filterControlVisible: false, // Start with filters hidden
-				onRefresh: function() {
-					// Custom refresh logic if needed
-				},
-				onToggle: function() {
-					// Handle table view toggle
-				},
-				onPostBody: function() {
-					// Ensure all filters are blank after table is rendered
-					$('.filter-control select').val('');
-				}
-			});
-			
-			// Custom styling for filter controls
-			setTimeout(function() {
-				// Customize filter dropdown options
-				$('.filter-control select').each(function() {
-					// Remove any existing empty options and add a completely blank one
-					$(this).find('option[value=""]').remove();
-					$(this).prepend('<option value=""></option>');
-					// Set the dropdown to blank value
-					$(this).val('');
-				});
-				
-				// Style filter selects
-				$('.filter-control select').each(function() {
-					$(this).addClass('form-select');
-				});
-				
-				// Clear any existing filters to show all data
-				$('#generated-tickets-table').bootstrapTable('clearFilterControl');
-			}, 100);
+		$('#generated-tickets-table').bootstrapTable({
+			filterControl: false,
+			pagination: false,
+			search: false,
+			showRefresh: false,
+			showToggle: false,
+			showColumns: false,
+			sortName: 'ticket',
+			sortOrder: 'asc',
+			classes: 'table table-bordered table-striped'
 		});
 		
 		<?php endif; ?>

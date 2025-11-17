@@ -930,10 +930,15 @@ class Statistics_m extends MY_Model
 	 */
 	public function followers_exists($id)
 	{
-		$query = $this->db->where('lottery_id', $id)
-                ->limit(1, 0)
-                ->get('lottery_followers');
-		return $query->row_array();
+		// Use caching for followers data to improve performance
+		$cache_key = $this->generate_cache_key('followers', $id);
+		
+		return $this->get_cached($cache_key, function() use ($id) {
+			$query = $this->db->where('lottery_id', $id)
+			        ->limit(1, 0)
+			        ->get('lottery_followers');
+			return $query->row_array();
+		}, 7200); // 2 hour cache since this data rarely changes
 	}
 	/**
 	 * If existing Record for the nonFollowers table exist
@@ -943,10 +948,15 @@ class Statistics_m extends MY_Model
 	 */
 	public function nonfollowers_exists($id)
 	{
-		$query = $this->db->where('lottery_id', $id)
-                ->limit(1, 0)
-                ->get('lottery_nonfollowers');
-		return $query->row_array();
+		// Use caching for nonfollowers data to improve performance
+		$cache_key = $this->generate_cache_key('nonfollowers', $id);
+		
+		return $this->get_cached($cache_key, function() use ($id) {
+			$query = $this->db->where('lottery_id', $id)
+			        ->limit(1, 0)
+			        ->get('lottery_nonfollowers');
+			return $query->row_array();
+		}, 7200); // 2 hour cache since this data rarely changes
 	}
 	/**
 	 * If existing Record for the Friends table exist
@@ -983,10 +993,15 @@ class Statistics_m extends MY_Model
 	 */
 	public function h_w_c_exists($id)
 	{
-		$query = $this->db->where('lottery_id', $id)
-                ->limit(1, 0)
-                ->get('lottery_h_w_c');
-		return $query->row_array();
+		// Use caching for H-W-C data to improve performance
+		$cache_key = $this->generate_cache_key('h_w_c', $id);
+		
+		return $this->get_cached($cache_key, function() use ($id) {
+			$query = $this->db->where('lottery_id', $id)
+			        ->limit(1, 0)
+			        ->get('lottery_h_w_c');
+			return $query->row_array();
+		}, 7200); // 2 hour cache since this data rarely changes
 	}
 
 	/**
@@ -997,12 +1012,16 @@ class Statistics_m extends MY_Model
 	 */
 	public function hwc_history_exists($id)
 	{
-		$this->db->reset_query();
-		//$query = $this->db->query("SELECT * FROM lottery_h_w_c_stats WHERE id = '".$id."' AND h_w_c_range = '".$r."' LIMIT 1,0");
-		$query = $this->db->where('lottery_id', $id)
-                ->limit(1, 0)
-                ->get('lottery_h_w_c_stats'); 
-	return $query->row_array();
+		// Use caching for H-W-C history data to improve performance
+		$cache_key = $this->generate_cache_key('hwc_history', $id);
+		
+		return $this->get_cached($cache_key, function() use ($id) {
+			$this->db->reset_query();
+			$query = $this->db->where('lottery_id', $id)
+			        ->limit(1, 0)
+			        ->get('lottery_h_w_c_stats'); 
+			return $query->row_array();
+		}, 7200); // 2 hour cache since this data rarely changes
 	}
 
 	/**

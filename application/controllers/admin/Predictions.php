@@ -596,7 +596,8 @@ class Predictions extends Admin_Controller {
 	{
 		// Check if this is a timeout redirect from combination generation
 		if ($this->input->get('timeout') === '1') {
-			$this->data['message'] = 'Generate Tickets is longer than 5 seconds. Please change settings.';
+			$timeout_value = $this->input->get('timeout_value') ?: '5';
+			$this->data['message'] = "Generate Tickets is longer than $timeout_value seconds. Please change settings.";
 			$this->data['disable_generate_button'] = false; // Allow user to retry with different settings
 			
 			// Restore form data from session if available
@@ -1466,12 +1467,21 @@ class Predictions extends Admin_Controller {
 		// Track start time for timeout monitoring without affecting CodeIgniter core operations
 		$start_time = microtime(true);
 		
-		// Set optimized timeout for number generation operations:
-		// Reduced from 8 to 5 seconds after H-W-C performance optimizations
-		$timeout_seconds = 5;
+		// Set dynamic timeout based on operation complexity:
+		// - Base: 5 seconds for simple operations
+		// - H-W-C only: 8 seconds (database queries + parsing)
+		// - Followers only: 8 seconds (database queries + complex logic)
+		// - H-W-C + Followers: 12 seconds (combined complexity)
+		$base_timeout = 5;
+		$hwc_timeout = 8;
+		$followers_timeout = 8;
+		$combined_timeout = 12;
+		
+		// We'll determine the actual timeout after processing form data
+		$timeout_seconds = $base_timeout;
 		
 		// Register shutdown function to handle fatal errors including timeouts
-		$this->register_shutdown_function($id, $start_time, $timeout_seconds);
+		$this->register_shutdown_function($id, $start_time, $combined_timeout); // Use max timeout for shutdown
 		
 		// Load Statistics model for H-W-C operations
 		$this->load->model('Statistics_m');
@@ -1641,6 +1651,18 @@ class Predictions extends Admin_Controller {
 					$followers_checked = isset($session_data['selected_followers']) ? (bool)$session_data['selected_followers'] : false;
 					$friends_checked = isset($session_data['selected_friends_checkbox']) ? (bool)$session_data['selected_friends_checkbox'] : false;
 				}
+				
+				// Set dynamic timeout based on selected operations complexity
+				if ($hwc_checked && $followers_checked) {
+					$timeout_seconds = $combined_timeout; // 12 seconds for both operations
+				} elseif ($hwc_checked && !$followers_checked) {
+					$timeout_seconds = $hwc_timeout; // 8 seconds for H-W-C only
+				} elseif (!$hwc_checked && $followers_checked) {
+					$timeout_seconds = $followers_timeout; // 8 seconds for Followers only
+				} else {
+					$timeout_seconds = $base_timeout; // 5 seconds for simple operations
+				}
+				
  				$h_w_c_group = ($this->input->post('h_w_c_group') ? $this->input->post('h_w_c_group') : $this->session->userdata('selected_h_w_c_group'));
 				$selected_extra_ball = ($this->input->post('extra_ball_filter') ? $this->input->post('extra_ball_filter') : $this->session->userdata('selected_extra_ball'));
 				
@@ -1712,6 +1734,17 @@ class Predictions extends Admin_Controller {
 					$hwc_checked = (bool)$this->session->userdata('selected_hwc');
 					$followers_checked = (bool)$this->session->userdata('selected_followers');
 					$friends_checked = (bool)$this->session->userdata('selected_friends_checkbox');
+				}
+				
+				// Set dynamic timeout based on selected operations complexity
+				if ($hwc_checked && $followers_checked) {
+					$timeout_seconds = $combined_timeout; // 12 seconds for both operations
+				} elseif ($hwc_checked && !$followers_checked) {
+					$timeout_seconds = $hwc_timeout; // 8 seconds for H-W-C only
+				} elseif (!$hwc_checked && $followers_checked) {
+					$timeout_seconds = $followers_timeout; // 8 seconds for Followers only
+				} else {
+					$timeout_seconds = $base_timeout; // 5 seconds for simple operations
 				}
 				
 				$h_w_c_group = $this->input->post('h_w_c_group', TRUE);
@@ -5049,7 +5082,7 @@ class Predictions extends Admin_Controller {
 					echo '<!DOCTYPE html>';
 					echo '<html><head><title>Timeout</title></head><body>';
 					echo '<div style="padding: 20px; background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; margin: 20px; font-family: Arial, sans-serif;">';
-					echo '<strong>Generate Tickets is longer than 5 seconds. Please change settings.</strong>';
+					echo '<strong>Generate Tickets is longer than ' . ($timeout_seconds ?? 5) . ' seconds. Please change settings.</strong>';
 					echo '</div>';
 					echo '<script>';
 					echo 'setTimeout(function() {';
@@ -5106,10 +5139,10 @@ class Predictions extends Admin_Controller {
 			
 			// Redirect to futures page with timeout message
 			if ($id) {
-				redirect('admin/predictions/futures/' . $id . '?timeout=1');
+				redirect('admin/predictions/futures/' . $id . '?timeout=1&timeout_value=' . $timeout_seconds);
 			} else {
 				// Generic timeout message
-				$this->session->set_flashdata('message', 'Generate Tickets is longer than 5 seconds. Please change settings.');
+				$this->session->set_flashdata('message', 'Generate Tickets is longer than ' . ($timeout_seconds ?? 5) . ' seconds. Please change settings.');
 				redirect('admin/predictions');
 			}
 			return true;
