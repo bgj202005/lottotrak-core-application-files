@@ -2719,6 +2719,8 @@ class Predictions extends Admin_Controller {
 			$combination_file = $this->session->userdata('combination_file_name'); // Use parsed filename
 			$combo_id = $this->session->userdata('combination_file_id'); // Use stored combo_id
 
+
+
 			if (!$session_data || !$number_array || !$combination_file || !$combo_id) {
 				$message = 'Session data not found. Please generate tickets first.';
 				if ($is_ajax) {
@@ -2781,6 +2783,11 @@ class Predictions extends Admin_Controller {
 			'selected_h_w_c_group' => $session_data['selected_h_w_c_group'],
 			'selected_hwc' => $session_data['selected_hwc'],
 			'selected_extra_ball' => $session_data['selected_extra_ball'],
+			'selected_friends' => $session_data['selected_friends'] ?? '',
+			'selected_friends_checkbox' => $session_data['selected_friends_checkbox'] ?? false,
+			'selected_followers' => $session_data['selected_followers'] ?? '',
+			'selected_after_ball' => $session_data['selected_ball_points'] ?? '',
+			'selected_after_ball_friends' => $session_data['selected_position_points'] ?? '',
 			'lottery_id' => $id,
 			'drawn' => $drawn,
 			'lottery_last_drawn' => $this->data['lottery']->last_drawn,
@@ -2790,16 +2797,39 @@ class Predictions extends Admin_Controller {
 			'lottery_highlights' => $this->data['lottery']->highlights
 		];
 		
-		// OPTIMIZATION: Check if we have stored filter metadata for faster saving
+
+		
+		// Check if we have session data from recent generation that matches current settings
 		$stored_count = $this->session->userdata('current_filtered_count');
 		$stored_filters = $this->session->userdata('current_filters');
 		
-		if (!empty($stored_count) && $this->filters_match($filters, $stored_filters)) {
-			// Use pre-calculated count (no re-filtering needed for count)
+
+		
+		// Compare key filter values to see if they match current session
+		$filters_match = false;
+		if (!empty($stored_filters)) {
+			$filters_match = $this->filters_match($filters, $stored_filters);
+
+		}
+		
+		// Use stored count if available and filters match, otherwise recalculate
+		if (!empty($stored_count) && $filters_match) {
 			$filtered_count = $stored_count;
+
+			
+			// VERIFICATION: Double-check the stored count by recalculating (for debugging)
+			$verification_count = $this->combination_filters_m->get_filtered_combinations_count($filepath, $number_array, $filters);
+			if ($verification_count != $filtered_count) {
+				log_message('warning', "Combination Save - COUNT MISMATCH! Stored: {$filtered_count}, Recalculated: {$verification_count}");
+				log_message('warning', "Combination Save - Using recalculated count for accuracy");
+				$filtered_count = $verification_count;
+			} else {
+
+			}
 		} else {
-			// Fallback: Re-calculate count if no stored data or filters don't match
+
 			$filtered_count = $this->combination_filters_m->get_filtered_combinations_count($filepath, $number_array, $filters);
+
 		}
 		$current_user_id = $this->session->userdata('id');
 		$formatted_user_id = str_pad($current_user_id, 2, '0', STR_PAD_LEFT);
@@ -2811,16 +2841,8 @@ class Predictions extends Admin_Controller {
 		$R = $this->data['lottery']->balls_drawn; // Pick number from lottery data (Pick 5, Pick 6, etc.)
 		// CCCC is the actual filtered count from get_filtered_combinations_count() method
 		// This will be the actual number of tickets after filtering (e.g., 5 tickets after sum filtering)
-		// Prepare data for saving
-		// For new records, set initial lastdate; for existing records, preserve existing lastdate
-		$initial_lastdate = null;
-		if (!$existing_record) {
-			// For new records, set lastdate to lottery's last drawn date (will be processed by prize history)
-			$ld = $this->data['lottery']->last_drawn['draw_date'];
-			$initial_lastdate = $this->lottery_data_m->format_date_to_mysql($ld);
-		}
-
-		// Check if there's an existing record for this combo_id and user_id
+		
+		// Check if there's an existing record for this combo_id and user_id FIRST
 		$existing_record = null;
 		$status_changed = false;
 		$this->db->where('combo_id', $combo_id);
@@ -2834,6 +2856,15 @@ class Predictions extends Admin_Controller {
 			if ($existing_record['active'] == 0) {
 				$status_changed = true;
 			}
+		}
+		
+		// Prepare data for saving
+		// For new records, set initial lastdate; for existing records, preserve existing lastdate
+		$initial_lastdate = null;
+		if (!$existing_record) {
+			// For new records, set lastdate to lottery's last drawn date (will be processed by prize history)
+			$ld = $this->data['lottery']->last_drawn['draw_date'];
+			$initial_lastdate = $this->lottery_data_m->format_date_to_mysql($ld);
 		}
 		
 		// Format the generated numbers as comma-separated string (e.g., "46,24,1,42,30,19,44")
@@ -2902,10 +2933,12 @@ class Predictions extends Admin_Controller {
 			// Update existing record - exclude lastdate to preserve existing value
 			$update_data = $save_data;
 			unset($update_data['lastdate']); // Don't update lastdate for existing records
+
 			$this->db->where('id', $existing_record['id']);
 			$saved = $this->db->update('lottery_combination_filters', $update_data);
 		} else {
 			// Create new record (includes initial lastdate if set)
+
 			$saved = $this->predictions_m->save_combination_filter($save_data);
 		}
 		
@@ -2919,7 +2952,21 @@ class Predictions extends Admin_Controller {
 			$pick_file_path = $pick_dir . $file_name . '.txt';
 			
 			// Use file-based filtering for saving (always up-to-date and memory efficient)
+
 			$success = $this->combination_filters_m->save_filtered_combinations_to_file($filepath, $number_array, $filters, $pick_file_path);
+			
+			// Check actual saved file to verify what was written
+			if (file_exists($pick_file_path)) {
+				$file_lines = file($pick_file_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+				$actual_lines = count($file_lines);
+				
+				// Verify first few combinations if needed
+				if ($actual_lines > 0) {
+					$sample_lines = array_slice($file_lines, 0, min(3, $actual_lines));
+				}
+			} else {
+				// File was not created
+			}
 			
 			if ($success) {
 				$message = 'Combination Ticket File ' . preg_replace('/ADMIN.*/', '', $file_name) . ' is Successfully Saved to the combinations/pick' . $R . ' Directory.';
@@ -3252,9 +3299,25 @@ class Predictions extends Admin_Controller {
 			'selected_adjacents' => $saved_settings['adjacents'] ?? '',
 			'selected_combo_id' => $record_id,
 		];
+		
+		// Restore the number array if it exists
+		$restored_number_array = null;
+		if (!empty($saved_settings['numbers'])) {
+			$restored_number_array = explode(',', $saved_settings['numbers']);
+			$restored_number_array = array_map('intval', $restored_number_array); // Convert to integers
+			$this->session->set_userdata('futures_number_array', $restored_number_array);
+		} else {
+			// Clear any existing number array to prevent using stale data
+			$this->session->unset_userdata('futures_number_array');
+		}
+		
 		$this->session->set_userdata('futures_form', $session_data);
 		$this->session->set_userdata('combination_file_id', $combo_id);
 		$this->session->set_userdata('combination_file_name', $original_filename);
+		
+		// Clear any cached filter results to ensure fresh filtering when generating tickets
+		$this->session->unset_userdata('current_filtered_count');
+		$this->session->unset_userdata('current_filters');
 		
 		// Set up empty results (no tickets displayed, user needs to generate)
 		$this->data['combos_paginated'] = [];
@@ -4196,15 +4259,36 @@ class Predictions extends Admin_Controller {
 			'selected_repeaters', 'selected_consecutives', 'selected_parity',
 			'selected_decades', 'selected_last_digits', 'selected_number_range',
 			'selected_adjacents', 'selected_h_w_c_group', 'selected_hwc',
-			'selected_extra_ball', 'lottery_id'
+			'selected_extra_ball', 'lottery_id', 'selected_followers',
+			'selected_after_ball', 'selected_friends', 'selected_after_ball_friends'
 		];
 		
 		foreach ($key_filters as $filter) {
 			$value1 = $filters1[$filter] ?? null;
 			$value2 = $filters2[$filter] ?? null;
 			
-			if ($value1 !== $value2) {
-				return false;
+			// Handle array comparisons more carefully
+			if (is_array($value1) && is_array($value2)) {
+				if (serialize($value1) !== serialize($value2)) {
+					return false;
+				}
+			} else {
+				if ($value1 !== $value2) {
+					return false;
+				}
+			}
+		}
+		
+		// Check number arrays if they exist
+		$number_array_fields = ['hwc_number_array', 'followers_number_array'];
+		foreach ($number_array_fields as $field) {
+			$nums1 = $filters1[$field] ?? null;
+			$nums2 = $filters2[$field] ?? null;
+			
+			if (!empty($nums1) || !empty($nums2)) {
+				if (serialize($nums1) !== serialize($nums2)) {
+					return false;
+				}
 			}
 		}
 		

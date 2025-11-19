@@ -794,6 +794,8 @@ class Prize extends Admin_Controller
         
         // Debug logging to see what filter values we retrieved
         log_message('debug', "view_combination_tickets: Filter ID {$filter->id}, selected_trends: " . ($filter->selected_trends ?? 'NULL') . ", selected_winning_sums: " . ($filter->selected_winning_sums ?? 'NULL'));
+        log_message('debug', "view_combination_tickets: selected_repeaters: " . ($filter->selected_repeaters ?? 'NULL') . ", selected_consecutives: " . ($filter->selected_consecutives ?? 'NULL'));
+        log_message('debug', "view_combination_tickets: hwc: " . ($filter->hwc ?? 'NULL') . ", followers: " . ($filter->followers ?? 'NULL'));
         
         // Debug: Let's see all properties of the filter object
         log_message('debug', "view_combination_tickets: All filter properties: " . print_r($filter, true));
@@ -1391,7 +1393,8 @@ class Prize extends Admin_Controller
         if (file_exists($file_path)) {
             $file_size = filesize($file_path);
             $line_count = count(file($file_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
-            log_message('debug', "get_paginated_combination_tickets: File size: {$file_size} bytes, Lines: {$line_count}");
+            $file_modified = date('Y-m-d H:i:s', filemtime($file_path));
+            log_message('debug', "get_paginated_combination_tickets: File size: {$file_size} bytes, Lines: {$line_count}, Modified: {$file_modified}");
         }
         
         if (!file_exists($file_path)) {
@@ -1410,6 +1413,9 @@ class Prize extends Admin_Controller
             $number_array = $this->get_generated_numbers($filter->lottery_id);
             $filter_data = $this->build_filter_array($filter);
             
+            log_message('debug', "get_paginated_combination_tickets: Using filters - number_array count: " . count($number_array));
+            log_message('debug', "get_paginated_combination_tickets: Filter data: " . print_r($filter_data, true));
+            
             $combinations = $this->combination_filters_m->get_filtered_combinations(
                 $file_path, 
                 $number_array, 
@@ -1417,6 +1423,8 @@ class Prize extends Admin_Controller
                 $page, 
                 $per_page
             );
+            
+            log_message('debug', "get_paginated_combination_tickets: Filtered combinations returned: " . count($combinations));
             
             // Convert to ticket format
             $tickets = array();
@@ -1457,12 +1465,16 @@ class Prize extends Admin_Controller
             
             log_message('info', "get_paginated_combination_tickets: Using filtered results for {$filter->file_name}, returned " . count($tickets) . " tickets");
             return $tickets;
+        } else {
+            log_message('info', "get_paginated_combination_tickets: No filters applied, reading file directly");
         }
-        
+
         // Fallback to direct file reading when no filters are applied
         // Read and parse the file with pagination
         $tickets = array();
         $file_content = file_get_contents($file_path);
+        
+        log_message('debug', "get_paginated_combination_tickets: Reading file directly, file size: " . strlen($file_content) . " bytes");
         
         if ($file_content) {
             $lines = explode("\n", $file_content);
