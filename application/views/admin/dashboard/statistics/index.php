@@ -148,10 +148,31 @@ $(document).ready(function(){
 	document.getElementById("status").innerHTML = "Retrieving the Hot - Warm - Cold (H-W-C) Numbers and History. Please Wait.";
 	setTimeout(fade_out, 10500);
 	});
-	$('.followers').click(function(){
-	$('#status').css('display', 'block');
-	$('#message').css('display', 'none'); 
-	document.getElementById("status").innerHTML = "Retrieving the Followers and History for the next draw. Please Wait.";
+	$('.followers').click(function(e){
+		var followersBtn = $(this);
+		var href = followersBtn.attr('href');
+		
+		// Extract lottery ID from the href (admin/statistics/followers/ID)
+		var lotteryId = href.split('/').pop();
+		var recalcCheckbox = $('.recalc' + lotteryId);
+		
+		// Check if this lottery needs recalc (has "ReCalc Required" message)
+		var needsRecalc = followersBtn.closest('td').find('small:contains("ReCalc Required")').length > 0;
+		
+		if (needsRecalc && !recalcCheckbox.is(':checked')) {
+			e.preventDefault();
+			$('#message').removeClass('bg-success').addClass('bg-warning');
+			$('#message').html('Click the ReCalc checkbox first before viewing followers data.');
+			$('#message').css('display', 'block');
+			return false;
+		}
+		
+		$('#status').css('display', 'block');
+		$('#message').css('display', 'none'); 
+		document.getElementById("status").innerHTML = "Retrieving the Followers and History for the next draw. Please Wait.";
+		
+		// Allow normal navigation if recalc check passes
+		return true;
 	});
 	$('.friends').click(function(){
 	$('#status').css('display', 'block');
@@ -198,6 +219,14 @@ function resetFollowerStatistics(lotteryId, lotteryName) {
 				$('#message').removeClass('bg-warning').addClass('bg-success');
 				$('#message').html(response.message);
 				$('#message').css('display', 'block');
+				
+				// Update UI to show ReCalc Required status
+				var followersCell = $('button[data-lottery-id="' + lotteryId + '"]').closest('tr').find('td').eq(11); // Followers column
+				var existingMessage = followersCell.find('small');
+				if (existingMessage.length === 0) {
+					followersCell.append('<br><small style="color: #d9534f; font-weight: bold;">ReCalc Required</small>');
+				}
+				
 				setTimeout(function() {
 					$('#message').fadeOut();
 				}, 5000);
