@@ -1615,6 +1615,11 @@ class Statistics_m extends MY_Model
 			$this->db->where('lottery_id', $data['lottery_id']);
 			$this->db->update('lottery_followers');
 		}
+		
+		// CRITICAL: Clear cache after saving to ensure fresh data is retrieved
+		$cache_key = $this->generate_cache_key('followers', $data['lottery_id']);
+		$this->cache->delete($cache_key);
+		log_message('info', "Cleared followers cache for lottery_id={$data['lottery_id']}");
 	}
 	/**  
 	 * Calculate the number of never trailing (follower) numbers based on the last draw and the draw rang
@@ -2065,6 +2070,11 @@ class Statistics_m extends MY_Model
 			$this->db->where('lottery_id', $data['lottery_id']);
 			$this->db->update('lottery_nonfollowers');
 		}
+		
+		// CRITICAL: Clear cache after saving to ensure fresh data is retrieved
+		$cache_key = $this->generate_cache_key('nonfollowers', $data['lottery_id']);
+		$this->cache->delete($cache_key);
+		log_message('info', "Cleared nonfollowers cache for lottery_id={$data['lottery_id']}");
 	}
 	
 	/**
@@ -2417,48 +2427,75 @@ class Statistics_m extends MY_Model
 		$prize_counts = $prizes;
 		global $positions;					// Wins only by positions e.g. position 1 ... position 6 (pick 6 game)
 		
-		// Sliding Window Implementation: Need range*2 total draws
-		// First 'range' draws (oldest) for building initial followers
-		// Next 'range' draws for win verification
-		$sliding_window_size = $range * 2;  
-			$range_ptr = 1; 					// range_ptr starts at the first draw
-			$last_ball = $top;					// $top drawn ball is different when there is a duplicate extra ball
+		// Sliding Window Implementation: Need range*2 total draws for ideal calculation
+		// BUT after fresh import, we may have fewer draws available
+		// SOLUTION: Use minimum of (range*2, available_draws) and adjust logic accordingly
+		
+		// First, determine how many draws are actually available (excluding current draw)
+		$w_count = (!$draws ? ' AND extra <> "0"' : '');
+		$w_count .= (!empty($last) ? " AND draw_date <= '".$last."'" : "");
+		$available_draws_query = $this->db->query("SELECT COUNT(*) as total FROM ".$name." WHERE id <> '".$ldn['id']."'".$w_count);
+		$available_draws = $available_draws_query->row()->total;
+		
+		// Calculate actual window size: ideal is range*2, but use what's available
+		$ideal_sliding_window_size = $range * 2;
+		$actual_sliding_window_size = min($ideal_sliding_window_size, $available_draws);
+		
+		// If we have fewer than minimum required draws, we can still try with reduced window
+		// Minimum: Need at least 10 draws total to make any meaningful calculation
+		$absolute_minimum_draws = 10;
+		if($actual_sliding_window_size < $absolute_minimum_draws) {
+			log_message('error', "complete_recalculation: Insufficient draws. Available={$available_draws}, Minimum required={$absolute_minimum_draws}");
+			return false; // Not enough data to calculate
+		}
+		
+		// If we have less than ideal but more than minimum, adjust range proportionally
+		if($actual_sliding_window_size < $ideal_sliding_window_size) {
+			log_message('info', "complete_recalculation: Limited draws available. Using {$actual_sliding_window_size} instead of ideal {$ideal_sliding_window_size}");
+		}
+		
+		$sliding_window_size = $actual_sliding_window_size;
+		log_message('info', "complete_recalculation: Using sliding window size={$sliding_window_size} (available={$available_draws}, ideal={$ideal_sliding_window_size}, range={$range})");
+		
+		$range_ptr = 1; 					// range_ptr starts at the first draw
+		$last_ball = $top;					// $top drawn ball is different when there is a duplicate extra ball
 
-			// Step 1. Must have the first range of draws for each drawn number of this lottery
-			// Query Builder
-			$s = 'ball'; 
-			$i = 1; 	// Default Ball 1
-			do
-			{	
-				$s .= $i;
-				$i++;
-				if($i<=$max) $s .= ', ball';
-			} 
-			while($i<=$max);
+		// Step 1. Must have the first range of draws for each drawn number of this lottery
+		// Query Builder
+		$s = 'ball'; 
+		$i = 1; 	// Default Ball 1
+		do
+		{	
+			$s .= $i;
+			$i++;
+			if($i<=$max) $s .= ', ball';
+		} 
+		while($i<=$max);
 
-			$s .= ', extra, draw_date'; // Include the draw date is this query
-			$b_max = $max;	// The maximum of the ONLY the balls drawn
-			if($bonus) $max++;
+		$s .= ', extra, draw_date'; // Include the draw date is this query
+		$b_max = $max;	// The maximum of the ONLY the balls drawn
+		if($bonus) $max++;
 
-			$w = (!$draws ? ' AND extra <> "0"' : '');
-			$w .= (!empty($last) ? " AND draw_date <= '".$last."'" : "");  		
-			// Calculate - Sliding Window Implementation
-			$b = 1; // ball 1 to ball N for this lottery
-			do
-			{
-				// Sliding Window: Get range*2 draws total
-				// First 'range' draws (oldest) for building followers
-				// Next 'range' draws (newer) for win verification
-				$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$sliding_window_size.") as t ORDER BY t.draw_date ASC;";
-				// Execute Query
-				$query = $this->db->query($sql);
-				$all_draws = $query->result_array();
-				
-				// Ensure we have enough draws for the sliding window
-				if(count($all_draws) < $sliding_window_size) {
-					$query->free_result();
-					continue; // Skip to next ball if insufficient data
-				}
+		$w = (!$draws ? ' AND extra <> "0"' : '');
+		$w .= (!empty($last) ? " AND draw_date <= '".$last."'" : "");  		
+		// Calculate - Sliding Window Implementation
+		$b = 1; // ball 1 to ball N for this lottery
+		do
+		{
+			// Sliding Window: Get actual available draws (may be less than ideal range*2)
+			// CRITICAL FIX: Query now uses actual_sliding_window_size instead of ideal
+			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$sliding_window_size.") as t ORDER BY t.draw_date ASC;";
+			// Execute Query
+			$query = $this->db->query($sql);
+			$all_draws = $query->result_array();
+			
+			// Adjusted logic: Work with whatever draws we have
+			$actual_draw_count = count($all_draws);
+			if($actual_draw_count < 10) {
+				log_message('warning', "complete_recalculation: Ball {$b} has insufficient draws ({$actual_draw_count} < 10), skipping");
+				$query->free_result();
+				continue; // Skip to next ball if insufficient data
+			}
 				
 				// Initialize arrays for this ball
 				$followlist = array();
@@ -2466,9 +2503,17 @@ class Statistics_m extends MY_Model
 				$sliding_window_draws = array(); // Track draws for sliding window removal
 				if($duple) $duplelist = array(); // Only if this lottery has a duplicate extra ball
 				
-				// PHASE 1: Build initial followers from draws 1 to $range (NO win calculations)
-				// Process first 'range' draws to build follower relationships only
-				for($draw_idx = 0; $draw_idx < ($range - 1); $draw_idx++) {
+				// Calculate adjusted phases based on actual draws available
+				// PHASE 1: Build initial followers (first half of available draws, or range if enough)
+				// PHASE 2: Calculate wins with sliding window (second half of draws)
+				$phase1_end = min($range - 1, floor($actual_draw_count / 2));
+				$phase2_start = $phase1_end + 1;
+				
+				log_message('debug', "complete_recalculation: Ball {$b} - Phase1: 0 to {$phase1_end}, Phase2: {$phase2_start} to ".($actual_draw_count-2));
+				
+				// PHASE 1: Build initial followers from draws 0 to phase1_end (NO win calculations yet)
+				// Process first portion of draws to build follower relationships only
+				for($draw_idx = 0; $draw_idx < $phase1_end && $draw_idx < ($actual_draw_count - 1); $draw_idx++) {
 					$current_draw = $all_draws[$draw_idx];
 					$next_draw = $all_draws[$draw_idx + 1];
 					
@@ -2501,9 +2546,9 @@ class Statistics_m extends MY_Model
 					}
 				}
 				
-				// PHASE 2: Sliding window through draws ($range+1) to ($range*2) with win calculations
+				// PHASE 2: Sliding window through remaining draws with win calculations
 				// Win calculations start fresh from 0 and only accumulate forward
-				for($draw_idx = $range; $draw_idx < ($sliding_window_size - 1); $draw_idx++) {
+				for($draw_idx = $phase2_start; $draw_idx < ($actual_draw_count - 1); $draw_idx++) {
 					$current_draw = $all_draws[$draw_idx];
 					$next_draw = $all_draws[$draw_idx + 1];
 					
@@ -2515,8 +2560,8 @@ class Statistics_m extends MY_Model
 						$nonfollowlist = $this->non_followers($followlist, $last_ball);
 						$prize_counts[$b] = $this->followers_prizecounts($next_draw, $followlist, $nonfollowlist, $duple, ($duple ? $duplelist : FALSE), $prize_counts[$b]);
 						
-						// STEP 2: Sliding Window - Remove oldest follower relationship
-						if(!empty($sliding_window_draws)) {
+						// STEP 2: Sliding Window - Remove oldest follower relationship (maintain fixed window size)
+						if(!empty($sliding_window_draws) && count($sliding_window_draws) >= $phase1_end) {
 							$oldest_entry = array_shift($sliding_window_draws);
 							$oldest_follower = $oldest_entry['follower'];
 							

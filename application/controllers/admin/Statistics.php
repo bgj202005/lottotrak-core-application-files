@@ -653,6 +653,8 @@ class Statistics extends Admin_Controller {
 		
 		// Check if followers data exists and block access if empty (after reset)
 		$followers_check = $this->statistics_m->followers_exists($id);
+		log_message('info', "followers view: Retrieved followers_check for lottery_id={$id}: " . (is_null($followers_check) ? "NULL" : (empty($followers_check['lottery_followers']) ? "EMPTY lottery_followers" : strlen($followers_check['lottery_followers']) . " chars in lottery_followers")));
+		
 		if(is_null($followers_check) || empty($followers_check['lottery_followers'])) {
 			$this->session->set_flashdata('message', 'Followers must be ReCalculated with the ReCalc checkbox before viewing followers data.');
 			redirect('admin/statistics');
@@ -2491,8 +2493,15 @@ class Statistics extends Admin_Controller {
 			$include_extra_position = $recalc_extra_included; // Use current checkbox state
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $include_extra_position);
 			
+			log_message('info', "recalc_followers: Starting calculation for lottery_id={$id}, range={$range}, extra_included={$recalc_extra_included}, extra_draws={$recalc_extra_draws}");
+			
 			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range,'',$blnduplicate);
+			
+			log_message('info', "recalc_followers: followers_calculate returned: " . (empty($str_followers) ? "EMPTY" : strlen($str_followers) . " chars"));
+			
 			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
+			
+			log_message('info', "recalc_followers: followers_prizes returned: " . ($outofrange ? "OUT OF RANGE" : "SUCCESS"));
 			
 			// CRITICAL FIX: When extra_included=0, consolidate extra wins into base categories
 			if (!$recalc_extra_included && is_array($prizes)) {
@@ -2575,6 +2584,8 @@ class Statistics extends Admin_Controller {
 			);
 			
 			$this->statistics_m->follower_data_save($followers, TRUE);
+			log_message('info', "recalc_followers: Saved followers data to database for lottery_id={$id}");
+			
 			/** NEW included nonfollower Data Save **/
 			$nonfollowers = array(
 				'range'					=> $range,
@@ -2583,6 +2594,7 @@ class Statistics extends Admin_Controller {
 				'lottery_id'			=> $id
 			);
 			$this->statistics_m->nonfollower_data_save($nonfollowers, TRUE);
+			log_message('info', "recalc_followers: Saved nonfollowers data to database for lottery_id={$id}");
 		}
 		else // 3. If does not exist, calculate for the given draw range, return results and save to follower table
 		{
