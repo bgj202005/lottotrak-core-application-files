@@ -321,7 +321,9 @@ class History extends Admin_Controller {
 				$positions_last = array();	// Temporary position from last array
 				// Use the H-W-C settings from the database, NOT hard-coded duplicate_extra_ball flag
 				$extra_included_setting = $h_w_c['extra_included'];
-				$draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn,$this->data['lottery']->extra_ball, $extra_included_setting);
+				// Pass the correct duplicate_extra_ball flag (not extra_included) to onlydrawn
+				// onlydrawn expects: ($draw_data, $has_extra_ball, $is_duplicate_extra_ball_system)
+				$draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn, $extra_included_setting ? $this->data['lottery']->extra_ball : 0, $dup);
 				$hots = $h_w_c['h_count'];
 				$warms = $h_w_c['w_count'];
 				$colds = $h_w_c['c_count'];
@@ -549,15 +551,10 @@ class History extends Admin_Controller {
 		//Don't forget to include the last drawn h-w-c
 		$this->data['lottery']->hwc = explode('-',$hwc_history['h_w_c_last_1']);
 		
-		// For display purposes, create a complete draw array based on extra_included setting
-		// If extra_included is FALSE, the extra ball was excluded from analysis
-		// If extra_included is TRUE, the extra ball was included in analysis
-		$complete_draw = $draw; // Start with the draw array (which respects extra_included setting)
-		if($this->data['lottery']->extra_ball && !$this->data['lottery']->extra_included) {
-			// Extra ball was excluded from analysis, but we may want to show it separately for display
-			// Add it to show it's the extra ball but wasn't part of H-W-C analysis
-			$complete_draw[] = $this->data['lottery']->last_drawn['extra'];
-		}
+		// For display purposes, always show the extra ball if the lottery has one
+		// The $draw array (used for H-W-C matching/asterisks) respects extra_included setting
+		// The $complete_draw array (used for visual display) always includes extra if lottery has one
+		$complete_draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn, $this->data['lottery']->extra_ball, $dup);
 		$this->data['lottery']->draw = $complete_draw;
 		$this->data['lottery']->positions = $positions;
 		$this->data['lottery']->positions_last = $positions_last;
