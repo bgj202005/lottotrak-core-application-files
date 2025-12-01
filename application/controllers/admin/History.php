@@ -1064,22 +1064,14 @@ class History extends Admin_Controller {
 				$this->data['lottery']->nonfriends['ball'.$b] = $nonfriends_draw[$b-1];  // Array is zero based
 				$b++;
 			}
-			if(!empty($friends['wins'])) 
+			if(isset($friends['wins']) && !empty($friends['wins'])) 
 			{
 				// Friend only wins
 				$wins = explode("|", $friends['wins']); // $wins[0]  = broken like this nofriends,1-wayfriends,2-wayfriends & wins[1] = 1 - 49 (canada 649 for example), 1-way or 2 way friends 
 				$direction = explode(",", $wins[0]); // no friends ($direction[0]), 1 - way ($direction[1]) and 2 - way ($direction[2])
-				$nonfriend_wins = explode("|", $nonfriends['wins']);  // Canada 649 (example) 1 to 49, Number 1 has a 1 way 34, number 2 has a 1 way 7, 
-				// number 2 has a 1 way 25, etc.
 				$this->data['lottery']->friend['nofriends'] = $direction[0];
 				$this->data['lottery']->friend['1-way'] = $direction[1];
 				$this->data['lottery']->friend['2-way'] = $direction[2];
-				// Non Friends only with the occurrences of non friends drawn in the next draw
-				$this->data['lottery']->friend['0-friends'] = $nonfriend_wins[0];
-				$this->data['lottery']->friend['1-friends'] = $nonfriend_wins[1];
-				$this->data['lottery']->friend['2-friends'] = $nonfriend_wins[2];
-				$this->data['lottery']->friend['3-friends'] = $nonfriend_wins[3];
-				$this->data['lottery']->friend['4-friends'] = $nonfriend_wins[4];
 				$ball_friend = explode(',', $wins[1]);
 				// Zero-based, so all balls drawn start at ba1l 1
 				foreach($ball_friend as $friend => $direct)
