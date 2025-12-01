@@ -319,7 +319,9 @@ class History extends Admin_Controller {
 				$draw = array(); 		// Temporary draw array
 				$positions = array();	// Temporary position array
 				$positions_last = array();	// Temporary position from last array
-				$draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn,$this->data['lottery']->extra_ball, $dup);
+				// Use the H-W-C settings from the database, NOT hard-coded duplicate_extra_ball flag
+				$extra_included_setting = $h_w_c['extra_included'];
+				$draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn,$this->data['lottery']->extra_ball, $extra_included_setting);
 				$hots = $h_w_c['h_count'];
 				$warms = $h_w_c['w_count'];
 				$colds = $h_w_c['c_count'];
@@ -547,11 +549,13 @@ class History extends Admin_Controller {
 		//Don't forget to include the last drawn h-w-c
 		$this->data['lottery']->hwc = explode('-',$hwc_history['h_w_c_last_1']);
 		
-		// For display purposes, create a complete draw array that includes the extra ball
-		// The $draw array from onlydrawn() excludes extra ball for independent extra ball lotteries
-		$complete_draw = $draw; // Start with main balls
-		if($this->data['lottery']->extra_ball && $dup) {
-			// For independent extra ball lotteries, add the extra ball for display
+		// For display purposes, create a complete draw array based on extra_included setting
+		// If extra_included is FALSE, the extra ball was excluded from analysis
+		// If extra_included is TRUE, the extra ball was included in analysis
+		$complete_draw = $draw; // Start with the draw array (which respects extra_included setting)
+		if($this->data['lottery']->extra_ball && !$this->data['lottery']->extra_included) {
+			// Extra ball was excluded from analysis, but we may want to show it separately for display
+			// Add it to show it's the extra ball but wasn't part of H-W-C analysis
 			$complete_draw[] = $this->data['lottery']->last_drawn['extra'];
 		}
 		$this->data['lottery']->draw = $complete_draw;

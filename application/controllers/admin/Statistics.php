@@ -1580,10 +1580,25 @@ class Statistics extends Admin_Controller {
 					if(!isset($this->data['lottery']->C)) $this->data['lottery']->C = $colds;
 				}
 			}
-			$this->data['lottery']->extra_included = $this->uri->segment(6)=='extra' ? $this->statistics_m->extra_included($id, TRUE, 'lottery_h_w_c') : $this->statistics_m->extra_included($id, FALSE, 'lottery_h_w_c');
-			if($h_w_c['extra_included']!=$this->data['lottery']->extra_included) $blnheat = TRUE; // A change in extra included has occurred
-			$this->data['lottery']->extra_draws = ($this->uri->segment(6)=='draws' ? $this->statistics_m->extra_draws($id, TRUE, 'lottery_h_w_c') : $this->statistics_m->extra_draws($id, FALSE, 'lottery_h_w_c'));
-			if($h_w_c['extra_draws']!=$this->data['lottery']->extra_draws) $blnheat = TRUE; // A change in extra draws has occurred
+			// Toggle extra_included when /extra is in URL, otherwise use database value
+			if($this->uri->segment(6)=='extra') {
+				// Toggle the value from what's in the database
+				$this->data['lottery']->extra_included = $h_w_c['extra_included'] ? 0 : 1;
+				$blnheat = TRUE; // Force recalculation when toggling
+			} else {
+				// Use the database value
+				$this->data['lottery']->extra_included = $h_w_c['extra_included'];
+			}
+			
+			// Toggle extra_draws when /draws is in URL, otherwise use database value
+			if($this->uri->segment(6)=='draws') {
+				// Toggle the value from what's in the database
+				$this->data['lottery']->extra_draws = $h_w_c['extra_draws'] ? 0 : 1;
+				$blnheat = TRUE; // Force recalculation when toggling
+			} else {
+				// Use the database value
+				$this->data['lottery']->extra_draws = $h_w_c['extra_draws'];
+			}
 			$sel_range = ($new_range>100 ? $sel_range = intval($new_range / 100) : $sel_range = 1);
 			$strdupextra = "";	// Always empty for all lotteries. exception is a lottery with an extra ball that can have a duplicate number
 			if($new_range!=0)	
@@ -1857,6 +1872,17 @@ class Statistics extends Admin_Controller {
 			$this->session->unset_userdata('pool_redirect_needed'); // Clear the flags
 			$this->session->unset_userdata('heat_redirect_needed');
 			redirect('admin/statistics/h_w_c/' . $id);
+		}
+		
+		// Redirect after toggle to prevent re-toggling on refresh
+		if($this->uri->segment(6)=='extra' || $this->uri->segment(6)=='draws') {
+			// Build redirect URL with current range selection
+			$redirect_url = 'admin/statistics/h_w_c/' . $id;
+			// Include range if it was specified in the original URL (segment 5 exists)
+			if($this->uri->segment(5)) {
+				$redirect_url .= '/' . $this->uri->segment(5);
+			}
+			redirect($redirect_url);
 		}
 		
 		$this->data['subview']  = 'admin/dashboard/statistics/h_w_c';

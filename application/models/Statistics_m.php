@@ -4963,6 +4963,10 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			$this->db->where('lottery_id', $data['lottery_id']);
 			$this->db->update('lottery_h_w_c', $data);
 		}
+		
+		// Clear cache after save to ensure fresh data on next read
+		$cache_key = $this->generate_cache_key('h_w_c', $data['lottery_id']);
+		$this->cache->delete($cache_key);
 	}
 
 	/** 
@@ -7740,11 +7744,13 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$query = $this->db->get_where('lottery_h_w_c_stats', $where);
 		
 		if ($query->num_rows() > 0) {
-			// Update existing record - only update wins, range, and h_w_c_range fields
+			// Update existing record - update wins, range, h_w_c_range, extra_included, and extra_draws
 			$update_data = array(
 				'wins' => $wins_string,
 				'range' => $range,
-				'h_w_c_range' => $h_w_c_range
+				'h_w_c_range' => $h_w_c_range,
+				'extra_included' => $extra_included,
+				'extra_draws' => $extra_draws
 			);
 			return $this->db->update('lottery_h_w_c_stats', $update_data, $where);
 		} else {
