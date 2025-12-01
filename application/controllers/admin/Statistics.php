@@ -1307,11 +1307,17 @@ class Statistics extends Admin_Controller {
 			{
 				$change = ($this->data['lottery']->extra_draws!=$friends['extra_draws'] ? TRUE : FALSE); // Only for a change in the extra draws and there was no change in the extra ball
 			}
+			
+			// Log parameter changes for debugging
+			log_message('info', "Friends view - lottery_id=$id, old_range={$friends['range']}, new_range=$new_range, old_extra={$friends['extra_included']}, new_extra={$this->data['lottery']->extra_included}, old_draws={$friends['extra_draws']}, new_draws={$this->data['lottery']->extra_draws}, change=$change");
+			
 			if($new_range>100) $sel_range = intval($new_range / 100);
 			if($new_range!=0)	
 			{
 				if(intval($old_range)!=(intval($new_range))||($change)) // Any Change in Selection of the Draws? then update ... e.i. 200 draws in db and 300 in query url
 				{
+					log_message('info', "Friends recalculation triggered - range changed from $old_range to $new_range OR parameters changed (change=$change)");
+					
 					$relatives = $this->statistics_m->create_friend_array();
 					$nonrelatives = $this->statistics_m->create_nonfriend_array();
 					$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
@@ -1321,6 +1327,8 @@ class Statistics extends Admin_Controller {
 					$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
 					$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
 					$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
+					
+					log_message('info', "Friends recalculation complete - wins=$fr_stats");
 					
 					$friends = array(
 						'range'				=> $new_range,

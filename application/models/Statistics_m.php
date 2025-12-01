@@ -1042,11 +1042,21 @@ class Statistics_m extends MY_Model
 		$included = $row->extra_included;
 		if($update)
 		{
+			$old_value = $included;
 			$included = (!$included ? '1' : '0'); // Toggle the Extra (Bonus) Ball to included
 
+			log_message('info', "extra_included: Toggling bonus ball for lottery_id=$id in table=$table from $old_value to $included");
+			
 			$this->db->set('extra_included', $included);
 			$this->db->where('lottery_id', $id);
 			$this->db->update($table);
+			
+			// Clear cache to force recalculation
+			if(strpos($table, 'friends') !== false) {
+				$cache_key = $this->generate_cache_key('friends', $id);
+				$this->cache->delete($cache_key);
+				log_message('info', "extra_included: Cleared friends cache for lottery_id=$id");
+			}
 		}
 	return $included; 
 	}
@@ -1068,13 +1078,23 @@ class Statistics_m extends MY_Model
 
 		if($update)
 		{
+			$old_value = $included;
 			$included = (!$included ? '1' : '0'); // Toggle the Extra (Bonus) Draws to included
 
+			log_message('info', "extra_draws: Toggling extra draws for lottery_id=$id in table=$table from $old_value to $included");
+			
 			$data = array(
 				'extra_draws' => $included
 			);
 			$this->db->where('lottery_id', $id);
 			$this->db->update($table, $data);
+			
+			// Clear cache to force recalculation
+			if(strpos($table, 'friends') !== false) {
+				$cache_key = $this->generate_cache_key('friends', $id);
+				$this->cache->delete($cache_key);
+				log_message('info', "extra_draws: Cleared friends cache for lottery_id=$id");
+			}
 		}
 	return $included; // included has been updated, FALSE to don't use and TRUE to include the extra (Bonus) draws
 	}
@@ -3803,6 +3823,7 @@ class Statistics_m extends MY_Model
 
 	/**
 	 * Calculate the Friends of the Lottery from Ball 1 to Ball N range, include the extra ball if TRUE. Based on the range of draws covered
+	 * NOTE: This builds the friendship relationships. The wins calculation is done separately in friends_hits()
 	 * 
 	 * @param 	string 	$name		specific lottery table name
 	 * @param 	integer $max		maximum number of balls drawn
@@ -3843,6 +3864,8 @@ class Statistics_m extends MY_Model
 		$main_safety_counter = 0;
 		$max_main_iterations = $top + 10; // Should never need more than $top iterations plus some buffer
 		
+		log_message('info', "friends_calculate: Building friendships for top=$top balls, range=$range draws, bonus=$bonus, draws=$draws");
+		
 		do
 		{
 			// Safety check for main loop
@@ -3852,7 +3875,8 @@ class Statistics_m extends MY_Model
 				break;
 			}
 			
-			// Calculate
+			// Calculate - Use only $range draws to build friendship relationships
+			// The wins calculation (using range*2) happens in friends_hits()
  			
 			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
 			// Execute Query
@@ -4084,6 +4108,11 @@ class Statistics_m extends MY_Model
 			$this->db->where('lottery_id', $data['lottery_id']);
 			$this->db->update('lottery_friends');
 		}
+		
+		// CRITICAL: Clear cache after saving to ensure fresh data is retrieved
+		$cache_key = $this->generate_cache_key('friends', $data['lottery_id']);
+		$this->cache->delete($cache_key);
+		log_message('info', "Cleared friends cache for lottery_id={$data['lottery_id']}");
 	}
 	/** 
 	* Insert / Update NonFriends Profile of current lottery
@@ -4105,6 +4134,11 @@ class Statistics_m extends MY_Model
 			$this->db->where('lottery_id', $data['lottery_id']);
 			$this->db->update('lottery_nonfriends');
 		}
+		
+		// CRITICAL: Clear cache after saving to ensure fresh data is retrieved
+		$cache_key = $this->generate_cache_key('nonfriends', $data['lottery_id']);
+		$this->cache->delete($cache_key);
+		log_message('info', "Cleared nonfriends cache for lottery_id={$data['lottery_id']}");
 	}
 	
 	/**
@@ -4244,6 +4278,10 @@ class Statistics_m extends MY_Model
 			$nonfriends = array();	// Associative  array of non friends
 			$friends = $this->extract_friends($str_fr);
 			$nonfriends = $this->extract_nonfriends($str_nfr);
+			
+			// SLIDING WINDOW IMPLEMENTATION: Similar to followers_prizes
+			// Need range*2 draws total: first 'range' draws to build friendships, next 'range' draws to test wins
+			
 			// Build Query
 			$s = 'ball'; 
 			/* Part 1 */
@@ -4260,20 +4298,78 @@ class Statistics_m extends MY_Model
 			$w = (!$draws ? ' WHERE extra <> "0" ' : ' ');
 			$w .= (!empty($last)&&(!$draws) ? " AND draw_date <= '".$last."'" : "");
 			$w .= (!empty($last)&&($draws) ? " WHERE draw_date <= '".$last."'" : "");  
-			// Get the draw range once and process each draw exactly once
-			$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$range.") as t ORDER BY t.draw_date ASC;";
-			$query = $this->db->query($sql);
 			
-		// Process each draw in the range exactly once
-		if($query->num_rows() > 0) {
-			foreach($query->result_array() as $row) {
-				// Count friendships for this draw only
-				$relatives = $this->friends_hitcounts($relatives,$friends,$row,$bonus,$duple);
+			// CRITICAL FIX: Use range*2 draws for sliding window approach
+			$sliding_window_size = $range * 2;
+			
+			// Check how many draws are actually available
+			$count_sql = "SELECT COUNT(*) as total FROM ".$name.$w;
+			$count_query = $this->db->query($count_sql);
+			$available_draws = $count_query->row()->total;
+			
+			// Adjust window size if insufficient draws available
+			$actual_window_size = min($sliding_window_size, $available_draws);
+			
+			// Need at least 20 draws minimum for meaningful friendship analysis
+			if($actual_window_size < 20) {
+				log_message('warning', "friends_hits: Insufficient draws ({$actual_window_size} < 20), using simple calculation");
+				// Fall back to simple calculation with available draws
+				$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$actual_window_size.") as t ORDER BY t.draw_date ASC;";
+				$query = $this->db->query($sql);
+				
+				if($query->num_rows() > 0) {
+					foreach($query->result_array() as $row) {
+						$relatives = $this->friends_hitcounts($relatives,$friends,$row,$bonus,$duple);
+					}
+				}
+				$query->free_result();
+			} else {
+				log_message('info', "friends_hits: Using sliding window with {$actual_window_size} draws (ideal={$sliding_window_size}, range={$range})");
+				
+				// Get range*2 draws (or maximum available)
+				$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$actual_window_size.") as t ORDER BY t.draw_date ASC;";
+				$query = $this->db->query($sql);
+				$all_draws = $query->result_array();
+				$total_draws = count($all_draws);
+				
+				// Calculate phase boundaries
+				$phase1_end = min($range - 1, floor($total_draws / 2));
+				$phase2_start = $phase1_end + 1;
+				
+				log_message('debug', "friends_hits: Phase1 (build): 0 to {$phase1_end}, Phase2 (test): {$phase2_start} to ".($total_draws-1));
+				
+				// PHASE 1: Build initial friendship relationships from first half of draws
+				// This establishes which balls are friends with each other
+				$friendship_window = array(); // Track friendship occurrences for sliding window
+				
+				for($draw_idx = 0; $draw_idx < $phase1_end && $draw_idx < $total_draws; $draw_idx++) {
+					$current_draw = $all_draws[$draw_idx];
+					
+					// Track this draw's friendships for later removal in sliding window
+					$friendship_window[] = $current_draw;
+				}
+				
+				// PHASE 2: Sliding window through remaining draws with win calculations
+				// Test friendship patterns and count 0-way, 1-way, 2-way wins
+				for($draw_idx = $phase2_start; $draw_idx < $total_draws; $draw_idx++) {
+					$test_draw = $all_draws[$draw_idx];
+					
+					// Count wins using current friendship patterns against this test draw
+					$relatives = $this->friends_hitcounts($relatives, $friends, $test_draw, $bonus, $duple);
+					
+					// SLIDING WINDOW: Remove oldest friendship occurrence and add newest
+					if(count($friendship_window) >= $phase1_end) {
+						// Remove oldest draw from friendship tracking
+						array_shift($friendship_window);
+					}
+					
+					// Add current test draw to friendship window for next iteration
+					$friendship_window[] = $test_draw;
+				}
+				
+				$query->free_result();
 			}
-		}
-		
-		// Handle non-friends separately if needed
-		// TODO: Determine if non-friends counting is needed and implement correctly		$query->free_result();	// Removes the Memory associated with the result resource ID
+			
 		unset($friends);		// Destroy the old friendlist
 		unset($nonfriends);
 	}	/**
