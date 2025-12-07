@@ -708,7 +708,7 @@ function performReCalc(lotteryId) {
 				calcFooter.text('ReCalc Complete');
 				calcMessage.removeClass('text-danger').addClass('text-success');
 			} else {
-				calcMessage.text('Error during recalculation: ' + error);
+				calcMessage.text('Error during recalculation: ' + error + ' (Status: ' + xhr.status + ')');
 				calcFooter.text('ReCalc Error');
 				calcMessage.removeClass('text-success').addClass('text-danger');
 			}

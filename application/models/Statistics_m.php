@@ -5102,10 +5102,25 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	{
 		if(!$ref) return FALSE;
 		$this->db->reset_query();
-		$query = $this->db->query("SELECT t1.draw_id FROM lottery_h_w_c t1 
-		JOIN lottery_followers t2 JOIN lottery_friends t3 
-		ON (t1.draw_id=t2.draw_id)&&(t1.draw_id=t3.draw_id) WHERE t1.draw_id='".$ref."' && t1.lottery_id='".$lt_id."';");
-	return (isset($query->row) ? FALSE : TRUE);
+		
+		// Check each table individually to see if any are missing records for this draw
+		// If ANY of the three tables are missing the draw_id, we need to recalc
+		
+		// Check lottery_h_w_c table
+		$query = $this->db->query("SELECT draw_id FROM lottery_h_w_c WHERE draw_id='".$ref."' AND lottery_id='".$lt_id."'");
+		$hwc_exists = ($query && $query->num_rows() > 0);
+		
+		// Check lottery_followers table
+		$query = $this->db->query("SELECT draw_id FROM lottery_followers WHERE draw_id='".$ref."' AND lottery_id='".$lt_id."'");
+		$followers_exists = ($query && $query->num_rows() > 0);
+		
+		// Check lottery_friends table
+		$query = $this->db->query("SELECT draw_id FROM lottery_friends WHERE draw_id='".$ref."' AND lottery_id='".$lt_id."'");
+		$friends_exists = ($query && $query->num_rows() > 0);
+		
+		// Return TRUE if ANY table is missing the record (needs update)
+		// Return FALSE only if ALL three tables have the record (up to date)
+		return !($hwc_exists && $followers_exists && $friends_exists);
 	}
 	/** 
 	* Returns the number of hots, warms, colds in the group as the h_count, w_count and c_count

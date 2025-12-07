@@ -1341,7 +1341,6 @@ class Statistics extends Admin_Controller {
 					$nonfriends = array(
 						'range'					=> $new_range,
 						'lottery_nonfriends'	=> $str_nonfriends,
-						'wins'					=> $nfr_stats,
 						'draw_id'				=> $this->data['lottery']->last_drawn['id'],
 						'lottery_id'			=> $id
 					);
@@ -1376,7 +1375,6 @@ class Statistics extends Admin_Controller {
 			$nonfriends = array(
 				'range'					=> $new_range,
 				'lottery_nonfriends'	=> $str_nonfriends,
-				'wins'					=> $nfr_stats,
 				'draw_id'				=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'			=> $id
 			);
@@ -2130,6 +2128,8 @@ class Statistics extends Admin_Controller {
 				$this->recalc_friends($id, $this->data['lottery']);
 			} else {
 				log_message('info', "Recalc: recalc_update returned FALSE - no recalculation needed for lottery_id=$id");
+				// Statistics are already up to date
+				$recalc = FALSE;
 			}
 		}
 		else
@@ -2141,6 +2141,12 @@ class Statistics extends Admin_Controller {
 		if($recalc)
 		{
 			$this->session->set_flashdata('message', 'The Hot - Warm - Cold, Followers and Friends Statistics have ALL been updated to the latest draw.');
+			redirect('admin/statistics');
+		}
+		else
+		{
+			// Recalculation was not needed or recalc_update returned FALSE
+			$this->session->set_flashdata('message', 'Statistics are already up-to-date. No recalculation was needed.');
 			redirect('admin/statistics');
 		}
 	}
@@ -2820,7 +2826,6 @@ class Statistics extends Admin_Controller {
 			$nonfriends = array(
 				'range'					=> $range,
 				'lottery_nonfriends'	=> $str_nonfriends,
-				'wins'					=> $nfr_stats,
 				'draw_id'				=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'			=> $id
 			);
@@ -2849,7 +2854,6 @@ class Statistics extends Admin_Controller {
 			$nonfriends = array(
 				'range'					=> $new_range,
 				'lottery_nonfriends'	=> $str_nonfriends,
-				'wins'					=> $nfr_stats,
 				'draw_id'				=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'			=> $id
 			);
