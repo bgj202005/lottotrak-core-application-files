@@ -1599,18 +1599,27 @@ class Statistics extends Admin_Controller {
 			}
 			$sel_range = ($new_range>100 ? $sel_range = intval($new_range / 100) : $sel_range = 1);
 			$strdupextra = "";	// Always empty for all lotteries. exception is a lottery with an extra ball that can have a duplicate number
+			$strdupextra_last = ""; // Initialize last draw duplicate extra
+			$strhots_last = ""; // Initialize last draw hots
+			$strwarms_last = ""; // Initialize last draw warms
+			$strcolds_last = ""; // Initialize last draw colds
 			if($new_range!=0)	
 			{
 				if(intval($old_range)!=(intval($new_range))||($blnheat)) // Any Change in Selection of the Draws? then update ... e.i. 200 draws in db and 300 in query url
 				{
 					// A change has occurred, return the last draw date
 					$last_draw = $this->statistics_m->hwc_DrawBeforeLast($tbl_name); // Reuqirements havd changed
+					$draw_id_last = $h_w_c['draw_id_last']; // Default to existing value
 					if($last_draw) // Only if a previous draw has occurred
 					{
 						$str_hwc_last = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, $last_draw['draw_date'], $blnduplicate);
 						$strhots_last = $this->statistics_m->hots($str_hwc_last);
 						$strwarms_last = $this->statistics_m->warms($str_hwc_last);
 						$strcolds_last = $this->statistics_m->colds($str_hwc_last);
+						$draw_id_last = $last_draw['id']; // Update with the actual last draw ID
+						if($blnduplicate&&$this->data['lottery']->extra_included) {
+							$strdupextra_last = $this->statistics_m->hwc_duple_extra($tbl_name, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $last_draw['draw_date']);
+						}
 					}
 					$str_hwc = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '', $blnduplicate);
 					if($blnduplicate&&$this->data['lottery']->extra_included) $strdupextra = $this->statistics_m->hwc_duple_extra($tbl_name, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '');
@@ -1627,9 +1636,10 @@ class Statistics extends Admin_Controller {
 						'warms_last'		=> 	$strwarms_last,
 						'colds_last'		=> 	$strcolds_last,
 						'dupextra'			=>	$strdupextra,
+						'dupextra_last'		=>	$strdupextra_last,
 						'overdue'			=> 	$stroverdue,
 						'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
-						'draw_id_last'		=> 	$h_w_c['draw_id_last'],
+						'draw_id_last'		=> 	$draw_id_last,
 						'lottery_id'		=> 	$id,
 						'extra_included'	=> 	$this->data['lottery']->extra_included,
 						'extra_draws'		=> 	$this->data['lottery']->extra_draws,
@@ -1659,7 +1669,11 @@ class Statistics extends Admin_Controller {
 					$strhots = $h_w_c['hots']; 		// Pull from DB
 					$strwarms = $h_w_c['warms'];
 					$strcolds = $h_w_c['colds'];
+					$strhots_last = $h_w_c['hots_last']; 		// Pull from DB
+					$strwarms_last = $h_w_c['warms_last'];
+					$strcolds_last = $h_w_c['colds_last'];
 					$strdupextra = $h_w_c['dupextra'];
+					$strdupextra_last = isset($h_w_c['dupextra_last']) ? $h_w_c['dupextra_last'] : "";
 					$stroverdue = $h_w_c['overdue']; 
 				}
 			}
@@ -1678,15 +1692,27 @@ class Statistics extends Admin_Controller {
 			$this->data['lottery']->W = $heat[1];  					// Number of Warms Distributed e.g 18 Colds
 			$this->data['lottery']->C = $heat[2]; 					// Number of Colds Distributed e.g 16 Colds
 			$this->data['lottery']->prediction_pool = 18; 			// Default prediction pool
+			
+			// Calculate last draw H-W-C for new profile
+			$last_draw = $this->statistics_m->hwc_DrawBeforeLast($tbl_name);
+			$draw_id_last = 0; // Default to 0 for new profiles
+			if($last_draw) {
+				$str_hwc_last = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, $last_draw['draw_date'], $blnduplicate);
+				$strhots_last = $this->statistics_m->hots($str_hwc_last);
+				$strwarms_last = $this->statistics_m->warms($str_hwc_last);
+				$strcolds_last = $this->statistics_m->colds($str_hwc_last);
+				$draw_id_last = $last_draw['id']; // Set the actual last draw ID
+				if($blnduplicate&&$this->data['lottery']->extra_included) {
+					$strdupextra_last = $this->statistics_m->hwc_duple_extra($tbl_name, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $last_draw['draw_date']);
+				}
+			}
+			
 			$str_hwc = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '', $blnduplicate);
 			if($blnduplicate&&$this->data['lottery']->extra_included) $strdupextra = $this->statistics_m->hwc_duple_extra($tbl_name, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '');
 			$strhots = $this->statistics_m->hots($str_hwc);
 			$strwarms = $this->statistics_m->warms($str_hwc);
 			$strcolds = $this->statistics_m->colds($str_hwc);
 			$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range);
-			$strhots_last = $h_w_c['hots_last'];
-			$strwarms_last = $h_w_c['warms_last'];
-			$strcolds_last = $h_w_c['colds_last'];
 			$hwc = array(
 						'range'				=> 	$new_range,
 						'hots'				=> 	$strhots,
@@ -1696,9 +1722,10 @@ class Statistics extends Admin_Controller {
 						'warms_last'		=> 	$strwarms_last,
 						'colds_last'		=> 	$strcolds_last,
 						'dupextra'			=>	$strdupextra,
+						'dupextra_last'		=>	$strdupextra_last,
 						'overdue'			=> 	$stroverdue,
 						'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
-						'draw_id_last'		=> 	$h_w_c['draw_id_last'],
+						'draw_id_last'		=> 	$draw_id_last,
 						'lottery_id'		=> 	$id,
 						'extra_included'	=> 	$this->data['lottery']->extra_included,
 						'extra_draws'		=> 	$this->data['lottery']->extra_draws,

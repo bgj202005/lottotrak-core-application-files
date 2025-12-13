@@ -4567,36 +4567,32 @@ class Statistics_m extends MY_Model
 		$sql_range = ($range ? ' ORDER BY draw_date DESC LIMIT '.$range : ' ORDER BY draw_date DESC');
 		$sql_date = '';
 		$sql_draws = '';
-		if (!empty($last)&&($draws)&&(!$bonus))
-		{
+		
+		// Handle date filtering - always apply when $last is provided
+		if (!empty($last)) {
 			$sql_date = ' WHERE draw_date <= "'.$last.'"';
 		}
-		if(!empty($last)&&(!$draws))
-		{
-			$sql_draws = ' WHERE extra <> "0"';
-			$sql_date = ' AND draw_date <= "'.$last.'"';
+		
+		// Handle extra draws filtering
+		if (!$draws) {
+			$sql_draws = (!empty($last) ? ' AND extra <> "0"' : ' WHERE extra <> "0"');
 		}
-		//$sql_date = (!empty($last) ? ' WHERE draw_date <= "'.$last.'"' : '');
-		elseif(empty($last)&&(!$draws))
-		{
-			$sql_draws = ' WHERE extra <> "0"';
-		} 
+		
 		$sql = 'SELECT ball_drawn, count(*) as heat FROM ((SELECT ball1 as ball_drawn FROM '
-		.$lotto_tbl.$sql_draws.$sql_date.$sql_range.') UNION ALL (SELECT ball2 as ball_drawn FROM '
-		.$lotto_tbl.$sql_draws.$sql_date.$sql_range.') UNION ALL (SELECT ball3 as ball_drawn FROM '
-		.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
-		if($picks>=4) $sql .= ' UNION ALL (SELECT ball4 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
-		if($picks>=5) $sql .= ' UNION ALL (SELECT ball5 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
-		if($picks>=6) $sql .= ' UNION ALL (SELECT ball6 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
-		if($picks>=7) $sql .= ' UNION ALL (SELECT ball7 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
-		if($picks>=8) $sql .= ' UNION ALL (SELECT ball8 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
-		if($picks==9) $sql .= ' UNION ALL (SELECT ball9 as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
+		.$lotto_tbl.$sql_date.$sql_draws.$sql_range.') UNION ALL (SELECT ball2 as ball_drawn FROM '
+		.$lotto_tbl.$sql_date.$sql_draws.$sql_range.') UNION ALL (SELECT ball3 as ball_drawn FROM '
+		.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($picks>=4) $sql .= ' UNION ALL (SELECT ball4 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($picks>=5) $sql .= ' UNION ALL (SELECT ball5 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($picks>=6) $sql .= ' UNION ALL (SELECT ball6 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($picks>=7) $sql .= ' UNION ALL (SELECT ball7 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($picks>=8) $sql .= ' UNION ALL (SELECT ball8 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($picks==9) $sql .= ' UNION ALL (SELECT ball9 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
 		$sql_bonus = '';
 		if($bonus&&!$duple) 
 		{
-			$sql_bonus = (!empty($last) ? ' UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.' WHERE extra <> "0"'
-			.$sql_date.$sql_range.')' : ' UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.' WHERE extra <> "0"'
-			.$sql_range.')');
+			$bonus_date_filter = (!empty($last) ? ' AND draw_date <= "'.$last.'"' : '');
+			$sql_bonus = ' UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.' WHERE extra <> "0"'.$bonus_date_filter.$sql_range.')';
 		}
 		$sql_ext = ') as hwc GROUP BY ball_drawn ORDER BY heat DESC;';
 		$query = $this->db->query($sql.$sql_bonus.$sql_ext);
@@ -4620,19 +4616,28 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 {
     // Build associative array of last previous draw id and the corresponding draw date
 	$last_draw = array();
-	// Build query
-    $sql = 'SELECT `id`,`draw_date` FROM '.$lotto_tbl.' ORDER BY `id` DESC Limit 2;';
-    // Execute query
+	// Build query to get the most recent draw date first
+    $sql = 'SELECT `draw_date` FROM '.$lotto_tbl.' ORDER BY `draw_date` DESC, `id` DESC LIMIT 1;';
     $query = $this->db->query($sql);
-    $result = $query->last_row();		// get the previous draw date and the previous draw id (doesn't mean that all id's are sequential)    
+    $most_recent = $query->row();
+    
+    if (empty($most_recent)) {
+        return FALSE; // No draws at all
+    }
+    
+    // Now get the draw before the most recent draw date
+    $sql2 = 'SELECT `id`,`draw_date` FROM '.$lotto_tbl.' WHERE `draw_date` < "'.$most_recent->draw_date.'" ORDER BY `draw_date` DESC, `id` DESC LIMIT 1;';
+    $query2 = $this->db->query($sql2);
+    $result = $query2->row();
+    
     if (!empty($result)) 
 	{
 		$last_draw['id'] = $result->id;
 		$last_draw['draw_date'] = $result->draw_date;
 		return $last_draw;
     } else 
-	 {
-        return FALSE; // Return FALSE if no last draw date found
+	{
+        return FALSE; // Return FALSE if no previous draw found
     }
 }
 	/**
@@ -4990,6 +4995,10 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			$this->db->where('lottery_id', $data['lottery_id']);
 			$this->db->update('lottery_h_w_c_stats', $data);
 		}
+		
+		// Clear cache after save to ensure fresh data on next read
+		$cache_key = $this->generate_cache_key('hwc_history', $data['lottery_id']);
+		$this->cache->delete($cache_key);
 	}
 	/** 
 	* Returns the next resulting draw from the given date
