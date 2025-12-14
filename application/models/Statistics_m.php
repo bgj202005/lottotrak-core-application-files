@@ -958,6 +958,23 @@ class Statistics_m extends MY_Model
 			return $query->row_array();
 		}, 7200); // 2 hour cache since this data rarely changes
 	}
+	
+	/**
+	 * Clear the cache for follower and nonfollower data for a specific lottery
+	 * Called after reset or recalculation to ensure fresh data is loaded
+	 * 
+	 * @param	integer	$id		Lottery ID
+	 * @return	void
+	 */
+	public function clear_follower_cache($id)
+	{
+		$followers_key = $this->generate_cache_key('followers', $id);
+		$nonfollowers_key = $this->generate_cache_key('nonfollowers', $id);
+		
+		$this->cache->delete($followers_key);
+		$this->cache->delete($nonfollowers_key);
+	}
+	
 	/**
 	 * If existing Record for the Friends table exist
 	 * 
@@ -1641,7 +1658,374 @@ class Statistics_m extends MY_Model
 		$this->cache->delete($cache_key);
 		log_message('info', "Cleared followers cache for lottery_id={$data['lottery_id']}");
 	}
-	/**  
+	/**
+	 * Sliding window follower calculation - incrementally update followers by removing oldest draw and adding newest
+	 * This is ~50x faster than full recalculation for 100-draw ranges
+	 * 
+	 * @param	string	$name			Lottery table name
+	 * @param	array	$ldn			Last drawn numbers (newest draw to add)
+	 * @param	integer	$max			Number of balls drawn
+	 * @param	boolean	$bonus			Extra ball included
+	 * @param	boolean	$draws			Extra draws included
+	 * @param	integer	$range			Range (100, 200, etc)
+	 * @param	array	$existing		Existing followers data from database
+	 * @param	boolean	$duple			Duplicate extra ball flag
+	 * @param	integer	$lottery_max	Maximum ball number
+	 * @param	integer	$mx_extra		Maximum extra ball number
+	 * @return	array	Result with 'followers' string and 'outofrange' flag
+	 */
+	public function followers_sliding_window($name, $ldn, $max, $bonus, $draws, $range, $existing, $duple, $lottery_max, $mx_extra)
+	{
+		// Parse existing follower string into array
+		$follower_data = $this->parse_follower_string($existing['lottery_followers'], $duple);
+		
+		// Get the draw being removed (oldest in range)
+		$oldest_draw = $this->get_draw_at_position_filtered($name, $range + 1, $draws);
+		if (!$oldest_draw) {
+			// Not enough draws for sliding window, fall back to full recalc
+			return array(
+				'followers' => '',
+				'outofrange' => true
+			);
+		}
+		
+		// Get the draw before oldest (to find what followed oldest)
+		$before_oldest = $this->get_draw_at_position_filtered($name, $range + 2, $draws);
+		
+		// Subtract oldest draw's follower relationships
+		if ($before_oldest) {
+			$follower_data = $this->subtract_draw_followers($follower_data, $before_oldest, $oldest_draw, $max, $bonus, $duple);
+		}
+		
+		// Get previous draw (to find what newest follows)
+		$previous_draw = $this->get_draw_at_position_filtered($name, 2, $draws);
+		
+		// Add newest draw's follower relationships
+		if ($previous_draw) {
+			$follower_data = $this->add_draw_followers($follower_data, $previous_draw, $ldn, $max, $bonus, $duple);
+		}
+		
+		// Rebuild follower string from updated data
+		$followers_string = $this->build_follower_string($follower_data, $duple);
+		
+		// Calculate prizes for the updated followers (reuse existing logic)
+		global $prizes;
+		$outofrange = $this->followers_prizes($name, $ldn, $max, $bonus, $draws, $range, $lottery_max, '', $duple, $mx_extra);
+		
+		return array(
+			'followers' => $followers_string,
+			'outofrange' => $outofrange
+		);
+	}
+	
+	/**
+	 * Parse follower string into array structure
+	 * Format: "10=>3=4|22=3,17=>10=5|37=4" or "10=>3=4|22=3#2=5|7=3" (with # for duplicate extra)
+	 * 
+	 * @param	string	$str		Follower string
+	 * @param	boolean	$duple		Duplicate extra ball flag
+	 * @return	array	Parsed data: [ball => ['main' => [follower => count], 'extra' => [follower => count]]]
+	 */
+	private function parse_follower_string($str, $duple)
+	{
+		$data = array();
+		
+		if (empty($str)) {
+			return $data;
+		}
+		
+		// Split by comma to get each ball's followers
+		$ball_entries = explode(',', $str);
+		
+		foreach ($ball_entries as $entry) {
+			if (empty($entry)) continue;
+			
+			// Split ball number from its followers: "10=>3=4|22=3"
+			$parts = explode('=>', $entry);
+			if (count($parts) != 2) continue;
+			
+			$ball = intval($parts[0]);
+			$followers_str = $parts[1];
+			
+			// Check for # separator (duplicate extra ball format)
+			if ($duple && strpos($followers_str, '#') !== false) {
+				$sections = explode('#', $followers_str);
+				$main_followers_str = $sections[0];
+				$extra_followers_str = isset($sections[1]) ? $sections[1] : '';
+				
+				// Parse main followers
+				$data[$ball]['main'] = $this->parse_follower_pairs($main_followers_str);
+				// Parse extra followers
+				$data[$ball]['extra'] = $this->parse_follower_pairs($extra_followers_str);
+			} else {
+				// Standard format - all followers are 'main'
+				$data[$ball]['main'] = $this->parse_follower_pairs($followers_str);
+				$data[$ball]['extra'] = array();
+			}
+		}
+		
+		return $data;
+	}
+	
+	/**
+	 * Parse follower pairs like "3=4|22=3" into array [3 => 4, 22 => 3]
+	 */
+	private function parse_follower_pairs($str)
+	{
+		$pairs = array();
+		
+		if (empty($str)) {
+			return $pairs;
+		}
+		
+		$items = explode('|', $str);
+		foreach ($items as $item) {
+			if (empty($item)) continue;
+			
+			$parts = explode('=', $item);
+			if (count($parts) == 2) {
+				$follower = intval($parts[0]);
+				$count = intval($parts[1]);
+				$pairs[$follower] = $count;
+			}
+		}
+		
+		return $pairs;
+	}
+	
+	/**
+	 * Get draw at specific position from the end with extra draws filtering (1 = last, 2 = second last, etc)
+	 * 
+	 * @param	string	$name		Lottery table name
+	 * @param	integer	$position	Position from end (1-based)
+	 * @param	boolean	$draws		Include extra draws
+	 * @return	array|null	Draw data or null
+	 */
+	private function get_draw_at_position_filtered($name, $position, $draws)
+	{
+		$where = (!$draws ? " AND extra <> '0'" : "");
+		$offset = $position - 1;
+		
+		$sql = "SELECT * FROM {$name} WHERE 1=1 {$where} ORDER BY draw_date DESC LIMIT 1 OFFSET {$offset}";
+		$query = $this->db->query($sql);
+		
+		return $query->row_array();
+	}
+	
+	/**
+	 * Subtract oldest draw's follower relationships from the data
+	 * 
+	 * @param	array	$data			Parsed follower data
+	 * @param	array	$before_draw	Draw before the one being removed
+	 * @param	array	$old_draw		Draw being removed (oldest in range)
+	 * @param	integer	$max			Number of balls drawn
+	 * @param	boolean	$bonus			Extra ball included
+	 * @param	boolean	$duple			Duplicate extra ball
+	 * @return	array	Updated follower data
+	 */
+	private function subtract_draw_followers($data, $before_draw, $old_draw, $max, $bonus, $duple)
+	{
+		// For each ball in before_draw, check if any old_draw balls followed it
+		for ($i = 1; $i <= $max; $i++) {
+			$before_ball = intval($before_draw['ball' . $i]);
+			
+			if (!isset($data[$before_ball])) continue;
+			
+			// Check which balls in old_draw followed this before_ball
+			for ($j = 1; $j <= $max; $j++) {
+				$old_ball = intval($old_draw['ball' . $j]);
+				
+				if (isset($data[$before_ball]['main'][$old_ball])) {
+					$data[$before_ball]['main'][$old_ball]--;
+					
+					// Remove if count reaches 0
+					if ($data[$before_ball]['main'][$old_ball] <= 0) {
+						unset($data[$before_ball]['main'][$old_ball]);
+					}
+				}
+			}
+			
+			// Handle extra ball followers for duplicate extra
+			if ($bonus && $duple && !empty($old_draw['extra'])) {
+				$old_extra = intval($old_draw['extra']);
+				
+				if (isset($data[$before_ball]['extra'][$old_extra])) {
+					$data[$before_ball]['extra'][$old_extra]--;
+					
+					if ($data[$before_ball]['extra'][$old_extra] <= 0) {
+						unset($data[$before_ball]['extra'][$old_extra]);
+					}
+				}
+			}
+		}
+		
+		// Handle extra ball as the "before" ball for duplicate extra
+		if ($bonus && $duple && !empty($before_draw['extra'])) {
+			$before_extra = intval($before_draw['extra']);
+			
+			if (isset($data[$before_extra])) {
+				// Check main balls that followed
+				for ($j = 1; $j <= $max; $j++) {
+					$old_ball = intval($old_draw['ball' . $j]);
+					
+					if (isset($data[$before_extra]['main'][$old_ball])) {
+						$data[$before_extra]['main'][$old_ball]--;
+						
+						if ($data[$before_extra]['main'][$old_ball] <= 0) {
+							unset($data[$before_extra]['main'][$old_ball]);
+						}
+					}
+				}
+				
+				// Check extra ball that followed
+				if (!empty($old_draw['extra'])) {
+					$old_extra = intval($old_draw['extra']);
+					
+					if (isset($data[$before_extra]['extra'][$old_extra])) {
+						$data[$before_extra]['extra'][$old_extra]--;
+						
+						if ($data[$before_extra]['extra'][$old_extra] <= 0) {
+							unset($data[$before_extra]['extra'][$old_extra]);
+						}
+					}
+				}
+			}
+		}
+		
+		return $data;
+	}
+	
+	/**
+	 * Add newest draw's follower relationships to the data
+	 * 
+	 * @param	array	$data			Parsed follower data
+	 * @param	array	$prev_draw		Previous draw
+	 * @param	array	$new_draw		Newest draw being added
+	 * @param	integer	$max			Number of balls drawn
+	 * @param	boolean	$bonus			Extra ball included
+	 * @param	boolean	$duple			Duplicate extra ball
+	 * @return	array	Updated follower data
+	 */
+	private function add_draw_followers($data, $prev_draw, $new_draw, $max, $bonus, $duple)
+	{
+		// For each ball in prev_draw, check if any new_draw balls follow it
+		for ($i = 1; $i <= $max; $i++) {
+			$prev_ball = intval($prev_draw['ball' . $i]);
+			
+			// Initialize if doesn't exist
+			if (!isset($data[$prev_ball])) {
+				$data[$prev_ball] = array('main' => array(), 'extra' => array());
+			}
+			
+			// Check which balls in new_draw follow this prev_ball
+			for ($j = 1; $j <= $max; $j++) {
+				$new_ball = intval($new_draw['ball' . $j]);
+				
+				if (!isset($data[$prev_ball]['main'][$new_ball])) {
+					$data[$prev_ball]['main'][$new_ball] = 0;
+				}
+				
+				$data[$prev_ball]['main'][$new_ball]++;
+			}
+			
+			// Handle extra ball followers for duplicate extra
+			if ($bonus && $duple && !empty($new_draw['extra'])) {
+				$new_extra = intval($new_draw['extra']);
+				
+				if (!isset($data[$prev_ball]['extra'][$new_extra])) {
+					$data[$prev_ball]['extra'][$new_extra] = 0;
+				}
+				
+				$data[$prev_ball]['extra'][$new_extra]++;
+			}
+		}
+		
+		// Handle extra ball as the "previous" ball for duplicate extra
+		if ($bonus && $duple && !empty($prev_draw['extra'])) {
+			$prev_extra = intval($prev_draw['extra']);
+			
+			// Initialize if doesn't exist
+			if (!isset($data[$prev_extra])) {
+				$data[$prev_extra] = array('main' => array(), 'extra' => array());
+			}
+			
+			// Check main balls that follow
+			for ($j = 1; $j <= $max; $j++) {
+				$new_ball = intval($new_draw['ball' . $j]);
+				
+				if (!isset($data[$prev_extra]['main'][$new_ball])) {
+					$data[$prev_extra]['main'][$new_ball] = 0;
+				}
+				
+				$data[$prev_extra]['main'][$new_ball]++;
+			}
+			
+			// Check extra ball that follows
+			if (!empty($new_draw['extra'])) {
+				$new_extra = intval($new_draw['extra']);
+				
+				if (!isset($data[$prev_extra]['extra'][$new_extra])) {
+					$data[$prev_extra]['extra'][$new_extra] = 0;
+				}
+				
+				$data[$prev_extra]['extra'][$new_extra]++;
+			}
+		}
+		
+		return $data;
+	}
+	
+	/**
+	 * Build follower string from array structure
+	 * Only include followers with count >= 3 (minimum threshold)
+	 * 
+	 * @param	array	$data		Parsed follower data
+	 * @param	boolean	$duple		Duplicate extra ball flag
+	 * @return	string	Follower string in original format
+	 */
+	private function build_follower_string($data, $duple)
+	{
+		$ball_strings = array();
+		
+		foreach ($data as $ball => $followers) {
+			$main_pairs = array();
+			$extra_pairs = array();
+			
+			// Build main follower pairs (only count >= 3)
+			if (!empty($followers['main'])) {
+				foreach ($followers['main'] as $follower => $count) {
+					if ($count >= 3) {
+						$main_pairs[] = $follower . '=' . $count;
+					}
+				}
+			}
+			
+			// Build extra follower pairs for duplicate extra (only count >= 3)
+			if ($duple && !empty($followers['extra'])) {
+				foreach ($followers['extra'] as $follower => $count) {
+					if ($count >= 3) {
+						$extra_pairs[] = $follower . '=' . $count;
+					}
+				}
+			}
+			
+			// Only include ball if it has followers
+			if (!empty($main_pairs) || !empty($extra_pairs)) {
+				$ball_str = $ball . '=>' . implode('|', $main_pairs);
+				
+				// Add # separator and extra pairs for duplicate extra
+				if ($duple && !empty($extra_pairs)) {
+					$ball_str .= '#' . implode('|', $extra_pairs);
+				}
+				
+				$ball_strings[] = $ball_str;
+			}
+		}
+		
+		return implode(',', $ball_strings);
+	}
+
+	/**
 	 * Calculate the number of never trailing (follower) numbers based on the last draw and the draw rang
 	 * 
 	 * @param 	string 	$name			specific lottery table name

@@ -876,8 +876,73 @@ class Statistics extends Admin_Controller {
 						return;
 					}
 					
-				$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, '', $blnduplicate);
+				// Check if we can use sliding window (incremental update) instead of full recalculation
+				// Conditions: existing data exists, parameters haven't changed, range hasn't changed, only one new draw added
+				$can_use_sliding_window = false;
+				if (!$blnEX && $followers['range'] == $range && 
+				    $followers['extra_included'] == $this->data['lottery']->extra_included &&
+				    $followers['extra_draws'] == $this->data['lottery']->extra_draws &&
+				    !empty($followers['lottery_followers']) && !empty($followers['wins']) &&
+				    $followers['draw_id'] == ($this->data['lottery']->last_drawn['id'] - 1)) {
+					// Only one new draw added since last calculation - can use sliding window
+					$can_use_sliding_window = true;
+				}
+				
+				if ($can_use_sliding_window) {
+					// Use sliding window approach: remove oldest draw, add newest draw
+					$result = $this->statistics_m->followers_sliding_window($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $followers, $blnduplicate, $max, $mx_extra);
+					$str_followers = $result['followers'];
+					$outofrange = $result['outofrange'];
+				} else {
+					// Full recalculation needed
+					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, '', $blnduplicate);
 					$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
+				}
+							if (is_array($categories)) {
+								// Count wins before processing
+								$ball_wins_before = array_sum($categories);
+								
+								// First, consolidate *_extra categories into their base categories
+								foreach ($categories as $cat => $count) {
+									if (strpos($cat, '_extra') !== false && $count > 0) {
+										$base_cat = str_replace('_extra', '_win', $cat);
+										// If base category exists, add the extra wins to it
+										if (array_key_exists($base_cat, $categories)) {
+											$categories[$base_cat] += $count;
+											$consolidated_count++;
+										}
+										// Remove the extra category after consolidation
+										unset($categories[$cat]);
+									}
+								}
+								
+								// Then filter out non-base categories (7_win, 8_win, 9_win, etc.)
+								foreach ($categories as $cat => $count) {
+									// Keep 1_win and categories in p_group, filter out everything else
+									if (!array_key_exists($cat, $p_group) && $cat !== '1_win') {
+										if ($count > 0) {
+											$filtered_count++;
+										}
+										unset($categories[$cat]);
+									}
+								}
+								
+								// Update the prizes array with consolidated results
+								$prizes[$ball] = $categories;
+								
+								// Count wins after processing
+								$ball_wins_after = array_sum($categories);
+								if ($ball_wins_before > 0 || $ball_wins_after > 0) {
+									$preserved_count++;
+								}
+								
+								// Remove balls with no remaining wins
+								if (array_sum($categories) == 0) {
+									unset($prizes[$ball]);
+								}
+							}
+						}
+					}
 					
 					// Additional validation before string conversion to prevent array_key_exists errors
 					if (!is_array($prizes)) {
@@ -2130,28 +2195,27 @@ class Statistics extends Admin_Controller {
 	 */
 	public function reset_followers()
 	{
-		// Set JSON header using CodeIgniter's output library
-		$this->output->set_content_type('application/json');
+		header('Content-Type: application/json');
 		
 		try {
 			$admin_id = $this->session->userdata('id');
 			
 			if (!$admin_id) {
-				$this->output->set_output(json_encode(['success' => false, 'message' => 'Not authorized']));
+				echo json_encode(['success' => false, 'message' => 'Not authorized']);
 				return;
 			}
 			
 			$id = $this->input->post('lottery_id');
 			
 			if (!$id || !is_numeric($id)) {
-				$this->output->set_output(json_encode(['success' => false, 'message' => 'Invalid lottery ID']));
+				echo json_encode(['success' => false, 'message' => 'Invalid lottery ID']);
 				return;
 			}
 			
 			// Get lottery info
 			$lottery = $this->lotteries_m->get($id);
 			if (!$lottery) {
-				$this->output->set_output(json_encode(['success' => false, 'message' => 'Lottery not found']));
+				echo json_encode(['success' => false, 'message' => 'Lottery not found']);
 				return;
 			}
 			
@@ -2160,6 +2224,12 @@ class Statistics extends Admin_Controller {
 			$current_followers = $this->statistics_m->followers_exists($id);
 			$current_nonfollowers = $this->statistics_m->nonfollowers_exists($id);
 			
+			// Store the extra_included and extra_draws values before delete
+			$extra_included_followers = $current_followers ? $current_followers['extra_included'] : 0;
+			$extra_draws_followers = (isset($current_followers['extra_draws'])) ? $current_followers['extra_draws'] : 0;
+			$extra_included_nonfollowers = $current_nonfollowers ? $current_nonfollowers['extra_included'] : 0;
+			$extra_draws_nonfollowers = (isset($current_nonfollowers['extra_draws'])) ? $current_nonfollowers['extra_draws'] : 0;
+			
 			// Clear calculation data AND draw_id to force recalculation
 			// The draw_id field is what recalc_update() checks to determine if recalc is needed
 			if($current_followers) {
@@ -2167,42 +2237,39 @@ class Statistics extends Admin_Controller {
 					'lottery_followers' => '',
 					'wins' => '',
 					'positions' => '',
-					'draw_id' => 0  // Clear draw_id to force recalculation
+					'draw_id' => NULL  // Clear draw_id to force recalculation
 				);
 				if(isset($current_followers['dupextra_wins'])) {
 					$clear_data['dupextra_wins'] = '';
 				}
 				$this->db->where('lottery_id', $id);
-				$this->db->update('lottery_followers', $clear_data);
+				$followers_deleted = $this->db->update('lottery_followers', $clear_data);
 			} else {
 				$this->db->where('lottery_id', $id);
-				$this->db->delete('lottery_followers');
+				$followers_deleted = $this->db->delete('lottery_followers');
 			}
 			
 			if($current_nonfollowers) {
 				$clear_data = array(
 					'lottery_nonfollowers' => '',
-					'draw_id' => 0  // Clear draw_id to force recalculation
+					'draw_id' => NULL  // Clear draw_id to force recalculation
 				);
 				$this->db->where('lottery_id', $id);
-				$this->db->update('lottery_nonfollowers', $clear_data);
+				$nonfollowers_deleted = $this->db->update('lottery_nonfollowers', $clear_data);
 			} else {
 				$this->db->where('lottery_id', $id);
-				$this->db->delete('lottery_nonfollowers');
+				$nonfollowers_deleted = $this->db->delete('lottery_nonfollowers');
 			}
 			
-			// CRITICAL: Clear the cache for this lottery's follower data
-			// Otherwise followers_exists() will return stale cached data
-			$this->statistics_m->clear_follower_cache($id);
-			$this->output->set_output(json_encode([
+			echo json_encode([
 				'success' => true, 
 				'message' => 'Follower statistics reset successfully. Next ReCalc will start from scratch.'
-			]));
+			]);
 			
 		} catch (Exception $e) {
 			log_message('error', "Reset followers error: " . $e->getMessage());
 			log_message('error', "Reset followers stack trace: " . $e->getTraceAsString());
-			$this->output->set_output(json_encode(['success' => false, 'message' => 'Error resetting follower statistics: ' . $e->getMessage()]));
+			echo json_encode(['success' => false, 'message' => 'Error resetting follower statistics: ' . $e->getMessage()]);
 		}
 	}
 	
@@ -3284,12 +3351,6 @@ class Statistics extends Admin_Controller {
 		// Check if existing calculation is up to date
 		$existing_draw_id = $existing_followers['draw_id'];
 		$latest_draw_id = $latest_draw->id;
-		
-		// If draw_id is 0, it means the data was reset and needs recalculation
-		if ($existing_draw_id == 0 || empty($existing_followers['lottery_followers'])) {
-			log_message('info', "ReCalc needed: Data was reset for lottery_id=$lottery_id");
-			return array('skip_recalc' => false, 'message' => '');
-		}
 		
 		// If there's a new draw since last calculation, recalc is needed
 		if ($existing_draw_id != $latest_draw_id) {
