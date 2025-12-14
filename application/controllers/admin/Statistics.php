@@ -2105,30 +2105,30 @@ class Statistics extends Admin_Controller {
 	 */
 	public function recalc($id)
 	{
-		log_message('error', "=== MAIN RECALC METHOD STARTED for lottery_id=$id ===");
 		// 1. Determine if the draws have the columns with the Statistics data
 		$this->data['message'] = '';	// Defaulted to No Error Messages
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
-		log_message('info', "Recalc: lottery_name=" . $this->data['lottery']->lottery_name . ", table_name=$tbl_name");
 	
 		$recalc = FALSE;
 		$stats_exist = $this->statistics_m->last_stats_exist($tbl_name);
-		log_message('error', "Recalc: last_stats_exist($tbl_name) returned: " . ($stats_exist ? 'TRUE' : 'FALSE'));
 		
 		if($stats_exist) /** First Check to see that the lottery db exists and statistics exist */
 		{
 			$draw_id = $this->statistics_m->last_id($tbl_name);
-			log_message('info', "Recalc: last_id($tbl_name) returned: $draw_id");
-			
 			$needs_update = $this->statistics_m->recalc_update($id, $draw_id);
-			log_message('error', "Recalc: recalc_update($id, $draw_id) returned: " . ($needs_update ? 'TRUE' : 'FALSE'));
 			
-			if($needs_update) // Second, if a new draw has been entered or manually entered, return true to recalc //
+			// Also check if followers data was specifically reset (cleared but record exists)
+			$followers_reset = FALSE;
+			$existing_followers = $this->statistics_m->followers_exists($id);
+			if (!is_null($existing_followers) && (empty($existing_followers['wins']) || empty($existing_followers['positions']))) {
+				$followers_reset = TRUE;
+			}
+			
+			if($needs_update || $followers_reset) // Second, if a new draw has been entered or manually entered, or followers were reset, return true to recalc //
 			{
 				$recalc = TRUE;
-				log_message('info', "Recalc: Starting recalculation process for lottery_id=$id");
 				
 				// Initialize extra_included and extra_draws properties from database (preserve user settings)
 				if(!isset($this->data['lottery']->extra_included)) {
@@ -2144,9 +2144,7 @@ class Statistics extends Admin_Controller {
 				
 				// Verified the Draw Statistics have been completed
 				// 1. The H (Hots) - W (Warms) - C (Colds) will be RE-CALC'd
-				log_message('error', "Recalc: About to call recalc_hwc for lottery_id=$id");
 				$this->recalc_hwc($id,$this->data['lottery']);
-				log_message('error', "Recalc: Finished recalc_hwc for lottery_id=$id");
 				
 				// 2. The Followers will be RE-CALC'd
 				$this->recalc_followers($id,$this->data['lottery']);
@@ -2154,7 +2152,6 @@ class Statistics extends Admin_Controller {
 				// 3. The Friends of numbers will be RE-CALC'd	
 				$this->recalc_friends($id, $this->data['lottery']);
 			} else {
-				log_message('info', "Recalc: recalc_update returned FALSE - no recalculation needed for lottery_id=$id");
 				// Statistics are already up to date
 				$recalc = FALSE;
 			}
@@ -2188,22 +2185,16 @@ class Statistics extends Admin_Controller {
 		header('Content-Type: application/json');
 		
 		try {
-			log_message('info', "Reset followers: Method called");
-			
 			$admin_id = $this->session->userdata('id');
-			log_message('info', "Reset followers: admin_id = $admin_id");
 			
 			if (!$admin_id) {
-				log_message('error', "Reset followers: Not authorized - no admin_id in session");
 				echo json_encode(['success' => false, 'message' => 'Not authorized']);
 				return;
 			}
 			
 			$id = $this->input->post('lottery_id');
-			log_message('info', "Reset followers: received lottery_id = $id");
 			
 			if (!$id || !is_numeric($id)) {
-				log_message('error', "Reset followers: Invalid lottery ID: $id");
 				echo json_encode(['success' => false, 'message' => 'Invalid lottery ID']);
 				return;
 			}
@@ -2211,12 +2202,9 @@ class Statistics extends Admin_Controller {
 			// Get lottery info
 			$lottery = $this->lotteries_m->get($id);
 			if (!$lottery) {
-				log_message('error', "Reset followers: Lottery not found for ID: $id");
 				echo json_encode(['success' => false, 'message' => 'Lottery not found']);
 				return;
 			}
-			
-			log_message('info', "Reset followers: Found lottery: " . $lottery->lottery_name);
 			
 			// Reset follower statistics in database - clear only calculation data, preserve settings
 			// First, get current settings before clearing data
@@ -2229,12 +2217,14 @@ class Statistics extends Admin_Controller {
 			$extra_included_nonfollowers = $current_nonfollowers ? $current_nonfollowers['extra_included'] : 0;
 			$extra_draws_nonfollowers = (isset($current_nonfollowers['extra_draws'])) ? $current_nonfollowers['extra_draws'] : 0;
 			
-			// Clear only the calculation data columns, preserve the settings
+			// Clear calculation data AND draw_id to force recalculation
+			// The draw_id field is what recalc_update() checks to determine if recalc is needed
 			if($current_followers) {
 				$clear_data = array(
 					'lottery_followers' => '',
 					'wins' => '',
-					'positions' => ''
+					'positions' => '',
+					'draw_id' => NULL  // Clear draw_id to force recalculation
 				);
 				if(isset($current_followers['dupextra_wins'])) {
 					$clear_data['dupextra_wins'] = '';
@@ -2248,7 +2238,8 @@ class Statistics extends Admin_Controller {
 			
 			if($current_nonfollowers) {
 				$clear_data = array(
-					'lottery_nonfollowers' => ''
+					'lottery_nonfollowers' => '',
+					'draw_id' => NULL  // Clear draw_id to force recalculation
 				);
 				$this->db->where('lottery_id', $id);
 				$nonfollowers_deleted = $this->db->update('lottery_nonfollowers', $clear_data);
@@ -2256,10 +2247,6 @@ class Statistics extends Admin_Controller {
 				$this->db->where('lottery_id', $id);
 				$nonfollowers_deleted = $this->db->delete('lottery_nonfollowers');
 			}
-			
-			log_message('info', "Reset followers: Deleted from lottery_followers: " . ($followers_deleted ? 'SUCCESS' : 'FAILED'));
-			log_message('info', "Reset followers: Deleted from lottery_nonfollowers: " . ($nonfollowers_deleted ? 'SUCCESS' : 'FAILED'));
-			log_message('info', "Reset followers: Cleared follower statistics for lottery_id=$id by admin_id=$admin_id");
 			
 			echo json_encode([
 				'success' => true, 
