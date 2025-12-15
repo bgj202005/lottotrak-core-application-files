@@ -976,6 +976,33 @@ class Statistics_m extends MY_Model
 	}
 	
 	/**
+	 * Clear the cache for H-W-C data for a specific lottery
+	 * Called after reset or recalculation to ensure fresh data is loaded
+	 * 
+	 * @param	integer	$id		Lottery ID
+	 * @return	void
+	 */
+	public function clear_hwc_cache($id)
+	{
+		$hwc_key = $this->generate_cache_key('h_w_c', $id);
+		$this->cache->delete($hwc_key);
+	}
+	
+	/**
+	 * Check if H-W-C stats record exists for a lottery
+	 * 
+	 * @param	integer	$id		Lottery ID
+	 * @return  array|null	Query result or null
+	 */
+	public function hwc_stats_exists($id)
+	{
+		$query = $this->db->where('lottery_id', $id)
+		        ->limit(1, 0)
+		        ->get('lottery_h_w_c_stats');
+		return $query->row_array();
+	}
+	
+	/**
 	 * If existing Record for the Friends table exist
 	 * 
 	 * @param	integer	$id		Lottery ID of current Lottery
@@ -1656,7 +1683,6 @@ class Statistics_m extends MY_Model
 		// CRITICAL: Clear cache after saving to ensure fresh data is retrieved
 		$cache_key = $this->generate_cache_key('followers', $data['lottery_id']);
 		$this->cache->delete($cache_key);
-		log_message('info', "Cleared followers cache for lottery_id={$data['lottery_id']}");
 	}
 	/**
 	 * Sliding window follower calculation - incrementally update followers by removing oldest draw and adding newest
@@ -2023,6 +2049,210 @@ class Statistics_m extends MY_Model
 		}
 		
 		return implode(',', $ball_strings);
+	}
+	
+	/**
+	 * H-W-C Sliding Window Implementation
+	 * Updates H-W-C heat counts by subtracting oldest draw and adding newest draw
+	 * 
+	 * @param	string	$name			Lottery table name
+	 * @param	integer	$lottery_id		Lottery ID
+	 * @param	integer	$picks			Number of balls drawn
+	 * @param	integer	$bonus			Include extra ball (1=yes, 0=no)
+	 * @param	integer	$draws			Include extra draws (1=yes, 0=no)
+	 * @param	integer	$range			Draw range (e.g., 100)
+	 * @param	integer	$w_start		Warm boundary start
+	 * @param	integer	$c_start		Cold boundary start
+	 * @param	boolean	$duple			Duplicate extra ball flag
+	 * @return	array	['hots' => '...', 'warms' => '...', 'colds' => '...', 'success' => true/false]
+	 */
+	public function hwc_sliding_window($name, $lottery_id, $picks, $bonus, $draws, $range, $w_start, $c_start, $duple)
+	{
+		// Get existing H-W-C data
+		$existing = $this->h_w_c_exists($lottery_id);
+		if (!$existing || empty($existing['hots'])) {
+			return array('success' => false, 'message' => 'No existing H-W-C data');
+		}
+		
+		// Parse existing H-W-C strings into heat counts array
+		$heat_counts = $this->parse_hwc_strings($existing['hots'], $existing['warms'], $existing['colds']);
+		
+		// Get the oldest draw in current range (draw at position range+1 from latest)
+		$oldest_draw = $this->get_draw_at_position($name, $range + 1);
+		if (!$oldest_draw) {
+			return array('success' => false, 'message' => 'Cannot find oldest draw');
+		}
+		
+		// Get the newest draw (most recent)
+		$newest_draw = $this->get_draw_at_position($name, 1);
+		if (!$newest_draw) {
+			return array('success' => false, 'message' => 'Cannot find newest draw');
+		}
+		
+		// Check if newest draw is the same as last calculated
+		if ($existing['draw_id'] == $newest_draw['id']) {
+			return array('success' => false, 'message' => 'Already up to date');
+		}
+		
+		// Subtract oldest draw from counts
+		$heat_counts = $this->subtract_hwc_draw($heat_counts, $oldest_draw, $picks, $bonus, $draws);
+		
+		// Add newest draw to counts
+		$heat_counts = $this->add_hwc_draw($heat_counts, $newest_draw, $picks, $bonus, $draws);
+		
+		// Sort by heat descending
+		arsort($heat_counts);
+		
+		// Split into hot, warm, cold categories
+		$result = $this->categorize_hwc($heat_counts, $w_start, $c_start);
+		$result['success'] = true;
+		$result['draw_id'] = $newest_draw['id'];
+		
+		return $result;
+	}
+	
+	/**
+	 * Parse H-W-C strings into heat count array
+	 * 
+	 * @param	string	$hots		Hot numbers string (e.g., "16=45,22=44,26=43")
+	 * @param	string	$warms		Warm numbers string
+	 * @param	string	$colds		Cold numbers string
+	 * @return	array	Heat counts [ball => count]
+	 */
+	private function parse_hwc_strings($hots, $warms, $colds)
+	{
+		$counts = array();
+		
+		// Parse each category
+		foreach (array($hots, $warms, $colds) as $str) {
+			if (empty($str)) continue;
+			
+			$pairs = explode(',', $str);
+			foreach ($pairs as $pair) {
+				if (strpos($pair, '=') !== false) {
+					list($ball, $heat) = explode('=', $pair);
+					$counts[intval($ball)] = intval($heat);
+				}
+			}
+		}
+		
+		return $counts;
+	}
+	
+	/**
+	 * Subtract a draw's balls from heat counts
+	 * 
+	 * @param	array	$counts		Current heat counts
+	 * @param	array	$draw		Draw data
+	 * @param	integer	$picks		Number of balls drawn
+	 * @param	integer	$bonus		Include extra ball
+	 * @param	integer	$draws		Include extra draws
+	 * @return	array	Updated heat counts
+	 */
+	private function subtract_hwc_draw($counts, $draw, $picks, $bonus, $draws)
+	{
+		// Subtract main balls
+		for ($i = 1; $i <= $picks; $i++) {
+			$ball = intval($draw['ball' . $i]);
+			if ($ball > 0 && isset($counts[$ball])) {
+				$counts[$ball]--;
+				if ($counts[$ball] <= 0) {
+					unset($counts[$ball]);
+				}
+			}
+		}
+		
+		// Subtract extra ball if included
+		if ($bonus && isset($draw['extra']) && $draw['extra'] > 0) {
+			// Only subtract if this is not an extra-only draw (when draws=0, exclude extra draws)
+			if ($draws || $draw['extra'] == '0') {
+				$ball = intval($draw['extra']);
+				if ($ball > 0 && isset($counts[$ball])) {
+					$counts[$ball]--;
+					if ($counts[$ball] <= 0) {
+						unset($counts[$ball]);
+					}
+				}
+			}
+		}
+		
+		return $counts;
+	}
+	
+	/**
+	 * Add a draw's balls to heat counts
+	 * 
+	 * @param	array	$counts		Current heat counts
+	 * @param	array	$draw		Draw data
+	 * @param	integer	$picks		Number of balls drawn
+	 * @param	integer	$bonus		Include extra ball
+	 * @param	integer	$draws		Include extra draws
+	 * @return	array	Updated heat counts
+	 */
+	private function add_hwc_draw($counts, $draw, $picks, $bonus, $draws)
+	{
+		// Add main balls
+		for ($i = 1; $i <= $picks; $i++) {
+			$ball = intval($draw['ball' . $i]);
+			if ($ball > 0) {
+				if (!isset($counts[$ball])) {
+					$counts[$ball] = 0;
+				}
+				$counts[$ball]++;
+			}
+		}
+		
+		// Add extra ball if included
+		if ($bonus && isset($draw['extra']) && $draw['extra'] > 0) {
+			// Only add if this is not an extra-only draw (when draws=0, exclude extra draws)
+			if ($draws || $draw['extra'] == '0') {
+				$ball = intval($draw['extra']);
+				if ($ball > 0) {
+					if (!isset($counts[$ball])) {
+						$counts[$ball] = 0;
+					}
+					$counts[$ball]++;
+				}
+			}
+		}
+		
+		return $counts;
+	}
+	
+	/**
+	 * Categorize heat counts into hot, warm, cold
+	 * 
+	 * @param	array	$counts		Heat counts [ball => count]
+	 * @param	integer	$w_start	Warm boundary (first warm position)
+	 * @param	integer	$c_start	Cold boundary (first cold position)
+	 * @return	array	['hots' => '...', 'warms' => '...', 'colds' => '...']
+	 */
+	private function categorize_hwc($counts, $w_start, $c_start)
+	{
+		$hots = array();
+		$warms = array();
+		$colds = array();
+		
+		$position = 1;
+		foreach ($counts as $ball => $heat) {
+			$entry = $ball . '=' . $heat;
+			
+			if ($position < $w_start) {
+				$hots[] = $entry;
+			} elseif ($position < $c_start) {
+				$warms[] = $entry;
+			} else {
+				$colds[] = $entry;
+			}
+			
+			$position++;
+		}
+		
+		return array(
+			'hots' => implode(',', $hots),
+			'warms' => implode(',', $warms),
+			'colds' => implode(',', $colds)
+		);
 	}
 
 	/**
@@ -2478,7 +2708,6 @@ class Statistics_m extends MY_Model
 		// CRITICAL: Clear cache after saving to ensure fresh data is retrieved
 		$cache_key = $this->generate_cache_key('nonfollowers', $data['lottery_id']);
 		$this->cache->delete($cache_key);
-		log_message('info', "Cleared nonfollowers cache for lottery_id={$data['lottery_id']}");
 	}
 	
 	/**
@@ -5727,9 +5956,9 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	private static $hwc_cache = [];
 	
 	/**
-	 * Clear H-W-C classification cache
+	 * Clear H-W-C classification cache (internal memory cache)
 	 */
-	public static function clear_hwc_cache()
+	public static function clear_hwc_memory_cache()
 	{
 		self::$hwc_cache = [];
 	}

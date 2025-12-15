@@ -42,6 +42,10 @@ class Statistics extends Admin_Controller {
 			// Check if followers need recalculation (after reset)
 			$followers_check = $this->statistics_m->followers_exists($lottery->id);
 			$lottery->needs_recalc = (is_null($followers_check) || empty($followers_check['lottery_followers']));
+			
+			// Check if H-W-C needs recalculation (after reset)
+			$hwc_check = $this->statistics_m->h_w_c_exists($lottery->id);
+			$lottery->needs_hwc_recalc = (is_null($hwc_check) || empty($hwc_check['hots']) || empty($hwc_check['warms']) || empty($hwc_check['colds']) || $hwc_check['draw_id'] == 0);
 		}
 
 		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
@@ -653,7 +657,6 @@ class Statistics extends Admin_Controller {
 		
 		// Check if followers data exists and block access if empty (after reset)
 		$followers_check = $this->statistics_m->followers_exists($id);
-		log_message('info', "followers view: Retrieved followers_check for lottery_id={$id}: " . (is_null($followers_check) ? "NULL" : (empty($followers_check['lottery_followers']) ? "EMPTY lottery_followers" : strlen($followers_check['lottery_followers']) . " chars in lottery_followers")));
 		
 		if(is_null($followers_check) || empty($followers_check['lottery_followers'])) {
 			$this->session->set_flashdata('message', 'Followers must be ReCalculated with the ReCalc checkbox before viewing followers data.');
@@ -793,7 +796,6 @@ class Statistics extends Admin_Controller {
 				// Followers data is empty (reset case) - use URL params if present, otherwise default to 0
 				$this->data['lottery']->extra_included = $url_extra_included;
 				$this->data['lottery']->extra_draws = $url_extra_draws;
-				log_message('info', "Empty followers data - using URL values: extra_included=$url_extra_included, extra_draws=$url_extra_draws");
 			}
 			
 			// Always save current state as user preferences
@@ -935,7 +937,6 @@ class Statistics extends Admin_Controller {
 			// No existing followers record - set checkbox values based on URL parameters
 			$this->data['lottery']->extra_included = $url_extra_included;
 			$this->data['lottery']->extra_draws = $url_extra_draws;
-			log_message('info', "No existing followers record - using URL values: extra_included=$url_extra_included, extra_draws=$url_extra_draws");
 			
 			// Save current state as user preferences
 			$prefs = $this->session->userdata('followers_preferences') ?: array();
@@ -1374,6 +1375,16 @@ class Statistics extends Admin_Controller {
 		$blnheat = FALSE;									// CHANGE flag. default is FALSE, 
 		// if the form was submitted, the database values will compared to the submitted ones.
 		$this->data['lottery'] = $this->lotteries_m->get($id);
+		
+		// Check if H-W-C data exists and block access if empty (after reset)
+		$hwc_check = $this->statistics_m->h_w_c_exists($id);
+		
+		if(is_null($hwc_check) || empty($hwc_check['hots']) || empty($hwc_check['warms']) || empty($hwc_check['colds']) || $hwc_check['draw_id'] == 0) {
+			$this->session->set_flashdata('message', 'Click the ReCalc checkbox first before viewing H-W-C data.');
+			redirect('admin/statistics');
+			return;
+		}
+		
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$blnduplicate = ($this->data['lottery']->duplicate_extra_ball ? TRUE : FALSE);
@@ -2207,6 +2218,99 @@ class Statistics extends Admin_Controller {
 	}
 	
 	/**
+	 * Reset H-W-C statistics to force full recalculation
+	 * Clears calculation data but preserves settings (range, extra_included, etc.)
+	 * 
+	 * @return	JSON response
+	 */
+	public function reset_hwc()
+	{
+		$this->output->set_content_type('application/json');
+		
+		try {
+			$admin_id = $this->session->userdata('id');
+			
+			if (!$admin_id) {
+				$this->output->set_output(json_encode(['success' => false, 'message' => 'Not authorized']));
+				return;
+			}
+			
+			$id = $this->input->post('lottery_id');
+			
+			if (!$id || !is_numeric($id)) {
+				$this->output->set_output(json_encode(['success' => false, 'message' => 'Invalid lottery ID']));
+				return;
+			}
+			
+			// Get lottery info
+			$lottery = $this->lotteries_m->get($id);
+			if (!$lottery) {
+				$this->output->set_output(json_encode(['success' => false, 'message' => 'Lottery not found']));
+				return;
+			}
+			
+			// Reset H-W-C statistics - clear only calculation data, preserve settings
+			$current_hwc = $this->statistics_m->h_w_c_exists($id);
+			$current_hwc_stats = $this->statistics_m->hwc_stats_exists($id);
+			
+			// Clear lottery_h_w_c table
+			if($current_hwc) {
+				$clear_data = array(
+					'hots' => '',
+					'hots_last' => '',
+					'warms' => '',
+					'warms_last' => '',
+					'colds' => '',
+					'colds_last' => '',
+					'dupextra' => '',
+					'dupextra_last' => '',
+					'overdue' => '',
+					'draw_id' => 0,  // Clear draw_id to force recalculation
+					'draw_id_last' => 0
+				);
+				$this->db->where('lottery_id', $id);
+				$this->db->update('lottery_h_w_c', $clear_data);
+			} else {
+				$this->db->where('lottery_id', $id);
+				$this->db->delete('lottery_h_w_c');
+			}
+			
+			// Clear lottery_h_w_c_stats table
+			if($current_hwc_stats) {
+				$clear_data = array(
+					'range' => 0,
+					'h_w_c_range' => '',
+					'h_w_c_last_1' => '',
+					'h_w_c_last_10' => '',
+					'position' => '',
+					'position_last' => '',
+					'wins' => '',
+					'draw_id' => 0,
+					'draw_id_last' => 0
+				);
+				$this->db->where('lottery_id', $id);
+				$this->db->update('lottery_h_w_c_stats', $clear_data);
+			} else {
+				$this->db->where('lottery_id', $id);
+				$this->db->delete('lottery_h_w_c_stats');
+			}
+			
+			// Clear the cache for this lottery's H-W-C data
+			$this->statistics_m->clear_hwc_cache($id);
+			
+			$this->output->set_output(json_encode([
+				'success' => true, 
+				'message' => 'H-W-C statistics reset successfully. Next ReCalc will start from scratch.'
+			]));
+			
+		} catch (Exception $e) {
+			log_message('error', "Reset H-W-C error: " . $e->getMessage());
+			log_message('error', "Reset H-W-C stack trace: " . $e->getTraceAsString());
+			$this->output->set_output(json_encode(['success' => false, 'message' => 'Error resetting H-W-C statistics: ' . $e->getMessage()]));
+		}
+	}
+	
+	/**
 	 * ReCALCULATES the Lottery H-W-C, it will retrieve the last H-W-C. If it exists, the first draw (for the given range) will be retrieved.
 	 * Each number that was drawn in the first draw will be subtracted from the counts in the H-W-C. The last draw will be retrieved and will be
 	 * added to the H-W-C. The overdue will be reset, if the last drawn number was an overdue number 
@@ -2233,7 +2337,42 @@ class Statistics extends Admin_Controller {
 	 $prev_str_dupextra = ""; // Empty String
 	 $prev_draw = array();	// Initialize the previous draw array
 	 $h_w_c = $this->statistics_m->h_w_c_exists($id);
-	 if(!is_null($h_w_c))	// Existing HWC?
+	 
+	 // Try sliding window optimization if existing data is present
+	 $use_sliding_window = false;
+	 if(!is_null($h_w_c) && !empty($h_w_c['hots']) && $h_w_c['draw_id'] > 0)	// Existing HWC with data?
+	 {
+		$new_range = $h_w_c['range'];
+		$hots = $h_w_c['h_count'];
+		$warms = $h_w_c['w_count'];
+		$colds = $h_w_c['c_count'];
+		$w_start = intval($hots+1);					// Warms
+		$lotto->H = $hots;  						// Number of Hots Distributed e.g. 16 Hots
+		$c_start = ($max_ball-intval($colds))+1; 	// Return the Cold value
+		$lotto->W = $warms;  						// Number of Warms Distributed e.g 18 Colds
+		$lotto->C = $colds; 						// Number of Colds Distributed e.g 16 Colds
+		
+		// Check if we can use sliding window (same settings, only one new draw)
+		$can_slide = (
+			$h_w_c['extra_included'] == $lotto->extra_included &&
+			$h_w_c['extra_draws'] == $lotto->extra_draws &&
+			$h_w_c['draw_id'] == ($lotto->last_drawn['id'] - 1)  // Exactly one draw behind
+		);
+		
+		if ($can_slide) {
+			$slide_result = $this->statistics_m->hwc_sliding_window($tbl, $id, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
+			
+			if ($slide_result['success']) {
+				$strhots = $slide_result['hots'];
+				$strwarms = $slide_result['warms'];
+				$strcolds = $slide_result['colds'];
+				$use_sliding_window = true;
+			}
+		}
+	 }
+	 
+	 // Full recalculation if sliding window wasn't used
+	 if (!$use_sliding_window && !is_null($h_w_c))	// Existing HWC?
 	 {
 		$new_range = $h_w_c['range'];
 		$hots = $h_w_c['h_count'];
@@ -2483,25 +2622,12 @@ class Statistics extends Admin_Controller {
 			$current_range = $this->get_current_range($id, $tbl);
 			$range = $current_range; // Force use of current range for parameter changes
 			
-			if ($recalc_extra_included != $old_extra_included || 
-			    $recalc_extra_draws != $old_extra_draws ||
-			    $range != $old_range) {
-				log_message('info', "Parameter changes detected - performing FULL RECALCULATION:");
-				log_message('info', "  Range: $old_range -> $range");
-			}
-			
 			$include_extra_position = $recalc_extra_included; // Use current checkbox state
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $include_extra_position);
 			
-			log_message('info', "recalc_followers: Starting calculation for lottery_id={$id}, range={$range}, extra_included={$recalc_extra_included}, extra_draws={$recalc_extra_draws}");
-			
 			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range,'',$blnduplicate);
 			
-			log_message('info', "recalc_followers: followers_calculate returned: " . (empty($str_followers) ? "EMPTY" : strlen($str_followers) . " chars"));
-			
 			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
-			
-			log_message('info', "recalc_followers: followers_prizes returned: " . ($outofrange ? "OUT OF RANGE" : "SUCCESS"));
 			
 			// CRITICAL FIX: When extra_included=0, consolidate extra wins into base categories
 			if (!$recalc_extra_included && is_array($prizes)) {
@@ -3231,6 +3357,60 @@ class Statistics extends Admin_Controller {
 	}
 	
 	/**
+	 * Check if H-W-C recalculation is needed or if a warning should be displayed
+	 * 
+	 * @param	integer	$lottery_id		Lottery ID
+	 * @param	object	$lotto			Lottery object  
+	 * @param	string	$tbl			Lottery table name
+	 * @return	array	Array with skip_recalc flag and message
+	 */
+	private function check_hwc_recalc_needed($lottery_id, $lotto, $tbl)
+	{
+		// Get existing H-W-C data
+		$existing_hwc = $this->statistics_m->h_w_c_exists($lottery_id);
+		
+		// If no existing data, recalc is needed (first time)
+		if (is_null($existing_hwc)) {
+			return array('skip_recalc' => false, 'message' => '');
+		}
+		
+		// Get the latest draw from the table
+		$latest_draw = $this->lotteries_m->last_draw_db($tbl);
+		if (!$latest_draw) {
+			return array('skip_recalc' => false, 'message' => '');
+		}
+		
+		// Check if H-W-C data was reset (empty hots/warms/colds or draw_id=0)
+		if (empty($existing_hwc['hots']) || empty($existing_hwc['warms']) || empty($existing_hwc['colds']) || $existing_hwc['draw_id'] == 0) {
+			return array('skip_recalc' => false, 'message' => '');
+		}
+		
+		// Check if existing calculation is up to date
+		$existing_draw_id = $existing_hwc['draw_id'];
+		$latest_draw_id = $latest_draw->id;
+		
+		// If there's a new draw since last calculation, recalc is needed
+		if ($existing_draw_id != $latest_draw_id) {
+			return array('skip_recalc' => false, 'message' => '');
+		}
+		
+		// If the existing calculation is already for the latest draw AND has data, warn user
+		if ($existing_draw_id == $latest_draw_id && 
+		    !empty($existing_hwc['hots']) && 
+		    !empty($existing_hwc['warms']) && 
+		    !empty($existing_hwc['colds'])) {
+			
+			$draw_date = date('M j, Y', strtotime($latest_draw->draw_date));
+			$message = 'ReCalc option is not Required. ReCalculation has been completed up to ' . $draw_date;
+			
+			return array('skip_recalc' => true, 'message' => $message);
+		}
+		
+		// All other cases, allow recalc
+		return array('skip_recalc' => false, 'message' => '');
+	}
+	
+	/**
 	 * Check if recalculation is needed or if a warning should be displayed
 	 * 
 	 * @param	integer	$lottery_id		Lottery ID
@@ -3256,7 +3436,6 @@ class Statistics extends Admin_Controller {
 		
 		// Check if follower data was reset (empty wins/positions but record exists)
 		if (empty($existing_followers['wins']) || empty($existing_followers['positions'])) {
-			log_message('info', "ReCalc needed: Follower data was reset for lottery_id=$lottery_id");
 			return array('skip_recalc' => false, 'message' => '');
 		}
 		
@@ -3272,12 +3451,6 @@ class Statistics extends Admin_Controller {
 		if ($current_extra_included != $existing_extra_included || 
 		    $current_extra_draws != $existing_extra_draws ||
 		    $current_range != $existing_range) {
-			
-			log_message('info', "ReCalc needed: Parameters changed for lottery_id=$lottery_id");
-			log_message('info', "  Extra included: $existing_extra_included -> $current_extra_included");
-			log_message('info', "  Extra draws: $existing_extra_draws -> $current_extra_draws");  
-			log_message('info', "  Range: $existing_range -> $current_range");
-			
 			return array('skip_recalc' => false, 'message' => '');
 		}
 		
@@ -3287,13 +3460,11 @@ class Statistics extends Admin_Controller {
 		
 		// If draw_id is 0, it means the data was reset and needs recalculation
 		if ($existing_draw_id == 0 || empty($existing_followers['lottery_followers'])) {
-			log_message('info', "ReCalc needed: Data was reset for lottery_id=$lottery_id");
 			return array('skip_recalc' => false, 'message' => '');
 		}
 		
 		// If there's a new draw since last calculation, recalc is needed
 		if ($existing_draw_id != $latest_draw_id) {
-			log_message('info', "ReCalc needed: New draw detected for lottery_id=$lottery_id (was draw_id=$existing_draw_id, now draw_id=$latest_draw_id)");
 			return array('skip_recalc' => false, 'message' => '');
 		}
 		
