@@ -2436,8 +2436,17 @@ class Statistics extends Admin_Controller {
 	 }
 	 else 
 	 {
-		 $this->data['lottery']->extra_included = 0; // No Extra Ball as part of the calculation
-		 $this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
+		 // Initialize extra_included and extra_draws from database saved settings instead of hardcoding to 0
+		 // This preserves user preferences from the H-W-C page checkboxes
+		 if(!isset($this->data['lottery']->extra_included)) {
+			 $saved_extra_included = $this->statistics_m->extra_included($id, FALSE, 'lottery_followers');
+			 $this->data['lottery']->extra_included = $saved_extra_included ? 1 : 0;
+		 }
+		 if(!isset($this->data['lottery']->extra_draws)) {
+			 $saved_extra_draws = $this->statistics_m->extra_draws($id, FALSE, 'lottery_followers');
+			 $this->data['lottery']->extra_draws = $saved_extra_draws ? 1 : 0;
+		 }
+		 
 		 $new_range = ($all<100 ? $all : 100);
 		 $heat = explode('-', $this->statistics_m->hwc_defaults[$max_ball]); 	// Break out the H-W-C into a new array
 		 $w_start = intval($heat[0]+1);					// Warms
@@ -2446,7 +2455,7 @@ class Statistics extends Admin_Controller {
 		 $this->data['lottery']->W = $heat[1];  						// Number of Warms Distributed e.g 18 Colds
 		 $this->data['lottery']->C = $heat[2]; 							// Num
 		 $str_hwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '');
-		 if($blnduplicate&&$h_w_c['extra_included']) $str_dupextra = $this->statistics_m->hwc_duple_extra($tbl, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, '');	
+		 if($blnduplicate&&$this->data['lottery']->extra_included) $str_dupextra = $this->statistics_m->hwc_duple_extra($tbl, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '');	
 		 $strhots = $this->statistics_m->hots($str_hwc);
 		 $strwarms = $this->statistics_m->warms($str_hwc);
 		 $strcolds = $this->statistics_m->colds($str_hwc);
