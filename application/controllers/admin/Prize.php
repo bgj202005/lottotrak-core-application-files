@@ -165,31 +165,13 @@ class Prize extends Admin_Controller
      * Auto-update prize records when there are new draws available
      * @param int $admin_id Administrator ID
      * @param int $lottery_id Lottery ID
-     * Note: This method is now disabled. Win records are only updated when user views Combination Ticket Winner table.
+     * Note: This method is now disabled. Win records and filter expiration only happen when user views Combination Ticket Winner table.
      */
     private function auto_update_prize_records($admin_id, $lottery_id)
     {
-        // Check for outdated combination files that need to be expired
-        $expired_info = $this->expire_outdated_combination_files($lottery_id);
-        
-        // Ensure we have a proper array format
-        if (is_array($expired_info) && isset($expired_info['count']) && $expired_info['count'] > 0) {
-            // Create alert message with specific filenames
-            if (!empty($expired_info['filenames'])) {
-                $alert_message = "Combination Ticket Filenames " . implode(' and ', $expired_info['filenames']) . 
-                               " Status changed from ACTIVE to EXPIRED because the draw is out of date.";
-            } else {
-                $alert_message = "Expired {$expired_info['count']} outdated combination file(s) due to newer draws being imported.";
-            }
-            
-            // Store alert message in session for display on Prize History page
-            $this->session->set_flashdata('prize_alert', $alert_message);
-            log_message('info', "Auto-update: Expired {$expired_info['count']} outdated combination files for lottery {$lottery_id}");
-        }
-        
-        // Note: Win record processing is intentionally disabled to prevent premature updates
-        // Win records will only be processed when user explicitly views the Combination Ticket Winner table
-        log_message('info', "Auto-update: Checked for outdated combinations. Win records will only be processed when viewing Combination Ticket Winner table");
+        // Automatic expiration disabled - filters will only be expired when viewing Combination Ticket Winner table
+        // This prevents filters from being prematurely marked as expired when just viewing Prize History page
+        log_message('info', "Auto-update: Automatic expiration disabled. Filters will only be expired when viewing Combination Ticket Winner table");
         return;
     }
     
