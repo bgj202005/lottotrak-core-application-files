@@ -50,6 +50,20 @@
   		display:inline-block;
   		max-width: 168px;
   		margin:20px;
+  		overflow: hidden;
+	}
+	/* Ensure background colors stay within table borders */
+	table tbody tr td {
+		background-clip: padding-box;
+	}
+	table tbody tr.table-danger td {
+		background-color: #f8d7da !important;
+	}
+	table tbody tr.table-warning td {
+		background-color: #fff3cd !important;
+	}
+	table tbody tr.table-primary td {
+		background-color: #cfe2ff !important;
 	}
 	/* hwc */
 	table hwc{
