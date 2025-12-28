@@ -8537,5 +8537,4 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		
 		return null;
 	}
-
 }
