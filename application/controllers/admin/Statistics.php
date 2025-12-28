@@ -1743,11 +1743,21 @@ class Statistics extends Admin_Controller {
 			}
 		}
 		// Iterate Overdues
+		$overdue_temp = array();
 		foreach($overdue as $all_overdue)
 		{
 			$n = strstr($all_overdue, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
 			$c = substr(strstr($all_overdue, '='), 1); // Strip off to the left of the equal sign count
-			$this->data['lottery']->overdue[$n] = $c; 
+			$skips = explode('|', $c); // Get draws skipped value
+			$overdue_temp[] = array('ball' => $n, 'value' => $c, 'skips' => intval($skips[0]));
+		}
+		// Sort by draws skipped (ascending - least to most)
+		usort($overdue_temp, function($a, $b) {
+			return $a['skips'] - $b['skips'];
+		});
+		// Rebuild the overdue array in sorted order
+		foreach($overdue_temp as $item) {
+			$this->data['lottery']->overdue[$item['ball']] = $item['value'];
 		}
 		$hwc_history = $this->statistics_m->hwc_history_exists($id);
  		if(is_null($hwc_history)) // Correct Lottery & Range?
