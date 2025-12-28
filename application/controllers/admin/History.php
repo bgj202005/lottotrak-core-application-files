@@ -102,6 +102,18 @@ class History extends Admin_Controller {
 			redirect('admin/history'); 
 		}
 
+		// Check if lottery highlights need updating and update if necessary
+		$this->load->model('prize_m');
+		$highlight_check = $this->prize_m->check_and_update_lottery_highlights($id);
+		
+		// Set message based on highlight check result
+		if ($highlight_check['status'] === 'updated') {
+			$this->data['message'] = $highlight_check['message'];
+		} elseif ($highlight_check['status'] === 'error') {
+			$this->session->set_flashdata('message', $highlight_check['message']);
+			redirect('admin/history');
+		}
+
 		$all = $this->lotteries_m->db_row_count($tbl_name); // Return the total number of draws for this lottery
 		if($all>100)
 		{
@@ -307,7 +319,11 @@ class History extends Admin_Controller {
 				$draw = array(); 		// Temporary draw array
 				$positions = array();	// Temporary position array
 				$positions_last = array();	// Temporary position from last array
-				$draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn,$this->data['lottery']->extra_ball, $dup);
+				// Use the H-W-C settings from the database, NOT hard-coded duplicate_extra_ball flag
+				$extra_included_setting = $h_w_c['extra_included'];
+				// Pass the correct duplicate_extra_ball flag (not extra_included) to onlydrawn
+				// onlydrawn expects: ($draw_data, $has_extra_ball, $is_duplicate_extra_ball_system)
+				$draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn, $extra_included_setting ? $this->data['lottery']->extra_ball : 0, $dup);
 				$hots = $h_w_c['h_count'];
 				$warms = $h_w_c['w_count'];
 				$colds = $h_w_c['c_count'];
@@ -317,6 +333,7 @@ class History extends Admin_Controller {
 				$this->data['lottery']->extra_included = $h_w_c['extra_included'];
 				$this->data['lottery']->extra_draws = $h_w_c['extra_draws'];
 				$this->data['lottery']->last_drawn['range'] = $h_w_c['range'];
+				$this->data['lottery']->prediction_pool = isset($h_w_c['prediction_pool']) ? $h_w_c['prediction_pool'] : 18; // Default to 18 if not set
 				$strhots_last = $h_w_c['hots_last']; 		// Pull from DB
 				$strwarms_last = $h_w_c['warms_last'];	// All counts for Hots, Warms, Colds
 				$strcolds_last = $h_w_c['colds_last'];
@@ -534,19 +551,26 @@ class History extends Admin_Controller {
 		//Don't forget to include the last drawn h-w-c
 		$this->data['lottery']->hwc = explode('-',$hwc_history['h_w_c_last_1']);
 		
-		// For display purposes, create a complete draw array that includes the extra ball
-		// The $draw array from onlydrawn() excludes extra ball for independent extra ball lotteries
-		$complete_draw = $draw; // Start with main balls
-		if($this->data['lottery']->extra_ball && $dup) {
-			// For independent extra ball lotteries, add the extra ball for display
-			$complete_draw[] = $this->data['lottery']->last_drawn['extra'];
-		}
+		// For display purposes, always show the extra ball if the lottery has one
+		// The $draw array (used for H-W-C matching/asterisks) respects extra_included setting
+		// The $complete_draw array (used for visual display) always includes extra if lottery has one
+		$complete_draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn, $this->data['lottery']->extra_ball, $dup);
 		$this->data['lottery']->draw = $complete_draw;
 		$this->data['lottery']->positions = $positions;
 		$this->data['lottery']->positions_last = $positions_last;
 		unset($draw);
 		unset($positions);
 		unset($positions_last);
+		// Get H-W-C winners data for the Winners tab
+		$hwc_stats = $this->statistics_m->get_hwc_stats($id);
+		
+		if(!empty($hwc_stats) && !empty($hwc_stats['wins'])) {
+			$h_w_c_range = isset($hwc_stats['h_w_c_range']) ? $hwc_stats['h_w_c_range'] : '';
+			$this->data['hwc_winners'] = $this->parse_hwc_winners($hwc_stats['wins'], $id, $h_w_c_range);
+		} else {
+			$this->data['hwc_winners'] = array();
+		}
+		
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the Statistics menu
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
@@ -1040,22 +1064,14 @@ class History extends Admin_Controller {
 				$this->data['lottery']->nonfriends['ball'.$b] = $nonfriends_draw[$b-1];  // Array is zero based
 				$b++;
 			}
-			if(!empty($friends['wins'])) 
+			if(isset($friends['wins']) && !empty($friends['wins'])) 
 			{
 				// Friend only wins
 				$wins = explode("|", $friends['wins']); // $wins[0]  = broken like this nofriends,1-wayfriends,2-wayfriends & wins[1] = 1 - 49 (canada 649 for example), 1-way or 2 way friends 
 				$direction = explode(",", $wins[0]); // no friends ($direction[0]), 1 - way ($direction[1]) and 2 - way ($direction[2])
-				$nonfriend_wins = explode("|", $nonfriends['wins']);  // Canada 649 (example) 1 to 49, Number 1 has a 1 way 34, number 2 has a 1 way 7, 
-				// number 2 has a 1 way 25, etc.
 				$this->data['lottery']->friend['nofriends'] = $direction[0];
 				$this->data['lottery']->friend['1-way'] = $direction[1];
 				$this->data['lottery']->friend['2-way'] = $direction[2];
-				// Non Friends only with the occurrences of non friends drawn in the next draw
-				$this->data['lottery']->friend['0-friends'] = $nonfriend_wins[0];
-				$this->data['lottery']->friend['1-friends'] = $nonfriend_wins[1];
-				$this->data['lottery']->friend['2-friends'] = $nonfriend_wins[2];
-				$this->data['lottery']->friend['3-friends'] = $nonfriend_wins[3];
-				$this->data['lottery']->friend['4-friends'] = $nonfriend_wins[4];
 				$ball_friend = explode(',', $wins[1]);
 				// Zero-based, so all balls drawn start at ba1l 1
 				foreach($ball_friend as $friend => $direct)
@@ -1190,17 +1206,18 @@ class History extends Admin_Controller {
 			}
 		}
 		
-		// Process each extra ball's prizes
-		for($extra_num = 1; $extra_num <= $this->data['lottery']->maximum_extra_ball; $extra_num++) {
-			if(isset($extra_ball_prizes[$extra_num - 1]) && !empty($extra_ball_prizes[$extra_num - 1])) {
-				$prizes = explode(',', $extra_ball_prizes[$extra_num - 1]);
-				
-				$parsed['extra_' . $extra_num] = array();
-				
-				foreach($prizes as $index => $count) {
-					if(isset($prize_categories[$index]) && intval($count) > 0) {
-						$parsed['extra_' . $extra_num][$prize_categories[$index]] = intval($count);
-					}
+		// Process the single extra ball result - calculate_dupextra_wins now only returns data for drawn extra ball
+		$extra_num = 1;
+		if(isset($extra_ball_prizes[$extra_num - 1]) && !empty($extra_ball_prizes[$extra_num - 1])) {
+			$prizes = explode(',', $extra_ball_prizes[$extra_num - 1]);
+			
+			// Get the drawn extra ball number for the key
+			$drawn_extra = isset($this->data['lottery']->last_drawn['extra']) ? intval($this->data['lottery']->last_drawn['extra']) : 1;
+			$parsed['extra_' . $drawn_extra] = array();
+			
+			foreach($prizes as $index => $count) {
+				if(isset($prize_categories[$index]) && intval($count) > 0) {
+					$parsed['extra_' . $drawn_extra][$prize_categories[$index]] = intval($count);
 				}
 			}
 		}
@@ -1348,5 +1365,207 @@ class History extends Admin_Controller {
 		}
 		
 		return $parsed;
+	}
+	
+	/**
+	 * View the H-W-C winners based on calculated statistics and points
+	 * 
+	 * @param		$id		current id of Lottery related to the draw database of the lottery	
+	 * @return      none
+	 */
+	public function h_w_c_winners($id)
+	{
+		$this->data['message'] = '';	// Defaulted to No Error Messages
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		
+		// Check if lottery exists
+		if(empty($this->data['lottery'])) {
+			$this->session->set_flashdata('message', 'Lottery not found.');
+			redirect('admin/history');
+		}
+		
+		// Retrieve the lottery table name for the database
+		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottery, Pick 5, Pick 6, Pick 7, etc.
+		
+		// Check to see if the actual table exists in the db?
+		if (!$this->lotteries_m->lotto_table_exists($tbl_name))
+		{
+			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
+			redirect('admin/history');
+		}
+		
+		// Get H-W-C statistics data
+		$hwc_stats = $this->statistics_m->get_hwc_stats($id);
+		if(empty($hwc_stats) || empty($hwc_stats['wins'])) {
+			$this->session->set_flashdata('message', 'No H-W-C winner statistics found. Please recalculate H-W-C statistics first.');
+			redirect('admin/history');
+		}
+		
+		// Parse the wins string and calculate points, filtering by occurrence counts if available
+		$h_w_c_range = isset($hwc_stats['h_w_c_range']) ? $hwc_stats['h_w_c_range'] : '';
+		$this->data['hwc_winners'] = $this->parse_hwc_winners($hwc_stats['wins'], $id, $h_w_c_range);
+		
+		// Get lottery profile information for display
+		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);
+		$h_w_c = $this->statistics_m->h_w_c_exists($id);
+		if(!is_null($h_w_c)) {
+			$this->data['lottery']->last_drawn['range'] = $h_w_c['range'];
+			$this->data['lottery']->extra_included = $h_w_c['extra_included'];
+			$this->data['lottery']->extra_draws = $h_w_c['extra_draws'];
+		}
+		
+		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
+		else $this->data['message'] = '';
+		
+		// Load the view
+		$this->data['current'] = $this->uri->segment(2); // Sets the History menu
+		$this->session->set_userdata('uri', 'admin/'.$this->data['current']);
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
+		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	 
+		$this->data['subview'] = 'admin/dashboard/history/h_w_c_winners';
+		$this->data['history'] = $this;										// Access the methods in the view
+		$this->load->view('admin/_layout_main', $this->data);
+	}
+	
+	/**
+	 * Parse H-W-C winners string and calculate points based on follower win system
+	 * 
+	 * @param		string	$wins_string	The encoded wins string from database
+	 * @param		int		$lottery_id		Lottery ID for prize profile lookup
+	 * @return		array					Array of H-W-C patterns with points sorted by points desc
+	 */
+	private function parse_hwc_winners($wins_string, $lottery_id, $h_w_c_range = '')
+	{
+		$winners = array();
+		
+		// Parse H-W-C occurrence counts to filter out patterns that never occurred
+		$hwc_counts = array();
+		if (!empty($h_w_c_range)) {
+			$items = explode(',', $h_w_c_range);
+			foreach ($items as $item) {
+				$parts = explode('=', $item);
+				if (count($parts) == 2) {
+					$label = trim($parts[0]);
+					$total = (int)trim($parts[1]);
+					$hwc_counts[$label] = $total;
+					
+					// Also store without spaces for matching flexibility
+					$label_no_spaces = str_replace(' ', '', $label);
+					if ($label_no_spaces != $label) {
+						$hwc_counts[$label_no_spaces] = $total;
+					}
+				}
+			}
+		}
+		
+		// Get prize profile for this lottery to determine point values
+		$prize_profile = $this->statistics_m->get_lottery_prize_profile($lottery_id);
+		if(empty($prize_profile)) {
+			return $winners;
+		}		// Define point system based on follower wins (from user documentation)
+		$category_points = array(
+			'extra' => 1,		// Extra/Bonus Ball Only = 1 point
+			'2_win' => 4,		// 2 Balls = 4 points  
+			'2_win_extra' => 5,	// 2 Balls + Extra = 5 points
+			'3_win' => 6,		// 3 Balls = 6 points
+			'3_win_extra' => 7,	// 3 Balls + Extra = 7 points
+			'4_win' => 8,		// 4 Balls = 8 points
+			'4_win_extra' => 9,	// 4 Balls + Extra = 9 points
+			'5_win' => 10,		// 5 Balls = 10 points
+			'5_win_extra' => 11,// 5 Balls + Extra = 11 points
+			'6_win' => 12,		// 6 Balls = 12 points
+			'6_win_extra' => 13,// 6 Balls + Extra = 13 points
+			'7_win' => 14,		// 7 Balls = 14 points
+			'7_win_extra' => 15,// 7 Balls + Extra = 15 points
+			'8_win' => 16,		// 8 Balls = 16 points
+			'8_win_extra' => 17,// 8 Balls + Extra = 17 points
+			'9_win' => 18,		// 9 Balls = 18 points
+			'9_win_extra' => 19	// 9 Balls + Extra = 19 points
+		);
+		
+		// Split the wins string by pipe separator
+		$hwc_entries = explode('|', $wins_string);
+		
+		foreach($hwc_entries as $entry_index => $entry) {
+			if(empty($entry)) continue;
+			
+			// Split H-W-C pattern from win counts
+			$parts = explode('=', $entry);
+			if(count($parts) != 2) {
+				continue;
+			}
+			
+			$hwc_pattern = $parts[0];  // e.g., "4-1-1"
+			$win_counts = $parts[1];   // e.g., "3,1,5,2,0,2,0"
+			
+			// Parse win counts into array
+			$counts = explode(',', $win_counts);
+			
+			// Get enabled prize categories for this lottery
+			$enabled_categories = array();
+			$category_index = 0;
+			
+			// Build enabled categories array based on prize profile
+			foreach($prize_profile as $category => $enabled) {
+				if($enabled && $category != 'lottery_id' && $category != 'id') {
+					$enabled_categories[$category_index] = $category;
+					$category_index++;
+				}
+			}
+			
+			// Calculate total points for this H-W-C pattern
+			$total_points = 0;
+			$win_breakdown = array();
+			
+			foreach($counts as $index => $count) {
+				$count = intval($count);
+				if($count > 0 && isset($enabled_categories[$index])) {
+					$category = $enabled_categories[$index];
+					if(isset($category_points[$category])) {
+						$points = $count * $category_points[$category];
+						$total_points += $points;
+						$win_breakdown[$category] = $count;
+					}
+				}
+			}
+			
+			// Get occurrence count for display (try multiple formats for matching)
+			$pattern_count = 0;
+			if (isset($hwc_counts[$hwc_pattern])) {
+				$pattern_count = $hwc_counts[$hwc_pattern];
+			} else {
+				// Try alternative formats (with spaces, without spaces)
+				$pattern_with_spaces = str_replace('-', ' - ', $hwc_pattern);
+				$pattern_no_spaces = str_replace('-', '', $hwc_pattern);
+				
+				if (isset($hwc_counts[$pattern_with_spaces])) {
+					$pattern_count = $hwc_counts[$pattern_with_spaces];
+				} elseif (isset($hwc_counts[$pattern_no_spaces])) {
+					$pattern_count = $hwc_counts[$pattern_no_spaces];
+				}
+			}
+			
+			// Show patterns that actually occurred in the analyzed range, regardless of points
+			// This includes patterns with 0 points but occurrence_count > 0
+			if ($pattern_count > 0) {
+				$winners[] = array(
+					'hwc_pattern' => $hwc_pattern,
+					'total_points' => $total_points,
+					'win_breakdown' => $win_breakdown,
+					'enabled_categories' => $enabled_categories,
+					'occurrence_count' => $pattern_count
+				);
+			}
+		}
+		
+		// Sort by total points descending
+		usort($winners, function($a, $b) {
+			return $b['total_points'] - $a['total_points'];
+		});
+		
+		return $winners;
 	}
 }	

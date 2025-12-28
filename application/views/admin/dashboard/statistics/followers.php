@@ -106,26 +106,56 @@
 										</div>
 										<div class="form-check" style="margin-top: 10px;">
 										<?php 
-											$js = "location.href='".base_url()."admin/statistics/followers/".$lottery->id."/".(!$interval ? $sel_range : ($sel_range*100))."/extra'";
+											// Build URL with current extra_draws state preserved
+											$current_extra_draws = (!empty($lottery->extra_draws)) ? '/draws' : '';
+											$base_url = base_url()."admin/statistics/followers/".$lottery->id."/".$lottery->last_drawn['range'];
+											// Fixed toggle logic: if currently checked (extra_included=1), remove /extra to uncheck it
+											// If currently unchecked (extra_included=0), add /extra to check it
+											if($lottery->extra_included) {
+												// Currently checked - clicking should uncheck (go to base URL without /extra)
+												$extra_url = $base_url.$current_extra_draws;
+											} else {
+												// Currently unchecked - clicking should check (add /extra)
+												$extra_url = $base_url.'/extra'.$current_extra_draws;
+											}
+											$js = "event.preventDefault(); location.href='".$extra_url."'";
 											$attr = array(
 												'onClick' 	=> "$js", 
 												'class'		=> "form-check-input"
 											);
-											$extra = array('for' => 'extra_lb');
-											echo form_checkbox('extra_included', set_value('extra_included', '1'), set_checkbox('extra_included', '1', (!empty($lottery->extra_included))), $attr);
-											echo form_label('Extra (Bonus) Ball Included?', 'extra_lb', $extra);
+											// Determine checked state directly from URL parameters, not form helper  
+											$checked = (!empty($lottery->extra_included)) ? 'checked' : '';
+											// Debug output for troubleshooting
+											echo "<!-- Debug EXTRA: current_url=".current_url().", extra_included=".$lottery->extra_included.", extra_draws=".$lottery->extra_draws.", current_extra_draws='".$current_extra_draws."', base_url='".$base_url."', target_url='".$extra_url."' -->";
+											echo '<input type="checkbox" name="extra_included" id="extra_included" value="1" class="form-check-input" '.$checked.' onClick="'.$js.'" />';
+											echo '<label for="extra_included">Extra (Bonus) Ball Included?</label>';
 										?>
 										</div>
 										<div class="form-check" style="margin-top: 10px;">
 										<?php
-											$js = "location.href='".base_url()."admin/statistics/followers/".$lottery->id."/".(!$interval ? $sel_range : ($sel_range*100))."/draws'";
+											// Build URL with current extra_included state preserved  
+											$current_extra_included = (!empty($lottery->extra_included)) ? '/extra' : '';
+											$base_url = base_url()."admin/statistics/followers/".$lottery->id."/".$lottery->last_drawn['range'];
+											// Fixed toggle logic: if currently checked (extra_draws=1), remove /draws to uncheck it
+											// If currently unchecked (extra_draws=0), add /draws to check it
+											if($lottery->extra_draws) {
+												// Currently checked - clicking should uncheck (go to base URL without /draws)
+												$draws_url = $base_url.$current_extra_included;
+											} else {
+												// Currently unchecked - clicking should check (add /draws)
+												$draws_url = $base_url.$current_extra_included.'/draws';
+											}
+											$js = "event.preventDefault(); location.href='".$draws_url."'";
 											$attr = array(
 												'onClick' 	=> "$js", 
 												'class'		=> "form-check-input"
 											);
-										$extra = array('for' => 'extra_draw_lb');
-											echo form_checkbox('extra_draws', '1', set_checkbox('extra_draws', '1', (!empty($lottery->extra_draws))), $attr);
-											echo form_label('Extra Draw(s) Included?', 'extra_draw_lb', $extra); 
+											// Determine checked state directly from URL parameters, not form helper
+											$checked = (!empty($lottery->extra_draws)) ? 'checked' : '';
+											// Debug output for troubleshooting  
+											echo "<!-- Debug DRAWS: current_url=".current_url().", extra_included=".$lottery->extra_included.", extra_draws=".$lottery->extra_draws.", current_extra_included='".$current_extra_included."', base_url='".$base_url."', target_url='".$draws_url."' -->";
+											echo '<input type="checkbox" name="extra_draws" id="extra_draws" value="1" class="form-check-input" '.$checked.' onClick="'.$js.'" />';
+											echo '<label for="extra_draws">Extra Draw(s) Included?</label>'; 
 										?>
 										</div>
 									</div>

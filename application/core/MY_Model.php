@@ -135,19 +135,19 @@ class MY_Model extends CI_Model {
 	/**
 	* Reset Old Loggings, if they are automatically logged out
 	* 
-	* @param	string	$tble 	'members', 'admins', default = 'members'		
+	* @param	string	$tble 	'members', 'users', default = 'members'		
 	* @return   none	
 	*/
 	public function deactivate_old($tbl='members')
 	{
 		$this->db->reset_query();
-		$expiration = intval(time()+$this->config->item('sess_expiration'));	// Current Time + 2 Hour period
+		$expiration_time = time() - intval($this->config->item('sess_expiration'));	// Past time (current time - expiration period)
 		$activities = $this->db->select('*')
                 	->where('logged_in', '1')
-					->where('last_active <=', $expiration)
+					->where('last_active <=', $expiration_time)
                 	->get($tbl);
 
-		if($this->db->count_all_results())
+		if($activities->num_rows() > 0)
 		{
 			foreach($activities->result_object() as $activity)
 			{

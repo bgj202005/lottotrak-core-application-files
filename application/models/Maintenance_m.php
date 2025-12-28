@@ -1,6 +1,9 @@
 <?php
 class Maintenance_m extends MY_Model
 {
+    protected $_table_name = 'maintenance';
+    protected $_order_by = NULL; // No ordering needed for maintenance table
+    
     /**
 	 * Checks the status of the frontend of the website for maintenance mode or "live"
 	 * @param	none
@@ -9,11 +12,10 @@ class Maintenance_m extends MY_Model
 	public function maintenance_check()
 	{
 		// Quick Maintenance Check (Frontend off or Frontend On)
-		$this->db->select('maintenance');
-		$this->db->from('maintenance');
-		$query = $this->db->get();
+		// Direct query to avoid MY_Model's ORDER BY id issue
+		$query = $this->db->query("SELECT maintenance FROM maintenance LIMIT 1");
 		$row = $query->row();
-	return $row->maintenance;
+		return $row ? $row->maintenance : 0; // Return 0 if no row found
 	}
 
  	/**

@@ -138,6 +138,17 @@ $b = 1;
 							</div>
 						</div>
 					</div>
+					<?php if (!empty($message)): ?>
+						<div class="container-fluid">
+							<div class="row">
+								<div class="col-12">
+									<div class="alert alert-success" role="alert" style="margin-bottom: 20px;">
+										<i class="fas fa-check-circle"></i> <?= $message; ?>
+									</div>
+								</div>
+							</div>
+						</div>
+					<?php endif; ?>
 					<div class="content">
 						<div class="container-fluid">
 							<div class="row">
@@ -417,7 +428,7 @@ $b = 1;
 															<i class="ion ion-ios-refresh-empty"></i>
 														</p>
 														<p class="d-flex flex-column text-right">
-															<span class="text-muted">ADJACENT NUMBERS</span>
+															<span class="text-muted">AVERAGE ADJACENT COUNT BETWEEN BALLS</span>
 														</p>
 													</div>
 													<?php $adjacents_history = $lottery->last_drawn['adjacents']; // Total Sums

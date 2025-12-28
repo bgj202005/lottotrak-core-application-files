@@ -98,6 +98,35 @@
 		font-size: 0.95em;
 		min-width: 80px;
 	}
+
+	/* H-W-C Winners Table - Increase font size by 20% */
+	/* Override Bootstrap table-sm class which makes fonts smaller */
+	#hwc-winners-table {
+		font-size: 1.2em !important;
+	}
+	
+	#hwc-winners-table.table-sm th {
+		font-size: 1.02em !important; /* Override Bootstrap table-sm header size */
+		padding: 0.75rem !important; /* Override Bootstrap table-sm padding */
+	}
+	
+	#hwc-winners-table.table-sm td {
+		font-size: 1.14em !important; /* Override Bootstrap table-sm cell size */
+		padding: 0.75rem !important; /* Override Bootstrap table-sm padding */
+	}
+	
+	/* Maintain responsive text sizes for H-W-C Winners on different screens */
+	@media (max-width: 576px) {
+		#hwc-winners-table {
+			font-size: 1.1em !important; /* Slightly smaller increase on mobile */
+		}
+		#hwc-winners-table th {
+			font-size: 0.95em !important;
+		}
+		#hwc-winners-table td {
+			font-size: 1.05em !important;
+		}
+	}
 	
 	/* Table container for mobile-friendly layout */
 	.table-container {
@@ -219,6 +248,459 @@
     .nav-tabs .nav-item.show .nav-link, .nav-tabs .nav-link.active {
         border-color: #eee #eee #fff; /* Ensure active tab blends with content border */
     }
+    
+    /* H-W-C Winners Table Styling - Mobile-First Bootstrap Responsive */
+    #hwc-winners-table {
+        table-layout: auto;
+        width: 100%;
+        max-width: 100%;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        font-size: 0.95em; /* Match datafont size from Last Draw and Future Draw tabs */
+        min-width: 600px; /* Ensure table has minimum width to maintain readability */
+    }
+    
+    .table-responsive {
+        overflow-x: auto !important; /* Allow horizontal scrolling when needed */
+        overflow-y: auto;
+        border-radius: 0.375rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        max-width: 100%;
+    }
+    
+    /* Sticky header for better mobile experience */
+    #hwc-winners-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #343a40 !important;
+    }
+    
+    /* Badge enhancements for mobile */
+    .badge-lg {
+        font-size: 0.875rem;
+        padding: 0.375rem 0.75rem;
+    }
+    
+    /* Mobile-optimized badges */
+    @media (max-width: 576px) {
+        .badge {
+            font-size: 0.8em; /* Proportional to new base font size */
+            padding: 0.25rem 0.5rem;
+        }
+        
+        .badge-lg {
+            font-size: 0.85em; /* Proportional to new base font size */
+            padding: 0.3rem 0.6rem;
+        }
+    }
+    
+    #hwc-winners-table .hwc-row {
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+    }
+    
+    #hwc-winners-table .hwc-row:hover {
+        background-color: #e3f2fd !important;
+        border-left: 4px solid #2196f3;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        transform: translateY(-1px);
+    }
+    
+    #hwc-winners-table .hwc-row:hover td {
+        font-weight: 600;
+        color: #1976d2;
+    }
+    
+    /* Force font size overrides for Bootstrap table classes */
+    #hwc-winners-table.table th,
+    #hwc-winners-table.table td,
+    #hwc-winners-table.table-sm th,
+    #hwc-winners-table.table-sm td {
+        font-size: 0.97em !important; /* Increased by 10% from 0.88em (0.88 * 1.1 = 0.968 ≈ 0.97) */
+        padding: 0.3rem 0.15rem !important; /* Override Bootstrap padding */
+        white-space: nowrap !important;
+        text-align: center !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        line-height: 1.2 !important; /* Tighter line height */
+    }
+    
+    /* Ensure table container allows proper scrolling */
+    #hwc-winners-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    }
+    
+    /* Override Bootstrap table header styles specifically */
+    .thead-dark th {
+        font-size: inherit !important;
+        padding: inherit !important;
+        font-weight: 600 !important; /* Slightly reduce font weight for smaller text */
+    }
+    
+    /* Force override any external Bootstrap Table CSS */
+    .table-responsive .table th,
+    .table-responsive .table td {
+        font-size: inherit !important;
+        padding: inherit !important;
+    }
+    
+    /* Ultimate override for desktop display - very specific selector */
+    div.table-responsive#hwc-winners-container table#hwc-winners-table.table.table-hover.table-striped.table-sm th,
+    div.table-responsive#hwc-winners-container table#hwc-winners-table.table.table-hover.table-striped.table-sm td {
+        font-size: 0.88em !important; /* Increased by 10% from 0.80em (0.80 * 1.1 = 0.88) */
+        padding: 0.25rem 0.1rem !important;
+        line-height: 1.1 !important;
+        border: 1px solid #dee2e6 !important; /* Maintain borders */
+    }
+    
+    #hwc-winners-table th.col-rank,
+    #hwc-winners-table td.col-rank { 
+        min-width: 50px;
+        max-width: 60px;
+    }
+    
+    #hwc-winners-table th.col-hot,
+    #hwc-winners-table td.col-hot,
+    #hwc-winners-table th.col-warm,
+    #hwc-winners-table td.col-warm,
+    #hwc-winners-table th.col-cold,
+    #hwc-winners-table td.col-cold { 
+        min-width: 40px;
+        max-width: 50px;
+    }
+    
+    #hwc-winners-table th.col-separator,
+    #hwc-winners-table td.col-separator { 
+        min-width: 15px;
+        max-width: 20px;
+        padding: 0.5rem 0.1rem;
+    }
+    
+    #hwc-winners-table th.col-prize,
+    #hwc-winners-table td.col-prize { 
+        min-width: 35px !important; /* Reduced further for compact display */
+        max-width: 70px !important; /* Allow more flexibility for "Extra" text */
+        width: auto !important; /* Let content determine width */
+    }
+    
+    #hwc-winners-table th.col-points,
+    #hwc-winners-table td.col-points { 
+        min-width: 60px;
+        max-width: 70px;
+        font-weight: bold;
+    }
+    
+    #hwc-winners-table td.col-rank,
+    #hwc-winners-table td.col-hot,
+    #hwc-winners-table td.col-separator,
+    #hwc-winners-table td.col-warm,
+    #hwc-winners-table td.col-cold,
+    #hwc-winners-table td.col-prize,
+    #hwc-winners-table td.col-points {
+        vertical-align: middle;
+        padding: 0.5rem 0.25rem;
+    }
+    
+    /* Sortable rank header styling */
+    .sortable-header {
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+        padding-right: 25px !important;
+        transition: background-color 0.2s ease;
+    }
+    
+    .sortable-header:hover {
+        background-color: rgba(255,255,255,0.1);
+    }
+    
+    .sort-arrow {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 12px;
+        opacity: 0.7;
+        transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+    
+    .sortable-header:hover .sort-arrow {
+        opacity: 1;
+    }
+    
+    .sort-arrow.asc {
+        transform: translateY(-50%) rotate(0deg);
+    }
+    
+    .sort-arrow.desc {
+        transform: translateY(-50%) rotate(180deg);
+    }
+    
+    /* Enhanced row highlighting */
+    #hwc-winners-table tbody tr {
+        transition: all 0.2s ease-in-out;
+        border-left: 4px solid transparent;
+    }
+    
+    #hwc-winners-table tbody tr:nth-child(odd) {
+        background-color: #f9f9f9;
+    }
+    
+    #hwc-winners-table tbody tr:hover {
+        background-color: #e3f2fd !important;
+        border-left: 4px solid #2196f3 !important;
+        box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+        transform: scale(1.01);
+    }
+    
+    /* Bootstrap Responsive Enhancement with !important overrides */
+    @media (max-width: 1199.98px) {
+        #hwc-winners-table.table th,
+        #hwc-winners-table.table td {
+            font-size: 0.88em !important; /* Increased by 10% from 0.80em (0.80 * 1.1 = 0.88) */
+            padding: 0.25rem 0.1rem !important;
+        }
+    }
+    
+    @media (max-width: 991.98px) {
+        #hwc-winners-table.table th,
+        #hwc-winners-table.table td {
+            font-size: 0.83em !important; /* Increased by 10% from 0.75em (0.75 * 1.1 ≈ 0.83) */
+            padding: 0.2rem 0.08rem !important;
+        }
+    }
+    
+    @media (max-width: 767.98px) {
+        #hwc-winners-table.table th,
+        #hwc-winners-table.table td {
+            font-size: 0.77em !important; /* Increased by 10% from 0.70em (0.70 * 1.1 = 0.77) */
+            padding: 0.15rem 0.05rem !important;
+        }
+        
+        /* Enhanced mobile badge styling - proportionally scaled */
+        .badge {
+            font-size: 0.75em;
+            min-width: 20px;
+        }
+        
+        .badge-lg {
+            font-size: 0.8em;
+            min-width: 25px;
+        }
+    }
+    
+    @media (max-width: 575.98px) {
+        #hwc-winners-table.table th,
+        #hwc-winners-table.table td {
+            font-size: 0.70em !important; /* Increased by 10% from 0.64em (0.64 * 1.1 ≈ 0.70) */
+            padding: 0.1rem 0.03rem !important; /* Minimal padding */
+            min-width: unset !important; /* Allow columns to be as narrow as needed */
+        }
+        
+        #hwc-winners-table {
+            min-width: 400px !important; /* Reduce minimum table width */
+        }
+        
+        /* Ultra-compact mobile view */
+        .badge {
+            font-size: 0.7em;
+            padding: 0.2rem 0.4rem;
+            min-width: 18px;
+        }
+        
+        .badge-lg {
+            font-size: 0.75em;
+            padding: 0.25rem 0.5rem;
+            min-width: 22px;
+        }
+        
+        /* Compact column spacing for mobile */
+        #hwc-winners-table th.col-rank,
+        #hwc-winners-table td.col-rank {
+            width: 35px;
+        }
+        
+        #hwc-winners-table th.col-hot,
+        #hwc-winners-table td.col-hot,
+        #hwc-winners-table th.col-warm,
+        #hwc-winners-table td.col-warm,
+        #hwc-winners-table th.col-cold,
+        #hwc-winners-table td.col-cold {
+            width: 30px;
+        }
+        
+        #hwc-winners-table th.col-points,
+        #hwc-winners-table td.col-points {
+            width: 40px;
+        }
+        
+        /* Make prize columns more compact on mobile */
+        #hwc-winners-table th.col-prize,
+        #hwc-winners-table td.col-prize {
+            width: 28px;
+            padding: 0.2rem 0.1rem;
+        }
+    }
+    
+    /* Extra small screens - horizontal scroll with very compact layout */
+    @media (max-width: 480px) {
+        #hwc-winners-table {
+            min-width: 400px; /* Further reduced for very small screens */
+            font-size: 0.7em; /* Proportional scaling from 0.95em base */
+        }
+        
+        #hwc-winners-table th,
+        #hwc-winners-table td {
+            padding: 0.2rem 0.1rem;
+        }
+        
+        .badge {
+            font-size: 0.65em;
+            padding: 0.15rem 0.3rem;
+            min-width: 16px;
+        }
+        
+        .badge-lg {
+            font-size: 0.7em;
+            padding: 0.2rem 0.4rem;
+            min-width: 20px;
+        }
+        
+        /* Ultra-compact columns */
+        #hwc-winners-table th.col-rank,
+        #hwc-winners-table td.col-rank,
+        #hwc-winners-table th.col-hot,
+        #hwc-winners-table td.col-hot,
+        #hwc-winners-table th.col-warm,
+        #hwc-winners-table td.col-warm,
+        #hwc-winners-table th.col-cold,
+        #hwc-winners-table td.col-cold {
+            width: 25px;
+        }
+        
+        #hwc-winners-table th.col-prize,
+        #hwc-winners-table td.col-prize {
+            width: 24px;
+        }
+        
+        #hwc-winners-table th.col-points,
+        #hwc-winners-table td.col-points {
+            width: 35px;
+        }
+    }
+    
+    /* Mobile Touch-Friendly Enhancements */
+    .nav-tabs .nav-link {
+        min-height: 48px; /* Touch-friendly minimum height */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+    
+    @media (max-width: 767.98px) {
+        .nav-tabs .nav-link {
+            min-height: 44px;
+            padding: 0.5rem 0.25rem;
+            font-size: 0.875rem;
+        }
+        
+        .nav-tabs {
+            margin-left: 10px !important;
+            margin-right: 10px !important;
+        }
+        
+        .tab-content {
+            margin-left: 10px !important;
+            margin-right: 10px !important;
+            padding: 10px !important;
+        }
+    }
+    
+    @media (max-width: 575.98px) {
+        .nav-tabs .nav-link {
+            min-height: 40px;
+            padding: 0.375rem 0.125rem;
+            font-size: 0.8rem;
+        }
+        
+        .nav-tabs {
+            margin-left: 5px !important;
+            margin-right: 5px !important;
+        }
+        
+        .tab-content {
+            margin-left: 5px !important;
+            margin-right: 5px !important;
+            padding: 5px !important;
+        }
+    }
+    
+    /* Responsive container handling */
+    .table-responsive {
+        max-width: 100% !important;
+        position: relative;
+    }
+    
+    .container-fluid {
+        max-width: 100% !important;
+        overflow-x: hidden; /* Prevent page-level horizontal scroll */
+    }
+    
+    /* Horizontal scroll bar styling */
+    .table-responsive::-webkit-scrollbar {
+        height: 8px;
+    }
+    
+    .table-responsive::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .table-responsive::-webkit-scrollbar-thumb {
+        background: #007bff;
+        border-radius: 4px;
+    }
+    
+    .table-responsive::-webkit-scrollbar-thumb:hover {
+        background: #0056b3;
+    }
+    
+    /* Scroll indicator for better UX */
+    .scroll-indicator {
+        position: absolute;
+        bottom: 10px;
+        right: 20px;
+        background: rgba(0, 123, 255, 0.9);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        z-index: 100;
+        animation: fadeInOut 3s ease-in-out;
+        pointer-events: none;
+    }
+    
+    @keyframes fadeInOut {
+        0%, 100% { opacity: 0; }
+        10%, 90% { opacity: 1; }
+    }
+    
+    /* Enhanced mobile summary cards */
+    @media (max-width: 767.98px) {
+        .bg-light.rounded {
+            border: 1px solid #e9ecef;
+            transition: all 0.2s ease;
+        }
+        
+        .bg-light.rounded:hover {
+            background-color: #f8f9fa !important;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+    }
 </style>
 	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
 	<script src="//code.jquery.com/jquery-1.12.4.js"></script>
@@ -319,15 +801,48 @@
 											?></h4>
 										</div>
 									</div>
+									<div class="bg-white card last-draws mb-4 shadow-sm">
+										<div class="p-4">
+											<h4 class="mb-1">
+											<?php 
+											$pool_style = array('for' => 'pool_lb', 'style' =>'margin-right:10px;');
+											$pool_number_style = array('style' =>'margin-right:10px; color:#007bff; font-weight:bold;');
+											echo form_label('Prediction Number Pool:', 'pool_lb', $pool_style);
+											
+											// Get prediction pool from lottery_h_w_c table prediction_pool field
+											$prediction_pool = isset($lottery->prediction_pool) ? $lottery->prediction_pool : 18; // Default to 18 if not available
+											
+											echo form_label($prediction_pool . ' Numbers', 'pool_numbers', $pool_number_style);
+											?></h4>
+										</div>
+									</div>
 								</div>		
 							</div>
 						</div>
-						<ul class="nav nav-tabs" id="myTab" role="tablist" style="margin-left: 20px; margin-right: 20px;">
+						<ul class="nav nav-tabs nav-fill" id="myTab" role="tablist" style="margin-left: 20px; margin-right: 20px;">
 							<li class="nav-item">
-								<a class="nav-link active" id="home-tab" data-toggle="tab" href="#home" role="tab" aria-controls="home" aria-selected="true"><div class = "card-heading">Last Draw</div></a>
+								<a class="nav-link active" id="home-tab" data-toggle="tab" href="#home" role="tab" aria-controls="home" aria-selected="true">
+									<div class="card-heading">
+										<span class="d-none d-md-inline">Last Draw</span>
+										<span class="d-inline d-md-none">Last</span>
+									</div>
+								</a>
 							</li>
 							<li class="nav-item">
-								<a class="nav-link" id="profile-tab" data-toggle="tab" href="#profile" role="tab" aria-controls="profile" aria-selected="false"><div class = "card-heading">Next Draw</div></a>
+								<a class="nav-link" id="profile-tab" data-toggle="tab" href="#profile" role="tab" aria-controls="profile" aria-selected="false">
+									<div class="card-heading">
+										<span class="d-none d-md-inline">Future Draw</span>
+										<span class="d-inline d-md-none">Future</span>
+									</div>
+								</a>
+							</li>
+							<li class="nav-item">
+								<a class="nav-link" id="winners-tab" data-toggle="tab" href="#winners" role="tab" aria-controls="winners" aria-selected="false">
+									<div class="card-heading">
+										<span class="d-none d-sm-inline">H-W-C Winners</span>
+										<span class="d-inline d-sm-none">Winners</span>
+									</div>
+								</a>
 							</li>
 						</ul>
 						<div class="tab-content" id="myTabContent">
@@ -623,7 +1138,7 @@
 											<table class="table">
 												<thead>
 													<tr>
-														<th class="text-center" colspan="2">Next Hots</th>
+														<th class="text-center" colspan="2">Future Hots</th>
 													</tr>
 													<tr>
 														<th class="text-center">Ball</th>
@@ -687,7 +1202,7 @@
 											<table class="table">
 												<thead>
 													<tr>
-														<th class="text-center" colspan="2">Next Warms</th>
+														<th class="text-center" colspan="2">Future Warms</th>
 													</tr>
 													<tr>
 														<th class="text-text-center">Ball</th>
@@ -751,7 +1266,7 @@
 											<table class="table">
 												<thead>
 													<tr>
-														<th class="text-center" colspan="2">Next Colds</th>
+														<th class="text-center" colspan="2">Future Colds</th>
 													</tr>
 													<tr>
 														<th class="text-center">Ball</th>
@@ -815,7 +1330,7 @@
 										<table class="table">
 											<thead>
 												<tr>
-													<th class="text-center" colspan="2">Next Extra Ball</th>
+													<th class="text-center" colspan="2">Future Extra Ball</th>
 												</tr>
 												<tr>
 													<th class="text-center">Ball</th>
@@ -836,8 +1351,776 @@
 								</div>
 							</div>
 						</div>
+						
+						<!-- Future Draw Tab Content -->
+						<div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+							<div class="container-fluid" style="margin: 25px;">
+								<div class="table-container">
+									<!-- Hot Tables Pair -->
+									<div class="table-pair">
+										<div class="table-wrapper">
+											<table class="table">
+												<thead>
+													<tr>
+														<th class="text-center" colspan="2">Future Hots</th>
+													</tr>
+													<tr>
+														<th class="text-center">Ball</th>
+														<th class="text-center">Occurrences</th>
+													</tr>
+												</thead>
+												<tbody>
+													<?php 
+														$cntr = 0;
+														$noEX = FALSE; 
+														if(isset($lottery->hots)) {
+															foreach($lottery->hots as $ball => $count):	
+															if($ball) :
+																echo "<tr class='table-danger'>";
+																$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
+																$ball = rtrim($ball,'*');  // Remove the special '*' symbol
+																if($sym=='*'&&$ball!=$extra_ball) :
+																	echo "<td class='text-center bg-danger text-white'>".$ball."</td>";
+																	echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+																elseif($sym=='*'&&isset($lottery->extra_included)&&$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
+																	echo "<td class='text-center bg-info text-white'>".$ball."</td>";
+																	echo "<td class='text-center bg-info text-white'>".$count."</td>";
+																else:
+																	echo "<td class='text-center'>".$ball."</td>";
+																	echo "<td class='text-center'>".$count."</td>";
+																endif;
+																echo "</tr>";
+															else:
+																echo "<tr class='table-danger'><td colspan = '2'>No Hots</td></tr>";
+															endif;
+															if($sym=='*'&&!isset($lottery->extra_included)&&$ball==$extra_ball):
+																$noEX = TRUE;
+															endif;
+															if(!$noEX):
+																$cntr++;
+															endif;
+														endforeach;
+														} else {
+															echo "<tr class='table-danger'><td colspan='2'>No Future Draw Hots Available</td></tr>";
+														}
+														?>
+												</tbody>
+											</table>
+										</div>
+										<div class="table-wrapper">
+											<table class="table pos">
+												<thead>
+													<tr>
+														<th class="text-center" colspan="2">Hot Positions</th>
+													</tr>
+													<tr>
+														<th class="text-center">Position</th>
+														<th class="text-center">Count</th>
+													</tr>
+												</thead>
+												<tbody>
+													<?php 
+														if(isset($lottery->hots_pos)) {
+															foreach($lottery->hots_pos as $position => $count):	
+																$exists = FALSE;
+																echo "<tr class='table-light'>";
+																if(isset($lottery->positions)) {
+																	$exists = array_key_exists($position, $lottery->positions);
+																}
+																$position = rtrim($position,'h');  // Remove the special 'h' symbol
+																if($exists) :
+																	echo "<td class='text-center bg-danger text-white'>".$position."</td>";
+																	echo "<td class='text-center bg-danger text-white'>".$count."</td>";
+																else:
+																	echo "<td class='text-center'>".$position."</td>";
+																	echo "<td class='text-center'>".$count."</td>";
+																endif;
+																echo "</tr>";
+															endforeach;
+														} else {
+															echo "<tr class='table-light'><td colspan='2'>No Hot Positions Available</td></tr>";
+														}
+														?>
+												</tbody>
+											</table>
+										</div>
+									</div>
+									
+									<!-- Warm Tables Pair -->
+									<div class="table-pair">
+										<div class="table-wrapper">
+											<table class="table">
+												<thead>
+													<tr>
+														<th class="text-center" colspan="2">Future Warms</th>
+													</tr>
+													<tr>
+														<th class="text-center">Ball</th>
+														<th class="text-center">Occurrences</th>
+													</tr>
+												</thead>
+												<tbody>
+													<?php 
+														if(isset($lottery->warms)) {
+															foreach($lottery->warms as $ball => $count):	
+																echo "<tr class='table-warning'>";
+																$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
+																$ball = rtrim($ball,'*');  // Remove the special '*' symbol
+																if($sym=='*'&&$ball!=$extra_ball) :
+																	echo "<td class='text-center bg-warning text-dark'>".$ball."</td>";
+																	echo "<td class='text-center bg-warning text-dark'>".$count."</td>";
+																elseif($sym=='*'&&isset($lottery->extra_included)&&$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
+																	echo "<td class='text-center bg-info text-white'>".$ball."</td>";
+																	echo "<td class='text-center bg-info text-white'>".$count."</td>";
+																else:
+																	echo "<td class='text-center'>".$ball."</td>";
+																	echo "<td class='text-center'>".$count."</td>";
+																endif;
+																echo "</tr>";
+															endforeach;
+														} else {
+															echo "<tr class='table-warning'><td colspan='2'>No Future Draw Warms Available</td></tr>";
+														}
+														?>
+												</tbody>
+											</table>
+										</div>
+										<div class="table-wrapper">
+											<table class="table pos">
+												<thead>
+													<tr>
+														<th class="text-center" colspan="2">Warm Positions</th>
+													</tr>
+													<tr>
+														<th class="text-center">Position</th>
+														<th class="text-center">Count</th>
+													</tr>
+												</thead>
+												<tbody>
+													<?php 
+														if(isset($lottery->warms_pos)) {
+															foreach($lottery->warms_pos as $position => $count):	
+																$exists = FALSE;
+																echo "<tr class='table-light'>";
+																if(isset($lottery->positions)) {
+																	$exists = array_key_exists($position, $lottery->positions);
+																}
+																$position = rtrim($position,'w');  // Remove the special 'w' symbol
+																if($exists) :
+																	echo "<td class='text-center bg-warning text-dark'>".$position."</td>";
+																	echo "<td class='text-center bg-warning text-dark'>".$count."</td>";
+																else:
+																	echo "<td class='text-center'>".$position."</td>";
+																	echo "<td class='text-center'>".$count."</td>";
+																endif;
+																echo "</tr>";
+															endforeach;
+														} else {
+															echo "<tr class='table-light'><td colspan='2'>No Warm Positions Available</td></tr>";
+														}
+														?>
+												</tbody>
+											</table>
+										</div>
+									</div>
+									
+									<!-- Cold Tables Pair -->
+									<div class="table-pair">
+										<div class="table-wrapper">
+											<table class="table">
+												<thead>
+													<tr>
+														<th class="text-center" colspan="2">Future Colds</th>
+													</tr>
+													<tr>
+														<th class="text-center">Ball</th>
+														<th class="text-center">Occurrences</th>
+													</tr>
+												</thead>
+												<tbody>
+													<?php 
+														if(isset($lottery->colds)) {
+															foreach($lottery->colds as $ball => $count):	
+																echo "<tr class='table-info'>";
+																$sym = substr($ball, -1);  // extract only the asterisk, '*'symbol
+																$ball = rtrim($ball,'*');  // Remove the special '*' symbol
+																if($sym=='*'&&$ball!=$extra_ball) :
+																	echo "<td class='text-center bg-info text-white'>".$ball."</td>";
+																	echo "<td class='text-center bg-info text-white'>".$count."</td>";
+																elseif($sym=='*'&&isset($lottery->extra_included)&&$lottery->extra_included&&$ball==$extra_ball&&!$lottery->duplicate_extra_ball):
+																	echo "<td class='text-center bg-info text-white'>".$ball."</td>";
+																	echo "<td class='text-center bg-info text-white'>".$count."</td>";
+																else:
+																	echo "<td class='text-center'>".$ball."</td>";
+																	echo "<td class='text-center'>".$count."</td>";
+																endif;
+																echo "</tr>";
+															endforeach;
+														} else {
+															echo "<tr class='table-info'><td colspan='2'>No Future Draw Colds Available</td></tr>";
+														}
+														?>
+												</tbody>
+											</table>
+										</div>
+										<div class="table-wrapper">
+											<table class="table pos">
+												<thead>
+													<tr>
+														<th class="text-center" colspan="2">Cold Positions</th>
+													</tr>
+													<tr>
+														<th class="text-center">Position</th>
+														<th class="text-center">Count</th>
+													</tr>
+												</thead>
+												<tbody>
+													<?php 
+														if(isset($lottery->colds_pos)) {
+															foreach($lottery->colds_pos as $position => $count):	
+																$exists = FALSE;
+																echo "<tr class='table-light'>";
+																if(isset($lottery->positions)) {
+																	$exists = array_key_exists($position, $lottery->positions);
+																}
+																$position = rtrim($position,'c');  // Remove the special 'c' symbol
+																if($exists) :
+																	echo "<td class='text-center bg-info text-white'>".$position."</td>";
+																	echo "<td class='text-center bg-info text-white'>".$count."</td>";
+																else:
+																	echo "<td class='text-center'>".$position."</td>";
+																	echo "<td class='text-center'>".$count."</td>";
+																endif;
+																echo "</tr>";
+															endforeach;
+														} else {
+															echo "<tr class='table-light'><td colspan='2'>No Cold Positions Available</td></tr>";
+														}
+														?>
+												</tbody>
+											</table>
+										</div>
+									</div>
+									
+									<!-- Extra Ball Table (standalone if present) -->
+									<?php if(isset($lottery->dupextra)) : ?>
+									<div class="extra-table-wrapper">
+										<table class="table">
+											<thead>
+												<tr>
+													<th class="text-center" colspan="2">Future Extra Ball</th>
+												</tr>
+												<tr>
+													<th class="text-center">Ball</th>
+													<th class="text-center">Occurrences</th>
+												</tr>
+											</thead>
+											<tbody>
+												<?php foreach($lottery->dupextra as $ball => $count):	
+														echo "<tr class='table-success'>";
+															echo "<td class='text-center'>".$ball."</td>";
+															echo "<td class='text-center'>".$count."</td>";
+														echo "</tr>";
+												endforeach; ?>
+											</tbody>
+										</table>
+									</div>
+									<?php endif; ?>
+								</div>
+							</div>
+						</div>
+
+						<!-- H-W-C Winners Tab Content -->
+						<div class="tab-pane fade" id="winners" role="tabpanel" aria-labelledby="winners-tab">
+							<div class="container-fluid px-2 px-md-3 px-lg-4">
+								<div class="row">
+									<div class="col-12">
+										<div class="card border-0 shadow-sm">
+											<div class="card-header bg-primary text-white">
+												<h5 class="card-title mb-1 text-white">H-W-C Winners Analysis</h5>
+												<p class="card-text mb-0 text-light small">H-W-C patterns sorted by total points based on follower win system</p>
+											</div>
+											<div class="card-body p-2 p-md-3">
+												<?php if(!isset($hwc_winners) || empty($hwc_winners)): ?>
+													<div class="alert alert-warning" role="alert">
+														<strong>No H-W-C winner data available.</strong> 
+														Please recalculate H-W-C statistics from the Statistics page to generate winner analysis.
+													</div>
+												<?php else: ?>
+													<!-- Mobile Summary Stats (visible only on mobile) -->
+													<div class="d-block d-md-none mb-3">
+														<div class="row">
+															<div class="col-4">
+																<div class="text-center p-2 bg-light rounded">
+																	<small class="text-muted d-block">Patterns</small>
+																	<strong><?= count($hwc_winners) ?></strong>
+																</div>
+															</div>
+															<div class="col-4">
+																<div class="text-center p-2 bg-light rounded">
+																	<small class="text-muted d-block">Top Points</small>
+																	<strong class="text-success"><?= isset($hwc_winners[0]['total_points']) ? $hwc_winners[0]['total_points'] : 0 ?></strong>
+																</div>
+															</div>
+															<div class="col-4">
+																<div class="text-center p-2 bg-light rounded">
+																	<small class="text-muted d-block">Categories</small>
+																	<strong><?= isset($hwc_winners[0]['enabled_categories']) ? count($hwc_winners[0]['enabled_categories']) : 0 ?></strong>
+																</div>
+															</div>
+														</div>
+													</div>
+													
+													<!-- Scroll instruction for narrow screens -->
+													<div class="alert alert-info d-block d-lg-none py-2" role="alert">
+														<small>
+															<i class="fas fa-info-circle"></i>
+															<strong>Tip:</strong> Swipe left/right or use the horizontal scroll bar below to see all columns.
+														</small>
+													</div>
+													
+													<div class="table-responsive" id="hwc-winners-container">
+														<table class="table table-hover table-striped table-sm" id="hwc-winners-table">
+															<thead class="thead-dark sticky-top">
+																<tr>
+																	<th class="text-center col-rank sortable-header" onclick="toggleSort()">
+																		<span class="d-none d-sm-inline">Rank</span>
+																		<span class="d-inline d-sm-none">#</span>
+																		<span class="sort-arrow desc" id="sort-arrow">▲</span>
+																	</th>
+																	<th class="text-center col-hot">
+																		<span class="d-none d-sm-inline text-danger">Hot</span>
+																		<span class="d-inline d-sm-none text-danger">H</span>
+																	</th>
+																	<th class="text-center col-separator d-none d-sm-table-cell">-</th>
+																	<th class="text-center col-warm">
+																		<span class="d-none d-sm-inline text-warning">Warm</span>
+																		<span class="d-inline d-sm-none text-warning">W</span>
+																	</th>
+																	<th class="text-center col-separator d-none d-sm-table-cell">-</th>
+																	<th class="text-center col-cold">
+																		<span class="d-none d-sm-inline text-info">Cold</span>
+																		<span class="d-inline d-sm-none text-info">C</span>
+																	</th>
+																	<?php if(isset($hwc_winners[0]['enabled_categories'])): ?>
+																		<?php foreach($hwc_winners[0]['enabled_categories'] as $category): ?>
+																			<?php if($category == 'extra'): ?>
+																				<th class="text-center col-prize d-none d-md-table-cell">
+																					<span class="d-none d-lg-inline">Extra</span>
+																					<span class="d-inline d-lg-none">E</span>
+																				</th>
+																			<?php elseif($category == '1_win'): ?>
+																				<th class="text-center col-prize d-none d-md-table-cell">1</th>
+																			<?php elseif($category == '1_win_extra'): ?>
+																				<th class="text-center col-prize d-none d-lg-table-cell">
+																					<span class="d-none d-lg-inline">1 + Extra</span>
+																					<span class="d-inline d-lg-none">1+</span>
+																				</th>
+																			<?php elseif($category == '2_win'): ?>
+																				<th class="text-center col-prize">2</th>
+																			<?php elseif($category == '2_win_extra'): ?>
+																				<th class="text-center col-prize d-none d-lg-table-cell">
+																					<span class="d-none d-lg-inline">2 + Extra</span>
+																					<span class="d-inline d-lg-none">2+</span>
+																				</th>
+																			<?php elseif($category == '3_win'): ?>
+																				<th class="text-center col-prize">3</th>
+																			<?php elseif($category == '3_win_extra'): ?>
+																				<th class="text-center col-prize d-none d-lg-table-cell">
+																					<span class="d-none d-lg-inline">3 + Extra</span>
+																					<span class="d-inline d-lg-none">3+</span>
+																				</th>
+																			<?php elseif($category == '4_win'): ?>
+																				<th class="text-center col-prize">4</th>
+																			<?php elseif($category == '4_win_extra'): ?>
+																				<th class="text-center col-prize d-none d-lg-table-cell">
+																					<span class="d-none d-lg-inline">4 + Extra</span>
+																					<span class="d-inline d-lg-none">4+</span>
+																				</th>
+																			<?php elseif($category == '5_win'): ?>
+																				<th class="text-center col-prize">5</th>
+																			<?php elseif($category == '5_win_extra'): ?>
+																				<th class="text-center col-prize d-none d-lg-table-cell">
+																					<span class="d-none d-lg-inline">5 + Extra</span>
+																					<span class="d-inline d-lg-none">5+</span>
+																				</th>
+																			<?php elseif($category == '6_win'): ?>
+																				<th class="text-center col-prize">6</th>
+																			<?php elseif($category == '6_win_extra'): ?>
+																				<th class="text-center col-prize d-none d-lg-table-cell">
+																					<span class="d-none d-lg-inline">6 + Extra</span>
+																					<span class="d-inline d-lg-none">6+</span>
+																				</th>
+																			<?php elseif($category == '7_win'): ?>
+																				<th class="text-center col-prize d-none d-sm-table-cell">7</th>
+																			<?php elseif($category == '7_win_extra'): ?>
+																				<th class="text-center col-prize d-none d-lg-table-cell">
+																					<span class="d-none d-lg-inline">7 + Extra</span>
+																					<span class="d-inline d-lg-none">7+</span>
+																				</th>
+																			<?php elseif($category == '8_win'): ?>
+																				<th class="text-center col-prize d-none d-sm-table-cell">8</th>
+																			<?php elseif($category == '8_win_extra'): ?>
+																				<th class="text-center col-prize d-none d-lg-table-cell">
+																					<span class="d-none d-lg-inline">8 + Extra</span>
+																					<span class="d-inline d-lg-none">8+</span>
+																				</th>
+																			<?php elseif($category == '9_win'): ?>
+																				<th class="text-center col-prize d-none d-sm-table-cell">9</th>
+																			<?php elseif($category == '9_win_extra'): ?>
+																				<th class="text-center col-prize d-none d-lg-table-cell">
+																					<span class="d-none d-lg-inline">9 + Extra</span>
+																					<span class="d-inline d-lg-none">9+</span>
+																				</th>
+																			<?php endif; ?>
+																		<?php endforeach; ?>
+																	<?php endif; ?>
+																	<th class="text-center col-points">
+																		<span class="d-none d-sm-inline">Points</span>
+																		<span class="d-inline d-sm-none">Pts</span>
+																	</th>
+																</tr>
+															</thead>
+															<tbody>
+																<?php 
+																$rank = 1;
+																foreach($hwc_winners as $winner): 
+																	$hwc_parts = explode('-', $winner['hwc_pattern']);
+																	$hot_count = isset($hwc_parts[0]) ? $hwc_parts[0] : 0;
+																	$warm_count = isset($hwc_parts[1]) ? $hwc_parts[1] : 0;
+																	$cold_count = isset($hwc_parts[2]) ? $hwc_parts[2] : 0;
+																?>
+																	<tr class="hwc-row" data-hwc="<?= $winner['hwc_pattern'] ?>" data-points="<?= $winner['total_points'] ?>" data-rank="<?= $rank ?>">
+																		<td class="text-center font-weight-bold col-rank">
+																			<span class="badge badge-secondary"><?= $rank ?></span>
+																		</td>
+																		<td class="text-center text-danger font-weight-bold col-hot">
+																			<span class="badge badge-danger"><?= $hot_count ?></span>
+																		</td>
+																		<td class="text-center col-separator d-none d-sm-table-cell">-</td>
+																		<td class="text-center text-warning font-weight-bold col-warm">
+																			<span class="badge badge-warning"><?= $warm_count ?></span>
+																		</td>
+																		<td class="text-center col-separator d-none d-sm-table-cell">-</td>
+																		<td class="text-center text-info font-weight-bold col-cold">
+																			<span class="badge badge-info"><?= $cold_count ?></span>
+																		</td>
+																		<?php foreach($winner['enabled_categories'] as $category): ?>
+																			<?php 
+																			$cell_classes = "text-center col-prize";
+																			if($category == 'extra' || strpos($category, '1_win') === 0) {
+																				$cell_classes .= " d-none d-md-table-cell";
+																			} else if(strpos($category, '_extra') !== false && $category != 'extra') {
+																				$cell_classes .= " d-none d-lg-table-cell";
+																			} else if(in_array($category, ['7_win', '8_win', '9_win'])) {
+																				$cell_classes .= " d-none d-sm-table-cell";
+																			}
+																			?>
+																			<td class="<?= $cell_classes ?>">
+																				<?php $win_count = isset($winner['win_breakdown'][$category]) ? $winner['win_breakdown'][$category] : 0; ?>
+																				<?php if($win_count > 0): ?>
+																					<span class="badge badge-success"><?= $win_count ?></span>
+																				<?php else: ?>
+																					<span class="text-muted">0</span>
+																				<?php endif; ?>
+																			</td>
+																		<?php endforeach; ?>
+																		<td class="text-center font-weight-bold text-success col-points">
+																			<span class="badge badge-success badge-lg"><?= $winner['total_points'] ?></span>
+																		</td>
+																	</tr>
+																<?php 
+																	$rank++; 
+																endforeach; 
+																?>
+															</tbody>
+														</table>
+													</div>
+												<?php endif; ?>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						
 					</div>
 				</div>
 			</div>
 		</div>
-	</section>	
+	</section>
+
+	<script>
+		let isDescending = true; // Start with descending order (highest points first)
+		
+		function toggleSort() {
+			const table = document.getElementById('hwc-winners-table');
+			const tbody = table.getElementsByTagName('tbody')[0];
+			const rows = Array.from(tbody.getElementsByTagName('tr'));
+			const arrow = document.getElementById('sort-arrow');
+			
+			// Toggle sort direction
+			isDescending = !isDescending;
+			
+			// Update arrow appearance and direction
+			if (isDescending) {
+				arrow.textContent = '▲';
+				arrow.className = 'sort-arrow desc';
+			} else {
+				arrow.textContent = '▼';
+				arrow.className = 'sort-arrow asc';
+			}
+			
+			// Sort rows based on points (since ranks correspond to points)
+			rows.sort((a, b) => {
+				const pointsA = parseInt(a.getAttribute('data-points'));
+				const pointsB = parseInt(b.getAttribute('data-points'));
+				
+				if (isDescending) {
+					return pointsB - pointsA; // Descending order (highest points first)
+				} else {
+					return pointsA - pointsB; // Ascending order (lowest points first)
+				}
+			});
+			
+			// Clear tbody first
+			tbody.innerHTML = '';
+			
+			// Re-append rows in new order and update rank numbers based on sort direction
+			rows.forEach((row, index) => {
+				let newRank;
+				
+				if (isDescending) {
+					// Descending: Rank 1 = highest points (best)
+					newRank = index + 1;
+				} else {
+					// Ascending: Rank 1 = lowest points (worst), so reverse the ranking
+					newRank = rows.length - index;
+				}
+				
+				const rankCell = row.querySelector('.col-rank');
+				rankCell.textContent = newRank;
+				row.setAttribute('data-rank', newRank);
+				tbody.appendChild(row);
+			});
+		}
+		
+		// Enhanced row highlighting with touch and mouse support
+		document.addEventListener('DOMContentLoaded', function() {
+			const tableRows = document.querySelectorAll('#hwc-winners-table .hwc-row');
+			const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+			
+			tableRows.forEach(row => {
+				// Mouse events for desktop
+				row.addEventListener('mouseenter', function() {
+					if (!isTouchDevice) {
+						highlightRow(this);
+					}
+				});
+				
+				row.addEventListener('mouseleave', function() {
+					if (!isTouchDevice) {
+						unhighlightRow(this);
+					}
+				});
+				
+				// Touch events for mobile
+				if (isTouchDevice) {
+					row.addEventListener('touchstart', function(e) {
+						// Clear any existing highlights first
+						tableRows.forEach(r => unhighlightRow(r));
+						highlightRow(this);
+					});
+					
+					// Add tap gesture for mobile info display
+					row.addEventListener('click', function(e) {
+						e.preventDefault();
+						const hwcPattern = this.getAttribute('data-hwc');
+						const points = this.getAttribute('data-points');
+						const rank = this.getAttribute('data-rank');
+						
+						// Show mobile-friendly info modal or toast
+						if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
+							showToast(`Rank ${rank}: ${hwcPattern} (${points} points)`);
+						} else {
+							alert(`Rank ${rank}: H-W-C ${hwcPattern} - ${points} points`);
+						}
+					});
+				}
+			});
+			
+			// Clear highlights when touching outside table on mobile
+			if (isTouchDevice) {
+				document.addEventListener('touchstart', function(e) {
+					if (!e.target.closest('#hwc-winners-table')) {
+						tableRows.forEach(row => unhighlightRow(row));
+					}
+				});
+			}
+			
+			function highlightRow(row) {
+				row.style.backgroundColor = '#e3f2fd';
+				row.style.borderLeft = '4px solid #2196f3';
+				row.style.boxShadow = '0 2px 8px rgba(33, 150, 243, 0.3)';
+				row.style.transform = 'scale(1.01)';
+				
+				const hwcPattern = row.getAttribute('data-hwc');
+				const points = row.getAttribute('data-points');
+				row.title = `H-W-C Pattern: ${hwcPattern} | Total Points: ${points}`;
+			}
+			
+			function unhighlightRow(row) {
+				row.style.backgroundColor = '';
+				row.style.borderLeft = '';
+				row.style.boxShadow = '';
+				row.style.transform = '';
+				row.title = '';
+			}
+			
+			function showToast(message) {
+				// Create and show a bootstrap toast if available
+				const toastHtml = `
+					<div class="toast" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999;">
+						<div class="toast-header">
+							<strong class="mr-auto">H-W-C Info</strong>
+							<button type="button" class="ml-2 mb-1 close" data-dismiss="toast">
+								<span>&times;</span>
+							</button>
+						</div>
+						<div class="toast-body">${message}</div>
+					</div>
+				`;
+				
+				const toastElement = document.createElement('div');
+				toastElement.innerHTML = toastHtml;
+				document.body.appendChild(toastElement.firstElementChild);
+				
+				// Auto remove after 3 seconds
+				setTimeout(() => {
+					const toastEl = document.querySelector('.toast');
+					if (toastEl) toastEl.remove();
+				}, 3000);
+			}
+			
+			// Add scroll management for better UX
+			initializeScrollHandling();
+			
+			function initializeScrollHandling() {
+				const tableContainer = document.querySelector('.table-responsive');
+				if (!tableContainer) return;
+				
+				// Check if horizontal scrolling is needed
+				function checkScrollNeeded() {
+					const needsScroll = tableContainer.scrollWidth > tableContainer.clientWidth;
+					
+					if (needsScroll) {
+						addScrollIndicator(tableContainer);
+						addScrollHints(tableContainer);
+					}
+					
+					return needsScroll;
+				}
+				
+				// Initial check
+				setTimeout(checkScrollNeeded, 100);
+				
+				// Check on window resize
+				window.addEventListener('resize', function() {
+					// Remove existing indicators
+					const existingIndicators = document.querySelectorAll('.scroll-indicator');
+					existingIndicators.forEach(ind => ind.remove());
+					
+					setTimeout(checkScrollNeeded, 100);
+				});
+			}
+			
+			function addScrollIndicator(container) {
+				const indicator = document.createElement('div');
+				indicator.className = 'scroll-indicator';
+				indicator.innerHTML = '← Scroll to see all columns →';
+				container.style.position = 'relative';
+				container.appendChild(indicator);
+				
+				// Hide indicator after scrolling starts
+				let scrollTimer;
+				container.addEventListener('scroll', function() {
+					if (indicator) {
+						indicator.style.display = 'none';
+					}
+					
+					// Clear existing timer
+					clearTimeout(scrollTimer);
+					
+					// Show scroll position indicator briefly
+					showScrollPosition(container);
+				});
+			}
+			
+			function addScrollHints(container) {
+				// Add touch/mouse scroll event listeners for better UX
+				let isScrolling = false;
+				
+				container.addEventListener('scroll', function() {
+					isScrolling = true;
+					
+					// Add visual feedback during scrolling
+					this.style.boxShadow = '0 0.25rem 0.75rem rgba(0, 123, 255, 0.15)';
+					
+					// Remove feedback after scrolling stops
+					clearTimeout(this.scrollTimer);
+					this.scrollTimer = setTimeout(() => {
+						this.style.boxShadow = '0 0.125rem 0.25rem rgba(0, 0, 0, 0.075)';
+						isScrolling = false;
+					}, 150);
+				});
+				
+				// Add keyboard navigation support
+				container.addEventListener('keydown', function(e) {
+					if (e.key === 'ArrowLeft') {
+						e.preventDefault();
+						this.scrollLeft -= 50;
+					} else if (e.key === 'ArrowRight') {
+						e.preventDefault();
+						this.scrollLeft += 50;
+					}
+				});
+				
+				// Make container focusable for keyboard navigation
+				container.setAttribute('tabindex', '0');
+			}
+			
+			function showScrollPosition(container) {
+				// Remove existing position indicator
+				const existingPos = container.querySelector('.scroll-position');
+				if (existingPos) existingPos.remove();
+				
+				// Create position indicator
+				const posIndicator = document.createElement('div');
+				posIndicator.className = 'scroll-position';
+				posIndicator.style.cssText = `
+					position: absolute;
+					top: 10px;
+					right: 20px;
+					background: rgba(0, 0, 0, 0.7);
+					color: white;
+					padding: 2px 8px;
+					border-radius: 10px;
+					font-size: 0.7rem;
+					z-index: 101;
+					pointer-events: none;
+				`;
+				
+				const scrollPercent = Math.round((container.scrollLeft / (container.scrollWidth - container.clientWidth)) * 100);
+				posIndicator.textContent = `${scrollPercent}%`;
+				
+				container.appendChild(posIndicator);
+				
+				// Remove after 1 second
+				setTimeout(() => {
+					if (posIndicator && posIndicator.parentNode) {
+						posIndicator.remove();
+					}
+				}, 1000);
+			}
+		});
+	</script>	

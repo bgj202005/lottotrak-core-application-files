@@ -13,6 +13,7 @@ class Prize extends Admin_Controller
         $this->load->model('user_m');
         $this->load->model('lotteries_m'); 
         $this->load->model('maintenance_m');
+        $this->load->model('lottery_data_m');
     }
         
     public function index($lottery_id = null) 
@@ -53,7 +54,6 @@ class Prize extends Admin_Controller
         // This ensures filters remain active until user actually views the results
         
         // Get prize history data for the specific lottery and admin
-        log_message('info', "Prize index: Loading prize records for admin_id={$admin_id}, lottery_id={$lottery_id}");
         $this->data['prize_records'] = $this->prize_m->get_admin_prize_history($admin_id, $per_page, $offset, $lottery_id);
         $this->data['total_records'] = $this->prize_m->count_admin_prize_records($admin_id, $lottery_id);
         $this->data['lottery'] = $lottery;
@@ -164,31 +164,12 @@ class Prize extends Admin_Controller
      * Auto-update prize records when there are new draws available
      * @param int $admin_id Administrator ID
      * @param int $lottery_id Lottery ID
-     * Note: This method is now disabled. Win records are only updated when user views Combination Ticket Winner table.
+     * Note: This method is now disabled. Win records and filter expiration only happen when user views Combination Ticket Winner table.
      */
     private function auto_update_prize_records($admin_id, $lottery_id)
     {
-        // Check for outdated combination files that need to be expired
-        $expired_info = $this->expire_outdated_combination_files($lottery_id);
-        
-        // Ensure we have a proper array format
-        if (is_array($expired_info) && isset($expired_info['count']) && $expired_info['count'] > 0) {
-            // Create alert message with specific filenames
-            if (!empty($expired_info['filenames'])) {
-                $alert_message = "Combination Ticket Filenames " . implode(' and ', $expired_info['filenames']) . 
-                               " Status changed from ACTIVE to EXPIRED because the draw is out of date.";
-            } else {
-                $alert_message = "Expired {$expired_info['count']} outdated combination file(s) due to newer draws being imported.";
-            }
-            
-            // Store alert message in session for display on Prize History page
-            $this->session->set_flashdata('prize_alert', $alert_message);
-            log_message('info', "Auto-update: Expired {$expired_info['count']} outdated combination files for lottery {$lottery_id}");
-        }
-        
-        // Note: Win record processing is intentionally disabled to prevent premature updates
-        // Win records will only be processed when user explicitly views the Combination Ticket Winner table
-        log_message('info', "Auto-update: Checked for outdated combinations. Win records will only be processed when viewing Combination Ticket Winner table");
+        // Automatic expiration disabled - filters will only be expired when viewing Combination Ticket Winner table
+        // This prevents filters from being prematurely marked as expired when just viewing Prize History page
         return;
     }
     
@@ -217,7 +198,6 @@ class Prize extends Admin_Controller
             $active_filters = $this->db->get()->result();
             
             if (empty($active_filters)) {
-                log_message('info', "expire_outdated_combination_files: No active filters found");
                 return 0;
             }
             
@@ -233,7 +213,6 @@ class Prize extends Admin_Controller
                     $lottery_profile = $this->db->get()->row();
                     
                     if (!$lottery_profile) {
-                        log_message('error', "expire_outdated_combination_files: No lottery profile found for filter {$filter->id}");
                         continue;
                     }
                     
@@ -242,7 +221,6 @@ class Prize extends Admin_Controller
                     $expected_next_draw_date = $this->lotteries_m->next_date($lottery_profile, $day, $filter->lastdate);
                     
                     if (!$expected_next_draw_date) {
-                        log_message('error', "expire_outdated_combination_files: Could not calculate next draw date for filter {$filter->id}");
                         continue;
                     }
                     
@@ -250,7 +228,6 @@ class Prize extends Admin_Controller
                     $expected_next_draw_mysql = $this->convert_to_mysql_date($expected_next_draw_date);
                     
                     if (!$expected_next_draw_mysql) {
-                        log_message('error', "expire_outdated_combination_files: Could not convert date {$expected_next_draw_date} for filter {$filter->id}");
                         continue;
                     }
                     
@@ -258,7 +235,6 @@ class Prize extends Admin_Controller
                     $table_name = $this->lotteries_m->lotto_table_convert($lottery_profile->lottery_name);
                     
                     if (!$table_name || !$this->db->table_exists($table_name)) {
-                        log_message('error', "expire_outdated_combination_files: Invalid table {$table_name} for filter {$filter->id}");
                         continue;
                     }
                     
@@ -271,7 +247,6 @@ class Prize extends Admin_Controller
                     $latest_draw = $this->db->get()->row();
                     
                     if (!$latest_draw) {
-                        log_message('info', "expire_outdated_combination_files: No draws found for {$table_name}");
                         continue;
                     }
                     
@@ -284,18 +259,14 @@ class Prize extends Admin_Controller
                         
                         $expired_count++;
                         $expired_filenames[] = $filter->file_name; // Collect the filename
-                        
-                        log_message('info', "expire_outdated_combination_files: Expired filter {$filter->id} ({$filter->file_name}) - latest draw ({$latest_draw->draw_date}) is newer than expected next draw ({$expected_next_draw_mysql})");
                     }
                     
                 } catch (Exception $e) {
-                    log_message('error', "expire_outdated_combination_files: Error processing filter {$filter->id}: " . $e->getMessage());
                     continue;
                 }
             }
             
         } catch (Exception $e) {
-            log_message('error', "expire_outdated_combination_files: General error: " . $e->getMessage());
             // Return default array structure on error
             return array(
                 'count' => 0,
@@ -340,14 +311,12 @@ class Prize extends Admin_Controller
         // Get combination tickets from the file
         $combination_tickets = $this->get_combination_tickets_for_filter($filter);
         if (empty($combination_tickets)) {
-            log_message('error', "Auto-update: No combination tickets found for filter {$filter->id}");
             return;
         }
         
         // Get prize profile for win category determination
         $prize_profile = $this->get_lottery_prize_profile($filter->lottery_id);
         if (!$prize_profile) {
-            log_message('error', "Auto-update: No prize profile found for lottery {$filter->lottery_id}");
             return;
         }
         
@@ -478,8 +447,6 @@ class Prize extends Admin_Controller
                 }
             }
         }
-        
-        log_message('info', "get_combination_tickets_for_filter: Loaded " . count($tickets) . " tickets for filter {$filter->id}, expected_numbers={$expected_numbers}, is_independent_extra_ball=" . ($is_independent_extra_ball ? 'true' : 'false'));
         
         return $tickets;
     }
@@ -758,7 +725,6 @@ class Prize extends Admin_Controller
     {
         try {
             if (!$filter_id || !is_numeric($filter_id)) {
-                log_message('error', 'Invalid filter ID provided: ' . $filter_id);
                 show_error('Invalid filter ID provided', 400);
             }
             
@@ -776,15 +742,22 @@ class Prize extends Admin_Controller
         $filter = $this->db->get()->row();
         
         if (!$filter) {
-            log_message('error', 'Filter not found or access denied for filter_id: ' . $filter_id . ', admin_id: ' . $admin_id);
-            show_error('Filter not found or access denied', 404);
+            // Check if filter exists but with different user restrictions
+            $this->db->select('lcf.id, lcf.user, lcf.user_id');
+            $this->db->from('lottery_combination_filters lcf');
+            $this->db->where('lcf.id', $filter_id);
+            $check_filter = $this->db->get()->row();
+            
+            if ($check_filter) {
+                show_error('Access denied: This filter belongs to a different user.', 403);
+            } else {
+                show_error('Filter not found. The filter may have been deleted or never existed.', 404);
+            }
         }
         
         // Debug logging to see what filter values we retrieved
-        log_message('debug', "view_combination_tickets: Filter ID {$filter->id}, selected_trends: " . ($filter->selected_trends ?? 'NULL') . ", selected_winning_sums: " . ($filter->selected_winning_sums ?? 'NULL'));
         
         // Debug: Let's see all properties of the filter object
-        log_message('debug', "view_combination_tickets: All filter properties: " . print_r($filter, true));
         
         // Get pagination settings
         $per_page = $this->input->get('per_page') ? (int)$this->input->get('per_page') : 10;
@@ -838,7 +811,6 @@ class Prize extends Admin_Controller
             
             // Handle failed date conversion
             if (!$next_draw_date_mysql) {
-                log_message('error', "Date conversion failed for: {$expected_next_draw_date}. Using raw date instead.");
                 $next_draw_date = $expected_next_draw_date; // Use the raw date as fallback
                 $next_draw_date_for_js = null; // No reliable JS format available
             } else {
@@ -911,7 +883,6 @@ class Prize extends Admin_Controller
             
             // Update the filter object for current view
             $filter->lastdate = $draw_info->draw_date;
-            log_message('info', "Filter {$filter->id} lastdate updated to {$draw_info->draw_date} after processing results");
             
             // After processing wins, expire the filter since results are now final
             // This happens after the user views the results
@@ -931,11 +902,19 @@ class Prize extends Admin_Controller
         // Calculate total winners across the entire file
         $total_winners = $this->count_total_winners($filter, $draw_info, $display_mode, $next_draw_date);
         
+        // Get extra ball occurrences for independent extra ball lotteries
+        $extra_ball_occurrences = [];
+        if (!empty($filter->duplicate_extra_ball) && $filter->duplicate_extra_ball == 1) {
+            $this->load->model('Lottery_data_m', 'lottery_data_m');
+            $extra_ball_occurrences = $this->lottery_data_m->get_extra_ball_occurrences($filter->lottery_id);
+        }
+
         $this->data['filter'] = $filter;
         $this->data['tickets'] = $tickets;
         $this->data['draw_info'] = $draw_info;
         $this->data['total_tickets'] = $total_tickets;
         $this->data['total_winners'] = $total_winners;
+        $this->data['extra_ball_occurrences'] = $extra_ball_occurrences;
         $this->data['per_page'] = $per_page;
         $this->data['current_page'] = $page;
         $this->data['total_pages'] = ceil($total_tickets / $per_page);
@@ -959,10 +938,9 @@ class Prize extends Admin_Controller
         $combo_id = $this->input->get('combo_id');
         
         if ($referrer === 'futures' && $lottery_id && $combo_id) {
-            // User came from prediction futures - set up back navigation to futures
-            $this->data['back_link'] = base_url('admin/predictions/refresh/' . $lottery_id . '?combo_id=' . $combo_id);
+            // User came from prediction futures - set up back navigation to futures (restore settings method)
+            $this->data['back_link'] = base_url('admin/predictions/restore_settings/' . $lottery_id . '?combo_id=' . $combo_id . '&from_winners=1');
             $this->data['back_text'] = 'Back to Prediction Futures';
-            log_message('info', "Prize::view_combination_tickets - Setting futures back navigation: lottery_id={$lottery_id}, combo_id={$combo_id}");
         } else {
             // Default back navigation to prize history
             $this->data['back_link'] = base_url('admin/prize/' . $filter->lottery_id);
@@ -1035,10 +1013,11 @@ class Prize extends Admin_Controller
             $filter_id = $this->input->post('filter_id');
             $page = $this->input->post('page') ? (int)$this->input->post('page') : 1;
             $per_page = $this->input->post('per_page') ? (int)$this->input->post('per_page') : 10;
+            $sort_column = $this->input->post('sort_column');
+            $sort_order = $this->input->post('sort_order') === 'desc' ? 'desc' : 'asc';
             $admin_id = $this->session->userdata('id');
             
             if (!$admin_id || !$filter_id) {
-                log_message('error', 'AJAX validation failed: missing admin_id or filter_id');
                 echo json_encode(['success' => false, 'message' => 'Invalid request']);
                 return;
             }
@@ -1052,21 +1031,31 @@ class Prize extends Admin_Controller
             $this->db->where('lcf.user', 1);
             $this->db->where('lcf.user_id', $admin_id);
             
-            $filter = $this->db->get()->row();
+            $query = $this->db->get();
+            
+            if ($this->db->error()['code'] != 0) {
+                $db_error = $this->db->error();
+                echo json_encode(['success' => false, 'message' => 'Database error occurred']);
+                return;
+            }
+            
+            $filter = $query->row();
             
             if (!$filter) {
-                log_message('error', 'AJAX filter not found or access denied');
                 echo json_encode(['success' => false, 'message' => 'Filter not found or access denied']);
                 return;
             }
             
-            // Debug logging to see what filter values we retrieved in AJAX
-            log_message('debug', "load_combination_tickets: Filter ID {$filter->id}, selected_trends: " . ($filter->selected_trends ?? 'NULL') . ", selected_winning_sums: " . ($filter->selected_winning_sums ?? 'NULL'));
+            // Load extra ball occurrences for independent extra ball lotteries
+            $extra_ball_occurrences = [];
+            if (!empty($filter->duplicate_extra_ball) && $filter->duplicate_extra_ball == 1) {
+                $extra_ball_occurrences = $this->lottery_data_m->get_extra_ball_occurrences($filter->lottery_id);
+            }
             
             // Calculate offset
             $offset = ($page - 1) * $per_page;
             
-            // Get combination tickets
+            // Get combination tickets (sorting handled separately below)
             $tickets = $this->get_paginated_combination_tickets($filter, $per_page, $offset);
             
             $total_tickets = $this->count_combination_tickets($filter);
@@ -1177,7 +1166,6 @@ class Prize extends Admin_Controller
                 
                 // Update the filter object for current response
                 $filter->lastdate = $draw_info->draw_date;
-                log_message('info', "AJAX: Filter {$filter->id} lastdate updated to {$draw_info->draw_date} after processing results");
                 
                 // After processing wins, expire the filter since results are now final
                 $this->db->where('id', $filter->id);
@@ -1188,9 +1176,65 @@ class Prize extends Admin_Controller
                 $filter->active = 0;
             }
             
-            // Calculate win results for each ticket
-            foreach ($tickets as &$ticket) {
-                $ticket['win_result'] = $this->calculate_ticket_win_result($ticket['numbers'], $draw_info, $filter, $display_mode, $next_draw_date);
+            // Handle sorting by check results - use memory-efficient approach
+            if ($sort_column === 'check_results') {
+                // Check if dataset is too large for in-memory sorting (limit to 50,000 tickets)
+                if ($total_tickets > 50000) {
+                    echo json_encode([
+                        'success' => false, 
+                        'message' => "Dataset too large for sorting ({$total_tickets} tickets). Please use filters to reduce the dataset size first."
+                    ]);
+                    return;
+                }
+                
+                try {
+                    // Get all tickets for sorting with memory monitoring
+                    $memory_before = memory_get_usage();
+                    $all_tickets = $this->get_paginated_combination_tickets($filter, $total_tickets, 0);
+                    $memory_after = memory_get_usage();
+                    $memory_used = ($memory_after - $memory_before) / 1024 / 1024; // Convert to MB
+                    
+                    
+                    if (empty($all_tickets)) {
+                        log_message('error', 'No tickets loaded for sorting');
+                        echo json_encode(['success' => false, 'message' => 'No tickets found for sorting']);
+                        return;
+                    }
+                    
+                    // Calculate win results for all tickets
+                    foreach ($all_tickets as &$ticket) {
+                        $ticket['win_result'] = $this->calculate_ticket_win_result($ticket['numbers'], $draw_info, $filter, $display_mode, $next_draw_date);
+                    }
+                    
+                    // Sort tickets by win result value
+                    usort($all_tickets, function($a, $b) use ($sort_order) {
+                        $a_value = $this->get_win_sort_value($a['win_result']['category']);
+                        $b_value = $this->get_win_sort_value($b['win_result']['category']);
+                        
+                        if ($sort_order === 'desc') {
+                            return $b_value - $a_value; // Highest winners first
+                        } else {
+                            return $a_value - $b_value; // Non-winners first
+                        }
+                    });
+                    
+                    // Apply pagination to sorted results
+                    $tickets = array_slice($all_tickets, $offset, $per_page);
+                    
+                } catch (Exception $e) {
+                    log_message('error', 'Sorting failed: ' . $e->getMessage());
+                    echo json_encode([
+                        'success' => false, 
+                        'message' => 'Sorting failed due to memory or processing limits. Please try reducing the dataset size.'
+                    ]);
+                    return;
+                }
+            } else {
+                // No sorting - use regular pagination
+                // Calculate win results for current page tickets only
+                foreach ($tickets as &$ticket) {
+                    $ticket['win_result'] = $this->calculate_ticket_win_result($ticket['numbers'], $draw_info, $filter, $display_mode, $next_draw_date);
+                }
             }
             
             // Calculate pagination data
@@ -1216,12 +1260,16 @@ class Prize extends Admin_Controller
                 'draw_info' => $draw_info,
                 'display_mode' => $display_mode,
                 'next_draw_date' => $next_draw_date,
-                'next_draw_date_for_js' => $next_draw_date_for_js // MySQL format for reliable JavaScript parsing
+                'next_draw_date_for_js' => $next_draw_date_for_js, // MySQL format for reliable JavaScript parsing
+                'extra_ball_occurrences' => $extra_ball_occurrences
             ]);
             
         } catch (Exception $e) {
-            log_message('error', 'AJAX exception: ' . $e->getMessage());
-            echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+            log_message('error', 'AJAX exception in load_combination_tickets: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Server error occurred while loading tickets. Please try again.']);
+        } catch (Error $e) {
+            log_message('error', 'PHP Fatal Error in load_combination_tickets: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Fatal error occurred. Please try again.']);
         }
     }
 
@@ -1240,7 +1288,6 @@ class Prize extends Admin_Controller
                 'session_id' => $this->session->userdata('id')
             ]);
         } catch (Exception $e) {
-            log_message('error', 'test_ajax exception: ' . $e->getMessage());
             echo json_encode([
                 'success' => false,
                 'message' => 'Error: ' . $e->getMessage()
@@ -1294,12 +1341,10 @@ class Prize extends Admin_Controller
         $pick_dir = 'pick' . $expected_picks;
         $file_path = FCPATH . 'combinations/' . $pick_dir . '/' . $filter->file_name . '.txt';
         
-        log_message('debug', "get_paginated_combination_tickets: Looking for file: {$file_path}");
-        log_message('debug', "get_paginated_combination_tickets: File exists: " . (file_exists($file_path) ? 'YES' : 'NO'));
         if (file_exists($file_path)) {
             $file_size = filesize($file_path);
             $line_count = count(file($file_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
-            log_message('debug', "get_paginated_combination_tickets: File size: {$file_size} bytes, Lines: {$line_count}");
+            $file_modified = date('Y-m-d H:i:s', filemtime($file_path));
         }
         
         if (!file_exists($file_path)) {
@@ -1310,13 +1355,13 @@ class Prize extends Admin_Controller
         // Check if any filters are applied
         $has_filters = $this->has_active_filters($filter);
         
-        log_message('debug', "get_paginated_combination_tickets: Filter ID {$filter->combo_id}, Has filters: " . ($has_filters ? 'YES' : 'NO') . ", File: {$filter->file_name}");
         
         if ($has_filters) {
             // Use filtering model when filters are applied
             $page = ($offset / $per_page) + 1;
             $number_array = $this->get_generated_numbers($filter->lottery_id);
             $filter_data = $this->build_filter_array($filter);
+            
             
             $combinations = $this->combination_filters_m->get_filtered_combinations(
                 $file_path, 
@@ -1325,6 +1370,7 @@ class Prize extends Admin_Controller
                 $page, 
                 $per_page
             );
+            
             
             // Convert to ticket format
             $tickets = array();
@@ -1363,14 +1409,15 @@ class Prize extends Admin_Controller
                 }
             }
             
-            log_message('info', "get_paginated_combination_tickets: Using filtered results for {$filter->file_name}, returned " . count($tickets) . " tickets");
             return $tickets;
+        } else {
         }
-        
+
         // Fallback to direct file reading when no filters are applied
         // Read and parse the file with pagination
         $tickets = array();
         $file_content = file_get_contents($file_path);
+        
         
         if ($file_content) {
             $lines = explode("\n", $file_content);
@@ -1419,11 +1466,9 @@ class Prize extends Admin_Controller
                     $valid_line_count++; // Only increment AFTER adding ticket to avoid double counting
                 } else {
                     $skipped_lines++;
-                    log_message('debug', "Skipped line {$line_num} in {$filter->file_name}: expected {$expected_numbers_per_line} numbers, got " . count($numbers));
                 }
             }
             
-            log_message('info', "get_paginated_combination_tickets: File {$filter->file_name} - Total lines: {$total_lines}, Valid: {$valid_line_count}, Skipped: {$skipped_lines}, Returned: {$returned_tickets}, Offset: {$offset}, Per page: {$per_page}, Expected numbers per line: {$expected_numbers_per_line}, Is independent extra ball: " . ($is_independent_extra_ball ? 'YES' : 'NO'));
         }
         
         return $tickets;
@@ -1471,7 +1516,6 @@ class Prize extends Admin_Controller
         // Check if any filters are applied
         $has_filters = $this->has_active_filters($filter);
         
-        log_message('debug', "count_combination_tickets: Filter ID {$filter->combo_id}, Has filters: " . ($has_filters ? 'YES' : 'NO') . ", File: {$filter->file_name}");
         
         if ($has_filters) {
             // Use filtering model when filters are applied
@@ -1484,7 +1528,6 @@ class Prize extends Admin_Controller
                 $filter_data
             );
             
-            log_message('info', "count_combination_tickets: Using filtered count for {$filter->file_name}: {$count} combinations");
             return $count;
         }
         
@@ -1514,11 +1557,9 @@ class Prize extends Admin_Controller
                     $count++;
                 } else {
                     $invalid_lines++;
-                    log_message('debug', "count_combination_tickets: Invalid line {$line_index} in {$filter->file_name}: expected {$expected_numbers_per_line} numbers, got " . count($numbers) . " - Line: {$line}");
                 }
             }
             
-            log_message('info', "count_combination_tickets: File {$filter->file_name} - Total lines: {$total_lines}, Valid combinations: {$count}, Empty lines: {$empty_lines}, Invalid lines: {$invalid_lines}, Expected numbers per line: {$expected_numbers_per_line}, Is independent extra ball: " . ($is_independent_extra_ball ? 'YES' : 'NO'));
         }
         
         return $count;
@@ -2039,13 +2080,11 @@ class Prize extends Admin_Controller
             
             // Skip if extra is included and extra number is 0
             if ($this->should_skip_draw($draw_info, $extra_ball_included)) {
-                log_message('info', "Skipping win record processing - extra ball is 0 and extra is included");
                 return;
             }
             
             // Process each combination ticket against this draw
             $win_updates = array();
-            log_message('info', "Processing " . count($combination_tickets) . " tickets for filter {$filter->id}, is_independent_extra_ball: " . ($is_independent_extra_ball ? 'true' : 'false'));
             
             foreach ($combination_tickets as $ticket) {
                 if ($is_independent_extra_ball) {
@@ -2066,16 +2105,10 @@ class Prize extends Admin_Controller
                     $drawn_extra = $this->extract_bonus_number_from_draw($draw_info);
                     $extra_matches = ($drawn_extra && $extra_ball == $drawn_extra);
                     
-                    // Debug logging for independent extra ball
-                    log_message('info', "Independent extra ball ticket: main_numbers=" . implode(',', $main_numbers) . 
-                                      ", extra_ball={$extra_ball}, drawn_main=" . implode(',', $drawn_main_numbers) . 
-                                      ", drawn_extra={$drawn_extra}, main_matches={$main_matches}, extra_matches=" . ($extra_matches ? 'true' : 'false'));
-                    
                     // Determine win category for independent extra ball
                     $win_category = $this->determine_independent_extra_ball_win($main_matches, $extra_matches, $prize_profile);
                     
                     if ($win_category) {
-                        log_message('info', "Independent extra ball win found: {$win_category}");
                     }
                 } else {
                     // For regular lotteries (existing logic)
@@ -2112,7 +2145,6 @@ class Prize extends Admin_Controller
             
             // Update the filter's win record fields in database
             if (!empty($win_updates)) {
-                log_message('info', "Win updates found for filter {$filter->id}: " . json_encode($win_updates));
                 $update_data = array();
                 
                 // Add win record updates to existing values
@@ -2128,7 +2160,6 @@ class Prize extends Admin_Controller
                         $current_value = isset($current_result->$category) ? (int)$current_result->$category : 0;
                         $new_value = $current_value + $count;
                         $update_data[$category] = $new_value;
-                        log_message('info', "Updating {$category}: {$current_value} + {$count} = {$new_value}");
                     }
                 }
                 
@@ -2139,17 +2170,14 @@ class Prize extends Admin_Controller
                 
                 // Update the filter record with new win counts and optionally lastdate
                 if (!empty($update_data)) {
-                    log_message('info', "Executing database update for filter {$filter->id}: " . json_encode($update_data));
                     $this->db->where('id', $filter->id);
                     $result = $this->db->update('lottery_combination_filters', $update_data);
-                    log_message('info', "Database update result: " . ($result ? 'success' : 'failed'));
                     
                     // Update the filter object for current view only if lastdate was updated
                     if ($update_lastdate) {
                         $filter->lastdate = $draw_info->draw_date;
                     }
                     
-                    log_message('info', "Filter {$filter->id} win records updated with draw from {$draw_info->draw_date}" . ($update_lastdate ? ", lastdate updated" : ", lastdate preserved"));
                 }
             } else {
                 // Even if no wins, update the lastdate only if requested
@@ -2160,9 +2188,7 @@ class Prize extends Admin_Controller
                     // Update the filter object for current view
                     $filter->lastdate = $draw_info->draw_date;
                     
-                    log_message('info', "Filter {$filter->id} lastdate updated to {$draw_info->draw_date} (no wins)");
                 } else {
-                    log_message('info', "Filter {$filter->id} win processing completed, lastdate preserved (no wins)");
                 }
             }
             
@@ -2450,12 +2476,10 @@ class Prize extends Admin_Controller
         
         foreach ($filter_fields as $field) {
             if (isset($filter->$field) && !empty($filter->$field) && $filter->$field !== 'ALL') {
-                log_message('debug', "has_active_filters: Found active filter {$field} = {$filter->$field}");
                 return true;
             }
         }
         
-        log_message('debug', "has_active_filters: No active filters found for filter ID {$filter->id}");
         return false;
     }
     
@@ -2482,7 +2506,6 @@ class Prize extends Admin_Controller
         );
         
         // Debug logging to see filter values
-        log_message('debug', "build_filter_array: Filter ID {$filter->id}, Trends: {$filter_data['selected_trends']}, Sums: {$filter_data['selected_winning_sums']}, Digits: {$filter_data['selected_winning_digits']}");
         
         // Add lottery-specific data
         if (!empty($filter->lottery_id)) {
@@ -2512,6 +2535,67 @@ class Prize extends Admin_Controller
         
         // Fallback to default range
         return range(1, 49);
+    }
+    
+    /**
+     * Get sort value for win result categories
+     * Higher values = better wins (for descending sort to show best wins first)
+     * @param string $category Win result category
+     * @return int Sort value
+     */
+    private function get_win_sort_value($category)
+    {
+        // Handle MAJOR PRIZE (jackpot) - highest priority
+        if (strpos($category, 'MAJOR PRIZE') !== false || strpos($category, 'GRAND PRIZE') !== false) {
+            // Extract match count for fine-tuning within jackpot category
+            preg_match('/(\d+)/', $category, $matches);
+            $match_count = isset($matches[1]) ? (int)$matches[1] : 0;
+            return 1000 + $match_count;
+        }
+        
+        // Handle Winning Numbers (minor wins)
+        if (strpos($category, 'Winning Numbers') !== false || strpos($category, 'Main Numbers') !== false) {
+            preg_match('/(\d+)/', $category, $matches);
+            $match_count = isset($matches[1]) ? (int)$matches[1] : 0;
+            return 800 + $match_count;
+        }
+        
+        // Handle Winners + Bonus (bonus wins)
+        if (strpos($category, 'Winners + Bonus') !== false || strpos($category, '+ Extra Winner') !== false) {
+            preg_match('/(\d+)/', $category, $matches);
+            $match_count = isset($matches[1]) ? (int)$matches[1] : 0;
+            return 700 + $match_count;
+        }
+        
+        // Handle Extra/Bonus only wins
+        if (strpos($category, 'Extra / Bonus Winner') !== false || strpos($category, 'Extra Winner') !== false) {
+            return 600;
+        }
+        
+        // Handle TBD
+        if (strpos($category, 'TBD') !== false) {
+            return 50;
+        }
+        
+        // Handle "not a Winner!" categories (but with matches)
+        if (strpos($category, 'not a Winner!') !== false) {
+            preg_match('/(\d+)/', $category, $matches);
+            $match_count = isset($matches[1]) ? (int)$matches[1] : 0;
+            return 100 + $match_count; // Low base value but differentiate by match count
+        }
+        
+        // Handle No Matches
+        if (strpos($category, 'No Matches') !== false) {
+            return 10;
+        }
+        
+        // Handle expired or other no-win scenarios
+        if (strpos($category, 'Expired') !== false || strpos($category, 'No Draw Data') !== false) {
+            return 5;
+        }
+        
+        // Default for unknown categories
+        return 0;
     }
     
     /**

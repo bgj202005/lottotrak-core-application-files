@@ -14,10 +14,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
 <!-- End of BootstrapCND 4.3 -->	
-<!-- Font Awesome 4.7 -->
-<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+<!-- Font Awesome 4.7 - Single source to prevent duplicates -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" integrity="sha256-eZrrJcwDc/3uDhsdt61sL2oOBY362qM3lon1gyExkL0=" crossorigin="anonymous">
 <!-- End of Font Awesome -->
-<link href="<?php echo site_url('css/admin/admin.css');?>" rel="stylesheet">
+<link href="<?php echo site_url('css/admin/admin.css');?>?v=<?php echo time(); ?>" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/css/bootstrap-datepicker3.min.css" rel="stylesheet">
 <?php if(isset($sortable) && $sortable ===TRUE): ?>
   	<script src="<?php echo site_url('js/jquery-ui.min.js');?>"></script>
@@ -126,4 +126,111 @@
 });
 </script>
 <!-- End TinyMCE Script -->
+
+<!-- Admin Font Weight Override - Fixed for Font Awesome Icons -->
+<style type="text/css">
+/* Font Awesome Icon Fix - Preserve original font properties */
+.fa, 
+[class^="fa-"], 
+[class*=" fa-"],
+i.fa,
+i[class^="fa-"],
+i[class*=" fa-"] {
+	font-family: FontAwesome !important;
+	font-weight: normal !important;
+	font-style: normal !important;
+	text-decoration: inherit !important;
+	-webkit-font-smoothing: antialiased !important;
+	-moz-osx-font-smoothing: grayscale !important;
+	display: inline-block !important;
+	font-variant: normal !important;
+	text-transform: none !important;
+	line-height: 1 !important;
+	vertical-align: baseline !important;
+}
+
+/* Ensure Font Awesome icons are not affected by our font overrides */
+* .fa:before, 
+* [class^="fa-"]:before, 
+* [class*=" fa-"]:before {
+	font-family: FontAwesome !important;
+	font-weight: normal !important;
+	font-style: normal !important;
+}
+
+/* Followers button icon styling - prevent duplication and conflicts */
+a.followers .fa-retweet {
+	color: #007bff !important;
+}
+
+/* Ensure followers link styling */
+a.followers {
+	text-decoration: none !important;
+}
+
+/* DIRECT FIX: Target the specific followers button and override conflicts */
+
+/* Prevent Bootstrap .mb-0 > a:after from adding chevron to followers */
+a.followers-btn:after,
+a.followers:after {
+	content: none !important;
+	display: none !important;
+}
+
+/* Ensure the followers button displays and functions correctly */
+a.followers-btn,
+a.followers {
+	text-decoration: none !important;
+	display: inline-block !important;
+	position: relative !important;
+}
+
+/* Force the correct icon styling - inline style should handle this */
+a.followers-btn i.fa-retweet,
+a.followers i.fa-retweet {
+	color: #007bff !important;
+	font-family: FontAwesome !important;
+	display: inline-block !important;
+}
+
+/* Admin Font Weight Fix - Exclude Font Awesome */
+/* Navigation elements */
+.navbar:not(.fa),
+.navbar *:not(.fa):not([class^="fa-"]):not([class*=" fa-"]),
+.navbar-nav:not(.fa),
+.navbar-nav *:not(.fa):not([class^="fa-"]):not([class*=" fa-"]),
+.nav-item:not(.fa),
+.nav-item *:not(.fa):not([class^="fa-"]):not([class*=" fa-"]),
+.nav-link:not(.fa),
+.dropdown-item:not(.fa),
+.dropdown-menu:not(.fa),
+.dropdown-menu *:not(.fa):not([class^="fa-"]):not([class*=" fa-"]) {
+	font-weight: normal !important;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+/* Sidebar elements - Exclude Font Awesome */
+.col-md-4:not(.fa),
+.col-md-4 *:not(.fa):not([class^="fa-"]):not([class*=" fa-"]),
+.col-md-4 section:not(.fa),
+.col-md-4 section *:not(.fa):not([class^="fa-"]):not([class*=" fa-"]),
+.col-md-4 section a:not(.fa),
+.col-md-4 section span:not(.fa) {
+	font-weight: normal !important;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+/* Chrome-specific rendering improvements - Exclude Font Awesome */
+.navbar-nav .nav-link:not(.fa),
+.navbar-nav .nav-item a:not(.fa),
+.dropdown-item:not(.fa),
+.col-md-4 section a:not(.fa),
+.col-md-4 section span:not(.fa) {
+	font-weight: normal !important;
+	-webkit-font-smoothing: antialiased !important;
+	-moz-osx-font-smoothing: grayscale !important;
+	text-rendering: optimizeLegibility !important;
+}
+</style>
+
 </head>  

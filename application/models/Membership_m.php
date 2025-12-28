@@ -218,14 +218,12 @@ class Membership_M extends MY_Model
 	public function lotteries_list($country_code = 'CA')
 	{
 	
-	$query = $this->db->query("SELECT lottery_name from lottery_profiles where lottery_country_id = '".$country_code."'");
+	$query = $this->db->query("SELECT id, lottery_name from lottery_profiles where lottery_country_id = '".$country_code."' ORDER BY lottery_name");
 	
-	$c = 1;
 	$result = array();
 		foreach ($query->result_array() as $row)
 		{
-			$result[$c] = $row['lottery_name'];
-			$c++;	
+			$result[$row['id']] = $row['lottery_name'];	
 		}
 	
 	return $result;
@@ -253,5 +251,21 @@ class Membership_M extends MY_Model
 				}
 			}
 	return $result;
+	}
+
+	/**
+	 * Get the count of lotteries selected by a member
+	 *
+	 * @param	    string	$lotto_id	Lotteries currently selected (comma-separated IDs)
+	 * @return      int					Number of lotteries selected
+	 */
+	public function lotteries_count($lotto_id)
+	{
+		if (empty($lotto_id)) {
+			return 0;
+		}
+		
+		$id_array = explode(',', $lotto_id);
+		return count(array_filter($id_array)); // Filter out empty values and count
 	}		
 }

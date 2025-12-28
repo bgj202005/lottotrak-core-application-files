@@ -24,9 +24,62 @@ class Admin_Controller extends MY_Controller
 		if (in_array($uri_string, $exception_uris) == FALSE) { // in_array(uri_string(), $exception_uris) similar to uri_string()
 				if ($this->user_m->loggedin() == FALSE) {
 					redirect('admin/user/login');
+				} else {
+					// Check for session timeout with user-specific inactivity setting
+					$this->check_session_timeout();
 				}
 		}	
 		
+	}
+	
+	/**
+	 * Check if the current session has exceeded the user's inactivity timeout
+	 */
+	private function check_session_timeout() {
+		$user_id = $this->session->userdata('id');
+		$last_activity = $this->session->userdata('last_activity');
+		
+		if ($user_id) {
+			// Get user's inactivity timeout setting (with fallback for pre-migration state)
+			$this->load->database();
+			$timeout_seconds = 1800; // Default 30 minutes
+			
+			try {
+				// Check if inactivity_timeout column exists
+				if ($this->db->field_exists('inactivity_timeout', 'users')) {
+					$query = $this->db->select('inactivity_timeout')
+									  ->from('users')
+									  ->where('id', $user_id)
+									  ->get();
+					
+					$user = $query->row();
+					$timeout_seconds = ($user && isset($user->inactivity_timeout)) ? $user->inactivity_timeout : 1800;
+				}
+			} catch (Exception $e) {
+				// Column doesn't exist yet (pre-migration) - use default timeout
+				log_message('debug', 'Admin_Controller: inactivity_timeout column not found, using default timeout');
+			}
+			
+			$current_time = time();
+			
+			// If last_activity is not set, set it now
+			if (!$last_activity) {
+				$this->session->set_userdata('last_activity', $current_time);
+				return;
+			}
+			
+			// Check if session has timed out
+			if (($current_time - $last_activity) > $timeout_seconds) {
+				// Session timed out - ensure user is logged out in database even if session is corrupted
+				$this->user_m->force_logout_user($user_id);
+				$this->user_m->logout();
+				$this->session->set_flashdata('timeout_message', 'Your session has expired due to inactivity. Please log in again.');
+				redirect('admin/user/login');
+			} else {
+				// Update last activity timestamp for active sessions
+				$this->session->set_userdata('last_activity', $current_time);
+			}
+		}
 	}
 	function strip_false_tags($s)
     {

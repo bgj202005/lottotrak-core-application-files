@@ -155,6 +155,150 @@
                         </div>
                     </div>
 
+                    <!-- Predicted Numbers Section -->
+                    <div class="predicted-numbers-container" style="margin-bottom: 15px; padding: 15px; background: #e8f4fd; border-radius: 8px; border: 1px solid #b8daff;">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="predicted-numbers-display" id="predicted-numbers-display">
+                                    <?php if (!empty($filter->numbers)): ?>
+                                        <?php 
+                                        // Check if this is an independent extra ball lottery
+                                        $is_independent_extra_ball = (!empty($filter->duplicate_extra_ball) && !empty($filter->extra_balls));
+                                        
+                                        // Parse the comma-separated numbers
+                                        $predicted_numbers = explode(',', $filter->numbers);
+                                        $drawn_numbers = array();
+                                        $bonus_numbers = array();
+                                        
+                                        // Get drawn numbers if available
+                                        if ($draw_info) {
+                                            // Collect main drawn numbers
+                                            for ($i = 1; $i <= $filter->N; $i++) {
+                                                $ball_field = 'ball' . $i;
+                                                if (property_exists($draw_info, $ball_field)) {
+                                                    $drawn_numbers[] = $draw_info->$ball_field;
+                                                }
+                                            }
+                                            
+                                            // Collect bonus numbers if they exist (check multiple possible field names)
+                                            if (!empty($filter->extra_balls) && $draw_info->extra_ball_included) {
+                                                $bonus_fields = array('extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number');
+                                                foreach ($bonus_fields as $field) {
+                                                    if (property_exists($draw_info, $field) && !is_null($draw_info->$field)) {
+                                                        $bonus_numbers[] = $draw_info->$field;
+                                                        break; // Only get the first bonus number found
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        ?>
+                                        
+                                        <?php if ($is_independent_extra_ball): ?>
+                                            <!-- Independent Extra Ball Lottery - Separate Main and Extra Numbers -->
+                                            
+                                            <!-- Main Predicted Numbers -->
+                                            <h5 style="margin-bottom: 10px; color: #0c5aa6;"><strong>Main Predicted Numbers:</strong></h5>
+                                            <div class="predicted-numbers-list" style="margin-bottom: 15px;">
+                                                <?php
+                                                // Display main predicted numbers with highlighting for drawn numbers
+                                                foreach ($predicted_numbers as $number) {
+                                                    $number = trim($number);
+                                                    $class = 'combination-number';
+                                                    
+                                                    if (in_array($number, $drawn_numbers)) {
+                                                        $class .= ' winning-number';
+                                                    }
+                                                    
+                                                    echo '<span class="' . $class . '" style="margin-right: 8px;">' . sprintf('%02d', $number) . '</span>';
+                                                }
+                                                ?>
+                                            </div>
+                                            
+                                            <!-- Extra Predicted Numbers -->
+                                            <h5 style="margin-bottom: 10px; color: #0c5aa6;"><strong>Extra Predicted Numbers:</strong></h5>
+                                            <div class="extra-predicted-numbers-list">
+                                                <?php
+                                                // Display extra ball predictions
+                                                if (!empty($filter->extra_balls)) {
+                                                    // Check if it's "ALL" or specific numbers
+                                                    if ($filter->extra_balls === 'ALL') {
+                                                        // Display all possible extra numbers from occurrences data
+                                                        if (!empty($extra_ball_occurrences)) {
+                                                            // Sort extra ball numbers numerically
+                                                            $sorted_extra_balls = $extra_ball_occurrences;
+                                                            usort($sorted_extra_balls, function($a, $b) {
+                                                                return intval($a['value']) - intval($b['value']);
+                                                            });
+                                                            
+                                                            foreach ($sorted_extra_balls as $occurrence) {
+                                                                $extra_number = $occurrence['value'];
+                                                                $extra_class = 'combination-number';
+                                                                
+                                                                if (in_array($extra_number, $bonus_numbers)) {
+                                                                    $extra_class .= ' bonus-number-match';
+                                                                }
+                                                                
+                                                                echo '<span class="' . $extra_class . '" style="margin-right: 8px;">' . sprintf('%02d', $extra_number) . '</span>';
+                                                            }
+                                                        } else {
+                                                            echo '<span style="color: #6c757d; font-style: italic;">All extra numbers included</span>';
+                                                        }
+                                                    } else {
+                                                        $extra_numbers = explode(',', $filter->extra_balls);
+                                                        foreach ($extra_numbers as $extra_number) {
+                                                            $extra_number = trim($extra_number);
+                                                            $extra_class = 'combination-number';
+                                                            
+                                                            if (in_array($extra_number, $bonus_numbers)) {
+                                                                $extra_class .= ' bonus-number-match';
+                                                            }
+                                                            
+                                                            echo '<span class="' . $extra_class . '" style="margin-right: 8px;">' . sprintf('%02d', $extra_number) . '</span>';
+                                                        }
+                                                    }
+                                                } else {
+                                                    echo '<span style="color: #6c757d; font-style: italic;">No extra numbers predicted</span>';
+                                                }
+                                                ?>
+                                            </div>
+                                            
+                                        <?php else: ?>
+                                            <!-- Regular Lottery - Combined Predicted Numbers -->
+                                            <h5 style="margin-bottom: 10px; color: #0c5aa6;"><strong>Predicted Numbers:</strong></h5>
+                                            <div class="predicted-numbers-list">
+                                                <?php
+                                                // Display each predicted number with appropriate highlighting
+                                                foreach ($predicted_numbers as $number) {
+                                                    $number = trim($number);
+                                                    $class = 'combination-number';
+                                                    
+                                                    if (in_array($number, $drawn_numbers)) {
+                                                        $class .= ' winning-number';
+                                                    } elseif (in_array($number, $bonus_numbers)) {
+                                                        $class .= ' bonus-number-match';
+                                                    }
+                                                    
+                                                    echo '<span class="' . $class . '" style="margin-right: 8px;">' . sprintf('%02d', $number) . '</span>';
+                                                }
+                                                ?>
+                                            </div>
+                                        <?php endif; ?>
+                                        
+                                        <?php
+                                        // Add (TBD) indicator if draw is not available
+                                        if (isset($display_mode) && $display_mode == 'tbd') {
+                                            echo '<span style="margin-left: 15px; color: #6c757d; font-style: italic;">(TBD)</span>';
+                                        }
+                                        ?>
+                                        
+                                    <?php else: ?>
+                                        <h5 style="margin-bottom: 0; color: #6c757d;"><strong>No Predicted Numbers are available.</strong></h5>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Number Highlighting Legend -->
                     <div class="legend-container" style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
                         <div class="row">
@@ -858,10 +1002,14 @@ $(document).ready(function() {
     var filterId = <?php echo $filter->id; ?>;
     var currentPage = <?php echo $current_page; ?>;
     var totalPages = <?php echo $total_pages; ?>;
+    var currentSortColumn = null; // Track current sort column
+    var currentSortOrder = 'asc'; // Track current sort order
+    var currentPerPage = <?php echo $per_page; ?>; // Track current per page setting
     
     // Handle per page change - ORIGINAL FUNCTIONALITY RESTORED
     $('#per_page_select').change(function() {
         var per_page = $(this).val();
+        currentPerPage = per_page;
         loadPage(1, per_page);
     });
     
@@ -873,11 +1021,18 @@ $(document).ready(function() {
         }
     });
     
-    // Custom Check Results Sorting - ONLY BOOTSTRAP TABLE FEATURE KEPT
-    $('.sortable-check-results').click(function() {
+    // Custom Check Results Sorting
+    $(document).on('click', '.sortable-check-results', function(e) {
+        e.preventDefault();
+        
         var $this = $(this);
         var currentSort = $this.data('sort') || 'asc';
         var newSort = currentSort === 'asc' ? 'desc' : 'asc';
+        
+        // Show loading indicator immediately for sorting
+        $('#loading-indicator').show();
+        $('#tickets-table').hide();
+        $('#pagination-container').hide();
         
         // Update sort indicator
         $this.removeClass('asc desc').addClass(newSort).data('sort', newSort);
@@ -886,28 +1041,12 @@ $(document).ready(function() {
         var icon = newSort === 'asc' ? '↑' : '↓';
         $this.find('.sort-icon').text(icon);
         
-        // Sort the table rows
-        var $tbody = $('#tickets-tbody');
-        var rows = $tbody.find('tr').get();
+        // Store current sort settings globally
+        currentSortOrder = newSort;
+        currentSortColumn = 'check_results';
         
-        rows.sort(function(a, b) {
-            var aValue = parseInt($(a).data('check-results')) || 999;
-            var bValue = parseInt($(b).data('check-results')) || 999;
-            
-            if (newSort === 'asc') {
-                return aValue - bValue;
-            } else {
-                return bValue - aValue;
-            }
-        });
-        
-        // Re-append sorted rows
-        $tbody.empty();
-        $.each(rows, function(index, row) {
-            $tbody.append(row);
-        });
-        
-        console.log('Check Results sorted:', newSort);
+        // Reload the first page with new sorting applied to all results
+        loadPage(1, currentPerPage);
     });
 
     
@@ -924,8 +1063,11 @@ $(document).ready(function() {
             data: {
                 filter_id: filterId,
                 page: page,
-                per_page: per_page
+                per_page: per_page,
+                sort_column: currentSortColumn,
+                sort_order: currentSortOrder
             },
+            timeout: 30000, // 30 second timeout
             success: function(response) {
                 if (response.success) {
                     // Update table content
@@ -945,7 +1087,8 @@ $(document).ready(function() {
                     totalPages = response.pagination.total_pages;
                     
                 } else {
-                    alert('Error loading tickets: ' + response.message);
+                    var errorMessage = response.message || 'Unknown error occurred';
+                    alert('Error: ' + errorMessage);
                 }
                 
                 // Hide loading indicator
@@ -955,7 +1098,35 @@ $(document).ready(function() {
             },
             error: function(xhr, status, error) {
                 console.error('AJAX Error:', error);
-                alert('Error loading tickets. Please try again.');
+                
+                var errorMessage = 'Error loading tickets. Please try again.';
+                
+                // Check for timeout
+                if (status === 'timeout') {
+                    errorMessage = 'Request timed out. The operation may be taking too long.';
+                }
+                // Check for specific HTTP errors
+                else if (xhr.status === 500) {
+                    errorMessage = 'Server error (500). Please check the server logs.';
+                }
+                else if (xhr.status === 404) {
+                    errorMessage = 'Endpoint not found (404). Please check the URL.';
+                }
+                else if (xhr.status === 403) {
+                    errorMessage = 'Access denied (403). Please check your session.';
+                }
+                
+                // Try to parse JSON response for specific error message
+                try {
+                    var response = JSON.parse(xhr.responseText);
+                    if (response && response.message) {
+                        errorMessage = response.message;
+                    }
+                } catch (e) {
+                    // Use default message if JSON parsing fails
+                }
+                
+                alert(errorMessage);
                 
                 // Hide loading indicator
                 $('#loading-indicator').hide();
@@ -1196,26 +1367,17 @@ $(document).ready(function() {
     }
     
     function updateDrawHeader(response) {
-        // DEBUG: Log what we're receiving
-        console.log('DEBUG - updateDrawHeader called with:');
-        console.log('display_mode:', response.display_mode);
-        console.log('next_draw_date:', response.next_draw_date);
-        console.log('next_draw_date_for_js:', response.next_draw_date_for_js);
-        console.log('draw_info:', response.draw_info);
-        
         // Update draw information header based on display mode
         if (response.display_mode === 'tbd') {
             // For TBD mode, use pre-formatted date if available, otherwise format from MySQL date
             var displayDate;
             if (response.next_draw_date) {
                 displayDate = response.next_draw_date; // Use pre-formatted date from server
-                console.log('DEBUG - Using pre-formatted date:', displayDate);
             } else if (response.next_draw_date_for_js) {
                 // Parse MySQL format date and format it
                 var nextDrawDate = new Date(response.next_draw_date_for_js);
                 var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
                 displayDate = nextDrawDate.toLocaleDateString('en-US', options);
-                console.log('DEBUG - Parsed JS date:', displayDate);
             } else {
                 displayDate = 'Unknown';
             }
@@ -1227,19 +1389,16 @@ $(document).ready(function() {
             var displayDate;
             if (response.next_draw_date) {
                 displayDate = response.next_draw_date; // Use pre-formatted date from server
-                console.log('DEBUG - Using pre-formatted draw date:', displayDate);
             } else if (response.next_draw_date_for_js) {
                 // Parse MySQL format date and format it
                 var drawDate = new Date(response.next_draw_date_for_js);
                 var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
                 displayDate = drawDate.toLocaleDateString('en-US', options);
-                console.log('DEBUG - Parsed JS draw date:', displayDate);
             } else {
                 // Fallback to parsing draw_info date
                 var drawDate = new Date(response.draw_info.draw_date);
                 var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
                 displayDate = drawDate.toLocaleDateString('en-US', options);
-                console.log('DEBUG - Fallback draw date:', displayDate);
             }
             
             $('.draw-header-box h4').html('<strong>Draw Date:</strong> ' + displayDate);
@@ -1269,6 +1428,146 @@ $(document).ready(function() {
             
             $('.drawn-numbers-display').html(numbersHtml);
         }
+        
+        // Update predicted numbers display
+        updatePredictedNumbers(response);
+    }
+    
+    function updatePredictedNumbers(response) {
+        var predictedContainer = $('#predicted-numbers-display');
+        
+        if (!response.filter.numbers || response.filter.numbers.trim() === '') {
+            // No predicted numbers available
+            predictedContainer.html('<h5 style="margin-bottom: 0; color: #6c757d;"><strong>No Predicted Numbers are available.</strong></h5>');
+            return;
+        }
+        
+        // Check if this is an independent extra ball lottery
+        var isIndependentExtraBall = (response.filter.duplicate_extra_ball && response.filter.extra_balls);
+        
+        // Parse predicted numbers
+        var predictedNumbers = response.filter.numbers.split(',');
+        var drawnNumbers = [];
+        var bonusNumbers = [];
+        
+        // Get drawn numbers if available
+        if (response.draw_info) {
+            // Collect main drawn numbers
+            for (var i = 1; i <= response.filter.N; i++) {
+                var ballField = 'ball' + i;
+                if (response.draw_info[ballField]) {
+                    drawnNumbers.push(response.draw_info[ballField].toString());
+                }
+            }
+            
+            // Collect bonus numbers if they exist (check multiple possible field names)
+            if (response.filter.extra_balls && response.draw_info.extra_ball_included) {
+                var bonusFields = ['extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number'];
+                for (var j = 0; j < bonusFields.length; j++) {
+                    var field = bonusFields[j];
+                    if (response.draw_info[field] && response.draw_info[field] != null) {
+                        bonusNumbers.push(response.draw_info[field].toString());
+                        break; // Only get the first bonus number found
+                    }
+                }
+            }
+        }
+        
+        var numbersHtml = '';
+        
+        if (isIndependentExtraBall) {
+            // Independent Extra Ball Lottery - Separate Main and Extra Numbers
+            
+            // Main Predicted Numbers
+            numbersHtml += '<h5 style="margin-bottom: 10px; color: #0c5aa6;"><strong>Main Predicted Numbers:</strong></h5>';
+            numbersHtml += '<div class="predicted-numbers-list" style="margin-bottom: 15px;">';
+            
+            for (var i = 0; i < predictedNumbers.length; i++) {
+                var number = predictedNumbers[i].trim();
+                var className = 'combination-number';
+                
+                if (drawnNumbers.indexOf(number) !== -1) {
+                    className += ' winning-number';
+                }
+                
+                numbersHtml += '<span class="' + className + '" style="margin-right: 8px;">' + String(number).padStart(2, '0') + '</span>';
+            }
+            
+            numbersHtml += '</div>';
+            
+            // Extra Predicted Numbers
+            numbersHtml += '<h5 style="margin-bottom: 10px; color: #0c5aa6;"><strong>Extra Predicted Numbers:</strong></h5>';
+            numbersHtml += '<div class="extra-predicted-numbers-list">';
+            
+            if (response.filter.extra_balls) {
+                if (response.filter.extra_balls === 'ALL') {
+                    // Display all possible extra numbers from occurrences data
+                    if (response.extra_ball_occurrences && response.extra_ball_occurrences.length > 0) {
+                        // Sort extra ball numbers numerically
+                        var sortedExtraBalls = response.extra_ball_occurrences.slice().sort(function(a, b) {
+                            return parseInt(a.value) - parseInt(b.value);
+                        });
+                        
+                        for (var k = 0; k < sortedExtraBalls.length; k++) {
+                            var occurrence = sortedExtraBalls[k];
+                            var extraNumber = occurrence.value;
+                            var extraClassName = 'combination-number';
+                            
+                            if (bonusNumbers.indexOf(extraNumber.toString()) !== -1) {
+                                extraClassName += ' bonus-number-match';
+                            }
+                            
+                            numbersHtml += '<span class="' + extraClassName + '" style="margin-right: 8px;">' + String(extraNumber).padStart(2, '0') + '</span>';
+                        }
+                    } else {
+                        numbersHtml += '<span style="color: #6c757d; font-style: italic;">All extra numbers included</span>';
+                    }
+                } else {
+                    var extraNumbers = response.filter.extra_balls.split(',');
+                    for (var j = 0; j < extraNumbers.length; j++) {
+                        var extraNumber = extraNumbers[j].trim();
+                        var extraClassName = 'combination-number';
+                        
+                        if (bonusNumbers.indexOf(extraNumber) !== -1) {
+                            extraClassName += ' bonus-number-match';
+                        }
+                        
+                        numbersHtml += '<span class="' + extraClassName + '" style="margin-right: 8px;">' + String(extraNumber).padStart(2, '0') + '</span>';
+                    }
+                }
+            } else {
+                numbersHtml += '<span style="color: #6c757d; font-style: italic;">No extra numbers predicted</span>';
+            }
+            
+            numbersHtml += '</div>';
+            
+        } else {
+            // Regular Lottery - Combined Predicted Numbers
+            numbersHtml += '<h5 style="margin-bottom: 10px; color: #0c5aa6;"><strong>Predicted Numbers:</strong></h5>';
+            numbersHtml += '<div class="predicted-numbers-list">';
+            
+            for (var i = 0; i < predictedNumbers.length; i++) {
+                var number = predictedNumbers[i].trim();
+                var className = 'combination-number';
+                
+                if (drawnNumbers.indexOf(number) !== -1) {
+                    className += ' winning-number';
+                } else if (bonusNumbers.indexOf(number) !== -1) {
+                    className += ' bonus-number-match';
+                }
+                
+                numbersHtml += '<span class="' + className + '" style="margin-right: 8px;">' + String(number).padStart(2, '0') + '</span>';
+            }
+            
+            numbersHtml += '</div>';
+        }
+        
+        // Add (TBD) indicator if draw is not available
+        if (response.display_mode === 'tbd') {
+            numbersHtml += '<span style="margin-left: 15px; color: #6c757d; font-style: italic;">(TBD)</span>';
+        }
+        
+        predictedContainer.html(numbersHtml);
     }
     
     function getResultSortValue(category) {

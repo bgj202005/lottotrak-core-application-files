@@ -215,14 +215,8 @@
 							// Use regular point calculation for standard lotteries
 							for ($i = 1; $i <= $max_balls; $i++) {
 								// Ball points
-								if ($i > $lottery->balls_drawn && $lottery->duplicate_extra_ball && !empty($lottery->parsed_dupextra_wins)) {
-									// For duplicate_extra_ball lotteries, use parsed_dupextra_wins for extra ball
-									$ball_number = $lottery->last_drawn['extra'];
-									$wins = isset($lottery->parsed_dupextra_wins[$ball_number]) ? $lottery->parsed_dupextra_wins[$ball_number] : array();
-								} else {
-									// Regular handling for main balls or non-duplicate_extra_ball lotteries
-									$wins = ($i > $lottery->balls_drawn ? $lottery->last_drawn['extra_win'] : $lottery->last_drawn['ball'.$i.'_win']);
-								}
+								// Regular handling for all balls including duplicate extra balls
+								$wins = ($i > $lottery->balls_drawn ? $lottery->last_drawn['extra_win'] : $lottery->last_drawn['ball'.$i.'_win']);
 								
 								$points_total = 0;
 								foreach ($wins as $key => $value) {
@@ -335,17 +329,9 @@
 											// Enhanced display for independent extra ball lotteries
 											$ball_number = ($b > $cd ? $lottery->last_drawn['extra'] : $lottery->last_drawn['ball'.$b]);
 											
-											// For extra ball on independent extra ball lotteries, use dupextra_wins data
-											if ($b > $cd && $lottery->duplicate_extra_ball && !empty($lottery->parsed_dupextra_wins)) {
-												// Use dupextra_wins data for extra ball
-												$extra_ball_key = 'extra_' . $ball_number; // e.g., 'extra_4' for extra ball 4
-												$wins = isset($lottery->parsed_dupextra_wins[$extra_ball_key]) ? $lottery->parsed_dupextra_wins[$extra_ball_key] : array();
-												$total_winners = array_sum($wins);
-											} else {
-												// Regular enhanced display for main balls or non-dupextra extra balls
-												$wins = isset($lottery->enhanced_parsed_wins[$ball_number]) ? $lottery->enhanced_parsed_wins[$ball_number] : array();
-												$total_winners = array_sum($wins);
-											}
+											// Regular enhanced display for all balls including duplicate extra balls
+											$wins = isset($lottery->enhanced_parsed_wins[$ball_number]) ? $lottery->enhanced_parsed_wins[$ball_number] : array();
+											$total_winners = array_sum($wins);
 											
 											// Calculate points for enhanced display
 											$points_total = 0;
@@ -402,6 +388,7 @@
 												if (strpos($key, "_points") === false) $total_winners += intval($value);
 											}
 										}
+										$percentage_total = 0; // Initialize percentage total for both enhanced and regular display
 										?>
 										<table class="table table-bordered table-sm mb-3 w-100 mx-auto">
 											<thead class="thead-light">
@@ -439,6 +426,11 @@
 													);
 													
 													foreach ($category_mapping as $category_key => $category_info) {
+														// Skip extra categories when extra_included = 0
+														if (!$lottery->extra_included && (strpos($category_key, '_extra') !== false || $category_key === 'extra')) {
+															continue;
+														}
+														
 														// For duplicate_extra_ball lotteries, only show categories that exist in lottery_prize_profiles
 														if ($lottery->duplicate_extra_ball && isset($lottery->valid_prize_categories)) {
 															if (!in_array($category_key, $lottery->valid_prize_categories)) {
@@ -450,6 +442,7 @@
 														$points = $winners * $category_info['points'];
 														$range = $lottery->last_drawn['range'] ?? 100; // Use range for percentage calculation
 														$percentage = $range > 0 ? round(($winners / $range) * 100, 2) : 0;
+														$percentage_total += $percentage; // Add to percentage total
 														?>
 														<tr>
 															<td><?= $category_info['label'] ?></td>
@@ -462,10 +455,17 @@
 													// Regular display
 													foreach ($wins as $prize => $winners) {
 														if (strpos($prize, "_points") !== false) continue; // Only process main categories
+														
+														// Skip extra categories when extra_included = 0
+														if (!$lottery->extra_included && (strpos($prize, '_extra') !== false || $prize === 'extra')) {
+															continue;
+														}
+														
 														$points = isset($wins[$prize . '_points']) ? $wins[$prize . '_points'] : 0;
 														$points_total += $points;
 														$range = $lottery->last_drawn['range'] ?? 100; // Use range for percentage calculation
 														$percentage = $range > 0 ? round(($winners / $range) * 100, 2) : 0;
+														$percentage_total += $percentage; // Add to percentage total
 														switch ($prize) {
 															case "9_win": $label = "9 out of $cd Winners"; break;
 															case "8_win_extra": $label = "8 out of $cd Winners + Extra"; break;
@@ -502,7 +502,7 @@
 												<tr>
 													<th colspan="2" class="text-right">Total Points:</th>
 													<th><?= $points_total ?></th>
-													<th></th>
+													<th><?= round($percentage_total, 2) ?>%</th>
 												</tr>
 											</tfoot>
 										</table>
@@ -582,6 +582,7 @@
 												if (strpos($key, "_points") === false) $total_winners_pos += intval($value);
 											}
 										}
+										$percentage_total_pos = 0; // Initialize percentage total for both enhanced and regular display
 										?>
 										<table class="table table-bordered table-sm mb-3 w-100 mx-auto">
 											<thead class="thead-light">
@@ -619,6 +620,11 @@
 													);
 													
 													foreach ($category_mapping as $category_key => $category_info) {
+														// Skip extra categories when extra_included = 0
+														if (!$lottery->extra_included && (strpos($category_key, '_extra') !== false || $category_key === 'extra')) {
+															continue;
+														}
+														
 														// For duplicate_extra_ball lotteries, only show categories that exist in lottery_prize_profiles
 														if ($lottery->duplicate_extra_ball && isset($lottery->valid_prize_categories)) {
 															if (!in_array($category_key, $lottery->valid_prize_categories)) {
@@ -630,6 +636,7 @@
 														$points = $winners * $category_info['points'];
 														$range = $lottery->last_drawn['range'] ?? 100; // Use range for percentage calculation
 														$percentage = $range > 0 ? round(($winners / $range) * 100, 2) : 0;
+														$percentage_total_pos += $percentage; // Add to percentage total
 														?>
 														<tr>
 															<td><?= $category_info['label'] ?></td>
@@ -642,10 +649,17 @@
 													// Regular display
 													foreach ($positions as $prize => $winners) {
 														if (strpos($prize, "_points") !== false) continue;
+														
+														// Skip extra categories when extra_included = 0
+														if (!$lottery->extra_included && (strpos($prize, '_extra') !== false || $prize === 'extra')) {
+															continue;
+														}
+														
 														$points = isset($positions[$prize . '_points']) ? $positions[$prize . '_points'] : 0;
 														$points_total_pos += $points;
 														$range = $lottery->last_drawn['range'] ?? 100; // Use range for percentage calculation
 														$percentage = $range > 0 ? round(($winners / $range) * 100, 2) : 0;
+														$percentage_total_pos += $percentage; // Add to percentage total
 														switch ($prize) {
 															case "9_win": $label = "9 out of $cd Winners"; break;
 															case "8_win_extra": $label = "8 out of $cd Winners + Extra"; break;
@@ -682,7 +696,7 @@
 												<tr>
 													<th colspan="2" class="text-right">Total Points:</th>
 													<th><?= $points_total_pos ?></th>
-													<th></th>
+													<th><?= round($percentage_total_pos, 2) ?>%</th>
 												</tr>
 											</tfoot>
 										</table>

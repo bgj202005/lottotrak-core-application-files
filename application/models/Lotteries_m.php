@@ -708,15 +708,18 @@ class Lotteries_m extends MY_Model
 	}
 	
 	/** 
-	* Load Draws with Draw Number
+	* Load Draws with Draw Number (Original method - kept for backwards compatibility)
 	* 
 	* @param 	string	$table
+	* @param 	int		$limit
 	* @param 	boolean $trnd
 	* @return   object	Database Object of draws
 	*/
 	public function load_draws($table, $limit = 100, $trnd = 0)
 	{
-		$range = $limit; // Fixed: removed the +1 to match load_history behavior
+		// MySQL's (@var:=@var-1) decrements BEFORE assignment
+		// For "Last 100" to start at draw number 100, we need @draw_number = 101
+		$range = $limit + 1; // Add 1 to account for MySQL's pre-decrement behavior
 		$this->db->query('SET @draw_number = '.$range.'; '); // Add a Draw Number to the Draw List
 		$where = (!$trnd ? '' : ' WHERE extra <> "0"');
 		$query = $this->db->query('SELECT *, 
@@ -724,6 +727,66 @@ class Lotteries_m extends MY_Model
 				FROM '.$table.$where. 
 				' ORDER BY draw_date DESC LIMIT '.$limit);				
 	return $query->result(); 	// Return the Draw History
+	}
+
+	/** 
+	* Load Draws with Pagination Support for Better Performance
+	* 
+	* @param 	string	$table
+	* @param 	int		$limit 		Records per page
+	* @param 	int 	$offset 	Starting point
+	* @param 	boolean $trnd		Filter for trend analysis
+	* @param 	int		$total_range Total range for draw numbering
+	* @return   object	Database Object of draws
+	*/
+	public function load_draws_paginated($table, $limit = 100, $offset = 0, $trnd = 0, $requested_range = null)
+	{
+		// If requested_range is not provided, get the total count
+		if ($requested_range === null) {
+			$count_where = (!$trnd ? '' : ' WHERE extra <> "0"');
+			$count_query = $this->db->query('SELECT COUNT(*) as total FROM '.$table.$count_where);
+			$requested_range = $count_query->row()->total;
+		}
+		
+		// Ensure we don't try to fetch data beyond what's available
+		// If offset is beyond the requested range, return empty result
+		if ($offset >= $requested_range) {
+			return array();
+		}
+		
+		// Calculate starting draw number for this page
+		// For "Last 100": page 1 should start at 100, page 2 at (100-limit), etc.
+		$desired_start_number = $requested_range - $offset;
+		
+		// Ensure we don't go below draw number 1
+		if ($desired_start_number <= 0) {
+			$desired_start_number = 1;
+		}
+		
+		// MySQL's (@var:=@var-1) decrements BEFORE assignment
+		// So to get first row as N, we need to set @var = N+1
+		$this->db->query('SET @draw_number = '.($desired_start_number + 1).'; '); 
+		$where = (!$trnd ? '' : ' WHERE extra <> "0"');
+		$query = $this->db->query('SELECT *, 
+				(@draw_number:=@draw_number - 1) AS draw 
+				FROM '.$table.$where. 
+				' ORDER BY draw_date DESC LIMIT '.$limit.($offset > 0 ? ' OFFSET '.$offset : ''));				
+		
+		return $query->result(); 	
+	}
+
+	/** 
+	* Get total count of draws for pagination
+	* 
+	* @param 	string	$table
+	* @param 	boolean $trnd
+	* @return   int		Total number of draws
+	*/
+	public function get_draws_count($table, $trnd = 0)
+	{
+		$where = (!$trnd ? '' : ' WHERE extra <> "0"');
+		$query = $this->db->query('SELECT COUNT(*) as total FROM '.$table.$where);
+		return $query->row()->total;
 	}
 
 	/** 
@@ -994,6 +1057,10 @@ class Lotteries_m extends MY_Model
 	**/
 	public function prize_nulled($submit_prizes, $db_prizes)
 	{
+		// If no existing prize profile exists, just return the submitted prizes
+		if (empty($db_prizes) || !is_array($db_prizes)) {
+			return (!empty($submit_prizes) ? $submit_prizes : FALSE);
+		}
 		
 		foreach ($db_prizes as $prize => $active)
 		{

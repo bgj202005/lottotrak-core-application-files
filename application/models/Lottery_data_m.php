@@ -363,7 +363,7 @@ class Lottery_data_m extends MY_Model
      */
     public function get_all_user_combination_filters($lottery_id, $user_id)
     {
-        $this->db->select('id, combo_id, file_name, active');
+        $this->db->select('id, combo_id, file_name, active, CCCC');
         $this->db->from('lottery_combination_filters');
         $this->db->where('lottery_id', $lottery_id);
         $this->db->where('file_name LIKE', '%ADMIN' . sprintf('%02d', $user_id));

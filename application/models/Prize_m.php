@@ -934,4 +934,183 @@ class Prize_m extends MY_Model
         
         return $count;
     }
+
+    /**
+     * Check if lottery highlights need updating and update if necessary
+     * @param int $lottery_id Lottery ID to check
+     * @return array Result with status and message
+     */
+    public function check_and_update_lottery_highlights($lottery_id)
+    {
+        // Load required models
+        $this->load->model('lotteries_m');
+        $this->load->model('history_m');
+        
+        // Get lottery information
+        $lottery = $this->lotteries_m->get($lottery_id);
+        if (!$lottery) {
+            return array(
+                'status' => 'error',
+                'message' => 'Lottery not found'
+            );
+        }
+        
+        // Get table name for this lottery
+        $table_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+        
+        // Check if lottery table exists
+        if (!$this->lotteries_m->lotto_table_exists($table_name)) {
+            return array(
+                'status' => 'error',
+                'message' => 'Lottery table does not exist: ' . $table_name
+            );
+        }
+        
+        // Get the latest draw from the lottery table
+        $latest_draw = $this->get_latest_lottery_draw($table_name);
+        if (!$latest_draw) {
+            return array(
+                'status' => 'error',
+                'message' => 'No draws found in lottery table'
+            );
+        }
+        
+        // Get current highlights record
+        $highlights = $this->history_m->glance_exists($lottery_id);
+        
+        // If no highlights exist, or if the draw_id is outdated
+        if (!$highlights || $highlights->draw_id < $latest_draw->id) {
+            // Update the statistics and highlights
+            $update_result = $this->update_lottery_highlights($lottery_id, $lottery, $table_name, $latest_draw);
+            
+            if ($update_result['status'] === 'success') {
+                $draw_date = date('Y-m-d', strtotime($latest_draw->draw_date));
+                return array(
+                    'status' => 'updated',
+                    'message' => "Statistics have been updated to draw {$draw_date}"
+                );
+            } else {
+                return $update_result;
+            }
+        }
+        
+        // No update needed
+        return array(
+            'status' => 'current',
+            'message' => 'Statistics are up to date'
+        );
+    }
+    
+    /**
+     * Get the latest draw from a lottery table
+     * @param string $table_name Lottery table name
+     * @return object|false Latest draw record or false if none found
+     */
+    private function get_latest_lottery_draw($table_name)
+    {
+        $this->db->reset_query();
+        $this->db->select('id, draw_date');
+        $this->db->from($table_name);
+        $this->db->order_by('id', 'DESC');
+        $this->db->limit(1);
+        
+        $query = $this->db->get();
+        return $query->row();
+    }
+    
+    /**
+     * Update lottery highlights with new statistics
+     * @param int $lottery_id Lottery ID
+     * @param object $lottery Lottery object
+     * @param string $table_name Lottery table name
+     * @param object $latest_draw Latest draw record
+     * @return array Result with status and message
+     */
+    private function update_lottery_highlights($lottery_id, $lottery, $table_name, $latest_draw)
+    {
+        try {
+            // Load required models
+            $this->load->model('statistics_m');
+            
+            // Check if statistics exist for this lottery
+            if (!$this->statistics_m->lottery_stats_exist($table_name)) {
+                return array(
+                    'status' => 'error',
+                    'message' => 'Statistics must be calculated first in Statistics menu'
+                );
+            }
+            
+            // Get total number of draws
+            $total_draws = $this->lotteries_m->db_row_count($table_name);
+            
+            // Determine range (use last 100 draws or all if less than 100)
+            $range = ($total_draws > 100) ? 100 : $total_draws;
+            
+            // Load history for calculations
+            $drawings = $this->history_m->load_history($table_name, $lottery_id, $range, 0);
+            if (!$drawings) {
+                return array(
+                    'status' => 'error',
+                    'message' => 'Could not load draw history for calculations'
+                );
+            }
+            
+            // Check if highlights record exists and preserve existing settings
+            $existing_highlights = $this->history_m->glance_exists($lottery_id);
+            $extra_included = ($existing_highlights) ? $existing_highlights->extra_included : 0;
+            $extra_draws = ($existing_highlights) ? $existing_highlights->extra_draws : 0;
+            
+            // Calculate all statistics using the preserved settings
+            $trends = $this->history_m->trend_history($drawings, $lottery->balls_drawn, $extra_included);
+            $repeats = $this->history_m->repeat_history($drawings, $lottery->balls_drawn, $extra_included);
+            
+            // Load drawings with extra draws for other calculations
+            $drawings_with_extra = $this->history_m->load_history($table_name, $lottery_id, $range, $extra_draws);
+            
+            $consecutives = $this->history_m->consecutive_history($drawings_with_extra, $lottery->balls_drawn, $extra_draws, $extra_included);
+            $adjacents = $this->history_m->adjacents_history($drawings_with_extra, $lottery->balls_drawn);
+            $sums_history = $this->history_m->sums_history($drawings_with_extra);
+            $digits_history = $this->history_m->digits_history($drawings_with_extra);
+            $range_history = $this->history_m->range_history($drawings_with_extra, $lottery->balls_drawn);
+            $parity_history = $this->history_m->parity_history($drawings_with_extra, $lottery->balls_drawn, $extra_draws, $table_name);
+            
+            // Prepare data for saving with preserved settings
+            $highlight_data = array(
+                'range' => $range,
+                'trends' => $trends,
+                'repeats' => $repeats,
+                'consecutives' => $consecutives,
+                'adjacents' => $adjacents,
+                'winning_sums' => $sums_history,
+                'winning_digits' => $digits_history,
+                'number_range' => $range_history,
+                'parity' => $parity_history,
+                'draw_id' => $latest_draw->id,
+                'lottery_id' => $lottery_id,
+                'extra_included' => $extra_included,
+                'extra_draws' => $extra_draws
+            );
+            
+            // Save the updated highlights
+            $save_result = $this->history_m->glance_data_save($highlight_data, $existing_highlights);
+            
+            if ($save_result) {
+                return array(
+                    'status' => 'success',
+                    'message' => 'Highlights updated successfully'
+                );
+            } else {
+                return array(
+                    'status' => 'error',
+                    'message' => 'Failed to save updated highlights to database'
+                );
+            }
+            
+        } catch (Exception $e) {
+            return array(
+                'status' => 'error',
+                'message' => 'Error updating highlights: ' . $e->getMessage()
+            );
+        }
+    }
 }

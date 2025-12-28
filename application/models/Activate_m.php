@@ -67,16 +67,53 @@ class Activate_m extends MY_Model
         $now = date('Y-m-d H:i:s');
         $subscriptionstatus = 0; // New Member and not active
        
-        $sql = "SELECT * FROM ".$this->_table_name." where subscription_key = ".$this->db->escape($subscriptionkey)." and member_active = ".$this->db->escape($subscriptionstatus)." 
-        and (DATEDIFF(CURDATE(), reg_time) <= 5) LIMIT 1";
+        // First check if member exists and get their current status
+        $member_check = "SELECT * FROM ".$this->_table_name." WHERE subscription_key = ".$this->db->escape($subscriptionkey)." LIMIT 1";
+        $member_result = $this->db->query($member_check);
+        $member = $member_result->row();
+        
+        if (empty($member)) {
+            // No member found with this key
+            return FALSE;
+        }
+        
+        if ($member->member_active == 1) {
+            // Account already activated - link should no longer work
+            return FALSE;
+        }
+        
+        // Check if validation_expiry field exists
+        $fields = $this->db->field_data($this->_table_name);
+        $has_expiry_field = false;
+        foreach ($fields as $field) {
+            if ($field->name === 'validation_expiry') {
+                $has_expiry_field = true;
+                break;
+            }
+        }
+        
+        if ($has_expiry_field) {
+            // Use validation_expiry field if it exists
+            $sql = "SELECT * FROM ".$this->_table_name." WHERE subscription_key = ".$this->db->escape($subscriptionkey)." 
+                    AND member_active = ".$this->db->escape($subscriptionstatus)." 
+                    AND (validation_expiry IS NULL OR validation_expiry > ".$this->db->escape($now).") 
+                    LIMIT 1";
+        } else {
+            // Fall back to old 5-day method
+            $sql = "SELECT * FROM ".$this->_table_name." WHERE subscription_key = ".$this->db->escape($subscriptionkey)." 
+                    AND member_active = ".$this->db->escape($subscriptionstatus)." 
+                    AND (DATEDIFF(CURDATE(), reg_time) <= 5) 
+                    LIMIT 1";
+        }
+        
         $result = $this->db->query($sql);
         $row = $result->row();
         
-        if (empty($row)) 
-		{
-			return FALSE;
-		}
-	return $row->id;
+        if (empty($row)) {
+            return FALSE;
+        }
+        
+        return $row->id;
     }
     
     /**
@@ -91,6 +128,17 @@ class Activate_m extends MY_Model
 	     $result = $this->db->query($sql);
 	     $row = $result->row();
 	     return ($result->num_rows() === 1) ? $row : FALSE;
+     }
+     
+     /**
+      * Get member by subscription token (for checking activation status)
+      */
+     public function get_member_by_token($token)
+     {
+         $sql = "SELECT * FROM ".$this->_table_name." WHERE subscription_key = ".$this->db->escape($token)." LIMIT 1";
+         $result = $this->db->query($sql);
+         $row = $result->row();
+         return ($result->num_rows() === 1) ? $row : FALSE;
      }
      
     /**

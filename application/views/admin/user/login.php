@@ -1,5 +1,11 @@
 	<?php echo validation_errors('<div class="alert alert-warning" role="alert">', '</div>'); 
 	echo $this->session->flashdata('error');
+	
+	// Display session timeout message if present
+	if ($this->session->flashdata('timeout_message')) {
+		echo '<div class="alert alert-info" role="alert">' . $this->session->flashdata('timeout_message') . '</div>';
+	}
+	
 	echo (isset($action) ? form_open($action) : form_open()); ?>
 	<table class="table table-borderless">
 		<tbody>

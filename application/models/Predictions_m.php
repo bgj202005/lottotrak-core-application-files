@@ -448,7 +448,7 @@ class Predictions_m extends MY_Model
 		return $result > 0;
 	}
 	/**
-     * Get combination files for a lottery
+     * Get combination files for a lottery with active status based on saved filters
      * @param int $lottery_id
      * @return array
      */
@@ -463,12 +463,21 @@ class Predictions_m extends MY_Model
             return []; // Return an empty array if the lottery is not found
         }
         $balls_drawn = $lottery->balls_drawn;
-        // Fetch combination files that match the balls_drawn value
-        $this->db->select('id, file_name, N, R, CCCC');
-        $this->db->from('lottery_combination_files');
-        $this->db->where('R', $balls_drawn); // Match the balls_drawn value
-        $this->db->order_by('file_name', 'ASC');
-		$query = $this->db->get();
+        
+        // Get current user ID for active status check
+        $CI =& get_instance();
+        $current_user_id = $CI->session->userdata('id');
+        
+        // Fetch combination files with left join to check for active saved filters
+        $this->db->select('lcf.id, lcf.file_name, lcf.N, lcf.R, lcf.CCCC, 
+                          COALESCE(MAX(lfc.active), 0) as active');
+        $this->db->from('lottery_combination_files lcf');
+        $this->db->join('lottery_combination_filters lfc', 
+                       'lcf.id = lfc.combo_id AND lfc.user = 1 AND lfc.user_id = ' . (int)$current_user_id, 'left');
+        $this->db->where('lcf.R', $balls_drawn); // Match the balls_drawn value
+        $this->db->group_by('lcf.id, lcf.file_name, lcf.N, lcf.R, lcf.CCCC');
+        $this->db->order_by('lcf.file_name', 'ASC');
+        $query = $this->db->get();
         return $query->result_array(); // Return the result as an array
     }
 	/**
@@ -608,6 +617,211 @@ class Predictions_m extends MY_Model
 		}
     return $result;
 	}
+
+	/**
+	 * Retrieves and parses H-W-C data with count and rank for prediction futures dropdown.
+	 * Returns dropdown array sorted by count (descending) with format: 'h-w-c' => 'h-w-c (count|#N ranked)'
+	 *
+	 * @param int $lottery_id The ID of the lottery.
+	 * @return array Dropdown options array for H-W-C with count and rank
+	 */
+	public function get_h_w_c_range_with_rank($lottery_id)
+	{
+		// Get the H-W-C range data (count data)
+		$this->db->select('h_w_c_range');
+		$this->db->from('lottery_h_w_c_stats');
+		$this->db->where('lottery_id', $lottery_id);
+		$row = $this->db->get()->row();
+		
+		$hwc_counts = [];
+		if ($row && !empty($row->h_w_c_range)) {
+			$items = explode(',', $row->h_w_c_range);
+			foreach ($items as $item) {
+				$parts = explode('=', $item);
+				if (count($parts) == 2) {
+					$label = trim($parts[0]);
+					$total = (int)trim($parts[1]);
+					if ($total > 0) { // Only include if total > 0
+						$hwc_counts[$label] = $total;
+					}
+				}
+			}
+		}
+		
+		// Get the wins data to calculate points for ranking
+		$this->db->select('wins');
+		$this->db->from('lottery_h_w_c_stats');
+		$this->db->where('lottery_id', $lottery_id);
+		$wins_row = $this->db->get()->row();
+		
+		$hwc_points = [];
+		if ($wins_row && !empty($wins_row->wins)) {
+			$hwc_points = $this->parse_hwc_points($wins_row->wins, $lottery_id);
+		}
+		
+		// Calculate ranks based on points (highest points = rank #1)
+		// Each pattern gets a unique rank, even when points are tied
+		$hwc_ranks = [];
+		if (!empty($hwc_points)) {
+			// Points are already sorted by parse_hwc_points with tie-breaking
+			$rank = 1;
+			
+			foreach ($hwc_points as $pattern => $points) {
+				$hwc_ranks[$pattern] = $rank;
+				$rank++; // Each pattern gets a unique sequential rank
+			}
+		}
+		
+		// Sort hwc_counts by count descending (most frequent first)
+		arsort($hwc_counts);
+		
+		// Start with patterns that have occurrence counts (these definitely occurred)
+		$result = [];
+		
+		// First pass: Add only patterns with counts > 0 AND ranks (exclude unranked patterns)
+		foreach ($hwc_counts as $pattern => $count) {
+			if ($count > 0) {
+				$rank = isset($hwc_ranks[$pattern]) ? $hwc_ranks[$pattern] : 999;
+				
+				// Only include ranked patterns (exclude unranked patterns with rank = 999)
+				if ($rank != 999) {
+					$result[$pattern] = $pattern . ' (' . $count . ') - Rank #' . $rank;
+				}
+			}
+		}
+		
+		// Get patterns that need rank reassignment (only ranked ones with counts > 0)
+		$ranked_patterns = [];
+		foreach ($result as $pattern => $display) {
+			if (strpos($display, 'Rank #') !== false) {
+				$rank = isset($hwc_ranks[$pattern]) ? $hwc_ranks[$pattern] : 999;
+				$count = $hwc_counts[$pattern];
+				$points = isset($hwc_points[$pattern]) ? $hwc_points[$pattern] : 0;
+				
+				$ranked_patterns[$pattern] = [
+					'count' => $count,
+					'original_rank' => $rank,
+					'points' => $points
+				];
+			}
+		}
+		
+		// Sort ranked patterns to get proper sequential order (already sorted by parse_hwc_points)
+		// Re-assign sequential ranks starting from 1
+		$new_rank = 1;
+		foreach ($hwc_points as $pattern => $points) {
+			if (isset($ranked_patterns[$pattern])) {
+				$count = $ranked_patterns[$pattern]['count'];
+				$result[$pattern] = $pattern . ' (' . $count . ') - Rank #' . $new_rank;
+				$new_rank++;
+			}
+		}
+		
+		return $result;
+	}
+
+	/**
+	 * Parse wins string to calculate points for each H-W-C pattern
+	 *
+	 * @param string $wins_string The wins string from lottery_h_w_c_stats
+	 * @param int $lottery_id The lottery ID to get prize profile
+	 * @return array Array of H-W-C pattern => points
+	 */
+	private function parse_hwc_points($wins_string, $lottery_id)
+	{
+		// Get prize profile for this lottery to determine point values
+		$this->load->model('statistics_m');
+		$prize_profile = $this->statistics_m->get_lottery_prize_profile($lottery_id);
+		if(empty($prize_profile)) {
+			return [];
+		}
+		
+		// Define point system based on follower wins
+		$category_points = array(
+			'extra' => 1,		'2_win' => 4,		'2_win_extra' => 5,
+			'3_win' => 6,		'3_win_extra' => 7,	'4_win' => 8,
+			'4_win_extra' => 9,	'5_win' => 10,		'5_win_extra' => 11,
+			'6_win' => 12,		'6_win_extra' => 13,'7_win' => 14,
+			'7_win_extra' => 15,'8_win' => 16,		'8_win_extra' => 17,
+			'9_win' => 18,		'9_win_extra' => 19
+		);
+		
+		$hwc_points = [];
+		$hwc_entries = explode('|', $wins_string);
+		
+		foreach($hwc_entries as $entry) {
+			if(empty($entry)) continue;
+			
+			$parts = explode('=', $entry);
+			if(count($parts) != 2) continue;
+			
+			$hwc_pattern = $parts[0];  
+			$win_counts = $parts[1];   
+			$counts = explode(',', $win_counts);
+			
+			// Get enabled prize categories (matching History controller logic)
+			$enabled_categories = array();
+			$category_index = 0;
+			
+			foreach($prize_profile as $category => $enabled) {
+				if($enabled == 1 && $category != 'lottery_id' && $category != 'id') {
+					$enabled_categories[$category_index] = $category;
+					$category_index++;
+				}
+			}
+			
+			// Calculate total points and track highest category for tie-breaking
+			$total_points = 0;
+			$highest_category_points = 0;
+			$win_breakdown = [];
+			
+			foreach($counts as $index => $count) {
+				$count = intval($count);
+				if($count > 0 && isset($enabled_categories[$index])) {
+					$category = $enabled_categories[$index];
+					if(isset($category_points[$category])) {
+						$points_per_win = $category_points[$category];
+						$total_points += $count * $points_per_win;
+						$win_breakdown[$category] = $count;
+						
+						// Track highest category for tie-breaking
+						if($points_per_win > $highest_category_points) {
+							$highest_category_points = $points_per_win;
+						}
+					}
+				}
+			}
+			
+			// Only include patterns with points > 0 (matching History controller logic)
+			if($total_points > 0) {
+				$hwc_points[$hwc_pattern] = [
+					'total_points' => $total_points,
+					'highest_category' => $highest_category_points,
+					'win_breakdown' => $win_breakdown
+				];
+			}
+		}
+		
+		// Sort by total points first, then by highest category for tie-breaking
+		uasort($hwc_points, function($a, $b) {
+			// Primary sort: by total points (descending)
+			if($a['total_points'] != $b['total_points']) {
+				return $b['total_points'] - $a['total_points'];
+			}
+			
+			// Secondary sort: by highest category points (descending) for tie-breaking
+			return $b['highest_category'] - $a['highest_category'];
+		});
+		
+		// Convert back to simple points array for compatibility with existing code
+		$points_only = [];
+		foreach($hwc_points as $pattern => $data) {
+			$points_only[$pattern] = $data['total_points'];
+		}
+		
+		return $points_only;
+	}
+	
 	/**
 	 * Returns an associative array of actual ball numbers (including extra as +N) 
 	 * mapped to their total points, sorted descending by points.
@@ -1074,41 +1288,162 @@ class Predictions_m extends MY_Model
 	 */
 	public function hwc_only($lottery_id, $combination_size, $h_w_c)
 	{
-		// 1. Parse H-W-C group (e.g., "3-3-3 (17)")
-		preg_match('/(\d+)-(\d+)-(\d+)/', $h_w_c, $matches);
+		// Start performance timer for optimization tracking
+		$start_time = microtime(true);
+		
+		// 1. Parse H-W-C group (e.g., "3-3-3 (17)") - optimized regex
+		if (!preg_match('/(\d+)-(\d+)-(\d+)/', $h_w_c, $matches)) {
+			log_message('error', "Invalid H-W-C format: $h_w_c");
+			return FALSE;
+		}
+		
 		$h = (int)$matches[1];
 		$w = (int)$matches[2];
 		$c = (int)$matches[3];
-		// 2. Calculate scaled totals for combination size
+		
+		// 2. Calculate scaled totals for combination size - optimized calculation
 		$total = $h + $w + $c;
+		if ($total == 0) {
+			log_message('error', "Invalid H-W-C totals: $h-$w-$c");
+			return FALSE;
+		}
+		
 		$h_total = round(($h / $total) * $combination_size);
 		$w_total = round(($w / $total) * $combination_size);
 		$c_total = $combination_size - $h_total - $w_total; // Ensure total matches
-		// 3. Get HWC data from DB
+		
+		// 3. Get HWC data from DB with optimized caching
+		$hwc_data = $this->get_cached_hwc_data($lottery_id);
+		if (!$hwc_data) {
+			log_message('error', "H-W-C data not found for lottery $lottery_id");
+			return FALSE;
+		}
+		
+		// 4. Extract pre-parsed data from cache
+		$hots = $hwc_data['hots'];
+		$warms = $hwc_data['warms'];
+		$colds = $hwc_data['colds'];
+		$h_positions = $hwc_data['h_positions'];
+		$w_positions = $hwc_data['w_positions'];
+		$c_positions = $hwc_data['c_positions'];
+		
+		// 5. Select numbers for each group by top position counts - optimized selection
+		$selected = [];
+		$selected = array_merge($selected, $this->select_by_position_index_optimized($h_positions, $hots, $h_total));
+		$selected = array_merge($selected, $this->select_by_position_index_optimized($w_positions, $warms, $w_total));
+		$selected = array_merge($selected, $this->select_by_position_index_optimized($c_positions, $colds, $c_total));
+
+		$elapsed = microtime(true) - $start_time;
+		log_message('info', "H-W-C generation completed in " . round($elapsed * 1000, 2) . "ms for lottery $lottery_id");
+		
+		return implode(',', $selected);
+	}
+	/**
+	 * Optimized version of select_by_position_index with improved performance
+	 */
+	private function select_by_position_index_optimized($positions, $numbers, $limit) {
+		if ($limit <= 0) return [];
+		
+		// Sort positions by count (descending) - more efficient than arsort for smaller arrays
+		uasort($positions, function($a, $b) { return $b - $a; });
+		
+		$selected = [];
+		$selected_lookup = []; // Use array for faster duplicate checking
+		
+		foreach ($positions as $pos => $count) {
+			if (isset($numbers[$pos]) && !isset($selected_lookup[$numbers[$pos]])) {
+				$number = $numbers[$pos];
+				$selected[] = $number;
+				$selected_lookup[$number] = true;
+				if (count($selected) >= $limit) break;
+			}
+		}
+		return $selected;
+	}
+	
+	/**
+	 * Get cached H-W-C data with optimized parsing and caching
+	 */
+	private function get_cached_hwc_data($lottery_id) {
+		// Check static cache first
+		static $hwc_cache = [];
+		$cache_key = "hwc_data_$lottery_id";
+		
+		if (isset($hwc_cache[$cache_key])) {
+			return $hwc_cache[$cache_key];
+		}
+		
+		// Get raw data from database
 		$hwc = $this->statistics_m->h_w_c_exists($lottery_id);
 		$position_row = $this->statistics_m->hwc_history_exists($lottery_id);
-		if (!$hwc) {
-			return show_error('Hots Warms and Colds data not found for this lottery.');
-		} elseif(!$position_row || empty($position_row['position'])) {
-			return show_error('Position data not found for this lottery.');
+		
+		if (!$hwc || !$position_row || empty($position_row['position'])) {
+			return FALSE;
 		}
-		// 4. Parse numbers for each group (discard counts, keep order)
-		$hots = array_map('intval', array_map(function($v){ return explode('=', $v)[0]; }, explode(',', $hwc['hots'])));
-		$warms = array_map('intval', array_map(function($v){ return explode('=', $v)[0]; }, explode(',', $hwc['warms'])));
-		$colds = array_map('intval', array_map(function($v){ return explode('=', $v)[0]; }, explode(',', $hwc['colds'])));
-		// 5. Parse positions for each group
+		
+		// Parse and cache the data
+		$parsed_data = [
+			'hots' => $this->parse_hwc_numbers($hwc['hots']),
+			'warms' => $this->parse_hwc_numbers($hwc['warms']),
+			'colds' => $this->parse_hwc_numbers($hwc['colds']),
+		];
+		
+		// Parse positions efficiently
 		$parts = explode('|', $position_row['position']);
-		$h_positions = $this->parse_position_part($parts[0]); // [position => count]
-		$w_positions = $this->parse_position_part($parts[1]);
-		$c_positions = $this->parse_position_part($parts[2]);
-		// 6. Select numbers for each group by top position counts
-		$selected = [];
-		$selected = array_merge($selected, $this->select_by_position_index($h_positions, $hots, $h_total));
-		$selected = array_merge($selected, $this->select_by_position_index($w_positions, $warms, $w_total));
-		$selected = array_merge($selected, $this->select_by_position_index($c_positions, $colds, $c_total));
-
-	return implode(',', $selected);
+		$parsed_data['h_positions'] = $this->parse_position_part_optimized($parts[0]);
+		$parsed_data['w_positions'] = $this->parse_position_part_optimized($parts[1]);
+		$parsed_data['c_positions'] = $this->parse_position_part_optimized($parts[2]);
+		
+		// Cache the parsed data
+		$hwc_cache[$cache_key] = $parsed_data;
+		
+		// Prevent memory bloat - keep only last 5 lotteries in cache
+		if (count($hwc_cache) > 5) {
+			$hwc_cache = array_slice($hwc_cache, -5, 5, true);
+		}
+		
+		return $parsed_data;
 	}
+	
+	/**
+	 * Optimized parsing of H-W-C numbers (removes counts, keeps order)
+	 */
+	private function parse_hwc_numbers($hwc_string) {
+		if (empty($hwc_string)) return [];
+		
+		// Use more efficient parsing - split once and extract numbers
+		$pairs = explode(',', $hwc_string);
+		$numbers = [];
+		foreach ($pairs as $pair) {
+			$eq_pos = strpos($pair, '=');
+			if ($eq_pos !== false) {
+				$numbers[] = (int)substr($pair, 0, $eq_pos);
+			}
+		}
+		return $numbers;
+	}
+	
+	/**
+	 * Optimized version of parse_position_part
+	 */
+	private function parse_position_part_optimized($str) {
+		// Remove prefix more efficiently
+		$str = preg_replace('/^[HWC]>/', '', $str);
+		if (empty($str)) return [];
+		
+		$pairs = explode(',', $str);
+		$arr = [];
+		foreach ($pairs as $pair) {
+			$eq_pos = strpos($pair, '=');
+			if ($eq_pos !== false) {
+				$pos = (int)substr($pair, 0, $eq_pos);
+				$count = (int)substr($pair, $eq_pos + 1);
+				$arr[$pos] = $count;
+			}
+		}
+		return $arr;
+	}
+	
 	/**
 	 * Parses a position part string (e.g., "H>0=21,1=16,...") into an associative array.
 	 * The returned array maps position indices to their counts.
@@ -1162,7 +1497,10 @@ class Predictions_m extends MY_Model
 	 */
 	public function followers_only($lottery_id, $combination_size, $type, $select)
 	{
-		// Get followers and non-followers data from statistics_m
+		// Start performance timer for optimization tracking
+		$start_time = microtime(true);
+		
+		// Get followers and non-followers data from statistics_m (now cached)
 		$followers_row = $this->statistics_m->followers_exists($lottery_id);
 		$nonfollowers_row = $this->statistics_m->nonfollowers_exists($lottery_id);
 		if (!$followers_row) {
@@ -1170,53 +1508,106 @@ class Predictions_m extends MY_Model
 		}
 		$followers_field = $followers_row['lottery_followers'];
 		$nonfollowers_field = $nonfollowers_row ? $nonfollowers_row['lottery_nonfollowers'] : '';
-		// For ball_after, strip '+' if present (extra ball)
-		$select = trim($select);
-		if ($type === 'after_ball' && strpos($select, '+') === 0) {
-			$select = substr($select, 1);
-		}
-		$followers_groups = explode(',', $followers_field);
-		$nonfollowers_groups = $nonfollowers_field ? explode(',', $nonfollowers_field) : [];
-		$selected_followers = '';
-		$selected_nonfollowers = '';
-		if ($type === 'position') {
-			// $select is the position (1-based)
-			$position = (int)$select;
-			// Use the Nth group (1-based) for position N
-			if (isset($followers_groups[$position - 1])) {
-				$group = $followers_groups[$position - 1];
-				$selected_followers = substr($group, strpos($group, '>') + 1);
+		
+		// Cache key for parsed followers data
+		$cache_key = "followers_parsed_{$lottery_id}_{$type}_{$select}";
+		static $followers_cache = [];
+		
+		if (!isset($followers_cache[$cache_key])) {
+			// For ball_after, strip '+' if present (extra ball)
+			$select = trim($select);
+			if ($type === 'after_ball' && strpos($select, '+') === 0) {
+				$select = substr($select, 1);
 			}
-			if (isset($nonfollowers_groups[$position - 1])) {
-				$group = $nonfollowers_groups[$position - 1];
-				$selected_nonfollowers = substr($group, strpos($group, '>') + 1);
+			
+			// Pre-split the data to avoid repeated string operations
+			$followers_groups = explode(',', $followers_field);
+			$nonfollowers_groups = $nonfollowers_field ? explode(',', $nonfollowers_field) : [];
+			
+			$selected_followers = '';
+			$selected_nonfollowers = '';
+			
+			if ($type === 'position') {
+				// $select is the position (1-based)
+				$position = (int)$select;
+				// Use the Nth group (1-based) for position N
+				if (isset($followers_groups[$position - 1])) {
+					$group = $followers_groups[$position - 1];
+					$selected_followers = substr($group, strpos($group, '>') + 1);
+				}
+				if (isset($nonfollowers_groups[$position - 1])) {
+					$group = $nonfollowers_groups[$position - 1];
+					$selected_nonfollowers = substr($group, strpos($group, '>') + 1);
+				}
+			} else {
+				// Find the group for the selected ball (e.g., "34>") - optimized search
+				$search_prefix = $select . '>';
+				foreach ($followers_groups as $group) {
+					if (strpos($group, $search_prefix) === 0) {
+						$selected_followers = substr($group, strlen($search_prefix));
+						break;
+					}
+				}
+				foreach ($nonfollowers_groups as $group) {
+					if (strpos($group, $search_prefix) === 0) {
+						$selected_nonfollowers = substr($group, strlen($search_prefix));
+						break;
+					}
+				}
+			}
+			
+			if ($selected_followers === '') {
+				return FALSE;
+			}
+			
+			// Parse and cache the groups data
+			$groups = $this->parse_followers_groups_optimized($selected_followers, $selected_nonfollowers);
+			$followers_cache[$cache_key] = $groups;
+			
+			// Prevent memory bloat - keep only last 10 entries
+			if (count($followers_cache) > 10) {
+				$followers_cache = array_slice($followers_cache, -10, 10, true);
 			}
 		} else {
-			// Find the group for the selected ball (e.g., "34>")
-			foreach ($followers_groups as $group) {
-				if (strpos($group, $select . '>') === 0) {
-					$selected_followers = substr($group, strlen($select) + 1); // Remove "34>"
-					break;
-				}
-			}
-			foreach ($nonfollowers_groups as $group) {
-				if (strpos($group, $select . '>') === 0) {
-					$selected_nonfollowers = substr($group, strlen($select) + 1); // Remove "34>"
-					break;
-				}
-			}
+			$groups = $followers_cache[$cache_key];
 		}
-		if ($selected_followers === '') {
+		
+		// Early validation: Check if we have enough numbers
+		$total_numbers = 0;
+		foreach ($groups as $nums) {
+			$total_numbers += count($nums);
+		}
+		
+		if ($total_numbers == 0 || $total_numbers < $combination_size) {
+			if ($total_numbers < $combination_size) {
+				log_message('error', "followers_only: Insufficient follower numbers for lottery $lottery_id - need $combination_size, have $total_numbers");
+			}
 			return FALSE;
 		}
+		
+		// Optimized selection algorithm
+		$selected = $this->select_followers_numbers_optimized($groups, $combination_size);
+		
+		$elapsed = microtime(true) - $start_time;
+		log_message('info', "Followers generation completed in " . round($elapsed * 1000, 2) . "ms for lottery $lottery_id");
+		
+		return implode(',', $selected);
+	}
+	
+	/**
+	 * Optimized parsing of followers groups
+	 */
+	private function parse_followers_groups_optimized($selected_followers, $selected_nonfollowers) {
 		// Parse followers into dynamic groups by weight
 		$follower_numbers = explode('|', $selected_followers);
 		$groups = [];
+		
 		foreach ($follower_numbers as $item) {
-			if (strpos($item, '=') !== false) {
-				list($num, $weight) = explode('=', $item);
-				$num = trim($num);
-				$weight = (int)trim($weight);
+			$eq_pos = strpos($item, '=');
+			if ($eq_pos !== false) {
+				$num = trim(substr($item, 0, $eq_pos));
+				$weight = (int)substr($item, $eq_pos + 1);
+				
 				// Only add valid numbers (not empty, not 0, and numeric)
 				if ($num !== '' && $num !== '0' && is_numeric($num) && intval($num) > 0) {
 					if (!isset($groups[$weight])) {
@@ -1226,6 +1617,7 @@ class Predictions_m extends MY_Model
 				}
 			}
 		}
+		
 		// Parse non-followers group (0 group)
 		if (!empty($selected_nonfollowers)) {
 			$nonfollower_numbers = array_filter(array_map('trim', explode('|', $selected_nonfollowers)));
@@ -1233,19 +1625,25 @@ class Predictions_m extends MY_Model
 				return $num !== '' && $num !== '0' && is_numeric($num) && intval($num) > 0;
 			});
 		}
+		
 		// Sort groups by weight descending (so highest group first)
 		krsort($groups);
-		// Count total numbers in all groups
+		return $groups;
+	}
+	
+	/**
+	 * Optimized selection of numbers from followers groups
+	 */
+	private function select_followers_numbers_optimized($groups, $combination_size) {
 		$total_numbers = 0;
 		foreach ($groups as $nums) {
 			$total_numbers += count($nums);
 		}
-		if ($total_numbers == 0) {
-			return FALSE;
-		}
+		
 		// --- Improved: Ensure at least one pick from each group if possible ---
 		$picks = [];
 		$remaining = $combination_size;
+		
 		foreach ($groups as $weight => $nums) {
 			if ($remaining > 0 && count($nums) > 0) {
 				$picks[$weight] = 1;
@@ -1254,31 +1652,47 @@ class Predictions_m extends MY_Model
 				$picks[$weight] = 0;
 			}
 		}
-		// Distribute remaining picks proportionally
+		
+		// Distribute remaining picks proportionally with optimized calculation
+		// Distribute remaining picks proportionally with optimized calculation
 		if ($remaining > 0) {
 			foreach ($groups as $weight => $nums) {
 				if ($remaining <= 0) break;
-				$extra = round((count($nums) / $total_numbers) * $remaining);
-				$to_add = min($extra, count($nums) - $picks[$weight]);
+				$extra = max(1, round((count($nums) / $total_numbers) * $remaining));
+				$to_add = min($extra, count($nums) - $picks[$weight], $remaining);
 				$picks[$weight] += $to_add;
 				$remaining -= $to_add;
 			}
-			// If still remaining, fill in order
+			
+			// If still remaining, fill in order with safety check - optimized loop
 			while ($remaining > 0) {
+				$progress_made = false;
 				foreach ($groups as $weight => $nums) {
 					if ($remaining > 0 && $picks[$weight] < count($nums)) {
 						$picks[$weight]++;
 						$remaining--;
+						$progress_made = true;
 					}
+				}
+				
+				// If no progress was made, we've exhausted all available numbers
+				if (!$progress_made) {
+					log_message('error', "followers_only: Insufficient follower numbers - needed $combination_size, available " . ($combination_size - $remaining));
+					break;
 				}
 			}
 		}
-		// Select numbers from each group (first N)
+		
+		// Select numbers from each group (first N) - optimized selection
 		$selected = [];
 		foreach ($groups as $weight => $nums) {
-			$selected = array_merge($selected, array_slice($nums, 0, $picks[$weight]));
+			if ($picks[$weight] > 0) {
+				$selected_from_group = array_slice($nums, 0, $picks[$weight]);
+				$selected = array_merge($selected, $selected_from_group);
+			}
 		}
-		// If not enough numbers, fill from remaining numbers in any group
+		
+		// Final safety check - if not enough numbers, fill from any remaining
 		if (count($selected) < $combination_size) {
 			foreach ($groups as $nums) {
 				foreach ($nums as $num) {
@@ -1289,7 +1703,8 @@ class Predictions_m extends MY_Model
 				}
 			}
 		}
-    return implode(',', $selected);
+		
+		return $selected;
 	}
 	/**
 	 * Generates a set of numbers using the combined H-W-C and Followers method for a given lottery.
@@ -1310,116 +1725,204 @@ class Predictions_m extends MY_Model
 	 */
 	public function hwc_followers($lottery_id, $combination_size, $h_w_c, $follower_type, $follower_select)
 	{
-	// 1. Parse H-W-C group (e.g., "4-3-3")
-	preg_match('/(\d+)-(\d+)-(\d+)/', $h_w_c, $matches);
-	$h = (int)$matches[1];
-	$w = (int)$matches[2];
-	$c = (int)$matches[3];
-	// 2. Calculate scaled totals for combination size
-	$total = $h + $w + $c;
-	$h_total = round(($h / $total) * $combination_size);
-	$w_total = round(($w / $total) * $combination_size);
-	$c_total = $combination_size - $h_total - $w_total;
-	// 3. Get HWC data
-	$hwc = $this->statistics_m->h_w_c_exists($lottery_id);
-	$position_row = $this->statistics_m->hwc_history_exists($lottery_id);
-	if (!$hwc || !$position_row || empty($position_row['position'])) {
-		return FALSE;
-	}
-	// 4. Parse numbers for each group (discard counts, keep order)
-	$hots = array_map('intval', array_map(function($v){ return explode('=', $v)[0]; }, explode(',', $hwc['hots'])));
-	$warms = array_map('intval', array_map(function($v){ return explode('=', $v)[0]; }, explode(',', $hwc['warms'])));
-	$colds = array_map('intval', array_map(function($v){ return explode('=', $v)[0]; }, explode(',', $hwc['colds'])));
-	// 5. Parse positions for each group
-	$parts = explode('|', $position_row['position']);
-	$h_positions = $this->parse_position_part($parts[0]);
-	$w_positions = $this->parse_position_part($parts[1]);
-	$c_positions = $this->parse_position_part($parts[2]);
-	// 6. Get followers and non-followers for the selected ball
-	$followers_row = $this->statistics_m->followers_exists($lottery_id);
-	$nonfollowers_row = $this->statistics_m->nonfollowers_exists($lottery_id);
-	if (!$followers_row) return FALSE;
-	$followers_field = $followers_row['lottery_followers'];
-	$nonfollowers_field = $nonfollowers_row ? $nonfollowers_row['lottery_nonfollowers'] : '';
-	$follower_select = trim($follower_select);
-	if ($follower_type === 'after_ball' && isset($follower_select[0]) && $follower_select[0] === '+') {
-		$follower_select = substr($follower_select, 1);
-	}
-	$followers_groups = explode(',', $followers_field);
-	$nonfollowers_groups = $nonfollowers_field ? explode(',', $nonfollowers_field) : [];
-	$selected_followers = '';
-	$selected_nonfollowers = '';
-	if ($follower_type === 'position') {
-		// $select is the position (1-based)
-		$position = (int)$follower_select;
-		// Use the Nth group (1-based) for position N
-		if (isset($followers_groups[$position - 1])) {
-			$group = $followers_groups[$position - 1];
-			$selected_followers = substr($group, strpos($group, '>') + 1);
+		// Start performance timer for optimization tracking
+		$start_time = microtime(true);
+		
+		// 1. Parse H-W-C group (e.g., "4-3-3") - optimized regex
+		if (empty($h_w_c) || !preg_match('/(\d+)-(\d+)-(\d+)/', $h_w_c, $matches)) {
+			return FALSE;
 		}
-		if (isset($nonfollowers_groups[$position - 1])) {
-			$group = $nonfollowers_groups[$position - 1];
-			$selected_nonfollowers = substr($group, strpos($group, '>') + 1);
+		
+		$h = (int)$matches[1];
+		$w = (int)$matches[2];
+		$c = (int)$matches[3];
+		
+		// 2. Calculate scaled totals for combination size
+		$total = $h + $w + $c;
+		if ($total == 0) {
+			return FALSE;
 		}
-	} else {
-		// Find the group for the selected ball (e.g., "34>")
-		foreach ($followers_groups as $group) {
-			if (strpos($group, $follower_select . '>') === 0) {
-				$selected_followers = substr($group, strlen($follower_select) + 1); // Remove "34>"
-				break;
+		
+		$h_total = round(($h / $total) * $combination_size);
+		$w_total = round(($w / $total) * $combination_size);
+		$c_total = $combination_size - $h_total - $w_total;
+		
+		// 3. Get HWC data using optimized cached method
+		$hwc_data = $this->get_cached_hwc_data($lottery_id);
+		if (!$hwc_data) {
+			log_message('error', "H-W-C data not found for lottery $lottery_id");
+			return FALSE;
+		}
+		
+		// 4. Get followers data using optimized cached method
+		$cache_key = "hwc_followers_parsed_{$lottery_id}_{$follower_type}_{$follower_select}";
+		static $hwc_followers_cache = [];
+		
+		if (!isset($hwc_followers_cache[$cache_key])) {
+			$followers_row = $this->statistics_m->followers_exists($lottery_id);
+			$nonfollowers_row = $this->statistics_m->nonfollowers_exists($lottery_id);
+			if (!$followers_row) {
+				return FALSE;
+			}
+			
+			// Parse followers data once and cache it
+			$followers_data = $this->parse_hwc_followers_data($followers_row, $nonfollowers_row, $follower_type, $follower_select);
+			$hwc_followers_cache[$cache_key] = $followers_data;
+			
+			// Prevent memory bloat
+			if (count($hwc_followers_cache) > 10) {
+				$hwc_followers_cache = array_slice($hwc_followers_cache, -10, 10, true);
+			}
+		} else {
+			$followers_data = $hwc_followers_cache[$cache_key];
+		}
+		
+		if (!$followers_data) {
+			return FALSE;
+		}
+		
+		// 5. Select numbers using optimized algorithm
+		$selected = $this->select_hwc_followers_numbers_optimized(
+			$hwc_data, 
+			$followers_data, 
+			$h_total, 
+			$w_total, 
+			$c_total, 
+			$combination_size
+		);
+		
+		$elapsed = microtime(true) - $start_time;
+		log_message('info', "H-W-C + Followers generation completed in " . round($elapsed * 1000, 2) . "ms for lottery $lottery_id");
+		
+		return implode(',', $selected);
+	}
+	
+	/**
+	 * Optimized parsing of H-W-C followers data
+	 */
+	private function parse_hwc_followers_data($followers_row, $nonfollowers_row, $follower_type, $follower_select) {
+		$followers_field = $followers_row['lottery_followers'];
+		$nonfollowers_field = $nonfollowers_row ? $nonfollowers_row['lottery_nonfollowers'] : '';
+		
+		// For ball_after, strip '+' if present (extra ball)
+		$follower_select = trim($follower_select);
+		if ($follower_type === 'after_ball' && strpos($follower_select, '+') === 0) {
+			$follower_select = substr($follower_select, 1);
+		}
+		
+		$followers_groups = explode(',', $followers_field);
+		$nonfollowers_groups = $nonfollowers_field ? explode(',', $nonfollowers_field) : [];
+		
+		$selected_followers = '';
+		$selected_nonfollowers = '';
+		
+		if ($follower_type === 'position') {
+			$position = (int)$follower_select;
+			if (isset($followers_groups[$position - 1])) {
+				$group = $followers_groups[$position - 1];
+				$selected_followers = substr($group, strpos($group, '>') + 1);
+			}
+			if (isset($nonfollowers_groups[$position - 1])) {
+				$group = $nonfollowers_groups[$position - 1];
+				$selected_nonfollowers = substr($group, strpos($group, '>') + 1);
+			}
+		} else {
+			$search_prefix = $follower_select . '>';
+			foreach ($followers_groups as $group) {
+				if (strpos($group, $search_prefix) === 0) {
+					$selected_followers = substr($group, strlen($search_prefix));
+					break;
+				}
+			}
+			foreach ($nonfollowers_groups as $group) {
+				if (strpos($group, $search_prefix) === 0) {
+					$selected_nonfollowers = substr($group, strlen($search_prefix));
+					break;
+				}
 			}
 		}
-		foreach ($nonfollowers_groups as $group) {
-			if (strpos($group, $follower_select . '>') === 0) {
-				$selected_nonfollowers = substr($group, strlen($follower_select) + 1); // Remove "34>"
-				break;
-			}
+		
+		if ($selected_followers === '') {
+			return FALSE;
 		}
+		
+		// Parse into usable format
+		return $this->parse_followers_groups_optimized($selected_followers, $selected_nonfollowers);
 	}
-	if ($selected_followers === '') return FALSE;
-	// Parse followers/nonfollowers into arrays
-	$followers_list = [];
-	foreach (explode('|', $selected_followers) as $item) {
-		if (strpos($item, '=') !== false) {
-			list($num, $weight) = explode('=', $item);
-			$followers_list[] = trim($num);
+	
+	/**
+	 * Optimized selection algorithm for H-W-C + Followers
+	 */
+	private function select_hwc_followers_numbers_optimized($hwc_data, $followers_data, $h_total, $w_total, $c_total, $combination_size) {
+		// Create list of all follower numbers for quick lookup
+		$all_follower_numbers = [];
+		foreach ($followers_data as $nums) {
+			$all_follower_numbers = array_merge($all_follower_numbers, $nums);
 		}
-	}
-	$nonfollowers_list = $selected_nonfollowers ? explode('|', $selected_nonfollowers) : [];
-	// 7. Select HWC numbers by position, but only if in followers/nonfollowers
-	$select_from_group = function($positions, $numbers, $limit, $valid_list) {
-		arsort($positions);
+		$follower_lookup = array_flip($all_follower_numbers);
+		
+		// Extract pre-parsed H-W-C data
+		$hots = $hwc_data['hots'];
+		$warms = $hwc_data['warms'];
+		$colds = $hwc_data['colds'];
+		$h_positions = $hwc_data['h_positions'];
+		$w_positions = $hwc_data['w_positions'];
+		$c_positions = $hwc_data['c_positions'];
+		
+		// Select from each H-W-C group, filtering by followers
 		$selected = [];
-		if ($limit <= 0) return $selected; // <-- Place this at the top!
-		foreach ($positions as $pos => $count) {
-			if (isset($numbers[$pos]) && in_array($numbers[$pos], $valid_list) && !in_array($numbers[$pos], $selected)) {
-				$selected[] = $numbers[$pos];
-				if (count($selected) >= $limit) break;
+		
+		// Select hots that are in followers
+		$selected_hots = $this->select_hwc_filtered_by_followers($h_positions, $hots, $h_total, $follower_lookup);
+		$selected = array_merge($selected, $selected_hots);
+		
+		// Select warms that are in followers
+		$selected_warms = $this->select_hwc_filtered_by_followers($w_positions, $warms, $w_total, $follower_lookup);
+		$selected = array_merge($selected, $selected_warms);
+		
+		// Select colds that are in followers
+		$selected_colds = $this->select_hwc_filtered_by_followers($c_positions, $colds, $c_total, $follower_lookup);
+		$selected = array_merge($selected, $selected_colds);
+		
+		// If not enough numbers, fill from followers data
+		if (count($selected) < $combination_size) {
+			$remaining = $combination_size - count($selected);
+			foreach ($followers_data as $nums) {
+				foreach ($nums as $num) {
+					if (!in_array($num, $selected) && $remaining > 0) {
+						$selected[] = $num;
+						$remaining--;
+					}
+					if ($remaining == 0) break 2;
+				}
 			}
 		}
+		
 		return $selected;
-	};
-	$selected = [];
-	if ($h_total > 0) {
-		$selected = array_merge($selected, $select_from_group($h_positions, $hots, $h_total, $followers_list));
 	}
-	if ($w_total > 0) {
-		$selected = array_merge($selected, $select_from_group($w_positions, $warms, $w_total, $followers_list));
-	}
-	if ($c_total > 0) {
-		$selected = array_merge($selected, $select_from_group($c_positions, $colds, $c_total, array_merge($followers_list, $nonfollowers_list)));
-	}
-	// If not enough numbers, fill from remaining followers/nonfollowers
-	$all_valid = array_merge($followers_list, $nonfollowers_list);
-	if (count($selected) < $combination_size) {
-		foreach ($all_valid as $num) {
-			if (!in_array($num, $selected)) {
-				$selected[] = $num;
-				if (count($selected) >= $combination_size) break;
+	
+	/**
+	 * Helper method to select H-W-C numbers filtered by followers
+	 */
+	private function select_hwc_filtered_by_followers($positions, $numbers, $limit, $follower_lookup) {
+		if ($limit <= 0) return [];
+		
+		// Sort positions by count (descending) for top performers
+		uasort($positions, function($a, $b) { return $b - $a; });
+		
+		$selected = [];
+		$count = 0;
+		
+		foreach ($positions as $pos => $pos_count) {
+			if ($count >= $limit) break;
+			
+			if (isset($numbers[$pos]) && isset($follower_lookup[$numbers[$pos]])) {
+				$selected[] = $numbers[$pos];
+				$count++;
 			}
 		}
-	}
-	return implode(',', $selected);
+		
+		return $selected;
 	}
 	
 	/**
@@ -2093,8 +2596,12 @@ class Predictions_m extends MY_Model
 	 * @param array  $filter_select Array of filters to apply (e.g., trends, winning sums, etc.).
 	 * @return array $result        Array of updated combinations (each as an array of numbers).
 	 */
-	public function insert_number_combination($filepath, $number_array, $page = 1, $per_page = 10, $filter_select = [])
+	public function insert_number_combination($filepath, $number_array, $page = 1, $per_page = 10, $filter_select = [], $start_time = null, $timeout_seconds = 3, $lottery_id = null)
 	{
+		// Set start time if not provided
+		if ($start_time === null) {
+			$start_time = microtime(true);
+		}
 		// - lottery_data (for stats calculations)
 		// $filter_select array contains:
     	// 1 - selected_trends
@@ -2138,6 +2645,20 @@ class Predictions_m extends MY_Model
 			// Simple pagination for unfiltered results
 			if (($handle = fopen($filepath, 'r')) !== false) {
 				while (($line = fgets($handle)) !== false) {
+					// Check for timeout every 1000 lines to avoid excessive overhead
+					if ($line_count % 1000 === 0 && $start_time !== null) {
+						$elapsed = microtime(true) - $start_time;
+						if ($elapsed > $timeout_seconds) {
+							fclose($handle);
+							// Get CI instance to access controller
+							$CI =& get_instance();
+							if (method_exists($CI, 'check_timeout_and_redirect')) {
+								$CI->check_timeout_and_redirect($start_time, $timeout_seconds, $lottery_id);
+							}
+							return $result; // Return partial results if timeout
+						}
+					}
+					
 					$line = trim($line);
 					if (empty($line)) continue;
 					
@@ -2484,6 +3005,37 @@ class Predictions_m extends MY_Model
 			}
 		}
 		
+        // Filter by friendship relationships - only apply if friendship checkbox is checked
+        if (isset($filter_select['selected_friends_checkbox']) && $filter_select['selected_friends_checkbox']) {
+            $friends_value = $filter_select['selected_friends'] ?? '';
+            log_message('info', "FRIENDSHIP FILTER DEBUG (Predictions_m): Checkbox checked, friends value: '$friends_value'");
+            
+            if (!empty($friends_value) && strtolower($friends_value) !== 'all') {
+                log_message('info', "FRIENDSHIP FILTER DEBUG (Predictions_m): Applying friendship filter for type: $friends_value");
+            } else {
+                log_message('info', "FRIENDSHIP FILTER DEBUG (Predictions_m): Skipping friendship filter - value is 'All' or empty");
+            }
+        }
+        
+        if (isset($filter_select['selected_friends_checkbox']) && $filter_select['selected_friends_checkbox'] && 
+            isset($filter_select['selected_friends']) && 
+            !empty($filter_select['selected_friends']) && 
+            strtolower($filter_select['selected_friends']) !== 'all') {
+            
+            $lottery_id = $filter_select['lottery_id'] ?? null;
+            $friendship_type = $filter_select['selected_friends'];
+            
+            if ($lottery_id) {
+                // Get the combination numbers as an array
+                $combo_numbers = array_values($combo);
+                
+                // Validate the friendship requirements for this combination
+                if (!$this->validate_combination_friendships($lottery_id, $combo_numbers, $friendship_type)) {
+                    return false;
+                }
+            }
+        }
+		
 		// If we reach here, combination passed all filters
 		return true;
 	}
@@ -2533,6 +3085,8 @@ class Predictions_m extends MY_Model
 	/**
 	 * Counts how many numbers in $combo are also in $last_draw (repeaters).
 	 * Returns the number of repeaters (0, 1, ...).
+	 * For independent extra ball lotteries, only compares main numbers (excludes extra ball).
+	 * For regular lotteries, compares all numbers including extra balls.
 	 *
 	 * @param array $combo     Associative array of balls (e.g., ['ball1'=>2, ...])
 	 * @param int   $max       Number of balls in the combination
@@ -2541,21 +3095,59 @@ class Predictions_m extends MY_Model
 	 */
 	public function is_repeater($combo, $max, $last_draw)
 	{
-		// Extract just the numbers from both arrays
-		$combo_numbers = array_values($combo);
+		// For Canada 649 and other regular lotteries, we should NOT treat them as independent extra ball
+		// Independent extra ball lotteries have duplicate_extra_ball = 1 in the lottery table
+		// Use consistent detection: if combo has 'extra' key AND it's truly independent extra ball lottery
+		
+		// For now, assume regular lottery behavior (include extra ball) unless specifically BC 649 style
+		// This can be enhanced later with lottery table lookup if needed
+		$is_independent_extra_ball = false;
+		
+		$combo_numbers = [];
 		$last_numbers = [];
-		for ($i = 1; $i <= $max; $i++) {
-			if (isset($last_draw['ball'.$i])) {
-				$last_numbers[] = $last_draw['ball'.$i];
+		
+		if ($is_independent_extra_ball) {
+			// For independent extra ball lotteries, exclude the extra ball from repeater calculation
+			foreach ($combo as $key => $value) {
+				if ($key !== 'extra') {
+					$combo_numbers[] = $value;
+				}
+			}
+			
+			// Extract main numbers from last draw (exclude 'extra' key)
+			for ($i = 1; $i <= $max; $i++) {
+				if (isset($last_draw['ball'.$i])) { 
+					$last_numbers[] = $last_draw['ball'.$i];
+				}
+			}
+		} else {
+			// For regular lotteries, include all numbers (main + extra if present)
+			$combo_numbers = array_values($combo);
+			
+			// Extract all numbers from last draw (main + extra if present)
+			for ($i = 1; $i <= $max; $i++) {
+				if (isset($last_draw['ball'.$i])) {
+					$last_numbers[] = $last_draw['ball'.$i];
+				}
+			}
+			
+			// Include extra ball if present in last draw
+			if (isset($last_draw['extra'])) {
+				$last_numbers[] = $last_draw['extra'];
 			}
 		}
+		
 		// Count how many numbers are repeated
-	return count(array_intersect($combo_numbers, $last_numbers));
+		$repeater_count = count(array_intersect($combo_numbers, $last_numbers));
+		
+		return $repeater_count;
 	}
 
 	/**
 	 * Counts the number of consecutive pairs in the combination.
 	 * Returns 0 if no consecutive numbers, 1 for one pair, etc.
+	 * For independent extra ball lotteries, only considers main numbers (excludes extra ball).
+	 * For regular lotteries, considers all numbers including extra balls.
 	 *
 	 * @param array $combo Associative array of balls (e.g., ['ball1'=>2, ...])
 	 * @param int   $max   Number of balls in the combination
@@ -2563,7 +3155,23 @@ class Predictions_m extends MY_Model
 	 */
 	public function has_consecutive($combo, $max)
 	{
-		$numbers = array_values($combo);
+		// Check if this is an independent extra ball lottery by looking for 'extra' key in combo
+		$is_independent_extra_ball = isset($combo['extra']);
+		
+		$numbers = [];
+		
+		if ($is_independent_extra_ball) {
+			// For independent extra ball lotteries, exclude the extra ball from consecutive calculation
+			foreach ($combo as $key => $value) {
+				if ($key !== 'extra') {
+					$numbers[] = $value;
+				}
+			}
+		} else {
+			// For regular lotteries, include all numbers
+			$numbers = array_values($combo);
+		}
+		
 		sort($numbers, SORT_NUMERIC);
 		$consecutive_count = 0;
 		$actual_count = count($numbers);
@@ -2886,11 +3494,16 @@ class Predictions_m extends MY_Model
 	 * @param array  $filter_select Array of filters to apply
 	 * @return int Total count of filtered combinations
 	 */
-	public function get_filtered_combinations_count($filepath, $number_array, $filter_select = [])
+	public function get_filtered_combinations_count($filepath, $number_array, $filter_select = [], $start_time = null, $timeout_seconds = 3, $lottery_id = null)
 	{
 		if (!file_exists($filepath)) {
 			log_message('error', "get_filtered_combinations_count: File does not exist: {$filepath}");
 			return 0;
+		}
+		
+		// Set start time if not provided
+		if ($start_time === null) {
+			$start_time = microtime(true);
 		}
 		
 		// If no filters are applied, return total file lines
@@ -2930,6 +3543,20 @@ class Predictions_m extends MY_Model
 		if (($handle = fopen($filepath, 'r')) !== false) {
 			$line_number = 0;
 			while (($line = fgets($handle)) !== false) {
+				// Check for timeout every 1000 lines to avoid excessive overhead
+				if ($line_number % 1000 === 0 && $start_time !== null) {
+					$elapsed = microtime(true) - $start_time;
+					if ($elapsed > $timeout_seconds) {
+						fclose($handle);
+						// Get CI instance to access controller
+						$CI =& get_instance();
+						if (method_exists($CI, 'check_timeout_and_redirect')) {
+							$CI->check_timeout_and_redirect($start_time, $timeout_seconds, $lottery_id);
+						}
+						return $count; // Return partial count if timeout
+					}
+				}
+				
 				$line = trim($line);
 				if (empty($line)) continue;
 				
@@ -3425,5 +4052,177 @@ class Predictions_m extends MY_Model
 		$extra_ball = ($sum % $max_ball) + 1;
 		
 		return $extra_ball;
+	}
+	
+	/**
+	 * Validate that a combination respects friendship filtering rules
+	 * 
+	 * @param int $lottery_id The lottery ID
+	 * @param array $combo_numbers Array of numbers in the combination
+	 * @param string $friendship_type The friendship filter type ('none', '1', '2')
+	 * @return bool True if combination respects friendship rules, false otherwise
+	 */
+	private function validate_combination_friendships($lottery_id, $combo_numbers, $friendship_type)
+	{
+		// Get friendship data from database
+		$row = $this->db->get_where('lottery_friends', ['lottery_id' => $lottery_id])->row_array();
+		if (!$row || empty($row['wins'])) {
+			return true; // No friendship data, allow all combinations
+		}
+		
+        // Parse friendship data - split on pipe character first
+        $friend_str = trim($row['wins']);
+        $parts = explode('|', $friend_str);
+        
+        // Friendships are in the part after the pipe
+        if (count($parts) > 1) {
+            $friend_str = trim($parts[1]);
+        } else {
+            $friend_str = trim($parts[0]);
+        }
+        
+        $friendships = array_filter(array_map('trim', explode(',', $friend_str)));
+        
+        $oneway = [];  // 1-way friendships
+        $twoway = [];  // 2-way friendships
+        
+        foreach ($friendships as $idx => $f) {
+            $ball = $idx + 1; // Ball number (1-based)
+            if (strpos($f, '<>') !== false) {
+                $friend = (int)trim(str_replace('<>', '', $f));
+                $twoway[] = [$ball, $friend];
+            } elseif (strpos($f, '>') !== false) {
+                $friend = (int)trim(str_replace('>', '', $f));
+                $oneway[] = [$ball, $friend];
+            }
+        }
+        
+        // Make sure 2-way friendships are unique (remove duplicates like [1,2] and [2,1])
+        $twoway = $this->twoway_unique($twoway);
+        
+        // Look specifically for friendships involving 17 and 46
+        foreach ($oneway as $pair) {
+            list($a, $b) = $pair;
+            if ($a == 17 || $b == 17 || $a == 46 || $b == 46) {
+                log_message('info', "FRIENDSHIP DEBUG (Predictions_m): Found 1-way friendship involving 17 or 46: {$a} > {$b}");
+            }
+        }
+        foreach ($twoway as $pair) {
+            list($a, $b) = $pair;
+            if ($a == 17 || $b == 17 || $a == 46 || $b == 46) {
+                log_message('info', "FRIENDSHIP DEBUG (Predictions_m): Found 2-way friendship involving 17 or 46: {$a} <> {$b}");
+            }
+        }		// Check friendship rules based on selected filter type
+		switch ($friendship_type) {
+			case 'none':
+				// No friendships should exist
+				return $this->validate_no_friendships($combo_numbers, $oneway, $twoway);
+				
+			case '1':
+				// Only 1-way friendships allowed (no 2-way friendships)
+				return $this->validate_oneway_friendships_only($combo_numbers, $oneway, $twoway);
+				
+			case '2':
+				// Only 2-way friendships allowed (no 1-way friendships)
+				return $this->validate_twoway_friendships_only($combo_numbers, $oneway, $twoway);
+				
+			default:
+				return true; // 'all' or unknown type - allow everything
+		}
+	}
+	
+	/**
+	 * Validate that combination has no friendships
+	 */
+	private function validate_no_friendships($combo_numbers, $oneway, $twoway)
+	{
+		// Check for any 2-way friendships
+		foreach ($twoway as $pair) {
+			list($a, $b) = $pair;
+			if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+				return false; // Found 2-way friendship
+			}
+		}
+		
+		// Check for any 1-way friendships
+		foreach ($oneway as $pair) {
+			list($a, $b) = $pair;
+			if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+				return false; // Found 1-way friendship
+			}
+		}
+		
+		return true; // No friendships found
+	}
+	
+	/**
+	 * Validate that combination only has 1-way friendships (no 2-way friendships)
+	 * For 1-way friendships to be valid: if A>B and A is in combo, then B MUST also be in combo
+	 * Must have at least one complete 1-way friendship
+	 */
+	private function validate_oneway_friendships_only($combo_numbers, $oneway, $twoway)
+	{
+		// First, check that no 2-way friendships exist
+		foreach ($twoway as $pair) {
+			list($a, $b) = $pair;
+			if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+				return false; // Found 2-way friendship - not allowed
+			}
+		}
+		
+		$found_complete_oneway = false;
+		
+		// Check that 1-way friendships are complete (if A>B and A is present, B must be present)
+		foreach ($oneway as $pair) {
+			list($a, $b) = $pair;
+			if (in_array($a, $combo_numbers) && !in_array($b, $combo_numbers)) {
+				return false; // Found incomplete 1-way friendship
+			}
+			if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+				$found_complete_oneway = true;
+			}
+		}
+		
+		if (!$found_complete_oneway) {
+			return false; // Must have at least one complete 1-way friendship
+		}
+		
+		return true; // Only valid 1-way friendships found
+	}
+	
+	/**
+	 * Validate that combination only has 2-way friendships (no 1-way friendships)
+	 * For 2-way friendships to be valid: if A-B and either A or B is in combo, then both must be in combo
+	 * Must have at least one complete 2-way friendship
+	 */
+	private function validate_twoway_friendships_only($combo_numbers, $oneway, $twoway)
+	{
+		// First, check that no 1-way friendships exist
+		foreach ($oneway as $pair) {
+			list($a, $b) = $pair;
+			if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+				return false; // Found 1-way friendship - not allowed
+			}
+		}
+		
+		$found_complete_twoway = false;
+		
+		// Check that 2-way friendships are complete (if A-B and A is present, B must be present)
+		foreach ($twoway as $pair) {
+			list($a, $b) = $pair;
+			if ((in_array($a, $combo_numbers) && !in_array($b, $combo_numbers)) ||
+				(in_array($b, $combo_numbers) && !in_array($a, $combo_numbers))) {
+				return false; // Found incomplete 2-way friendship
+			}
+			if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+				$found_complete_twoway = true;
+			}
+		}
+		
+		if (!$found_complete_twoway) {
+			return false; // Must have at least one complete 2-way friendship
+		}
+		
+		return true; // Only valid 2-way friendships found
 	}
 }

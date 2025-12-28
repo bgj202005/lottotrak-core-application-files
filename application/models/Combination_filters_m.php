@@ -147,10 +147,6 @@ class Combination_filters_m extends MY_Model
         $extra_ball = $filter_select['extra_ball'] ?? 0;
         $selected_trends = $filter_select['selected_trends'] ?? 'ALL';
         
-        // Debug logging
-        log_message('debug', "get_filtered_combinations: page={$page}, per_page={$per_page}, selected_trends={$selected_trends}");
-        log_message('debug', "get_filtered_combinations: filter_select keys: " . implode(', ', array_keys($filter_select)));
-        
         // Prepare last drawn numbers for trend filtering
         $last_drawn_numbers = [];
         if ($selected_trends !== 'ALL' && !empty($last_drawn)) {
@@ -238,8 +234,6 @@ class Combination_filters_m extends MY_Model
             fclose($handle);
         }
         
-        log_message('debug', "get_filtered_combinations: Processed {$total_lines_processed} lines, {$passed_filters} passed filters, returning " . count($combinations) . " combinations");
-        
         return $combinations;
     }
 
@@ -251,10 +245,12 @@ class Combination_filters_m extends MY_Model
      * @param array  $filter_select Array of filters to apply
      * @return int Total count of filtered combinations
      */
-    public function get_filtered_combinations_count($filepath, $number_array, $filter_select = [])
+    public function get_filtered_combinations_count($filepath, $number_array, $filter_select = [], $start_time = null, $timeout_seconds = 3, $lottery_id = null)
     {
-        log_message('info', "get_filtered_combinations_count: STARTING - source: {$filepath}");
-        log_message('info', "get_filtered_combinations_count: Filters being used: " . print_r($filter_select, true));
+        // Set start time if not provided
+        if ($start_time === null) {
+            $start_time = microtime(true);
+        }
         
         if (!file_exists($filepath)) {
             return 0;
@@ -267,13 +263,11 @@ class Combination_filters_m extends MY_Model
         $is_independent_extra_ball = !empty($filter_select['duplicate_extra_ball']) && !empty($filter_select['extra_ball']);
         $selected_extra_ball = $filter_select['selected_extra_ball'] ?? 'ALL';
         
-        log_message('debug', "get_filtered_combinations_count: selected_trends={$selected_trends}, has_other_filters=" . ($has_other_filters ? 'YES' : 'NO') . ", is_independent_extra_ball=" . ($is_independent_extra_ball ? 'YES' : 'NO'));
-        
         // For independent extra ball lotteries, we must always process combinations due to different structure
         // even when filters are 'ALL', because the combinations need proper parsing
+        // ALSO: Never skip filtering when ANY filter is active, including repeaters
         if ($selected_trends === 'ALL' && !$has_other_filters && !$is_independent_extra_ball) {
             $total_lines = count(file($filepath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
-            log_message('debug', "get_filtered_combinations_count: No filters applied, returning total lines: {$total_lines}");
             return $total_lines;
         }
         
@@ -300,6 +294,20 @@ class Combination_filters_m extends MY_Model
         // Count combinations that pass filters
         if (($handle = fopen($filepath, 'r')) !== false) {
             while (($line = fgets($handle)) !== false) {
+                // Check for timeout every 1000 lines to avoid excessive overhead
+                if ($total_lines % 1000 === 0 && $start_time !== null) {
+                    $elapsed = microtime(true) - $start_time;
+                    if ($elapsed > $timeout_seconds) {
+                        fclose($handle);
+                        // Get CI instance to access controller
+                        $CI =& get_instance();
+                        if (method_exists($CI, 'check_timeout_and_redirect')) {
+                            $CI->check_timeout_and_redirect($start_time, $timeout_seconds, $lottery_id);
+                        }
+                        return $count; // Return partial count if timeout
+                    }
+                }
+                
                 $line = trim($line);
                 if (empty($line)) continue;
                 
@@ -351,7 +359,6 @@ class Combination_filters_m extends MY_Model
             fclose($handle);
         }
         
-        log_message('info', "get_filtered_combinations_count: FINAL RESULT - {$count} passed out of {$total_lines} total combinations");
         return $count;
     }
 
@@ -367,8 +374,6 @@ class Combination_filters_m extends MY_Model
      */
     public function save_prefiltered_combinations_to_file($filtered_combinations, $output_file_path, $filters = [])
     {
-        log_message('info', "save_prefiltered_combinations_to_file: Saving " . count($filtered_combinations) . " pre-filtered combinations to {$output_file_path}");
-        
         $output_handle = fopen($output_file_path, 'w');
         if (!$output_handle) {
             log_message('error', "save_prefiltered_combinations_to_file: Could not open output file: {$output_file_path}");
@@ -396,7 +401,6 @@ class Combination_filters_m extends MY_Model
 
         fclose($output_handle);
         
-        log_message('info', "save_prefiltered_combinations_to_file: Successfully saved {$saved_count} combinations (no re-filtering needed)");
         return $saved_count > 0;
     }
 
@@ -414,9 +418,6 @@ class Combination_filters_m extends MY_Model
      */
     public function save_filtered_combinations_to_file($filepath, $number_array, $filters, $output_file_path)
     {
-        log_message('info', "save_filtered_combinations_to_file: STARTING - source: {$filepath}, output: {$output_file_path}");
-        log_message('info', "save_filtered_combinations_to_file: Filters being used: " . print_r($filters, true));
-        
         if (!file_exists($filepath)) {
             log_message('error', "save_filtered_combinations_to_file: Source file not found: {$filepath}");
             return false;
@@ -503,15 +504,11 @@ class Combination_filters_m extends MY_Model
         fclose($handle);
         fclose($output_handle);
         
-        // Log the filtering results for debugging
-        log_message('info', "save_filtered_combinations_to_file: Processed {$processed_count} combinations, saved {$saved_count} to {$output_file_path}");
-        
         // If no combinations were saved, log the filter criteria for debugging
         if ($saved_count == 0) {
             log_message('warning', "save_filtered_combinations_to_file: No combinations passed filters. Filters: " . print_r($filters, true));
         }
 
-        log_message('info', "save_filtered_combinations_to_file: COMPLETED - returning " . ($saved_count > 0 ? 'true' : 'false'));
         return $saved_count > 0;
     }
 
@@ -524,8 +521,6 @@ class Combination_filters_m extends MY_Model
      */
     public function save_prefiltered_combinations_to_database($combinations, $filters)
     {
-        log_message('info', "save_prefiltered_combinations_to_database: Starting with " . count($combinations) . " pre-filtered combinations");
-        
         if (empty($combinations)) {
             log_message('warning', "save_prefiltered_combinations_to_database: No combinations provided");
             return false;
@@ -547,13 +542,11 @@ class Combination_filters_m extends MY_Model
             // Insert into database
             if ($this->db->insert('lottery_combination_filters', $data)) {
                 $saved_count++;
-                log_message('debug', "save_prefiltered_combinations_to_database: Saved combination: " . $combination . " (CCCC: " . $cccc_count . ")");
             } else {
                 log_message('error', "save_prefiltered_combinations_to_database: Failed to save combination: " . $combination);
             }
         }
 
-        log_message('info', "save_prefiltered_combinations_to_database: Saved $saved_count out of " . count($combinations) . " combinations to database");
         return $saved_count > 0;
     }
 
@@ -705,8 +698,12 @@ class Combination_filters_m extends MY_Model
             $max = $lottery_highlights['range'] ?? 49;
             $last_draw = $filter_select['lottery_last_drawn'] ?? [];
             
+            // Use the original combo array to maintain consistency with display logic
+            // For filtering, we need to use the full combo, not just main_numbers_values
+            $combo_for_counting = $combo;
+            
             // Get the count of repeaters, not just if there are any
-            $repeater_count = $this->count_repeaters($main_numbers_values, $max, $last_draw);
+            $repeater_count = (int)$this->count_repeaters_from_combo($combo_for_counting, $max, $last_draw, $filter_select);
             $expected_repeater_count = (int)$filter_select['selected_repeaters'];
             
             // Check if the combination has the exact number of repeaters expected
@@ -856,6 +853,37 @@ class Combination_filters_m extends MY_Model
             }
         }
         
+        // Filter by friendship relationships - only apply if friendship checkbox is checked
+        if (isset($filter_select['selected_friends_checkbox']) && $filter_select['selected_friends_checkbox']) {
+            $friends_value = $filter_select['selected_friends'] ?? '';
+            log_message('info', "FRIENDSHIP FILTER DEBUG: Checkbox checked, friends value: '$friends_value'");
+            
+            if (!empty($friends_value) && strtolower($friends_value) !== 'all') {
+                log_message('info', "FRIENDSHIP FILTER DEBUG: Applying friendship filter for type: $friends_value");
+            } else {
+                log_message('info', "FRIENDSHIP FILTER DEBUG: Skipping friendship filter - value is 'All' or empty");
+            }
+        }
+        
+        if (isset($filter_select['selected_friends_checkbox']) && $filter_select['selected_friends_checkbox'] && 
+            isset($filter_select['selected_friends']) && 
+            !empty($filter_select['selected_friends']) && 
+            strtolower($filter_select['selected_friends']) !== 'all') {
+            
+            $lottery_id = $filter_select['lottery_id'] ?? null;
+            $friendship_type = $filter_select['selected_friends'];
+            
+            if ($lottery_id) {
+                // Get the combination numbers as an array
+                $combo_numbers = array_values($combo);
+                
+                // Validate the friendship requirements for this combination
+                if (!$this->validate_combination_friendships($lottery_id, $combo_numbers, $friendship_type)) {
+                    return false;
+                }
+            }
+        }
+        
         // If we reach here, combination passed all filters
         return true;
     }
@@ -959,6 +987,8 @@ class Combination_filters_m extends MY_Model
 
     /**
      * Count the number of repeaters in a combination
+     * For independent extra ball lotteries, only counts main number repeaters (excludes extra ball)
+     * For regular lotteries, includes extra ball in repeater calculation
      *
      * @param array $combo Combination to check
      * @param int $max Maximum number in range
@@ -971,15 +1001,124 @@ class Combination_filters_m extends MY_Model
             return 0;
         }
         
+        // Determine lottery type by checking if last_draw has 'extra' key
+        // For independent extra ball lotteries, last_draw will have 'extra' key
+        $is_independent_extra_ball = isset($last_draw['extra']);
+        
         $last_drawn_numbers = [];
-        foreach ($last_draw as $key => $value) {
-            if (strpos($key, 'ball') === 0 && is_numeric($value)) {
-                $last_drawn_numbers[] = intval($value);
+        
+        if ($is_independent_extra_ball) {
+            // For independent extra ball lotteries, extract main numbers only (exclude extra ball)
+            foreach ($last_draw as $key => $value) {
+                if (strpos($key, 'ball') === 0 && is_numeric($value)) {
+                    $last_drawn_numbers[] = intval($value);
+                }
+            }
+        } else {
+            // For regular lotteries, include all numbers (main + extra if present)
+            foreach ($last_draw as $key => $value) {
+                if ((strpos($key, 'ball') === 0 || $key === 'extra') && is_numeric($value)) {
+                    $last_drawn_numbers[] = intval($value);
+                }
             }
         }
         
+        // Count intersections between combination numbers and last drawn numbers
+        // Note: For independent extra ball lotteries, $combo already has extra ball removed in apply_other_filters
+        // For regular lotteries, $combo contains all numbers including extra ball
         $repeaters = array_intersect($combo, $last_drawn_numbers);
         return count($repeaters);
+    }
+
+    /**
+     * Count repeaters using the same logic as display calculation
+     * This ensures consistency between filtering and display
+     */
+    private function count_repeaters_from_combo($combo, $max_number, $last_draw, $filter_select) {
+        if (empty($last_draw) || empty($combo)) {
+            return 0;
+        }
+        
+        // Use same lottery type detection as Predictions_m.php
+        $lottery_id = $filter_select['lottery_id'] ?? 0;
+        $is_independent_extra_ball = false;
+        
+        // Check duplicate_extra_ball directly from filter_select (new format)
+        if (isset($filter_select['duplicate_extra_ball'])) {
+            $is_independent_extra_ball = ($filter_select['duplicate_extra_ball'] == 1);
+        } 
+        // Fallback: Check duplicate_extra_ball from lottery data (old format)
+        elseif (isset($filter_select['lottery_data'])) {
+            $lottery_data = $filter_select['lottery_data'];
+            if (isset($lottery_data['duplicate_extra_ball'])) {
+                $is_independent_extra_ball = ($lottery_data['duplicate_extra_ball'] == 1);
+            }
+        }
+        
+        // If no lottery data available, fallback to checking extra key presence
+        if (!isset($filter_select['lottery_data']) && isset($last_draw['extra']) && !empty($last_draw['extra'])) {
+            // For Canada 649 (lottery_id = 1), it's a regular lottery, not independent extra ball
+            $is_independent_extra_ball = false;
+        }
+        
+        // Prepare combo numbers for comparison
+        // Extract only the main numbers (exclude extra ball for independent extra ball lotteries)
+        $combo_numbers = [];
+        
+        // For independent extra ball lotteries, only count main numbers for repeaters
+        if ($is_independent_extra_ball) {
+            // Extract main numbers only (ball1, ball2, etc, but not extra)
+            foreach ($combo as $key => $value) {
+                if (strpos($key, 'ball') === 0) {
+                    $combo_numbers[] = (int)$value;
+                }
+            }
+        } else {
+            // For regular lotteries, we need to check if there's an extra ball and handle it appropriately
+            foreach ($combo as $key => $value) {
+                if (strpos($key, 'ball') === 0) {
+                    $combo_numbers[] = (int)$value;
+                }
+                // Include extra ball for regular lotteries only if the lottery actually uses extra ball in repeater calculation
+                elseif ($key === 'extra' && isset($filter_select['extra_ball']) && $filter_select['extra_ball'] == 1) {
+                    $combo_numbers[] = (int)$value;
+                }
+            }
+        }
+        
+        // Create array of last drawn numbers
+        $last_numbers = [];
+        
+        // Get the number of balls drawn for this lottery
+        $balls_drawn = $filter_select['drawn'] ?? 6;
+        
+        // Include main draw numbers (ball1 through drawn count)
+        for ($i = 1; $i <= $balls_drawn; $i++) {
+            if (isset($last_draw["ball$i"]) && $last_draw["ball$i"] != '') {
+                $last_numbers[] = (int)$last_draw["ball$i"];
+            }
+        }
+        
+        // Handle extra ball based on lottery type
+        if (!$is_independent_extra_ball && isset($last_draw['extra']) && $last_draw['extra'] != '') {
+            // For regular lotteries, include extra ball in comparison
+            $last_numbers[] = (int)$last_draw['extra'];
+        }
+        
+        // Count repeaters
+        $repeater_count = 0;
+        foreach ($combo_numbers as $number) {
+            // Ensure both values are integers for proper comparison
+            $combo_num = (int)$number;
+            foreach ($last_numbers as $last_num) {
+                if ($combo_num === (int)$last_num) {
+                    $repeater_count++;
+                    break; // Avoid counting the same number multiple times
+                }
+            }
+        }
+        
+        return (int)$repeater_count;
     }
 
     /**
@@ -1074,12 +1213,25 @@ class Combination_filters_m extends MY_Model
      * Get saved settings from lottery_combination_filters table by record ID or combo_id
      * 
      * @param int $id The record ID or combo_id to retrieve settings for
+     * @param int $user_id Optional user ID to filter by (defaults to session user)
      * @return array|false The saved settings array or false if not found
      */
-    public function get_saved_settings($id)
+    public function get_saved_settings($id, $user_id = null)
     {
+        // Get CodeIgniter instance for session access
+        $CI =& get_instance();
+        
+        // If no user_id provided, get from session
+        if ($user_id === null) {
+            $user_id = $CI->session->userdata('id');
+        }
+        
         // First try to find by record id
         $this->db->where('id', $id);
+        if ($user_id) {
+            $this->db->where('user', 1); // Must be admin record
+            $this->db->where('user_id', $user_id); // Must belong to current admin
+        }
         $this->db->limit(1);
         
         $query = $this->db->get('lottery_combination_filters');
@@ -1088,8 +1240,25 @@ class Combination_filters_m extends MY_Model
             return $query->row_array();
         }
         
-        // If not found by id, try by combo_id
+        // If not found by id, try by combo_id - but only if we're sure this admin should have access
+        // First check if any record exists with this combo_id for current admin
+        $this->db->select('COUNT(*) as count');
         $this->db->where('combo_id', $id);
+        $this->db->where('user', 1);
+        $this->db->where('user_id', $user_id);
+        $count_query = $this->db->get('lottery_combination_filters');
+        $count_result = $count_query->row_array();
+        
+        if ($count_result['count'] == 0) {
+            return false; // No records for this admin, don't allow access
+        }
+        
+        // Get the actual record
+        $this->db->where('combo_id', $id);
+        if ($user_id) {
+            $this->db->where('user', 1); // Must be admin record
+            $this->db->where('user_id', $user_id); // Must belong to current admin
+        }
         $this->db->order_by('id', 'DESC'); // Get the most recent record if multiple exist
         $this->db->limit(1);
         
@@ -1206,5 +1375,362 @@ class Combination_filters_m extends MY_Model
         }
         
         return $cccc_count;
+    }
+    
+    /**
+     * Validate that a combination respects friendship filtering rules
+     * 
+     * @param int $lottery_id The lottery ID
+     * @param array $combo_numbers Array of numbers in the combination
+     * @param string $friendship_type The friendship filter type ('none', '1', '2')
+     * @return bool True if combination respects friendship rules, false otherwise
+     */
+    private function validate_combination_friendships($lottery_id, $combo_numbers, $friendship_type)
+    {
+        // Get friendship data from database
+        $row = $this->db->get_where('lottery_friends', ['lottery_id' => $lottery_id])->row_array();
+        if (!$row || empty($row['wins'])) {
+            return true; // No friendship data, allow all combinations
+        }
+        
+        // Parse friendship data - split on pipe character first
+        $friend_str = trim($row['wins']);
+        $parts = explode('|', $friend_str);
+        
+        // Friendships are in the part after the pipe
+        if (count($parts) > 1) {
+            $friend_str = trim($parts[1]);
+        } else {
+            $friend_str = trim($parts[0]);
+        }
+        
+        $friendships = array_filter(array_map('trim', explode(',', $friend_str)));
+        
+        $oneway = [];  // 1-way friendships
+        $twoway = [];  // 2-way friendships
+        
+        foreach ($friendships as $idx => $f) {
+            $ball = $idx + 1; // Ball number (1-based)
+            if (strpos($f, '<>') !== false) {
+                $friend = (int)trim(str_replace('<>', '', $f));
+                $twoway[] = [$ball, $friend];
+            } elseif (strpos($f, '>') !== false) {
+                $friend = (int)trim(str_replace('>', '', $f));
+                $oneway[] = [$ball, $friend];
+            }
+        }
+        
+        // Make sure 2-way friendships are unique (remove duplicates like [1,2] and [2,1])
+        $twoway = $this->twoway_unique($twoway);
+        
+        // Check friendship rules based on selected filter type
+        switch ($friendship_type) {
+            case 'none':
+                // No friendships should exist
+                return $this->validate_no_friendships($combo_numbers, $oneway, $twoway);
+                
+            case '1':
+                // Only 1-way friendships allowed (no 2-way friendships)
+                $result = $this->validate_oneway_friendships_only($combo_numbers, $oneway, $twoway);
+                if (!$result) {
+                    // Log specific violation for debugging
+                    foreach ($oneway as $pair) {
+                        list($a, $b) = $pair;
+                        if (in_array($a, $combo_numbers) && !in_array($b, $combo_numbers)) {
+                            log_message('info', "FRIENDSHIP VIOLATION: 1-way {$a}>{$b} incomplete (missing {$b}) in combination [" . implode(',', $combo_numbers) . "]");
+                        }
+                    }
+                }
+                return $result;
+                
+            case '2':
+                // Only 2-way friendships allowed (no 1-way friendships)
+                return $this->validate_twoway_friendships_only($combo_numbers, $oneway, $twoway);
+                
+            default:
+                return true; // 'all' or unknown type - allow everything
+        }
+    }
+    
+    /**
+     * Validate that combination has no friendships
+     */
+    private function validate_no_friendships($combo_numbers, $oneway, $twoway)
+    {
+        // Check for any 2-way friendships
+        foreach ($twoway as $pair) {
+            list($a, $b) = $pair;
+            if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+                return false; // Found 2-way friendship
+            }
+        }
+        
+        // Check for any 1-way friendships
+        foreach ($oneway as $pair) {
+            list($a, $b) = $pair;
+            if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+                return false; // Found 1-way friendship
+            }
+        }
+        
+        return true; // No friendships found
+    }
+    
+    /**
+     * Validate that combination only has 1-way friendships (no 2-way friendships)
+     * For 1-way friendships to be valid: if A>B and A is in combo, then B MUST also be in combo
+     * Must have at least one complete 1-way friendship
+     */
+    private function validate_oneway_friendships_only($combo_numbers, $oneway, $twoway)
+    {
+        log_message('info', "FRIENDSHIP DEBUG: Validating 1-way friendships for combo [" . implode(',', $combo_numbers) . "]");
+        
+        // First, check that no 2-way friendships exist
+        foreach ($twoway as $pair) {
+            list($a, $b) = $pair;
+            if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+                log_message('info', "FRIENDSHIP DEBUG: Found 2-way friendship {$a}-{$b} - REJECTING");
+                return false; // Found 2-way friendship - not allowed
+            }
+        }
+        
+        $found_complete_oneway = false;
+        
+        // Check that 1-way friendships are complete (if A>B and A is present, B must be present)
+        foreach ($oneway as $pair) {
+            list($a, $b) = $pair;
+            if (in_array($a, $combo_numbers) && !in_array($b, $combo_numbers)) {
+                log_message('info', "FRIENDSHIP DEBUG: Found incomplete 1-way friendship {$a}>{$b} (missing {$b}) - REJECTING");
+                return false; // Found incomplete 1-way friendship
+            }
+            if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+                log_message('info', "FRIENDSHIP DEBUG: Found complete 1-way friendship {$a}>{$b} - OK");
+                $found_complete_oneway = true;
+            }
+        }
+        
+        if (!$found_complete_oneway) {
+            log_message('info', "FRIENDSHIP DEBUG: No 1-way friendships found - REJECTING");
+            return false; // Must have at least one complete 1-way friendship
+        }
+        
+        log_message('info', "FRIENDSHIP DEBUG: 1-way validation PASSED");
+        return true; // Only valid 1-way friendships found
+    }
+    
+    /**
+     * Validate that combination only has 2-way friendships (no 1-way friendships)
+     * For 2-way friendships to be valid: if A-B and either A or B is in combo, then both must be in combo
+     * Must have at least one complete 2-way friendship
+     */
+    private function validate_twoway_friendships_only($combo_numbers, $oneway, $twoway)
+    {
+        // First, check that no 1-way friendships exist
+        foreach ($oneway as $pair) {
+            list($a, $b) = $pair;
+            if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+                return false; // Found 1-way friendship - not allowed
+            }
+        }
+        
+        $found_complete_twoway = false;
+        
+        // Check that 2-way friendships are complete (if A-B and A is present, B must be present)
+        foreach ($twoway as $pair) {
+            list($a, $b) = $pair;
+            if ((in_array($a, $combo_numbers) && !in_array($b, $combo_numbers)) ||
+                (in_array($b, $combo_numbers) && !in_array($a, $combo_numbers))) {
+                return false; // Found incomplete 2-way friendship
+            }
+            if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+                $found_complete_twoway = true;
+            }
+        }
+        
+        if (!$found_complete_twoway) {
+            return false; // Must have at least one complete 2-way friendship
+        }
+        
+        return true; // Only valid 2-way friendships found
+    }
+    
+    /**
+     * Remove duplicates from 2-way friendship array (e.g., [1,2] and [2,1] become just [1,2])
+     */
+    private function twoway_unique($tw) {
+        $unique = [];
+        foreach ($tw as $pair) {
+            // Sort the pair so [10,11] and [11,10] become [10,11]
+            sort($pair, SORT_NUMERIC);
+            $key = implode('<>', $pair);
+            if (!isset($unique[$key])) {
+                $unique[$key] = $pair;
+            }
+        }
+        return array_values($unique);
+    }
+
+    /**
+     * Check if any combinations contain the required friendship type
+     * Returns true if at least one combination has the required friendship, false otherwise
+     */
+    public function check_friendship_occurrences($filepath, $number_array, $lottery_id, $friendship_type)
+    {
+        if ($friendship_type === 'all' || $friendship_type === 'none' || empty($friendship_type)) {
+            return true; // No friendship requirement
+        }
+
+        // Get friendship data from database
+        $row = $this->db->get_where('lottery_friends', ['lottery_id' => $lottery_id])->row_array();
+        if (!$row || empty($row['wins'])) {
+            return true; // No friendship data available
+        }
+
+        // Parse friendship data - same logic as validate_combination_friendships
+        $friend_str = trim($row['wins']);
+        $parts = explode('|', $friend_str);
+        
+        if (count($parts) > 1) {
+            $friend_str = trim($parts[1]);
+        } else {
+            $friend_str = trim($parts[0]);
+        }
+        
+        $friendships = array_filter(array_map('trim', explode(',', $friend_str)));
+        
+        $oneway = [];  // 1-way friendships
+        $twoway = [];  // 2-way friendships
+        
+        foreach ($friendships as $idx => $f) {
+            $ball = $idx + 1; // Ball number (1-based)
+            if (strpos($f, '<>') !== false) {
+                $friend = (int)trim(str_replace('<>', '', $f));
+                $twoway[] = [$ball, $friend];
+            } elseif (strpos($f, '>') !== false) {
+                $friend = (int)trim(str_replace('>', '', $f));
+                $oneway[] = [$ball, $friend];
+            }
+        }
+        
+        $twoway = $this->twoway_unique($twoway);
+        
+        // Check a sample of combinations to see if any contain the required friendship type
+        $sample_size = min(1000, $this->get_total_combinations_count($filepath)); // Check up to 1000 combinations
+        $combinations = $this->load_combinations_from_file($filepath, 1, $sample_size);
+        
+        foreach ($combinations as $combo) {
+            $combo_numbers = $this->convert_combo_to_numbers($combo, $number_array);
+            
+            if ($friendship_type === '1') {
+                // Check for at least one complete 1-way friendship
+                foreach ($oneway as $pair) {
+                    list($a, $b) = $pair;
+                    if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+                        // Found complete 1-way friendship - check no 2-way friendships exist
+                        $has_twoway = false;
+                        foreach ($twoway as $twopair) {
+                            list($ta, $tb) = $twopair;
+                            if (in_array($ta, $combo_numbers) && in_array($tb, $combo_numbers)) {
+                                $has_twoway = true;
+                                break;
+                            }
+                        }
+                        if (!$has_twoway) {
+                            return true; // Found valid 1-way friendship occurrence
+                        }
+                    }
+                }
+            } elseif ($friendship_type === '2') {
+                // Check for at least one complete 2-way friendship
+                foreach ($twoway as $pair) {
+                    list($a, $b) = $pair;
+                    if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
+                        // Found complete 2-way friendship - check no 1-way friendships exist
+                        $has_oneway = false;
+                        foreach ($oneway as $onepair) {
+                            list($oa, $ob) = $onepair;
+                            if (in_array($oa, $combo_numbers) && in_array($ob, $combo_numbers)) {
+                                $has_oneway = true;
+                                break;
+                            }
+                        }
+                        if (!$has_oneway) {
+                            return true; // Found valid 2-way friendship occurrence
+                        }
+                    }
+                }
+            }
+        }
+        
+        return false; // No required friendship type found in any combination
+    }
+
+    /**
+     * Get total count of combinations in file
+     */
+    private function get_total_combinations_count($filepath)
+    {
+        if (!file_exists($filepath)) {
+            return 0;
+        }
+        
+        $count = 0;
+        if (($handle = fopen($filepath, 'r')) !== false) {
+            while (($line = fgets($handle)) !== false) {
+                $line = trim($line);
+                if (!empty($line)) {
+                    $count++;
+                }
+            }
+            fclose($handle);
+        }
+        return $count;
+    }
+
+    /**
+     * Load combinations from file with pagination
+     */
+    private function load_combinations_from_file($filepath, $page, $per_page)
+    {
+        if (!file_exists($filepath)) {
+            return [];
+        }
+
+        $start_line = ($page - 1) * $per_page + 1;
+        $end_line = $start_line + $per_page;
+        $current_line = 1;
+        $combinations = [];
+
+        if (($handle = fopen($filepath, 'r')) !== false) {
+            while (($line = fgets($handle)) !== false && $current_line < $end_line) {
+                if ($current_line >= $start_line) {
+                    $line = trim($line);
+                    if (!empty($line)) {
+                        $positions = array_map('intval', explode(' ', $line));
+                        $combinations[] = $positions;
+                    }
+                }
+                $current_line++;
+            }
+            fclose($handle);
+        }
+        
+        return $combinations;
+    }
+
+    /**
+     * Convert combination positions to actual numbers
+     */
+    private function convert_combo_to_numbers($combo_positions, $number_array)
+    {
+        $combo_numbers = [];
+        
+        foreach ($combo_positions as $pos) {
+            if ($pos > 0 && isset($number_array[$pos - 1])) {
+                $combo_numbers[] = $number_array[$pos - 1];
+            }
+        }
+        
+        return $combo_numbers;
     }
 }

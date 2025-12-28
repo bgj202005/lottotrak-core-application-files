@@ -59,12 +59,12 @@ function get_menu($array, $m = FALSE, $child = FALSE)
 
     if (count($array)) {
         if ($child == FALSE) {
-            $str .= '<nav class="navbar navbar-expand-lg navbar-dark bg-dark">' . PHP_EOL;
+            $str .= '<nav class="navbar navbar-expand-lg navbar-dark bg-dark enhanced-navbar">' . PHP_EOL;
             $str .= '<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#top-menu" aria-controls="top-menu" aria-expanded="false" aria-label="Toggle navigation" style="margin-left: auto;">' . PHP_EOL;
             $str .= '<span class="navbar-toggler-icon"></span>' . PHP_EOL;
             $str .= '</button>' . PHP_EOL;
             $str .= '<div class="collapse navbar-collapse" id="top-menu">' . PHP_EOL;
-            $str .= '<ul class="navbar-nav ml-auto">' . PHP_EOL; // Align menu items to the right
+            $str .= '<ul class="navbar-nav ml-auto enhanced-nav">' . PHP_EOL; // Align menu items to the right
         }
 
         foreach ($array as $item) {
@@ -72,10 +72,10 @@ function get_menu($array, $m = FALSE, $child = FALSE)
             $str .= '<li class="nav-item' . ($hasChildren ? ' dropdown' : '') . '">' . PHP_EOL;
 
             if ($hasChildren) {
-                $str .= '<a href="' . site_url($item['slug']) . '" class="nav-link dropdown-toggle" id="dropdown' . $item['slug'] . '" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">' . e(($item['slug'] == 'home' ? "Home" : $item['title'])) . '</a>' . PHP_EOL;
-                $str .= '<div class="dropdown-menu" aria-labelledby="dropdown' . $item['slug'] . '">' . PHP_EOL;
+                $str .= '<a href="' . site_url($item['slug']) . '" class="nav-link dropdown-toggle enhanced-dropdown" id="dropdown' . $item['slug'] . '" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">' . e(($item['slug'] == 'home' ? "Home" : $item['title'])) . ' <i class="fa fa-angle-down dropdown-arrow"></i></a>' . PHP_EOL;
+                $str .= '<div class="dropdown-menu enhanced-dropdown-menu" aria-labelledby="dropdown' . $item['slug'] . '">' . PHP_EOL;
                 foreach ($item['children'] as $child) {
-                    $str .= '<a href="' . site_url($child['slug']) . '" class="dropdown-item">' . e($child['title']) . '</a>' . PHP_EOL;
+                    $str .= '<a href="' . site_url($child['slug']) . '" class="dropdown-item enhanced-dropdown-item">' . e($child['title']) . '</a>' . PHP_EOL;
                 }
                 $str .= '</div>' . PHP_EOL;
             } else {

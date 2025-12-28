@@ -20,11 +20,10 @@ if (isset($meta_canonical)&&$meta_canonical) echo '<link rel="canonical" href="'
 <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
 <!-- End of BootstrapCND 4.3 -->
-<!-- Font Awesome 4.7 -->
-<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-<!-- End of Font Awesome -->
     <script src="//maxcdn.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"></script>
 	<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<!-- Font Awesome 4.7.0 -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" integrity="sha256-eZrrJcwDc/3uDhsdt61sL2oOBY362qM3lon1gyExkL0=" crossorigin="anonymous">
 <!-- Include all compiled plugins (below), or include individual files as needed -->
 <link href='http://fonts.googleapis.com/css?family=Lato:400,700,900,400italic,700italic,900italic' rel='stylesheet' type='text/css'>
 <!-- jQuery -->
@@ -38,6 +37,43 @@ if (isset($meta_canonical)&&$meta_canonical) echo '<link rel="canonical" href="'
 				function(){$(this).find('span').css({'left':$(this).width()/2, 'height':$(this).height()}).stop().animate({width: $(this).width(), left: 0}, 200);},
 				function(){$(this).find('span').stop().animate({width: 0, left: $(this).width()/2}, 200)}
 			)
+			
+			// Enhanced menu hover functionality
+			$('.enhanced-nav .dropdown').hover(
+				function() {
+					// On hover enter
+					$(this).addClass('show');
+					$(this).find('.dropdown-menu').addClass('show');
+				},
+				function() {
+					// On hover leave with small delay
+					var $dropdown = $(this);
+					setTimeout(function() {
+						if (!$dropdown.is(':hover')) {
+							$dropdown.removeClass('show');
+							$dropdown.find('.dropdown-menu').removeClass('show');
+						}
+					}, 100);
+				}
+			);
+			
+			// Prevent dropdown from closing when hovering over dropdown menu
+			$('.enhanced-dropdown-menu').hover(
+				function() {
+					$(this).parent().addClass('show');
+					$(this).addClass('show');
+				}
+			);
+			
+			// Enhanced arrow animation
+			$('.enhanced-dropdown').hover(
+				function() {
+					$(this).find('.dropdown-arrow').addClass('rotated');
+				},
+				function() {
+					$(this).find('.dropdown-arrow').removeClass('rotated');
+				}
+			);
 		}); 
    </script>
     <!--[if lt IE 8]>

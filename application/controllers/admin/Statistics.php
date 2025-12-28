@@ -13,6 +13,7 @@ class Statistics extends Admin_Controller {
 		 $this->load->model('maintenance_m');
 		 $this->load->helper('file');
 		 $this->load->helper('html');
+		 $this->load->config('statistics_optimization');
 		// $this->output->enable_profiler(TRUE);
 	}
 
@@ -37,6 +38,14 @@ class Statistics extends Admin_Controller {
 			$lottery->average_sum = $this->statistics_m->lottery_average_sum($tbl_name, $c);
 			$lottery->sum_last = $this->statistics_m->sum_last($tbl_name, $lottery->balls_drawn);
 			$lottery->repeaters = $this->statistics_m->repeaters($tbl_name, $lottery->balls_drawn);
+			
+			// Check if followers need recalculation (after reset)
+			$followers_check = $this->statistics_m->followers_exists($lottery->id);
+			$lottery->needs_recalc = (is_null($followers_check) || empty($followers_check['lottery_followers']));
+			
+			// Check if H-W-C needs recalculation (after reset)
+			$hwc_check = $this->statistics_m->h_w_c_exists($lottery->id);
+			$lottery->needs_hwc_recalc = (is_null($hwc_check) || empty($hwc_check['hots']) || empty($hwc_check['warms']) || empty($hwc_check['colds']) || $hwc_check['draw_id'] == 0);
 		}
 
 		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
@@ -84,7 +93,7 @@ class Statistics extends Admin_Controller {
 	 */
 	public function btn_followers($uri)
 	{
-		return anchor($uri, '<i class="fa fa-retweet fa-2x" aria-hidden="true">', array('title' => 'View Historic Follower Statistics after the last draw', 'class' => 'followers'));
+		return anchor($uri, '<i class="fa fa-retweet fa-2x" aria-hidden="true" style="color: #007bff;"></i>', array('title' => 'View Historic Follower Statistics after the last draw', 'class' => 'followers followers-btn'));
 	}
 
 	/**
@@ -158,28 +167,212 @@ class Statistics extends Admin_Controller {
 			redirect('admin/statistics'); 
 		}
 
-		$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $new_range, $this->data['trend']);
-		if (!$this->data['draws'])
-		{
-			$this->session->set_flashdata('message', 'There are no draws associated with this lottery. Please    draws.');
-			redirect('admin/statistics'); 
+		// Check threshold BEFORE loading draws to avoid timeouts
+		$ajax_threshold = $this->config->item('ajax_pagination_threshold') ?: 200;
+		
+		if ($new_range > $ajax_threshold) {
+			// For large datasets, don't pre-load draws - use AJAX pagination instead
+			$this->data['draws'] = []; // Empty array to prevent view errors
+			$this->data['subview'] = 'admin/dashboard/statistics/view_optimized';
+		} else {
+			// For smaller datasets, load draws normally and use original method
+			$this->data['draws'] = $this->lotteries_m->load_draws($tbl_name, $new_range, $this->data['trend']);
+			if (!$this->data['draws'])
+			{
+				$this->session->set_flashdata('message', 'There are no draws associated with this lottery. Please add draws.');
+				redirect('admin/statistics'); 
+			}
+			$this->data['subview'] = 'admin/dashboard/statistics/view';
 		}
+		
 		$this->data['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['sel_range'] = $sel_range;		// What was selected for the range in the previous page
 		$this->data['range'] = $new_range;
 		$this->data['all'] = $all;
-		$this->data['statistics'] = $this->statistics_m->get_by('lottery_id='.$id, TRUE);
-		$this->data['evensodds'] = $this->statistics_m->evensodds_sum($tbl_name, $this->data['trend']);
+		$this->data['statistics'] = $this->statistics_m->get_lottery_stats_cached($id);
+		$this->data['evensodds'] = $this->statistics_m->evensodds_sum_cached($tbl_name, $this->data['trend']);
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->session->set_userdata('range', $new_range);
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/view_draws'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
 		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
-		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	
-		$this->data['subview']  = 'admin/dashboard/statistics/view';
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins
+		
 		$this->data['stat_method'] = $this;				// Access the methods in the view
 		$this->load->view('admin/_layout_main', $this->data);
+	}
+
+	/**
+	 * AJAX endpoint for loading draws data with pagination
+	 * 
+	 * @param       int $id		lottery id
+	 * @return      json		JSON response with draws data
+	 */
+	public function ajax_load_draws($id)
+	{
+		// Set JSON header
+		$this->output->set_content_type('application/json');
+		
+		// Add error logging for debugging
+
+		
+		// Allow AJAX requests and direct access for debugging
+		// In production, you might want to re-enable this check
+		// if (!$this->input->is_ajax_request()) {
+		// 	show_404();
+		// 	return;
+		// }
+
+		try {
+			$lottery = $this->lotteries_m->get($id);
+			if (!$lottery) {
+				log_message('error', "Lottery not found for ID: $id");
+				$this->output->set_output(json_encode(['error' => 'Lottery not found with ID: ' . $id]));
+				return;
+			}
+		} catch (Exception $e) {
+			log_message('error', "Database error getting lottery $id: " . $e->getMessage());
+			$this->output->set_output(json_encode(['error' => 'Database error: ' . $e->getMessage()]));
+			return;
+		}
+
+		$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+		
+		// Check if table exists
+		if (!$this->lotteries_m->lotto_table_exists($tbl_name)) {
+			log_message('error', "Lottery table does not exist: $tbl_name");
+			$this->output->set_output(json_encode(['error' => 'Lottery table does not exist: ' . $tbl_name]));
+			return;
+		}
+		
+		// Get pagination parameters
+		$page = (int)$this->input->get('page', TRUE) ?: 1;
+		$limit = (int)$this->input->get('limit', TRUE) ?: 10; // Default to 10 rows for better UX with large datasets
+		$trend = (int)$this->input->get('trend', TRUE) ?: 0;
+		$requested_range = (int)$this->input->get('range', TRUE) ?: 100; // The requested range (200, 300, etc.)
+		$search = $this->input->get('search', TRUE) ?: '';
+		
+
+		
+		// Calculate offset
+		$offset = ($page - 1) * $limit;
+		
+		try {
+			// Get total count for pagination
+			$total_count = $this->lotteries_m->get_draws_count($tbl_name, $trend);
+
+			
+			if ($total_count === 0) {
+				$this->output->set_output(json_encode(['error' => 'No draws found in this lottery table: ' . $tbl_name]));
+				return;
+			}
+			
+			// Limit the requested range to available draws to prevent negative numbering
+			$effective_range = min($requested_range, $total_count);
+
+			
+		} catch (Exception $e) {
+			log_message('error', "Error getting draws count: " . $e->getMessage());
+			$this->output->set_output(json_encode(['error' => 'Database error getting count: ' . $e->getMessage()]));
+			return;
+		}
+		
+		// Load draws with pagination - use effective range for numbering and limiting
+		$draws = $this->lotteries_m->load_draws_paginated($tbl_name, $limit, $offset, $trend, $effective_range);
+		
+		if (!$draws) {
+			$this->output->set_output(json_encode(['error' => 'Failed to load draws data']));
+			return;
+		}
+		
+		// Process draws for display (minimal processing for performance)
+		$processed_draws = [];
+		
+		foreach ($draws as $key => $draw) {
+			$next_draw = isset($draws[$key + 1]) ? $draws[$key + 1] : null;
+			$repeaters = [];
+			
+			// Calculate repeaters if we have a next draw (independent of trend setting)
+			if ($next_draw) {
+				$repeaters = $this->last_repeaters($next_draw, $draw, $lottery->balls_drawn);
+			}
+			
+			$processed_draw = [
+				'id' => $draw->id,
+				'draw' => $draw->draw,
+				'draw_date' => date("D, M d, Y", strtotime(str_replace('/', '-', $draw->draw_date))),
+				'ball1' => $draw->ball1,
+				'ball2' => $draw->ball2,
+				'ball3' => $draw->ball3,
+				'sum_draw' => $draw->sum_draw,
+				'sum_digits' => $draw->sum_digits,
+				'odd' => $draw->odd,
+				'even' => $draw->even,
+				'range_draw' => $draw->range_draw,
+				'repeat_decade' => $draw->repeat_decade,
+				'repeat_last' => $draw->repeat_last,
+				'repeaters' => $repeaters,
+				'trends' => []  // Initialize trends array
+			];
+			
+			// Add trend arrows if enabled and we have a next draw (previous chronologically)
+			// Note: next_draw is chronologically previous since draws are ordered DESC by date
+			if ($trend && $next_draw !== null) {
+				$processed_draw['trends']['ball1'] = $this->trend($next_draw->ball1, $draw->ball1);
+				$processed_draw['trends']['ball2'] = $this->trend($next_draw->ball2, $draw->ball2);
+				$processed_draw['trends']['ball3'] = $this->trend($next_draw->ball3, $draw->ball3);
+				
+				// Add trend arrows for additional balls based on lottery configuration
+				if (intval($lottery->balls_drawn) >= 4) {
+					$processed_draw['trends']['ball4'] = $this->trend($next_draw->ball4, $draw->ball4);
+				}
+				if (intval($lottery->balls_drawn) >= 5) {
+					$processed_draw['trends']['ball5'] = $this->trend($next_draw->ball5, $draw->ball5);
+				}
+				if (intval($lottery->balls_drawn) >= 6) {
+					$processed_draw['trends']['ball6'] = $this->trend($next_draw->ball6, $draw->ball6);
+				}
+				if (intval($lottery->balls_drawn) >= 7) {
+					$processed_draw['trends']['ball7'] = $this->trend($next_draw->ball7, $draw->ball7);
+				}
+				if (intval($lottery->balls_drawn) >= 8) {
+					$processed_draw['trends']['ball8'] = $this->trend($next_draw->ball8, $draw->ball8);
+				}
+				if (intval($lottery->balls_drawn) == 9) {
+					$processed_draw['trends']['ball9'] = $this->trend($next_draw->ball9, $draw->ball9);
+				}
+				if (intval($lottery->extra_ball) == 1) {
+					$processed_draw['trends']['extra'] = $this->trend($next_draw->extra, $draw->extra);
+				}
+			}
+			
+			// Add additional balls based on lottery configuration
+			if (intval($lottery->balls_drawn) >= 4) $processed_draw['ball4'] = $draw->ball4;
+			if (intval($lottery->balls_drawn) >= 5) $processed_draw['ball5'] = $draw->ball5;
+			if (intval($lottery->balls_drawn) >= 6) $processed_draw['ball6'] = $draw->ball6;
+			if (intval($lottery->balls_drawn) >= 7) $processed_draw['ball7'] = $draw->ball7;
+			if (intval($lottery->balls_drawn) >= 8) $processed_draw['ball8'] = $draw->ball8;
+			if (intval($lottery->balls_drawn) == 9) $processed_draw['ball9'] = $draw->ball9;
+			if (intval($lottery->extra_ball) == 1) $processed_draw['extra'] = $draw->extra;
+			
+			$processed_draws[] = $processed_draw;
+		}
+		
+		// Return JSON response
+		$this->output->set_output(json_encode([
+			'draws' => $processed_draws,
+			'pagination' => [
+				'total' => $effective_range, // Use effective range for pagination, not total database count
+				'per_page' => $limit,
+				'current_page' => $page,
+				'last_page' => ceil($effective_range / $limit)
+			],
+			'lottery_config' => [
+				'balls_drawn' => $lottery->balls_drawn,
+				'extra_ball' => $lottery->extra_ball
+			]
+		]));
 	}
 
 	/**
@@ -461,6 +654,16 @@ class Statistics extends Admin_Controller {
 	{
 		$this->data['message'] = '';	// Defaulted to No Error Messages
 		$this->data['lottery'] = $this->lotteries_m->get($id);
+		
+		// Check if followers data exists and block access if empty (after reset)
+		$followers_check = $this->statistics_m->followers_exists($id);
+		
+		if(is_null($followers_check) || empty($followers_check['lottery_followers'])) {
+			$this->session->set_flashdata('message', 'Followers must be ReCalculated with the ReCalc checkbox before viewing followers data.');
+			redirect('admin/statistics');
+			return;
+		}
+		
 		// Retrieve the lottery ta ble name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$blnduplicate = ($this->data['lottery']->duplicate_extra_ball ? TRUE : FALSE);
@@ -491,54 +694,205 @@ class Statistics extends Admin_Controller {
 		$followers = $this->statistics_m->followers_exists($id);		// Existing follower row 
 		$nonfollowers = $this->statistics_m->nonfollowers_exists($id);	// Non Follower existing row
 		$sel_range = 1;
-		$this->data['lottery']->extra_included = 0; // No Extra Ball as part of the calculation
-		$this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the follower calculation
+		
+		// Initialize settings - handle independent extra_included and extra_draws parameters
+		$url_extra_included = ($this->uri->segment(6)=='extra' || $this->uri->segment(7)=='extra') ? 1 : 0;
+		$url_extra_draws = ($this->uri->segment(6)=='draws' || $this->uri->segment(7)=='draws') ? 1 : 0;
+		
+		// Don't set lottery object values yet - determine source first (URL vs Database)
 		$outofrange = FALSE;						// default is not out of range for the prize pool
 		$blnEX = false;								// Extra Bonus Ball / Draws flag are no change or update
+		
+
+		
+		// Determine if we have actual parameter segments (extra/draws), not just range or lottery_id
+		$has_extra_param = ($this->uri->segment(6) == 'extra' || $this->uri->segment(7) == 'extra');
+		$has_draws_param = ($this->uri->segment(6) == 'draws' || $this->uri->segment(7) == 'draws');
+		$has_param_segments = ($has_extra_param || $has_draws_param);
+
+		
+		// Session-based preference management: restore user's last checkbox settings when returning from stats dashboard
+		// Check if user is coming from external navigation (referer is not followers page)
+		$referer = $this->input->server('HTTP_REFERER');
+		$coming_from_followers = ($referer && strpos($referer, '/followers/') !== false);
+		
+		// **DISABLED**: Removing automatic redirects to prevent conflicts
+		// Users will manually check/uncheck boxes as needed
+		/*
+		if(!$has_param_segments && !$coming_from_followers) {
+			// No URL parameters AND not coming from followers page - check if we have saved preferences for this lottery
+			$saved_prefs = $this->session->userdata('followers_preferences');
+			if($saved_prefs && isset($saved_prefs[$id])) {
+				// User has saved preferences for this lottery - redirect to URL with saved parameters
+				$saved_extra = $saved_prefs[$id]['extra_included'];
+				$saved_draws = $saved_prefs[$id]['extra_draws'];
+
+				
+				// Only redirect if saved preferences are different from current URL (which has no parameters)
+				if($saved_extra || $saved_draws) {
+					// Build URL with saved parameters
+					$range = $this->uri->segment(5, 100);
+					$redirect_url = "admin/statistics/followers/$id/$range";
+					if($saved_extra) $redirect_url .= '/extra';
+					if($saved_draws) $redirect_url .= '/draws';
+					
+
+					redirect($redirect_url);
+					return;
+				}
+			}
+		}
+		*/
+		
+		
 		if(!is_null($followers))
 		{
-			if($this->uri->segment(6)=='extra') // include both the friends and nonfriends for including the extra (bonus) ball
-			{
-				$this->data['lottery']->extra_included = $this->statistics_m->extra_included($id, TRUE, 'lottery_followers');
-				$this->data['lottery']->extra_included = $this->statistics_m->extra_included($id, TRUE, 'lottery_nonfollowers');
-				$blnEX = true; // There has been a change to the Extra Bonus Ball / Draws flag
+			// Check if followers data is empty (after reset) - preserve URL parameters or database values
+			$followers_data_empty = empty($followers['lottery_followers']);
+			
+			// Get current database values for comparison and fallback
+			if(!$followers_data_empty) {
+				$db_extra_included = $this->statistics_m->extra_included($id, FALSE, 'lottery_followers');
+				$db_extra_draws = $this->statistics_m->extra_draws($id, FALSE, 'lottery_followers');
+				
+				// **SMART LOGIC**: Handle different navigation scenarios
+				if($has_param_segments) {
+					// URL has explicit parameters - update database to match URL
+					if($url_extra_included != $db_extra_included || $url_extra_draws != $db_extra_draws) {
+						$blnEX = true;
+						$this->set_extra_included_value($id, $url_extra_included, 'lottery_followers');
+						$this->set_extra_included_value($id, $url_extra_included, 'lottery_nonfollowers');
+						$this->set_extra_draws_value($id, $url_extra_draws, 'lottery_followers');
+						$this->set_extra_draws_value($id, $url_extra_draws, 'lottery_nonfollowers');
+						
+						// Set a flag to force complete recalculation for this request
+						$this->session->set_userdata('force_recalc_lottery_' . $id, time());
+					}
+					// Use URL values
+					$this->data['lottery']->extra_included = $url_extra_included;
+					$this->data['lottery']->extra_draws = $url_extra_draws;
+				} else {
+					// NO URL parameters - check user intent based on navigation source
+					$coming_from_stats = ($referer && (strpos($referer, '/statistics') !== false || strpos($referer, '/admin/statistics') !== false));
+					
+					if($coming_from_stats && !$coming_from_followers) {
+						// Coming from stats page (reset/recalc) - preserve database state
+						$this->data['lottery']->extra_included = $db_extra_included;
+						$this->data['lottery']->extra_draws = $db_extra_draws;
+					} else {
+						// Direct navigation or from followers page - user wants to uncheck (URL has no params)
+						if($db_extra_included != 0 || $db_extra_draws != 0) {
+							$blnEX = true;
+							$this->set_extra_included_value($id, 0, 'lottery_followers');
+							$this->set_extra_included_value($id, 0, 'lottery_nonfollowers');
+							$this->set_extra_draws_value($id, 0, 'lottery_followers');
+							$this->set_extra_draws_value($id, 0, 'lottery_nonfollowers');
+						}
+						$this->data['lottery']->extra_included = 0;
+						$this->data['lottery']->extra_draws = 0;
+					}
+				}
+			} else {
+				// Followers data is empty (reset case) - use URL params if present, otherwise default to 0
+				$this->data['lottery']->extra_included = $url_extra_included;
+				$this->data['lottery']->extra_draws = $url_extra_draws;
 			}
-			else // or both the friends and nonfriends for not including the extra ball
-			{
-				$this->data['lottery']->extra_included = $this->statistics_m->extra_included($id, FALSE, 'lottery_followers');
-			}
-			if($this->uri->segment(6)=='draws') // include both the friends and nonfriends for including the extra (bonus) draws
-			{
-				$this->data['lottery']->extra_draws = $this->statistics_m->extra_draws($id, TRUE, 'lottery_followers');
-				$this->data['lottery']->extra_draws = $this->statistics_m->extra_draws($id, TRUE, 'lottery_nonfollowers');
-				$blnEX = true; // There has been a change to the Extra Bonus Ball / Draws flag
-			}
-			else // or both the friends and nonfriends for not including the extra draws
-			{
-				$this->data['lottery']->extra_draws = $this->statistics_m->extra_draws($id, FALSE, 'lottery_followers');
-			} 
+			
+			// Always save current state as user preferences
+			$prefs = $this->session->userdata('followers_preferences') ?: array();
+			$prefs[$id] = array(
+				'extra_included' => $this->data['lottery']->extra_included,
+				'extra_draws' => $this->data['lottery']->extra_draws
+			);
+			$this->session->set_userdata('followers_preferences', $prefs); 
 
 			$p_group = $this->statistics_m->prize_group_profile($id); // Prize Group Profile Only
-			$p_group = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_ball);
- 			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
+			
+			// Handle case where no prize profile exists
+			if (empty($p_group)) {
+				// Use default prize structure if no profile found
+				$p_group = array(
+					'extra' => 1,
+					'1_win' => 1, '1_win_extra' => 1,
+					'2_win' => 1, '2_win_extra' => 1,
+					'3_win' => 1, '3_win_extra' => 1,
+					'4_win' => 1, '4_win_extra' => 1,
+					'5_win' => 1, '5_win_extra' => 1,
+					'6_win' => 1, '6_win_extra' => 1,
+					'7_win' => 1, '7_win_extra' => 1,
+					'8_win' => 1, '8_win_extra' => 1,
+					'9_win' => 1, '9_win_extra' => 1
+				);
+			}
+			
+			// CRITICAL FIX: Use actual extra_included state, not just lottery extra_ball config
+			// When user unchecks extra, we should filter out extra categories from p_group
+			$current_extra_state = $this->data['lottery']->extra_included;
+			$p_group = $this->statistics_m->prizes_only($p_group, $current_extra_state);
 
-			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
-			$range = $this->uri->segment(5,0); // Return segment range
-			if(!$range) $range = $followers['range'];
+			// Use same range logic as recalc_followers method for consistency
+			$range = $this->get_current_range($id, $tbl_name);
 			if($range>100) $sel_range = intval($range / 100);
 			if($range!=0)	
 			{
-				if(intval($followers['range'])!=(intval($range))||$blnEX) // Any Change in Selection/Settings of the Draws?
+				if(($followers && intval($followers['range'])!=(intval($range))) || $blnEX || !$followers) // Any Change in Selection/Settings of the Draws?
 				{
 					$max = $this->data['lottery']->maximum_ball;
 					$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
-					$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, '', $blnduplicate);
-					$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
-					$str_prizes  = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
-					$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
 					
-					// Calculate dupextra_wins for independent extra ball lotteries only
+					// Ensure range doesn't exceed available draws
+					$total_draws = $this->lotteries_m->db_row_count($tbl_name);
+					if($range > $total_draws) {
+						$range = $total_draws;
+					}
+					
+					// CRITICAL FIX: Create prize and position arrays INSIDE calculation block 
+					// with current extra_included state to avoid stale data when checkbox changes
+					global $prizes; // Explicitly reference global to ensure no local variable shadowing
+					$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
+					$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
+					
+					// Extra validation: When extra parameters change, ensure clean calculation
+					if ($blnEX) {
+						// Reinitialize global prizes array to ensure clean state
+						$GLOBALS['prizes'] = array();
+						$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
+						$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
+					}
+					
+					// Validate arrays before passing to model methods to prevent null parameter errors
+					if (!is_array($prizes)) {
+						log_message('error', "Invalid prizes array detected, reinitializing");
+						$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
+					}
+					if (!is_array($positions)) {
+						log_message('error', "Invalid positions array detected, reinitializing");  
+						$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
+					}
+					
+					// Validate last_drawn array to prevent undefined offset errors
+					if (!is_array($this->data['lottery']->last_drawn) || empty($this->data['lottery']->last_drawn)) {
+						$this->session->set_flashdata('message', 'Invalid lottery draw data. Please check the lottery configuration.');
+						redirect('admin/statistics');
+						return;
+					}
+					
+				$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, '', $blnduplicate);
+					$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
+					
+					// Additional validation before string conversion to prevent array_key_exists errors
+					if (!is_array($prizes)) {
+						log_message('error', "Prizes is not an array after followers_prizes call, setting to empty");
+						$prizes = array();
+					}
+					if (!is_array($positions)) {
+						log_message('error', "Positions is not an array, setting to empty");
+						$positions = array();
+					}
+					
+					$str_prizes  = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : '');
+					$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');					// Calculate dupextra_wins for independent extra ball lotteries only
 					$str_dupextra_wins = '';
 					if($blnduplicate && !$outofrange) {
 						$str_dupextra_wins = $this->statistics_m->calculate_dupextra_wins($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $mx_extra, '');
@@ -552,7 +906,9 @@ class Statistics extends Admin_Controller {
 						'wins'				=> $str_prizes,
 						'positions'			=> $str_positions_prizes,
 						'draw_id'			=> $this->data['lottery']->last_drawn['id'],
-						'lottery_id'		=> $id
+						'lottery_id'		=> $id,
+						'extra_included'	=> $this->data['lottery']->extra_included,
+						'extra_draws'		=> $this->data['lottery']->extra_draws
 					);
 					
 					// Add dupextra_wins field only for independent extra ball lotteries
@@ -578,21 +934,134 @@ class Statistics extends Admin_Controller {
 		}
 		else // 3. If does not exist, calculate for the given draw range, return results and save to follower table
 		{
+			// No existing followers record - set checkbox values based on URL parameters
+			$this->data['lottery']->extra_included = $url_extra_included;
+			$this->data['lottery']->extra_draws = $url_extra_draws;
+			
+			// Save current state as user preferences
+			$prefs = $this->session->userdata('followers_preferences') ?: array();
+			$prefs[$id] = array(
+				'extra_included' => $this->data['lottery']->extra_included,
+				'extra_draws' => $this->data['lottery']->extra_draws
+			);
+			$this->session->set_userdata('followers_preferences', $prefs);
+			
 			$p_group = $this->statistics_m->prize_group_profile($id); // Prize Group Profile Only
-			$prizes = $this->statistics_m->prizes_only($p_group,$this->data['lottery']->extra_ball);
+			
+			// Handle case where no prize profile exists
+			if (empty($p_group)) {
+				// Use default prize structure if no profile found
+				$p_group = array(
+					'extra' => 1,
+					'1_win' => 1, '1_win_extra' => 1,
+					'2_win' => 1, '2_win_extra' => 1,
+					'3_win' => 1, '3_win_extra' => 1,
+					'4_win' => 1, '4_win_extra' => 1,
+					'5_win' => 1, '5_win_extra' => 1,
+					'6_win' => 1, '6_win_extra' => 1,
+					'7_win' => 1, '7_win_extra' => 1,
+					'8_win' => 1, '8_win_extra' => 1,
+					'9_win' => 1, '9_win_extra' => 1
+				);
+			}
+			
+			// CRITICAL FIX: Use actual extra_included state, not just lottery extra_ball config
+			// When user unchecks extra, we should filter out extra categories from p_group
+			$current_extra_state = $this->data['lottery']->extra_included;
+			$p_group = $this->statistics_m->prizes_only($p_group, $current_extra_state);
 			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
 
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
-			// range is set with either less than 100 rows (based on the exact number of draws) or calculate the number of followers using only 100 rows
-			$range = ($all<100 ? $all : 100);
+			// Get range using same logic as recalc_followers method for consistency
+			$range = $this->get_current_range($id, $tbl_name);
 			$max = $this->data['lottery']->maximum_ball;
 			$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
-			$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, ''. $blnduplicate);
-			$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
-			$str_prizes = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
-			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
 			
-			// Calculate dupextra_wins for independent extra ball lotteries only
+			// Validate arrays before passing to model methods
+			if (!is_array($prizes)) {
+				log_message('error', "New followers: Invalid prizes array detected, reinitializing");
+				$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
+			}
+			if (!is_array($positions)) {
+				log_message('error', "New followers: Invalid positions array detected, reinitializing");
+				$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
+			}
+			
+			// Validate last_drawn array to prevent undefined offset errors
+			if (!is_array($this->data['lottery']->last_drawn) || empty($this->data['lottery']->last_drawn)) {
+				log_message('error', "New followers: Invalid last_drawn data detected: " . print_r($this->data['lottery']->last_drawn, true));
+				$this->session->set_flashdata('message', 'Invalid lottery draw data. Please check the lottery configuration.');
+				redirect('admin/statistics');
+				return;
+			}
+			
+			$str_followers = $this->statistics_m->followers_calculate($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, '', $blnduplicate);
+			$outofrange = $this->statistics_m->followers_prizes($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
+			
+			// CRITICAL FIX: When extra_included=0, consolidate extra wins into base categories
+			if (!$current_extra_state && is_array($prizes)) {
+				$consolidated_count = 0;
+				$filtered_count = 0;
+				$preserved_count = 0;
+				foreach ($prizes as $ball => $categories) {
+					if (is_array($categories)) {
+						// Count wins before processing
+						$ball_wins_before = array_sum($categories);
+						
+						// First, consolidate *_extra categories into their base categories
+						foreach ($categories as $cat => $count) {
+							if (strpos($cat, '_extra') !== false && $count > 0) {
+								$base_cat = str_replace('_extra', '_win', $cat);
+								// If base category exists, add the extra wins to it
+								if (array_key_exists($base_cat, $categories)) {
+									$categories[$base_cat] += $count;
+									$consolidated_count++;
+								}
+								// Remove the extra category after consolidation
+								unset($categories[$cat]);
+							}
+						}
+						
+						// Then filter out non-base categories (7_win, 8_win, 9_win, etc.)
+						foreach ($categories as $cat => $count) {
+							// Keep 1_win and categories in p_group, filter out everything else
+							if (!array_key_exists($cat, $p_group) && $cat !== '1_win') {
+								if ($count > 0) {
+									$filtered_count++;
+								}
+								unset($categories[$cat]);
+							}
+						}
+						
+						// Update the prizes array with consolidated results
+						$prizes[$ball] = $categories;
+						
+						// Count wins after processing
+						$ball_wins_after = array_sum($categories);
+						if ($ball_wins_before > 0 || $ball_wins_after > 0) {
+							$preserved_count++;
+						}
+						
+						// Remove balls with no remaining wins
+						if (array_sum($categories) == 0) {
+							unset($prizes[$ball]);
+						}
+					}
+				}
+			}
+			
+			// Additional validation before string conversion
+			if (!is_array($prizes)) {
+				log_message('error', "New followers: Prizes is not an array after followers_prizes call, setting to empty");
+				$prizes = array();
+			}
+			if (!is_array($positions)) {
+				log_message('error', "New followers: Positions is not an array, setting to empty");
+				$positions = array();
+			}
+			
+			$str_prizes = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : '');
+			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');			// Calculate dupextra_wins for independent extra ball lotteries only
 			$str_dupextra_wins = '';
 			if($blnduplicate && !$outofrange) {
 				$str_dupextra_wins = $this->statistics_m->calculate_dupextra_wins($tbl_name, $this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $range, $mx_extra, '');
@@ -604,7 +1073,9 @@ class Statistics extends Admin_Controller {
 				'wins'				=> $str_prizes,
 				'positions'			=> $str_positions_prizes,
 				'draw_id'			=> $this->data['lottery']->last_drawn['id'],
-				'lottery_id'		=> $id
+				'lottery_id'		=> $id,
+				'extra_included'	=> $this->data['lottery']->extra_included,
+				'extra_draws'		=> $this->data['lottery']->extra_draws
 			);
 			
 			// Add dupextra_wins field only for independent extra ball lotteries
@@ -644,7 +1115,9 @@ class Statistics extends Admin_Controller {
 						$this->data['lottery']->last_drawn[$n.'_extra'] = $extra_followers; // Store extra followers separately
 					}
 				}
-				if(($this->data['lottery']->extra_included)&&($this->data['lottery']->last_drawn['extra']==$n))
+				// Always generate extra ball data when lottery has extra ball, regardless of extra_included setting
+				// The extra_included setting controls calculation logic, not data availability for display
+				if(($this->data['lottery']->extra_ball)&&($this->data['lottery']->last_drawn['extra']==$n))
 				{
 					$this->data['lottery']->last_drawn[$n.'x'] = $main_followers; // Main followers for extra ball
 					$this->data['lottery']->last_drawn[$n.'x_extra'] = $extra_followers; // Extra followers for extra ball
@@ -655,11 +1128,12 @@ class Statistics extends Admin_Controller {
 				{
 					if(($this->data['lottery']->last_drawn['ball'.$b]==$n)&&(!isset($this->data['lottery']->last_drawn[$n]))) $this->data['lottery']->last_drawn[$n] = $f;
 				}
-				if(($this->data['lottery']->extra_included)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
+				// Always generate extra ball data when lottery has extra ball, regardless of extra_included setting
+				if(($this->data['lottery']->extra_ball)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
 				{
 					$this->data['lottery']->last_drawn[$n] = $f;
 				}
-				elseif(($this->data['lottery']->extra_included)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
+				elseif(($this->data['lottery']->extra_ball)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
 				{
 					$this->data['lottery']->last_drawn[$n.'x'] = $f; // denotes x for 'duplicate' extra
 				}
@@ -686,7 +1160,9 @@ class Statistics extends Admin_Controller {
 						$this->data['lottery']->last_drawn[$n.'nf_extra'] = $extra_nonfollowers; // Store extra nonfollowers separately
 					}
 				}
-				if(($this->data['lottery']->extra_included)&&($this->data['lottery']->last_drawn['extra']==$n))
+				// Always generate extra ball data when lottery has extra ball, regardless of extra_included setting
+				// The extra_included setting controls calculation logic, not data availability for display
+				if(($this->data['lottery']->extra_ball)&&($this->data['lottery']->last_drawn['extra']==$n))
 				{
 					$this->data['lottery']->last_drawn[$n.'nfx'] = $main_nonfollowers; // Main nonfollowers for extra ball
 					$this->data['lottery']->last_drawn[$n.'nfx_extra'] = $extra_nonfollowers; // Extra nonfollowers for extra ball
@@ -697,11 +1173,12 @@ class Statistics extends Admin_Controller {
 				{
 					if(($this->data['lottery']->last_drawn['ball'.$b]==$n)&&(!isset($this->data['lottery']->last_drawn[$n.'nf']))) $this->data['lottery']->last_drawn[$n.'nf'] = $nf;
 				}
-				if(($this->data['lottery']->extra_included)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
+				// Always generate extra ball data when lottery has extra ball, regardless of extra_included setting
+				if(($this->data['lottery']->extra_ball)&&(!$blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
 				{
 					$this->data['lottery']->last_drawn[$n.'nf'] = $nf;
 				}
-				elseif(($this->data['lottery']->extra_included)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
+				elseif(($this->data['lottery']->extra_ball)&&($blnduplicate)&&($this->data['lottery']->last_drawn['extra']==$n))
 				{
 					$this->data['lottery']->last_drawn[$n.'nfx'] = $nf;
 				}
@@ -713,6 +1190,8 @@ class Statistics extends Admin_Controller {
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
 		$this->data['lottery']->last_drawn['range'] = $range;
 		$this->data['lottery']->last_drawn['all'] = $all;
+		
+
 		
 		$this->data['current'] = $this->uri->segment(2); 				// Sets the Admins Menu Highlighted
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/followers'.($id ? '/'.$id : ''));
@@ -777,11 +1256,17 @@ class Statistics extends Admin_Controller {
 			{
 				$change = ($this->data['lottery']->extra_draws!=$friends['extra_draws'] ? TRUE : FALSE); // Only for a change in the extra draws and there was no change in the extra ball
 			}
+			
+			// Log parameter changes for debugging
+			log_message('info', "Friends view - lottery_id=$id, old_range={$friends['range']}, new_range=$new_range, old_extra={$friends['extra_included']}, new_extra={$this->data['lottery']->extra_included}, old_draws={$friends['extra_draws']}, new_draws={$this->data['lottery']->extra_draws}, change=$change");
+			
 			if($new_range>100) $sel_range = intval($new_range / 100);
 			if($new_range!=0)	
 			{
 				if(intval($old_range)!=(intval($new_range))||($change)) // Any Change in Selection of the Draws? then update ... e.i. 200 draws in db and 300 in query url
 				{
+					log_message('info', "Friends recalculation triggered - range changed from $old_range to $new_range OR parameters changed (change=$change)");
+					
 					$relatives = $this->statistics_m->create_friend_array();
 					$nonrelatives = $this->statistics_m->create_nonfriend_array();
 					$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
@@ -791,6 +1276,8 @@ class Statistics extends Admin_Controller {
 					$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
 					$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
 					$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
+					
+					log_message('info', "Friends recalculation complete - wins=$fr_stats");
 					
 					$friends = array(
 						'range'				=> $new_range,
@@ -803,7 +1290,6 @@ class Statistics extends Admin_Controller {
 					$nonfriends = array(
 						'range'					=> $new_range,
 						'lottery_nonfriends'	=> $str_nonfriends,
-						'wins'					=> $nfr_stats,
 						'draw_id'				=> $this->data['lottery']->last_drawn['id'],
 						'lottery_id'			=> $id
 					);
@@ -838,7 +1324,6 @@ class Statistics extends Admin_Controller {
 			$nonfriends = array(
 				'range'					=> $new_range,
 				'lottery_nonfriends'	=> $str_nonfriends,
-				'wins'					=> $nfr_stats,
 				'draw_id'				=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'			=> $id
 			);
@@ -890,6 +1375,16 @@ class Statistics extends Admin_Controller {
 		$blnheat = FALSE;									// CHANGE flag. default is FALSE, 
 		// if the form was submitted, the database values will compared to the submitted ones.
 		$this->data['lottery'] = $this->lotteries_m->get($id);
+		
+		// Check if H-W-C data exists and block access if empty (after reset)
+		$hwc_check = $this->statistics_m->h_w_c_exists($id);
+		
+		if(is_null($hwc_check) || empty($hwc_check['hots']) || empty($hwc_check['warms']) || empty($hwc_check['colds']) || $hwc_check['draw_id'] == 0) {
+			$this->session->set_flashdata('message', 'Click the ReCalc checkbox first before viewing H-W-C data.');
+			redirect('admin/statistics');
+			return;
+		}
+		
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$blnduplicate = ($this->data['lottery']->duplicate_extra_ball ? TRUE : FALSE);
@@ -928,40 +1423,162 @@ class Statistics extends Admin_Controller {
 				$c_start = ($max_ball-intval($colds))+1; 			// Return the Cold value
 				$this->data['lottery']->W = $warms;  				// Number of Warms Distributed e.g 18 Colds
 				$this->data['lottery']->C = $colds; 				// Number of Colds Distributed e.g 16 Colds
+				$this->data['lottery']->prediction_pool = isset($h_w_c['prediction_pool']) ? $h_w_c['prediction_pool'] : 18; // Default prediction pool
 			}
 			else
 			{
-				$hot_form = $this->input->post('hots');				// POST values for hots, warms, colds
-				$warm_form = $this->input->post('warms');
-				$cold_form = $this->input->post('colds');
-				if(($hot_form!=$hots)||($warm_form!=$hots)||($cold_form!=$colds))	// Has a change been requested
-				{
-					$blnheat = TRUE;								// A change has been made 
-					$w_start = intval($hot_form+1);
-					$this->data['lottery']->H = $hot_form;
-					$c_start = ($max_ball-intval($cold_form))+1;  	
-					$this->data['lottery']->W = $warm_form;  					
-					$this->data['lottery']->C = $cold_form; 
+				// Detect which button was pressed and handle accordingly
+				$heat_button_pressed = $this->input->post('heat');
+				$pool_button_pressed = $this->input->post('change_pool');
+				
+				// Handle heat level changes
+				if($heat_button_pressed) {
+					// Get the submitted values from spinners
+					$hot_form = $this->input->post('hots');
+					$warm_form = $this->input->post('warms');
+					$cold_form = $this->input->post('colds');
+					
+					// Get original values for comparison
+					$original_hots = $this->input->post('original_hots');
+					$original_warms = $this->input->post('original_warms');
+					$original_colds = $this->input->post('original_colds');
+					
+					// Use current values as fallback if form values are empty
+					$hot_form = $hot_form ? $hot_form : $hots;
+					$warm_form = $warm_form ? $warm_form : $warms;
+					$cold_form = $cold_form ? $cold_form : $colds;
+					
+					// Check for actual changes by comparing with original values
+					$changes_made = false;
+					$heat_changes = array();
+					
+					if($hot_form != $original_hots) {
+						$heat_changes[] = "Hots changed from $original_hots to $hot_form";
+						$changes_made = true;
+					}
+					if($warm_form != $original_warms) {
+						$heat_changes[] = "Warms changed from $original_warms to $warm_form";
+						$changes_made = true;
+					}
+					if($cold_form != $original_colds) {
+						$heat_changes[] = "Colds changed from $original_colds to $cold_form";
+						$changes_made = true;
+					}
+					
+					if($changes_made) {
+						$blnheat = TRUE;
+						$w_start = intval($hot_form + 1);
+						$this->data['lottery']->H = $hot_form;
+						$c_start = ($max_ball - intval($cold_form)) + 1;
+						$this->data['lottery']->W = $warm_form;
+						$this->data['lottery']->C = $cold_form;
+						
+						// Set flash message for changes
+						$this->session->set_flashdata('heat_message', implode(', ', $heat_changes));
+						$this->session->set_userdata('heat_redirect_needed', true); // Flag for redirect after save
+					} else {
+						// No changes made, keep current values
+						$w_start = intval($hots + 1);
+						$this->data['lottery']->H = $hots;
+						$c_start = ($max_ball - intval($colds)) + 1;
+						$this->data['lottery']->W = $warms;
+						$this->data['lottery']->C = $colds;
+					}
+				}
+				
+				// Handle prediction number pool changes - check both button press and presence of pool data
+				if($pool_button_pressed || $this->input->post('prediction_pool')) {
+					$pool_form = $this->input->post('prediction_pool');
+					$original_pool = $this->input->post('original_prediction_pool');
+					
+					// Get current value for fallback
+					$current_pool_value = isset($h_w_c['prediction_pool']) ? $h_w_c['prediction_pool'] : 18;
+					
+					// Only proceed if there's an actual change and form value is valid
+					if($pool_form && $pool_form != $original_pool) {
+						$min_pool = $drawn; // Minimum is the pick number
+						$max_pool = intval($max_ball / 2); // Maximum is half of total numbers
+						
+						// Validate pool range
+						if($pool_form >= $min_pool && $pool_form <= $max_pool) {
+							$this->data['lottery']->prediction_pool = $pool_form;
+							$this->session->set_flashdata('pool_message', "The Prediction Number Pool has changed from $original_pool to $pool_form Numbers");
+							$blnheat = TRUE; // Trigger recalculation
+							$this->session->set_userdata('pool_redirect_needed', true); // Flag for redirect after save
+						} else {
+							$this->session->set_flashdata('error_message', "The Prediction Number Pool value must be between $min_pool and $max_pool");
+							$this->data['lottery']->prediction_pool = $current_pool_value; // Keep current value on error
+						}
+					} else {
+						// No change made, keep current value
+						$this->data['lottery']->prediction_pool = $current_pool_value;
+					}
+				}
+				
+				// Ensure values are set when buttons are pressed but no changes occur
+				if(!$heat_button_pressed) {
+					$w_start = intval($hots + 1);
+					$this->data['lottery']->H = $hots;
+					$c_start = ($max_ball - intval($colds)) + 1;
+					$this->data['lottery']->W = $warms;
+					$this->data['lottery']->C = $colds;
+				}
+				
+				if(!$pool_button_pressed) {
+					$this->data['lottery']->prediction_pool = isset($h_w_c['prediction_pool']) ? $h_w_c['prediction_pool'] : 18;
+				}
+				
+				// Ensure w_start and c_start are always set when pool button is pressed but heat button is not
+				if($pool_button_pressed && !$heat_button_pressed) {
+					if(!isset($w_start)) $w_start = intval($hots + 1);
+					if(!isset($c_start)) $c_start = ($max_ball - intval($colds)) + 1;
+					if(!isset($this->data['lottery']->H)) $this->data['lottery']->H = $hots;
+					if(!isset($this->data['lottery']->W)) $this->data['lottery']->W = $warms;
+					if(!isset($this->data['lottery']->C)) $this->data['lottery']->C = $colds;
 				}
 			}
-			$this->data['lottery']->extra_included = $this->uri->segment(6)=='extra' ? $this->statistics_m->extra_included($id, TRUE, 'lottery_h_w_c') : $this->statistics_m->extra_included($id, FALSE, 'lottery_h_w_c');
-			if($h_w_c['extra_included']!=$this->data['lottery']->extra_included) $blnheat = TRUE; // A change in extra included has occurred
-			$this->data['lottery']->extra_draws = ($this->uri->segment(6)=='draws' ? $this->statistics_m->extra_draws($id, TRUE, 'lottery_h_w_c') : $this->statistics_m->extra_draws($id, FALSE, 'lottery_h_w_c'));
-			if($h_w_c['extra_draws']!=$this->data['lottery']->extra_draws) $blnheat = TRUE; // A change in extra draws has occurred
+			// Toggle extra_included when /extra is in URL, otherwise use database value
+			if($this->uri->segment(6)=='extra') {
+				// Toggle the value from what's in the database
+				$this->data['lottery']->extra_included = $h_w_c['extra_included'] ? 0 : 1;
+				$blnheat = TRUE; // Force recalculation when toggling
+			} else {
+				// Use the database value
+				$this->data['lottery']->extra_included = $h_w_c['extra_included'];
+			}
+			
+			// Toggle extra_draws when /draws is in URL, otherwise use database value
+			if($this->uri->segment(6)=='draws') {
+				// Toggle the value from what's in the database
+				$this->data['lottery']->extra_draws = $h_w_c['extra_draws'] ? 0 : 1;
+				$blnheat = TRUE; // Force recalculation when toggling
+			} else {
+				// Use the database value
+				$this->data['lottery']->extra_draws = $h_w_c['extra_draws'];
+			}
 			$sel_range = ($new_range>100 ? $sel_range = intval($new_range / 100) : $sel_range = 1);
 			$strdupextra = "";	// Always empty for all lotteries. exception is a lottery with an extra ball that can have a duplicate number
+			$strdupextra_last = ""; // Initialize last draw duplicate extra
+			$strhots_last = ""; // Initialize last draw hots
+			$strwarms_last = ""; // Initialize last draw warms
+			$strcolds_last = ""; // Initialize last draw colds
 			if($new_range!=0)	
 			{
 				if(intval($old_range)!=(intval($new_range))||($blnheat)) // Any Change in Selection of the Draws? then update ... e.i. 200 draws in db and 300 in query url
 				{
 					// A change has occurred, return the last draw date
 					$last_draw = $this->statistics_m->hwc_DrawBeforeLast($tbl_name); // Reuqirements havd changed
+					$draw_id_last = $h_w_c['draw_id_last']; // Default to existing value
 					if($last_draw) // Only if a previous draw has occurred
 					{
 						$str_hwc_last = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, $last_draw['draw_date'], $blnduplicate);
 						$strhots_last = $this->statistics_m->hots($str_hwc_last);
 						$strwarms_last = $this->statistics_m->warms($str_hwc_last);
 						$strcolds_last = $this->statistics_m->colds($str_hwc_last);
+						$draw_id_last = $last_draw['id']; // Update with the actual last draw ID
+						if($blnduplicate&&$this->data['lottery']->extra_included) {
+							$strdupextra_last = $this->statistics_m->hwc_duple_extra($tbl_name, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $last_draw['draw_date']);
+						}
 					}
 					$str_hwc = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '', $blnduplicate);
 					if($blnduplicate&&$this->data['lottery']->extra_included) $strdupextra = $this->statistics_m->hwc_duple_extra($tbl_name, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '');
@@ -978,9 +1595,10 @@ class Statistics extends Admin_Controller {
 						'warms_last'		=> 	$strwarms_last,
 						'colds_last'		=> 	$strcolds_last,
 						'dupextra'			=>	$strdupextra,
+						'dupextra_last'		=>	$strdupextra_last,
 						'overdue'			=> 	$stroverdue,
 						'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
-						'draw_id_last'		=> 	$h_w_c['draw_id_last'],
+						'draw_id_last'		=> 	$draw_id_last,
 						'lottery_id'		=> 	$id,
 						'extra_included'	=> 	$this->data['lottery']->extra_included,
 						'extra_draws'		=> 	$this->data['lottery']->extra_draws,
@@ -988,9 +1606,19 @@ class Statistics extends Admin_Controller {
 						'c'					=> 	$c_start,
 						'h_count'			=> 	$this->data['lottery']->H,
 						'w_count'			=> 	$this->data['lottery']->W,
-						'c_count'			=> 	$this->data['lottery']->C
+						'c_count'			=> 	$this->data['lottery']->C,
+						'prediction_pool'	=> 	$this->data['lottery']->prediction_pool
 					);
 					$this->statistics_m->hwc_data_save($hwc, TRUE);
+					
+					// Calculate H-W-C win statistics when recalculation occurs
+					// Calculate counts from the actual hot/warm/cold arrays, not from non-existent properties
+					$hot_count = count(explode(',', $strhots));
+					$warm_count = count(explode(',', $strwarms));
+					$cold_count = count(explode(',', $strcolds));
+					$this->calculate_hwc_wins($id, $new_range, $this->data['lottery']->prediction_pool, 
+						$hot_count, $warm_count, $cold_count,
+						$this->data['lottery']->extra_included, $this->data['lottery']->extra_draws);
 				}
 				else  
 				{
@@ -1000,7 +1628,11 @@ class Statistics extends Admin_Controller {
 					$strhots = $h_w_c['hots']; 		// Pull from DB
 					$strwarms = $h_w_c['warms'];
 					$strcolds = $h_w_c['colds'];
+					$strhots_last = $h_w_c['hots_last']; 		// Pull from DB
+					$strwarms_last = $h_w_c['warms_last'];
+					$strcolds_last = $h_w_c['colds_last'];
 					$strdupextra = $h_w_c['dupextra'];
+					$strdupextra_last = isset($h_w_c['dupextra_last']) ? $h_w_c['dupextra_last'] : "";
 					$stroverdue = $h_w_c['overdue']; 
 				}
 			}
@@ -1017,16 +1649,29 @@ class Statistics extends Admin_Controller {
 			$this->data['lottery']->H = $heat[0];  					// Number of Hots Distributed e.g. 16 Hots
 			$c_start = ($max_ball-intval($heat[2]))+1; 				// Return the Cold value
 			$this->data['lottery']->W = $heat[1];  					// Number of Warms Distributed e.g 18 Colds
-			$this->data['lottery']->C = $heat[2]; 					// Num
+			$this->data['lottery']->C = $heat[2]; 					// Number of Colds Distributed e.g 16 Colds
+			$this->data['lottery']->prediction_pool = 18; 			// Default prediction pool
+			
+			// Calculate last draw H-W-C for new profile
+			$last_draw = $this->statistics_m->hwc_DrawBeforeLast($tbl_name);
+			$draw_id_last = 0; // Default to 0 for new profiles
+			if($last_draw) {
+				$str_hwc_last = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, $last_draw['draw_date'], $blnduplicate);
+				$strhots_last = $this->statistics_m->hots($str_hwc_last);
+				$strwarms_last = $this->statistics_m->warms($str_hwc_last);
+				$strcolds_last = $this->statistics_m->colds($str_hwc_last);
+				$draw_id_last = $last_draw['id']; // Set the actual last draw ID
+				if($blnduplicate&&$this->data['lottery']->extra_included) {
+					$strdupextra_last = $this->statistics_m->hwc_duple_extra($tbl_name, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $last_draw['draw_date']);
+				}
+			}
+			
 			$str_hwc = $this->statistics_m->h_w_c_calculate($tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '', $blnduplicate);
 			if($blnduplicate&&$this->data['lottery']->extra_included) $strdupextra = $this->statistics_m->hwc_duple_extra($tbl_name, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '');
 			$strhots = $this->statistics_m->hots($str_hwc);
 			$strwarms = $this->statistics_m->warms($str_hwc);
 			$strcolds = $this->statistics_m->colds($str_hwc);
-			$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl_name, $drawn, $new_range);
-			$strhots_last = $h_w_c['hots_last'];
-			$strwarms_last = $h_w_c['warms_last'];
-			$strcolds_last = $h_w_c['colds_last'];
+			$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range);
 			$hwc = array(
 						'range'				=> 	$new_range,
 						'hots'				=> 	$strhots,
@@ -1036,9 +1681,10 @@ class Statistics extends Admin_Controller {
 						'warms_last'		=> 	$strwarms_last,
 						'colds_last'		=> 	$strcolds_last,
 						'dupextra'			=>	$strdupextra,
+						'dupextra_last'		=>	$strdupextra_last,
 						'overdue'			=> 	$stroverdue,
 						'draw_id'			=> 	$this->data['lottery']->last_drawn['id'],
-						'draw_id_last'		=> 	$h_w_c['draw_id_last'],
+						'draw_id_last'		=> 	$draw_id_last,
 						'lottery_id'		=> 	$id,
 						'extra_included'	=> 	$this->data['lottery']->extra_included,
 						'extra_draws'		=> 	$this->data['lottery']->extra_draws,
@@ -1046,9 +1692,19 @@ class Statistics extends Admin_Controller {
 						'c'					=> 	$c_start,
 						'h_count'			=> 	$this->data['lottery']->H,
 						'w_count'			=> 	$this->data['lottery']->W,
-						'c_count'			=> 	$this->data['lottery']->C	
+						'c_count'			=> 	$this->data['lottery']->C,
+						'prediction_pool'	=> 	$this->data['lottery']->prediction_pool
 					);
 			$this->statistics_m->hwc_data_save($hwc, FALSE);
+			
+			// Calculate H-W-C win statistics for new H-W-C setup
+			// Calculate counts from the actual hot/warm/cold arrays, not from non-existent properties
+			$hot_count = count(explode(',', $strhots));
+			$warm_count = count(explode(',', $strwarms));
+			$cold_count = count(explode(',', $strcolds));
+			$this->calculate_hwc_wins($id, $new_range, $this->data['lottery']->prediction_pool, 
+				$hot_count, $warm_count, $cold_count,
+				$this->data['lottery']->extra_included, $this->data['lottery']->extra_draws);
 		}
 		$hots = explode(",", $strhots); // Convert to Arrays
 		$warms = explode(",", $strwarms); 
@@ -1087,11 +1743,21 @@ class Statistics extends Admin_Controller {
 			}
 		}
 		// Iterate Overdues
+		$overdue_temp = array();
 		foreach($overdue as $all_overdue)
 		{
 			$n = strstr($all_overdue, '=', TRUE); // Strip off the ball drawn to the right of the equal sign
 			$c = substr(strstr($all_overdue, '='), 1); // Strip off to the left of the equal sign count
-			$this->data['lottery']->overdue[$n] = $c; 
+			$skips = explode('|', $c); // Get draws skipped value
+			$overdue_temp[] = array('ball' => $n, 'value' => $c, 'skips' => intval($skips[0]));
+		}
+		// Sort by draws skipped (ascending - least to most)
+		usort($overdue_temp, function($a, $b) {
+			return $a['skips'] - $b['skips'];
+		});
+		// Rebuild the overdue array in sorted order
+		foreach($overdue_temp as $item) {
+			$this->data['lottery']->overdue[$item['ball']] = $item['value'];
 		}
 		$hwc_history = $this->statistics_m->hwc_history_exists($id);
  		if(is_null($hwc_history)) // Correct Lottery & Range?
@@ -1195,6 +1861,24 @@ class Statistics extends Admin_Controller {
 		$this->data['users'] = $this->maintenance_m->logged_online(0);	// Members
 		$this->data['admins'] = $this->maintenance_m->logged_online(1);	// Admins
 		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	 
+		// Check if we need to redirect after successful database save
+		if($this->session->userdata('pool_redirect_needed') || $this->session->userdata('heat_redirect_needed')) {
+			$this->session->unset_userdata('pool_redirect_needed'); // Clear the flags
+			$this->session->unset_userdata('heat_redirect_needed');
+			redirect('admin/statistics/h_w_c/' . $id);
+		}
+		
+		// Redirect after toggle to prevent re-toggling on refresh
+		if($this->uri->segment(6)=='extra' || $this->uri->segment(6)=='draws') {
+			// Build redirect URL with current range selection
+			$redirect_url = 'admin/statistics/h_w_c/' . $id;
+			// Include range if it was specified in the original URL (segment 5 exists)
+			if($this->uri->segment(5)) {
+				$redirect_url .= '/' . $this->uri->segment(5);
+			}
+			redirect($redirect_url);
+		}
+		
 		$this->data['subview']  = 'admin/dashboard/statistics/h_w_c';
 		$this->load->view('admin/_layout_main', $this->data);
 	}
@@ -1397,18 +2081,34 @@ class Statistics extends Admin_Controller {
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 	
 		$recalc = FALSE;
-		if($this->statistics_m->last_stats_exist($tbl_name)) /** First Check to see that the lottery db exists and statistics exist */
+		$stats_exist = $this->statistics_m->last_stats_exist($tbl_name);
+		
+		if($stats_exist) /** First Check to see that the lottery db exists and statistics exist */
 		{
 			$draw_id = $this->statistics_m->last_id($tbl_name);
-			if($this->statistics_m->recalc_update($id, $draw_id)) // Second, if a new draw has been entered or manually entered, return true to recalc //
+			$needs_update = $this->statistics_m->recalc_update($id, $draw_id);
+			
+			// Also check if followers data was specifically reset (cleared but record exists)
+			$followers_reset = FALSE;
+			$existing_followers = $this->statistics_m->followers_exists($id);
+			if (!is_null($existing_followers) && (empty($existing_followers['wins']) || empty($existing_followers['positions']))) {
+				$followers_reset = TRUE;
+			}
+			
+			if($needs_update || $followers_reset) // Second, if a new draw has been entered or manually entered, or followers were reset, return true to recalc //
 			{
 				$recalc = TRUE;
-				// Initialize extra_included and extra_draws properties
+				
+				// Initialize extra_included and extra_draws properties from database (preserve user settings)
 				if(!isset($this->data['lottery']->extra_included)) {
-					$this->data['lottery']->extra_included = 0;
+					// Read saved checkbox state from database instead of defaulting to 0
+					$saved_extra_included = $this->statistics_m->extra_included($id, FALSE, 'lottery_followers');
+					$this->data['lottery']->extra_included = $saved_extra_included ? 1 : 0;
 				}
 				if(!isset($this->data['lottery']->extra_draws)) {
-					$this->data['lottery']->extra_draws = 0;
+					// Read saved checkbox state from database instead of defaulting to 0  
+					$saved_extra_draws = $this->statistics_m->extra_draws($id, FALSE, 'lottery_followers');
+					$this->data['lottery']->extra_draws = $saved_extra_draws ? 1 : 0;
 				}
 				
 				// Verified the Draw Statistics have been completed
@@ -1420,10 +2120,14 @@ class Statistics extends Admin_Controller {
 
 				// 3. The Friends of numbers will be RE-CALC'd	
 				$this->recalc_friends($id, $this->data['lottery']);
+			} else {
+				// Statistics are already up to date
+				$recalc = FALSE;
 			}
 		}
 		else
 		{	// Verfied that the Draw Statistics have not been completed, exit action with an error message
+			log_message('error', "Recalc: last_stats_exist returned FALSE for table=$tbl_name - statistics don't exist");
 			$this->session->set_flashdata('message', 'The latest Draw has not been completed. Please enter the next draw and click the Calculator to complete the draw statistics.');
 			redirect('admin/statistics');
 		}
@@ -1432,7 +2136,190 @@ class Statistics extends Admin_Controller {
 			$this->session->set_flashdata('message', 'The Hot - Warm - Cold, Followers and Friends Statistics have ALL been updated to the latest draw.');
 			redirect('admin/statistics');
 		}
+		else
+		{
+			// Recalculation was not needed or recalc_update returned FALSE
+			$this->session->set_flashdata('message', 'Statistics are already up-to-date. No recalculation was needed.');
+			redirect('admin/statistics');
+		}
 	}
+	
+	/**
+	 * Reset follower statistics to force complete recalculation from scratch
+	 * 
+	 * @return  	none
+	 */
+	public function reset_followers()
+	{
+		// Set JSON header using CodeIgniter's output library
+		$this->output->set_content_type('application/json');
+		
+		try {
+			$admin_id = $this->session->userdata('id');
+			
+			if (!$admin_id) {
+				$this->output->set_output(json_encode(['success' => false, 'message' => 'Not authorized']));
+				return;
+			}
+			
+			$id = $this->input->post('lottery_id');
+			
+			if (!$id || !is_numeric($id)) {
+				$this->output->set_output(json_encode(['success' => false, 'message' => 'Invalid lottery ID']));
+				return;
+			}
+			
+			// Get lottery info
+			$lottery = $this->lotteries_m->get($id);
+			if (!$lottery) {
+				$this->output->set_output(json_encode(['success' => false, 'message' => 'Lottery not found']));
+				return;
+			}
+			
+			// Reset follower statistics in database - clear only calculation data, preserve settings
+			// First, get current settings before clearing data
+			$current_followers = $this->statistics_m->followers_exists($id);
+			$current_nonfollowers = $this->statistics_m->nonfollowers_exists($id);
+			
+			// Clear calculation data AND draw_id to force recalculation
+			// The draw_id field is what recalc_update() checks to determine if recalc is needed
+			if($current_followers) {
+				$clear_data = array(
+					'lottery_followers' => '',
+					'wins' => '',
+					'positions' => '',
+					'draw_id' => 0  // Clear draw_id to force recalculation
+				);
+				if(isset($current_followers['dupextra_wins'])) {
+					$clear_data['dupextra_wins'] = '';
+				}
+				$this->db->where('lottery_id', $id);
+				$this->db->update('lottery_followers', $clear_data);
+			} else {
+				$this->db->where('lottery_id', $id);
+				$this->db->delete('lottery_followers');
+			}
+			
+			if($current_nonfollowers) {
+				$clear_data = array(
+					'lottery_nonfollowers' => '',
+					'draw_id' => 0  // Clear draw_id to force recalculation
+				);
+				$this->db->where('lottery_id', $id);
+				$this->db->update('lottery_nonfollowers', $clear_data);
+			} else {
+				$this->db->where('lottery_id', $id);
+				$this->db->delete('lottery_nonfollowers');
+			}
+			
+			// CRITICAL: Clear the cache for this lottery's follower data
+			// Otherwise followers_exists() will return stale cached data
+			$this->statistics_m->clear_follower_cache($id);
+			$this->output->set_output(json_encode([
+				'success' => true, 
+				'message' => 'Follower statistics reset successfully. Next ReCalc will start from scratch.'
+			]));
+			
+		} catch (Exception $e) {
+			log_message('error', "Reset followers error: " . $e->getMessage());
+			log_message('error', "Reset followers stack trace: " . $e->getTraceAsString());
+			$this->output->set_output(json_encode(['success' => false, 'message' => 'Error resetting follower statistics: ' . $e->getMessage()]));
+		}
+	}
+	
+	/**
+	 * Reset H-W-C statistics to force full recalculation
+	 * Clears calculation data but preserves settings (range, extra_included, etc.)
+	 * 
+	 * @return	JSON response
+	 */
+	public function reset_hwc()
+	{
+		$this->output->set_content_type('application/json');
+		
+		try {
+			$admin_id = $this->session->userdata('id');
+			
+			if (!$admin_id) {
+				$this->output->set_output(json_encode(['success' => false, 'message' => 'Not authorized']));
+				return;
+			}
+			
+			$id = $this->input->post('lottery_id');
+			
+			if (!$id || !is_numeric($id)) {
+				$this->output->set_output(json_encode(['success' => false, 'message' => 'Invalid lottery ID']));
+				return;
+			}
+			
+			// Get lottery info
+			$lottery = $this->lotteries_m->get($id);
+			if (!$lottery) {
+				$this->output->set_output(json_encode(['success' => false, 'message' => 'Lottery not found']));
+				return;
+			}
+			
+			// Reset H-W-C statistics - clear only calculation data, preserve settings
+			$current_hwc = $this->statistics_m->h_w_c_exists($id);
+			$current_hwc_stats = $this->statistics_m->hwc_stats_exists($id);
+			
+			// Clear lottery_h_w_c table
+			if($current_hwc) {
+				$clear_data = array(
+					'hots' => '',
+					'hots_last' => '',
+					'warms' => '',
+					'warms_last' => '',
+					'colds' => '',
+					'colds_last' => '',
+					'dupextra' => '',
+					'dupextra_last' => '',
+					'overdue' => '',
+					'draw_id' => 0,  // Clear draw_id to force recalculation
+					'draw_id_last' => 0
+				);
+				$this->db->where('lottery_id', $id);
+				$this->db->update('lottery_h_w_c', $clear_data);
+			} else {
+				$this->db->where('lottery_id', $id);
+				$this->db->delete('lottery_h_w_c');
+			}
+			
+			// Clear lottery_h_w_c_stats table
+			if($current_hwc_stats) {
+				$clear_data = array(
+					'range' => 0,
+					'h_w_c_range' => '',
+					'h_w_c_last_1' => '',
+					'h_w_c_last_10' => '',
+					'position' => '',
+					'position_last' => '',
+					'wins' => '',
+					'draw_id' => 0,
+					'draw_id_last' => 0
+				);
+				$this->db->where('lottery_id', $id);
+				$this->db->update('lottery_h_w_c_stats', $clear_data);
+			} else {
+				$this->db->where('lottery_id', $id);
+				$this->db->delete('lottery_h_w_c_stats');
+			}
+			
+			// Clear the cache for this lottery's H-W-C data
+			$this->statistics_m->clear_hwc_cache($id);
+			
+			$this->output->set_output(json_encode([
+				'success' => true, 
+				'message' => 'H-W-C statistics reset successfully. Next ReCalc will start from scratch.'
+			]));
+			
+		} catch (Exception $e) {
+			log_message('error', "Reset H-W-C error: " . $e->getMessage());
+			log_message('error', "Reset H-W-C stack trace: " . $e->getTraceAsString());
+			$this->output->set_output(json_encode(['success' => false, 'message' => 'Error resetting H-W-C statistics: ' . $e->getMessage()]));
+		}
+	}
+	
 	/**
 	 * ReCALCULATES the Lottery H-W-C, it will retrieve the last H-W-C. If it exists, the first draw (for the given range) will be retrieved.
 	 * Each number that was drawn in the first draw will be subtracted from the counts in the H-W-C. The last draw will be retrieved and will be
@@ -1460,7 +2347,42 @@ class Statistics extends Admin_Controller {
 	 $prev_str_dupextra = ""; // Empty String
 	 $prev_draw = array();	// Initialize the previous draw array
 	 $h_w_c = $this->statistics_m->h_w_c_exists($id);
-	 if(!is_null($h_w_c))	// Existing HWC?
+	 
+	 // Try sliding window optimization if existing data is present
+	 $use_sliding_window = false;
+	 if(!is_null($h_w_c) && !empty($h_w_c['hots']) && $h_w_c['draw_id'] > 0)	// Existing HWC with data?
+	 {
+		$new_range = $h_w_c['range'];
+		$hots = $h_w_c['h_count'];
+		$warms = $h_w_c['w_count'];
+		$colds = $h_w_c['c_count'];
+		$w_start = intval($hots+1);					// Warms
+		$lotto->H = $hots;  						// Number of Hots Distributed e.g. 16 Hots
+		$c_start = ($max_ball-intval($colds))+1; 	// Return the Cold value
+		$lotto->W = $warms;  						// Number of Warms Distributed e.g 18 Colds
+		$lotto->C = $colds; 						// Number of Colds Distributed e.g 16 Colds
+		
+		// Check if we can use sliding window (same settings, only one new draw)
+		$can_slide = (
+			$h_w_c['extra_included'] == $lotto->extra_included &&
+			$h_w_c['extra_draws'] == $lotto->extra_draws &&
+			$h_w_c['draw_id'] == ($lotto->last_drawn['id'] - 1)  // Exactly one draw behind
+		);
+		
+		if ($can_slide) {
+			$slide_result = $this->statistics_m->hwc_sliding_window($tbl, $id, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
+			
+			if ($slide_result['success']) {
+				$strhots = $slide_result['hots'];
+				$strwarms = $slide_result['warms'];
+				$strcolds = $slide_result['colds'];
+				$use_sliding_window = true;
+			}
+		}
+	 }
+	 
+	 // Full recalculation if sliding window wasn't used
+	 if (!$use_sliding_window && !is_null($h_w_c))	// Existing HWC?
 	 {
 		$new_range = $h_w_c['range'];
 		$hots = $h_w_c['h_count'];
@@ -1506,6 +2428,17 @@ class Statistics extends Admin_Controller {
 			'c_count'			=> $lotto->C
 		);
 		$this->statistics_m->hwc_data_save($hwc, TRUE);
+		
+		// Calculate H-W-C win statistics during recalculation
+		$prediction_pool = isset($h_w_c['prediction_pool']) ? $h_w_c['prediction_pool'] : 18;
+		// Calculate counts from the actual hot/warm/cold arrays, not from non-existent properties
+		$hot_count = count(explode(',', $strhots));
+		$warm_count = count(explode(',', $strwarms));
+		$cold_count = count(explode(',', $strcolds));
+		$this->calculate_hwc_wins($id, $new_range, $prediction_pool, 
+			$hot_count, $warm_count, $cold_count,
+			$h_w_c['extra_included'], $h_w_c['extra_draws']);
+			
 		$pos_last = $this->statistics_m->position_copylasts($id);
 		// Recalculation is nesessary
 		$hwc_history = $this->h_w_c_history($id, $tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
@@ -1513,8 +2446,17 @@ class Statistics extends Admin_Controller {
 	 }
 	 else 
 	 {
-		 $this->data['lottery']->extra_included = 0; // No Extra Ball as part of the calculation
-		 $this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
+		 // Initialize extra_included and extra_draws from database saved settings instead of hardcoding to 0
+		 // This preserves user preferences from the H-W-C page checkboxes
+		 if(!isset($this->data['lottery']->extra_included)) {
+			 $saved_extra_included = $this->statistics_m->extra_included($id, FALSE, 'lottery_followers');
+			 $this->data['lottery']->extra_included = $saved_extra_included ? 1 : 0;
+		 }
+		 if(!isset($this->data['lottery']->extra_draws)) {
+			 $saved_extra_draws = $this->statistics_m->extra_draws($id, FALSE, 'lottery_followers');
+			 $this->data['lottery']->extra_draws = $saved_extra_draws ? 1 : 0;
+		 }
+		 
 		 $new_range = ($all<100 ? $all : 100);
 		 $heat = explode('-', $this->statistics_m->hwc_defaults[$max_ball]); 	// Break out the H-W-C into a new array
 		 $w_start = intval($heat[0]+1);					// Warms
@@ -1523,11 +2465,21 @@ class Statistics extends Admin_Controller {
 		 $this->data['lottery']->W = $heat[1];  						// Number of Warms Distributed e.g 18 Colds
 		 $this->data['lottery']->C = $heat[2]; 							// Num
 		 $str_hwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, '');
-		 if($blnduplicate&&$h_w_c['extra_included']) $str_dupextra = $this->statistics_m->hwc_duple_extra($tbl, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, '');	
+		 if($blnduplicate&&$this->data['lottery']->extra_included) $str_dupextra = $this->statistics_m->hwc_duple_extra($tbl, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '');	
 		 $strhots = $this->statistics_m->hots($str_hwc);
 		 $strwarms = $this->statistics_m->warms($str_hwc);
 		 $strcolds = $this->statistics_m->colds($str_hwc);
-		 $stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl, $drawn, $new_range);
+		 $stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range);
+		 
+		 // Calculate H-W-C win statistics for new lottery setup
+		 $hot_count = count(explode(',', $strhots));
+		 $warm_count = count(explode(',', $strwarms));
+		 $cold_count = count(explode(',', $strcolds));
+		 $prediction_pool = 18; // Default prediction pool for new lotteries
+		 $this->calculate_hwc_wins($id, $new_range, $prediction_pool, 
+			$hot_count, $warm_count, $cold_count,
+			$this->data['lottery']->extra_included, $this->data['lottery']->extra_draws);
+		 
 		 $prev_draw = $this->statistics_m->hwc_DrawBeforeLast($tbl);// Get the previous draw data
 			$prev_strhwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $prev_draw['draw_date'], $blnduplicate);
 			if($blnduplicate&&$h_w_c['extra_included']) $prev_str_dupextra = $this->statistics_m->hwc_duple_extra($tbl, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $prev_draw['draw_date']);	
@@ -1618,6 +2570,17 @@ class Statistics extends Admin_Controller {
 		// Retrieve the lottery table name for the database
 		$tbl = $this->lotteries_m->lotto_table_convert($lotto->lottery_name);
 		$blnduplicate = ($lotto->duplicate_extra_ball ? TRUE : FALSE);
+		
+		// Check if recalculation is actually needed
+		$recalc_status = $this->check_recalc_needed($id, $lotto, $tbl);
+		if ($recalc_status['skip_recalc']) {
+			$this->session->set_flashdata('message', $recalc_status['message']);
+			redirect('admin/statistics');
+			return;
+		}
+		
+
+		
 		$drawn = $lotto->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$low = $lotto->minimum_ball;		// Regular Drawn Low ball e.g. ball 1
 		$high = $lotto->maximum_ball;		// Regular Drawn High ball e.g. ball 49
@@ -1642,39 +2605,132 @@ class Statistics extends Admin_Controller {
 		{
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
 			$p_group = $this->statistics_m->prize_group_profile($id);
-			$p_group = $this->statistics_m->prizes_only($p_group,$lottery_extra);
- 			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
-			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $followers['extra_included']);
-			$range = $followers['range'];
-			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range,'',$blnduplicate);
-			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $max, '', $blnduplicate, $mx_extra);
-			$str_prizes = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
-			//$str_positions_prizes = '';
-			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
 			
-			// Calculate dupextra_wins for independent extra ball lotteries during recalc
-			$str_dupextra_wins = '';
-			if($blnduplicate && !$outofrange) {
-				$str_dupextra_wins = $this->statistics_m->calculate_dupextra_wins($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $mx_extra, '');
+			// Handle case where no prize profile exists
+			if (empty($p_group)) {
+				// Use default prize structure if no profile found
+				$p_group = array(
+					'extra' => 1,
+					'1_win' => 1, '1_win_extra' => 1,
+					'2_win' => 1, '2_win_extra' => 1,
+					'3_win' => 1, '3_win_extra' => 1,
+					'4_win' => 1, '4_win_extra' => 1,
+					'5_win' => 1, '5_win_extra' => 1,
+					'6_win' => 1, '6_win_extra' => 1,
+					'7_win' => 1, '7_win_extra' => 1,
+					'8_win' => 1, '8_win_extra' => 1,
+					'9_win' => 1, '9_win_extra' => 1
+				);
 			}
 			
+			// Use current saved checkbox states from lottery object, not old database record
+			$recalc_extra_included = isset($lotto->extra_included) ? $lotto->extra_included : $followers['extra_included'];
+			$recalc_extra_draws = isset($lotto->extra_draws) ? $lotto->extra_draws : $followers['extra_draws'];
+			
+			// CRITICAL FIX: Use actual extra_included state for p_group filtering
+			$p_group = $this->statistics_m->prizes_only($p_group, $recalc_extra_included);
+ 			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
+			// For duplicate extra ball lotteries, include all main positions but handle extra separately
+			
+			// Detect and log parameter changes that trigger full recalculation
+			$old_extra_included = $followers['extra_included'];
+			$old_extra_draws = $followers['extra_draws'];  
+			$old_range = $followers['range'];
+			
+			// **CRITICAL FIX**: Use current range from URL/parameters, NOT old database range
+			$current_range = $this->get_current_range($id, $tbl);
+			$range = $current_range; // Force use of current range for parameter changes
+			
+			$include_extra_position = $recalc_extra_included; // Use current checkbox state
+			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $include_extra_position);
+			
+			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range,'',$blnduplicate);
+			
+			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
+			
+			// CRITICAL FIX: When extra_included=0, consolidate extra wins into base categories
+			if (!$recalc_extra_included && is_array($prizes)) {
+				$consolidated_count = 0;
+				$filtered_count = 0;
+				$preserved_count = 0;
+				foreach ($prizes as $ball => $categories) {
+					if (is_array($categories)) {
+						// Count wins before processing
+						$ball_wins_before = array_sum($categories);
+						
+						// First, consolidate *_extra categories into their base categories
+						foreach ($categories as $cat => $count) {
+							if (strpos($cat, '_extra') !== false && $count > 0) {
+								$base_cat = str_replace('_extra', '_win', $cat);
+								// If base category exists, add the extra wins to it
+								if (array_key_exists($base_cat, $categories)) {
+									$categories[$base_cat] += $count;
+									$consolidated_count++;
+								}
+								// Remove the extra category after consolidation
+								unset($categories[$cat]);
+							}
+						}
+						
+						// Then filter out non-base categories (7_win, 8_win, 9_win, etc.)
+						foreach ($categories as $cat => $count) {
+							// Keep 1_win and categories in p_group, filter out everything else
+							if (!array_key_exists($cat, $p_group) && $cat !== '1_win') {
+								if ($count > 0) {
+									$filtered_count++;
+								}
+								unset($categories[$cat]);
+							}
+						}
+						
+						// Update the prizes array with consolidated results
+						$prizes[$ball] = $categories;
+						
+						// Count wins after processing
+						$ball_wins_after = array_sum($categories);
+						if ($ball_wins_before > 0 || $ball_wins_after > 0) {
+							$preserved_count++;
+						}
+						
+						// Remove balls with no remaining wins
+						if (array_sum($categories) == 0) {
+							unset($prizes[$ball]);
+						}
+					}
+				}
+			}
+			
+			$str_prizes = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : '');
+			//$str_positions_prizes = '';
+			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');			// Let regular followers_prizes handle duplicate extra balls - no separate dupextra calculation needed
+			$str_dupextra_wins = '';
+			// Duplicate extra balls are handled by the regular followers_prizes method with $duple flag
+			
 			/** NEW included nonfollower calculations **/
-			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $max, '', $blnduplicate, $mx_extra);
+			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
+			
+
+			
+			// For duplicate extra ball lotteries, sanitize inflated win counts
+			if($blnduplicate) {
+				$str_prizes = $this->sanitize_duplicate_extra_wins($str_prizes, $range);
+				$str_positions_prizes = $this->sanitize_duplicate_extra_wins($str_positions_prizes, $range);
+			}
+			
 			$followers = array(
 				'range'				=> $range,
 				'lottery_followers'	=> $str_followers,
 				'wins'				=> $str_prizes,
 				'positions'			=> $str_positions_prizes,
 				'draw_id'			=> $lotto->last_drawn['id'],
-				'lottery_id'		=> $id
+				'lottery_id'		=> $id,
+				'extra_included'	=> $recalc_extra_included,
+				'extra_draws'		=> $recalc_extra_draws
 			);
 			
-			// Add dupextra_wins field only for independent extra ball lotteries during recalc
-			if($blnduplicate) {
-				$followers['dupextra_wins'] = $str_dupextra_wins;
-			}
-			
 			$this->statistics_m->follower_data_save($followers, TRUE);
+			log_message('info', "recalc_followers: Saved followers data to database for lottery_id={$id}");
+			
 			/** NEW included nonfollower Data Save **/
 			$nonfollowers = array(
 				'range'					=> $range,
@@ -1683,26 +2739,117 @@ class Statistics extends Admin_Controller {
 				'lottery_id'			=> $id
 			);
 			$this->statistics_m->nonfollower_data_save($nonfollowers, TRUE);
+			log_message('info', "recalc_followers: Saved nonfollowers data to database for lottery_id={$id}");
 		}
 		else // 3. If does not exist, calculate for the given draw range, return results and save to follower table
 		{
 			// range is set with either less than 100 rows (based on the exact number of draws) or calculate the number of followers using only 100 rows
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
+			
+			// Use current saved checkbox states from lottery object for new record calculation
+			$recalc_extra_included = isset($lotto->extra_included) ? $lotto->extra_included : 0;
+			$recalc_extra_draws = isset($lotto->extra_draws) ? $lotto->extra_draws : 0;
+			
 			$p_group = $this->statistics_m->prize_group_profile($id);
-			$p_group = $this->statistics_m->prizes_only($p_group,$lottery_extra);
+			
+			// Handle case where no prize profile exists
+			if (empty($p_group)) {
+				// Use default prize structure if no profile found
+				$p_group = array(
+					'extra' => 1,
+					'1_win' => 1, '1_win_extra' => 1,
+					'2_win' => 1, '2_win_extra' => 1,
+					'3_win' => 1, '3_win_extra' => 1,
+					'4_win' => 1, '4_win_extra' => 1,
+					'5_win' => 1, '5_win_extra' => 1,
+					'6_win' => 1, '6_win_extra' => 1,
+					'7_win' => 1, '7_win_extra' => 1,
+					'8_win' => 1, '8_win_extra' => 1,
+					'9_win' => 1, '9_win_extra' => 1
+				);
+			}
+			
+			// CRITICAL FIX: Use actual extra_included state for p_group filtering
+			$p_group = $this->statistics_m->prizes_only($p_group, $recalc_extra_included);
  			$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
-			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $followers['extra_included']);
-			$range = ($all<100 ? $all : 100);
-			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $followers['extra_included'], $followers['extra_draws'], $range, $max, '', $blnduplicate, $mx_extra);
-			$str_prizes = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : ''); 
+			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $recalc_extra_included);
+			
+			// **CRITICAL FIX**: Use current range from URL/parameters for new records too  
+			$current_range = $this->get_current_range($id, $tbl);
+			$range = $current_range; // Use current range, not just default logic
+			
+			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
+			
+			// CRITICAL FIX: When extra_included=0, consolidate extra wins into base categories
+			if (!$recalc_extra_included && is_array($prizes)) {
+				$consolidated_count = 0;
+				$filtered_count = 0;
+				$preserved_count = 0;
+				foreach ($prizes as $ball => $categories) {
+					if (is_array($categories)) {
+						// Count wins before processing
+						$ball_wins_before = array_sum($categories);
+						
+						// First, consolidate *_extra categories into their base categories
+						foreach ($categories as $cat => $count) {
+							if (strpos($cat, '_extra') !== false && $count > 0) {
+								$base_cat = str_replace('_extra', '_win', $cat);
+								// If base category exists, add the extra wins to it
+								if (array_key_exists($base_cat, $categories)) {
+									$categories[$base_cat] += $count;
+									$consolidated_count++;
+								}
+								// Remove the extra category after consolidation
+								unset($categories[$cat]);
+							}
+						}
+						
+						// Then filter out non-base categories (7_win, 8_win, 9_win, etc.)
+						foreach ($categories as $cat => $count) {
+							// Keep 1_win and categories in p_group, filter out everything else
+							if (!array_key_exists($cat, $p_group) && $cat !== '1_win') {
+								if ($count > 0) {
+									log_message('info', "ReCalc new: Ball $ball: Filtering out non-base category $cat=$count");
+									$filtered_count++;
+								}
+								unset($categories[$cat]);
+							}
+						}
+						
+						// Update the prizes array with consolidated results
+						$prizes[$ball] = $categories;
+						
+						// Count wins after processing
+						$ball_wins_after = array_sum($categories);
+						if ($ball_wins_before > 0 || $ball_wins_after > 0) {
+							$preserved_count++;
+						}
+						
+						// Remove balls with no remaining wins
+						if (array_sum($categories) == 0) {
+							unset($prizes[$ball]);
+						}
+					}
+				}
+			}
+			
+
+			
+			$str_prizes = (!$outofrange ? $this->statistics_m->followers_prize_string($prizes) : '');
 			//$str_positions_prizes = '';
 			$str_positions_prizes = (!$outofrange ? $this->statistics_m->followers_positions_prize_string($positions) : '');
-			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, 0, 0, $range,'',$blnduplicate);
+			$str_followers = $this->statistics_m->followers_calculate($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range,'',$blnduplicate);
 			
 			// Calculate dupextra_wins for independent extra ball lotteries during recalc (new record)
 			$str_dupextra_wins = '';
 			if($blnduplicate && !$outofrange) {
-				$str_dupextra_wins = $this->statistics_m->calculate_dupextra_wins($tbl, $lotto->last_drawn, $drawn, 0, 0, $range, $mx_extra, '');
+				$str_dupextra_wins = $this->statistics_m->calculate_dupextra_wins($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $mx_extra, '');
+			}
+			
+			// For duplicate extra ball lotteries, sanitize inflated win counts (new record path)
+			if($blnduplicate) {
+				$str_prizes = $this->sanitize_duplicate_extra_wins($str_prizes, $range);
+				$str_positions_prizes = $this->sanitize_duplicate_extra_wins($str_positions_prizes, $range);
 			}
 			
 			$followers = array(
@@ -1711,7 +2858,9 @@ class Statistics extends Admin_Controller {
 				'wins'				=> $str_prizes,
 				'positions'			=> $str_positions_prizes,
 				'draw_id'			=> $lotto->last_drawn['id'],
-				'lottery_id'		=> $id
+				'lottery_id'		=> $id,
+				'extra_included'	=> $recalc_extra_included,
+				'extra_draws'		=> $recalc_extra_draws
 			);
 			
 			// Add dupextra_wins field only for independent extra ball lotteries during recalc (new record)
@@ -1720,7 +2869,7 @@ class Statistics extends Admin_Controller {
 			}
 			
 			$this->statistics_m->follower_data_save($followers, FALSE);
-			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl, $lotto->last_drawn, $drawn, 0, 0, $range, $max, '', $blnduplicate, $mx_extra);
+			$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
 			$nonfollowers = array(
 			'range'					=> $range,
 			'lottery_nonfollowers'	=> $str_nonfollowers,
@@ -1782,7 +2931,6 @@ class Statistics extends Admin_Controller {
 			$nonfriends = array(
 				'range'					=> $range,
 				'lottery_nonfriends'	=> $str_nonfriends,
-				'wins'					=> $nfr_stats,
 				'draw_id'				=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'			=> $id
 			);
@@ -1811,7 +2959,6 @@ class Statistics extends Admin_Controller {
 			$nonfriends = array(
 				'range'					=> $new_range,
 				'lottery_nonfriends'	=> $str_nonfriends,
-				'wins'					=> $nfr_stats,
 				'draw_id'				=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'			=> $id
 			);
@@ -2116,34 +3263,306 @@ class Statistics extends Admin_Controller {
 		// Split by '>' to get prizes for each extra ball
 		$extra_ball_prizes = explode('>', $dupextra_wins_string);
 		
-		// Process each extra ball's prizes
-		for($extra_num = 1; $extra_num <= $this->data['lottery']->maximum_extra_ball; $extra_num++) {
-			if(isset($extra_ball_prizes[$extra_num - 1]) && !empty($extra_ball_prizes[$extra_num - 1])) {
-				$prizes = explode(',', $extra_ball_prizes[$extra_num - 1]);
-				
-				// Map prizes to categories - only include non-NULL categories
-				$prize_categories = array();
-				$all_categories = array('extra', '1_win', '1_win_extra', '2_win', '2_win_extra', '3_win', '3_win_extra', '4_win', '4_win_extra', '5_win', '5_win_extra', '6_win', '6_win_extra', '7_win', '7_win_extra');
-				
-				// Get prize profile to check which categories are not NULL
-				$prize_profile = $this->statistics_m->prize_group_profile($this->data['lottery']->lottery_id);
-				
-				foreach($all_categories as $category) {
-					if(isset($prize_profile[$category]) && $prize_profile[$category] !== null) {
-						$prize_categories[] = $category;
-					}
+		// Process each extra ball's prizes - since calculate_dupextra_wins now only returns data for drawn extra ball
+		$extra_num = 1;
+		if(isset($extra_ball_prizes[$extra_num - 1]) && !empty($extra_ball_prizes[$extra_num - 1])) {
+			$prizes = explode(',', $extra_ball_prizes[$extra_num - 1]);
+			
+			// Map prizes to categories - only include non-NULL categories
+			$prize_categories = array();
+			$all_categories = array('extra', '1_win', '1_win_extra', '2_win', '2_win_extra', '3_win', '3_win_extra', '4_win', '4_win_extra', '5_win', '5_win_extra', '6_win', '6_win_extra', '7_win', '7_win_extra', '8_win', '8_win_extra', '9_win', '9_win_extra');
+			
+			// Get prize profile to check which categories are not NULL
+			$prize_profile = $this->statistics_m->prize_group_profile($this->data['lottery']->lottery_id);
+			
+			foreach($all_categories as $category) {
+				if(isset($prize_profile[$category]) && $prize_profile[$category] !== null) {
+					$prize_categories[] = $category;
 				}
-				
-				$parsed['extra_' . $extra_num] = array();
-				
-				foreach($prizes as $index => $count) {
-					if(isset($prize_categories[$index]) && intval($count) > 0) {
-						$parsed['extra_' . $extra_num][$prize_categories[$index]] = intval($count);
-					}
+			}
+			
+			// Get the drawn extra ball number for the key
+			$drawn_extra = isset($this->data['lottery']->last_drawn['extra']) ? intval($this->data['lottery']->last_drawn['extra']) : 1;
+			$parsed['extra_' . $drawn_extra] = array();
+			
+			foreach($prizes as $index => $count) {
+				if(isset($prize_categories[$index]) && intval($count) > 0) {
+					$parsed['extra_' . $drawn_extra][$prize_categories[$index]] = intval($count);
 				}
 			}
 		}
 		
 		return $parsed;
+	}
+
+	/**
+	 * Calculate H-W-C win statistics - helper method to integrate with recalculation triggers
+	 * 
+	 * @param int $lottery_id The lottery ID
+	 * @param int $range The analysis range
+	 * @param int $prediction_pool The prediction pool size
+	 * @param int $hots Number of hot numbers
+	 * @param int $warms Number of warm numbers
+	 * @param int $colds Number of cold numbers
+	 * @param boolean $extra_included Whether extra ball is included
+	 * @param boolean $extra_draws Whether extra draws are included
+	 * @return boolean Success status
+	 */
+	private function calculate_hwc_wins($lottery_id, $range, $prediction_pool, $hots, $warms, $colds, $extra_included = false, $extra_draws = false)
+	{
+		try {
+			// Call the comprehensive H-W-C win analysis method
+			$wins_string = $this->statistics_m->calculate_hwc_win_statistics(
+				$lottery_id, 
+				$range, 
+				$prediction_pool, 
+				$hots, 
+				$warms, 
+				$colds, 
+				$extra_included, 
+				$extra_draws
+			);
+			
+			if ($wins_string !== FALSE) {
+				// Success - wins string has been calculated and saved to database
+				return TRUE;
+			} else {
+				// Log error or handle failure case
+				log_message('error', "H-W-C win analysis FAILED for lottery_id: $lottery_id, range: $range");
+				return FALSE;
+			}
+		} catch (Exception $e) {
+			// Handle any exceptions during calculation
+			log_message('error', "H-W-C win analysis error: " . $e->getMessage());
+			return FALSE;
+		}
+	}
+
+	/**
+	 * Sanitize duplicate extra ball win counts to prevent inflated values
+	 * @param string $win_string The win string to sanitize
+	 * @param int $range The draw range (typically 100)
+	 * @return string Sanitized win string
+	 */
+	private function sanitize_duplicate_extra_wins($win_string, $range)
+	{
+		if(empty($win_string)) return $win_string;
+		
+		// Parse the win string (format: "0,1,2,3,4,5>1,0,0,2,1,0>..." where each section is a ball's wins)
+		$ball_sections = explode('>', $win_string);
+		$sanitized_sections = array();
+		
+		foreach($ball_sections as $section) {
+			if(empty($section)) {
+				$sanitized_sections[] = $section;
+				continue;
+			}
+			
+			$counts = explode(',', $section);
+			$sanitized_counts = array();
+			
+			foreach($counts as $count) {
+				$int_count = intval($count);
+				// Cap any count that exceeds the range (prevents 269 winners from 100 draws)
+				$sanitized_count = min($int_count, $range);
+				$sanitized_counts[] = $sanitized_count;
+			}
+			
+			$sanitized_sections[] = implode(',', $sanitized_counts);
+		}
+		
+		$result = implode('>', $sanitized_sections);
+		return $result;
+	}
+	
+	/**
+	 * Check if H-W-C recalculation is needed or if a warning should be displayed
+	 * 
+	 * @param	integer	$lottery_id		Lottery ID
+	 * @param	object	$lotto			Lottery object  
+	 * @param	string	$tbl			Lottery table name
+	 * @return	array	Array with skip_recalc flag and message
+	 */
+	private function check_hwc_recalc_needed($lottery_id, $lotto, $tbl)
+	{
+		// Get existing H-W-C data
+		$existing_hwc = $this->statistics_m->h_w_c_exists($lottery_id);
+		
+		// If no existing data, recalc is needed (first time)
+		if (is_null($existing_hwc)) {
+			return array('skip_recalc' => false, 'message' => '');
+		}
+		
+		// Get the latest draw from the table
+		$latest_draw = $this->lotteries_m->last_draw_db($tbl);
+		if (!$latest_draw) {
+			return array('skip_recalc' => false, 'message' => '');
+		}
+		
+		// Check if H-W-C data was reset (empty hots/warms/colds or draw_id=0)
+		if (empty($existing_hwc['hots']) || empty($existing_hwc['warms']) || empty($existing_hwc['colds']) || $existing_hwc['draw_id'] == 0) {
+			return array('skip_recalc' => false, 'message' => '');
+		}
+		
+		// Check if existing calculation is up to date
+		$existing_draw_id = $existing_hwc['draw_id'];
+		$latest_draw_id = $latest_draw->id;
+		
+		// If there's a new draw since last calculation, recalc is needed
+		if ($existing_draw_id != $latest_draw_id) {
+			return array('skip_recalc' => false, 'message' => '');
+		}
+		
+		// If the existing calculation is already for the latest draw AND has data, warn user
+		if ($existing_draw_id == $latest_draw_id && 
+		    !empty($existing_hwc['hots']) && 
+		    !empty($existing_hwc['warms']) && 
+		    !empty($existing_hwc['colds'])) {
+			
+			$draw_date = date('M j, Y', strtotime($latest_draw->draw_date));
+			$message = 'ReCalc option is not Required. ReCalculation has been completed up to ' . $draw_date;
+			
+			return array('skip_recalc' => true, 'message' => $message);
+		}
+		
+		// All other cases, allow recalc
+		return array('skip_recalc' => false, 'message' => '');
+	}
+	
+	/**
+	 * Check if recalculation is needed or if a warning should be displayed
+	 * 
+	 * @param	integer	$lottery_id		Lottery ID
+	 * @param	object	$lotto			Lottery object  
+	 * @param	string	$tbl			Lottery table name
+	 * @return	array	Array with skip_recalc flag and message
+	 */
+	private function check_recalc_needed($lottery_id, $lotto, $tbl)
+	{
+		// Get existing follower data
+		$existing_followers = $this->statistics_m->followers_exists($lottery_id);
+		
+		// If no existing data, recalc is needed (first time)
+		if (is_null($existing_followers)) {
+			return array('skip_recalc' => false, 'message' => '');
+		}
+		
+		// Get the latest draw from the table
+		$latest_draw = $this->lotteries_m->last_draw_db($tbl);
+		if (!$latest_draw) {
+			return array('skip_recalc' => false, 'message' => '');
+		}
+		
+		// Check if follower data was reset (empty wins/positions but record exists)
+		if (empty($existing_followers['wins']) || empty($existing_followers['positions'])) {
+			return array('skip_recalc' => false, 'message' => '');
+		}
+		
+		// **CRITICAL**: Check if calculation parameters have changed - this forces FULL RECALC
+		$current_extra_included = isset($lotto->extra_included) ? $lotto->extra_included : 0;
+		$current_extra_draws = isset($lotto->extra_draws) ? $lotto->extra_draws : 0;
+		$current_range = $this->get_current_range($lottery_id, $tbl); // Get range from URL or default
+		
+		$existing_extra_included = isset($existing_followers['extra_included']) ? $existing_followers['extra_included'] : 0;
+		$existing_extra_draws = isset($existing_followers['extra_draws']) ? $existing_followers['extra_draws'] : 0;
+		$existing_range = $existing_followers['range'];
+		
+		if ($current_extra_included != $existing_extra_included || 
+		    $current_extra_draws != $existing_extra_draws ||
+		    $current_range != $existing_range) {
+			return array('skip_recalc' => false, 'message' => '');
+		}
+		
+		// Check if existing calculation is up to date
+		$existing_draw_id = $existing_followers['draw_id'];
+		$latest_draw_id = $latest_draw->id;
+		
+		// If draw_id is 0, it means the data was reset and needs recalculation
+		if ($existing_draw_id == 0 || empty($existing_followers['lottery_followers'])) {
+			return array('skip_recalc' => false, 'message' => '');
+		}
+		
+		// If there's a new draw since last calculation, recalc is needed
+		if ($existing_draw_id != $latest_draw_id) {
+			return array('skip_recalc' => false, 'message' => '');
+		}
+		
+		// If the existing calculation is already for the latest draw AND parameters haven't changed, warn user
+		if ($existing_draw_id == $latest_draw_id && 
+		    !empty($existing_followers['wins']) && 
+		    !empty($existing_followers['positions'])) {
+			
+			$draw_date = date('M j, Y', strtotime($latest_draw->draw_date));
+			$message = 'ReCalc option is not Required. ReCalculation has been completed up to ' . $draw_date;
+			
+			return array('skip_recalc' => true, 'message' => $message);
+		}
+		
+		// All other cases, allow recalc
+		return array('skip_recalc' => false, 'message' => '');
+	}
+	
+	/**
+	 * Get the current range from URL parameters or use default
+	 * 
+	 * @param	integer	$lottery_id		Lottery ID
+	 * @param	string	$tbl			Lottery table name  
+	 * @return	integer	Current range value
+	 */
+	private function get_current_range($lottery_id, $tbl)
+	{
+		// URL structure: /admin/statistics/followers/{lottery_id}/{range}/{extra}/{draws}
+		// So segment(5) should be the range
+		$url_range = $this->uri->segment(5);
+		
+		if ($url_range && is_numeric($url_range) && $url_range >= 50 && $url_range <= 1000) {
+			return intval($url_range);
+		}
+		
+		// Fallback: look through all segments for numeric range value  
+		$uri_segments = $this->uri->segment_array();
+		foreach ($uri_segments as $segment) {
+			if (is_numeric($segment) && $segment >= 50 && $segment <= 1000 && $segment != $lottery_id) {
+				return intval($segment);
+			}
+		}
+		
+		// Default range logic
+		$all = $this->lotteries_m->db_row_count($tbl);
+		return ($all < 100 ? $all : 100);
+	}
+	
+	/**
+	 * Set extra_included value directly without toggling
+	 * 
+	 * @param	integer	$lottery_id		Lottery ID
+	 * @param	integer	$value			Value to set (0 or 1)  
+	 * @param	string	$table			Table name (lottery_followers or lottery_nonfollowers)
+	 * @return	void
+	 */
+	private function set_extra_included_value($lottery_id, $value, $table)
+	{
+		$this->db->set('extra_included', intval($value));
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update($table);
+		
+		log_message('info', "Set extra_included=$value for lottery_id=$lottery_id in table=$table");
+	}
+	
+	/**
+	 * Set extra_draws value directly without toggling
+	 * 
+	 * @param	integer	$lottery_id		Lottery ID
+	 * @param	integer	$value			Value to set (0 or 1)
+	 * @param	string	$table			Table name (lottery_followers or lottery_nonfollowers)  
+	 * @return	void
+	 */
+	private function set_extra_draws_value($lottery_id, $value, $table)
+	{
+		$this->db->set('extra_draws', intval($value));
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update($table);
+		
+		log_message('info', "Set extra_draws=$value for lottery_id=$lottery_id in table=$table");
 	}
 }

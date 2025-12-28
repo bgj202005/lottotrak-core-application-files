@@ -148,6 +148,202 @@
     margin-right: auto;
 	table-layout: auto;
 	}
+	
+	/* Custom combination dropdown styling */
+	#wheelingDropdown {
+		color: #495057 !important;
+		text-color: #495057 !important;
+	}
+	#wheelingDropdown:hover,
+	#wheelingDropdown:focus,
+	#wheelingDropdown:active,
+	#wheelingDropdown.show {
+		color: #495057 !important;
+		background-color: white !important;
+		border-color: #ced4da !important;
+	}
+	#wheelingSelectedText {
+		color: #495057 !important;
+	}
+	
+	/* Dropdown menu item styling */
+	.dropdown-menu .dropdown-item {
+		color: #212529 !important;
+	}
+	.dropdown-menu .dropdown-item:hover,
+	.dropdown-menu .dropdown-item:focus {
+		color: #212529 !important;
+		background-color: #dee2e6 !important;
+	}
+	.dropdown-menu .dropdown-item.active {
+		color: #212529 !important;
+		background-color: #ced4da !important;
+	}
+	
+	/* Ensure badges remain visible in dropdown items - more specific selector */
+	.dropdown-menu .dropdown-item .badge,
+	.dropdown-menu .dropdown-item .badge-success,
+	.dropdown-menu .dropdown-item .badge-danger {
+		display: inline-block !important;
+		opacity: 1 !important;
+		visibility: visible !important;
+		font-size: 0.75em !important;
+		padding: 0.25em 0.4em !important;
+		margin-right: 0.25em !important;
+	}
+	
+	/* Force badge colors to remain */
+	.dropdown-menu .dropdown-item .badge-success {
+		background-color: #28a745 !important;
+		color: white !important;
+	}
+	.dropdown-menu .dropdown-item .badge-danger {
+		background-color: #dc3545 !important;
+		color: white !important;
+	}
+	
+	/* Status Display Panel Styling */
+	.status-display-panel {
+		transition: all 0.3s ease-in-out;
+		box-shadow: 0 2px 8px rgba(0, 123, 255, 0.15);
+	}
+	
+	.status-display-panel:hover {
+		box-shadow: 0 4px 12px rgba(0, 123, 255, 0.25);
+	}
+	
+	.status-info {
+		min-height: 40px;
+		align-items: center;
+	}
+	
+	.action-icons {
+		min-height: 40px;
+		align-items: center;
+	}
+	
+	.action-icons i {
+		transition: all 0.2s ease;
+	}
+	
+	.action-icons i:hover {
+		transform: scale(1.1);
+		opacity: 0.8;
+	}
+	
+	/* Responsive adjustments for status display */
+	@media (max-width: 768px) {
+		.status-display-panel .d-flex {
+			flex-direction: column !important;
+			align-items: flex-start !important;
+		}
+		
+		.status-info {
+			width: 100%;
+			margin-bottom: 1rem;
+			justify-content: space-between;
+		}
+		
+		.action-icons {
+			width: 100%;
+			justify-content: space-around;
+			padding-top: 0.5rem;
+			border-top: 1px solid #dee2e6;
+		}
+		
+		.action-icons i {
+			margin: 0 !important;
+		}
+	}
+	
+	/* Animate status display appearance */
+	#combination-status-display {
+		animation: slideIn 0.3s ease-out;
+	}
+	
+	@keyframes slideIn {
+		from {
+			opacity: 0;
+			transform: translateY(-10px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+	
+	/* Mobile-specific CSS */
+	@media (max-width: 768px) {
+		/* Make form labels full width and left-aligned on mobile */
+		.form-group .col-form-label {
+			text-align: left !important;
+			margin-bottom: 0.5rem;
+		}
+		
+		/* Ensure form controls are touch-friendly */
+		.form-control, .btn {
+			min-height: 44px;
+			font-size: 16px; /* Prevents zoom on iOS */
+		}
+		
+		/* Improve table responsiveness on mobile */
+		.table-responsive {
+			border: none;
+			margin-bottom: 0;
+		}
+		
+		/* Stack table sections with proper spacing */
+		.table-section {
+			margin-bottom: 1rem !important;
+			padding: 0.75rem !important;
+		}
+		
+		/* Optimize table title for mobile */
+		.table-title {
+			font-size: 1rem !important;
+			padding: 0.5rem !important;
+			line-height: 1.3;
+		}
+		
+		/* Better button spacing on mobile */
+		.btn {
+			margin-bottom: 0.5rem;
+			touch-action: manipulation;
+		}
+		
+		/* Improve dropdown menu on mobile */
+		.dropdown-menu {
+			max-height: 250px;
+			overflow-y: auto;
+			-webkit-overflow-scrolling: touch;
+		}
+		
+		/* Better spacing for form groups */
+		.form-group {
+			margin-bottom: 1rem;
+		}
+		
+		/* Optimize alerts for mobile */
+		.alert {
+			font-size: 0.9rem;
+			padding: 0.75rem;
+		}
+	}
+	
+	/* Tablet-specific optimizations */
+	@media (min-width: 768px) and (max-width: 992px) {
+		/* Adjust button sizing for tablets */
+		.btn-lg {
+			padding: 0.75rem 1.5rem;
+			font-size: 1.1rem;
+		}
+		
+		/* Optimize table for tablet view */
+		.table-section {
+			padding: 1rem;
+		}
+	}
+	
 	#futures-filter-table th,
 	#futures-filter-table td {
 		font-size: 0.75em;
@@ -205,9 +401,9 @@
 	#futures-filter-table.with-extra-ball th:nth-child(5) { width: 5%; }   /* Friends */
 	#futures-filter-table.with-extra-ball th:nth-child(6) { width: 5%; }   /* Trends */
 	#futures-filter-table.with-extra-ball th:nth-child(7) { width: 5%; }   /* Sums */
-	#futures-filter-table.with-extra-ball th:nth-child(8) { width: 5%; }   /* Digit Sums */
-	#futures-filter-table.with-extra-ball th:nth-child(9) { width: 6%; }   /* Repeaters */
-	#futures-filter-table.with-extra-ball th:nth-child(10) { width: 6%; }  /* Consecutives */
+	#futures-filter-table.with-extra-ball th:nth-child(8) { width: 8%; }   /* Digit Sums */
+	#futures-filter-table.with-extra-ball th:nth-child(9) { width: 8%; }   /* Repeaters */
+	#futures-filter-table.with-extra-ball th:nth-child(10) { width: 9%; }  /* Consecutives */
 	#futures-filter-table.with-extra-ball th:nth-child(11) { width: 6%; }  /* Odd/Even */
 	#futures-filter-table.with-extra-ball th:nth-child(12) { width: 6%; }  /* Decades */
 	#futures-filter-table.with-extra-ball th:nth-child(13) { width: 5%; }  /* Last */
@@ -241,9 +437,9 @@
 	#futures-filter-table:not(.with-extra-ball) th:nth-child(4) { width: 7%; }   /* Friends */
 	#futures-filter-table:not(.with-extra-ball) th:nth-child(5) { width: 7%; }   /* Trends */
 	#futures-filter-table:not(.with-extra-ball) th:nth-child(6) { width: 7%; }   /* Sums */
-	#futures-filter-table:not(.with-extra-ball) th:nth-child(7) { width: 7%; }   /* Digit Sums */
-	#futures-filter-table:not(.with-extra-ball) th:nth-child(8) { width: 7%; }   /* Repeaters */
-	#futures-filter-table:not(.with-extra-ball) th:nth-child(9) { width: 7%; }   /* Consecutives */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(7) { width: 9%; }   /* Digit Sums */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(8) { width: 9%; }   /* Repeaters */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(9) { width: 10%; }  /* Consecutives */
 	#futures-filter-table:not(.with-extra-ball) th:nth-child(10) { width: 7%; }  /* Odd/Even */
 	#futures-filter-table:not(.with-extra-ball) th:nth-child(11) { width: 7%; }  /* Decades */
 	#futures-filter-table:not(.with-extra-ball) th:nth-child(12) { width: 6%; }  /* Last */
@@ -314,6 +510,42 @@
 		table-layout: fixed !important;
 		margin: 0 !important;
 	}
+	
+	/* Results table column width optimization */
+	#generated-tickets-table th:nth-child(1) { width: 6%; }    /* # */
+	#generated-tickets-table th:nth-child(2) { width: 22%; }   /* Combination */
+	#generated-tickets-table th:nth-child(3) { width: 7%; }    /* Sum */
+	#generated-tickets-table th:nth-child(4) { width: 9%; }    /* Digit Sum */
+	#generated-tickets-table th:nth-child(5) { width: 9%; }    /* Repeaters */
+	#generated-tickets-table th:nth-child(6) { width: 11%; }   /* Consecutives */
+	#generated-tickets-table th:nth-child(7) { width: 7%; }    /* Odd */
+	#generated-tickets-table th:nth-child(8) { width: 7%; }    /* Even */
+	#generated-tickets-table th:nth-child(9) { width: 8%; }    /* Decade */
+	#generated-tickets-table th:nth-child(10) { width: 7%; }   /* Last */
+	#generated-tickets-table th:nth-child(11) { width: 7%; }   /* Range */
+	
+	#generated-tickets-table {
+		max-width: 100% !important;
+		width: 100% !important;
+		table-layout: fixed !important;
+		margin: 0 !important;
+	}
+	
+	#generated-tickets-table th {
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		overflow: hidden;
+		padding: 0.5rem 0.25rem !important;
+		font-size: 0.9rem;
+	}
+	
+	#generated-tickets-table td {
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		overflow: hidden;
+		padding: 0.4rem 0.25rem !important;
+	}
+	
 	@media (max-width: 991px) {
 		.table-responsive {
 			overflow-x: auto;
@@ -362,6 +594,41 @@
 		}
 	}
 	/* Add this to your style section */
+	
+	/* Lottery outdated greyed-out styles */
+	.lottery-outdated-disabled {
+		opacity: 0.5;
+		pointer-events: none;
+		background-color: #f8f9fa;
+		border: 1px solid #dee2e6;
+		position: relative;
+	}
+	
+	.lottery-outdated-disabled::before {
+		content: "LOTTERY OUT OF DATE - UPDATE REQUIRED";
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		background-color: rgba(220, 53, 69, 0.9);
+		color: white;
+		padding: 0.5rem 1rem;
+		border-radius: 0.25rem;
+		font-weight: bold;
+		font-size: 0.9rem;
+		z-index: 1000;
+		white-space: nowrap;
+		text-align: center;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+	}
+	
+	.lottery-outdated-disabled input,
+	.lottery-outdated-disabled select,
+	.lottery-outdated-disabled button,
+	.lottery-outdated-disabled textarea {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
 	.d-flex {
     display: flex;
     align-items: center;
@@ -654,6 +921,18 @@
 							</div>
 						<?php endif; ?>
 						
+						<!-- Lottery Out of Date Warning -->
+						<?php if (!empty($lottery_outdated) && $lottery_outdated): ?>
+							<div class="alert alert-danger alert-dismissible fade show" role="alert">
+								<i class="fas fa-exclamation-circle"></i> 
+								<strong><?= htmlspecialchars($lottery->lottery_name) ?> is out of date by <?= $draws_behind ?> draw<?= $draws_behind > 1 ? 's' : '' ?>.</strong>
+								Import or manually add the new draws on the Lotteries Edit or Lotteries Import page.
+								<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+									<span aria-hidden="true">&times;</span>
+								</button>
+							</div>
+						<?php endif; ?>
+						
 						<?php if (!empty($message)) ?> <h3 class="bg-warning" style = "text-align:center;"><?=$message; ?></h3>
 						
 						<!-- Friendship Warning Messages -->
@@ -666,63 +945,50 @@
 							</div>
 						<?php endif; ?>
 						<?php echo validation_errors('<H2><div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">','</div></H2>'); ?>
+						<div class="prediction-form-container <?= (!empty($lottery_outdated) && $lottery_outdated) ? 'lottery-outdated-disabled' : '' ?>">
 						<?php echo form_open(base_url().'admin/predictions/combination/'.$lottery->id); ?>
 						<hr>
 						<!-- Country -->
 						<div class="form-group row justify-content-center">
 							<?php
-							$extra = ['class' => 'col-4 col-form-label col-form-label-md text-right'];
+							$extra = ['class' => 'col-sm-4 col-12 col-form-label col-form-label-md text-sm-right text-left'];
 							echo form_label('Country:', 'country', $extra);
 							?>
-							<div class="col-6" style = "margin-top: 0.5em;">
+							<div class="col-sm-6 col-12" style = "margin-top: 0.5em;">
 								<span id="country-name"></span>
 							</div>
 						</div>
 						<!-- Province/State -->
 						<div class="form-group row justify-content-center">
 							<?php
-							$extra = ['class' => 'col-4 col-form-label col-form-label-md text-right'];
+							$extra = ['class' => 'col-sm-4 col-12 col-form-label col-form-label-md text-sm-right text-left'];
 							echo form_label('Province/State:', 'province', $extra);
 							?>
-							<div class="col-6" style = "margin-top: 0.5em;">
+							<div class="col-sm-6 col-12" style = "margin-top: 0.5em;">
 								<span id="state-name"></span>
 							</div>
 						</div>
 						<div class="form-group row justify-content-center">
 							<?php
 							// Label for the dropdown
-							$extra = ['class' => 'col-4 col-form-label col-form-label-md text-right'];
+							$extra = ['class' => 'col-sm-4 col-12 col-form-label col-form-label-md text-sm-right text-left'];
 							echo form_label('Combination Table:', 'wheeling', $extra);
 							?>
-							<div class="col-6">
+							<div class="col-sm-6 col-12">
 								<?php
-								// Prepare the dropdown options
-								$wheeling_options = ['' => 'Select Combination Table']; // Default option
-								if (!empty($combination_files)) {
-									foreach ($combination_files as $file) {
-										// Use the id|filename format for the value, display filename with details
-										$value = $file['id'] . '|' . $file['file_name']; // e.g., "246|060828"
-										$display = '(' . $file['file_name'] . ')     ' . $file['N'] . ' Numbers - ' . number_format($file['CCCC']) . ' Tickets';
-										$wheeling_options[$value] = $display;
-									}
-								}
-								
-								// Dropdown attributes
-								$extra = ['class' => 'form-control', 'id' => 'wheeling','style' => 'width: 70%;'];
-								if (!empty($disable_combination_dropdown)) {
-									$extra['disabled'] = 'disabled';
-								}
-								
 								// For the selected value, we need to check if it matches the filename part
 								$selected_value = '';
 								if (isset($selected_wheeling)) {
 									// If selected_wheeling is just a filename, find the matching id|filename value
-									foreach ($wheeling_options as $option_value => $option_display) {
-										if (strpos($option_value, '|') !== false) {
-											list($option_id, $option_filename) = explode('|', $option_value, 2);
-											if ($option_filename === $selected_wheeling) {
-												$selected_value = $option_value;
-												break;
+									if (!empty($combination_files)) {
+										foreach ($combination_files as $file) {
+											$value = $file['id'] . '|' . $file['file_name'];
+											if (strpos($value, '|') !== false) {
+												list($option_id, $option_filename) = explode('|', $value, 2);
+												if ($option_filename === $selected_wheeling) {
+													$selected_value = $value;
+													break;
+												}
 											}
 										}
 									}
@@ -734,56 +1000,100 @@
 									$selected_value = set_value('wheeling', '');
 								}
 								
-								echo form_dropdown('wheeling', $wheeling_options, $selected_value, $extra);
+								// Build custom dropdown with HTML badge support
+								$disabled_attr = !empty($disable_combination_dropdown) ? 'disabled' : '';
+								?>
+								<div class="dropdown" style="width: 80%;">
+									<button class="btn btn-outline-secondary dropdown-toggle form-control text-left" type="button" id="wheelingDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="background: white; border: 1px solid #ced4da; color: #495057 !important; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 38px; touch-action: manipulation;" <?= $disabled_attr ?>>
+										<span id="wheelingSelectedText">
+											<?php 
+											if (!empty($selected_value)) {
+												// Find the selected file and display its text without HTML
+												foreach ($combination_files as $file) {
+													$value = $file['id'] . '|' . $file['file_name'];
+													if ($value === $selected_value) {
+														// More robust check for active status
+														$is_active = false;
+														if (isset($file['active'])) {
+															$active_val = $file['active'];
+															$is_active = ($active_val == 1 || $active_val === '1' || $active_val === 1 || $active_val === true);
+														}
+														
+														if ($is_active) {
+															echo 'Active ';
+														} else {
+															echo 'Expired ';
+														}
+														echo '(' . htmlspecialchars($file['file_name']) . ') ' . $file['N'] . ' Numbers - ' . number_format($file['CCCC']) . ' Tickets';
+														break;
+													}
+												}
+											} else {
+												echo 'Select Combination Table';
+											}
+											?>
+										</span>
+									</button>
+									<div class="dropdown-menu" aria-labelledby="wheelingDropdown" style="width: 100%; max-height: 300px; overflow-y: auto;">
+										<?php if (!empty($combination_files)): ?>
+											<?php foreach ($combination_files as $file): ?>
+												<?php 
+												$value = $file['id'] . '|' . $file['file_name']; // e.g., "246|060828"
+												$status_badge = '';
+												// More robust check for active status - handle string/int/bool values
+												$is_active = false;
+												if (isset($file['active'])) {
+													$active_val = $file['active'];
+													$is_active = ($active_val == 1 || $active_val === '1' || $active_val === 1 || $active_val === true);
+												}
+												
+												if ($is_active) {
+													$status_badge = '<span class="badge badge-success" style="background-color: #28a745; color: white;">Active</span> ';
+												} else {
+													$status_badge = '<span class="badge badge-danger" style="background-color: #dc3545; color: white;">Expired</span> ';
+												}
+												$display = $status_badge . '(' . htmlspecialchars($file['file_name']) . ') ' . $file['N'] . ' Numbers - ' . number_format($file['CCCC']) . ' Tickets';
+												$selected_class = ($selected_value === $value) ? 'active' : '';
+												?>
+												<a class="dropdown-item <?= $selected_class ?>" href="#" data-value="<?= htmlspecialchars($value) ?>" onclick="selectCombination('<?= htmlspecialchars($value, ENT_QUOTES) ?>', this.innerHTML); return false;"><?= $display ?></a>
+											<?php endforeach; ?>
+										<?php endif; ?>
+									</div>
+								</div>
+								<!-- Hidden input to store the selected value -->
+								<input type="hidden" id="wheeling" name="wheeling" value="<?= htmlspecialchars($selected_value) ?>">
+								<?php
 								// Display form error if any
 								echo form_error('wheeling', '<div class="bg-warning mt-2 p-2 text-center text-white">', '</div>');
 								?>
 							</div>
 						</div>
 						
-						<!-- Saved Combinations Tile -->
-						<?php if (!empty($saved_combinations)): ?>
-						<div class="row" style="margin-bottom: 2em;">
-							<div class="col-md-12">
-								<div class="table-section" style="border:2px solid #17a2b8; border-radius:8px; padding:1em;">
-									<div class="table-title" style="font-weight:bold; font-size:1.2em; background:#e9ecef; border-bottom:1px solid #17a2b8; padding:0.5em 1em; border-radius:6px 6px 0 0; margin:-1em -1em 1em -1em;">
-										SAVED COMBINATIONS (<?= count($saved_combinations) ?>)
-									</div>
-									<div class="saved-combinations-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; margin-top: 10px;">
-										<?php foreach ($saved_combinations as $combo): ?>
-											<div class="combination-item" style="border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; background: #f8f9fa; display: flex; justify-content: space-between; align-items: center;">
-												<div style="font-weight: bold; font-size: 1em; flex-grow: 1;">
-													<?= htmlspecialchars($combo['display_filename']) ?>
-												</div>
-												<div>
-													<?= $combo['active'] 
-														? '<span class="badge badge-success">Active</span>' 
-														: '<span class="badge badge-danger">Expired</span>'; ?>
-												</div>
-											</div>
-										<?php endforeach; ?>
+						<!-- Status Display Area (shown when dropdown selection is made) -->
+						<div id="combination-status-display" class="row mt-3" style="display: none;">
+							<div class="col-12">
+								<div class="status-display-panel" style="border: 2px solid #007bff; border-radius: 8px; background: #f8f9fa; padding: 1em; margin-bottom: 1em;">
+									<div class="d-flex align-items-center justify-content-between flex-wrap">
+										<div class="status-info d-flex align-items-center flex-wrap">
+											<span id="status-badge" class="badge badge-success mr-3" style="font-size: 0.9rem;">Active</span>
+											<span id="tickets-count" class="mr-3" style="color: #28a745; font-weight: bold;">Filtered Tickets: 0</span>
+										</div>
+										<div class="action-icons d-flex align-items-center">
+											<i id="restore-icon" class="fa fa-eye fa-2x mr-2" title="Restore previous Combination Filter Settings" style="color: #007bff; cursor: pointer;" onclick="restoreFromStatus()"></i>
+											<i id="winners-icon" class="fa fa-money fa-2x mr-2" title="View Combination Ticket Winners" style="color: #28a745; cursor: pointer;" onclick="viewWinnersFromStatus()"></i>
+											<i id="delete-icon" class="fa fa-trash-o fa-2x" title="Delete this file and Combination Table Filtered Tickets" style="color: #dc3545; cursor: pointer;" onclick="deleteFromStatus()"></i>
+										</div>
 									</div>
 								</div>
 							</div>
 						</div>
-						<?php endif; ?>
 						
 						<div class="row">
-							<div class="col-md-12">
+							<div class="col-12">
 								<!-- First Table: Presets Control Panel -->
 								<div class="table-section" style="border:2px solid #007bff; border-radius:8px; margin-bottom:2em; padding:1em;">
 									<div class="table-title" style="font-weight:bold; font-size:1.2em; background:#f8f9fa; border-bottom:1px solid #007bff; padding:0.5em 1em; border-radius:6px 6px 0 0; margin:-1em -1em 1em -1em;">
 										LOTTERY PROFILE STATISTICS PRESETS CONTROL PANEL
-										<?php if (!is_NULL($combo_id)): ?>
-											| 
-											<?=$active 
-														? '<span class="badge badge-success">Active</span>' 
-														: '<span class="badge badge-danger">Expired</span>'; ?>
-											<i class="fa fa-eye fa-2x" title="Restore previous Combination Filter Settings" style="color:#007bff; cursor:pointer; margin:0 5px;" onclick="refreshFilter(<?= $combo_id ?>)"></i>
-											<i class="fa fa-money fa-2x" title="View Combination Ticket Winners" style="color:#28a745; cursor:pointer; margin:0 5px;" onclick="viewCombinationWinners(<?= $combo_id ?>)"></i>
-											<i class="fa fa-trash-o fa-2x" title="Delete this file and Combination Table Filtered Tickets" style="color:#dc3545; cursor:pointer; margin:0 5px;" onclick="deleteFilter(<?= $combo_id ?>, '<?= $file_name ?>')"></i>
-											<span id="filtered-tickets-count" style="color:#28a745; font-weight:bold;">Filtered Tickets: <?=$CCCC ?></span>
-										<?php endif; ?>
 									</div>		
 										<div class="table-responsive">
 											<table class="table table-bordered text-center">
@@ -808,12 +1118,8 @@
 														<!-- H-W-C -->
 														<td data-label="H-W-C">
 															<?php
-															// Don't render as disabled if there's an error message - let JavaScript handle it
-															$disabled_attr = '';
-															if (empty($message) || strpos($message, 'Either Hot - Warm - Cold checkbox or Follower checkbox') === false) {
-																$disabled_attr = 'disabled';
-															}
-															$js = 'id="hwc-checkbox" class="preset-checkbox" ' . $disabled_attr;
+															// Always allow checkbox to be interactable
+															$js = 'id="hwc-checkbox" class="preset-checkbox"';
 															echo form_checkbox('hwc', '1', !empty($selected_hwc), $js);
 															?>
 														</td>
@@ -823,12 +1129,8 @@
 														<!-- Followers -->
 														<td data-label="Followers">
 															<?php
-															// Don't render as disabled if there's an error message - let JavaScript handle it
-															$disabled_attr = '';
-															if (empty($message) || strpos($message, 'Either Hot - Warm - Cold checkbox or Follower checkbox') === false) {
-																$disabled_attr = 'disabled';
-															}
-															$js = 'id="followers-checkbox" class="preset-checkbox" ' . $disabled_attr;
+															// Always allow checkbox to be interactable
+															$js = 'id="followers-checkbox" class="preset-checkbox"';
 															echo form_checkbox('followers', '1', !empty($selected_followers), $js);
 															?>
 														</td>
@@ -838,12 +1140,8 @@
 														<!-- Friends -->
 														<td data-label="Friends">
 															<?php
-															// Don't render as disabled if there's an error message - let JavaScript handle it
-															$disabled_attr = '';
-															if (empty($message) || strpos($message, 'Either Hot - Warm - Cold checkbox or Follower checkbox') === false) {
-																$disabled_attr = 'disabled';
-															}
-															$js = 'id="friends-checkbox" class="preset-checkbox" ' . $disabled_attr;
+															// Always allow checkbox to be interactable
+															$js = 'id="friends-checkbox" class="preset-checkbox"';
 															echo form_checkbox('friends', '1', !empty($selected_friends_checkbox), $js);
 															?>
 														</td>
@@ -858,11 +1156,11 @@
 							</div>
 						</div>
 						<div class="row">
-							<div class="col-md-12">
+							<div class="col-12">
 								<!-- Second Table: Actual Win History Filtering -->
 								<div class="table-section" style="border:2px solid #28a745; border-radius:8px; margin-bottom:2em; padding:1em; overflow: hidden; position: relative;">
 									<div class="table-title" style="font-weight:bold; font-size:1.2em; background:#f8f9fa; border-bottom:1px solid #28a745; padding:0.5em 1em; border-radius:6px 6px 0 0; margin:-1em -1em 1em -1em;">
-										Actual Win History Filtering for <?= htmlspecialchars($lottery->next_draw_date); ?>
+										Actual Win History Filtering for <?= htmlspecialchars(isset($lottery->next_draw_date) ? $lottery->next_draw_date : 'Next Draw'); ?>
 									</div>
 									
 									<!-- Table responsive container -->
@@ -892,7 +1190,10 @@
 											<tbody>
 												<tr>
 													<td data-label="H-W-C Selection">
-														<?= form_dropdown('h_w_c_group', $h_w_c_group, isset($selected_h_w_c_group) ? $selected_h_w_c_group : '', 'class="form-control" id="h_w_c_group"') ?>
+														<?php 
+														$hwc_disabled = isset($disable_hwc_dropdown) && $disable_hwc_dropdown ? ' disabled' : '';
+														?>
+														<?= form_dropdown('h_w_c_group', $h_w_c_group, isset($selected_h_w_c_group) ? $selected_h_w_c_group : '', 'class="form-control" id="h_w_c_group"' . $hwc_disabled) ?>
 													</td>
 													<?php if (isset($is_independent_extra_ball) && $is_independent_extra_ball): ?>
 													<td data-label="Extra Ball Filter">
@@ -907,24 +1208,29 @@
 													<?php endif; ?>
 													<td data-label="After Ball">
 														<div class="d-flex align-items-center" style="gap:0.4em;">
-															<?= form_radio([
+															<?php 
+															$followers_disabled = isset($disable_followers_controls) && $disable_followers_controls;
+															$radio_disabled = $followers_disabled ? ['disabled' => true] : [];
+															$dropdown_disabled = $followers_disabled ? ' disabled' : '';
+															?>
+															<?= form_radio(array_merge([
 																	'name' => 'followers_type',
 																	'id' => 'after_ball_radio',
 																	'value' => 'after_ball',
 																	'checked' => (isset($selected_followers_type) && $selected_followers_type == 'after_ball')
-																]); ?>
-															<?= form_dropdown('ball_points', $ball_points_options, isset($selected_ball_points) ? $selected_ball_points : '', 'class="form-control" id="ball_points"') ?>
+																], $radio_disabled)); ?>
+															<?= form_dropdown('ball_points', isset($ball_points_options) ? $ball_points_options : [], isset($selected_ball_points) ? $selected_ball_points : '', 'class="form-control" id="ball_points"' . $dropdown_disabled) ?>
 														</div>
 													</td>
 													<td data-label="Position">
 														<div class="d-flex align-items-center" style="gap:0.4em;">
-															<?= form_radio([
+															<?= form_radio(array_merge([
 																'name' => 'followers_type',
 																'id' => 'position_radio',
 																'value' => 'position',
 																'checked' => (isset($selected_followers_type) && $selected_followers_type == 'position')
-															]); ?>
-															<?= form_dropdown('position_points', $position_points_options, isset($selected_position_points) ? $selected_position_points : '', 'class="form-control" id="position_points"') ?>
+															], $radio_disabled)); ?>
+															<?= form_dropdown('position_points', isset($position_points_options) ? $position_points_options : [], isset($selected_position_points) ? $selected_position_points : '', 'class="form-control" id="position_points"' . $dropdown_disabled) ?>
 														</div>
 													</td>
 													<td data-label="Friends">
@@ -939,34 +1245,34 @@
 															'class="form-control" id="friends"') ?>
 													</td>
 													<td data-label="Trends">
-														<?= form_dropdown('trends', $lottery->trends, isset($selected_trends) ? $selected_trends : '', 'class="form-control"') ?>
+														<?= form_dropdown('trends', isset($lottery->trends) ? $lottery->trends : [], isset($selected_trends) ? $selected_trends : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Sums">
-														<?= form_dropdown('winning_sums', $lottery->winning_sums, isset($selected_winning_sums) ? $selected_winning_sums : '', 'class="form-control"') ?>
+														<?= form_dropdown('winning_sums', isset($lottery->winning_sums) ? $lottery->winning_sums : [], isset($selected_winning_sums) ? $selected_winning_sums : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Digit Sums">
-														<?= form_dropdown('winning_digits', $lottery->winning_digits, isset($selected_winning_digits) ? $selected_winning_digits : '', 'class="form-control"') ?>
+														<?= form_dropdown('winning_digits', isset($lottery->winning_digits) ? $lottery->winning_digits : [], isset($selected_winning_digits) ? $selected_winning_digits : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Repeaters">
-														<?= form_dropdown('repeaters', $lottery->repeaters,  isset($selected_repeaters) ? $selected_repeaters : '', 'class="form-control"') ?>
+														<?= form_dropdown('repeaters', isset($lottery->repeaters) ? $lottery->repeaters : [],  isset($selected_repeaters) ? $selected_repeaters : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Consecutives">
-														<?= form_dropdown('consecutives', $lottery->consecutives, isset($selected_consecutives) ? $selected_consecutives : '', 'class="form-control"') ?>
+														<?= form_dropdown('consecutives', isset($lottery->consecutives) ? $lottery->consecutives : [], isset($selected_consecutives) ? $selected_consecutives : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Odd/Even">
-														<?= form_dropdown('parity', $lottery->parity, isset($selected_parity) ? $selected_parity : '', 'class="form-control"') ?>
+														<?= form_dropdown('parity', isset($lottery->parity) ? $lottery->parity : [], isset($selected_parity) ? $selected_parity : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Decades">
-														<?= form_dropdown('decades', $lottery->decades, isset($selected_decades) ? $selected_decades : '', 'class="form-control"') ?>
+														<?= form_dropdown('decades', isset($lottery->decades) ? $lottery->decades : [], isset($selected_decades) ? $selected_decades : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Last">
-														<?= form_dropdown('last_digits', $lottery->last_digits, isset($selected_last_digits) ? $selected_last_digits : '', 'class="form-control"') ?>
+														<?= form_dropdown('last_digits', isset($lottery->last_digits) ? $lottery->last_digits : [], isset($selected_last_digits) ? $selected_last_digits : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Range">
-														<?= form_dropdown('number_range', $lottery->number_range, isset($selected_number_range) ? $selected_number_range : '', 'class="form-control"') ?>
+														<?= form_dropdown('number_range', isset($lottery->number_range) ? $lottery->number_range : [], isset($selected_number_range) ? $selected_number_range : '', 'class="form-control"') ?>
 													</td>
 													<td data-label="Adjacent">
-														<?= form_dropdown('adjacents', $lottery->adjacents, isset($selected_adjacents) ? $selected_adjacents : '', 'class="form-control"') ?>
+														<?= form_dropdown('adjacents', isset($lottery->adjacents) ? $lottery->adjacents : [], isset($selected_adjacents) ? $selected_adjacents : '', 'class="form-control"') ?>
 													</td>
 												</tr>
 											</tbody>
@@ -977,34 +1283,55 @@
 						</div>
 						<!-- Submit Button -->
 						<div class="form-group text-center mt-3">
-							<?php
-							$extra = ['class' => 'btn btn-primary btn-lg', 'id' => 'submit-btn'];
-							if ($disable_generate_button) {
-								$extra['disabled'] = 'disabled';
-							}
-							echo form_submit('submit', 'Generate Tickets', $extra);
-						// Both buttons are disabled by default
-							echo form_button([
-								'type' => 'button',
-								'class' => 'btn btn-success btn-lg mx-2',
-								'id' => 'save-filtered-btn',
-								'disabled' => 'disabled'
-							], 'Save Filtered Tickets');
-							echo form_button([
-								'type' => 'button',
-								'class' => 'btn btn-warning btn-lg mx-2',
-								'id' => 'reset-settings-btn',
-								'disabled' => 'disabled'
-							], 'Reset Settings');
-							echo form_button([
-								'type' => 'button',
-								'class' => 'btn btn-danger btn-lg mx-2',
-								'id' => 'delete-filtered-btn',
-								'disabled' => 'disabled'
-							], 'Delete Filtered Tickets');
-							?>	
+							<div class="row justify-content-center">
+								<div class="col-lg-3 col-md-6 col-12 mb-2">
+									<?php
+									$extra = ['class' => 'btn btn-primary btn-lg w-100', 'id' => 'submit-btn', 'style' => 'touch-action: manipulation; min-height: 48px;'];
+									if ($disable_generate_button) {
+										$extra['disabled'] = 'disabled';
+									}
+									echo form_submit('submit', 'Generate Tickets', $extra);
+									?>
+								</div>
+								<div class="col-lg-3 col-md-6 col-12 mb-2">
+									<?php
+									$save_button_attributes = [
+										'type' => 'button',
+										'class' => 'btn btn-success btn-lg w-100',
+										'id' => 'save-filtered-btn',
+										'style' => 'touch-action: manipulation; min-height: 48px;'
+									];
+									// Only disable if no tickets have been generated
+									if (empty($combos_paginated)) {
+										$save_button_attributes['disabled'] = 'disabled';
+									}
+									echo form_button($save_button_attributes, 'Save Filtered Tickets');
+									?>
+								</div>
+								<div class="col-lg-3 col-md-6 col-12 mb-2">
+									<?php
+									echo form_button([
+										'type' => 'button',
+										'class' => 'btn btn-warning btn-lg w-100',
+										'id' => 'reset-settings-btn',
+										'style' => 'touch-action: manipulation; min-height: 48px;'
+									], 'Reset Settings');
+									?>
+								</div>
+								<div class="col-lg-3 col-md-6 col-12 mb-2">
+									<?php
+									echo form_button([
+										'type' => 'button',
+										'class' => 'btn btn-danger btn-lg w-100',
+										'id' => 'delete-filtered-btn',
+										'disabled' => 'disabled',
+										'style' => 'touch-action: manipulation; min-height: 48px;'
+									], 'Delete Filtered Tickets');
+									?>
+								</div>
+							</div>
 							<?= form_close(); ?>
-						</div>
+						</div> <!-- Close prediction-form-container -->
 						<?php if (!empty($number_array)): ?>
 							<div class="alert alert-info text-center mb-2" style="font-weight:bold;">
 								GENERATED NUMBERS ARE: <?= implode(', ', $number_array); ?>
@@ -1012,6 +1339,7 @@
 						<?php endif; ?>
 						<?php if (!empty($combos_paginated)): 
 							?>
+							<div class="combination-results-container <?= (!empty($lottery_outdated) && $lottery_outdated) ? 'lottery-outdated-disabled' : '' ?>">
 							<form method="get" class="mb-3" id="pagination-size-form" action="<?= base_url('admin/predictions/combination/' . $lottery->id) ?>">
 								<label for="per_page" class="me-2">Combinations per page:</label>
 								<select name="per_page" id="per_page" class="form-select d-inline-block w-auto" onchange="document.getElementById('pagination-size-form').submit();">
@@ -1037,29 +1365,21 @@
 										class="table table-bordered table-striped generated-tickets-table" 
 										style="width:100%; margin:0 auto;"
 										data-toggle="table"
-										data-filter-control="true"
-										data-show-filter-control-switch="true"
-										data-filter-show-clear="true"
 										data-sort-name="ticket"
-										data-sort-order="asc"
-										data-pagination="false"
-										data-search="true"
-										data-show-refresh="true"
-										data-show-toggle="true"
-										data-show-columns="true">
+										data-sort-order="asc">
 										<thead class="table-dark">
 											<tr>
 												<th data-field="ticket" data-sortable="true">#</th>
 												<th data-field="combination" data-sortable="false">Combination</th>
-												<th data-field="sum" data-sortable="true" data-filter-control="select" data-align="center">Sum</th>
-												<th data-field="digit_sum" data-sortable="true" data-filter-control="select" data-align="center">Digit Sum</th>
-												<th data-field="repeaters" data-sortable="true" data-filter-control="select" data-align="center">Repeaters</th>
-												<th data-field="consecutive" data-sortable="true" data-filter-control="select" data-align="center">Consecutive</th>
-												<th data-field="odd" data-sortable="true" data-filter-control="select" data-align="center">Odd</th>
-												<th data-field="even" data-sortable="true" data-filter-control="select" data-align="center">Even</th>
-												<th data-field="decade" data-sortable="true" data-filter-control="select" data-align="center">Decade</th>
-												<th data-field="last" data-sortable="true" data-filter-control="select" data-align="center">Last</th>
-												<th data-field="range" data-sortable="true" data-filter-control="select" data-align="center">Range</th>
+												<th data-field="sum" data-sortable="false">Sum</th>
+												<th data-field="digit_sum" data-sortable="false">Digit Sum</th>
+												<th data-field="repeaters" data-sortable="false">Repeaters</th>
+												<th data-field="consecutive" data-sortable="false">Consecutives</th>
+												<th data-field="odd" data-sortable="false">Odd</th>
+												<th data-field="even" data-sortable="false">Even</th>
+												<th data-field="decade" data-sortable="false">Decade</th>
+												<th data-field="last" data-sortable="false">Last</th>
+												<th data-field="range" data-sortable="false">Range</th>
 											</tr>
 										</thead>
 										<tbody>
@@ -1204,6 +1524,7 @@
 								<?php endif; // End pagination condition ?>
 							</div>
 						<?php endif; ?>
+						</div> <!-- Close combination-results-container -->
 					</div>
 				</div>
 			</div>
@@ -1216,16 +1537,226 @@
     // Global variable to track active status (updated by AJAX)
     var isActive = <?php if (isset($active) && $active == 1) { echo 'true'; } else { echo 'false'; } ?>;
     
+    // Function to handle combination selection from custom dropdown
+    window.selectCombination = function(value, displayHtml) {
+        // Set the hidden input value
+        const hiddenInput = document.getElementById('wheeling');
+        if (hiddenInput) {
+            hiddenInput.value = value;
+        }
+        
+        // Update the dropdown button text (strip HTML for button display)
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = displayHtml;
+        const textContent = tempDiv.textContent || tempDiv.innerText || '';
+        const selectedTextElement = document.getElementById('wheelingSelectedText');
+        if (selectedTextElement) {
+            selectedTextElement.textContent = textContent;
+        }
+        
+        // Close the dropdown
+        const dropdownButton = document.getElementById('wheelingDropdown');
+        if (dropdownButton) {
+            try {
+                // Try jQuery/Bootstrap dropdown method first
+                if (typeof $ !== 'undefined' && $.fn.dropdown) {
+                    $(dropdownButton).dropdown('hide');
+                } else {
+                    // Fallback: manually close dropdown by removing show class
+                    dropdownButton.classList.remove('show');
+                    dropdownButton.setAttribute('aria-expanded', 'false');
+                    const dropdownMenu = dropdownButton.nextElementSibling;
+                    if (dropdownMenu && dropdownMenu.classList.contains('dropdown-menu')) {
+                        dropdownMenu.classList.remove('show');
+                    }
+                }
+            } catch (error) {
+                // Continue execution even if dropdown close fails
+            }
+        }
+        
+        // Manually enable elements that should be enabled when a combination is selected
+        if (value) {
+            // Enable Generate Tickets button
+            const generateBtn = document.getElementById('submit-btn');
+            if (generateBtn) {
+                generateBtn.disabled = false;
+            }
+            
+            // Enable all preset checkboxes (including H-W-C and Followers)
+            const presetCheckboxes = document.querySelectorAll('.preset-checkbox');
+            const presetOptions = document.querySelectorAll('.preset-option');
+            
+            presetCheckboxes.forEach(checkbox => {
+                checkbox.disabled = false;
+            });
+            
+            presetOptions.forEach(option => {
+                option.classList.remove('disabled');
+                option.classList.add('enabled');
+            });
+            
+            // Load and display combination status immediately
+            loadCombinationStatus(value);
+        }
+        
+        // Trigger change event for other listeners
+        if (hiddenInput) {
+            const changeEvent = new Event('change', { bubbles: true });
+            hiddenInput.dispatchEvent(changeEvent);
+        }
+        
+        // Update active class
+        document.querySelectorAll('.dropdown-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        if (event && event.target) {
+            event.target.classList.add('active');
+        }
+    }
+    
+    // Function to load and display combination status via AJAX
+    window.loadCombinationStatus = function(comboValue) {
+        if (!comboValue) {
+            // Hide status display if no value
+            const statusDisplay = document.getElementById('combination-status-display');
+            if (statusDisplay) {
+                statusDisplay.style.display = 'none';
+            }
+            return;
+        }
+        
+        // Get lottery ID from the current URL or a hidden field
+        const lotteryId = <?= $lottery->id ?>;
+        
+        // Make AJAX request
+        fetch('<?= base_url("admin/predictions/get_combination_status") ?>', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'lottery_id=' + encodeURIComponent(lotteryId) + '&combo_value=' + encodeURIComponent(comboValue)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateStatusDisplay(data);
+            } else {
+                console.error('Error loading combination status:', data.message);
+                // Hide status display on error
+                const statusDisplay = document.getElementById('combination-status-display');
+                if (statusDisplay) {
+                    statusDisplay.style.display = 'none';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('AJAX error:', error);
+            // Hide status display on error
+            const statusDisplay = document.getElementById('combination-status-display');
+            if (statusDisplay) {
+                statusDisplay.style.display = 'none';
+            }
+        });
+    }
+    
+    // Function to update the status display with received data
+    window.updateStatusDisplay = function(data) {
+        const statusDisplay = document.getElementById('combination-status-display');
+        
+        // Check if status should be shown
+        if (!data.show_status) {
+            // Hide status display if no saved filter exists for this lottery
+            if (statusDisplay) {
+                statusDisplay.style.display = 'none';
+            }
+            return;
+        }
+        
+        const statusBadge = document.getElementById('status-badge');
+        const ticketsCount = document.getElementById('tickets-count');
+        const actionIcons = document.querySelector('.action-icons');
+
+        if (statusDisplay && statusBadge && ticketsCount) {
+            // Update badge
+            statusBadge.textContent = data.status_text;
+            statusBadge.className = 'badge ' + data.status_badge_class + ' mr-3';
+            statusBadge.style.backgroundColor = data.status_badge_color;
+            statusBadge.style.color = 'white';
+            statusBadge.style.fontSize = '0.9rem';
+            
+            // Update tickets count
+            ticketsCount.textContent = 'Filtered Tickets: ' + data.filtered_tickets_count;
+            
+            // Show/hide action icons based on whether icons should be shown
+            if (actionIcons) {
+                actionIcons.style.display = data.show_icons ? 'flex' : 'none';
+            }
+            
+            // Store combo_id and file_name globally for icon click handlers
+            window.currentComboId = data.combo_id;
+            window.currentFileName = data.file_name;
+            
+            // Show the status display
+            statusDisplay.style.display = 'block';
+        }
+    }
+    
+    // Icon click handlers that use the stored combo info
+    window.restoreFromStatus = function() {
+        if (window.currentComboId) {
+            refreshFilter(window.currentComboId);
+        }
+    }
+    
+    window.viewWinnersFromStatus = function() {
+        if (window.currentComboId) {
+            viewCombinationWinners(window.currentComboId);
+        }
+    }
+    
+    window.deleteFromStatus = function() {
+        if (window.currentComboId && window.currentFileName) {
+            // Get the required parameters for enhanced deletion
+            const lotteryId = <?= $lottery->id ?? 0 ?>; // Get lottery ID from lottery data
+            const fullFileName = window.currentFileName; // Keep full filename with ADMIN suffix
+            const adminId = <?= $this->session->userdata('id') ?? 0 ?>; // Get current admin user ID
+            
+            if (lotteryId && fullFileName && adminId) {
+                deleteCombinationFileFilters(lotteryId, fullFileName, adminId);
+            } else {
+                alert('Unable to determine all required parameters for deletion.\nLottery ID: ' + lotteryId + '\nFile Name: ' + fullFileName + '\nAdmin ID: ' + adminId);
+            }
+        }
+    }
+    
     // Run your script after the page is loaded
     document.addEventListener('DOMContentLoaded', function () {
-        console.log('Country Code:', countryCode);
-        console.log('State/Province Code:', stateProvCode);
-
-        // Example: Use the codes to display full names
-        const countryName = BFHCountriesList[countryCode] || 'Unknown Country';
-        const stateName = stateProvCode
-            ? (BFHStatesList[countryCode] && BFHStatesList[countryCode][stateProvCode]) || 'Unknown State/Province'
-            : (countryCode === 'CA' ? 'All Provinces' : countryCode === 'US' ? 'All States' : 'All Regions');
+        // Use the codes to display full names
+        const countryName = (typeof BFHCountriesList !== 'undefined' && BFHCountriesList[countryCode]) || 'Unknown Country';
+        
+        let stateName = 'Unknown State/Province';
+        if (stateProvCode && typeof BFHStatesList !== 'undefined' && BFHStatesList[countryCode]) {
+            // BFHStatesList structure is numbered objects with code/name properties
+            // Need to search through the numbered objects to find matching code
+            const countryStates = BFHStatesList[countryCode];
+            let foundState = null;
+            
+            // Loop through numbered objects (1, 2, 3, etc.)
+            for (let key in countryStates) {
+                if (countryStates[key] && countryStates[key].code === stateProvCode) {
+                    foundState = countryStates[key];
+                    break;
+                }
+            }
+            
+            if (foundState) {
+                stateName = foundState.name;
+            }
+        } else if (!stateProvCode) {
+            // No specific state/province selected - show "All" for the country
+            stateName = countryCode === 'CA' ? 'All Provinces' : countryCode === 'US' ? 'All States' : 'All Regions';
+        }
 
         // Display the names in the view
         document.getElementById('country-name').textContent = countryName;
@@ -1247,43 +1778,20 @@
     	var resetBtn = document.getElementById('reset-settings-btn');
     	var deleteBtn = document.getElementById('delete-filtered-btn');
 		
-		// Initial state
-		saveBtn.disabled = true;
-		resetBtn.disabled = true;
-		deleteBtn.disabled = true;
-		
-		// Check if tickets have been generated (number_array exists)
-		<?php if (!empty($number_array)): ?>
-		// Tickets have been generated, enable Save and Reset buttons
-		saveBtn.disabled = false;
-		resetBtn.disabled = false;
-		<?php endif; ?>
-		//generateBtn.disabled = true;
+		// Simplified logic - PHP now handles initial button states correctly
+		// JavaScript only handles Generate button and combination dropdown interaction
 		
 		// Enable Generate Tickets when a combination table is selected
 		combinationDropdown.addEventListener('change', function () {
 			if (combinationDropdown.value) {
 				generateBtn.disabled = false;
-				// Only disable Save/Reset buttons if tickets haven't been generated yet
-				<?php if (empty($number_array)): ?>
-				saveBtn.disabled = true;
-				resetBtn.disabled = true;
-				<?php endif; ?>
-				deleteBtn.disabled = true;
 			} else {
 				generateBtn.disabled = true;
-				saveBtn.disabled = true;
-				resetBtn.disabled = true;
-				deleteBtn.disabled = true;
 			}
+			// Don't modify Save/Reset button states - PHP handles this correctly based on $combos_paginated
 		});
-		generateBtn.addEventListener('click', function (e) {
-        	// You may want to check if tickets are actually generated before enabling
-			setTimeout(function() {
-				saveBtn.disabled = false;
-				resetBtn.disabled = false;
-			}, 500); // Adjust delay as needed for your ticket generation process
-		});
+		
+		// No need to modify button states on generate click - PHP handles this after page reload
 
 		// After Save Filtered Tickets is clicked, enable Delete Filtered Tickets
 		saveBtn.addEventListener('click', function (e) {
@@ -1362,10 +1870,10 @@
 					form.insertBefore(messageDiv, form.firstChild);
 					
 					// Update the Filtered Tickets count if provided in response
-					if (data.filtered_count) {
-						const filteredTicketsElement = document.getElementById('filtered-tickets-count');
+					if (data.filtered_tickets_count) {
+						const filteredTicketsElement = document.getElementById('tickets-count');
 						if (filteredTicketsElement) {
-							filteredTicketsElement.textContent = 'Filtered Tickets: ' + data.filtered_count.toLocaleString();
+							filteredTicketsElement.textContent = 'Filtered Tickets: ' + data.filtered_tickets_count;
 						}
 					}
 					
@@ -1374,10 +1882,13 @@
 					
 					// Update status badge if status changed from Expired to Active
 					if (data.status_changed && data.new_status) {
-						// Find the status badge in the control panel and update it
-						const statusBadge = document.querySelector('.table-title .badge');
+						// Find the status badge and update it
+						const statusBadge = document.getElementById('status-badge');
 						if (statusBadge) {
-							statusBadge.className = 'badge badge-success';
+							statusBadge.className = 'badge badge-success mr-3';
+							statusBadge.style.backgroundColor = '#28a745'; // Green background
+							statusBadge.style.color = 'white';
+							statusBadge.style.fontSize = '0.9rem';
 							statusBadge.textContent = data.new_status;
 						}
 					}
@@ -1458,7 +1969,7 @@
 			}
 			// Second, try to get from PHP variables if they exist
 			else {
-				<?php if (!is_null($combo_id) && !empty($file_name)): ?>
+				<?php if (isset($combo_id) && !is_null($combo_id) && isset($file_name) && !empty($file_name)): ?>
 					comboId = <?= $combo_id ?>;
 					fileName = '<?= $file_name ?>';
 				<?php endif; ?>
@@ -1645,80 +2156,87 @@
 		// Initialize Bootstrap Table for Generated Combination Tickets
 		<?php if (!empty($combos_paginated)): ?>
 		$(document).ready(function() {
-			$('#generated-tickets-table').bootstrapTable({
-				filterControl: true,
-				filterShowClear: true,
-				pagination: false,
-				search: true,
-				showRefresh: true,
-				showToggle: true,
-				showColumns: true,
-				sortName: 'ticket',
-				sortOrder: 'asc',
-				classes: 'table table-bordered table-striped',
-				filterControlVisible: false, // Start with filters hidden
-				onRefresh: function() {
-					// Custom refresh logic if needed
-					console.log('Table refreshed');
-				},
-				onToggle: function() {
-					// Handle table view toggle
-					console.log('Table view toggled');
-				},
-				onPostBody: function() {
-					// Ensure all filters are blank after table is rendered
-					$('.filter-control select').val('');
-				}
-			});
-			
-			// Custom styling for filter controls
-			setTimeout(function() {
-				// Customize filter dropdown options
-				$('.filter-control select').each(function() {
-					// Remove any existing empty options and add a completely blank one
-					$(this).find('option[value=""]').remove();
-					$(this).prepend('<option value=""></option>');
-					// Set the dropdown to blank value
-					$(this).val('');
-				});
-				
-				// Style filter selects
-				$('.filter-control select').each(function() {
-					$(this).addClass('form-select');
-				});
-				
-				// Clear any existing filters to show all data
-				$('#generated-tickets-table').bootstrapTable('clearFilterControl');
-			}, 100);
+		$('#generated-tickets-table').bootstrapTable({
+			filterControl: false,
+			pagination: false,
+			search: false,
+			showRefresh: false,
+			showToggle: false,
+			showColumns: false,
+			sortName: 'ticket',
+			sortOrder: 'asc',
+			classes: 'table table-bordered table-striped'
 		});
-		
+		}); // Close $(document).ready
 		<?php endif; ?>
-    });
+    }); // Close DOMContentLoaded function
     
     // Function to refresh filter settings
     function refreshFilter(comboId) {
         if (confirm('Loading the Previous Saved Settings. Do you want to continue? (Y/N)')) {
-            window.location.href = '<?= base_url() ?>admin/predictions/refresh/<?= $lottery->id ?>?combo_id=' + comboId;
+            window.location.href = '<?= base_url() ?>admin/predictions/restore_settings/<?= $lottery->id ?>?combo_id=' + comboId;
         }
     }
     
-    // Function to view combination ticket winners (for control panel only)
+    // Function to view combination ticket winners
     function viewCombinationWinners(comboId) {
-        // Use the filter record ID if available, otherwise show error
+        // If comboId is passed (from status area), use dynamic lookup
+        if (comboId && comboId !== 'undefined') {
+            // Make AJAX call to get filter record ID for this combo
+            fetch('<?= base_url("admin/predictions/get_filter_record_id") ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'combo_id=' + encodeURIComponent(comboId) + '&lottery_id=' + <?= $lottery->id ?>
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.filter_record_id) {
+                    // Check if filter is active or expired
+                    const isActive = data.is_active;
+                    
+                    if (!isActive) {
+                        // Show warning for expired filters but still allow navigation
+                        if (confirm('This filter is EXPIRED. You can still view the combination ticket winners, but results will be based on historical data. Continue?')) {
+                            window.location.href = '<?= base_url() ?>admin/prize/view_combination_tickets/' + data.filter_record_id + '?referrer=futures&lottery_id=<?= $lottery->id ?>&combo_id=' + comboId;
+                        }
+                    } else {
+                        // Active filter - navigate directly without warning
+                        window.location.href = '<?= base_url() ?>admin/prize/view_combination_tickets/' + data.filter_record_id + '?referrer=futures&lottery_id=<?= $lottery->id ?>&combo_id=' + comboId;
+                    }
+                } else {
+                    alert('No saved filter found. Please save filtered tickets first before viewing combination winners.');
+                }
+            })
+            .catch(error => {
+                console.error('Error getting filter record ID:', error);
+                alert('Error loading combination data. Please try again.');
+            });
+            return;
+        }
+        
+        // Fallback to original logic for page-loaded combinations
         <?php if (!empty($filter_record_id)): ?>
-            var filterRecordId = <?= $filter_record_id ?>;
+            var filterRecordId = <?= $filter_record_id ?: 'null' ?>;
+            
+            // Check if filter record exists
+            if (!filterRecordId || filterRecordId === null) {
+                alert('No saved filter found. Please save filtered tickets first using the "Save Filtered Tickets" button, then try again.');
+                return;
+            }
             
             // Check the global isActive variable (which gets updated by AJAX)
             if (!isActive) {
                 // Show warning for expired filters but still allow navigation
                 if (confirm('This filter is EXPIRED. You can still view the combination ticket winners, but results will be based on historical data. Continue?')) {
                     // Add referrer parameter to indicate we came from prediction futures
-                    window.location.href = '<?= base_url() ?>admin/prize/view_combination_tickets/' + filterRecordId + '?referrer=futures&lottery_id=<?= $lottery->id ?>&combo_id=<?= $combo_id ?>';
+                    window.location.href = '<?= base_url() ?>admin/prize/view_combination_tickets/' + filterRecordId + '?referrer=futures&lottery_id=<?= $lottery->id ?><?= (isset($combo_id) && !is_null($combo_id)) ? '&combo_id=' . $combo_id : '' ?>';
                 }
                 // If user cancels, do nothing (return from function)
             } else {
                 // Active filter - navigate directly without warning
-                window.location.href = '<?= base_url() ?>admin/prize/view_combination_tickets/' + filterRecordId + '?referrer=futures&lottery_id=<?= $lottery->id ?>&combo_id=<?= $combo_id ?>';
+                window.location.href = '<?= base_url() ?>admin/prize/view_combination_tickets/' + filterRecordId + '?referrer=futures&lottery_id=<?= $lottery->id ?><?= (isset($combo_id) && !is_null($combo_id)) ? '&combo_id=' . $combo_id : '' ?>';
             }
         <?php else: ?>
             alert('No saved filter found. Please save filtered tickets first before viewing combination winners.');
@@ -1731,4 +2249,70 @@
              window.location.href = '<?= base_url() ?>admin/predictions/delete_combo/' + comboId;
         }
     }
+    
+    // Enhanced deletion function for combination file filters
+    function deleteCombinationFileFilters(lotteryId, fullFileName, adminId) {
+        const baseFileName = fullFileName.replace(/ADMIN.*/, '').replace(/\.txt$/, '');
+        
+        if (confirm('You are about to delete ALL combination filter records for file: "' + baseFileName + '".\n\n' +
+                   'This will remove:\n' +
+                   '• All saved filter settings for this file\n' +
+                   '• All associated combination files\n' +
+                   '• All winning data for this combination\n\n' +
+                   'This action cannot be undone. Do you want to continue?')) {
+            
+            // Show loading indicator
+            const statusDisplay = document.getElementById('combination-status-display');
+            if (statusDisplay) {
+                statusDisplay.innerHTML = '<div class="col-12 text-center"><i class="fa fa-spinner fa-spin"></i> Deleting previously saved settings...</div>';
+            }
+            
+            // Call the new simplified deletion method
+            window.location.href = '<?= base_url() ?>admin/predictions/delete_combination_file_filters/' + 
+                                  lotteryId + '/' + encodeURIComponent(fullFileName) + '/' + adminId;
+        }
+    }
+    
+    // Function to refresh the dropdown options and remove badges after deletion
+    function refreshDropdownAfterDeletion() {
+        const wheelingDropdown = document.getElementById('wheeling');
+        if (wheelingDropdown) {
+            // Find and update options that might have had badges
+            const options = wheelingDropdown.options;
+            for (let i = 0; i < options.length; i++) {
+                const option = options[i];
+                // Remove any existing badges from option text
+                if (option.text && (option.text.includes('Active') || option.text.includes('Expired'))) {
+                    // Clean the option text by removing badge HTML/text
+                    option.text = option.text.replace(/\s*(Active|Expired)\s*$/, '').trim();
+                }
+            }
+            
+            // Reset the dropdown selection
+            wheelingDropdown.selectedIndex = 0;
+            
+            // Hide the status display
+            const statusDisplay = document.getElementById('combination-status-display');
+            if (statusDisplay) {
+                statusDisplay.style.display = 'none';
+            }
+            
+            // Clear global variables
+            window.currentComboId = null;
+            window.currentFileName = null;
+            
+            // Trigger change event to ensure any dependent elements are updated
+            const event = new Event('change', { bubbles: true });
+            wheelingDropdown.dispatchEvent(event);
+        }
+    }
+    
+    // Check if there's already a selected combination when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        const wheelingInput = document.getElementById('wheeling');
+        if (wheelingInput && wheelingInput.value) {
+            // Load status for the pre-selected combination
+            loadCombinationStatus(wheelingInput.value);
+        }
+    });
 </script>

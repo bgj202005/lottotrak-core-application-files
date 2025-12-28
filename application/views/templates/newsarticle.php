@@ -13,7 +13,7 @@
         				    <article class="lottery-article-preview">
         				    	<header class="article-preview-header">
         				    		<h2 class="article-preview-title">
-        				    			<a href="<?php echo site_url('article/view/'.$article->id); ?>">
+        				    			<a href="<?php echo site_url('article/'.$article->id.'/'.$article->slug); ?>">
         				    				<?php echo e($article->title); ?>
         				    			</a>
         				    		</h2>
@@ -28,7 +28,7 @@
         				    		<?php echo get_excerpt($article); ?>
         				    	</div>
         				    	<footer class="article-preview-footer">
-        				    		<a href="<?php echo site_url('article/view/'.$article->id); ?>" class="read-more-btn">
+        				    		<a href="<?php echo site_url('article/'.$article->id.'/'.$article->slug); ?>" class="read-more-btn">
         				    			Read Full Article <i class="fa fa-arrow-right"></i>
         				    		</a>
         				    	</footer>

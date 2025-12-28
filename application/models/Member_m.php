@@ -72,6 +72,8 @@ class Member_m extends MY_Model
         $member->lottery_id = 0;
         $member->member_active = 0; // 0 = Member not active, 1 = Member Active
         $member->ip_address = 0;    // IP address field as integer
+        $member->terms_agreement = NULL; // NULL = not asked, TRUE = agreed, FALSE = declined
+        // $member->validation_expiry = NULL; // Will add after creating DB column
 		
 		return $member;
     }
@@ -188,16 +190,51 @@ class Member_m extends MY_Model
 	    $this->email->set_mailtype('html');
 	    $this->email->from('youwin@lottotrak.com', 'Lottotrak Administration');
 	    $this->email->to($mailto);
-	    $this->email->subject('Activate Your Account');
+	    $this->email->subject('Validate Your Email - Complete Your Lottotrak Registration');
 	    $message = '<DOCTYPE html PUCLIC "-//W3C//DTD XHTML 1.0 Strict/EN"
 	            "http://www.w3.org/TR/xhtml1-strict-dtd"><HTML>
 	            <meta http-equiv="Content-Type" content="text/html; charseet=urf-8" />
 	            </head><body>';
-	    $message .= '<p>Hi <strong></strong>New Lottotrak Member,</strong></p>';
-        $message .= '<p>You have Registered for an account with Lottotrak. To Confirm, this email has been sent to: <strong><u>'.$mailto.'</u></strong>.';
-        $message .='<br /><br />To Activate Your Account by clicking on this link here to <strong><a href ="'.base_url().
-                   'activate/validation_code/'. $urlsecuretoken . '"/>Validate your account.</a></strong></p>';
-        $message .= '<br /><br /><p>If your account is not validated within 5 days, the account will be deleted</p>';           
+	    $message .= '<p>Hi <strong>New Lottotrak Member,</strong></p>';
+        $message .= '<p>Thank you for registering with Lottotrak! To complete your registration, please validate your email address.</p>';
+        $message .= '<p>This email has been sent to: <strong><u>'.$mailto.'</u></strong></p>';
+        $message .='<br /><p><strong>Step 1: Validate Your Email</strong></p>';
+        $message .='<p>Click the link below to validate your email address:</p>';
+        $message .='<p><strong><a href="'.base_url().'activate/validation_code/'.$urlsecuretoken.'">Validate Email Address</a></strong></p>';
+        $message .='<br /><p><strong>Step 2: Complete Your Profile</strong></p>';
+        $message .='<p>After validating your email, you\'ll be asked to:</p>';
+        $message .='<ul><li>Select your country and province/state</li>';
+        $message .='<li>Choose your preferred lotteries</li>';
+        $message .='<li>Activate your account</li></ul>';
+        $message .= '<br /><p><em>You must complete both steps within 5 days or your account will be deleted.</em></p>';           
+	    $message .= '<p>Thank you!</p>';
+	    $message .= '<p>Lottotrak Administrator';
+	    $message .= '</body></html>';
+	    $this->email->message($message);
+	    $this->email->send();
+    }
+
+    public function send_welcome_email($mailto) 
+	{
+	    $this->load->library('email');
+	    $this->email->set_mailtype('html');
+	    $this->email->from('youwin@lottotrak.com', 'Lottotrak Administration');
+	    $this->email->to($mailto);
+	    $this->email->subject('Welcome to Lottotrak - Your Account is Now Active!');
+	    $message = '<DOCTYPE html PUCLIC "-//W3C//DTD XHTML 1.0 Strict/EN"
+	            "http://www.w3.org/TR/xhtml1-strict-dtd"><HTML>
+	            <meta http-equiv="Content-Type" content="text/html; charseet=urf-8" />
+	            </head><body>';
+	    $message .= '<p>Hi <strong>New Lottotrak Member,</strong></p>';
+        $message .= '<p><strong>Congratulations!</strong> Your Lottotrak account has been successfully activated!</p>';
+        $message .= '<p>Your account with email address <strong><u>'.$mailto.'</u></strong> is now fully active and ready to use.</p>';
+        $message .='<br /><p><strong>What you\'ve completed:</strong></p>';
+        $message .='<ul><li>✓ Email address validated</li>';
+        $message .='<li>✓ Profile completed with location and lottery preferences</li>';
+        $message .='<li>✓ Account fully activated</li>';
+        $message .='<li>✓ Access to lottery predictions and features enabled</li></ul>';
+        $message .='<br /><p><strong><a href="'.base_url().'">Start Using Lottotrak Now</a></strong></p>';
+        $message .= '<br /><p><em>Thank you for choosing Lottotrak for your lottery predictions!</em></p>';           
 	    $message .= '<p>Thank you!</p>';
 	    $message .= '<p>Lottotrak Administrator';
 	    $message .= '</body></html>';

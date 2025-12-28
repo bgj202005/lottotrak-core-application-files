@@ -608,12 +608,7 @@ $(document).ready(function() {
 				} else if (data.nodraws) {
 					$('.card-title').empty().html('<h6 id="nodraws" style="display:block">No Draws Currently Exist</h6>');
 					$('.card-text').html('Please Import NEW draws by clicking the Import Button below.');
-				} else {
-					console.log('Error refreshing last draw:', data.error || 'Unknown error');
 				}
-			},
-			error: function(jqXhr, textStatus, errorMessage) {
-				console.log("Error refreshing last draw: " + errorMessage);
 			}
 		});
 	}
@@ -713,7 +708,7 @@ function performReCalc(lotteryId) {
 				calcFooter.text('ReCalc Complete');
 				calcMessage.removeClass('text-danger').addClass('text-success');
 			} else {
-				calcMessage.text('Error during recalculation: ' + error);
+				calcMessage.text('Error during recalculation: ' + error + ' (Status: ' + xhr.status + ')');
 				calcFooter.text('ReCalc Error');
 				calcMessage.removeClass('text-success').addClass('text-danger');
 			}
