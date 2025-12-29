@@ -168,7 +168,7 @@ class Statistics extends Admin_Controller {
 		}
 
 		// Check threshold BEFORE loading draws to avoid timeouts
-		$ajax_threshold = $this->config->item('ajax_pagination_threshold') ?: 200;
+		$ajax_threshold = $this->config->item('ajax_pagination_threshold') ?: 600;
 		
 		if ($new_range > $ajax_threshold) {
 			// For large datasets, don't pre-load draws - use AJAX pagination instead
