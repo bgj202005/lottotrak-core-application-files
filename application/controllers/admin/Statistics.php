@@ -168,7 +168,7 @@ class Statistics extends Admin_Controller {
 		}
 
 		// Check threshold BEFORE loading draws to avoid timeouts
-		$ajax_threshold = $this->config->item('ajax_pagination_threshold') ?: 200;
+		$ajax_threshold = $this->config->item('ajax_pagination_threshold') ?: 600;
 		
 		if ($new_range > $ajax_threshold) {
 			// For large datasets, don't pre-load draws - use AJAX pagination instead
@@ -2180,6 +2180,8 @@ class Statistics extends Admin_Controller {
 			// First, get current settings before clearing data
 			$current_followers = $this->statistics_m->followers_exists($id);
 			$current_nonfollowers = $this->statistics_m->nonfollowers_exists($id);
+			$current_friends = $this->statistics_m->friends_exists($id);
+			$current_nonfriends = $this->statistics_m->nonfriends_exists($id);
 			
 			// Clear calculation data AND draw_id to force recalculation
 			// The draw_id field is what recalc_update() checks to determine if recalc is needed
@@ -2212,12 +2214,38 @@ class Statistics extends Admin_Controller {
 				$this->db->delete('lottery_nonfollowers');
 			}
 			
+			// Also reset friends and nonfriends tables
+			if($current_friends) {
+				$clear_data = array(
+					'lottery_friends' => '',
+					'wins' => '',
+					'draw_id' => 0  // Clear draw_id to force recalculation
+				);
+				$this->db->where('lottery_id', $id);
+				$this->db->update('lottery_friends', $clear_data);
+			} else {
+				$this->db->where('lottery_id', $id);
+				$this->db->delete('lottery_friends');
+			}
+			
+			if($current_nonfriends) {
+				$clear_data = array(
+					'lottery_nonfriends' => '',
+					'draw_id' => 0  // Clear draw_id to force recalculation
+				);
+				$this->db->where('lottery_id', $id);
+				$this->db->update('lottery_nonfriends', $clear_data);
+			} else {
+				$this->db->where('lottery_id', $id);
+				$this->db->delete('lottery_nonfriends');
+			}
+			
 			// CRITICAL: Clear the cache for this lottery's follower data
 			// Otherwise followers_exists() will return stale cached data
 			$this->statistics_m->clear_follower_cache($id);
 			$this->output->set_output(json_encode([
 				'success' => true, 
-				'message' => 'Follower statistics reset successfully. Next ReCalc will start from scratch.'
+				'message' => 'Follower and Friend statistics reset successfully. Next ReCalc will start from scratch.'
 			]));
 			
 		} catch (Exception $e) {
@@ -2601,7 +2629,115 @@ class Statistics extends Admin_Controller {
 		$outofrange = FALSE; // default is not out of range for the prize pool
 		$max = $this->data['lottery']->maximum_ball;
 		$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
-		if(!is_null($followers))
+		
+		// Try sliding window optimization for followers
+		$use_sliding_window = FALSE;
+		if(!is_null($followers) && !empty($followers['lottery_followers']) && $followers['draw_id'] > 0)
+		{
+			// Check if we can use sliding window (same settings, only one new draw)
+			$recalc_extra_included = isset($lotto->extra_included) ? $lotto->extra_included : $followers['extra_included'];
+			$recalc_extra_draws = isset($lotto->extra_draws) ? $lotto->extra_draws : $followers['extra_draws'];
+			
+			$can_slide = (
+				$followers['extra_included'] == $recalc_extra_included &&
+				$followers['extra_draws'] == $recalc_extra_draws &&
+				$followers['draw_id'] == ($lotto->last_drawn['id'] - 1)  // Exactly one draw behind
+			);
+			
+			if ($can_slide) {
+				$range = $followers['range'];
+				$slide_result = $this->statistics_m->followers_sliding_window($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $followers, $blnduplicate, $max, $mx_extra);
+				
+				if ($slide_result['success'] && !$slide_result['outofrange']) {
+					$use_sliding_window = TRUE;
+					$str_followers = $slide_result['followers'];
+					$outofrange = $slide_result['outofrange'];
+					
+					// Still need to calculate prizes on the updated followers data
+					$p_group = $this->statistics_m->prize_group_profile($id);
+					if (empty($p_group)) {
+						$p_group = array(
+							'extra' => 1,
+							'1_win' => 1, '1_win_extra' => 1,
+							'2_win' => 1, '2_win_extra' => 1,
+							'3_win' => 1, '3_win_extra' => 1,
+							'4_win' => 1, '4_win_extra' => 1,
+							'5_win' => 1, '5_win_extra' => 1,
+							'6_win' => 1, '6_win_extra' => 1,
+							'7_win' => 1, '7_win_extra' => 1,
+							'8_win' => 1, '8_win_extra' => 1,
+							'9_win' => 1, '9_win_extra' => 1
+						);
+					}
+					
+					$p_group = $this->statistics_m->prizes_only($p_group, $recalc_extra_included);
+					$prizes = $this->statistics_m->create_prize_array($p_group, $low, $high);
+					$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $recalc_extra_included);
+					
+					// Recalculate prizes with updated followers
+					$this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
+					
+					if (!$recalc_extra_included && is_array($prizes)) {
+						foreach ($prizes as $ball => $categories) {
+							if (is_array($categories)) {
+								foreach ($categories as $cat => $count) {
+									if (strpos($cat, '_extra') !== FALSE && $count > 0) {
+										$base_cat = str_replace('_extra', '_win', $cat);
+										if (array_key_exists($base_cat, $categories)) {
+											$categories[$base_cat] += $count;
+										}
+										unset($categories[$cat]);
+									}
+								}
+								foreach ($categories as $cat => $count) {
+									if (!array_key_exists($cat, $p_group) && $cat !== '1_win') {
+										unset($categories[$cat]);
+									}
+								}
+								$prizes[$ball] = $categories;
+								if (array_sum($categories) == 0) {
+									unset($prizes[$ball]);
+								}
+							}
+						}
+					}
+					
+					$str_prizes = $this->statistics_m->followers_prize_string($prizes);
+					$str_positions_prizes = $this->statistics_m->followers_positions_prize_string($positions);
+					$str_nonfollowers = $this->statistics_m->nonfollowers_calculate($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
+					
+					if($blnduplicate) {
+						$str_prizes = $this->sanitize_duplicate_extra_wins($str_prizes, $range);
+						$str_positions_prizes = $this->sanitize_duplicate_extra_wins($str_positions_prizes, $range);
+					}
+					
+					$followers_data = array(
+						'range'				=> $range,
+						'lottery_followers'	=> $str_followers,
+						'wins'				=> $str_prizes,
+						'positions'			=> $str_positions_prizes,
+						'draw_id'			=> $lotto->last_drawn['id'],
+						'lottery_id'		=> $id,
+						'extra_included'	=> $recalc_extra_included,
+						'extra_draws'		=> $recalc_extra_draws
+					);
+					
+					$this->statistics_m->follower_data_save($followers_data, TRUE);
+					log_message('info', "recalc_followers: Used SLIDING WINDOW optimization for lottery_id={$id}");
+					
+					$nonfollowers_data = array(
+						'range'					=> $range,
+						'lottery_nonfollowers'	=> $str_nonfollowers,
+						'draw_id'				=> $lotto->last_drawn['id'],
+						'lottery_id'			=> $id
+					);
+					$this->statistics_m->nonfollower_data_save($nonfollowers_data, TRUE);
+				}
+			}
+		}
+		
+		// Full recalculation if sliding window wasn't used
+		if(!$use_sliding_window && !is_null($followers))
 		{
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
 			$p_group = $this->statistics_m->prize_group_profile($id);
@@ -2908,7 +3044,64 @@ class Statistics extends Admin_Controller {
 		$lotto->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 		$friends = $this->statistics_m->friends_exists($id);
 		$nonfriends = $this->statistics_m->nonfriends_exists($id);
-		if(!is_null($friends)&&(!is_null($nonfriends)))
+		
+		// Try sliding window optimization for friends
+		$use_sliding_window = FALSE;
+		if(!is_null($friends) && !is_null($nonfriends) && !empty($friends['lottery_friends']) && $friends['draw_id'] > 0)
+		{
+			// Check if we can use sliding window (same settings, only one new draw)
+			$can_slide = (
+				$friends['draw_id'] == ($lotto->last_drawn['id'] - 1)  // Exactly one draw behind
+			);
+			
+			if ($can_slide) {
+				$range = $friends['range'];
+				$extra_included = isset($friends['extra_included']) ? $friends['extra_included'] : 0;
+				$extra_draws = isset($friends['extra_draws']) ? $friends['extra_draws'] : 0;
+				
+				$slide_result = $this->statistics_m->friends_sliding_window($tbl_name, $lotto->last_drawn, $drawn, $extra_included, $extra_draws, $range, $friends, $blnduplicate);
+				
+				if ($slide_result['success']) {
+					$use_sliding_window = TRUE;
+					
+					// Need to recalculate hits/wins on the updated friends data
+					$relatives = $this->statistics_m->create_friend_array();
+					$nonrelatives = $this->statistics_m->create_nonfriend_array();
+					
+					$str_friends = $slide_result['lottery_friends'];
+					
+					// Calculate nonfriends normally
+					$str_friends_temp = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $extra_included, $extra_draws, $range, '', $blnduplicate);
+					$associate = explode('+', $str_friends_temp);
+					$str_nonfriends = isset($associate[1]) ? $associate[1] : '';
+					
+					$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $extra_included, $extra_draws, $range, '', $blnduplicate);
+					$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
+					$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
+					
+					$friends_data = array(
+						'range'				=> $range,
+						'lottery_friends'	=> $str_friends,
+						'wins'				=> $fr_stats,
+						'draw_id'			=> $lotto->last_drawn['id'],
+						'lottery_id'		=> $id
+					);
+					$this->statistics_m->friends_data_save($friends_data, TRUE);
+					log_message('info', "recalc_friends: Used SLIDING WINDOW optimization for lottery_id={$id}");
+					
+					$nonfriends_data = array(
+						'range'					=> $range,
+						'lottery_nonfriends'	=> $str_nonfriends,
+						'draw_id'				=> $lotto->last_drawn['id'],
+						'lottery_id'			=> $id
+					);
+					$this->statistics_m->nonfriends_data_save($nonfriends_data, TRUE);
+				}
+			}
+		}
+		
+		// Full recalculation if sliding window wasn't used
+		if(!$use_sliding_window && !is_null($friends) && !is_null($nonfriends))
 		{
 			$range = $friends['range'];
 			$relatives = $this->statistics_m->create_friend_array();
