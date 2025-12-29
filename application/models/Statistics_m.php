@@ -8537,4 +8537,251 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		
 		return null;
 	}
+	
+	/**
+	 * Sliding window update for Friends statistics
+	 * Incrementally updates friend co-occurrence relationships when only one new draw is added
+	 * 
+	 * @param	string	$name			Lottery table name
+	 * @param	array	$ldn			Last drawn numbers (newest draw to add)
+	 * @param	integer	$max			Number of balls drawn
+	 * @param	boolean	$bonus			Extra ball included
+	 * @param	boolean	$draws			Extra draws included
+	 * @param	integer	$range			Range (100, 200, etc)
+	 * @param	array	$existing		Existing friends data from database
+	 * @param	boolean	$duple			Duplicate extra ball flag
+	 * @return	array	Result with 'lottery_friends' string and 'success' flag
+	 */
+	public function friends_sliding_window($name, $ldn, $max, $bonus, $draws, $range, $existing, $duple)
+	{
+		// Parse existing friends data into co-occurrence matrix
+		$friend_data = $this->parse_friends_matrix($existing['lottery_friends']);
+		
+		// Get the oldest draw to remove from the window
+		$oldest_draw = $this->get_draw_at_position_filtered($name, $range + 1, $draws);
+		if (!$oldest_draw) {
+			// Not enough draws for sliding window, fall back to full recalc
+			return array(
+				'lottery_friends' => '',
+				'success' => false
+			);
+		}
+		
+		// Get the newest draw (already have as $ldn, but need full draw record)
+		$newest_draw = $this->get_draw_at_position_filtered($name, 1, $draws);
+		if (!$newest_draw) {
+			return array(
+				'lottery_friends' => '',
+				'success' => false
+			);
+		}
+		
+		// Remove oldest draw's co-occurrences
+		$friend_data = $this->subtract_draw_friends($friend_data, $oldest_draw, $max, $bonus, $duple);
+		
+		// Add newest draw's co-occurrences
+		$friend_data = $this->add_draw_friends($friend_data, $newest_draw, $max, $bonus, $duple);
+		
+		// Rebuild friends string from updated data
+		$friends_string = $this->build_friends_string_from_matrix($friend_data);
+		
+		return array(
+			'lottery_friends' => $friends_string,
+			'success' => true
+		);
+	}
+	
+	/**
+	 * Parse friends string into co-occurrence matrix
+	 * Format: "ball1=ball2:count,ball3:count<ball2=ball1:count,ball4:count"
+	 * 
+	 * @param	string	$str		Friends string
+	 * @return	array	Matrix [ball1][ball2] => count
+	 */
+	private function parse_friends_matrix($str)
+	{
+		$matrix = array();
+		
+		if (empty($str)) {
+			return $matrix;
+		}
+		
+		// Split by '<' to get each ball's friends
+		$ball_entries = explode('<', $str);
+		
+		foreach ($ball_entries as $entry) {
+			if (empty($entry)) continue;
+			
+			// Split ball number from its friends: "10=3:4,22:3"
+			$parts = explode('=', $entry, 2);
+			if (count($parts) != 2) continue;
+			
+			$ball = intval($parts[0]);
+			$friends_str = $parts[1];
+			
+			if (!isset($matrix[$ball])) {
+				$matrix[$ball] = array();
+			}
+			
+			// Parse friend pairs
+			$friend_pairs = explode(',', $friends_str);
+			foreach ($friend_pairs as $pair) {
+				if (empty($pair)) continue;
+				
+				$pair_parts = explode(':', $pair);
+				if (count($pair_parts) == 2) {
+					$friend_ball = intval($pair_parts[0]);
+					$count = intval($pair_parts[1]);
+					$matrix[$ball][$friend_ball] = $count;
+				}
+			}
+		}
+		
+		return $matrix;
+	}
+	
+	/**
+	 * Remove co-occurrences from oldest draw being dropped from window
+	 * 
+	 * @param	array	$matrix			Current friends matrix
+	 * @param	array	$draw			Draw to remove
+	 * @param	integer	$max			Number of balls drawn
+	 * @param	boolean	$bonus			Extra ball included
+	 * @param	boolean	$duple			Duplicate extra ball flag
+	 * @return	array	Updated matrix
+	 */
+	private function subtract_draw_friends($matrix, $draw, $max, $bonus, $duple)
+	{
+		// Get all balls from this draw
+		$balls = array();
+		for ($i = 1; $i <= $max; $i++) {
+			$balls[] = intval($draw['ball' . $i]);
+		}
+		
+		// Add extra ball if applicable
+		if ($bonus && isset($draw['extra']) && $draw['extra'] > 0) {
+			$balls[] = intval($draw['extra']);
+		}
+		
+		// Decrement all pair combinations
+		$ball_count = count($balls);
+		for ($i = 0; $i < $ball_count; $i++) {
+			for ($j = $i + 1; $j < $ball_count; $j++) {
+				$ball1 = $balls[$i];
+				$ball2 = $balls[$j];
+				
+				// Store in both directions for symmetry
+				if (isset($matrix[$ball1][$ball2])) {
+					$matrix[$ball1][$ball2]--;
+					if ($matrix[$ball1][$ball2] <= 0) {
+						unset($matrix[$ball1][$ball2]);
+					}
+				}
+				
+				if (isset($matrix[$ball2][$ball1])) {
+					$matrix[$ball2][$ball1]--;
+					if ($matrix[$ball2][$ball1] <= 0) {
+						unset($matrix[$ball2][$ball1]);
+					}
+				}
+			}
+		}
+		
+		// Clean up empty entries
+		foreach ($matrix as $ball => $friends) {
+			if (empty($friends)) {
+				unset($matrix[$ball]);
+			}
+		}
+		
+		return $matrix;
+	}
+	
+	/**
+	 * Add co-occurrences from newest draw being added to window
+	 * 
+	 * @param	array	$matrix			Current friends matrix
+	 * @param	array	$draw			Draw to add
+	 * @param	integer	$max			Number of balls drawn
+	 * @param	boolean	$bonus			Extra ball included
+	 * @param	boolean	$duple			Duplicate extra ball flag
+	 * @return	array	Updated matrix
+	 */
+	private function add_draw_friends($matrix, $draw, $max, $bonus, $duple)
+	{
+		// Get all balls from this draw
+		$balls = array();
+		for ($i = 1; $i <= $max; $i++) {
+			$balls[] = intval($draw['ball' . $i]);
+		}
+		
+		// Add extra ball if applicable
+		if ($bonus && isset($draw['extra']) && $draw['extra'] > 0) {
+			$balls[] = intval($draw['extra']);
+		}
+		
+		// Increment all pair combinations
+		$ball_count = count($balls);
+		for ($i = 0; $i < $ball_count; $i++) {
+			for ($j = $i + 1; $j < $ball_count; $j++) {
+				$ball1 = $balls[$i];
+				$ball2 = $balls[$j];
+				
+				// Store in both directions for symmetry
+				if (!isset($matrix[$ball1])) {
+					$matrix[$ball1] = array();
+				}
+				if (!isset($matrix[$ball1][$ball2])) {
+					$matrix[$ball1][$ball2] = 0;
+				}
+				$matrix[$ball1][$ball2]++;
+				
+				if (!isset($matrix[$ball2])) {
+					$matrix[$ball2] = array();
+				}
+				if (!isset($matrix[$ball2][$ball1])) {
+					$matrix[$ball2][$ball1] = 0;
+				}
+				$matrix[$ball2][$ball1]++;
+			}
+		}
+		
+		return $matrix;
+	}
+	
+	/**
+	 * Build friends string from co-occurrence matrix
+	 * 
+	 * @param	array	$matrix		Friends matrix
+	 * @return	string	Friends string in format "ball1=ball2:count,ball3:count<ball2=ball1:count"
+	 */
+	private function build_friends_string_from_matrix($matrix)
+	{
+		if (empty($matrix)) {
+			return '';
+		}
+		
+		$ball_strings = array();
+		
+		ksort($matrix); // Sort by ball number
+		
+		foreach ($matrix as $ball => $friends) {
+			if (empty($friends)) continue;
+			
+			$friend_pairs = array();
+			ksort($friends); // Sort friends by ball number
+			
+			foreach ($friends as $friend_ball => $count) {
+				if ($count > 0) {
+					$friend_pairs[] = $friend_ball . ':' . $count;
+				}
+			}
+			
+			if (!empty($friend_pairs)) {
+				$ball_strings[] = $ball . '=' . implode(',', $friend_pairs);
+			}
+		}
+		
+		return implode('<', $ball_strings);
+	}
 }
