@@ -892,6 +892,8 @@ function displayCombinationTickets(data) {
 function hideCombinationTickets() {
     $('#combinationTicketsContainer').fadeOut(500, function() {
         $(this).remove();
+        // Reload the page to refresh the Prize History table and show updated ACTIVE/EXPIRED status
+        location.reload();
     });
 }
 </script>
