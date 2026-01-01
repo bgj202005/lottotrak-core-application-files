@@ -3136,6 +3136,11 @@ class Statistics_m extends MY_Model
 				$sliding_window_draws = array(); // Track draws for sliding window removal
 				if($duple) $duplelist = array(); // Only if this lottery has a duplicate extra ball
 				
+				// Initialize prize_counts for this ball if not already set
+				if(!isset($prize_counts[$b])) {
+					$prize_counts[$b] = array();
+				}
+				
 				// Calculate adjusted phases based on actual draws available
 				// PHASE 1: Build initial followers (first half of available draws, or range if enough)
 				// PHASE 2: Calculate wins with sliding window (second half of draws)

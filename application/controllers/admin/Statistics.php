@@ -2509,24 +2509,21 @@ class Statistics extends Admin_Controller {
 			$this->data['lottery']->extra_included, $this->data['lottery']->extra_draws);
 		 
 		 $prev_draw = $this->statistics_m->hwc_DrawBeforeLast($tbl);// Get the previous draw data
-			$prev_strhwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $prev_draw['draw_date'], $blnduplicate);
-			if($blnduplicate&&$h_w_c['extra_included']) $prev_str_dupextra = $this->statistics_m->hwc_duple_extra($tbl, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $prev_draw['draw_date']);	
-			$h_w_c['hots_last'] = $this->statistics_m->hots($prev_strhwc);
-			$h_w_c['warms_last'] = $this->statistics_m->warms($prev_strhwc);
-			$h_w_c['colds_last'] = $this->statistics_m->colds($prev_strhwc);
+			$prev_strhwc = $this->statistics_m->h_w_c_calculate($tbl, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, $prev_draw['draw_date'], $blnduplicate);
+			if($blnduplicate&&$this->data['lottery']->extra_included) $prev_str_dupextra = $this->statistics_m->hwc_duple_extra($tbl, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $prev_draw['draw_date']);	
+			$strhots_last = $this->statistics_m->hots($prev_strhwc);
+			$strwarms_last = $this->statistics_m->warms($prev_strhwc);
+			$strcolds_last = $this->statistics_m->colds($prev_strhwc);
 		 $hwc = array(
 					 'range'			=> $new_range,
 					 'hots'				=> $strhots,
 					 'warms'			=> $strwarms,
 					 'colds'			=> $strcolds,
-					 'hots_last'		=> $h_w_c['hots_last'],
-					 'warms_last'		=> $h_w_c['warms_last'],
-					 'colds_last'		=> $h_w_c['colds_last'],
+					 'hots_last'		=> $strhots_last,
+					 'warms_last'		=> $strwarms_last,
+					 'colds_last'		=> $strcolds_last,
 					 'dupextra'			=> $str_dupextra,
 					 'dupextra_last'	=> $prev_str_dupextra,
-					 'hots_last'		=> $h_w_c['hots_last'],
-					 'warms_last'		=> $h_w_c['warms_last'],
-					 'colds_last'		=> $h_w_c['colds_last'],
 					 'overdue'			=> $stroverdue,
 					 'draw_id'			=> $this->data['lottery']->last_drawn['id'],
 					 'draw_id_last'		=> $prev_draw['id'],
@@ -3110,7 +3107,7 @@ class Statistics extends Admin_Controller {
 			$associate = explode('+', $str_friends); // The '+' is the separator
 			$str_friends = $associate[0];			 // separated the friends
 			$str_nonfriends = $associate[1]; 		 // from the non friends
-			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball,   $friends['extra_draws'],  $friends['extra_draws'], $range, '', $blnduplicate);
+			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $friends['extra_included'], $friends['extra_draws'], $range, '', $blnduplicate);
 			$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
 			$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
 			$friends = array(
@@ -3131,14 +3128,31 @@ class Statistics extends Admin_Controller {
 		}
 		else 
 		{
+			// Initialize extra_included and extra_draws from database saved settings instead of hardcoding to 0
+			// This preserves user preferences when no friends data exists
+			$recalc_extra_included = 0;
+			$recalc_extra_draws = 0;
+			if(!isset($lotto->extra_included)) {
+				$saved_extra_included = $this->statistics_m->extra_included($id, FALSE, 'lottery_friends');
+				$recalc_extra_included = $saved_extra_included ? 1 : 0;
+			} else {
+				$recalc_extra_included = $lotto->extra_included;
+			}
+			if(!isset($lotto->extra_draws)) {
+				$saved_extra_draws = $this->statistics_m->extra_draws($id, FALSE, 'lottery_friends');
+				$recalc_extra_draws = $saved_extra_draws ? 1 : 0;
+			} else {
+				$recalc_extra_draws = $lotto->extra_draws;
+			}
+			
 			$new_range = ($all<100 ? $all : 100);
 			$relatives = $this->statistics_m->create_friend_array();
 			$nonrelatives = $this->statistics_m->create_nonfriend_array();
-			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, 0, 0, $new_range, '', $blnduplicate);
+			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $recalc_extra_included, $recalc_extra_draws, $new_range, '', $blnduplicate);
 			$associate = explode('+', $str_friends); // The '+' is the separator
 			$str_friends = $associate[0];			 // separated the friends
 			$str_nonfriends = $associate[1]; 		 // from the non friends
-			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $friends['extra_draws'],  $friends['extra_draws'], $new_range, '', $blnduplicate);
+			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $recalc_extra_included, $recalc_extra_draws, $new_range, '', $blnduplicate);
 			$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
 			$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
 			$friends = array(
@@ -3152,10 +3166,10 @@ class Statistics extends Admin_Controller {
 			$nonfriends = array(
 				'range'					=> $new_range,
 				'lottery_nonfriends'	=> $str_nonfriends,
-				'draw_id'				=> $this->data['lottery']->last_drawn['id'],
+				'draw_id'				=> $lotto->last_drawn['id'],
 				'lottery_id'			=> $id
 			);
-			$this->statistics_m->nonfriends_data_save($nonfriends, TRUE);
+			$this->statistics_m->nonfriends_data_save($nonfriends, FALSE);
 		}
 	}
 

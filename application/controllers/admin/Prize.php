@@ -884,13 +884,13 @@ class Prize extends Admin_Controller
             // Update the filter object for current view
             $filter->lastdate = $draw_info->draw_date;
             
-            // After processing wins, expire the filter since results are now final
-            // This happens after the user views the results
+            // After viewing results, expire the filter (wins have been added cumulatively)
+            // This marks the filter as processed for this draw
             $this->db->where('id', $filter->id);
             $this->db->where('user_id', $admin_id); // Security check
             $this->db->update('lottery_combination_filters', array('active' => 0));
             
-            // Update the filter object for current view (but display will still show results)
+            // Update the filter object for current view
             $filter->active = 0;
         }
         
@@ -1167,7 +1167,8 @@ class Prize extends Admin_Controller
                 // Update the filter object for current response
                 $filter->lastdate = $draw_info->draw_date;
                 
-                // After processing wins, expire the filter since results are now final
+                // After viewing results, expire the filter (wins have been added cumulatively)
+                // This marks the filter as processed for this draw
                 $this->db->where('id', $filter->id);
                 $this->db->where('user_id', $admin_id); // Security check
                 $this->db->update('lottery_combination_filters', array('active' => 0));
