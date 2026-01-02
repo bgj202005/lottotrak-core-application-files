@@ -5018,6 +5018,147 @@ class Statistics_m extends MY_Model
 	}
 
 	/**
+	 * Incremental friendship update for import (OPTIMIZED FOR SINGLE DRAW)
+	 * Updates friendship data when exactly ONE new draw is added
+	 * 
+	 * @param	string	$table_name			Lottery table name
+	 * @param	int		$lottery_id			Lottery ID
+	 * @param	int		$balls_drawn		Number of balls drawn
+	 * @param	int		$max_ball			Maximum ball number
+	 * @param	int		$extra_included		Extra ball included in calculations
+	 * @param	int		$extra_draws		Extra draws included
+	 * @param	int		$range				Draw range (100, 200, etc.)
+	 * @param	array	$existing_friends	Existing friends data from database
+	 * @param	array	$existing_nonfriends Existing nonfriends data
+	 * @param	bool	$duplicate_extra	Duplicate extra ball flag
+	 * @return	array	Updated friendship data or false if can't use incremental
+	 */
+	public function friends_incremental_update($table_name, $lottery_id, $balls_drawn, $max_ball, $extra_included, $extra_draws, $range, $existing_friends, $existing_nonfriends, $duplicate_extra)
+	{
+		global $relatives;
+		global $nonrelatives;
+		
+		// Validate we have existing data
+		if(empty($existing_friends) || empty($existing_friends['lottery_friends'])) {
+			return array('success' => false, 'reason' => 'No existing friends data');
+		}
+		
+		// Get current last draw
+		$last_draw = $this->db->query("
+			SELECT * FROM {$table_name}
+			ORDER BY draw_date DESC
+			LIMIT 1
+		")->row_array();
+		
+		if(!$last_draw) {
+			return array('success' => false, 'reason' => 'No draws found');
+		}
+		
+		// Verify this is exactly one draw ahead
+		if($existing_friends['draw_id'] != ($last_draw['id'] - 1)) {
+			return array('success' => false, 'reason' => 'Not a single draw increment');
+		}
+		
+		log_message('info', "friends_incremental_update: Processing single draw update for draw_id={$last_draw['id']}");
+		
+		// Parse existing friends into co-occurrence matrix
+		$cooccurrence_matrix = $this->parse_friends_matrix($existing_friends['lottery_friends']);
+		
+		// Get the oldest draw that will be removed (draw at position range+1)
+		$oldest_draw = $this->db->query("
+			SELECT * FROM {$table_name}
+			ORDER BY draw_date DESC
+			LIMIT 1 OFFSET {$range}
+		")->row_array();
+		
+		if(!$oldest_draw) {
+			return array('success' => false, 'reason' => 'Insufficient draws for window');
+		}
+		
+		// INCREMENTAL UPDATE STEP 1: Remove oldest draw's co-occurrences
+		$this->remove_draw_from_matrix($cooccurrence_matrix, $oldest_draw, $balls_drawn, $extra_included, $duplicate_extra);
+		
+		// INCREMENTAL UPDATE STEP 2: Add newest draw's co-occurrences
+		$this->add_draw_to_matrix($cooccurrence_matrix, $last_draw, $balls_drawn, $extra_included, $duplicate_extra);
+		
+		// Derive updated friends from matrix
+		$friends = $this->derive_friends_from_matrix($cooccurrence_matrix, $max_ball);
+		
+		// Build friends string from matrix
+		$str_friends = $this->build_friends_string_from_cooccurrence($cooccurrence_matrix, $max_ball);
+		
+		// Recalculate nonfriends (these are less intensive)
+		$str_friends_temp = $this->friends_calculate($table_name, $balls_drawn, $max_ball, $extra_included, $extra_draws, $range, '', $duplicate_extra);
+		$associate = explode('+', $str_friends_temp);
+		$str_nonfriends = isset($associate[1]) ? $associate[1] : '';
+		
+		// Recalculate wins/occurrences using optimized sliding window
+		$relatives = $this->create_friend_array();
+		$nonrelatives = $this->create_nonfriend_array();
+		$this->friends_hits($str_friends, $str_nonfriends, $table_name, $balls_drawn, $max_ball, $extra_included, $extra_draws, $range, '', $duplicate_extra);
+		
+		$fr_stats = $this->combine_friends_string($relatives, $str_friends, $max_ball);
+		$nfr_stats = $this->combine_nonfriends_string($nonrelatives);
+		
+		log_message('info', "friends_incremental_update: Successfully updated friendship data incrementally");
+		
+		return array(
+			'success' => true,
+			'friends_data' => array(
+				'range'				=> $range,
+				'lottery_friends'	=> $str_friends,
+				'wins'				=> $fr_stats,
+				'draw_id'			=> $last_draw['id'],
+				'lottery_id'		=> $lottery_id,
+				'extra_included'	=> $extra_included,
+				'extra_draws'		=> $extra_draws
+			),
+			'nonfriends_data' => array(
+				'range'					=> $range,
+				'lottery_nonfriends'	=> $str_nonfriends,
+				'draw_id'				=> $last_draw['id'],
+				'lottery_id'			=> $lottery_id
+			)
+		);
+	}
+
+	/**
+	 * Build friends string from co-occurrence matrix
+	 * Returns the top friend for each ball with occurrence count
+	 * 
+	 * @param	array	$matrix		Co-occurrence matrix
+	 * @param	int		$max_ball	Maximum ball number
+	 * @return	string	Friends string formatted as: ball>friend_count|date,ball>friend_count|date
+	 */
+	private function build_friends_string_from_cooccurrence($matrix, $max_ball)
+	{
+		$friends_parts = array();
+		
+		for($ball = 1; $ball <= $max_ball; $ball++) {
+			$best_friend = 0;
+			$best_count = 0;
+			
+			if(isset($matrix[$ball]) && !empty($matrix[$ball])) {
+				foreach($matrix[$ball] as $friend_ball => $count) {
+					if($count > $best_count) {
+						$best_count = $count;
+						$best_friend = $friend_ball;
+					}
+				}
+			}
+			
+			if($best_friend > 0) {
+				// Format: ball>friend:count (simplified, date will be added by existing functions)
+				$friends_parts[] = $best_friend . '>' . $best_count . '|0000-00-00';
+			} else {
+				$friends_parts[] = '0>0|0000-00-00';
+			}
+		}
+		
+		return implode(',', $friends_parts);
+	}
+
+	/**
 	 * Return the added only list of friends of the ball drawn for this ball number
 	 * 
 	 * @param 	string	$fr			String of Friends to be extracted

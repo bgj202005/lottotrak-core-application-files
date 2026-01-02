@@ -837,6 +837,53 @@ class Lotteries extends Admin_Controller {
 						$this->lotteries_m->update_lastdraw($id, $latest_date);
 					}
 				}
+				
+				// OPTIMIZED INCREMENTAL FRIENDSHIP UPDATE FOR SINGLE DRAW IMPORTS
+				$imported_count = count($records_to_import);
+				if($imported_count == 1) {
+					log_message('info', "Import: Single draw detected ({$imported_count} draws), attempting incremental friendship update");
+					
+					// Load lottery info
+					$lottery = $this->lotteries_m->get($id);
+					if($lottery) {
+						// Check if friends data exists
+						$existing_friends = $this->statistics_m->friends_exists($id);
+						$existing_nonfriends = $this->statistics_m->nonfriends_exists($id);
+						
+						if($existing_friends && $existing_nonfriends) {
+							$range = $existing_friends['range'];
+							$extra_included = isset($existing_friends['extra_included']) ? $existing_friends['extra_included'] : 0;
+							$extra_draws = isset($existing_friends['extra_draws']) ? $existing_friends['extra_draws'] : 0;
+							$duplicate_extra = $lottery->duplicate_extra_ball ? TRUE : FALSE;
+							
+							// Attempt incremental update
+							$result = $this->statistics_m->friends_incremental_update(
+								$table_name,
+								$id,
+								$lottery->balls_drawn,
+								$lottery->maximum_ball,
+								$extra_included,
+								$extra_draws,
+								$range,
+								$existing_friends,
+								$existing_nonfriends,
+								$duplicate_extra
+							);
+							
+							if($result['success']) {
+								// Save updated friendship data
+								$this->statistics_m->friends_data_save($result['friends_data'], TRUE);
+								$this->statistics_m->nonfriends_data_save($result['nonfriends_data'], TRUE);
+								log_message('info', "Import: Incremental friendship update completed successfully");
+							} else {
+								log_message('warning', "Import: Incremental update failed ({$result['reason']}), will require manual recalc");
+							}
+						}
+					}
+				} else if($imported_count > 1) {
+					log_message('info', "Import: Multiple draws imported ({$imported_count} draws), friendship recalc required");
+				}
+				
 				echo json_encode(array('exit' => TRUE));
 			}
 		}
