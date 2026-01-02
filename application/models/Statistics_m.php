@@ -3136,11 +3136,6 @@ class Statistics_m extends MY_Model
 				$sliding_window_draws = array(); // Track draws for sliding window removal
 				if($duple) $duplelist = array(); // Only if this lottery has a duplicate extra ball
 				
-				// Initialize prize_counts for this ball if not already set
-				if(!isset($prize_counts[$b])) {
-					$prize_counts[$b] = array();
-				}
-				
 				// Calculate adjusted phases based on actual draws available
 				// PHASE 1: Build initial followers (first half of available draws, or range if enough)
 				// PHASE 2: Calculate wins with sliding window (second half of draws)
@@ -4796,369 +4791,6 @@ class Statistics_m extends MY_Model
 	}
 
 	/**
-	 * Rebuild friends array from a window of draws
-	 * This recalculates which ball is the "best friend" for each ball based on current window
-	 * 
-	 * @param 	array	$window_draws	Array of draws to analyze for friendships
-	 * @param	int		$max			Maximum ball number
-	 * @param	int		$top			Top ball number to calculate
-	 * @param	int		$bonus			Bonus included flag
-	 * @param	bool	$dupe			Duplicate extra flag
-	 * @return	array	$friends		Array mapping each ball to its best friend
-	 */
-	private function rebuild_friends_from_window($window_draws, $max, $top, $bonus, $dupe)
-	{
-		$friends = array(); // Will hold ball => best_friend mapping
-		
-		// For each ball number, find its best friend in this window
-		for($ball = 1; $ball <= $top; $ball++) {
-			$friendlist = array(); // Track co-occurrences for this ball
-			
-			// Scan through all draws in the window
-			foreach($window_draws as $draw) {
-				$blnExDup = ($bonus && $dupe && $ball == $draw['extra']);
-				
-				// Check if this ball appears in this draw
-				if($this->is_drawn($ball, $draw, $max, $bonus) && !$blnExDup) {
-					// Add/update friends from this draw
-					if(!empty($friendlist)) {
-						$friendlist = $this->update_friends($ball, $friendlist, $draw, $bonus);
-					} else {
-						$friendlist = $this->add_friends($ball, $draw, $bonus);
-					}
-				}
-			}
-			
-			// Find the best friend (most frequent co-occurrence)
-			if(!empty($friendlist)) {
-				$best_friend = $this->duplicate_friends($friendlist);
-				$friends[$ball] = $best_friend['number'];
-			} else {
-				$friends[$ball] = 0; // No friend found
-			}
-		}
-		
-		return $friends;
-	}
-
-	/**
-	 * Build co-occurrence matrix from a window of draws (OPTIMIZED)
-	 * Tracks how many times each ball pair appears together
-	 * 
-	 * @param 	array	$window_draws	Array of draws to build matrix from
-	 * @param	int		$max			Maximum ball number
-	 * @param	int		$bonus			Bonus included flag
-	 * @param	bool	$dupe			Duplicate extra flag
-	 * @return	array	$matrix			Co-occurrence matrix [ball1][ball2] => count
-	 */
-	private function build_cooccurrence_matrix($window_draws, $max, $bonus, $dupe)
-	{
-		$matrix = array();
-		
-		// Scan through all draws in the window
-		foreach($window_draws as $draw) {
-			// Extract balls from this draw
-			$balls_in_draw = array();
-			for($i = 1; $i <= $max; $i++) {
-				if(isset($draw['ball'.$i]) && $draw['ball'.$i] > 0) {
-					$balls_in_draw[] = $draw['ball'.$i];
-				}
-			}
-			
-			// Include extra/bonus if applicable
-			if($bonus && isset($draw['extra']) && $draw['extra'] > 0) {
-				if(!$dupe || !in_array($draw['extra'], $balls_in_draw)) {
-					$balls_in_draw[] = $draw['extra'];
-				}
-			}
-			
-			// Count all pairs in this draw
-			for($i = 0; $i < count($balls_in_draw); $i++) {
-				$ball1 = $balls_in_draw[$i];
-				if(!isset($matrix[$ball1])) {
-					$matrix[$ball1] = array();
-				}
-				
-				for($j = 0; $j < count($balls_in_draw); $j++) {
-					if($i !== $j) {
-						$ball2 = $balls_in_draw[$j];
-						if(!isset($matrix[$ball1][$ball2])) {
-							$matrix[$ball1][$ball2] = 0;
-						}
-						$matrix[$ball1][$ball2]++;
-					}
-				}
-			}
-		}
-		
-		return $matrix;
-	}
-
-	/**
-	 * Remove a draw's co-occurrences from the matrix (OPTIMIZED)
-	 * Decrements pair counts for all balls in the draw
-	 * 
-	 * @param 	array	$matrix			Co-occurrence matrix to update
-	 * @param	array	$draw			Draw to remove
-	 * @param	int		$max			Maximum ball number
-	 * @param	int		$bonus			Bonus included flag
-	 * @param	bool	$dupe			Duplicate extra flag
-	 */
-	private function remove_draw_from_matrix(&$matrix, $draw, $max, $bonus, $dupe)
-	{
-		// Extract balls from this draw
-		$balls_in_draw = array();
-		for($i = 1; $i <= $max; $i++) {
-			if(isset($draw['ball'.$i]) && $draw['ball'.$i] > 0) {
-				$balls_in_draw[] = $draw['ball'.$i];
-			}
-		}
-		
-		// Include extra/bonus if applicable
-		if($bonus && isset($draw['extra']) && $draw['extra'] > 0) {
-			if(!$dupe || !in_array($draw['extra'], $balls_in_draw)) {
-				$balls_in_draw[] = $draw['extra'];
-			}
-		}
-		
-		// Decrement all pairs in this draw
-		for($i = 0; $i < count($balls_in_draw); $i++) {
-			$ball1 = $balls_in_draw[$i];
-			
-			for($j = 0; $j < count($balls_in_draw); $j++) {
-				if($i !== $j) {
-					$ball2 = $balls_in_draw[$j];
-					if(isset($matrix[$ball1][$ball2])) {
-						$matrix[$ball1][$ball2]--;
-						if($matrix[$ball1][$ball2] <= 0) {
-							unset($matrix[$ball1][$ball2]);
-						}
-					}
-				}
-			}
-		}
-	}
-
-	/**
-	 * Add a draw's co-occurrences to the matrix (OPTIMIZED)
-	 * Increments pair counts for all balls in the draw
-	 * 
-	 * @param 	array	$matrix			Co-occurrence matrix to update
-	 * @param	array	$draw			Draw to add
-	 * @param	int		$max			Maximum ball number
-	 * @param	int		$bonus			Bonus included flag
-	 * @param	bool	$dupe			Duplicate extra flag
-	 */
-	private function add_draw_to_matrix(&$matrix, $draw, $max, $bonus, $dupe)
-	{
-		// Extract balls from this draw
-		$balls_in_draw = array();
-		for($i = 1; $i <= $max; $i++) {
-			if(isset($draw['ball'.$i]) && $draw['ball'.$i] > 0) {
-				$balls_in_draw[] = $draw['ball'.$i];
-			}
-		}
-		
-		// Include extra/bonus if applicable
-		if($bonus && isset($draw['extra']) && $draw['extra'] > 0) {
-			if(!$dupe || !in_array($draw['extra'], $balls_in_draw)) {
-				$balls_in_draw[] = $draw['extra'];
-			}
-		}
-		
-		// Increment all pairs in this draw
-		for($i = 0; $i < count($balls_in_draw); $i++) {
-			$ball1 = $balls_in_draw[$i];
-			if(!isset($matrix[$ball1])) {
-				$matrix[$ball1] = array();
-			}
-			
-			for($j = 0; $j < count($balls_in_draw); $j++) {
-				if($i !== $j) {
-					$ball2 = $balls_in_draw[$j];
-					if(!isset($matrix[$ball1][$ball2])) {
-						$matrix[$ball1][$ball2] = 0;
-					}
-					$matrix[$ball1][$ball2]++;
-				}
-			}
-		}
-	}
-
-	/**
-	 * Derive best friends from co-occurrence matrix (OPTIMIZED)
-	 * For each ball, finds the ball it appeared with most frequently
-	 * 
-	 * @param 	array	$matrix			Co-occurrence matrix
-	 * @param	int		$top			Top ball number to calculate friends for
-	 * @return	array	$friends		Array mapping each ball to its best friend
-	 */
-	private function derive_friends_from_matrix($matrix, $top)
-	{
-		$friends = array();
-		
-		for($ball = 1; $ball <= $top; $ball++) {
-			$best_friend = 0;
-			$best_count = 0;
-			
-			if(isset($matrix[$ball]) && !empty($matrix[$ball])) {
-				// Find the ball with highest co-occurrence count
-				foreach($matrix[$ball] as $friend_ball => $count) {
-					if($count > $best_count) {
-						$best_count = $count;
-						$best_friend = $friend_ball;
-					}
-				}
-			}
-			
-			$friends[$ball] = $best_friend;
-		}
-		
-		return $friends;
-	}
-
-	/**
-	 * Incremental friendship update for import (OPTIMIZED FOR SINGLE DRAW)
-	 * Updates friendship data when exactly ONE new draw is added
-	 * 
-	 * @param	string	$table_name			Lottery table name
-	 * @param	int		$lottery_id			Lottery ID
-	 * @param	int		$balls_drawn		Number of balls drawn
-	 * @param	int		$max_ball			Maximum ball number
-	 * @param	int		$extra_included		Extra ball included in calculations
-	 * @param	int		$extra_draws		Extra draws included
-	 * @param	int		$range				Draw range (100, 200, etc.)
-	 * @param	array	$existing_friends	Existing friends data from database
-	 * @param	array	$existing_nonfriends Existing nonfriends data
-	 * @param	bool	$duplicate_extra	Duplicate extra ball flag
-	 * @return	array	Updated friendship data or false if can't use incremental
-	 */
-	public function friends_incremental_update($table_name, $lottery_id, $balls_drawn, $max_ball, $extra_included, $extra_draws, $range, $existing_friends, $existing_nonfriends, $duplicate_extra)
-	{
-		global $relatives;
-		global $nonrelatives;
-		
-		// Validate we have existing data
-		if(empty($existing_friends) || empty($existing_friends['lottery_friends'])) {
-			return array('success' => false, 'reason' => 'No existing friends data');
-		}
-		
-		// Get current last draw
-		$last_draw = $this->db->query("
-			SELECT * FROM {$table_name}
-			ORDER BY draw_date DESC
-			LIMIT 1
-		")->row_array();
-		
-		if(!$last_draw) {
-			return array('success' => false, 'reason' => 'No draws found');
-		}
-		
-		// Verify this is exactly one draw ahead
-		if($existing_friends['draw_id'] != ($last_draw['id'] - 1)) {
-			return array('success' => false, 'reason' => 'Not a single draw increment');
-		}
-		
-		log_message('info', "friends_incremental_update: Processing single draw update for draw_id={$last_draw['id']}");
-		
-		// Parse existing friends into co-occurrence matrix
-		$cooccurrence_matrix = $this->parse_friends_matrix($existing_friends['lottery_friends']);
-		
-		// Get the oldest draw that will be removed (draw at position range+1)
-		$oldest_draw = $this->db->query("
-			SELECT * FROM {$table_name}
-			ORDER BY draw_date DESC
-			LIMIT 1 OFFSET {$range}
-		")->row_array();
-		
-		if(!$oldest_draw) {
-			return array('success' => false, 'reason' => 'Insufficient draws for window');
-		}
-		
-		// INCREMENTAL UPDATE STEP 1: Remove oldest draw's co-occurrences
-		$this->remove_draw_from_matrix($cooccurrence_matrix, $oldest_draw, $balls_drawn, $extra_included, $duplicate_extra);
-		
-		// INCREMENTAL UPDATE STEP 2: Add newest draw's co-occurrences
-		$this->add_draw_to_matrix($cooccurrence_matrix, $last_draw, $balls_drawn, $extra_included, $duplicate_extra);
-		
-		// Derive updated friends from matrix
-		$friends = $this->derive_friends_from_matrix($cooccurrence_matrix, $max_ball);
-		
-		// Build friends string from matrix
-		$str_friends = $this->build_friends_string_from_cooccurrence($cooccurrence_matrix, $max_ball);
-		
-		// Recalculate nonfriends (these are less intensive)
-		$str_friends_temp = $this->friends_calculate($table_name, $balls_drawn, $max_ball, $extra_included, $extra_draws, $range, '', $duplicate_extra);
-		$associate = explode('+', $str_friends_temp);
-		$str_nonfriends = isset($associate[1]) ? $associate[1] : '';
-		
-		// Recalculate wins/occurrences using optimized sliding window
-		$relatives = $this->create_friend_array();
-		$nonrelatives = $this->create_nonfriend_array();
-		$this->friends_hits($str_friends, $str_nonfriends, $table_name, $balls_drawn, $max_ball, $extra_included, $extra_draws, $range, '', $duplicate_extra);
-		
-		$fr_stats = $this->combine_friends_string($relatives, $str_friends, $max_ball);
-		$nfr_stats = $this->combine_nonfriends_string($nonrelatives);
-		
-		log_message('info', "friends_incremental_update: Successfully updated friendship data incrementally");
-		
-		return array(
-			'success' => true,
-			'friends_data' => array(
-				'range'				=> $range,
-				'lottery_friends'	=> $str_friends,
-				'wins'				=> $fr_stats,
-				'draw_id'			=> $last_draw['id'],
-				'lottery_id'		=> $lottery_id,
-				'extra_included'	=> $extra_included,
-				'extra_draws'		=> $extra_draws
-			),
-			'nonfriends_data' => array(
-				'range'					=> $range,
-				'lottery_nonfriends'	=> $str_nonfriends,
-				'draw_id'				=> $last_draw['id'],
-				'lottery_id'			=> $lottery_id
-			)
-		);
-	}
-
-	/**
-	 * Build friends string from co-occurrence matrix
-	 * Returns the top friend for each ball with occurrence count
-	 * 
-	 * @param	array	$matrix		Co-occurrence matrix
-	 * @param	int		$max_ball	Maximum ball number
-	 * @return	string	Friends string formatted as: ball>friend_count|date,ball>friend_count|date
-	 */
-	private function build_friends_string_from_cooccurrence($matrix, $max_ball)
-	{
-		$friends_parts = array();
-		
-		for($ball = 1; $ball <= $max_ball; $ball++) {
-			$best_friend = 0;
-			$best_count = 0;
-			
-			if(isset($matrix[$ball]) && !empty($matrix[$ball])) {
-				foreach($matrix[$ball] as $friend_ball => $count) {
-					if($count > $best_count) {
-						$best_count = $count;
-						$best_friend = $friend_ball;
-					}
-				}
-			}
-			
-			if($best_friend > 0) {
-				// Format: ball>friend:count (simplified, date will be added by existing functions)
-				$friends_parts[] = $best_friend . '>' . $best_count . '|0000-00-00';
-			} else {
-				$friends_parts[] = '0>0|0000-00-00';
-			}
-		}
-		
-		return implode(',', $friends_parts);
-	}
-
-	/**
 	 * Return the added only list of friends of the ball drawn for this ball number
 	 * 
 	 * @param 	string	$fr			String of Friends to be extracted
@@ -5314,50 +4946,39 @@ class Statistics_m extends MY_Model
 				$total_draws = count($all_draws);
 				
 				// Calculate phase boundaries
-				$phase1_end = min($range, floor($total_draws / 2));
-				$phase2_start = $phase1_end;
+				$phase1_end = min($range - 1, floor($total_draws / 2));
+				$phase2_start = $phase1_end + 1;
 				
-				log_message('debug', "friends_hits: Phase1 (build): 0 to ".($phase1_end-1).", Phase2 (test): {$phase2_start} to ".($total_draws-1));
+				log_message('debug', "friends_hits: Phase1 (build): 0 to {$phase1_end}, Phase2 (test): {$phase2_start} to ".($total_draws-1));
 				
-				// PHASE 1: Build initial friendship window from first 'range' draws
-				// This establishes the initial friendship relationships
-				$friendship_window = array();
+				// PHASE 1: Build initial friendship relationships from first half of draws
+				// This establishes which balls are friends with each other
+				$friendship_window = array(); // Track friendship occurrences for sliding window
 				
 				for($draw_idx = 0; $draw_idx < $phase1_end && $draw_idx < $total_draws; $draw_idx++) {
-					$friendship_window[] = $all_draws[$draw_idx];
+					$current_draw = $all_draws[$draw_idx];
+					
+					// Track this draw's friendships for later removal in sliding window
+					$friendship_window[] = $current_draw;
 				}
 				
-				// Build initial friends array from the first window
-				$friends = $this->rebuild_friends_from_window($friendship_window, $max, $top, $bonus, $duple);
-				
-				// OPTIMIZED: Build initial co-occurrence matrix from first 'range' draws
-			$cooccurrence_matrix = $this->build_cooccurrence_matrix($friendship_window, $max, $bonus, $duple);
-				log_message('debug', "friends_hits OPTIMIZED: Initial matrix built with ".count($friendship_window)." draws");
-				
-				// PHASE 2: OPTIMIZED Sliding window through remaining draws
-				// CRITICAL: Test each draw using friendships from PREVIOUS draws only
+				// PHASE 2: Sliding window through remaining draws with win calculations
+				// Test friendship patterns and count 0-way, 1-way, 2-way wins
 				for($draw_idx = $phase2_start; $draw_idx < $total_draws; $draw_idx++) {
 					$test_draw = $all_draws[$draw_idx];
 					
-					// Count wins using CURRENT friendship patterns (based on previous draws only)
+					// Count wins using current friendship patterns against this test draw
 					$relatives = $this->friends_hitcounts($relatives, $friends, $test_draw, $bonus, $duple);
 					
-					// OPTIMIZED SLIDING WINDOW UPDATE:
-					// Remove oldest draw's co-occurrences from matrix (INCREMENTAL)
-					$oldest_draw = $friendship_window[0];
-				$this->remove_draw_from_matrix($cooccurrence_matrix, $oldest_draw, $max, $bonus, $duple);
-				array_shift($friendship_window);
-				
-				// Add current test draw's co-occurrences to matrix (INCREMENTAL)
-				$this->add_draw_to_matrix($cooccurrence_matrix, $test_draw, $max, $bonus, $duple);
-					
-					// Derive updated friends from matrix for next iteration (if there is one)
-					if($draw_idx + 1 < $total_draws) {
-						$friends = $this->derive_friends_from_matrix($cooccurrence_matrix, $top);
+					// SLIDING WINDOW: Remove oldest friendship occurrence and add newest
+					if(count($friendship_window) >= $phase1_end) {
+						// Remove oldest draw from friendship tracking
+						array_shift($friendship_window);
 					}
+					
+					// Add current test draw to friendship window for next iteration
+					$friendship_window[] = $test_draw;
 				}
-				
-				log_message('info', "friends_hits OPTIMIZED: Completed ".($total_draws - $phase2_start)." test draws with incremental matrix updates");
 				
 				$query->free_result();
 			}
