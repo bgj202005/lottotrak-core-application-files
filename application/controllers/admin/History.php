@@ -150,32 +150,34 @@ class History extends Admin_Controller {
 			// #2 Second Change Result
 			elseif($this->uri->segment(6)=='extra') 
 				{
+					// Toggle extra_included independently
 					if($glance->extra_included) 
 					{
-						$this->data['lottery']->extra_included = 0; // No Extra Included
-						$this->data['lottery']->extra_draws = 0; // No Extra Draws Included
+						$this->data['lottery']->extra_included = 0; // Turn off Extra Included
 					}
 					else
 					{
-						$this->data['lottery']->extra_included = 1; // Only Extra Allowed
-						$this->data['lottery']->extra_draws = 0; 
+						$this->data['lottery']->extra_included = 1; // Turn on Extra Included
 					}
+					// Preserve the current state of extra_draws
+					$this->data['lottery']->extra_draws = $glance->extra_draws;
 					$new_range = $glance->range;
 					$bln_chg = TRUE;
 				}
 				// #3 Third Change Result
 			elseif($this->uri->segment(6)=='draws') 
 				{
+					// Toggle extra_draws independently
 					if($glance->extra_draws) 
 					{
-						$this->data['lottery']->extra_included = 0; // No Extra Included
-						$this->data['lottery']->extra_draws = 0; // No Extra Draws Included
+						$this->data['lottery']->extra_draws = 0; // Turn off Extra Draws
 					}
 					else
 					{
-						$this->data['lottery']->extra_draws = 1;	// Only Extra Draws allowed
-						$this->data['lottery']->extra_included = 0;
+						$this->data['lottery']->extra_draws = 1; // Turn on Extra Draws
 					}
+					// Preserve the current state of extra_included
+					$this->data['lottery']->extra_included = $glance->extra_included;
 					$new_range = $glance->range;
 					$bln_chg = TRUE;
 				}
