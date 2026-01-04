@@ -26,7 +26,7 @@ class History_m extends MY_Model
     {
         // todo: load the range of lottery draws, ascending order
         $this->db->reset_query();	// Clear any previous queries that are cached
-        $ex_d = (!$e ?  ' WHERE extra <> "0"' : '');
+        $ex_d = (!$e ?  ' WHERE extra <> 0' : '');
   
         $query = $this->db->query('SELECT d.*
                                     FROM (
@@ -650,7 +650,7 @@ class History_m extends MY_Model
 	private function parity_list($rows, $e = 0, $tbl)
 	{
 		$this->db->reset_query();	// Clear any previous queries in the cache
-        $ex_d = (!empty($e) ? " WHERE extra <> '0' " : " ");
+        $ex_d = (!empty($e) ? " " : " WHERE extra <> 0 ");
         $query = $this->db->query("select odd, even, draw_date, count(*) from (SELECT * FROM 
         `".$tbl."`".$ex_d."ORDER BY draw_date DESC LIMIT ".$rows.") sub 
         group by odd, even ORDER BY draw_date ASC;");
