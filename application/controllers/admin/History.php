@@ -140,15 +140,8 @@ class History extends Admin_Controller {
 		}
 		else																				
 		{
-			// #1 First Change Result
-			if($new_range) // Has a change in the range occurred?
-			{
-				$bln_chg = TRUE; // Change in the range?
-				$this->data['lottery']->extra_included = $glance->extra_included;
-				$this->data['lottery']->extra_draws = $glance->extra_draws;
-			} // if($new_range) 
-			// #2 Second Change Result
-			elseif($this->uri->segment(6)=='extra') 
+			// #1 First Change Result - Check for checkbox actions first (segment 5)
+			if($this->uri->segment(5)=='extra') 
 				{
 					// Toggle extra_included independently
 					if($glance->extra_included) 
@@ -164,8 +157,8 @@ class History extends Admin_Controller {
 					$new_range = $glance->range;
 					$bln_chg = TRUE;
 				}
-				// #3 Third Change Result
-			elseif($this->uri->segment(6)=='draws') 
+				// #2 Second Change Result
+			elseif($this->uri->segment(5)=='draws') 
 				{
 					// Toggle extra_draws independently
 					if($glance->extra_draws) 
@@ -181,6 +174,13 @@ class History extends Admin_Controller {
 					$new_range = $glance->range;
 					$bln_chg = TRUE;
 				}
+			// #3 Third Change Result - Range changes
+			elseif($new_range) // Has a change in the range occurred?
+			{
+				$bln_chg = TRUE; // Change in the range?
+				$this->data['lottery']->extra_included = $glance->extra_included;
+				$this->data['lottery']->extra_draws = $glance->extra_draws;
+			} // if($new_range) 
 			else 
 			{
 				$new_range = $glance->range;
