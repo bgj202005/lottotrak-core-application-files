@@ -182,7 +182,7 @@
                                     <th>Original Count</th>
                                     <th>Saved</th>
                                     <th>Actual Filtered</th>
-                                    <th>Active</th>
+                                    <th>Status</th>
                                     <th>Last Date</th>
                                     <?php $prize_columns = isset($prize_columns) ? $prize_columns : array(); ?>
                                     <th colspan="<?php echo max(1, count($prize_columns) + 1); ?>" class="text-center" style="background-color: #f4f4f4;">
