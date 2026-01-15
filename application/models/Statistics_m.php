@@ -1011,6 +1011,7 @@ class Statistics_m extends MY_Model
 	public function friends_exists($id)
 	{
 		$query = $this->db->where('lottery_id', $id)
+                ->order_by('draw_id', 'DESC')
                 ->limit(1, 0)
                 ->get('lottery_friends');
 		return $query->row_array();
@@ -1024,6 +1025,7 @@ class Statistics_m extends MY_Model
 	public function nonfriends_exists($id)
 	{
 		$query = $this->db->where('lottery_id', $id)
+                ->order_by('draw_id', 'DESC')
                 ->limit(1, 0)
                 ->get('lottery_nonfriends');
 		return $query->row_array();
@@ -4538,7 +4540,11 @@ class Statistics_m extends MY_Model
 		// Check duplicate occurrences in the array. If duplicate, go with most recent draw date following the latest trend for that number. return only 1 friend array
 		$friendlist = (!empty($friendlist) ? $this->duplicate_friends($friendlist) : NULL);
 		// Build Friend string
-		$friends .= $this->friends_string($friendlist); // Empty Set? Then Skip
+		$friend_str = $this->friends_string($friendlist);
+		if($b <= 3) { // Log first 3 balls for debugging
+			log_message('debug', "friends_calculate: Ball $b - friend_str length=".strlen($friend_str).", draws_processed=$safety_counter, friendlist count=".(is_null($friendlist) ? 0 : count($friendlist)));
+		}
+		$friends .= $friend_str; // Empty Set? Then Skip
 		// while not out of range
 		// Returns $friendr number associative numbers, save in this format e.g. friend ball drawn 10>6:2020/12/06
 		// update ball counter
@@ -4548,7 +4554,15 @@ class Statistics_m extends MY_Model
 			unset($friendlist);	// Destroy the old friendlist
 			$query->free_result();	// Removes the Memory associated with the result resource ID
 		} while ($b<=$top);
-		return $friends.'+'.$nonfriends;  	// return friends+nonfriends (without the '|' at the end of non friends)
+		
+		$result = $friends.'+'.$nonfriends;
+		$friends_parts = explode(',', $friends);
+		$empty_count = 0;
+		foreach($friends_parts as $part) {
+			if(strpos($part, '0>0') !== false) $empty_count++;
+		}
+		log_message('debug', "friends_calculate: Returning string length=".strlen($result).", balls_with_no_friends=$empty_count, preview=".substr($result, 0, 100));
+		return $result;  	// return friends+nonfriends (without the '|' at the end of non friends)
 	}
 	
 	/**
@@ -4892,6 +4906,8 @@ class Statistics_m extends MY_Model
 			$friends = $this->extract_friends($str_fr);
 			$nonfriends = $this->extract_nonfriends($str_nfr);
 			
+			log_message('debug', "friends_hits: Using bonus=$bonus, duple=$duple, friends count=".count($friends));
+			
 			// SLIDING WINDOW IMPLEMENTATION: Similar to followers_prizes
 			// Need range*2 draws total: first 'range' draws to build friendships, next 'range' draws to test wins
 			
@@ -5009,8 +5025,17 @@ class Statistics_m extends MY_Model
 	*/
 	private function friends_hitcounts($rel, $fr, $rw, $b, $d)
 	{
+		static $log_count = 0;
+		$log_count++;
+		
+		$original_count = count($rw) - 1; // -1 for draw_date
 		if(!$b) unset($rw['extra']); 	// No extra included in the hit count
 		unset($rw['draw_date']);		// Don't include
+		
+		if($log_count <= 3) { // Log first 3 test draws
+			log_message('debug', "friends_hitcounts #$log_count: bonus=$b, balls_in_draw=".count($rw)." (was $original_count), draw=".json_encode(array_values($rw)));
+		}
+		
 		$elim = array(); // Associate elimination array in this format
 						 // $elim = array(6 = 38, 2 = 5); // For 2 - way friendships only
 		$has_2way = FALSE;	// Track if any 2-way friendship found
@@ -5022,17 +5047,17 @@ class Statistics_m extends MY_Model
 			if((!$d)||($d&&$position!='extra')) // Never do the duplicate
 			{
 				$friend1 = $fr[$ball];		// Friend 1
-				$friend2 = $fr[$friend1];	// Friend 2
-				// Two way - check if this creates a 2-way friendship
-				if((in_array($friend1,$rw)&&in_array($friend2,$rw))&&(!isset($elim[$ball])&&(!isset($elim[$friend1])))) 
+				$friend2 = $fr[$friend1];	// Friend 2 (friend of friend1)
+				// Two way - check if this creates a MUTUAL 2-way friendship (A→B AND B→A)
+				if((in_array($friend1,$rw))&&($friend2==$ball)&&(!isset($elim[$ball])&&(!isset($elim[$friend1])))) 
 				{
 					$has_2way = TRUE;			// Found at least one 2-way friendship
-					$elim[$ball] = $friend1;	// Record this, so it is not duplicated, e.g. ball = friend2 
-					$elim[$friend1] = $ball;	// and friend2=ball
+					$elim[$ball] = $friend1;	// Record this, so it is not duplicated
+					$elim[$friend1] = $ball;	// Mark both balls as counted
 				}
-				elseif(!$has_2way && ((in_array($friend1,$rw))&&(!in_array($friend2,$rw))||(!in_array($friend1,$rw))&&(in_array($friend2,$rw)))) 
+				elseif(!$has_2way && (in_array($friend1,$rw))) 
 				{
-					$has_1way = TRUE; // Found at least one 1-way friendship
+					$has_1way = TRUE; // Found at least one 1-way friendship (A→B but B doesn't point back to A)
 				}
 			} 
 		}

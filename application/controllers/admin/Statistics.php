@@ -1213,6 +1213,11 @@ class Statistics extends Admin_Controller {
 	{
 		global $relatives;				// global totals of no friends, 1 way friend, 2 way friends
 		global $nonrelatives;			// global non friend occurences
+		
+		// CRITICAL: Initialize globals to prevent stale data from previous requests
+		$relatives = null;
+		$nonrelatives = null;
+		
 		$this->data['message'] = '';	// Defaulted to No Error Messages
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		// Retrieve the lottery table name for the database
@@ -1269,6 +1274,9 @@ class Statistics extends Admin_Controller {
 					
 					$relatives = $this->statistics_m->create_friend_array();
 					$nonrelatives = $this->statistics_m->create_nonfriend_array();
+					
+					log_message('debug', "Before calculation - relatives: ".json_encode($relatives));
+					
 					$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
 					$associate = explode('+', $str_friends); // The '+' is the separator
 					$str_friends = $associate[0];			 // separated the friends which is a string
@@ -1277,12 +1285,14 @@ class Statistics extends Admin_Controller {
 					$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
 					$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
 					
-					log_message('info', "Friends recalculation complete - wins=$fr_stats");
+					log_message('info', "Friends recalculation complete - wins=$fr_stats, relatives=".json_encode($relatives));
 					
 					$friends = array(
 						'range'				=> $new_range,
 						'lottery_friends'	=> $str_friends,
 						'wins'				=> $fr_stats,
+						'extra_included'	=> $this->data['lottery']->extra_included,
+						'extra_draws'		=> $this->data['lottery']->extra_draws,
 						'draw_id'			=> $this->data['lottery']->last_drawn['id'],
 						'lottery_id'		=> $id
 					);
@@ -1313,26 +1323,42 @@ class Statistics extends Admin_Controller {
 			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
 			$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
 			$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
+			
+			// Check if friends data already exists (maybe from previous failed calculation)
+			$existing_check = $this->statistics_m->friends_exists($id);
+			$use_update = !is_null($existing_check);
+			
 			$friends = array(
 				'range'				=> $new_range,
 				'lottery_friends'	=> $str_friends,
 				'wins'				=> $fr_stats,
+				'extra_included'	=> $this->data['lottery']->extra_included,
+				'extra_draws'		=> $this->data['lottery']->extra_draws,
 				'draw_id'			=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'		=> $id
 			);
-			$this->statistics_m->friends_data_save($friends, FALSE);
+			$this->statistics_m->friends_data_save($friends, $use_update);
 			$nonfriends = array(
 				'range'					=> $new_range,
 				'lottery_nonfriends'	=> $str_nonfriends,
 				'draw_id'				=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'			=> $id
 			);
-			$this->statistics_m->nonfriends_data_save($nonfriends, FALSE);
+			$this->statistics_m->nonfriends_data_save($nonfriends, $use_update);
 		}
 		
 		// 4. Extract the friends string into the array counter parts
 		$next_draw = (!is_null($friends) ? explode(",", $friends['lottery_friends']) : explode(",", $str_friends)); // DB or ??
 		$nonfriends_draw = (!is_null($nonfriends) ? explode("|", $nonfriends['lottery_nonfriends']) : explode("|", $str_nonfriends)); // DB or ??
+		
+		// Safety check: Verify friends data has correct number of entries
+		$expected_entries = $max_ball;
+		$actual_entries = count($next_draw);
+		if($actual_entries != $expected_entries) {
+			log_message('error', "Friends data mismatch for lottery_id=$id: expected $expected_entries entries, got $actual_entries entries");
+			$this->session->set_flashdata('message', "Friends data is incomplete ($actual_entries of $expected_entries balls). Please recalculate friends data.");
+		}
+		
 		$b = 1;
 		foreach($next_draw as $all_balls)
 		{
@@ -1345,6 +1371,14 @@ class Statistics extends Admin_Controller {
 			$this->data['lottery']->friend['date'.$b] = $d;
 			$this->data['lottery']->nonfriends['ball'.$b] = $nonfriends_draw[$b-1];  // Array is zero based
 			$b++;
+		}
+		
+		// Fill in missing ball indices to prevent view errors
+		for($missing = $b; $missing <= $max_ball; $missing++) {
+			$this->data['lottery']->friend['ball'.$missing] = '';
+			$this->data['lottery']->friend['count'.$missing] = '0';
+			$this->data['lottery']->friend['date'.$missing] = '';
+			$this->data['lottery']->nonfriends['ball'.$missing] = '';
 		}
 
 		unset($relatives);
