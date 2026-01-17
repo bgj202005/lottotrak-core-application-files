@@ -5216,23 +5216,23 @@ class Statistics_m extends MY_Model
 			$sql_draws = (!empty($last) ? ' AND extra <> "0"' : ' WHERE extra <> "0"');
 		}
 		
-		$sql = 'SELECT ball_drawn, count(*) as heat FROM ((SELECT ball1 as ball_drawn FROM '
-		.$lotto_tbl.$sql_date.$sql_draws.$sql_range.') UNION ALL (SELECT ball2 as ball_drawn FROM '
-		.$lotto_tbl.$sql_date.$sql_draws.$sql_range.') UNION ALL (SELECT ball3 as ball_drawn FROM '
+		$sql = 'SELECT ball_drawn, MAX(draw_date) as last_draw_date, count(*) as heat FROM ((SELECT ball1 as ball_drawn, draw_date FROM '
+		.$lotto_tbl.$sql_date.$sql_draws.$sql_range.') UNION ALL (SELECT ball2 as ball_drawn, draw_date FROM '
+		.$lotto_tbl.$sql_date.$sql_draws.$sql_range.') UNION ALL (SELECT ball3 as ball_drawn, draw_date FROM '
 		.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=4) $sql .= ' UNION ALL (SELECT ball4 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=5) $sql .= ' UNION ALL (SELECT ball5 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=6) $sql .= ' UNION ALL (SELECT ball6 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=7) $sql .= ' UNION ALL (SELECT ball7 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=8) $sql .= ' UNION ALL (SELECT ball8 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks==9) $sql .= ' UNION ALL (SELECT ball9 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($picks>=4) $sql .= ' UNION ALL (SELECT ball4 as ball_drawn, draw_date FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($picks>=5) $sql .= ' UNION ALL (SELECT ball5 as ball_drawn, draw_date FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($picks>=6) $sql .= ' UNION ALL (SELECT ball6 as ball_drawn, draw_date FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($picks>=7) $sql .= ' UNION ALL (SELECT ball7 as ball_drawn, draw_date FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($picks>=8) $sql .= ' UNION ALL (SELECT ball8 as ball_drawn, draw_date FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		if($picks==9) $sql .= ' UNION ALL (SELECT ball9 as ball_drawn, draw_date FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
 		$sql_bonus = '';
 		if($bonus&&!$duple) 
 		{
 			$bonus_date_filter = (!empty($last) ? ' AND draw_date <= "'.$last.'"' : '');
-			$sql_bonus = ' UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.' WHERE extra <> "0"'.$bonus_date_filter.$sql_range.')';
+			$sql_bonus = ' UNION ALL (SELECT extra as ball_drawn, draw_date FROM '.$lotto_tbl.' WHERE extra <> "0"'.$bonus_date_filter.$sql_range.')';
 		}
-		$sql_ext = ') as hwc GROUP BY ball_drawn ORDER BY heat DESC;';
+		$sql_ext = ') as hwc GROUP BY ball_drawn ORDER BY heat DESC, last_draw_date DESC, CAST(ball_drawn AS UNSIGNED) ASC;';
 		$query = $this->db->query($sql.$sql_bonus.$sql_ext);
 		$hwc_string = ""; // List string in the format of number=hits,
 		$i = 1; // non-zero integer
