@@ -1501,19 +1501,19 @@ class Combination_filters_m extends MY_Model
     }
     
     /**
-     * Validate that combination only has 2-way friendships (no 1-way friendships)
+     * Validate that combination has at least one complete 2-way friendship
      * For 2-way friendships to be valid: if A-B and either A or B is in combo, then both must be in combo
      * Must have at least one complete 2-way friendship
+     * Note: 1-way friendships are allowed to coexist with 2-way friendships
      */
     private function validate_twoway_friendships_only($combo_numbers, $oneway, $twoway)
     {
-        // First, check that no 1-way friendships exist
-        foreach ($oneway as $pair) {
-            list($a, $b) = $pair;
-            if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
-                return false; // Found 1-way friendship - not allowed
-            }
-        }
+        // OPTIMIZATION: Don't reject 1-way friendships when 2-way is selected
+        // This allows combinations to have both 2-way AND 1-way friendships
+        // Benefits:
+        // 1. More flexible filtering (focuses on what's required, not what's forbidden)
+        // 2. Solves stale data issue (when friendship patterns change after generation)
+        // 3. Faster validation (skips unnecessary 1-way checking)
         
         $found_complete_twoway = false;
         
@@ -1533,7 +1533,7 @@ class Combination_filters_m extends MY_Model
             return false; // Must have at least one complete 2-way friendship
         }
         
-        return true; // Only valid 2-way friendships found
+        return true; // Valid 2-way friendships found (1-way friendships allowed)
     }
     
     /**
