@@ -3052,7 +3052,9 @@ class Statistics extends Admin_Controller {
 		$nonfriends = $this->statistics_m->nonfriends_exists($id);
 		
 		// Try sliding window optimization for friends
+		// TEMPORARILY DISABLED: Sliding window uses wrong data format (followers format instead of friends format)
 		$use_sliding_window = FALSE;
+		/*
 		if(!is_null($friends) && !is_null($nonfriends) && !empty($friends['lottery_friends']) && $friends['draw_id'] > 0)
 		{
 			// Check if we can use sliding window (same settings, only one new draw)
@@ -3105,6 +3107,7 @@ class Statistics extends Admin_Controller {
 				}
 			}
 		}
+		*/  // End of disabled sliding window block
 		
 		// Full recalculation if sliding window wasn't used
 		if(!$use_sliding_window && !is_null($friends) && !is_null($nonfriends))
