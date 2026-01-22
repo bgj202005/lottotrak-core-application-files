@@ -2148,19 +2148,22 @@ class Prize extends Admin_Controller
             if (!empty($win_updates)) {
                 $update_data = array();
                 
-                // Add win record updates to existing values
+                // Add win record updates to existing values (NEVER replace or zero out)
                 foreach ($win_updates as $category => $count) {
-                    // Get current value and add new wins
-                    $this->db->select($category);
-                    $this->db->from('lottery_combination_filters');
-                    $this->db->where('id', $filter->id);
-                    $current_query = $this->db->get();
-                    $current_result = $current_query->row();
-                    
-                    if ($current_result) {
-                        $current_value = isset($current_result->$category) ? (int)$current_result->$category : 0;
-                        $new_value = $current_value + $count;
-                        $update_data[$category] = $new_value;
+                    // Only update categories that have NEW wins to add
+                    if ($count > 0) {
+                        // Get current value and add new wins
+                        $this->db->select($category);
+                        $this->db->from('lottery_combination_filters');
+                        $this->db->where('id', $filter->id);
+                        $current_query = $this->db->get();
+                        $current_result = $current_query->row();
+                        
+                        if ($current_result) {
+                            $current_value = isset($current_result->$category) ? (int)$current_result->$category : 0;
+                            $new_value = $current_value + $count;
+                            $update_data[$category] = $new_value;
+                        }
                     }
                 }
                 
