@@ -2404,6 +2404,13 @@ class Statistics extends Admin_Controller {
 		);
 		
 		if ($can_slide) {
+			// Save current values as "_last" before updating with sliding window
+			$strhots_last = $h_w_c['hots'];
+			$strwarms_last = $h_w_c['warms'];
+			$strcolds_last = $h_w_c['colds'];
+			$str_dupextra_last = isset($h_w_c['dupextra']) ? $h_w_c['dupextra'] : '';
+			$draw_id_last = $h_w_c['draw_id'];
+			
 			$slide_result = $this->statistics_m->hwc_sliding_window($tbl, $id, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
 			
 			if ($slide_result['success']) {
@@ -2411,6 +2418,52 @@ class Statistics extends Admin_Controller {
 				$strwarms = $slide_result['warms'];
 				$strcolds = $slide_result['colds'];
 				$use_sliding_window = true;
+				
+				// Calculate overdue and dupextra
+				$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, '');
+				if($blnduplicate && $h_w_c['extra_included']) {
+					$str_dupextra = $this->statistics_m->hwc_duple_extra($tbl, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, '');
+				} else {
+					$str_dupextra = '';
+				}
+				
+				// Save with _last values preserved
+				$hwc = array(
+					'range'				=> $new_range,
+					'hots'				=> $strhots,
+					'warms'				=> $strwarms,
+					'colds'				=> $strcolds,
+					'hots_last'			=> $strhots_last,
+					'warms_last'		=> $strwarms_last,
+					'colds_last'		=> $strcolds_last,
+					'dupextra'			=> $str_dupextra,
+					'dupextra_last'		=> $str_dupextra_last,
+					'overdue'			=> $stroverdue,
+					'draw_id'			=> $lotto->last_drawn['id'],
+					'draw_id_last'		=> $draw_id_last,
+					'lottery_id'		=> $id,
+					'extra_included'	=> $h_w_c['extra_included'],
+					'extra_draws'		=> $h_w_c['extra_draws'],
+					'w'					=> $w_start,
+					'c'					=> $c_start,
+					'h_count'			=> $lotto->H,
+					'w_count'			=> $lotto->W,
+					'c_count'			=> $lotto->C
+				);
+				$this->statistics_m->hwc_data_save($hwc, TRUE);
+				
+				// Calculate H-W-C win statistics
+				$prediction_pool = isset($h_w_c['prediction_pool']) ? $h_w_c['prediction_pool'] : 18;
+				$hot_count = count(explode(',', $strhots));
+				$warm_count = count(explode(',', $strwarms));
+				$cold_count = count(explode(',', $strcolds));
+				$this->calculate_hwc_wins($id, $new_range, $prediction_pool, 
+					$hot_count, $warm_count, $cold_count,
+					$h_w_c['extra_included'], $h_w_c['extra_draws']);
+					
+				// Update history stats
+				$hwc_history = $this->h_w_c_history($id, $tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
+				$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl, $drawn, $lotto->extra_included, $blnduplicate, $strhots_last, $strwarms_last, $strcolds_last, $hwc_history['position']);
 			}
 		}
 	 }
