@@ -5799,7 +5799,11 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	public function positions($drawn_array, $heat_array, $position_array, $b, $e, $dp)
 	{
 
-	if (!$b||$dp||$e) 								// If a bonus number, extra ball or duplicate extra number 
+	// Only remove the extra ball from position counting if extra draws are NOT included
+	// $e = extra_draws setting (1 = include extra in calculations, 0 = exclude)
+	// $b = bonus ball value
+	// $dp = duplicate extra ball flag
+	if (!$e && ($b || $dp)) 	// If extra draws NOT included AND (bonus exists OR duplicate extra)
 	{
 		$key = array_key_last($drawn_array); 		//  Return the key from the drawn_array	
 		unset($drawn_array[$key]); 					// Remove the last element from the drawn numbers
@@ -5935,6 +5939,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			{
 				$index = array_search($value, $h_array);
 				$hp_totals[$index]--; // Decrement the count by 1
+				if($hp_totals[$index] < 0) $hp_totals[$index] = 0; // Ensure minimum is 0
 			}
 		}
 		// warm positions
@@ -5944,6 +5949,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			{
 				$index = array_search($value, $m_array);
 				$wp_totals[$index]--; // Decrement the count by 1
+				if($wp_totals[$index] < 0) $wp_totals[$index] = 0; // Ensure minimum is 0
 			}
 		}
 		// cold positions
@@ -5953,6 +5959,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			{
 				$index = array_search($value, $l_array);
 				$lp_totals[$index]--; // Decrement the count by 1
+				if($lp_totals[$index] < 0) $lp_totals[$index] = 0; // Ensure minimum is 0
 			}
 		}
 		// 7. Format the string for the previous draw positions
