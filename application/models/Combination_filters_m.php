@@ -304,7 +304,10 @@ class Combination_filters_m extends MY_Model
                         if (method_exists($CI, 'check_timeout_and_redirect')) {
                             $CI->check_timeout_and_redirect($start_time, $timeout_seconds, $lottery_id);
                         }
-                        return $count; // Return partial count if timeout
+                        // CRITICAL FIX: Don't return partial count - this causes count mismatch
+                        // The redirect will handle timeout, and if we reach here, we should 
+                        // continue counting or throw an exception rather than return incorrect count
+                        // For now, continue processing to get accurate count
                     }
                 }
                 

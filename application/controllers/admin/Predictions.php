@@ -2977,14 +2977,32 @@ class Predictions extends Admin_Controller {
 
 			$success = $this->combination_filters_m->save_filtered_combinations_to_file($filepath, $number_array, $filters, $pick_file_path);
 			
-			// Check actual saved file to verify what was written
+			// CRITICAL FIX: Use actual saved file count as the accurate CCCC value
+			// This ensures the database record matches what was actually saved
 			if (file_exists($pick_file_path)) {
 				$file_lines = file($pick_file_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-				$actual_lines = count($file_lines);
+				$actual_saved_count = count($file_lines);
+				
+				// Update the CCCC field with actual saved count if different from calculated
+				if ($actual_saved_count != $filtered_count) {
+					log_message('info', "CCCC Update: Calculated count was {$filtered_count}, but actual saved was {$actual_saved_count}. Updating database.");
+					
+					// Update the database record with correct CCCC value
+					if ($existing_record) {
+						$this->db->where('id', $existing_record['id']);
+						$this->db->update('lottery_combination_filters', ['CCCC' => $actual_saved_count]);
+					} else {
+						// For new records, we'll update after insert using the save_data array
+						// This will be handled below
+					}
+					
+					// Update the local variable for display
+					$filtered_count = $actual_saved_count;
+				}
 				
 				// Verify first few combinations if needed
-				if ($actual_lines > 0) {
-					$sample_lines = array_slice($file_lines, 0, min(3, $actual_lines));
+				if ($actual_saved_count > 0) {
+					$sample_lines = array_slice($file_lines, 0, min(3, $actual_saved_count));
 				}
 			} else {
 				// File was not created
