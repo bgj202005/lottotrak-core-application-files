@@ -425,7 +425,7 @@ class Combination_filters_m extends MY_Model
             log_message('error', "save_filtered_combinations_to_file: Source file not found: {$filepath}");
             return false;
         }
-
+        
         $handle = fopen($filepath, 'r');
         $output_handle = fopen($output_file_path, 'w');
         
@@ -1430,7 +1430,8 @@ class Combination_filters_m extends MY_Model
                 
             case '2':
                 // Only 2-way friendships allowed (no 1-way friendships)
-                return $this->validate_twoway_friendships_only($combo_numbers, $oneway, $twoway);
+                $result = $this->validate_twoway_friendships_only($combo_numbers, $oneway, $twoway);
+                return $result;
                 
             default:
                 return true; // 'all' or unknown type - allow everything

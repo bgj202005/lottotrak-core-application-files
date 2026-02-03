@@ -2802,14 +2802,19 @@ class Predictions extends Admin_Controller {
 		// Check if we have session data from recent generation that matches current settings
 		$stored_count = $this->session->userdata('current_filtered_count');
 		$stored_filters = $this->session->userdata('current_filters');
-		
 
 		
 		// Compare key filter values to see if they match current session
 		$filters_match = false;
 		if (!empty($stored_filters)) {
 			$filters_match = $this->filters_match($filters, $stored_filters);
+		}
 
+		// If filters don't match but we have stored filters from the last generation,
+		// prefer the stored filters to ensure save uses the same criteria as preview.
+		if (!$filters_match && !empty($stored_filters)) {
+			$filters = $stored_filters;
+			$filters_match = true;
 		}
 		
 		// Use stored count if available and filters match, otherwise recalculate
@@ -4299,7 +4304,7 @@ class Predictions extends Admin_Controller {
 			'selected_repeaters', 'selected_consecutives', 'selected_parity',
 			'selected_decades', 'selected_last_digits', 'selected_number_range',
 			'selected_adjacents', 'selected_h_w_c_group', 'selected_hwc',
-			'selected_extra_ball', 'lottery_id', 'selected_followers',
+			'selected_extra_ball', 'lottery_id', 'selected_followers', 'selected_friends_checkbox',
 			'selected_after_ball', 'selected_friends', 'selected_after_ball_friends'
 		];
 		
