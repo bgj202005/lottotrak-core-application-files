@@ -7584,6 +7584,9 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		}
 		$this->hwc_positions = $hwc_positions;
 		
+		// PHASE 2 ENHANCEMENT: Load existing position statistics for intelligent selection
+		$existing_position_stats = $this->load_position_statistics($lottery_id);
+		$this->current_position_stats = $existing_position_stats; // Store for use in selection
 
 
 		// Phase 2: Analyze the next range using fixed positions
@@ -7601,6 +7604,13 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$final_wins_string = $this->format_win_statistics($final_wins_data, $prize_profile);
 		
 		$this->save_wins_string($lottery_id, $adjusted_range, $hots, $warms, $colds, $prediction_pool, $extra_included, $extra_draws, $final_wins_string);
+		
+		// Phase 6: ENHANCED - Save position statistics for intelligent selection
+		if (isset($this->position_stats_data) && !empty($this->position_stats_data)) {
+			$position_stats_string = $this->format_position_statistics($this->position_stats_data);
+			$this->save_position_statistics($lottery_id, $adjusted_range, $hots, $warms, $colds, $prediction_pool, $position_stats_string);
+			log_message('info', "H-W-C position stats: Successfully saved position data for lottery_id=$lottery_id");
+		}
 		
 		log_message('info', "H-W-C win stats: Successfully saved wins data for lottery_id=$lottery_id, range=$adjusted_range");
 		return $final_wins_string;
@@ -7686,6 +7696,9 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 
 		
 		$win_stats = array();
+		
+		// Initialize position tracking per pattern
+		$position_stats = array(); // Track position selections and wins per pattern
 
 		// Get ALL draws needed for sliding window (first range + second range)
 		$sql = "SELECT * FROM {$table_name} ORDER BY draw_date ASC LIMIT " . ($range * 2);
@@ -7709,12 +7722,20 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			$prediction_numbers = $this->calculate_prediction_numbers($hwc_pattern, $prediction_pool, $picks);
 			
 			// Step 3: Get actual prediction numbers by cross-referencing H-W-C positions
-			$actual_prediction_numbers = $this->get_prediction_numbers_from_positions($prediction_numbers, $hwc_positions);
+			// ENHANCED: Track which positions were selected for this pattern
+			$prediction_data = $this->get_prediction_numbers_from_positions_with_tracking(
+				$prediction_numbers, $hwc_positions, $pattern_key, $position_stats
+			);
+			
+			$actual_prediction_numbers = $prediction_data['numbers'];
 			
 			// Step 4: Compare prediction numbers against actual draw and calculate wins
 			$win_categories = $this->calculate_win_categories_direct($actual_prediction_numbers, $draw, $prize_profile, $extra_included);
 			
-			// Step 5: Accumulate win statistics for valid patterns only
+			// Step 5: Track which positions contributed to wins
+			$this->track_position_wins($prediction_data, $draw, $hwc_positions, $pattern_key, $position_stats, $win_categories);
+			
+			// Step 6: Accumulate win statistics for valid patterns only
 			if (!isset($win_stats[$pattern_key])) {
 				$win_stats[$pattern_key] = $this->initialize_win_categories($prize_profile);
 			}
@@ -7724,10 +7745,13 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 				$win_stats[$pattern_key][$category] += $count;
 			}
 
-			// Step 6: SLIDING WINDOW - Remove oldest draw and add newest draw
+			// Step 7: SLIDING WINDOW - Remove oldest draw and add newest draw
 			$old_draw = $initial_draws[$draw_index]; // Draw to remove from window
 			$this->update_sliding_window($hwc_positions, $old_draw, $draw, $picks, $extra_included);
 		}
+		
+		// Store position statistics for future use
+		$this->position_stats_data = $position_stats;
 
 		return $win_stats;
 	}
@@ -7887,7 +7911,241 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	}
 
 	/**
+	 * Get prediction numbers from positions with position tracking
+	 * ENHANCED: Tracks which positions were selected for this pattern
+	 * 
+	 * @param array $prediction_numbers Distribution (hot, warm, cold counts)
+	 * @param array $hwc_positions Current H-W-C positions
+	 * @param string $pattern_key Pattern identifier (e.g., "2-2-2")
+	 * @param array &$position_stats Reference to position statistics array
+	 * @return array Selected numbers with position tracking data
+	 */
+	private function get_prediction_numbers_from_positions_with_tracking($prediction_numbers, $hwc_positions, $pattern_key, &$position_stats)
+	{
+		$all_numbers = array();
+		
+		// Initialize pattern tracking if not exists
+		if (!isset($position_stats[$pattern_key])) {
+			$position_stats[$pattern_key] = array(
+				'hot' => array(),
+				'warm' => array(),
+				'cold' => array()
+			);
+		}
+		
+		// Track selected positions for each temperature
+		$selected_positions = array('hot' => array(), 'warm' => array(), 'cold' => array());
+		
+		// Get hot numbers and track positions
+		if ($prediction_numbers['hot'] > 0) {
+			$result = $this->get_top_numbers_by_temperature_with_positions('hot', $prediction_numbers['hot']);
+			$all_numbers = array_merge($all_numbers, $result['numbers']);
+			$selected_positions['hot'] = $result['positions'];
+			
+			// Track position selections
+			foreach ($result['positions'] as $pos) {
+				if (!isset($position_stats[$pattern_key]['hot'][$pos])) {
+					$position_stats[$pattern_key]['hot'][$pos] = array('selected' => 0, 'won' => 0);
+				}
+				$position_stats[$pattern_key]['hot'][$pos]['selected']++;
+			}
+		}
+		
+		// Get warm numbers and track positions
+		if ($prediction_numbers['warm'] > 0) {
+			$result = $this->get_top_numbers_by_temperature_with_positions('warm', $prediction_numbers['warm']);
+			$all_numbers = array_merge($all_numbers, $result['numbers']);
+			$selected_positions['warm'] = $result['positions'];
+			
+			// Track position selections
+			foreach ($result['positions'] as $pos) {
+				if (!isset($position_stats[$pattern_key]['warm'][$pos])) {
+					$position_stats[$pattern_key]['warm'][$pos] = array('selected' => 0, 'won' => 0);
+				}
+				$position_stats[$pattern_key]['warm'][$pos]['selected']++;
+			}
+		}
+		
+		// Get cold numbers and track positions
+		if ($prediction_numbers['cold'] > 0) {
+			$result = $this->get_top_numbers_by_temperature_with_positions('cold', $prediction_numbers['cold']);
+			$all_numbers = array_merge($all_numbers, $result['numbers']);
+			$selected_positions['cold'] = $result['positions'];
+			
+			// Track position selections
+			foreach ($result['positions'] as $pos) {
+				if (!isset($position_stats[$pattern_key]['cold'][$pos])) {
+					$position_stats[$pattern_key]['cold'][$pos] = array('selected' => 0, 'won' => 0);
+				}
+				$position_stats[$pattern_key]['cold'][$pos]['selected']++;
+			}
+		}
+		
+		return array(
+			'numbers' => $all_numbers,
+			'positions' => $selected_positions
+		);
+	}
+
+	/**
+	 * Get top numbers by temperature with position information
+	 * PHASE 2 ENHANCED: Intelligent selection based on win rates instead of sequential order
+	 * 
+	 * @param string $temperature The temperature type ('hot', 'warm', 'cold')
+	 * @param int $count Number of numbers to select
+	 * @return array Array with 'numbers' and 'positions' keys
+	 */
+	private function get_top_numbers_by_temperature_with_positions($temperature, $count)
+	{
+		if ($count <= 0) return array('numbers' => array(), 'positions' => array());
+		
+		// Determine position range based on temperature
+		switch ($temperature) {
+			case 'hot':
+				$position_start = 1;
+				$position_end = $this->current_hots;
+				break;
+			case 'warm':
+				$position_start = $this->current_hots + 1;
+				$position_end = $this->current_hots + $this->current_warms;
+				break;
+			case 'cold':
+				$position_start = $this->current_hots + $this->current_warms + 1;
+				$position_end = $this->current_hots + $this->current_warms + $this->current_colds;
+				break;
+		}
+		
+		// Build list of available positions with their performance data
+		$available_positions = array();
+		foreach ($this->hwc_positions as $number => $data) {
+			if ($data['position'] >= $position_start && $data['position'] <= $position_end) {
+				$available_positions[] = array(
+					'number' => $number,
+					'position' => $data['position'],
+					'win_rate' => $this->get_position_win_rate($data['position'], $temperature)
+				);
+			}
+		}
+		
+		// PHASE 2: Sort by win rate (descending) instead of sequential order
+		usort($available_positions, function($a, $b) {
+			// Sort by win_rate descending, then by position ascending (tiebreaker)
+			if ($b['win_rate'] != $a['win_rate']) {
+				return $b['win_rate'] <=> $a['win_rate'];
+			}
+			return $a['position'] <=> $b['position'];
+		});
+		
+		// Select top N positions by performance
+		$selected_numbers = array();
+		$selected_positions = array();
+		for ($i = 0; $i < min($count, count($available_positions)); $i++) {
+			$selected_numbers[] = $available_positions[$i]['number'];
+			$selected_positions[] = $available_positions[$i]['position'];
+		}
+		
+		return array(
+			'numbers' => $selected_numbers,
+			'positions' => $selected_positions
+		);
+	}
+
+	/**
+	 * Get win rate for a specific position within a temperature category
+	 * PHASE 2: Uses historical data to determine position performance
+	 * 
+	 * @param int $position Position number to check
+	 * @param string $temperature Temperature category ('hot', 'warm', 'cold')
+	 * @return float Win rate (0.0 to 1.0), or -1 for cold start (no data)
+	 */
+	private function get_position_win_rate($position, $temperature)
+	{
+		// Cold start: No statistics available yet
+		if (empty($this->current_position_stats)) {
+			return -1; // Negative indicates no data - will sort by position
+		}
+		
+		// Aggregate win rates across all patterns for this position/temperature
+		$total_selected = 0;
+		$total_won = 0;
+		
+		foreach ($this->current_position_stats as $pattern => $temps) {
+			if (isset($temps[$temperature][$position])) {
+				$stats = $temps[$temperature][$position];
+				$total_selected += $stats['selected'];
+				$total_won += $stats['won'];
+			}
+		}
+		
+		// Minimum sample size: 10 selections before using win rate
+		if ($total_selected < 10) {
+			return -1; // Insufficient data - will sort by position
+		}
+		
+		// Calculate win rate
+		return $total_won / $total_selected;
+	}
+
+	/**
+	 * Track which positions contributed to wins for this pattern
+	 * 
+	 * @param array $prediction_data Prediction data with numbers and positions
+	 * @param object $draw Actual draw data
+	 * @param array $hwc_positions Current H-W-C positions
+	 * @param string $pattern_key Pattern identifier
+	 * @param array &$position_stats Reference to position statistics array
+	 * @param array $win_categories Win categories detected
+	 */
+	private function track_position_wins($prediction_data, $draw, $hwc_positions, $pattern_key, &$position_stats, $win_categories)
+	{
+		// Only track if there was a win
+		$has_win = false;
+		foreach ($win_categories as $category => $count) {
+			if ($count > 0) {
+				$has_win = true;
+				break;
+			}
+		}
+		
+		if (!$has_win) return;
+		
+		// Get actual drawn numbers
+		$drawn_numbers = array();
+		for ($i = 1; $i <= 6; $i++) {
+			$ball_field = "ball{$i}";
+			if (isset($draw->$ball_field)) {
+				$drawn_numbers[] = (int)$draw->$ball_field;
+			}
+		}
+		
+		// For each temperature, check which selected positions had winning numbers
+		foreach (array('hot', 'warm', 'cold') as $temp) {
+			if (empty($prediction_data['positions'][$temp])) continue;
+			
+			// Map positions to numbers for this temperature
+			foreach ($prediction_data['positions'][$temp] as $pos) {
+				// Find the number at this position
+				$number_at_position = null;
+				foreach ($hwc_positions as $num => $data) {
+					if ($data['position'] == $pos) {
+						$number_at_position = $num;
+						break;
+					}
+				}
+				
+				// If this number was drawn, increment won count
+				if ($number_at_position && in_array($number_at_position, $drawn_numbers)) {
+					if (isset($position_stats[$pattern_key][$temp][$pos])) {
+						$position_stats[$pattern_key][$temp][$pos]['won']++;
+					}
+				}
+			}
+		}
+	}
+
+	/**
 	 * Get top numbers by temperature from current H-W-C positions
+	 * LEGACY: Original sequential selection method (kept for compatibility)
 	 * 
 	 * @param string $temperature The temperature type ('hot', 'warm', 'cold')
 	 * @param int $count Number of numbers to select
@@ -8491,6 +8749,184 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		}
 		
 		return implode('|', $formatted_parts);
+	}
+
+	/**
+	 * Format position statistics for database storage
+	 * ENHANCED: Creates encoded string of position win tracking data
+	 * Format: pattern>temp:pos=selected/won,pos=selected/won|pattern>...
+	 * Example: "2-2-2>H:1=100/12,2=100/14,3=100/22|W:5=100/65|C:8=100/45|3-1-2>H:1=50/8,2=50/10..."
+	 * 
+	 * @param array $position_stats Position statistics data by pattern
+	 * @return string Formatted position statistics string
+	 */
+	private function format_position_statistics($position_stats)
+	{
+		$pattern_parts = array();
+		
+		foreach ($position_stats as $pattern => $temperatures) {
+			$temp_parts = array();
+			
+			foreach ($temperatures as $temp => $positions) {
+				if (empty($positions)) continue;
+				
+				// Format positions for this temperature
+				$position_values = array();
+				foreach ($positions as $pos => $stats) {
+					$selected = isset($stats['selected']) ? $stats['selected'] : 0;
+					$won = isset($stats['won']) ? $stats['won'] : 0;
+					$position_values[] = "{$pos}={$selected}/{$won}";
+				}
+				
+				if (!empty($position_values)) {
+					// Temp prefix: H=hot, W=warm, C=cold
+					$temp_code = strtoupper(substr($temp, 0, 1));
+					$temp_parts[] = $temp_code . ':' . implode(',', $position_values);
+				}
+			}
+			
+			if (!empty($temp_parts)) {
+				$pattern_parts[] = $pattern . '>' . implode('|', $temp_parts);
+			}
+		}
+		
+		return implode('||', $pattern_parts);
+	}
+
+	/**
+	 * Parse position statistics string from database
+	 * ENHANCED: Decodes position win tracking data
+	 * 
+	 * @param string $position_stats_string Encoded position statistics
+	 * @return array Position statistics array by pattern/temperature/position
+	 */
+	private function parse_position_statistics($position_stats_string)
+	{
+		if (empty($position_stats_string)) {
+			return array();
+		}
+		
+		$position_stats = array();
+		
+		// Split by pattern
+		$pattern_parts = explode('||', $position_stats_string);
+		
+		foreach ($pattern_parts as $pattern_part) {
+			if (empty($pattern_part)) continue;
+			
+			// Split pattern from temperature data
+			$parts = explode('>', $pattern_part);
+			if (count($parts) != 2) continue;
+			
+			$pattern = $parts[0];
+			$temp_data = $parts[1];
+			
+			$position_stats[$pattern] = array('hot' => array(), 'warm' => array(), 'cold' => array());
+			
+			// Split by temperature
+			$temp_parts = explode('|', $temp_data);
+			
+			foreach ($temp_parts as $temp_part) {
+				if (empty($temp_part)) continue;
+				
+				// Split temperature code from position data
+				$temp_split = explode(':', $temp_part);
+				if (count($temp_split) != 2) continue;
+				
+				$temp_code = $temp_split[0];
+				$pos_data = $temp_split[1];
+				
+				// Map temp code to full name
+				$temp_map = array('H' => 'hot', 'W' => 'warm', 'C' => 'cold');
+				if (!isset($temp_map[$temp_code])) continue;
+				$temp_name = $temp_map[$temp_code];
+				
+				// Parse position data
+				$position_values = explode(',', $pos_data);
+				foreach ($position_values as $pos_value) {
+					$pos_parts = explode('=', $pos_value);
+					if (count($pos_parts) != 2) continue;
+					
+					$pos = (int)$pos_parts[0];
+					$counts = explode('/', $pos_parts[1]);
+					if (count($counts) != 2) continue;
+					
+					$position_stats[$pattern][$temp_name][$pos] = array(
+						'selected' => (int)$counts[0],
+						'won' => (int)$counts[1]
+					);
+				}
+			}
+		}
+		
+		return $position_stats;
+	}
+
+	/**
+	 * Load existing position statistics from database
+	 * PHASE 2: Retrieves historical position performance data for intelligent selection
+	 * 
+	 * @param int $lottery_id Lottery ID
+	 * @return array Position statistics array, or empty array if none exist
+	 */
+	private function load_position_statistics($lottery_id)
+	{
+		$this->db->where('lottery_id', $lottery_id);
+		$query = $this->db->get('lottery_h_w_c_stats');
+		
+		if ($query->num_rows() == 0) {
+			log_message('info', "H-W-C position stats: No existing position stats for lottery_id=$lottery_id (cold start)");
+			return array();
+		}
+		
+		$result = $query->row();
+		
+		if (empty($result->position_stats)) {
+			log_message('info', "H-W-C position stats: Empty position_stats for lottery_id=$lottery_id (cold start)");
+			return array();
+		}
+		
+		$position_stats = $this->parse_position_statistics($result->position_stats);
+		log_message('info', "H-W-C position stats: Loaded position stats for lottery_id=$lottery_id - " . count($position_stats) . " patterns");
+		
+		return $position_stats;
+	}
+
+	/**
+	 * Save position statistics to database
+	 * ENHANCED: Stores position win tracking data for intelligent selection
+	 * 
+	 * @param int $lottery_id Lottery ID
+	 * @param int $range Range value
+	 * @param int $hots Hot count
+	 * @param int $warms Warm count
+	 * @param int $colds Cold count
+	 * @param int $prediction_pool Prediction pool size
+	 * @param string $position_stats_string Formatted position statistics
+	 */
+	private function save_position_statistics($lottery_id, $range, $hots, $warms, $colds, $prediction_pool, $position_stats_string)
+	{
+		// Check if column exists in lottery_h_w_c_stats table
+		$table_check = $this->db->query("SHOW COLUMNS FROM lottery_h_w_c_stats LIKE 'position_stats'");
+		
+		if ($table_check->num_rows() == 0) {
+			// Add position_stats column if it doesn't exist
+			$this->db->query("ALTER TABLE lottery_h_w_c_stats ADD COLUMN position_stats TEXT NULL AFTER wins");
+			log_message('info', "H-W-C position stats: Added position_stats column to lottery_h_w_c_stats table");
+		}
+		
+		// NOTE: lottery_h_w_c_stats only has lottery_id as unique key
+		// The H-W-C configuration (h_count, w_count, c_count, range, prediction_pool) is in lottery_h_w_c table
+		// We update position_stats based on lottery_id only, matching the pattern used by save_wins_string()
+		$this->db->where('lottery_id', $lottery_id);
+		
+		$this->db->update('lottery_h_w_c_stats', array('position_stats' => $position_stats_string));
+		
+		if ($this->db->affected_rows() > 0) {
+			log_message('info', "H-W-C position stats: Updated position_stats for lottery_id=$lottery_id, range=$range, h_w_c={$hots}-{$warms}-{$colds}");
+		} else {
+			log_message('warning', "H-W-C position stats: No rows affected when saving position_stats for lottery_id=$lottery_id");
+		}
 	}
 
 	/**

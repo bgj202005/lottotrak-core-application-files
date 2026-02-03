@@ -1550,9 +1550,9 @@ class History extends Admin_Controller {
 				}
 			}
 			
-			// Show patterns that actually occurred in the analyzed range, regardless of points
-			// This includes patterns with 0 points but occurrence_count > 0
-			if ($pattern_count > 0) {
+			// Only show patterns that have wins (total_points > 0)
+			// Exclude patterns with 0 points even if they occurred in the range
+			if ($pattern_count > 0 && $total_points > 0) {
 				$winners[] = array(
 					'hwc_pattern' => $hwc_pattern,
 					'total_points' => $total_points,
