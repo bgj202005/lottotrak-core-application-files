@@ -709,13 +709,15 @@ class History_m extends MY_Model
             if(isset($dr['ball'.$ball])) $drawn[$ball] = $dr['ball'.$ball];
             ++$ball;
         } while($ball<10);
-        if($xt&&!$dxb)  // We don't want the extra bonus ball added here because it has it's own separate table 
+        // Include extra ball if requested, regardless of duplicate_extra_ball setting
+        // The $xt parameter indicates whether extra ball should be included in the display
+        if($xt)
         {
             $next = array_key_last($drawn); // next available index key value
             if($next!=NULL) 
             {
                 $next++;
-                $drawn[$next] = $dr['extra'];  // include the extra / bonus (whihc is the last ball!)
+                $drawn[$next] = $dr['extra'];  // include the extra / bonus (which is the last ball!)
             }
         }
         unset($dr);
