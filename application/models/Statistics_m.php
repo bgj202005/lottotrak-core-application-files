@@ -2102,8 +2102,11 @@ class Statistics_m extends MY_Model
 		// Add newest draw to counts
 		$heat_counts = $this->add_hwc_draw($heat_counts, $newest_draw, $picks, $bonus, $draws);
 		
-		// Sort by heat descending
-		arsort($heat_counts);
+		// Extract balls from newest draw for recency tie-breaking
+		$recent_balls = $this->extract_balls_from_draw($newest_draw, $picks, $bonus, $draws);
+		
+		// Sort by heat descending, with recency as tie-breaker
+		$heat_counts = $this->sort_hwc_with_recency($heat_counts, $recent_balls);
 		
 		// Split into hot, warm, cold categories
 		$result = $this->categorize_hwc($heat_counts, $w_start, $c_start);
@@ -2111,6 +2114,77 @@ class Statistics_m extends MY_Model
 		$result['draw_id'] = $newest_draw['id'];
 		
 		return $result;
+	}
+	
+	/**
+	 * Extract balls from a draw for recency tracking
+	 * 
+	 * @param	array	$draw		Draw data
+	 * @param	integer	$picks		Number of balls drawn
+	 * @param	integer	$bonus		Include extra ball
+	 * @param	integer	$draws		Include extra draws
+	 * @return	array	Array of ball numbers from the draw
+	 */
+	private function extract_balls_from_draw($draw, $picks, $bonus, $draws)
+	{
+		$balls = array();
+		
+		// Extract main balls
+		for ($i = 1; $i <= $picks; $i++) {
+			$ball = intval($draw['ball' . $i]);
+			if ($ball > 0) {
+				$balls[] = $ball;
+			}
+		}
+		
+		// Extract extra ball if included
+		if ($bonus && isset($draw['extra']) && $draw['extra'] > 0) {
+			if ($draws || $draw['extra'] == '0') {
+				$ball = intval($draw['extra']);
+				if ($ball > 0) {
+					$balls[] = $ball;
+				}
+			}
+		}
+		
+		return $balls;
+	}
+	
+	/**
+	 * Sort H-W-C counts by heat descending, with recency as tie-breaker
+	 * When counts are equal, balls from the most recent draw rank higher
+	 * 
+	 * @param	array	$counts			Heat counts [ball => count]
+	 * @param	array	$recent_balls	Balls from most recent draw
+	 * @return	array	Sorted heat counts
+	 */
+	private function sort_hwc_with_recency($counts, $recent_balls)
+	{
+		$recent_lookup = array_flip($recent_balls);
+		
+		// Use uksort to sort by keys (ball numbers) with access to values (counts)
+		uksort($counts, function($ball_a, $ball_b) use ($counts, $recent_lookup) {
+			$count_a = $counts[$ball_a];
+			$count_b = $counts[$ball_b];
+			
+			// Primary sort: count descending (higher count = better position)
+			if ($count_a != $count_b) {
+				return $count_b - $count_a;
+			}
+			
+			// Tie-breaker: recency (balls from recent draw rank higher)
+			$a_recent = isset($recent_lookup[$ball_a]) ? 1 : 0;
+			$b_recent = isset($recent_lookup[$ball_b]) ? 1 : 0;
+			
+			if ($a_recent != $b_recent) {
+				return $b_recent - $a_recent; // Recent balls first
+			}
+			
+			// If still tied, sort by ball number ascending (lower ball number first)
+			return $ball_a - $ball_b;
+		});
+		
+		return $counts;
 	}
 	
 	/**
