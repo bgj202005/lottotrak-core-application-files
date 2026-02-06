@@ -2935,34 +2935,43 @@ class Predictions extends Admin_Controller {
 		// Save to database - either update existing record or create new one
 		$saved = false;
 		if ($existing_record) {
-			// Update existing record - exclude lastdate AND win records to preserve existing values
-			$update_data = $save_data;
-			unset($update_data['lastdate']); // Don't update lastdate for existing records
-			
-			// CRITICAL: Preserve all existing win records - never overwrite them
-			// Win records can only be updated when checking results or reset manually
-			unset($update_data['extra']);
-			unset($update_data['1_win']);
-			unset($update_data['1_win_extra']);
-			unset($update_data['2_win']);
-			unset($update_data['2_win_extra']);
-			unset($update_data['3_win']);
-			unset($update_data['3_win_extra']);
-			unset($update_data['4_win']);
-			unset($update_data['4_win_extra']);
-			unset($update_data['5_win']);
-			unset($update_data['5_win_extra']);
-			unset($update_data['6_win']);
-			unset($update_data['6_win_extra']);
-			unset($update_data['7_win']);
-			unset($update_data['7_win_extra']);
-			unset($update_data['8_win']);
-			unset($update_data['8_win_extra']);
-			unset($update_data['9_win']);
-			unset($update_data['9_win_extra']);
+			// CRITICAL: Only update if the filter is EXPIRED (active = 0)
+			// ACTIVE filters should NOT be modified - they are waiting to be checked in Prize History
+			if ($existing_record['active'] == 0) {
+				// Update existing EXPIRED record - exclude lastdate AND win records to preserve existing values
+				$update_data = $save_data;
+				unset($update_data['lastdate']); // Don't update lastdate for existing records
+				
+				// CRITICAL: Preserve all existing win records - never overwrite them
+				// Win records can only be updated when checking results or reset manually
+				unset($update_data['extra']);
+				unset($update_data['1_win']);
+				unset($update_data['1_win_extra']);
+				unset($update_data['2_win']);
+				unset($update_data['2_win_extra']);
+				unset($update_data['3_win']);
+				unset($update_data['3_win_extra']);
+				unset($update_data['4_win']);
+				unset($update_data['4_win_extra']);
+				unset($update_data['5_win']);
+				unset($update_data['5_win_extra']);
+				unset($update_data['6_win']);
+				unset($update_data['6_win_extra']);
+				unset($update_data['7_win']);
+				unset($update_data['7_win_extra']);
+				unset($update_data['8_win']);
+				unset($update_data['8_win_extra']);
+				unset($update_data['9_win']);
+				unset($update_data['9_win_extra']);
 
-			$this->db->where('id', $existing_record['id']);
-			$saved = $this->db->update('lottery_combination_filters', $update_data);
+				$this->db->where('id', $existing_record['id']);
+				$saved = $this->db->update('lottery_combination_filters', $update_data);
+			} else {
+				// Existing record is ACTIVE - DO NOT UPDATE
+				// User must check results in Prize History first to expire it
+				$saved = true; // Treat as success but skip update
+				$this->session->set_flashdata('info_message', 'Combination file already exists and is ACTIVE. Check results in Prize History before regenerating.');
+			}
 		} else {
 			// Create new record (includes initial lastdate if set and win columns at 0)
 
