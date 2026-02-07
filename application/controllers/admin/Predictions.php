@@ -629,17 +629,20 @@ class Predictions extends Admin_Controller {
 		$this->data['last_draw_date'] = $lottery_status['last_draw_date'];
 		$this->data['expected_next_date'] = $lottery_status['expected_next_date'];
 		
-		// Check for outdated combination files that need to be expired
-		$this->check_outdated_combinations($id);
+		// DISABLED: Automatic expiration of combination files
+		// Filters should only be expired when checking results in Prize History
+		// $this->check_outdated_combinations($id);
 		
-		// Verify and update expired combination ticket filters
-		$expired_check = $this->lottery_data_m->verify_active_date($id, $tbl_name);
-		if (!$expired_check) {
-			$this->session->set_flashdata('message', '<div class="alert alert-danger">Unable to update expired combination tables before entering the prediction futures view.</div>');
-		}
+		// DISABLED: Automatic verification/expiration of active filters
+		// Filters should remain ACTIVE until results are checked in Prize History
+		// $expired_check = $this->lottery_data_m->verify_active_date($id, $tbl_name);
+		// if (!$expired_check) {
+		//     $this->session->set_flashdata('message', '<div class="alert alert-danger">Unable to update expired combination tables before entering the prediction futures view.</div>');
+		// }
 		
-		// Update expired combination filters with outdated lastdate to most recent draw
-		$this->update_expired_combination_filters_lastdate($id, $tbl_name);
+		// DISABLED: Automatic lastdate updates for expired filters
+		// Lastdate should only be updated when checking results in Prize History
+		// $this->update_expired_combination_filters_lastdate($id, $tbl_name);
 		
 		$drawn = $this->data['lottery']->balls_drawn; // Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$this->data['country_code'] = $this->lottery_data_m->get_lottery_country($id);
@@ -2866,10 +2869,13 @@ class Predictions extends Admin_Controller {
 		// Prepare data for saving
 		// For new records, set initial lastdate; for existing records, preserve existing lastdate
 		$initial_lastdate = null;
+		$latest_lastdate = null;
+		if (isset($this->data['lottery']->last_drawn['draw_date'])) {
+			$latest_lastdate = $this->lottery_data_m->format_date_to_mysql($this->data['lottery']->last_drawn['draw_date']);
+		}
 		if (!$existing_record) {
 			// For new records, set lastdate to lottery's last drawn date (will be processed by prize history)
-			$ld = $this->data['lottery']->last_drawn['draw_date'];
-			$initial_lastdate = $this->lottery_data_m->format_date_to_mysql($ld);
+			$initial_lastdate = $latest_lastdate;
 		}
 		
 		// Format the generated numbers as comma-separated string (e.g., "46,24,1,42,30,19,44")
@@ -2938,9 +2944,14 @@ class Predictions extends Admin_Controller {
 			// CRITICAL: Only update if the filter is EXPIRED (active = 0)
 			// ACTIVE filters should NOT be modified - they are waiting to be checked in Prize History
 			if ($existing_record['active'] == 0) {
-				// Update existing EXPIRED record - exclude lastdate AND win records to preserve existing values
+				// Update existing EXPIRED record - preserve win records and update lastdate only when stale
 				$update_data = $save_data;
-				unset($update_data['lastdate']); // Don't update lastdate for existing records
+				// Only update lastdate when reactivating an EXPIRED record and date is not most recent
+				if ($latest_lastdate && ($existing_record['lastdate'] === null || $existing_record['lastdate'] === '' || $existing_record['lastdate'] !== $latest_lastdate)) {
+					$update_data['lastdate'] = $latest_lastdate;
+				} else {
+					unset($update_data['lastdate']);
+				}
 				
 				// CRITICAL: Preserve all existing win records - never overwrite them
 				// Win records can only be updated when checking results or reset manually
