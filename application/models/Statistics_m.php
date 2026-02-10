@@ -2102,11 +2102,11 @@ class Statistics_m extends MY_Model
 		// Add newest draw to counts
 		$heat_counts = $this->add_hwc_draw($heat_counts, $newest_draw, $picks, $bonus, $draws);
 		
-		// Extract balls from newest draw for recency tie-breaking
-		$recent_balls = $this->extract_balls_from_draw($newest_draw, $picks, $bonus, $draws);
+		// Build recency map across the full range for tie-breaking
+		$recency_map = $this->build_recency_map($name, $range, $picks, $bonus, $draws);
 		
 		// Sort by heat descending, with recency as tie-breaker
-		$heat_counts = $this->sort_hwc_with_recency($heat_counts, $recent_balls);
+		$heat_counts = $this->sort_hwc_with_recency($heat_counts, $recency_map);
 		
 		// Split into hot, warm, cold categories
 		$result = $this->categorize_hwc($heat_counts, $w_start, $c_start);
@@ -2155,15 +2155,13 @@ class Statistics_m extends MY_Model
 	 * When counts are equal, balls from the most recent draw rank higher
 	 * 
 	 * @param	array	$counts			Heat counts [ball => count]
-	 * @param	array	$recent_balls	Balls from most recent draw
+	 * @param	array	$recency_map	Ball => recency index (0 = most recent)
 	 * @return	array	Sorted heat counts
 	 */
-	private function sort_hwc_with_recency($counts, $recent_balls)
+	private function sort_hwc_with_recency($counts, $recency_map)
 	{
-		$recent_lookup = array_flip($recent_balls);
-		
 		// Use uksort to sort by keys (ball numbers) with access to values (counts)
-		uksort($counts, function($ball_a, $ball_b) use ($counts, $recent_lookup) {
+		uksort($counts, function($ball_a, $ball_b) use ($counts, $recency_map) {
 			$count_a = $counts[$ball_a];
 			$count_b = $counts[$ball_b];
 			
@@ -2172,12 +2170,12 @@ class Statistics_m extends MY_Model
 				return $count_b - $count_a;
 			}
 			
-			// Tie-breaker: recency (balls from recent draw rank higher)
-			$a_recent = isset($recent_lookup[$ball_a]) ? 1 : 0;
-			$b_recent = isset($recent_lookup[$ball_b]) ? 1 : 0;
+			// Tie-breaker: recency (lower index = more recent)
+			$a_recent = isset($recency_map[$ball_a]) ? $recency_map[$ball_a] : PHP_INT_MAX;
+			$b_recent = isset($recency_map[$ball_b]) ? $recency_map[$ball_b] : PHP_INT_MAX;
 			
 			if ($a_recent != $b_recent) {
-				return $b_recent - $a_recent; // Recent balls first
+				return $a_recent - $b_recent; // More recent first
 			}
 			
 			// If still tied, sort by ball number ascending (lower ball number first)
@@ -2185,6 +2183,36 @@ class Statistics_m extends MY_Model
 		});
 		
 		return $counts;
+	}
+
+	/**
+	 * Build a recency map for the last N draws
+	 * 
+	 * @param	string	$table		Lottery table name
+	 * @param	int		$range		Number of draws to inspect
+	 * @param	int		$picks		Number of balls drawn
+	 * @param	int		$bonus		Include extra ball
+	 * @param	int		$draws		Include extra draws
+	 * @return	array	Ball => recency index (0 = most recent)
+	 */
+	private function build_recency_map($table, $range, $picks, $bonus, $draws)
+	{
+		$recency = array();
+		
+		$sql = "SELECT * FROM {$table} ORDER BY draw_date DESC, id DESC LIMIT " . intval($range);
+		$query = $this->db->query($sql);
+		$draws_list = $query->result_array();
+		
+		foreach ($draws_list as $index => $draw) {
+			$balls = $this->extract_balls_from_draw($draw, $picks, $bonus, $draws);
+			foreach ($balls as $ball) {
+				if (!isset($recency[$ball])) {
+					$recency[$ball] = $index; // First occurrence from most recent
+				}
+			}
+		}
+		
+		return $recency;
 	}
 	
 	/**
