@@ -469,6 +469,14 @@ $(document).ready(function() {
             return false;
         }
         
+        // Store current pagination state in sessionStorage before navigating
+        var currentPage = <?php echo $current_page; ?>;
+        var currentPerPage = <?php echo $per_page; ?>;
+        var currentOffset = <?php echo $offset; ?>;
+        sessionStorage.setItem('prize_history_page', currentPage);
+        sessionStorage.setItem('prize_history_per_page', currentPerPage);
+        sessionStorage.setItem('prize_history_offset', currentOffset);
+        
         showProgressBar(filename);
         checkResults(filterId, filename);
         
@@ -675,11 +683,17 @@ function showProgressBar(filename) {
 }
 function checkResults(filterId, filename) {
     try {
+        // Get stored pagination state
+        var storedOffset = sessionStorage.getItem('prize_history_offset') || 0;
+        var storedPerPage = sessionStorage.getItem('prize_history_per_page') || 10;
+        
         $.ajax({
             url: '<?php echo site_url("admin/prize/check_results_progress"); ?>',
             type: 'POST',
             data: {
-                filter_id: filterId
+                filter_id: filterId,
+                stored_offset: storedOffset,
+                stored_per_page: storedPerPage
             },
             dataType: 'json',
             timeout: 30000, // 30 second timeout
