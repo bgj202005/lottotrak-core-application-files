@@ -2327,7 +2327,7 @@ class Predictions extends Admin_Controller {
 				// Prepare filter array
 				// When "All" is selected for friends, disable friendship filtering completely
 				// Also disable filtering for "none" (0 friends) selection
-				$effective_friends_checked = $friends_checked && ($selected_friends !== 'all') && ($selected_friends !== 'none');
+				$effective_friends_checked = $friends_checked && ($selected_friends !== 'all');
 				
 				$filters = [
 					'selected_trends' => $selected_trends,
@@ -2544,7 +2544,7 @@ class Predictions extends Admin_Controller {
 				// Also disable filtering for "none" (0 friends) selection
 				$friends_value = isset($futures_form['selected_friends']) ? $futures_form['selected_friends'] : '';
 				$friends_checkbox = isset($futures_form['selected_friends_checkbox']) ? $futures_form['selected_friends_checkbox'] : false;
-				$effective_friends_checked = $friends_checkbox && ($friends_value !== 'all') && ($friends_value !== 'none');
+				$effective_friends_checked = $friends_checkbox && ($friends_value !== 'all');
 				
 				$filters = [
 					'selected_trends' => $futures_form['selected_trends'],
