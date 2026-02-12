@@ -1469,38 +1469,22 @@ class Combination_filters_m extends MY_Model
      */
     private function validate_oneway_friendships_only($combo_numbers, $oneway, $twoway)
     {
-        log_message('info', "FRIENDSHIP DEBUG: Validating 1-way friendships for combo [" . implode(',', $combo_numbers) . "]");
-        
-        // First, check that no 2-way friendships exist
-        foreach ($twoway as $pair) {
-            list($a, $b) = $pair;
-            if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
-                log_message('info', "FRIENDSHIP DEBUG: Found 2-way friendship {$a}-{$b} - REJECTING");
-                return false; // Found 2-way friendship - not allowed
-            }
-        }
-        
+        // NOTE: Allow 2-way friendships to coexist with 1-way friendships.
+        // The requirement is to have at least one complete 1-way friendship.
         $found_complete_oneway = false;
         
         // Check that 1-way friendships are complete (if A>B and A is present, B must be present)
         foreach ($oneway as $pair) {
             list($a, $b) = $pair;
-            if (in_array($a, $combo_numbers) && !in_array($b, $combo_numbers)) {
-                log_message('info', "FRIENDSHIP DEBUG: Found incomplete 1-way friendship {$a}>{$b} (missing {$b}) - REJECTING");
-                return false; // Found incomplete 1-way friendship
-            }
             if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
-                log_message('info', "FRIENDSHIP DEBUG: Found complete 1-way friendship {$a}>{$b} - OK");
                 $found_complete_oneway = true;
             }
         }
         
         if (!$found_complete_oneway) {
-            log_message('info', "FRIENDSHIP DEBUG: No 1-way friendships found - REJECTING");
             return false; // Must have at least one complete 1-way friendship
         }
         
-        log_message('info', "FRIENDSHIP DEBUG: 1-way validation PASSED");
         return true; // Only valid 1-way friendships found
     }
     
@@ -1612,18 +1596,7 @@ class Combination_filters_m extends MY_Model
                 foreach ($oneway as $pair) {
                     list($a, $b) = $pair;
                     if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
-                        // Found complete 1-way friendship - check no 2-way friendships exist
-                        $has_twoway = false;
-                        foreach ($twoway as $twopair) {
-                            list($ta, $tb) = $twopair;
-                            if (in_array($ta, $combo_numbers) && in_array($tb, $combo_numbers)) {
-                                $has_twoway = true;
-                                break;
-                            }
-                        }
-                        if (!$has_twoway) {
-                            return true; // Found valid 1-way friendship occurrence
-                        }
+                        return true; // Found valid 1-way friendship occurrence
                     }
                 }
             } elseif ($friendship_type === '2') {
@@ -1631,18 +1604,7 @@ class Combination_filters_m extends MY_Model
                 foreach ($twoway as $pair) {
                     list($a, $b) = $pair;
                     if (in_array($a, $combo_numbers) && in_array($b, $combo_numbers)) {
-                        // Found complete 2-way friendship - check no 1-way friendships exist
-                        $has_oneway = false;
-                        foreach ($oneway as $onepair) {
-                            list($oa, $ob) = $onepair;
-                            if (in_array($oa, $combo_numbers) && in_array($ob, $combo_numbers)) {
-                                $has_oneway = true;
-                                break;
-                            }
-                        }
-                        if (!$has_oneway) {
-                            return true; // Found valid 2-way friendship occurrence
-                        }
+                        return true; // Found valid 2-way friendship occurrence
                     }
                 }
             }
