@@ -2856,14 +2856,22 @@ class Predictions extends Admin_Controller {
 		$this->db->where('combo_id', $combo_id);
 		$this->db->where('user_id', $current_user_id);
 		$this->db->where('user', 1); // Admin records only
+		$this->db->where('lottery_id', $id); // Scope to current lottery
 		$query = $this->db->get('lottery_combination_filters');
+		
+		log_message('debug', "Combination Save - Checking for existing record: combo_id={$combo_id}, user_id={$current_user_id}, lottery_id={$id}");
+		log_message('debug', "Combination Save - Query found: " . $query->num_rows() . " records");
 		
 		if ($query->num_rows() > 0) {
 			$existing_record = $query->row_array();
+			log_message('debug', "Combination Save - Existing record found: ID={$existing_record['id']}, active={$existing_record['active']}, lastdate={$existing_record['lastdate']}");
 			// If existing record is EXPIRED (active = 0), we'll update it to ACTIVE
 			if ($existing_record['active'] == 0) {
 				$status_changed = true;
+				log_message('debug', "Combination Save - Status will change from EXPIRED to ACTIVE");
 			}
+		} else {
+			log_message('debug', "Combination Save - No existing record found, will create new one");
 		}
 		
 		// Prepare data for saving
@@ -2946,11 +2954,16 @@ class Predictions extends Admin_Controller {
 			if ($existing_record['active'] == 0) {
 				// Update existing EXPIRED record - preserve win records and update lastdate only when stale
 				$update_data = $save_data;
+				log_message('debug', "Combination Save - Updating EXPIRED record ID={$existing_record['id']} to ACTIVE");
+				log_message('debug', "Combination Save - Update data before unsets: active={$update_data['active']}, CCCC={$update_data['CCCC']}");
+				
 				// Only update lastdate when reactivating an EXPIRED record and date is not most recent
 				if ($latest_lastdate && ($existing_record['lastdate'] === null || $existing_record['lastdate'] === '' || $existing_record['lastdate'] !== $latest_lastdate)) {
 					$update_data['lastdate'] = $latest_lastdate;
+					log_message('debug', "Combination Save - Updating lastdate to: {$latest_lastdate}");
 				} else {
 					unset($update_data['lastdate']);
+					log_message('debug', "Combination Save - Preserving existing lastdate: {$existing_record['lastdate']}");
 				}
 				
 				// CRITICAL: Preserve all existing win records - never overwrite them
@@ -2975,8 +2988,15 @@ class Predictions extends Admin_Controller {
 				unset($update_data['9_win']);
 				unset($update_data['9_win_extra']);
 
+				log_message('debug', "Combination Save - Update data after unsets: active=" . (isset($update_data['active']) ? $update_data['active'] : 'NOT SET'));
+				
 				$this->db->where('id', $existing_record['id']);
 				$saved = $this->db->update('lottery_combination_filters', $update_data);
+				
+				log_message('debug', "Combination Save - Update result: " . ($saved ? 'SUCCESS' : 'FAILED'));
+				if ($saved) {
+					log_message('debug', "Combination Save - Affected rows: " . $this->db->affected_rows());
+				}
 			} else {
 				// Existing record is ACTIVE - DO NOT UPDATE
 				// User must check results in Prize History first to expire it
@@ -2985,8 +3005,12 @@ class Predictions extends Admin_Controller {
 			}
 		} else {
 			// Create new record (includes initial lastdate if set and win columns at 0)
-
+			log_message('debug', "Combination Save - Creating new record with active=1, lottery_id={$id}");
 			$saved = $this->predictions_m->save_combination_filter($save_data);
+			log_message('debug', "Combination Save - Insert result: " . ($saved ? 'SUCCESS' : 'FAILED'));
+			if ($saved) {
+				log_message('debug', "Combination Save - New record ID: " . $this->db->insert_id());
+			}
 		}
 		
 		if ($saved) {

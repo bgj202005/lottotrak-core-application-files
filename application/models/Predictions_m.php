@@ -472,8 +472,8 @@ class Predictions_m extends MY_Model
         $this->db->select('lcf.id, lcf.file_name, lcf.N, lcf.R, lcf.CCCC, 
                           COALESCE(MAX(lfc.active), 0) as active');
         $this->db->from('lottery_combination_files lcf');
-        $this->db->join('lottery_combination_filters lfc', 
-                       'lcf.id = lfc.combo_id AND lfc.user = 1 AND lfc.user_id = ' . (int)$current_user_id, 'left');
+		$this->db->join('lottery_combination_filters lfc', 
+			       'lcf.id = lfc.combo_id AND lfc.user = 1 AND lfc.user_id = ' . (int)$current_user_id . ' AND lfc.lottery_id = ' . (int)$lottery_id, 'left');
         $this->db->where('lcf.R', $balls_drawn); // Match the balls_drawn value
         $this->db->group_by('lcf.id, lcf.file_name, lcf.N, lcf.R, lcf.CCCC');
         $this->db->order_by('lcf.file_name', 'ASC');
