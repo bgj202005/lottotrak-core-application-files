@@ -2199,7 +2199,7 @@ class Statistics_m extends MY_Model
 	{
 		$recency = array();
 		
-		$sql = "SELECT * FROM {$table} ORDER BY draw_date DESC, id DESC LIMIT " . intval($range);
+		$sql = "SELECT * FROM {$table} ORDER BY id DESC LIMIT " . intval($range);
 		$query = $this->db->query($sql);
 		$draws_list = $query->result_array();
 		
