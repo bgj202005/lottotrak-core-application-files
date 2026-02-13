@@ -2450,10 +2450,13 @@ class Predictions extends Admin_Controller {
 		else {
 			// Restore form/filter values
 			$futures_form = $this->session->userdata('futures_form');
+			
+			// Check if session data exists
+			if ($futures_form && is_array($futures_form)) {
 				foreach ($futures_form as $key => $value) {
 					$this->data[$key] = $value;
 				}
-			// LOTTERY PROFILE STATISTICS PRESETS Settings
+				// LOTTERY PROFILE STATISTICS PRESETS Settings
 				$this->data['selected_h_w_c_group'] = $futures_form['selected_h_w_c_group'];
 				$this->data['selected_hwc'] = $futures_form['selected_hwc']; 
 				$this->data['selected_followers'] = $futures_form['selected_followers']; 
@@ -2472,12 +2475,14 @@ class Predictions extends Admin_Controller {
 				$this->data['selected_last_digits'] = $futures_form['selected_last_digits']; 		// last digits setting
 				$this->data['selected_number_range'] = $futures_form['selected_number_range'];		// number range setting
 				$this->data['selected_adjacents'] = $futures_form['selected_adjacents'];				// adjacents setting
+			}
+			
 			$number_array = $this->session->userdata('futures_number_array');
 			$combination_file = $this->session->userdata('combination_file_name'); // Use parsed filename
 			
 			// Check for friendship warnings in GET requests (when viewing existing results)
 			$friendship_warning = null;
-			if ($number_array && $futures_form['selected_friends_checkbox'] === 'on' && $futures_form['selected_friends'] !== 'all' && $futures_form['selected_friends'] !== 'none') {
+			if ($futures_form && is_array($futures_form) && $number_array && $futures_form['selected_friends_checkbox'] === 'on' && $futures_form['selected_friends'] !== 'all' && $futures_form['selected_friends'] !== 'none') {
 				// Analyze the current number array for friendship warnings
 				$friendship_analysis = $this->predictions_m->analyze_friendships($id, $number_array);
 				$selected_friends = $futures_form['selected_friends'];
@@ -2704,9 +2709,19 @@ class Predictions extends Admin_Controller {
 	 */
 	public function combination_save($id)
 	{
+		// Log the start of save operation
+		log_message('info', "=== COMBINATION_SAVE CALLED === Lottery ID: {$id}, Time: " . date('Y-m-d H:i:s'));
+		
+		// Increase limits for large combination files
+		@ini_set('max_execution_time', '300'); // 5 minutes
+		@ini_set('memory_limit', '512M'); // Increase memory limit
+		
 		// Start output buffering to catch any unexpected output
 		if ($this->input->is_ajax_request()) {
 			ob_start();
+			log_message('info', "AJAX request detected for combination_save");
+		} else {
+			log_message('info', "Non-AJAX request for combination_save");
 		}
 		
 		try {
@@ -2721,6 +2736,11 @@ class Predictions extends Admin_Controller {
 			$number_array = $this->session->userdata('futures_number_array');
 			$combination_file = $this->session->userdata('combination_file_name'); // Use parsed filename
 			$combo_id = $this->session->userdata('combination_file_id'); // Use stored combo_id
+
+			log_message('info', "Session check - Data: " . ($session_data ? 'YES' : 'NO') . 
+				", Numbers: " . ($number_array ? 'YES' : 'NO') . 
+				", File: " . ($combination_file ? $combination_file : 'NO') . 
+				", ID: " . ($combo_id ? $combo_id : 'NO'));
 
 
 
@@ -3119,8 +3139,18 @@ class Predictions extends Admin_Controller {
 		
 		} catch (Exception $e) {
 			$error_message = 'Exception in combination_save: ' . $e->getMessage();
+			$error_details = 'File: ' . $e->getFile() . ' Line: ' . $e->getLine();
 			log_message('error', $error_message);
+			log_message('error', $error_details);
 			log_message('error', 'Exception stack trace: ' . $e->getTraceAsString());
+			
+			// Log combination file details for debugging
+			if (isset($combination_file)) {
+				log_message('error', "Combination file: {$combination_file}");
+			}
+			if (isset($filtered_count)) {
+				log_message('error', "Filtered count: {$filtered_count}");
+			}
 			
 			if ($this->input->is_ajax_request()) {
 				// Clean output buffer and send clean JSON
@@ -3129,7 +3159,7 @@ class Predictions extends Admin_Controller {
 					->set_content_type('application/json')
 					->set_output(json_encode([
 						'success' => false,
-						'message' => 'An error occurred while saving. Please check the logs for details.',
+						'message' => 'An error occurred while saving: ' . $e->getMessage(),
 						'debug' => ENVIRONMENT === 'development' ? $error_message : null
 					]));
 				return;
@@ -3138,8 +3168,18 @@ class Predictions extends Admin_Controller {
 			redirect('admin/predictions/futures/' . $id);
 		} catch (Error $e) {
 			$error_message = 'Fatal error in combination_save: ' . $e->getMessage();
+			$error_details = 'File: ' . $e->getFile() . ' Line: ' . $e->getLine();
 			log_message('error', $error_message);
+			log_message('error', $error_details);
 			log_message('error', 'Fatal error stack trace: ' . $e->getTraceAsString());
+			
+			// Log combination file details for debugging
+			if (isset($combination_file)) {
+				log_message('error', "Combination file: {$combination_file}");
+			}
+			if (isset($filtered_count)) {
+				log_message('error', "Filtered count: {$filtered_count}");
+			}
 			
 			if ($this->input->is_ajax_request()) {
 				// Clean output buffer and send clean JSON
@@ -3148,7 +3188,7 @@ class Predictions extends Admin_Controller {
 					->set_content_type('application/json')
 					->set_output(json_encode([
 						'success' => false,
-						'message' => 'A fatal error occurred while saving. Please check the logs for details.',
+						'message' => 'A fatal error occurred while saving: ' . $e->getMessage(),
 						'debug' => ENVIRONMENT === 'development' ? $error_message : null
 					]));
 				return;

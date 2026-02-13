@@ -421,10 +421,20 @@ class Combination_filters_m extends MY_Model
      */
     public function save_filtered_combinations_to_file($filepath, $number_array, $filters, $output_file_path)
     {
+        // Log start of save operation with file details
+        log_message('info', "save_filtered_combinations_to_file: Starting save operation");
+        log_message('info', "  Source file: {$filepath}");
+        log_message('info', "  Output file: {$output_file_path}");
+        
         if (!file_exists($filepath)) {
             log_message('error', "save_filtered_combinations_to_file: Source file not found: {$filepath}");
             return false;
         }
+        
+        // Log file size for large file detection
+        $file_size = filesize($filepath);
+        $file_size_mb = round($file_size / 1024 / 1024, 2);
+        log_message('info', "  Source file size: {$file_size_mb} MB");
         
         $handle = fopen($filepath, 'r');
         $output_handle = fopen($output_file_path, 'w');
@@ -506,6 +516,11 @@ class Combination_filters_m extends MY_Model
 
         fclose($handle);
         fclose($output_handle);
+        
+        // Log completion stats
+        log_message('info', "save_filtered_combinations_to_file: Completed");
+        log_message('info', "  Processed: {$processed_count} combinations");
+        log_message('info', "  Saved: {$saved_count} combinations");
         
         // If no combinations were saved, log the filter criteria for debugging
         if ($saved_count == 0) {
@@ -1415,18 +1430,8 @@ class Combination_filters_m extends MY_Model
                 return $this->validate_no_friendships($combo_numbers, $oneway, $twoway);
                 
             case '1':
-                // Only 1-way friendships allowed (no 2-way friendships)
-                $result = $this->validate_oneway_friendships_only($combo_numbers, $oneway, $twoway);
-                if (!$result) {
-                    // Log specific violation for debugging
-                    foreach ($oneway as $pair) {
-                        list($a, $b) = $pair;
-                        if (in_array($a, $combo_numbers) && !in_array($b, $combo_numbers)) {
-                            log_message('info', "FRIENDSHIP VIOLATION: 1-way {$a}>{$b} incomplete (missing {$b}) in combination [" . implode(',', $combo_numbers) . "]");
-                        }
-                    }
-                }
-                return $result;
+                // Only 1-way friendships allowed
+                return $this->validate_oneway_friendships_only($combo_numbers, $oneway, $twoway);
                 
             case '2':
                 // Only 2-way friendships allowed (no 1-way friendships)
