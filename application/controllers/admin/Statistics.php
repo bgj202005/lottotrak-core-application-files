@@ -1945,9 +1945,7 @@ class Statistics extends Admin_Controller {
 			$c_pos = array_fill(0, $c_cnt, 0); // Zeroed array		
 		$examine_date = $this->statistics_m->lottery_return_date($table, $range+1, $xtra); 	// Please note: This an off by 1 error. It has to go +1 draw back 
 		if(!$examine_date) return false;													// to iterate for the given range
-		$fd = $this->statistics_m->hwc_next_draw($table, $examine_date); 					// 1st examine draw requested
-		$next_drawn = $this->statistics_m->only_picks($picks, $fd);							// and return only the drawn numbers
-
+		
 		$heats = explode(",",$this->statistics_m->hwc_heats[$picks]); 						// break the heat h-w-c in an array
 		$heats = array_flip($heats);								  						// reverse the values as associative keys
 		foreach($heats as $level => $value)
@@ -1957,6 +1955,7 @@ class Statistics extends Admin_Controller {
 		$row  = 1;	// Starting point at $row 1
 		do
 		{
+			// Calculate H-W-C BEFORE getting the next draw (prediction is based on past, not including the draw being tested)
 			$str_h_w_c = $this->statistics_m->h_w_c_calculate($table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $examine_date, $dup);
 			$str_hots = $this->statistics_m->hots($str_h_w_c);
 			$str_warms = $this->statistics_m->warms($str_h_w_c);
@@ -1982,15 +1981,19 @@ class Statistics extends Admin_Controller {
 				$c = explode('=', $colds[$key]);
 				array_push($lows, $c[0]);
 			}
-			// Determine your positional values based on heat, Hot, Warm, Cold
-			$h_pos = $this->statistics_m->positions($next_drawn,$highs,$h_pos,$bn,$xtra,$dup); 		// Pass the hot positional value array, compare the current drawn numbers with the high numbers 
-			$w_pos = $this->statistics_m->positions($next_drawn,$averages,$w_pos,$bn,$xtra,$dup); 	// Pass the hot positional value array, compare the current drawn numbers with the average numbers 
-			$c_pos = $this->statistics_m->positions($next_drawn,$lows,$c_pos,$bn,$xtra,$dup); 		// Pass the hot positional value array, compare the current drawn numbers with the average numbers 
+			
+			// NOW get the next draw AFTER the H-W-C calculation date
 			$fd = $this->statistics_m->hwc_next_draw($table, $examine_date); // return the full with draw date, ball 1 ... ball n + extra
 			if($fd)	// next draw returned?
 			{
-				$examine_date = $fd['draw_date'];	// Next date for H_W_C Calculation
 				$next_drawn = $this->statistics_m->only_picks($picks, $fd);
+				
+				// Determine your positional values based on heat, Hot, Warm, Cold
+				$h_pos = $this->statistics_m->positions($next_drawn,$highs,$h_pos,$bn,$xtra,$dup); 		// Pass the hot positional value array, compare the current drawn numbers with the high numbers 
+				$w_pos = $this->statistics_m->positions($next_drawn,$averages,$w_pos,$bn,$xtra,$dup); 	// Pass the hot positional value array, compare the current drawn numbers with the average numbers 
+				$c_pos = $this->statistics_m->positions($next_drawn,$lows,$c_pos,$bn,$xtra,$dup); 		// Pass the hot positional value array, compare the current drawn numbers with the average numbers 
+				
+				$examine_date = $fd['draw_date'];	// Move to next date for next iteration
 			}
 			else
 			{
@@ -2025,6 +2028,7 @@ class Statistics extends Admin_Controller {
 		$row  = 1;	// Starting point at $row 1
 		do
 		{
+			// Calculate H-W-C BEFORE getting the next draw
 			$str_h_w_c = $this->statistics_m->h_w_c_calculate($table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $examine_date);
 			$str_hots = $this->statistics_m->hots($str_h_w_c);
 			$str_warms = $this->statistics_m->warms($str_h_w_c);
@@ -2050,11 +2054,13 @@ class Statistics extends Admin_Controller {
 				$c = explode('=', $colds[$key]);
 				array_push($lows, $c[0]);
 			}
+			
+			// NOW get the next draw AFTER the H-W-C calculation
 			$fd = $this->statistics_m->hwc_next_draw($table, $examine_date); // return the full with draw date, ball 1 ... ball n + extra
 			if($fd)	// next draw returned?
 			{
-				$examine_date = $fd['draw_date'];	// Next date for H_W_C Calculation
 				$next_drawn = $this->statistics_m->only_picks($picks, $fd);
+				$examine_date = $fd['draw_date'];	// Move to next date for next iteration
 			}
 			else
 			{
@@ -2464,6 +2470,22 @@ class Statistics extends Admin_Controller {
 				// Update history stats
 				$hwc_history = $this->h_w_c_history($id, $tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
 				$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl, $drawn, $lotto->extra_included, $blnduplicate, $strhots_last, $strwarms_last, $strcolds_last, $hwc_history['position']);
+				
+				// Save the updated position counts to database
+				$hwc_h_data = array(
+					'range'				=>	$new_range,
+					'h_w_c_range'		=> 	$hwc_history['h_w_c_range'],
+					'h_w_c_last_1'		=> 	$hwc_history['h_w_c_last_1'],
+					'h_w_c_last_10'		=> 	$hwc_history['h_w_c_last_10'],
+					'position'			=> 	$hwc_history['position'],
+					'position_last'		=> 	$hwc_history['position_last'],
+					'draw_id'			=> 	$lotto->last_drawn['id'],
+					'draw_id_last'		=> 	$draw_id_last,
+					'lottery_id'		=> 	$id,
+					'extra_included'	=> 	$h_w_c['extra_included'],
+					'extra_draws'		=> 	$h_w_c['extra_draws'],
+				);
+				$this->statistics_m->hwc_history_save($hwc_h_data, TRUE);
 			}
 		}
 	 }
