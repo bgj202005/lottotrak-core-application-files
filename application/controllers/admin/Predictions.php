@@ -2820,17 +2820,20 @@ class Predictions extends Admin_Controller {
 			'lottery_highlights' => $this->data['lottery']->highlights
 		];
 		
+		log_message('info', "Filter array built successfully");
 
 		
 		// Check if we have session data from recent generation that matches current settings
 		$stored_count = $this->session->userdata('current_filtered_count');
 		$stored_filters = $this->session->userdata('current_filters');
 
+		log_message('info', "Stored count: " . ($stored_count ? $stored_count : 'NONE') . ", Stored filters: " . ($stored_filters ? 'YES' : 'NO'));
 		
 		// Compare key filter values to see if they match current session
 		$filters_match = false;
 		if (!empty($stored_filters)) {
 			$filters_match = $this->filters_match($filters, $stored_filters);
+			log_message('info', "Filters match result: " . ($filters_match ? 'YES' : 'NO'));
 		}
 
 		// If filters don't match but we have stored filters from the last generation,
@@ -2838,27 +2841,24 @@ class Predictions extends Admin_Controller {
 		if (!$filters_match && !empty($stored_filters)) {
 			$filters = $stored_filters;
 			$filters_match = true;
+			log_message('info', "Using stored filters from generation");
 		}
 		
 		// Use stored count if available and filters match, otherwise recalculate
+		log_message('info', "About to check/calculate filtered count");
 		if (!empty($stored_count) && $filters_match) {
 			$filtered_count = $stored_count;
+			log_message('info', "Using stored count: {$filtered_count} - SKIPPING VERIFICATION to avoid timeout");
 
-			
-			// VERIFICATION: Double-check the stored count by recalculating (for debugging)
-			$verification_count = $this->combination_filters_m->get_filtered_combinations_count($filepath, $number_array, $filters);
-			if ($verification_count != $filtered_count) {
-				log_message('warning', "Combination Save - COUNT MISMATCH! Stored: {$filtered_count}, Recalculated: {$verification_count}");
-				log_message('warning', "Combination Save - Using recalculated count for accuracy");
-				$filtered_count = $verification_count;
-			} else {
-
-			}
+			// Skip verification for large files to prevent timeout during save
+			// The stored count is from the generation and is reliable
 		} else {
-
+			log_message('info', "No stored count or filters mismatch - recalculating...");
 			$filtered_count = $this->combination_filters_m->get_filtered_combinations_count($filepath, $number_array, $filters);
+			log_message('info', "Recalculation complete: {$filtered_count}");
 
 		}
+		log_message('info', "Count determination complete. Proceeding with save prep.");
 		$current_user_id = $this->session->userdata('id');
 		$formatted_user_id = str_pad($current_user_id, 2, '0', STR_PAD_LEFT);
 		// Create filename: 060828ADMIN01 format (MMDDYY + ADMIN + user_id)
@@ -3018,10 +3018,66 @@ class Predictions extends Admin_Controller {
 					log_message('debug', "Combination Save - Affected rows: " . $this->db->affected_rows());
 				}
 			} else {
-				// Existing record is ACTIVE - DO NOT UPDATE
-				// User must check results in Prize History first to expire it
-				$saved = true; // Treat as success but skip update
-				$this->session->set_flashdata('info_message', 'Combination file already exists and is ACTIVE. Check results in Prize History before regenerating.');
+				// Existing record is ACTIVE - Check if settings or count changed
+				// If the filter settings or CCCC count are different, allow update
+				$settings_changed = (
+					$existing_record['CCCC'] != $save_data['CCCC'] ||
+					$existing_record['selected_friends'] != $save_data['selected_friends'] ||
+					$existing_record['friends'] != $save_data['friends'] ||
+					$existing_record['repeaters'] != $save_data['repeaters'] ||
+					$existing_record['trends'] != $save_data['trends'] ||
+					$existing_record['winning_sums'] != $save_data['winning_sums'] ||
+					$existing_record['consecutives'] != $save_data['consecutives']
+				);
+				
+				if ($settings_changed) {
+					// Settings have changed - allow update
+					$update_data = $save_data;
+					log_message('debug', "Combination Save - Settings changed for ACTIVE record ID={$existing_record['id']}, allowing update");
+					log_message('debug', "Combination Save - Old CCCC: {$existing_record['CCCC']}, New CCCC: {$save_data['CCCC']}");
+					
+					// Only update lastdate when reactivating and date is not most recent
+					if ($latest_lastdate && ($existing_record['lastdate'] === null || $existing_record['lastdate'] === '' || $existing_record['lastdate'] !== $latest_lastdate)) {
+						$update_data['lastdate'] = $latest_lastdate;
+						log_message('debug', "Combination Save - Updating lastdate to: {$latest_lastdate}");
+					} else {
+						unset($update_data['lastdate']);
+						log_message('debug', "Combination Save - Preserving existing lastdate: {$existing_record['lastdate']}");
+					}
+					
+					// CRITICAL: Preserve all existing win records - never overwrite them
+					unset($update_data['extra']);
+					unset($update_data['1_win']);
+					unset($update_data['1_win_extra']);
+					unset($update_data['2_win']);
+					unset($update_data['2_win_extra']);
+					unset($update_data['3_win']);
+					unset($update_data['3_win_extra']);
+					unset($update_data['4_win']);
+					unset($update_data['4_win_extra']);
+					unset($update_data['5_win']);
+					unset($update_data['5_win_extra']);
+					unset($update_data['6_win']);
+					unset($update_data['6_win_extra']);
+					unset($update_data['7_win']);
+					unset($update_data['7_win_extra']);
+					unset($update_data['8_win']);
+					unset($update_data['8_win_extra']);
+					unset($update_data['9_win']);
+					unset($update_data['9_win_extra']);
+					
+					$this->db->where('id', $existing_record['id']);
+					$saved = $this->db->update('lottery_combination_filters', $update_data);
+					
+					log_message('debug', "Combination Save - Update result: " . ($saved ? 'SUCCESS' : 'FAILED'));
+					if ($saved) {
+						log_message('debug', "Combination Save - Affected rows: " . $this->db->affected_rows());
+					}
+				} else {
+					// No changes detected - skip update but treat as success
+					$saved = true;
+					log_message('debug', "Combination Save - No changes detected for ACTIVE record, skipping update");
+				}
 			}
 		} else {
 			// Create new record (includes initial lastdate if set and win columns at 0)
@@ -3042,9 +3098,13 @@ class Predictions extends Admin_Controller {
 			// Save filtered combinations to file
 			$pick_file_path = $pick_dir . $file_name . '.txt';
 			
+			log_message('info', "=== STARTING FILE SAVE === Source: {$filepath}, Target: {$pick_file_path}");
+			log_message('info', "Expected filtered count: {$filtered_count}");
+			
 			// Use file-based filtering for saving (always up-to-date and memory efficient)
-
 			$success = $this->combination_filters_m->save_filtered_combinations_to_file($filepath, $number_array, $filters, $pick_file_path);
+			
+			log_message('info', "=== FILE SAVE COMPLETED === Success: " . ($success ? 'YES' : 'NO'));
 			
 			// CRITICAL FIX: Use actual saved file count as the accurate CCCC value
 			// This ensures the database record matches what was actually saved
