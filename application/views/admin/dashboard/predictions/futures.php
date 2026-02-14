@@ -1802,23 +1802,27 @@
 			saveBtn.textContent = 'Saving...';
 			saveBtn.disabled = true;
 			
-			// Create and show progress bar
-			const progressContainer = document.createElement('div');
-			progressContainer.className = 'progress mb-3';
-			progressContainer.innerHTML = `
-				<div class="progress-bar progress-bar-striped progress-bar-animated" 
-					 role="progressbar" 
-					 style="width: 0%" 
-					 aria-valuenow="0" 
-					 aria-valuemin="0" 
-					 aria-valuemax="100">
-					Saving filtered tickets...
-				</div>
-			`;
-			
-			// Insert progress bar before the form
-			const form = document.querySelector('form');
-			form.insertBefore(progressContainer, form.firstChild);
+		// Get the filtered count for display
+		const filteredCount = <?= isset($pagination['total_filtered']) ? $pagination['total_filtered'] : 0 ?>;
+		const countText = filteredCount > 0 ? filteredCount + ' ' : '';
+		
+		// Create and show progress bar
+		const progressContainer = document.createElement('div');
+		progressContainer.className = 'progress mb-3';
+		progressContainer.innerHTML = `
+			<div class="progress-bar progress-bar-striped progress-bar-animated" 
+				 role="progressbar" 
+				 style="width: 0%" 
+				 aria-valuenow="0" 
+				 aria-valuemin="0" 
+				 aria-valuemax="100">
+				Saving ${countText}filtered tickets...
+			</div>
+		`;
+		
+		// Insert progress bar before the form
+		const form = document.querySelector('form');
+		form.insertBefore(progressContainer, form.firstChild);
 			
 			// Animate progress bar
 			const progressBar = progressContainer.querySelector('.progress-bar');
