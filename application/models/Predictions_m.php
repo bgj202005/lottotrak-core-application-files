@@ -678,42 +678,33 @@ class Predictions_m extends MY_Model
 		// Start with patterns that have occurrence counts (these definitely occurred)
 		$result = [];
 		
-		// First pass: Add only patterns with counts > 0 AND ranks (exclude unranked patterns)
-		foreach ($hwc_counts as $pattern => $count) {
-			if ($count > 0) {
-				$rank = isset($hwc_ranks[$pattern]) ? $hwc_ranks[$pattern] : 999;
-				
-				// Only include ranked patterns (exclude unranked patterns with rank = 999)
-				if ($rank != 999) {
-					$result[$pattern] = $pattern . ' (' . $count . ') - Rank #' . $rank;
-				}
-			}
-		}
-		
-		// Get patterns that need rank reassignment (only ranked ones with counts > 0)
+		// First pass: Add ranked patterns (those with wins)
 		$ranked_patterns = [];
-		foreach ($result as $pattern => $display) {
-			if (strpos($display, 'Rank #') !== false) {
-				$rank = isset($hwc_ranks[$pattern]) ? $hwc_ranks[$pattern] : 999;
-				$count = $hwc_counts[$pattern];
-				$points = isset($hwc_points[$pattern]) ? $hwc_points[$pattern] : 0;
-				
+		foreach ($hwc_counts as $pattern => $count) {
+			if ($count > 0 && isset($hwc_ranks[$pattern])) {
 				$ranked_patterns[$pattern] = [
 					'count' => $count,
-					'original_rank' => $rank,
-					'points' => $points
+					'original_rank' => $hwc_ranks[$pattern],
+					'points' => isset($hwc_points[$pattern]) ? $hwc_points[$pattern] : 0
 				];
 			}
 		}
 		
-		// Sort ranked patterns to get proper sequential order (already sorted by parse_hwc_points)
-		// Re-assign sequential ranks starting from 1
+		// Re-assign sequential ranks starting from 1 for ranked patterns
 		$new_rank = 1;
 		foreach ($hwc_points as $pattern => $points) {
 			if (isset($ranked_patterns[$pattern])) {
 				$count = $ranked_patterns[$pattern]['count'];
 				$result[$pattern] = $pattern . ' (' . $count . ') - Rank #' . $new_rank;
 				$new_rank++;
+			}
+		}
+		
+		// Second pass: Add unranked patterns (those with occurrences but no wins)
+		// These are shown at the end without a rank
+		foreach ($hwc_counts as $pattern => $count) {
+			if ($count > 0 && !isset($hwc_ranks[$pattern])) {
+				$result[$pattern] = $pattern . ' (' . $count . ') - No wins';
 			}
 		}
 		
