@@ -5697,7 +5697,14 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	public function hwc_data_save($data, $exist = FALSE)
 	{
 		$this->db->reset_query();
-		if (!$exist) 
+		
+		// Always check if record exists to prevent duplicate inserts
+		// regardless of what the caller passes for $exist parameter
+		$check_query = $this->db->where('lottery_id', $data['lottery_id'])
+			->get('lottery_h_w_c');
+		$record_exists = $check_query->num_rows() > 0;
+		
+		if (!$record_exists) 
 		{
 			$this->db->set($data);		// Set the query with the key / value pairs
 			$this->db->insert('lottery_h_w_c');
