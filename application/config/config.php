@@ -381,7 +381,7 @@ $config['sess_expiration'] = 7200;	// 2 Hours
 $config['sess_save_path'] = 'ci_sessions'; // NULL
 $config['sess_match_ip'] = FALSE;
 $config['sess_time_to_update'] = 300; // Every 5 minutes
-$config['sess_regenerate_destroy'] = TRUE; // Was FALSE Prviously
+$config['sess_regenerate_destroy'] = FALSE; // Prevent session loss during regeneration
 
 /*
 |--------------------------------------------------------------------------
