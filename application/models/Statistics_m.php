@@ -7872,7 +7872,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			$win_categories = $this->calculate_win_categories_direct($actual_prediction_numbers, $draw, $prize_profile, $extra_included);
 			
 			// Step 5: Track which positions contributed to wins
-			$this->track_position_wins($prediction_data, $draw, $hwc_positions, $pattern_key, $position_stats, $win_categories);
+			$this->track_position_wins($prediction_data, $draw, $hwc_positions, $pattern_key, $position_stats, $win_categories, $picks);
 			
 			// Step 6: Accumulate win statistics for valid patterns only
 			if (!isset($win_stats[$pattern_key])) {
@@ -8241,8 +8241,9 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	 * @param string $pattern_key Pattern identifier
 	 * @param array &$position_stats Reference to position statistics array
 	 * @param array $win_categories Win categories detected
+	 * @param int $picks Number of balls drawn (for dynamic ball count support)
 	 */
-	private function track_position_wins($prediction_data, $draw, $hwc_positions, $pattern_key, &$position_stats, $win_categories)
+	private function track_position_wins($prediction_data, $draw, $hwc_positions, $pattern_key, &$position_stats, $win_categories, $picks)
 	{
 		// Only track if there was a win
 		$has_win = false;
@@ -8255,9 +8256,9 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		
 		if (!$has_win) return;
 		
-		// Get actual drawn numbers
+		// Get actual drawn numbers (dynamic for 6, 7, 8, or 9-ball lotteries)
 		$drawn_numbers = array();
-		for ($i = 1; $i <= 6; $i++) {
+		for ($i = 1; $i <= $picks; $i++) {
 			$ball_field = "ball{$i}";
 			if (isset($draw->$ball_field)) {
 				$drawn_numbers[] = (int)$draw->$ball_field;
