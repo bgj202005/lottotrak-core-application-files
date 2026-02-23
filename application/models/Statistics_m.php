@@ -3625,8 +3625,17 @@ class Statistics_m extends MY_Model
 		// Find most frequent ball for each position
 		for($pos = 1; $pos <= $max_balls; $pos++) {
 			if(isset($position_frequency[$pos])) {
-				// Sort by frequency descending and get the most common ball
-				arsort($position_frequency[$pos]);
+				// Sort by frequency descending, then by ball number ascending for deterministic results
+				uksort($position_frequency[$pos], function($ball_a, $ball_b) use ($position_frequency, $pos) {
+					$freq_a = $position_frequency[$pos][$ball_a];
+					$freq_b = $position_frequency[$pos][$ball_b];
+					// Primary sort: frequency descending (higher frequency first)
+					if ($freq_a !== $freq_b) {
+						return $freq_b - $freq_a;
+					}
+					// Tie-breaker: ball number ascending (lower ball number first)
+					return $ball_a - $ball_b;
+				});
 				$position_balls[$pos] = array_key_first($position_frequency[$pos]);
 			} else {
 				// Fallback to position number if no data
@@ -5303,37 +5312,45 @@ class Statistics_m extends MY_Model
 	 */
 	public function h_w_c_calculate($lotto_tbl, $picks, $bonus = 0, $draws = 0, $range = 0, $w, $c, $last = '', $duple = FALSE)
 	{
-		// Build query
-		$sql_range = ($range ? ' ORDER BY draw_date DESC LIMIT '.$range : ' ORDER BY draw_date DESC');
-		$sql_date = '';
-		$sql_draws = '';
-		
-		// Handle date filtering - always apply when $last is provided
-		if (!empty($last)) {
-			$sql_date = ' WHERE draw_date <= "'.$last.'"';
+		// CRITICAL FIX: Use subquery to identify target draws first, ensuring all balls come from same draw set
+		// Build WHERE clause for draw selection
+		$draw_where = '';
+		if (!empty($last) && !$draws) {
+			// Has date filter AND extra_draws=NO
+			$draw_where = ' WHERE draw_date <= "'.$last.'" AND extra <> "0"';
+		} elseif (!empty($last) && $draws) {
+			// Has date filter BUT extra_draws=YES
+			$draw_where = ' WHERE draw_date <= "'.$last.'"';
+		} elseif (empty($last) && !$draws) {
+			// No date filter BUT extra_draws=NO
+			$draw_where = ' WHERE extra <> "0"';
 		}
+		// If both empty($last) and $draws==1, no WHERE clause needed
 		
-		// Handle extra draws filtering
-		if (!$draws) {
-			$sql_draws = (!empty($last) ? ' AND extra <> "0"' : ' WHERE extra <> "0"');
-		}
+		// Build ORDER BY and LIMIT
+		$draw_order_limit = ($range ? ' ORDER BY draw_date DESC, id DESC LIMIT '.$range : ' ORDER BY draw_date DESC, id DESC');
+		
+		// Build the query using a subquery to select target draws first
+		$target_draws_subquery = '(SELECT * FROM '.$lotto_tbl.$draw_where.$draw_order_limit.') AS target_draws';
 		
 		$sql = 'SELECT ball_drawn, MAX(draw_date) as last_draw_date, count(*) as heat FROM ((SELECT ball1 as ball_drawn, draw_date FROM '
-		.$lotto_tbl.$sql_date.$sql_draws.$sql_range.') UNION ALL (SELECT ball2 as ball_drawn, draw_date FROM '
-		.$lotto_tbl.$sql_date.$sql_draws.$sql_range.') UNION ALL (SELECT ball3 as ball_drawn, draw_date FROM '
-		.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=4) $sql .= ' UNION ALL (SELECT ball4 as ball_drawn, draw_date FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=5) $sql .= ' UNION ALL (SELECT ball5 as ball_drawn, draw_date FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=6) $sql .= ' UNION ALL (SELECT ball6 as ball_drawn, draw_date FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=7) $sql .= ' UNION ALL (SELECT ball7 as ball_drawn, draw_date FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=8) $sql .= ' UNION ALL (SELECT ball8 as ball_drawn, draw_date FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks==9) $sql .= ' UNION ALL (SELECT ball9 as ball_drawn, draw_date FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		.$target_draws_subquery.') UNION ALL (SELECT ball2 as ball_drawn, draw_date FROM '
+		.$target_draws_subquery.') UNION ALL (SELECT ball3 as ball_drawn, draw_date FROM '
+		.$target_draws_subquery.')';
+		if($picks>=4) $sql .= ' UNION ALL (SELECT ball4 as ball_drawn, draw_date FROM '.$target_draws_subquery.')';
+		if($picks>=5) $sql .= ' UNION ALL (SELECT ball5 as ball_drawn, draw_date FROM '.$target_draws_subquery.')';
+		if($picks>=6) $sql .= ' UNION ALL (SELECT ball6 as ball_drawn, draw_date FROM '.$target_draws_subquery.')';
+		if($picks>=7) $sql .= ' UNION ALL (SELECT ball7 as ball_drawn, draw_date FROM '.$target_draws_subquery.')';
+		if($picks>=8) $sql .= ' UNION ALL (SELECT ball8 as ball_drawn, draw_date FROM '.$target_draws_subquery.')';
+		if($picks==9) $sql .= ' UNION ALL (SELECT ball9 as ball_drawn, draw_date FROM '.$target_draws_subquery.')';
+		
 		$sql_bonus = '';
 		if($bonus&&!$duple) 
 		{
-			$bonus_date_filter = (!empty($last) ? ' AND draw_date <= "'.$last.'"' : '');
-			$sql_bonus = ' UNION ALL (SELECT extra as ball_drawn, draw_date FROM '.$lotto_tbl.' WHERE extra <> "0"'.$bonus_date_filter.$sql_range.')';
+			// Bonus ball comes from same target draws, just filter WHERE extra <> "0"
+			$sql_bonus = ' UNION ALL (SELECT extra as ball_drawn, draw_date FROM '.$target_draws_subquery.' WHERE extra <> "0")';
 		}
+		
 		$sql_ext = ') as hwc GROUP BY ball_drawn ORDER BY heat DESC, last_draw_date DESC, CAST(ball_drawn AS UNSIGNED) ASC;';
 		$query = $this->db->query($sql.$sql_bonus.$sql_ext);
 		$hwc_string = ""; // List string in the format of number=hits,
@@ -5415,7 +5432,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 				FROM ((SELECT extra as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
 				$sql .= ') as hwc
 				GROUP BY ball_drawn
-				ORDER BY heat DESC;';
+				ORDER BY heat DESC, CAST(ball_drawn AS UNSIGNED) ASC;';
 			$query = $this->db->query($sql);
 			
 			$xtra_string = "";
@@ -7693,14 +7710,16 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		}
 		$this->hwc_positions = $hwc_positions;
 		
-		// PHASE 2 ENHANCEMENT: Load existing position statistics for intelligent selection
-		$existing_position_stats = $this->load_position_statistics($lottery_id);
-		$this->current_position_stats = $existing_position_stats; // Store for use in selection
+		// PHASE 2 ENHANCEMENT: Always use cold start for position statistics to ensure deterministic results
+		// Position stats are configuration-specific (depend on extra_included, extra_draws, range, etc.)
+		// Loading stats from a previous run with different settings causes non-deterministic behavior
+		// Instead, we calculate fresh position stats each time during the sliding window analysis
+		$this->current_position_stats = array(); // Cold start - will be populated during analyze_sliding_window
 
 
 		// Phase 2: Analyze the next range using fixed positions
 		$new_win_statistics = $this->analyze_sliding_window($table_name, $adjusted_range, $hwc_positions, $prediction_pool, 
-			$hots, $warms, $colds, $lottery, $prize_profile, $extra_included);
+			$hots, $warms, $colds, $lottery, $prize_profile, $extra_included, $extra_draws);
 
 		// Phase 3: REPLACE existing data instead of merging (this was causing accumulation bug)
 		// $merged_wins_data = $this->merge_win_statistics($existing_wins_data, $new_win_statistics, $prize_profile);
@@ -7790,10 +7809,11 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	 * @param object $lottery Lottery configuration
 	 * @param array $prize_profile Prize profile configuration
 	 * @param boolean $extra_included Whether extra ball is included
+	 * @param boolean $extra_draws Whether extra draws are included
 	 * @return array Win statistics by H-W-C pattern
 	 */
 	private function analyze_sliding_window($table_name, $range, $hwc_positions, $prediction_pool, $hots, $warms, $colds, 
-		$lottery, $prize_profile, $extra_included)
+		$lottery, $prize_profile, $extra_included, $extra_draws)
 	{
 		$picks = $lottery->balls_drawn;
 		
@@ -7809,10 +7829,20 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		// Initialize position tracking per pattern
 		$position_stats = array(); // Track position selections and wins per pattern
 
-		// Get ALL draws needed for sliding window (first range + second range)
-		$sql = "SELECT * FROM {$table_name} ORDER BY draw_date ASC LIMIT " . ($range * 2);
+		// CRITICAL FIX: Filter draws based on extra_included and extra_draws settings
+		// This ensures win statistics use the same draw set as H-W-C position calculations
+		// USE NEWEST DRAWS (DESC) to match h_w_c_calculate, then reverse for chronological processing
+		$sql = "SELECT * FROM {$table_name}";
+		
+		// Apply filtering based on extra settings (must match h_w_c_calculate logic)
+		if (!$extra_draws) {
+			$sql .= " WHERE extra <> '0'";
+		}
+		
+		// Get NEWEST draws first (to match h_w_c_calculate which uses DESC), then reverse
+		$sql .= " ORDER BY draw_date DESC, id DESC LIMIT " . ($range * 2);
 		$query = $this->db->query($sql);
-		$all_draws = $query->result();
+		$all_draws = array_reverse($query->result()); // Reverse to chronological order for sliding window
 		
 		// Split into initial draws (1-100) and future draws (101-200)
 		$initial_draws = array_slice($all_draws, 0, $range);
@@ -8136,13 +8166,20 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 		}
 		
-		// PHASE 2: Sort by win rate (descending) instead of sequential order
+		// PHASE 2: Sort by win rate (descending) with proper tie-breakers for deterministic results
 		usort($available_positions, function($a, $b) {
-			// Sort by win_rate descending, then by position ascending (tiebreaker)
-			if ($b['win_rate'] != $a['win_rate']) {
-				return $b['win_rate'] <=> $a['win_rate'];
+			// Sort by win_rate descending with epsilon comparison for floating point
+			$epsilon = 0.0000001; // Tolerance for floating point comparison
+			$rate_diff = $b['win_rate'] - $a['win_rate'];
+			if (abs($rate_diff) > $epsilon) {
+				return ($rate_diff > 0) ? 1 : -1;
 			}
-			return $a['position'] <=> $b['position'];
+			// Tie-breaker 1: position ascending (lower position = hotter = priority)
+			if ($a['position'] !== $b['position']) {
+				return $a['position'] <=> $b['position'];
+			}
+			// Tie-breaker 2: ball number ascending for complete determinism
+			return $a['number'] <=> $b['number'];
 		});
 		
 		// Select top N positions by performance
@@ -8524,10 +8561,31 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 		}
 
-		// Re-sort positions by hit count (descending) - this is the key to H-W-C ordering
-		uasort($hwc_positions, function($a, $b) {
-			return $b['hit_count'] - $a['hit_count'];
+		// Re-sort positions by hit count (descending) with ball number tie-breaker for deterministic results
+		// Extract balls with their hit counts for stable sorting
+		$balls_with_counts = array();
+		foreach ($hwc_positions as $ball_number => $data) {
+			$balls_with_counts[] = array(
+				'ball' => $ball_number,
+				'hit_count' => $data['hit_count']
+			);
+		}
+
+		// Sort by hit count DESC, then by ball number ASC for deterministic results when hit counts match
+		usort($balls_with_counts, function($a, $b) {
+			if ($b['hit_count'] !== $a['hit_count']) {
+				return $b['hit_count'] - $a['hit_count'];
+			}
+			// Tie-breaker: sort by ball number (ascending) for deterministic ordering
+			return $a['ball'] - $b['ball'];
 		});
+
+		// Rebuild hwc_positions array in sorted order
+		$sorted_positions = array();
+		foreach ($balls_with_counts as $item) {
+			$sorted_positions[$item['ball']] = $hwc_positions[$item['ball']];
+		}
+		$hwc_positions = $sorted_positions;
 
 		// Update position numbers based on new sort order
 		$position = 1;
@@ -8603,10 +8661,31 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 		}
 
-		// Re-sort positions by hit count (descending)
-		uasort($hwc_positions, function($a, $b) {
-			return $b['hit_count'] - $a['hit_count'];
+		// Re-sort positions by hit count (descending) with ball number tie-breaker for deterministic results
+		// Extract balls with their hit counts for stable sorting
+		$balls_with_counts = array();
+		foreach ($hwc_positions as $ball_number => $data) {
+			$balls_with_counts[] = array(
+				'ball' => $ball_number,
+				'hit_count' => $data['hit_count']
+			);
+		}
+
+		// Sort by hit count DESC, then by ball number ASC for deterministic results when hit counts match
+		usort($balls_with_counts, function($a, $b) {
+			if ($b['hit_count'] !== $a['hit_count']) {
+				return $b['hit_count'] - $a['hit_count'];
+			}
+			// Tie-breaker: sort by ball number (ascending) for deterministic ordering
+			return $a['ball'] - $b['ball'];
 		});
+
+		// Rebuild hwc_positions array in sorted order
+		$sorted_positions = array();
+		foreach ($balls_with_counts as $item) {
+			$sorted_positions[$item['ball']] = $hwc_positions[$item['ball']];
+		}
+		$hwc_positions = $sorted_positions;
 
 		// Update position numbers based on new sort order
 		$position = 1;
