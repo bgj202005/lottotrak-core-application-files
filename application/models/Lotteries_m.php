@@ -534,6 +534,43 @@ class Lotteries_m extends MY_Model
 	return ($result->num_rows() != 1 ? FALSE : TRUE);
 	}
 
+	/**
+	 * Get the previous draw before a specific draw_id
+	 * Used for dynamic comparison to show which previous draw numbers appeared in the current draw
+	 * 
+	 * @param	string	$lottery_name	Table name of the lottery
+	 * @param	integer	$draw_id		The draw ID to find the previous draw before
+	 * @return	object|null				Previous draw data or NULL if no previous draw exists
+	 */
+	public function get_previous_draw($lottery_name, $draw_id)
+	{
+		if (!$this->lotto_table_exists($lottery_name)) {
+			return NULL;
+		}
+		
+		// First get the draw_date of the specified draw_id
+		$current_draw = $this->db->select('draw_date')
+								 ->from($lottery_name)
+								 ->where('id', $draw_id)
+								 ->limit(1)
+								 ->get()
+								 ->row();
+		
+		if (!$current_draw) {
+			return NULL;
+		}
+		
+		// Then get the previous draw before that date
+		$prev_draw = $this->db->select('*')
+							  ->from($lottery_name)
+							  ->where('draw_date <', $current_draw->draw_date)
+							  ->order_by('draw_date', 'DESC')
+							  ->limit(1)
+							  ->get()
+							  ->row();
+		
+		return $prev_draw ?: NULL;
+	}
 
 	/**
 	 * Takes the CSV Row and Queries the database to input the field values

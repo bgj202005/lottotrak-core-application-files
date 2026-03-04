@@ -1677,6 +1677,14 @@ class Statistics_m extends MY_Model
 		}
 		else
 		{
+			// Before updating, save current data as previous data
+			$current = $this->db->where('lottery_id', $data['lottery_id'])->get('lottery_followers')->row_array();
+			if ($current) {
+				// Save current followers data as previous
+				$data['prev_lottery_followers'] = isset($current['lottery_followers']) ? $current['lottery_followers'] : null;
+				$data['prev_draw_id'] = isset($current['draw_id']) ? $current['draw_id'] : null;
+			}
+			
 			$this->db->set($data);		// Set the query with the key / value pairs
 			$this->db->where('lottery_id', $data['lottery_id']);
 			$this->db->update('lottery_followers');
@@ -2804,6 +2812,14 @@ class Statistics_m extends MY_Model
 		}
 		else
 		{
+			// Before updating, save current data as previous data
+			$current = $this->db->where('lottery_id', $data['lottery_id'])->get('lottery_nonfollowers')->row_array();
+			if ($current) {
+				// Save current nonfollowers data as previous
+				$data['prev_lottery_nonfollowers'] = isset($current['lottery_nonfollowers']) ? $current['lottery_nonfollowers'] : null;
+				$data['prev_draw_id'] = isset($current['draw_id']) ? $current['draw_id'] : null;
+			}
+			
 			$this->db->set($data);		// Set the query with the key / value pairs
 			$this->db->where('lottery_id', $data['lottery_id']);
 			$this->db->update('lottery_nonfollowers');
@@ -7043,6 +7059,13 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			'extra_included' => $extra_included,
 			'extra_draws' => $extra_draws
 		);
+		
+		// Before deleting, save current data as previous data
+		$current = $this->db->where('lottery_id', $lottery_id)->get('lottery_followers')->row_array();
+		if ($current) {
+			$save_data['prev_lottery_followers'] = isset($current['lottery_followers']) ? $current['lottery_followers'] : null;
+			$save_data['prev_draw_id'] = isset($current['draw_id']) ? $current['draw_id'] : null;
+		}
 
 		// Delete existing data and insert new
 		$this->db->where('lottery_id', $lottery_id)->delete('lottery_followers');

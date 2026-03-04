@@ -689,16 +689,33 @@ class Statistics extends Admin_Controller {
 		{
 			$interval = 0;
 		}
+		
+		// ============================================================
+		// TEST MODE: Check for /test_mode in URL to use second-to-last draw
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
+		
 		// 1. Check for a record for the current lottery in the followers table
 		$followers = $this->statistics_m->followers_exists($id);		// Existing follower row 
 		$nonfollowers = $this->statistics_m->nonfollowers_exists($id);	// Non Follower existing row
 		$sel_range = 1;
 		
-		// Initialize settings - handle independent extra_included and extra_draws parameters
-		$url_extra_included = ($this->uri->segment(6)=='extra' || $this->uri->segment(7)=='extra') ? 1 : 0;
-		$url_extra_draws = ($this->uri->segment(6)=='draws' || $this->uri->segment(7)=='draws') ? 1 : 0;
+		// Extract previous draw followers/nonfollowers data if available
+		$prev_followers_data = null;
+		$prev_nonfollowers_data = null;
+		if ($followers && isset($followers['prev_lottery_followers']) && $followers['prev_lottery_followers']) {
+			$prev_followers_data = $followers['prev_lottery_followers'];
+		}
+		if ($nonfollowers && isset($nonfollowers['prev_lottery_nonfollowers']) && $nonfollowers['prev_lottery_nonfollowers']) {
+			$prev_nonfollowers_data = $nonfollowers['prev_lottery_nonfollowers'];
+		}
 		
+		// Pass previous data to view
+		$this->data['prev_followers_data'] = $prev_followers_data;
+		$this->data['prev_nonfollowers_data'] = $prev_nonfollowers_data;
+		
+		// Initialize settings - handle independent extra_included and extra_draws parameters
+			$url_extra_included = ($this->uri->segment(6)=='extra') ? 1 : 0;
+			$url_extra_draws = ($this->uri->segment(6)=='draws') ? 1 : 0;
 		// Don't set lottery object values yet - determine source first (URL vs Database)
 		$outofrange = FALSE;						// default is not out of range for the prize pool
 		$blnEX = false;								// Extra Bonus Ball / Draws flag are no change or update
@@ -706,8 +723,8 @@ class Statistics extends Admin_Controller {
 
 		
 		// Determine if we have actual parameter segments (extra/draws), not just range or lottery_id
-		$has_extra_param = ($this->uri->segment(6) == 'extra' || $this->uri->segment(7) == 'extra');
-		$has_draws_param = ($this->uri->segment(6) == 'draws' || $this->uri->segment(7) == 'draws');
+		$has_extra_param = ($this->uri->segment(6) == 'extra' || $this->uri->segment(7) == 'extra' || $this->uri->segment(8) == 'extra');
+		$has_draws_param = ($this->uri->segment(6) == 'draws' || $this->uri->segment(7) == 'draws' || $this->uri->segment(8) == 'draws');
 		$has_param_segments = ($has_extra_param || $has_draws_param);
 
 		
@@ -836,8 +853,11 @@ class Statistics extends Admin_Controller {
 			if($range>100) $sel_range = intval($range / 100);
 			if($range!=0)	
 			{
-				if(($followers && intval($followers['range'])!=(intval($range))) || $blnEX || !$followers) // Any Change in Selection/Settings of the Draws?
+				$force_recalc = (($followers && intval($followers['range'])!=(intval($range))) || $blnEX || !$followers);
+				
+				if($force_recalc) // Any Change in Selection/Settings of the Draws?
 				{
+					
 					$max = $this->data['lottery']->maximum_ball;
 					$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
 					
@@ -1191,7 +1211,53 @@ class Statistics extends Admin_Controller {
 		$this->data['lottery']->last_drawn['range'] = $range;
 		$this->data['lottery']->last_drawn['all'] = $all;
 		
-
+		// DYNAMIC COMPARISON: Fetch the previous draw before the draw_id that followers were calculated from
+		// This allows us to show which previous draw numbers appeared in the current draw
+		$followers_draw_id = $followers ? $followers['draw_id'] : $this->data['lottery']->last_drawn['id'];
+		$prev_draw_data = $this->lotteries_m->get_previous_draw($tbl_name, $followers_draw_id);
+		
+		// Get current draw numbers for comparison
+		$current_draw_numbers = array();
+		for($b = 1; $b <= $drawn; $b++) {
+			$ball_key = 'ball'.$b;
+			if (isset($this->data['lottery']->last_drawn[$ball_key])) {
+				$current_draw_numbers[] = $this->data['lottery']->last_drawn[$ball_key];
+			}
+		}
+		if ($this->data['lottery']->extra_ball && isset($this->data['lottery']->last_drawn['extra'])) {
+			$current_draw_numbers['extra'] = $this->data['lottery']->last_drawn['extra'];
+		}
+		
+		if ($prev_draw_data) {
+			// Convert previous draw object to array of numbers
+			$prev_draw_numbers = array();
+			for($b = 1; $b <= $drawn; $b++) {
+				$ball_key = 'ball'.$b;
+				if (isset($prev_draw_data->$ball_key)) {
+					$prev_draw_numbers[] = $prev_draw_data->$ball_key;
+				}
+			}
+			// Add extra ball if it exists
+			if ($this->data['lottery']->extra_ball && isset($prev_draw_data->extra)) {
+				$prev_draw_numbers['extra'] = $prev_draw_data->extra;
+			}
+			
+			$this->data['prev_draw'] = array(
+				'numbers' => $prev_draw_numbers,
+				'date' => $prev_draw_data->draw_date,
+				'exists' => true
+			);
+			$this->data['current_draw_numbers'] = $current_draw_numbers;
+			
+			log_message('info', "Followers view: Previous draw found before draw_id={$followers_draw_id}, date={$prev_draw_data->draw_date}, numbers=".implode(',', $prev_draw_numbers));
+		} else {
+			// No previous draw exists (we're at the first draw)
+			$this->data['prev_draw'] = array(
+				'exists' => false
+			);
+			$this->data['current_draw_numbers'] = $current_draw_numbers;
+			log_message('info', "Followers view: No previous draw found before draw_id={$followers_draw_id}");
+		}
 		
 		$this->data['current'] = $this->uri->segment(2); 				// Sets the Admins Menu Highlighted
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/followers'.($id ? '/'.$id : ''));
