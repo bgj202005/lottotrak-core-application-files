@@ -573,6 +573,29 @@ class Lotteries_m extends MY_Model
 	}
 
 	/**
+	 * Get a specific draw by its ID
+	 * 
+	 * @param	string	$lottery_name	Table name of the lottery
+	 * @param	integer	$draw_id		The draw ID to fetch
+	 * @return	object|null				Draw data or NULL if not found
+	 */
+	public function get_draw_by_id($lottery_name, $draw_id)
+	{
+		if (!$this->lotto_table_exists($lottery_name)) {
+			return NULL;
+		}
+		
+		$draw = $this->db->select('*')
+						 ->from($lottery_name)
+						 ->where('id', $draw_id)
+						 ->limit(1)
+						 ->get()
+						 ->row();
+		
+		return $draw ?: NULL;
+	}
+
+	/**
 	 * Takes the CSV Row and Queries the database to input the field values
 	 * 
 	 * @param       $tbl_name (string), $db_values (array)  -- Corresponding Lottery Name and Draw Data Details

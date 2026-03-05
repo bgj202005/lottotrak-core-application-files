@@ -1,4 +1,4 @@
- <style>
+<style>
 	.card {
     background-color: #ffffff;
     border: 1px solid rgba(0, 34, 51, 0.1);
@@ -54,19 +54,6 @@
 	.winner-legend .badge {
 		font-size: 0.9em;
 	}
-	/* Previous draw number links */
-	.prev-draw-number {
-		cursor: pointer;
-		padding: 4px 8px;
-		border-radius: 4px;
-		transition: background-color 0.2s;
-		display: inline-block;
-		margin: 2px;
-	}
-	.prev-draw-number:hover {
-		background-color: #e9ecef;
-		text-decoration: underline;
-	}
 	/* Highlight followers/non-followers matching previous draw */
 	.prev-draw-match {
 		background-color: #fff3cd;
@@ -75,8 +62,32 @@
 		border-radius: 3px;
 		font-weight: bold;
 	}
+	/* Previous draw number badges - clickable */
+	.prev-ball-badge {
+		cursor: pointer;
+		margin: 2px;
+		padding: 6px 10px;
+		transition: all 0.2s;
+	}
+	.prev-ball-badge:hover {
+		transform: scale(1.1);
+		box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+	}
+	/* Hide ball sections by default */
+	.prev-ball-section {
+		display: none;
+		margin-bottom: 15px;
+		padding: 10px;
+		border: 1px solid #ddd;
+		border-radius: 5px;
+		background-color: #fff;
+	}
+	.prev-ball-section.active {
+		display: block;
+	}
 </style>
-	<h2><?php echo 'View Followers for: '.$lottery->lottery_name; ?></h2>
+
+<h2><?php echo 'View Followers for: '.$lottery->lottery_name; ?></h2>
 	<?php $max = $lottery->balls_drawn; 
 	   $b = 1; 
 	   ?>	
@@ -158,8 +169,7 @@
 											);
 											// Determine checked state directly from URL parameters, not form helper  
 											$checked = (!empty($lottery->extra_included)) ? 'checked' : '';
-											// Debug output for troubleshooting
-											echo "<!-- Debug EXTRA: current_url=".current_url().", extra_included=".$lottery->extra_included.", extra_draws=".$lottery->extra_draws.", current_extra_draws='".$current_extra_draws."', base_url='".$base_url."', target_url='".$extra_url."' -->";
+
 											echo '<input type="checkbox" name="extra_included" id="extra_included" value="1" class="form-check-input" '.$checked.' onClick="'.$js.'" />';
 											echo '<label for="extra_included">Extra (Bonus) Ball Included?</label>';
 										?>
@@ -185,8 +195,7 @@
 											);
 											// Determine checked state directly from URL parameters, not form helper
 											$checked = (!empty($lottery->extra_draws)) ? 'checked' : '';
-											// Debug output for troubleshooting  
-											echo "<!-- Debug DRAWS: current_url=".current_url().", extra_included=".$lottery->extra_included.", extra_draws=".$lottery->extra_draws.", current_extra_included='".$current_extra_included."', base_url='".$base_url."', target_url='".$draws_url."' -->";
+
 											echo '<input type="checkbox" name="extra_draws" id="extra_draws" value="1" class="form-check-input" '.$checked.' onClick="'.$js.'" />';
 											echo '<label for="extra_draws">Extra Draw(s) Included?</label>'; 
 										?>
@@ -379,98 +388,6 @@
 										<?php endif; ?>
 										<?php endif;
 									
-									// ============================================================
-									// PREVIOUS DRAW FOLLOWERS - Complete previous draw's followers and non-followers
-									// ============================================================
-									if(isset($prev_followers_data) && $prev_followers_data): ?>
-										<hr class="my-4" style="border-top: 2px solid #007bff;">
-										<h5 class="text-info bg-light p-2 border rounded">
-											<strong>📊 Previous Draw Followers</strong> - What the predictions were before the previous draw
-											<?php if(isset($prev_draw) && $prev_draw['exists']): ?>
-												<small class="text-muted">(Calculated before <?=date("M j, Y", strtotime($prev_draw['date']));?>)</small>
-											<?php endif; ?>
-										</h5>
-										<?php 
-										// Parse previous followers data (same format as current followers)
-										$prev_f_next = explode(",", $prev_followers_data);
-										
-										foreach($prev_f_next as $p_f):
-											if(strpos($p_f, '=') === FALSE) continue; // Skip invalid entries
-											$temp = explode("=", $p_f);
-											$prev_num = $temp[0];
-											$prev_fol = $temp[1];
-											
-											// Check if this is the current ball number
-											if($b <= $cd && $lottery->last_drawn['ball'.$b] == $prev_num):
-												// For main balls - check for independent extra ball format
-												if($blnduplicate && strpos($prev_fol, '#') !== FALSE):
-													$parts = explode('#', $prev_fol);
-													$prev_main = $parts[0];
-													$prev_extra = isset($parts[1]) ? $parts[1] : '0=0';
-													?>
-													<div class="card-text mb-2">
-														<strong>Main Ball <?=$prev_num;?> Previous Followers:</strong><br>
-														<?php 
-														$prev_picks = array();
-														foreach(explode('|', $prev_main) as $t):
-															$picks = explode('=', $t);
-															if(count($picks) == 2) $prev_picks[$picks[0]] = $picks[1];
-														endforeach;
-														arsort($prev_picks);
-														$count = 0;
-														foreach($prev_picks as $num => $times):
-															if($count > 5) break; // Show top 5
-															// Highlight if this number matches previous draw
-															$match_class = (isset($prev_draw) && $prev_draw['exists'] && in_array($num, $prev_draw['numbers'])) ? ' class="prev-draw-match"' : '';
-															echo 'Number <strong'.$match_class.'>'.$num.'</strong> ('.$times.' times) ';
-															$count++;
-														endforeach;
-														?>
-													</div>
-												<?php else: ?>
-													<div class="card-text mb-2">
-														<strong>Ball <?=$prev_num;?> Previous Followers:</strong><br>
-														<?php 
-														$prev_picks = array();
-														foreach(explode('|', $prev_fol) as $t):
-															$picks = explode('=', $t);
-															if(count($picks) == 2) $prev_picks[$picks[0]] = $picks[1];
-														endforeach;
-														arsort($prev_picks);
-														$count = 0;
-														foreach($prev_picks as $num => $times):
-															if($count > 5) break; // Show top 5
-															// Highlight if this number matches previous draw
-															$match_class = (isset($prev_draw) && $prev_draw['exists'] && in_array($num, $prev_draw['numbers'])) ? ' class="prev-draw-match"' : '';
-															echo 'Number <strong'.$match_class.'>'.$num.'</strong> ('.$times.' times) ';
-															$count++;
-														endforeach;
-														?>
-													</div>
-												<?php endif;
-											endif;
-										endforeach;
-										
-										// Show previous draw numbers for easy reference
-										if(isset($prev_draw) && $prev_draw['exists']): ?>
-											<div class="card-text mt-2 p-2" style="background-color: #e7f3ff; border-left: 3px solid #007bff;">
-												<strong>Previous Draw Actual Numbers:</strong> 
-												<?php 
-												foreach($prev_draw['numbers'] as $key => $num):
-													if($key === 'extra') continue;
-													echo '<span class="prev-draw-number badge badge-primary" data-ball="'.$num.'">'.$num.'</span> ';
-												endforeach;
-												if(isset($prev_draw['numbers']['extra'])):
-													echo '+ <span class="prev-draw-number badge badge-success" data-ball="'.$prev_draw['numbers']['extra'].'" data-extra="true">'.$prev_draw['numbers']['extra'].'</span>';
-												endif;
-												?>
-											</div>
-										<?php endif;
-										?>
-									<?php endif; // end prev_followers_data check
-									// End of previous draw numbers section
-									// ============================================================
-									
 									// Original "No Criteria" message
 									else: 
 										echo "<p class='card-text'> No Criteria High enough to Use for this Ball. </p>";
@@ -481,15 +398,243 @@
 							while ($b<=$max);?>
 						</div>
 						
+						<?php 
+						// ============================================================
+						// PREVIOUS DRAW FOLLOWERS SUMMARY - Show ALL balls with their followers
+						// ============================================================
+						if(isset($prev_followers_data) && $prev_followers_data && isset($prev_draw) && $prev_draw['exists']): ?>
+						<div style="margin: 30px 20px 20px 20px; padding: 20px; background-color: #f8f9fa; border: 2px solid #007bff; border-radius: 5px;">
+							<h4 class="text-primary mb-3">
+								<strong>📊 Previous Draw Followers</strong> - Predictions before <?=date("F j, Y", strtotime($prev_draw['date']));?>
+							</h4>
+							<div class="card-text mt-2 mb-3 p-2" style="background-color: #e7f3ff; border-left: 3px solid #007bff;">
+								<strong>Click a number to view its followers:</strong><br>
+								<?php 
+								foreach($prev_draw['numbers'] as $key => $num):
+									if($key === 'extra') continue;
+									echo '<span class="prev-ball-badge badge badge-primary" data-ball="'.$num.'" data-is-extra="0">'.$num.'</span> ';
+								endforeach;
+								if(isset($prev_draw['numbers']['extra']) && $prev_draw['numbers']['extra'] > 0):
+									echo '+ <span class="prev-ball-badge badge badge-success" data-ball="'.$prev_draw['numbers']['extra'].'" data-is-extra="1">'.$prev_draw['numbers']['extra'].'</span>';
+								endif;
+								?>
+								<br><small class="text-muted mt-1">Click "Show All" to see all balls at once</small>
+								<button class="btn btn-sm btn-info ml-2" id="show-all-prev-balls">Show All</button>
+								<button class="btn btn-sm btn-secondary ml-1" id="hide-all-prev-balls">Hide All</button>
+							</div>
+							
+							<?php 
+							// Parse previous followers data - format is: ball_num>follower=count|follower=count,...
+							$prev_balls_array = explode(",", $prev_followers_data);
+							
+							// Parse previous non-followers data if available
+							$prev_nonfollowers_array = array();
+							if($prev_nonfollowers_data):
+								$prev_nonfollowers_array = explode(",", $prev_nonfollowers_data);
+							endif;
+							
+							// Display each ball's followers in collapsible sections
+							foreach($prev_balls_array as $ball_data):
+								if(strpos($ball_data, '>') === FALSE) continue;
+								list($ball_num, $followers_str) = explode(">", $ball_data, 2);
+								$ball_num = trim($ball_num);
+								$followers_str = trim($followers_str);
+								
+								// Determine if this is an extra ball
+								$is_extra = (isset($prev_draw['balls']['extra']) && $prev_draw['balls']['extra'] == $ball_num);
+								?>
+								
+								<div class="prev-ball-section" data-ball="<?=$ball_num;?>" data-is-extra="<?=($is_extra ? '1' : '0');?>">
+									<h5><?=($is_extra ? 'Extra Ball' : 'Ball');?> <?=$ball_num;?> - Previous Followers</h5>
+									<?php 
+									// Parse followers
+									$prev_picks = array();
+									
+									// Check for independent extra ball format (main#extra)
+									if($lottery->duplicate_extra_ball && strpos($followers_str, '#') !== FALSE && !$is_extra):
+										// Main ball with separate extra tracking
+										$parts = explode('#', $followers_str);
+										$main_data = $parts[0];
+										foreach(explode('|', $main_data) as $t):
+											$picks = explode('=', $t);
+											if(count($picks) == 2) $prev_picks[$picks[0]] = $picks[1];
+										endforeach;
+									elseif($lottery->duplicate_extra_ball && strpos($followers_str, '#') !== FALSE && $is_extra):
+										// Extra ball - use the second part after #
+										$parts = explode('#', $followers_str);
+										$extra_data = isset($parts[1]) ? $parts[1] : $followers_str;
+										foreach(explode('|', $extra_data) as $t):
+											$picks = explode('=', $t);
+											if(count($picks) == 2) $prev_picks[$picks[0]] = $picks[1];
+										endforeach;
+									else:
+										// Standard format
+										foreach(explode('|', $followers_str) as $t):
+											$picks = explode('=', $t);
+											if(count($picks) == 2) $prev_picks[$picks[0]] = $picks[1];
+										endforeach;
+									endif;
+									
+									arsort($prev_picks);
+									
+									// Display ALL followers grouped by count (matching current followers format)
+									if(count($prev_picks) > 0):
+										$s_picks = "";
+										$sum = 0;
+										$counts = current($prev_picks);
+										
+										do {
+											if($counts == current($prev_picks)):
+												$num = key($prev_picks);
+												
+												// Check if this follower was actually drawn in the CURRENT/MOST RECENT draw
+												$was_drawn = false;
+												if($is_extra && isset($current_draw_numbers['extra']) && $num == $current_draw_numbers['extra']):
+													$was_drawn = true;
+												elseif(!$is_extra && in_array($num, $current_draw_numbers)):
+													$was_drawn = true;
+												endif;
+												
+												$match_class = $was_drawn ? ' class="prev-draw-match"' : '';
+												$s_picks .= 'Number <strong'.$match_class.'>'.$num.'</strong>';
+												$current = next($prev_picks);
+												$sum++;
+												
+												if($counts != $current):
+													$s_picks .= ' has been drawn <strong>'.$counts.'</strong> Times.</p>';
+													echo "<p class='card-text'> ".$s_picks."</p>";
+													$counts = $current;
+													$s_picks = "";
+												else:
+													$s_picks .= ' AND ';
+												endif;
+											else:
+												$counts = next($prev_picks);
+											endif;
+										} while(!is_null(key($prev_picks)));
+										
+										echo '<small class="text-muted">Total: '.$sum.' followers</small>';
+									else:
+										echo '<em>No followers found</em>';
+									endif;
+									?>
+									
+									<?php 
+									// Now display non-followers for this ball
+									if($prev_nonfollowers_data):
+										// Find non-followers for this specific ball
+										$nonfollowers_list = array();
+										foreach($prev_nonfollowers_array as $nf_data):
+											if(strpos($nf_data, '>') === FALSE) continue;
+											list($nf_ball_num, $nonfollowers_str) = explode(">", $nf_data, 2);
+											$nf_ball_num = trim($nf_ball_num);
+											
+											// Check if this is the matching ball
+											if($nf_ball_num == $ball_num):
+												$nonfollowers_str = trim($nonfollowers_str);
+												
+												// Check for independent extra ball format (main#extra)
+												if($lottery->duplicate_extra_ball && strpos($nonfollowers_str, '#') !== FALSE && !$is_extra):
+													// Main ball - use first part
+													$parts = explode('#', $nonfollowers_str);
+													$main_data = $parts[0];
+													$nonfollowers_list = explode('|', $main_data);
+												elseif($lottery->duplicate_extra_ball && strpos($nonfollowers_str, '#') !== FALSE && $is_extra):
+													// Extra ball - use second part
+													$parts = explode('#', $nonfollowers_str);
+													$extra_data = isset($parts[1]) ? $parts[1] : $nonfollowers_str;
+													$nonfollowers_list = explode('|', $extra_data);
+												else:
+													// Standard format
+													$nonfollowers_list = explode('|', $nonfollowers_str);
+												endif;
+												
+												// Clean up the list
+												$nonfollowers_list = array_filter(array_map('trim', $nonfollowers_list));
+												break;
+											endif;
+										endforeach;
+										
+										if(count($nonfollowers_list) > 0):
+											?>
+											<hr style="margin: 15px 0;">
+											<p class='card-text'>
+												<?php 
+												$non_picks = "These ".($lottery->duplicate_extra_ball && $is_extra ? "Extra Ball " : ($lottery->duplicate_extra_ball ? "Main Ball " : ""))."Numbers have <strong>NEVER</strong> followed this <?=($is_extra ? 'Extra Ball' : 'Ball');?> <strong><?=$ball_num;?></strong> for ".$lottery->last_drawn['range']." Draws:<br />";
+												
+												foreach($nonfollowers_list as $nf_num):
+													if(empty($nf_num)) continue;
+													
+													// Check if this non-follower was actually drawn in the CURRENT/MOST RECENT draw
+													$was_drawn = false;
+													if($is_extra && isset($current_draw_numbers['extra']) && $nf_num == $current_draw_numbers['extra']):
+														$was_drawn = true;
+													elseif(!$is_extra && in_array($nf_num, $current_draw_numbers)):
+														$was_drawn = true;
+													endif;
+													
+													$match_class = $was_drawn ? ' class="prev-draw-match"' : '';
+													$non_picks .= 'Number: <strong'.$match_class.'>'.$nf_num.'</strong><br />';
+												endforeach;
+												
+												echo $non_picks;
+												?>
+											</p>
+											<?php 
+											$plural_nf = (string) (count($nonfollowers_list) > 1 ?  " balls " : " ball "); 
+											?>
+											<p class='card-text'><strong><?php echo count($nonfollowers_list).$plural_nf; ?></strong> in this <?=($lottery->duplicate_extra_ball && !$is_extra ? 'main ball ' : '');?>non-follower group.</p>
+											<?php
+										endif;
+									endif;
+									?>
+								</div>
+							<?php endforeach; ?>
+						</div>
+						
+						<script>
+						$(document).ready(function() {
+							// Handle clicking on previous draw ball badges
+							$('.prev-ball-badge').on('click', function() {
+								var ballNum = $(this).data('ball');
+								var isExtra = $(this).data('is-extra');
+								
+								// Hide all sections first
+								$('.prev-ball-section').removeClass('active');
+								
+								// Show only the clicked ball's section
+								$('.prev-ball-section[data-ball="'+ballNum+'"][data-is-extra="'+isExtra+'"]').addClass('active');
+								
+								// Scroll to the section
+								var $section = $('.prev-ball-section[data-ball="'+ballNum+'"]');
+								if($section.length) {
+									$('html, body').animate({
+										scrollTop: $section.offset().top - 100
+									}, 300);
+								}
+							});
+							
+							// Show all button
+							$('#show-all-prev-balls').on('click', function() {
+								$('.prev-ball-section').addClass('active');
+							});
+							
+							// Hide all button
+							$('#hide-all-prev-balls').on('click', function() {
+								$('.prev-ball-section').removeClass('active');
+							});
+						});
+						</script>
+						<?php endif; ?>
+						
 						<?php if(isset($prev_draw) && $prev_draw['exists']): ?>
 						<div class="winner-legend" style="margin: 30px 20px 20px 20px;">
-							<strong>📊 Previous Draw Analysis:</strong> This page shows:
+							<strong>How to Read This Page:</strong>
 							<ul class="mb-0 mt-2">
-								<li><strong>Current Followers:</strong> Predictions for the next draw (displayed in the main tabs above)</li>
-								<li><strong>Previous Draw Followers:</strong> What the predictions were before the previous draw (shown at bottom of each ball tab - top 5 followers for each ball)</li>
-								<li><strong>Yellow Border Highlighting:</strong> Numbers with <span style="background-color: #fff3cd; border: 2px solid #ffc107; padding: 2px 6px; border-radius: 3px;">yellow border</span> in the Previous Draw Followers section were actually drawn on <strong><?=date("F j, Y", strtotime($prev_draw['date']));?></strong></li>
+								<li><strong>Current Followers:</strong> Predictions for the next draw (displayed in the tabs above)</li>
+								<li><strong>Previous Draw Followers:</strong> What the predictions were before the previous draw (shown in the blue box above)</li>
+								<li><strong>Yellow Border Highlighting:</strong> Numbers with <span style="background-color: #fff3cd; border: 2px solid #ffc107; padding: 2px 6px; border-radius: 3px;">yellow border</span> were actually drawn on <strong><?=date("l, F j, Y", strtotime(str_replace('/','-',$lottery->last_drawn['draw_date'])));?></strong> (most recent draw)</li>
 							</ul>
-							Click the blue/green badges in the Previous Draw section to navigate to that ball's tab.
 						</div>
 						<?php endif; ?>
 					</div>
@@ -497,46 +642,3 @@
 			</div>
 		</div>
 	</section>
-	<script>
-	// JavaScript to handle clicking on previous draw numbers
-	$(document).ready(function() {
-		$('.prev-draw-number').on('click', function() {
-			var ballNumber = $(this).data('ball');
-			var isExtra = $(this).data('extra');
-			
-			// Find the tab that corresponds to this ball number
-			var targetTab = null;
-			
-			if (isExtra) {
-				// For extra ball, find the tab with the matching extra ball number
-				$('.nav-tabs a').each(function() {
-					var tabText = $(this).text().trim();
-					// Extra ball tabs contain ' + ' prefix
-					if (tabText.indexOf('+') >= 0 && tabText.indexOf(ballNumber) >= 0) {
-						targetTab = $(this);
-						return false; // break loop
-					}
-				});
-			} else {
-				// For main balls, find the tab with the matching ball number
-				$('.nav-tabs a').each(function() {
-					var tabText = $(this).text().trim();
-					// Main ball tabs don't have ' + ' and match the ball number exactly
-					if (tabText.indexOf('+') < 0 && tabText == ballNumber) {
-						targetTab = $(this);
-						return false; // break loop
-					}
-				});
-			}
-			
-			// Activate the tab if found
-			if (targetTab) {
-				targetTab.tab('show');
-				// Scroll to top of tab content
-				$('html, body').animate({
-					scrollTop: $('.tab-card').offset().top - 100
-				}, 500);
-			}
-		});
-	});
-	</script>

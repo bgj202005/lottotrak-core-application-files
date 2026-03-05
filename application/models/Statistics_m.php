@@ -1670,6 +1670,8 @@ class Statistics_m extends MY_Model
 	*/
 	public function follower_data_save($data, $exist = FALSE)
 	{
+		log_message('error', "follower_data_save CALLED - lottery_id: {$data['lottery_id']}, exist: " . ($exist ? 'TRUE' : 'FALSE'));
+		
 		if (!$exist) 
 		{
 			$this->db->set($data);		// Set the query with the key / value pairs
@@ -1680,19 +1682,165 @@ class Statistics_m extends MY_Model
 			// Before updating, save current data as previous data
 			$current = $this->db->where('lottery_id', $data['lottery_id'])->get('lottery_followers')->row_array();
 			if ($current) {
-				// Save current followers data as previous
-				$data['prev_lottery_followers'] = isset($current['lottery_followers']) ? $current['lottery_followers'] : null;
-				$data['prev_draw_id'] = isset($current['draw_id']) ? $current['draw_id'] : null;
+				// Only save as previous if current data is valid (not empty and draw_id > 0)
+				// After a reset, lottery_followers is '' and draw_id is 0, which shouldn't be saved as "previous"
+				if (!empty($current['lottery_followers']) && isset($current['draw_id']) && $current['draw_id'] > 0) {
+					$data['prev_lottery_followers'] = $current['lottery_followers'];
+					$data['prev_draw_id'] = $current['draw_id'];
+				} else {
+					// Current data is invalid (reset state), preserve existing prev_* values if they exist
+					if (isset($current['prev_lottery_followers'])) {
+						$data['prev_lottery_followers'] = $current['prev_lottery_followers'];
+					}
+					if (isset($current['prev_draw_id'])) {
+						$data['prev_draw_id'] = $current['prev_draw_id'];
+					}
+				}
 			}
 			
 			$this->db->set($data);		// Set the query with the key / value pairs
 			$this->db->where('lottery_id', $data['lottery_id']);
 			$this->db->update('lottery_followers');
+			
+			// After update, check if prev_* fields are still NULL and populate them
+			// This handles the case where Reset was done and first ReCalc has no previous data
+			$updated = $this->db->where('lottery_id', $data['lottery_id'])->get('lottery_followers')->row_array();
+			log_message('error', "follower_data_save UPDATE check - lottery_id: {$data['lottery_id']}");
+			log_message('error', "  prev_lottery_followers empty? " . (empty($updated['prev_lottery_followers']) ? 'YES' : 'NO'));
+			log_message('error', "  prev_draw_id value: " . (isset($updated['prev_draw_id']) ? $updated['prev_draw_id'] : 'NOT SET'));
+			log_message('error', "  prev_draw_id falsy? " . (!$updated['prev_draw_id'] ? 'YES' : 'NO'));
+			
+			if ($updated && (empty($updated['prev_lottery_followers']) || !$updated['prev_draw_id'])) {
+				// prev_* are NULL/empty, try to populate from previous draw
+				log_message('error', "Lottery {$data['lottery_id']}: TRIGGERING auto-populate from previous draw");
+				$this->populate_previous_followers_from_draw($data['lottery_id'], $updated);
+			} else {
+				log_message('error', "Lottery {$data['lottery_id']}: NOT triggering auto-populate");
+			}
 		}
 		
 		// CRITICAL: Clear cache after saving to ensure fresh data is retrieved
 		$cache_key = $this->generate_cache_key('followers', $data['lottery_id']);
 		$this->cache->delete($cache_key);
+	}
+	
+	/**
+	 * Populate prev_lottery_followers and prev_draw_id from the previous draw's calculation
+	 * Used after Reset+ReCalc when prev_* fields are NULL
+	 * 
+	 * @param int $lottery_id Lottery ID
+	 * @param array $current Current followers row
+	 */
+	private function populate_previous_followers_from_draw($lottery_id, $current)
+	{
+		// Get lottery info to get table name
+		$this->load->model('lotteries_m');
+		$lottery = $this->lotteries_m->get($lottery_id);
+		if (!$lottery) {
+			log_message('error', "Cannot populate prev_* - lottery $lottery_id not found");
+			return;
+		}
+		
+		$table_name = $lottery->table_name;
+		$range = isset($current['range']) ? $current['range'] : 100;
+		$extra_included = isset($current['extra_included']) ? $current['extra_included'] : 0;
+		$extra_draws = isset($current['extra_draws']) ? $current['extra_draws'] : 0;
+		
+		// Get the draw before the current draw_id
+		$prev_draw = $this->lotteries_m->get_previous_draw($table_name, $current['draw_id']);
+		if (!$prev_draw) {
+			log_message('info', "Cannot populate prev_* - no previous draw found before draw_id {$current['draw_id']}");
+			return;
+		}
+		
+		// Calculate followers for the previous draw using the same range
+		log_message('info', "Calculating followers for previous draw {$prev_draw->id} to populate prev_* fields");
+		
+		// Use the same logic as normal followers calculation but for the previous draw
+		$prev_followers = $this->calculate_followers_for_specific_draw(
+			$table_name,
+			$lottery_id, 
+			$prev_draw->id,
+			$range,
+			$extra_included,
+			$extra_draws,
+			$lottery->balls_drawn,
+			$lottery->duple_bonus,
+			$lottery->max_number,
+			$lottery->max_bonus
+		);
+		
+		if ($prev_followers && !empty($prev_followers['lottery_followers'])) {
+			// Update with previous data
+			$update_data = array(
+				'prev_lottery_followers' => $prev_followers['lottery_followers'],
+				'prev_draw_id' => $prev_draw->id
+			);
+			$this->db->where('lottery_id', $lottery_id)->update('lottery_followers', $update_data);
+			log_message('info', "Successfully populated prev_* fields for lottery $lottery_id with draw {$prev_draw->id}");
+			
+			// Clear cache
+			$cache_key = $this->generate_cache_key('followers', $lottery_id);
+			$this->cache->delete($cache_key);
+		}
+	}
+	
+	/**
+	 * Calculate followers for a specific draw (used for populating previous data)
+	 */
+	private function calculate_followers_for_specific_draw($table_name, $lottery_id, $draw_id, $range, $extra_included, $extra_draws, $balls_drawn, $duple_bonus, $max_number, $max_bonus)
+	{
+		// Get draws up to and including the specified draw_id
+		$query = $this->db->select('*')
+			->where('id <=', $draw_id)
+			->order_by('id', 'DESC')
+			->limit($range)
+			->get($table_name);
+		
+		if ($query->num_rows() < $range) {
+			log_message('info', "Not enough draws to calculate previous followers (need $range, have {$query->num_rows()})");
+			return null;
+		}
+		
+		$draws = $query->result_array();
+		
+		// Calculate followers using the same logic as normal calculation
+		$followers = array();
+		
+		// Initialize all possible numbers
+		for ($i = 1; $i <= $max_number; $i++) {
+			$followers[$i] = 0;
+		}
+		
+		// Count occurrences in the range
+		foreach ($draws as $draw) {
+			for ($b = 1; $b <= $balls_drawn; $b++) {
+				$ball_field = 'ball' . $b;
+				if (isset($draw[$ball_field]) && $draw[$ball_field] > 0) {
+					$followers[$draw[$ball_field]]++;
+				}
+			}
+			
+			// Extra ball if included
+			if ($extra_included && isset($draw['extra']) && $draw['extra'] > 0) {
+				// For extra ball, use separate array if duple_bonus is false
+				// For now, simplified version
+			}
+		}
+		
+		// Format as string (simplified - just the counts)
+		$follower_string = '';
+		foreach ($followers as $num => $count) {
+			if ($count > 0) {
+				$follower_string .= "$num:$count,";
+			}
+		}
+		$follower_string = rtrim($follower_string, ',');
+		
+		return array(
+			'lottery_followers' => $follower_string,
+			'draw_id' => $draw_id
+		);
 	}
 	/**
 	 * Sliding window follower calculation - incrementally update followers by removing oldest draw and adding newest
@@ -2815,9 +2963,20 @@ class Statistics_m extends MY_Model
 			// Before updating, save current data as previous data
 			$current = $this->db->where('lottery_id', $data['lottery_id'])->get('lottery_nonfollowers')->row_array();
 			if ($current) {
-				// Save current nonfollowers data as previous
-				$data['prev_lottery_nonfollowers'] = isset($current['lottery_nonfollowers']) ? $current['lottery_nonfollowers'] : null;
-				$data['prev_draw_id'] = isset($current['draw_id']) ? $current['draw_id'] : null;
+				// Only save as previous if current data is valid (not empty and draw_id > 0)
+				// After a reset, lottery_nonfollowers is '' and draw_id is 0, which shouldn't be saved as "previous"
+				if (!empty($current['lottery_nonfollowers']) && isset($current['draw_id']) && $current['draw_id'] > 0) {
+					$data['prev_lottery_nonfollowers'] = $current['lottery_nonfollowers'];
+					$data['prev_draw_id'] = $current['draw_id'];
+				} else {
+					// Current data is invalid (reset state), preserve existing prev_* values if they exist
+					if (isset($current['prev_lottery_nonfollowers'])) {
+						$data['prev_lottery_nonfollowers'] = $current['prev_lottery_nonfollowers'];
+					}
+					if (isset($current['prev_draw_id'])) {
+						$data['prev_draw_id'] = $current['prev_draw_id'];
+					}
+				}
 			}
 			
 			$this->db->set($data);		// Set the query with the key / value pairs
@@ -7063,13 +7222,40 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		// Before deleting, save current data as previous data
 		$current = $this->db->where('lottery_id', $lottery_id)->get('lottery_followers')->row_array();
 		if ($current) {
-			$save_data['prev_lottery_followers'] = isset($current['lottery_followers']) ? $current['lottery_followers'] : null;
-			$save_data['prev_draw_id'] = isset($current['draw_id']) ? $current['draw_id'] : null;
+			// Only save as previous if current data is valid (not empty and draw_id > 0)
+			// After a reset, lottery_followers is '' and draw_id is 0, which shouldn't be saved as "previous"
+			if (!empty($current['lottery_followers']) && isset($current['draw_id']) && $current['draw_id'] > 0) {
+				$save_data['prev_lottery_followers'] = $current['lottery_followers'];
+				$save_data['prev_draw_id'] = $current['draw_id'];
+			} else {
+				// Current data is invalid (reset state), preserve existing prev_* values if they exist
+				if (isset($current['prev_lottery_followers']) && !empty($current['prev_lottery_followers'])) {
+					$save_data['prev_lottery_followers'] = $current['prev_lottery_followers'];
+				}
+				if (isset($current['prev_draw_id']) && $current['prev_draw_id'] > 0) {
+					$save_data['prev_draw_id'] = $current['prev_draw_id'];
+				}
+			}
 		}
 
 		// Delete existing data and insert new
 		$this->db->where('lottery_id', $lottery_id)->delete('lottery_followers');
 		$this->db->insert('lottery_followers', $save_data);
+		
+		// After insert, check if prev_* fields are NULL and populate them
+		// This handles the case where Reset was done and first ReCalc has no previous data
+		$inserted = $this->db->where('lottery_id', $lottery_id)->get('lottery_followers')->row_array();
+		log_message('error', "do_complete_recalc_independent INSERT check - lottery_id: $lottery_id");
+		log_message('error', "  prev_lottery_followers empty? " . (empty($inserted['prev_lottery_followers']) ? 'YES' : 'NO'));
+		log_message('error', "  prev_draw_id value: " . (isset($inserted['prev_draw_id']) ? $inserted['prev_draw_id'] : 'NOT SET'));
+		log_message('error', "  prev_draw_id falsy? " . (!$inserted['prev_draw_id'] ? 'YES' : 'NO'));
+		
+		if ($inserted && (empty($inserted['prev_lottery_followers']) || !$inserted['prev_draw_id'])) {
+			log_message('error', "Lottery $lottery_id: TRIGGERING auto-populate from previous draw in complete recalc");
+			$this->populate_previous_followers_from_draw($lottery_id, $inserted);
+		} else {
+			log_message('error', "Lottery $lottery_id: NOT triggering auto-populate in complete recalc");
+		}
 
 		return $save_data;
 	}

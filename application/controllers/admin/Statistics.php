@@ -695,6 +695,9 @@ class Statistics extends Admin_Controller {
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 		
 		// 1. Check for a record for the current lottery in the followers table
+		// Clear cache to ensure we get fresh data (especially for prev_* fields)
+		$this->statistics_m->clear_follower_cache($id);
+		
 		$followers = $this->statistics_m->followers_exists($id);		// Existing follower row 
 		$nonfollowers = $this->statistics_m->nonfollowers_exists($id);	// Non Follower existing row
 		$sel_range = 1;
@@ -1211,10 +1214,13 @@ class Statistics extends Admin_Controller {
 		$this->data['lottery']->last_drawn['range'] = $range;
 		$this->data['lottery']->last_drawn['all'] = $all;
 		
-		// DYNAMIC COMPARISON: Fetch the previous draw before the draw_id that followers were calculated from
-		// This allows us to show which previous draw numbers appeared in the current draw
-		$followers_draw_id = $followers ? $followers['draw_id'] : $this->data['lottery']->last_drawn['id'];
-		$prev_draw_data = $this->lotteries_m->get_previous_draw($tbl_name, $followers_draw_id);
+		// DYNAMIC COMPARISON: Fetch the draw using prev_draw_id from the followers table
+		// This shows which draw the previous followers were calculated for
+		$prev_draw_data = null;
+		if ($followers && isset($followers['prev_draw_id']) && $followers['prev_draw_id']) {
+			// Use the stored prev_draw_id to get the exact draw
+			$prev_draw_data = $this->lotteries_m->get_draw_by_id($tbl_name, $followers['prev_draw_id']);
+		}
 		
 		// Get current draw numbers for comparison
 		$current_draw_numbers = array();
@@ -1224,39 +1230,41 @@ class Statistics extends Admin_Controller {
 				$current_draw_numbers[] = $this->data['lottery']->last_drawn[$ball_key];
 			}
 		}
-		if ($this->data['lottery']->extra_ball && isset($this->data['lottery']->last_drawn['extra'])) {
+		// Only include extra ball if lottery has it AND user has it enabled (explicitly check == 1)
+		if ($this->data['lottery']->extra_ball && $this->data['lottery']->extra_included == 1 && isset($this->data['lottery']->last_drawn['extra'])) {
 			$current_draw_numbers['extra'] = $this->data['lottery']->last_drawn['extra'];
 		}
 		
 		if ($prev_draw_data) {
-			// Convert previous draw object to array of numbers
+			// Convert previous draw object to array of numbers AND store ball positions
 			$prev_draw_numbers = array();
+			$prev_draw_balls = array(); // Store ball positions for matching in view
 			for($b = 1; $b <= $drawn; $b++) {
 				$ball_key = 'ball'.$b;
 				if (isset($prev_draw_data->$ball_key)) {
 					$prev_draw_numbers[] = $prev_draw_data->$ball_key;
+					$prev_draw_balls['ball'.$b] = $prev_draw_data->$ball_key;
 				}
 			}
-			// Add extra ball if it exists
-			if ($this->data['lottery']->extra_ball && isset($prev_draw_data->extra)) {
+			// Only include extra ball if lottery has it AND user has it enabled (explicitly check == 1)
+			if ($this->data['lottery']->extra_ball && $this->data['lottery']->extra_included == 1 && isset($prev_draw_data->extra)) {
 				$prev_draw_numbers['extra'] = $prev_draw_data->extra;
+				$prev_draw_balls['extra'] = $prev_draw_data->extra;
 			}
 			
 			$this->data['prev_draw'] = array(
 				'numbers' => $prev_draw_numbers,
+				'balls' => $prev_draw_balls,
 				'date' => $prev_draw_data->draw_date,
 				'exists' => true
 			);
 			$this->data['current_draw_numbers'] = $current_draw_numbers;
-			
-			log_message('info', "Followers view: Previous draw found before draw_id={$followers_draw_id}, date={$prev_draw_data->draw_date}, numbers=".implode(',', $prev_draw_numbers));
 		} else {
 			// No previous draw exists (we're at the first draw)
 			$this->data['prev_draw'] = array(
 				'exists' => false
 			);
 			$this->data['current_draw_numbers'] = $current_draw_numbers;
-			log_message('info', "Followers view: No previous draw found before draw_id={$followers_draw_id}");
 		}
 		
 		$this->data['current'] = $this->uri->segment(2); 				// Sets the Admins Menu Highlighted
@@ -2286,6 +2294,42 @@ class Statistics extends Admin_Controller {
 			// First, get current settings before clearing data
 			$current_followers = $this->statistics_m->followers_exists($id);
 			$current_nonfollowers = $this->statistics_m->nonfollowers_exists($id);
+			
+			// VALIDATION: Check if prev_draw_id is exactly 1 draw before draw_id
+			// If not valid, clear prev_* fields to prevent incorrect data display
+			$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+			
+			if($current_followers && isset($current_followers['draw_id']) && $current_followers['draw_id'] > 0) {
+				$current_draw_id = $current_followers['draw_id'];
+				$stored_prev_draw_id = isset($current_followers['prev_draw_id']) ? $current_followers['prev_draw_id'] : null;
+				
+				// Get the actual previous draw before current_draw_id
+				$actual_prev_draw = $this->lotteries_m->get_previous_draw($tbl_name, $current_draw_id);
+				$actual_prev_draw_id = $actual_prev_draw ? $actual_prev_draw->id : null;
+				
+				// Validate: stored prev_draw_id must match actual previous draw
+				if($stored_prev_draw_id && $actual_prev_draw_id && $stored_prev_draw_id != $actual_prev_draw_id) {
+					// Invalid prev_draw_id - clear prev_* fields for both followers and nonfollowers
+					log_message('info', "RESET VALIDATION: Lottery $id - prev_draw_id ($stored_prev_draw_id) does not match actual previous draw ($actual_prev_draw_id). Clearing prev_* fields.");
+					
+					$this->db->where('lottery_id', $id);
+					$this->db->update('lottery_followers', array(
+						'prev_lottery_followers' => null,
+						'prev_draw_id' => null
+					));
+					
+					$this->db->where('lottery_id', $id);
+					$this->db->update('lottery_nonfollowers', array(
+						'prev_lottery_nonfollowers' => null,
+						'prev_draw_id' => null
+					));
+					
+					// Clear cache and reload the data after clearing prev_* fields
+					$this->statistics_m->clear_follower_cache($id);
+					$current_followers = $this->statistics_m->followers_exists($id);
+					$current_nonfollowers = $this->statistics_m->nonfollowers_exists($id);
+				}
+			}
 			
 			// Clear calculation data AND draw_id to force recalculation
 			// The draw_id field is what recalc_update() checks to determine if recalc is needed
