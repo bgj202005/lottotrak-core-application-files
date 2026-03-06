@@ -492,7 +492,13 @@
 												if($is_extra && isset($current_draw_numbers['extra']) && $num == $current_draw_numbers['extra']):
 													$was_drawn = true;
 												elseif(!$is_extra && in_array($num, $current_draw_numbers)):
-													$was_drawn = true;
+													// EXCEPTION for duplicate_extra_ball lotteries:
+													// Do NOT highlight if this number is the extra ball (appears in both main and extra)
+													if($lottery->duplicate_extra_ball && isset($current_draw_numbers['extra']) && $num == $current_draw_numbers['extra']):
+														$was_drawn = false;
+													else:
+														$was_drawn = true;
+													endif;
 												endif;
 												
 												$match_class = $was_drawn ? ' class="prev-draw-match"' : '';
@@ -570,7 +576,13 @@
 													if($is_extra && isset($current_draw_numbers['extra']) && $nf_num == $current_draw_numbers['extra']):
 														$was_drawn = true;
 													elseif(!$is_extra && in_array($nf_num, $current_draw_numbers)):
-														$was_drawn = true;
+														// EXCEPTION for duplicate_extra_ball lotteries:
+														// Do NOT highlight if this number is the extra ball (appears in both main and extra)
+														if($lottery->duplicate_extra_ball && isset($current_draw_numbers['extra']) && $nf_num == $current_draw_numbers['extra']):
+															$was_drawn = false;
+														else:
+															$was_drawn = true;
+														endif;
 													endif;
 													
 													$match_class = $was_drawn ? ' class="prev-draw-match"' : '';
@@ -633,7 +645,11 @@
 							<ul class="mb-0 mt-2">
 								<li><strong>Current Followers:</strong> Predictions for the next draw (displayed in the tabs above)</li>
 								<li><strong>Previous Draw Followers:</strong> What the predictions were before the previous draw (shown in the blue box above)</li>
-								<li><strong>Yellow Border Highlighting:</strong> Numbers with <span style="background-color: #fff3cd; border: 2px solid #ffc107; padding: 2px 6px; border-radius: 3px;">yellow border</span> were actually drawn on <strong><?=date("l, F j, Y", strtotime(str_replace('/','-',$lottery->last_drawn['draw_date'])));?></strong> (most recent draw)</li>
+							<li><strong>Yellow Border Highlighting:</strong> Numbers with <span style="background-color: #fff3cd; border: 2px solid #ffc107; padding: 2px 6px; border-radius: 3px;">yellow border</span> were actually drawn on <strong><?=date("l, F j, Y", strtotime(str_replace('/','-',$lottery->last_drawn['draw_date'])));?></strong> (most recent draw)
+								<?php if($lottery->duplicate_extra_ball): ?>
+								<br><em style="margin-left: 20px; font-size: 0.9em;">Exception: For main ball predictions, numbers are NOT highlighted if they match the extra ball (appear in both main and extra).</em>
+								<?php endif; ?>
+							</li>
 							</ul>
 						</div>
 						<?php endif; ?>
