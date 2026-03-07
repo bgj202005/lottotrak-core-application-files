@@ -1349,8 +1349,6 @@ class Statistics extends Admin_Controller {
 					$relatives = $this->statistics_m->create_friend_array();
 					$nonrelatives = $this->statistics_m->create_nonfriend_array();
 					
-					log_message('debug', "Before calculation - relatives: ".json_encode($relatives));
-					
 					$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
 					$associate = explode('+', $str_friends); // The '+' is the separator
 					$str_friends = $associate[0];			 // separated the friends which is a string
