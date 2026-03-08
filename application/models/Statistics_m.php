@@ -3408,24 +3408,25 @@ class Statistics_m extends MY_Model
 				$query->free_result();
 				continue; // Skip to next ball if insufficient data
 			}
-				
-				// Initialize arrays for this ball
-				$followlist = array();
-				$nonfollowlist = array();
-				$sliding_window_draws = array(); // Track draws for sliding window removal
-				if($duple) $duplelist = array(); // Only if this lottery has a duplicate extra ball
-				
-				// Calculate adjusted phases based on actual draws available
-				// PHASE 1: Build initial followers (first half of available draws, or range if enough)
-				// PHASE 2: Calculate wins with sliding window (second half of draws)
-				$phase1_end = min($range - 1, floor($actual_draw_count / 2));
-				$phase2_start = $phase1_end + 1;
-				
-				log_message('debug', "complete_recalculation: Ball {$b} - Phase1: 0 to {$phase1_end}, Phase2: {$phase2_start} to ".($actual_draw_count-2));
-				
-				// PHASE 1: Build initial followers from draws 0 to phase1_end (NO win calculations yet)
-				// Process first portion of draws to build follower relationships only
-				for($draw_idx = 0; $draw_idx < $phase1_end && $draw_idx < ($actual_draw_count - 1); $draw_idx++) {
+			
+			// Initialize arrays for this ball
+			$followlist = array();
+			$nonfollowlist = array();
+			$sliding_window_draws = array(); // Track draws for sliding window removal
+			$prize_counts[$b] = $this->get_empty_win_categories(); // Initialize prize counts for this ball
+			if($duple) $duplelist = array(); // Only if this lottery has a duplicate extra ball
+			
+			// Calculate adjusted phases based on actual draws available
+			// PHASE 1: Build initial followers (first half of available draws, or range if enough)
+			// PHASE 2: Calculate wins with sliding window (second half of draws)
+			$phase1_end = min($range - 1, floor($actual_draw_count / 2));
+			$phase2_start = $phase1_end + 1;
+			
+			log_message('debug', "complete_recalculation: Ball {$b} - Phase1: 0 to {$phase1_end}, Phase2: {$phase2_start} to ".($actual_draw_count-2));
+			
+			// PHASE 1: Build initial followers from draws 0 to phase1_end (NO win calculations yet)
+			// Process first portion of draws to build follower relationships only
+			for($draw_idx = 0; $draw_idx < $phase1_end && $draw_idx < ($actual_draw_count - 1); $draw_idx++) {
 					$current_draw = $all_draws[$draw_idx];
 					$next_draw = $all_draws[$draw_idx + 1];
 					
@@ -7919,11 +7920,14 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		}
 		$this->hwc_positions = $hwc_positions;
 		
-		// PHASE 2 ENHANCEMENT: Always use cold start for position statistics to ensure deterministic results
+		// PHASE 2 ENHANCED: Configuration-aware incremental learning
 		// Position stats are configuration-specific (depend on extra_included, extra_draws, range, etc.)
-		// Loading stats from a previous run with different settings causes non-deterministic behavior
-		// Instead, we calculate fresh position stats each time during the sliding window analysis
-		$this->current_position_stats = array(); // Cold start - will be populated during analyze_sliding_window
+		// Load existing stats ONLY if configuration matches (enables learning over time)
+		// If configuration changed, cold start (ensures deterministic results)
+		$config_fingerprint = $this->generate_config_fingerprint($lottery_id, $adjusted_range, $hots, $warms, $colds, $prediction_pool, $extra_included, $extra_draws);
+		$existing_position_stats = $this->load_position_statistics_with_config_check($lottery_id, $config_fingerprint);
+		$this->current_position_stats = $existing_position_stats; // Will be empty array if config changed (cold start)
+		$this->current_config_fingerprint = $config_fingerprint; // Store for saving later
 
 
 		// Phase 2: Analyze the next range using fixed positions
@@ -7942,11 +7946,12 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		
 		$this->save_wins_string($lottery_id, $adjusted_range, $hots, $warms, $colds, $prediction_pool, $extra_included, $extra_draws, $final_wins_string);
 		
-		// Phase 6: ENHANCED - Save position statistics for intelligent selection
+		// Phase 6: ENHANCED - Save position statistics with configuration fingerprint for intelligent selection
 		if (isset($this->position_stats_data) && !empty($this->position_stats_data)) {
-			$position_stats_string = $this->format_position_statistics($this->position_stats_data);
+			$position_stats_string = $this->format_position_statistics($this->position_stats_data, $this->current_config_fingerprint);
 			$this->save_position_statistics($lottery_id, $adjusted_range, $hots, $warms, $colds, $prediction_pool, $position_stats_string);
-			log_message('info', "H-W-C position stats: Successfully saved position data for lottery_id=$lottery_id");
+			$stats_source = empty($existing_position_stats) ? 'created (cold start)' : 'updated (incremental learning)';
+			log_message('info', "H-W-C position stats: Successfully saved position data for lottery_id=$lottery_id - $stats_source");
 		}
 		
 		log_message('info', "H-W-C win stats: Successfully saved wins data for lottery_id=$lottery_id, range=$adjusted_range");
@@ -9151,14 +9156,15 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 
 	/**
 	 * Format position statistics for database storage
-	 * ENHANCED: Creates encoded string of position win tracking data
-	 * Format: pattern>temp:pos=selected/won,pos=selected/won|pattern>...
-	 * Example: "2-2-2>H:1=100/12,2=100/14,3=100/22|W:5=100/65|C:8=100/45|3-1-2>H:1=50/8,2=50/10..."
+	 * ENHANCED: Creates encoded string of position win tracking data with configuration fingerprint
+	 * Format: fingerprint##pattern>temp:pos=selected/won,pos=selected/won|pattern>...
+	 * Example: "abc123##2-2-2>H:1=100/12,2=100/14,3=100/22|W:5=100/65|C:8=100/45|3-1-2>H:1=50/8,2=50/10..."
 	 * 
 	 * @param array $position_stats Position statistics data by pattern
-	 * @return string Formatted position statistics string
+	 * @param string $config_fingerprint Configuration fingerprint (optional)
+	 * @return string Formatted position statistics string with fingerprint prefix
 	 */
-	private function format_position_statistics($position_stats)
+	private function format_position_statistics($position_stats, $config_fingerprint = '')
 	{
 		$pattern_parts = array();
 		
@@ -9188,7 +9194,14 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 		}
 		
-		return implode('||', $pattern_parts);
+		$stats_string = implode('||', $pattern_parts);
+		
+		// Prepend configuration fingerprint if provided (enables config validation on load)
+		if (!empty($config_fingerprint)) {
+			return $config_fingerprint . '##' . $stats_string;
+		}
+		
+		return $stats_string;
 	}
 
 	/**
@@ -9261,6 +9274,112 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	}
 
 	/**
+	 * Generate configuration fingerprint for position stats validation
+	 * Enables incremental learning by detecting configuration changes
+	 * 
+	 * @param int $lottery_id Lottery ID
+	 * @param int $range Analysis range
+	 * @param int $hots Number of hot numbers
+	 * @param int $warms Number of warm numbers
+	 * @param int $colds Number of cold numbers
+	 * @param int $prediction_pool Prediction pool size
+	 * @param boolean $extra_included Whether extra ball included
+	 * @param boolean $extra_draws Whether extra draws included
+	 * @return string MD5 hash of configuration
+	 */
+	private function generate_config_fingerprint($lottery_id, $range, $hots, $warms, $colds, $prediction_pool, $extra_included, $extra_draws)
+	{
+		// Create unique identifier from all configuration parameters that affect position statistics
+		$config_string = implode('|', array(
+			$lottery_id,
+			$range,
+			$hots,
+			$warms,
+			$colds,
+			$prediction_pool,
+			$extra_included ? '1' : '0',
+			$extra_draws ? '1' : '0'
+		));
+		
+		return md5($config_string);
+	}
+
+	/**
+	 * Parse position statistics string with fingerprint validation
+	 * 
+	 * @param string $position_stats_string Formatted position statistics string (with optional fingerprint)
+	 * @return array Array with 'fingerprint' and 'stats' keys
+	 */
+	private function parse_position_statistics_with_fingerprint($position_stats_string)
+	{
+		$result = array(
+			'fingerprint' => null,
+			'stats' => array()
+		);
+		
+		if (empty($position_stats_string)) {
+			return $result;
+		}
+		
+		// Check for fingerprint prefix (format: "fingerprint##stats_data")
+		if (strpos($position_stats_string, '##') !== false) {
+			list($fingerprint, $stats_string) = explode('##', $position_stats_string, 2);
+			$result['fingerprint'] = $fingerprint;
+		} else {
+			// Legacy format without fingerprint
+			$stats_string = $position_stats_string;
+		}
+		
+		$result['stats'] = $this->parse_position_statistics($stats_string);
+		return $result;
+	}
+
+	/**
+	 * Load position statistics from database with configuration validation
+	 * Only loads stats if configuration fingerprint matches (enables safe incremental learning)
+	 * 
+	 * @param int $lottery_id Lottery ID
+	 * @param string $current_fingerprint Current configuration fingerprint
+	 * @return array Position statistics or empty array if config changed
+	 */
+	private function load_position_statistics_with_config_check($lottery_id, $current_fingerprint)
+	{
+		$this->db->where('lottery_id', $lottery_id);
+		$query = $this->db->get('lottery_h_w_c_stats');
+		
+		if ($query->num_rows() == 0) {
+			log_message('info', "H-W-C position stats: No existing position stats for lottery_id=$lottery_id (cold start)");
+			return array();
+		}
+		
+		$result = $query->row();
+		
+		if (empty($result->position_stats)) {
+			log_message('info', "H-W-C position stats: Empty position_stats for lottery_id=$lottery_id (cold start)");
+			return array();
+		}
+		
+		// Parse position stats and extract fingerprint
+		$parsed_data = $this->parse_position_statistics_with_fingerprint($result->position_stats);
+		
+		if (!isset($parsed_data['fingerprint'])) {
+			// Legacy format without fingerprint - cold start for safety
+			log_message('info', "H-W-C position stats: Legacy data without fingerprint for lottery_id=$lottery_id (cold start)");
+			return array();
+		}
+		
+		// Validate configuration fingerprint
+		if ($parsed_data['fingerprint'] !== $current_fingerprint) {
+			log_message('info', "H-W-C position stats: Configuration changed for lottery_id=$lottery_id (cold start) - Old: {$parsed_data['fingerprint']}, New: $current_fingerprint");
+			return array();
+		}
+		
+		// Configuration matches - safe to load stats for incremental learning
+		log_message('info', "H-W-C position stats: Configuration matched for lottery_id=$lottery_id - Loading " . count($parsed_data['stats']) . " patterns (incremental learning)");
+		return $parsed_data['stats'];
+	}
+
+	/**
 	 * Load existing position statistics from database
 	 * PHASE 2: Retrieves historical position performance data for intelligent selection
 	 * 
@@ -9284,7 +9403,9 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			return array();
 		}
 		
-		$position_stats = $this->parse_position_statistics($result->position_stats);
+		// Parse with fingerprint support (but ignore fingerprint validation)
+		$parsed_data = $this->parse_position_statistics_with_fingerprint($result->position_stats);
+		$position_stats = isset($parsed_data['stats']) ? $parsed_data['stats'] : array();
 		log_message('info', "H-W-C position stats: Loaded position stats for lottery_id=$lottery_id - " . count($position_stats) . " patterns");
 		
 		return $position_stats;
