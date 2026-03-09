@@ -1008,22 +1008,11 @@
 										<span id="wheelingSelectedText">
 											<?php 
 											if (!empty($selected_value)) {
-												// Find the selected file and display its text without HTML
+												// Find the selected file and display its text without status badge
 												foreach ($combination_files as $file) {
 													$value = $file['id'] . '|' . $file['file_name'];
 													if ($value === $selected_value) {
-														// More robust check for active status
-														$is_active = false;
-														if (isset($file['active'])) {
-															$active_val = $file['active'];
-															$is_active = ($active_val == 1 || $active_val === '1' || $active_val === 1 || $active_val === true);
-														}
-														
-														if ($is_active) {
-															echo 'Active ';
-														} else {
-															echo 'Expired ';
-														}
+														// Don't show status for the currently selected item
 														echo '(' . htmlspecialchars($file['file_name']) . ') ' . $file['N'] . ' Numbers - ' . number_format($file['CCCC']) . ' Tickets';
 														break;
 													}
@@ -1040,6 +1029,9 @@
 												<?php 
 												$value = $file['id'] . '|' . $file['file_name']; // e.g., "246|060828"
 												$status_badge = '';
+												$selected_class = ($selected_value === $value) ? 'active' : '';
+												$is_selected = ($selected_value === $value);
+												
 												// More robust check for active status - handle string/int/bool values
 												$is_active = false;
 												if (isset($file['active'])) {
@@ -1047,13 +1039,19 @@
 													$is_active = ($active_val == 1 || $active_val === '1' || $active_val === 1 || $active_val === true);
 												}
 												
-												if ($is_active) {
-													$status_badge = '<span class="badge badge-success" style="background-color: #28a745; color: white;">Active</span> ';
-												} else {
-													$status_badge = '<span class="badge badge-danger" style="background-color: #dc3545; color: white;">Expired</span> ';
+												// Check if a filter was actually saved (has saved_filter_file_name)
+												$has_saved_filter = !empty($file['saved_filter_file_name']);
+												
+												// Only show status badge if a filter was actually saved AND this is NOT the currently selected item
+												if ($has_saved_filter && !$is_selected) {
+													if ($is_active) {
+														$status_badge = '<span class="badge badge-success" style="background-color: #28a745; color: white;">Active</span> ';
+													} else {
+														// Show Expired for filters that were saved and checked in prize history
+														$status_badge = '<span class="badge badge-danger" style="background-color: #dc3545; color: white;">Expired</span> ';
+													}
 												}
 												$display = $status_badge . '(' . htmlspecialchars($file['file_name']) . ') ' . $file['N'] . ' Numbers - ' . number_format($file['CCCC']) . ' Tickets';
-												$selected_class = ($selected_value === $value) ? 'active' : '';
 												?>
 												<a class="dropdown-item <?= $selected_class ?>" href="#" data-value="<?= htmlspecialchars($value) ?>" onclick="selectCombination('<?= htmlspecialchars($value, ENT_QUOTES) ?>', this.innerHTML); return false;"><?= $display ?></a>
 											<?php endforeach; ?>

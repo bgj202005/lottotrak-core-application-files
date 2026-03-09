@@ -470,15 +470,28 @@ class Predictions_m extends MY_Model
         
         // Fetch combination files with left join to check for active saved filters
         $this->db->select('lcf.id, lcf.file_name, lcf.N, lcf.R, lcf.CCCC, 
-                          COALESCE(MAX(lfc.active), 0) as active');
+                          COALESCE(MAX(lfc.active), 0) as active,
+                          lfc.file_name as saved_filter_file_name');
         $this->db->from('lottery_combination_files lcf');
 		$this->db->join('lottery_combination_filters lfc', 
 			       'lcf.id = lfc.combo_id AND lfc.user = 1 AND lfc.user_id = ' . (int)$current_user_id . ' AND lfc.lottery_id = ' . (int)$lottery_id, 'left');
         $this->db->where('lcf.R', $balls_drawn); // Match the balls_drawn value
-        $this->db->group_by('lcf.id, lcf.file_name, lcf.N, lcf.R, lcf.CCCC');
+        $this->db->group_by('lcf.id, lcf.file_name, lcf.N, lcf.R, lcf.CCCC, lfc.file_name');
         $this->db->order_by('lcf.file_name', 'ASC');
         $query = $this->db->get();
-        return $query->result_array(); // Return the result as an array
+        
+        // Check if saved filtered files actually exist on disk
+        $results = $query->result_array();
+        foreach ($results as &$row) {
+            $row['saved_file_exists'] = false;
+            if (!empty($row['saved_filter_file_name'])) {
+                $pick_dir = FCPATH . 'combinations/pick' . $balls_drawn . '/';
+                $saved_file_path = $pick_dir . $row['saved_filter_file_name'] . '.txt';
+                $row['saved_file_exists'] = file_exists($saved_file_path);
+            }
+        }
+        
+        return $results; // Return the result as an array
     }
 	/**
      * Retrieves the H-W-C (High, Winning, Cold) range, extra draws, and extra included settings for a lottery.
