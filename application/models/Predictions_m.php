@@ -2078,16 +2078,27 @@ class Predictions_m extends MY_Model
 			return $b['count'] <=> $a['count'];
 		});
 		
-		// Select followers only, up to limit
+		// Select followers first, then non-followers if quota is not yet reached
 		$selected = [];
 		$selected_lookup = [];
 		
+		// First pass: followers only
 		foreach ($position_data as $data) {
-			// Only select followers
 			if ($data['is_follower'] && !isset($selected_lookup[$data['number']])) {
 				$selected[] = $data['number'];
 				$selected_lookup[$data['number']] = true;
 				if (count($selected) >= $limit) break;
+			}
+		}
+		
+		// Second pass: fill remaining quota from non-followers in same heat group
+		if (count($selected) < $limit) {
+			foreach ($position_data as $data) {
+				if (!$data['is_follower'] && !isset($selected_lookup[$data['number']])) {
+					$selected[] = $data['number'];
+					$selected_lookup[$data['number']] = true;
+					if (count($selected) >= $limit) break;
+				}
 			}
 		}
 		
