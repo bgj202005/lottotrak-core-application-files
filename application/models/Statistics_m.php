@@ -3337,6 +3337,13 @@ class Statistics_m extends MY_Model
 	{
 		global $prizes;						// Retrieve Global $prizes array
 		$prize_counts = $prizes;
+		// Save the lottery-specific category template BEFORE the loop overwrites entries.
+		// This map (e.g. {3_win:0, 3_win_extra:0, ..., 7_win:0} for LottoMAX) is used to
+		// initialise each ball so that followers_prizecounts uses the correct categories and
+		// the exception-handling split (e.g. 7/7+bonus → 7_win + 6_win_extra) fires properly.
+		$prize_category_template = !empty($prizes)
+			? array_fill_keys(array_keys(reset($prizes)), 0)
+			: array_fill_keys(array_keys($this->get_empty_win_categories()), 0);
 		global $positions;					// Wins only by positions e.g. position 1 ... position 6 (pick 6 game)
 		
 		// Sliding Window Implementation: Need range*2 total draws for ideal calculation
@@ -3413,7 +3420,7 @@ class Statistics_m extends MY_Model
 			$followlist = array();
 			$nonfollowlist = array();
 			$sliding_window_draws = array(); // Track draws for sliding window removal
-			$prize_counts[$b] = $this->get_empty_win_categories(); // Initialize prize counts for this ball
+			$prize_counts[$b] = $prize_category_template; // Initialize with lottery-specific categories (not the generic 19-category structure)
 			if($duple) $duplelist = array(); // Only if this lottery has a duplicate extra ball
 			
 			// Calculate adjusted phases based on actual draws available

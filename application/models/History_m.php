@@ -768,6 +768,16 @@ class History_m extends MY_Model
 	*/
     public function last_draw_addwins($last_draw,$drn,$ei,$pg,$fp,$ps)
     {
+        // Canonical 19-category order used by the old wins-string format (get_empty_win_categories).
+        // When a stored string has exactly 19 values per ball we use this map to look up the
+        // correct index by category name so that lotteries with sparse prize profiles (e.g.
+        // LottoMAX which has no extra/1_win/2_win tiers) are read correctly even from legacy data.
+        $canonical_categories = ['extra','1_win','1_win_extra','2_win','2_win_extra',
+                                  '3_win','3_win_extra','4_win','4_win_extra',
+                                  '5_win','5_win_extra','6_win','6_win_extra',
+                                  '7_win','7_win_extra','8_win','8_win_extra',
+                                  '9_win','9_win_extra'];
+
         for($b = 1; $b<=$drn; $b++)
         {
             $ball = $last_draw['ball'.$b];
@@ -787,12 +797,30 @@ class History_m extends MY_Model
             } else {
                 $position_prizes = ['0','0','0','0','0','0','0','0','0','0']; // Default zeros
             }
-            
+
+            // Detect legacy 19-value format vs. lottery-specific format
+            $ball_uses_full_fmt     = (count($ball_prizes)     == 19);
+            $position_uses_full_fmt = (count($position_prizes) == 19);
+
             $index = 0;     
             foreach($pg as $prize => $value)
             {
-                $last_draw['ball'.$b.'_win'][$prize] = isset($ball_prizes[$index]) ? $ball_prizes[$index] : '0';
-                $last_draw['position'.$b.'_win'][$prize] = isset($position_prizes[$index]) ? $position_prizes[$index] : '0';
+                // Ball wins
+                if ($ball_uses_full_fmt) {
+                    $cat_pos = array_search($prize, $canonical_categories);
+                    $last_draw['ball'.$b.'_win'][$prize] = ($cat_pos !== false && isset($ball_prizes[$cat_pos])) ? $ball_prizes[$cat_pos] : '0';
+                } else {
+                    $last_draw['ball'.$b.'_win'][$prize] = isset($ball_prizes[$index]) ? $ball_prizes[$index] : '0';
+                }
+
+                // Position wins
+                if ($position_uses_full_fmt) {
+                    $cat_pos = array_search($prize, $canonical_categories);
+                    $last_draw['position'.$b.'_win'][$prize] = ($cat_pos !== false && isset($position_prizes[$cat_pos])) ? $position_prizes[$cat_pos] : '0';
+                } else {
+                    $last_draw['position'.$b.'_win'][$prize] = isset($position_prizes[$index]) ? $position_prizes[$index] : '0';
+                }
+
                 $index++;
             }
         }
@@ -815,12 +843,29 @@ class History_m extends MY_Model
             } else {
                 $position_prizes = ['0','0','0','0','0','0','0','0','0','0']; // Default zeros
             }
-            
+
+            $extra_uses_full_fmt    = (count($extra_prize)     == 19);
+            $ex_pos_uses_full_fmt   = (count($position_prizes) == 19);
+
             $index = 0;
             foreach($pg as $prize => $value)
             {
-                $last_draw['extra_win'][$prize] = isset($extra_prize[$index]) ? $extra_prize[$index] : '0';
-                $last_draw['position_extra_win'][$prize] = isset($position_prizes[$index]) ? $position_prizes[$index] : '0';
+                // Extra ball wins
+                if ($extra_uses_full_fmt) {
+                    $cat_pos = array_search($prize, $canonical_categories);
+                    $last_draw['extra_win'][$prize] = ($cat_pos !== false && isset($extra_prize[$cat_pos])) ? $extra_prize[$cat_pos] : '0';
+                } else {
+                    $last_draw['extra_win'][$prize] = isset($extra_prize[$index]) ? $extra_prize[$index] : '0';
+                }
+
+                // Extra position wins
+                if ($ex_pos_uses_full_fmt) {
+                    $cat_pos = array_search($prize, $canonical_categories);
+                    $last_draw['position_extra_win'][$prize] = ($cat_pos !== false && isset($position_prizes[$cat_pos])) ? $position_prizes[$cat_pos] : '0';
+                } else {
+                    $last_draw['position_extra_win'][$prize] = isset($position_prizes[$index]) ? $position_prizes[$index] : '0';
+                }
+
                 $index++;
             }
         }
