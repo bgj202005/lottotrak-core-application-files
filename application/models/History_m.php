@@ -1015,4 +1015,185 @@ class History_m extends MY_Model
         }
         return $last_draw;
     }
+
+	/**
+	 * Analyse H-W-C patterns combined with dynamic follower hits for all balls.
+	 * For each ball 1..max_ball, scans historical draw pairs to find which H-W-C
+	 * draw pattern produced the most follower hits in the next draw.
+	 *
+	 * @param  string  $tbl_name       Lottery draw table name
+	 * @param  int     $picks          Balls drawn per draw
+	 * @param  int     $max_ball       Highest ball number in the lottery
+	 * @param  bool    $extra_included Whether extra/bonus ball is included in analysis
+	 * @param  bool    $extra_draws    Whether to include draws with extra = 0
+	 * @param  int     $h_count        Number of Hot positions
+	 * @param  int     $w_count        Number of Warm positions
+	 * @param  string  $hots_str       Hots string from lottery_h_w_c table ("n=count,...")
+	 * @param  string  $warms_str      Warms string
+	 * @param  string  $colds_str      Colds string
+	 * @param  int     $range          Draw range (capped at 500)
+	 * @return array   Results array keyed by ball number, sorted by best avg hits desc
+	 */
+	public function get_hwc_follower_stats($tbl_name, $picks, $max_ball, $extra_included, $extra_draws, $h_count, $w_count, $hots_str, $warms_str, $colds_str, $range)
+	{
+		$range = min(500, intval($range));
+
+		// Build H-W-C lookup: ball_number => 'H' | 'W' | 'C'
+		$hwc_lookup = array();
+		foreach (explode(',', $hots_str) as $entry) {
+			$n = strstr($entry, '=', true);
+			if ($n !== false && $n !== '') $hwc_lookup[intval($n)] = 'H';
+		}
+		foreach (explode(',', $warms_str) as $entry) {
+			$n = strstr($entry, '=', true);
+			if ($n !== false && $n !== '') $hwc_lookup[intval($n)] = 'W';
+		}
+		foreach (explode(',', $colds_str) as $entry) {
+			$n = strstr($entry, '=', true);
+			if ($n !== false && $n !== '') $hwc_lookup[intval($n)] = 'C';
+		}
+
+		// Load range+1 draws (oldest first) so we have range draw pairs (draw i, draw i+1)
+		$draws = $this->load_history($tbl_name, 0, $range + 1, $extra_draws);
+		if (!$draws || count($draws) < 2) return array();
+
+		$total = count($draws);
+
+		// Build flat integer-ball arrays for speed.
+		// $draw_main_balls: main picks only — used for H-W-C pattern classification.
+		// $draw_balls:      main + extra (when extra_included) — used for follower computation.
+		$draw_balls      = array();
+		$draw_main_balls = array();
+		foreach ($draws as $idx => $draw) {
+			$main = array();
+			for ($i = 1; $i <= $picks; $i++) {
+				$key = 'ball' . $i;
+				if (isset($draw[$key]) && intval($draw[$key]) > 0)
+					$main[] = intval($draw[$key]);
+			}
+			$draw_main_balls[$idx] = $main;   // main balls only
+			$balls = $main;
+			if ($extra_included && isset($draw['extra']) && intval($draw['extra']) > 0)
+				$balls[] = intval($draw['extra']);
+			$draw_balls[$idx] = $balls;       // main + extra
+		}
+
+		// Step 1: Compute dynamic followers for every ball that appears in draws
+		// followers[$ball][$follower] = occurrence count across all draw pairs
+		$followers = array();
+		for ($i = 0; $i < $total - 1; $i++) {
+			foreach ($draw_balls[$i] as $ball) {
+				if (!isset($followers[$ball])) $followers[$ball] = array();
+				foreach ($draw_balls[$i + 1] as $next) {
+					if (!isset($followers[$ball][$next])) $followers[$ball][$next] = 0;
+					$followers[$ball][$next]++;
+				}
+			}
+		}
+		// Apply minimum threshold (>= 3), matching the existing system
+		foreach ($followers as $ball => $flist) {
+			foreach ($flist as $fb => $cnt) {
+				if ($cnt < 3) unset($followers[$ball][$fb]);
+			}
+		}
+
+		// Step 2: Walk every draw pair once; for each ball in the draw,
+		//         classify the full draw as an H-W-C pattern and count follower hits
+		$pattern_stats = array(); // [ball][pattern] = array(times, total_hits, max_hits)
+		$times_drawn   = array_fill(1, $max_ball, 0);
+
+		for ($i = 0; $i < $total - 1; $i++) {
+			$curr      = $draw_balls[$i];      // all balls (main + extra) for follower tracking
+			$curr_main = $draw_main_balls[$i]; // main balls only for H-W-C classification
+			$next      = $draw_balls[$i + 1];
+
+			// Classify the current draw into its H-W-C pattern (main balls only — no extra ball)
+			$h = 0; $w = 0; $c = 0;
+			foreach ($curr_main as $b) {
+				switch (isset($hwc_lookup[$b]) ? $hwc_lookup[$b] : 'C') {
+					case 'H': $h++; break;
+					case 'W': $w++; break;
+					default:  $c++; break;
+				}
+			}
+			$pattern = "{$h}-{$w}-{$c}";
+
+			// Build fast lookup for next-draw balls
+			$next_lookup = array_flip($next);
+
+			foreach ($curr as $ball) {
+				if ($ball < 1 || $ball > $max_ball) continue;
+				$times_drawn[$ball]++;
+
+				// Count how many of this ball's followers appeared in the next draw
+				$hits = 0;
+				if (!empty($followers[$ball])) {
+					foreach (array_keys($followers[$ball]) as $fb) {
+						if (isset($next_lookup[$fb])) $hits++;
+					}
+				}
+
+				if (!isset($pattern_stats[$ball])) $pattern_stats[$ball] = array();
+				if (!isset($pattern_stats[$ball][$pattern]))
+					$pattern_stats[$ball][$pattern] = array('times' => 0, 'total_hits' => 0, 'non_follower_hits' => 0, 'max_hits' => 0);
+
+				$pattern_stats[$ball][$pattern]['times']++;
+				$pattern_stats[$ball][$pattern]['total_hits'] += $hits;
+				// Non-follower hits = next-draw balls NOT in this ball's follower set
+				$non_hits = 0;
+				foreach ($next as $nb) {
+					if (empty($followers[$ball]) || !isset($followers[$ball][$nb])) $non_hits++;
+				}
+				$pattern_stats[$ball][$pattern]['non_follower_hits'] += $non_hits;
+				if ($hits > $pattern_stats[$ball][$pattern]['max_hits'])
+					$pattern_stats[$ball][$pattern]['max_hits'] = $hits;
+			}
+		}
+
+		// Step 3: Build final results per ball
+		$results = array();
+		for ($ball = 1; $ball <= $max_ball; $ball++) {
+			$bstats = isset($pattern_stats[$ball]) ? $pattern_stats[$ball] : array();
+
+			// Calculate average hits per pattern occurrence (kept for row colour coding)
+			foreach ($bstats as $pattern => &$ps) {
+				$ps['avg'] = $ps['times'] > 0 ? round($ps['total_hits'] / $ps['times'], 2) : 0;
+			}
+			unset($ps);
+
+			// Sort patterns: most times occurred first, then total_hits desc
+			uasort($bstats, function($a, $b) {
+				if ($b['times'] != $a['times']) return $b['times'] - $a['times'];
+				return $b['total_hits'] - $a['total_hits'];
+			});
+
+			// Top pattern is first after sorting
+			reset($bstats);
+			$best_key = key($bstats);
+			$best = $best_key !== null
+				? $bstats[$best_key]
+				: array('times' => 0, 'total_hits' => 0, 'avg' => 0, 'max_hits' => 0);
+
+			$results[$ball] = array(
+				'ball'              => $ball,
+				'times_drawn'       => $times_drawn[$ball],
+				'follower_count'    => isset($followers[$ball]) ? count($followers[$ball]) : 0,
+				'best_pattern'      => $best_key !== null ? $best_key : '-',
+				'best_times'        => $best['times'],
+				'best_hits'         => $best['total_hits'],
+				'best_non_hits'     => $best['non_follower_hits'],
+				'best_avg'          => $best['avg'],
+				'best_max'          => $best['max_hits'],
+				'all_patterns'      => $bstats,
+			);
+		}
+
+		// Sort all balls: most times in best pattern first, then total_hits desc
+		uasort($results, function($a, $b) {
+			if ($b['best_times'] != $a['best_times']) return $b['best_times'] - $a['best_times'];
+			return $b['best_hits'] - $a['best_hits'];
+		});
+
+		return $results;
+	}
 }
