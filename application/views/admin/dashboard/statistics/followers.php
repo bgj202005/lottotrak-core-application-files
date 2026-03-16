@@ -481,7 +481,7 @@
 								
 								// Show section heading for duplicate_extra_ball lotteries
 								if($has_dual_followers):
-									echo '<p class="mb-1"><strong>' . ($is_extra ? '<em>(main balls)</em>' : 'Main Ball Followers') . '</strong></p>';
+								echo '<h5 class="text-primary bg-light p-2 border rounded"><strong>Main Balls</strong> (Range: '.$lottery->minimum_ball.' - '.$lottery->maximum_ball.')</h5>';
 								endif;
 								
 								// Display ALL followers grouped by count (matching current followers format)
