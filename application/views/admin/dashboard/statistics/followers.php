@@ -448,92 +448,146 @@
 									<h5><?=($is_extra ? 'Extra Ball' : 'Ball');?> <?=$ball_num;?> - Previous Followers</h5>
 									<?php 
 									// Parse followers
-									$prev_picks = array();
-									
-									// Check for independent extra ball format (main#extra)
-									if($lottery->duplicate_extra_ball && strpos($followers_str, '#') !== FALSE && !$is_extra):
-										// Main ball with separate extra tracking
-										$parts = explode('#', $followers_str);
-										$main_data = $parts[0];
-										foreach(explode('|', $main_data) as $t):
-											$picks = explode('=', $t);
-											if(count($picks) == 2) $prev_picks[$picks[0]] = $picks[1];
-										endforeach;
-									elseif($lottery->duplicate_extra_ball && strpos($followers_str, '#') !== FALSE && $is_extra):
-										// Extra ball - use the second part after #
-										$parts = explode('#', $followers_str);
-										$extra_data = isset($parts[1]) ? $parts[1] : $followers_str;
-										foreach(explode('|', $extra_data) as $t):
-											$picks = explode('=', $t);
-											if(count($picks) == 2) $prev_picks[$picks[0]] = $picks[1];
-										endforeach;
-									else:
-										// Standard format
-										foreach(explode('|', $followers_str) as $t):
-											$picks = explode('=', $t);
-											if(count($picks) == 2) $prev_picks[$picks[0]] = $picks[1];
-										endforeach;
-									endif;
-									
-									arsort($prev_picks);
-									
-									// Display ALL followers grouped by count (matching current followers format)
-									if(count($prev_picks) > 0):
-										$s_picks = "";
-										$sum = 0;
-									$winners_count = 0; // Track how many followers were actually drawn
-									$counts = current($prev_picks);
-									
-									do {
-										if($counts == current($prev_picks)):
-											$num = key($prev_picks);
-											
-											// Check if this follower was actually drawn in the CURRENT/MOST RECENT draw
-											$was_drawn = false;
-											if($is_extra && isset($current_draw_numbers['extra']) && $num == $current_draw_numbers['extra']):
-												$was_drawn = true;
-											elseif(!$is_extra && in_array($num, $current_draw_numbers)):
-												// EXCEPTION for duplicate_extra_ball lotteries:
-												// Do NOT highlight if this number is the extra ball (appears in both main and extra)
-												if($lottery->duplicate_extra_ball && isset($current_draw_numbers['extra']) && $num == $current_draw_numbers['extra']):
+								$prev_picks = array();        // Main ball followers
+								$prev_picks_extra = array();  // Extra ball followers (duplicate_extra_ball only)
+								$has_dual_followers = false;
+								
+								// Check for independent extra ball format (main#extra)
+								if($lottery->duplicate_extra_ball && strpos($followers_str, '#') !== FALSE):
+									$has_dual_followers = true;
+									$fol_parts = explode('#', $followers_str, 2);
+									$fol_main_data = $fol_parts[0];
+									$fol_extra_data = isset($fol_parts[1]) ? $fol_parts[1] : '';
+									// Parse main ball followers
+									foreach(explode('|', $fol_main_data) as $t):
+										$picks = explode('=', $t);
+										if(count($picks) == 2) $prev_picks[$picks[0]] = $picks[1];
+									endforeach;
+									// Parse extra ball followers
+									foreach(explode('|', $fol_extra_data) as $t):
+										$picks = explode('=', $t);
+										if(count($picks) == 2) $prev_picks_extra[$picks[0]] = $picks[1];
+									endforeach;
+								else:
+									// Standard format
+									foreach(explode('|', $followers_str) as $t):
+										$picks = explode('=', $t);
+										if(count($picks) == 2) $prev_picks[$picks[0]] = $picks[1];
+									endforeach;
+								endif;
+								
+								arsort($prev_picks);
+								arsort($prev_picks_extra);
+								
+								// Show section heading for duplicate_extra_ball lotteries
+								if($has_dual_followers):
+									echo '<p class="mb-1"><strong>' . ($is_extra ? '<em>(main balls)</em>' : 'Main Ball Followers') . '</strong></p>';
+								endif;
+								
+								// Display ALL followers grouped by count (matching current followers format)
+								if(count($prev_picks) > 0):
+									$s_picks = "";
+									$sum = 0;
+								$winners_count = 0; // Track how many followers were actually drawn
+								$counts = current($prev_picks);
+								
+								do {
+									if($counts == current($prev_picks)):
+										$num = key($prev_picks);
+										
+										// Check if this follower was actually drawn in the CURRENT/MOST RECENT draw
+										$was_drawn = false;
+										if($has_dual_followers):
+											// In dual format, $prev_picks always contains main ball followers
+											if(in_array($num, $current_draw_numbers)):
+												// Duplicate_extra_ball exception: skip if it's the extra ball number
+												if(isset($current_draw_numbers['extra']) && $num == $current_draw_numbers['extra']):
 													$was_drawn = false;
 												else:
 													$was_drawn = true;
 												endif;
 											endif;
-											
-											if($was_drawn) $winners_count++; // Increment winner counter
-											
-											$match_class = $was_drawn ? ' class="prev-draw-match"' : '';
-											$s_picks .= 'Number <strong'.$match_class.'>'.$num.'</strong>';
-											$current = next($prev_picks);
-											$sum++;
-											
-											if($counts != $current):
-												$s_picks .= ' has been drawn <strong>'.$counts.'</strong> Times.</p>';
-												echo "<p class='card-text'> ".$s_picks."</p>";
-												$counts = $current;
-												$s_picks = "";
+										elseif($is_extra && isset($current_draw_numbers['extra']) && $num == $current_draw_numbers['extra']):
+											$was_drawn = true;
+										elseif(!$is_extra && in_array($num, $current_draw_numbers)):
+											// EXCEPTION for duplicate_extra_ball lotteries:
+											// Do NOT highlight if this number is the extra ball (appears in both main and extra)
+											if($lottery->duplicate_extra_ball && isset($current_draw_numbers['extra']) && $num == $current_draw_numbers['extra']):
+												$was_drawn = false;
 											else:
-												$s_picks .= ' AND ';
+												$was_drawn = true;
+											endif;
+										endif;
+										
+										if($was_drawn) $winners_count++; // Increment winner counter
+										
+										$match_class = $was_drawn ? ' class="prev-draw-match"' : '';
+										$s_picks .= 'Number <strong'.$match_class.'>'.$num.'</strong>';
+										$current = next($prev_picks);
+										$sum++;
+										
+										if($counts != $current):
+											$s_picks .= ' has been drawn <strong>'.$counts.'</strong> Times.</p>';
+											echo "<p class='card-text'> ".$s_picks."</p>";
+											$counts = $current;
+											$s_picks = "";
+										else:
+											$s_picks .= ' AND ';
+										endif;
+									else:
+										$counts = next($prev_picks);
+									endif;
+								} while(!is_null(key($prev_picks)));
+								
+								echo '<small class="text-muted">Total: '.$sum.' followers</small>';
+							else:
+								echo '<em>No followers found</em>';
+								$winners_count = 0;
+							endif;
+							
+							// Display extra ball followers section for duplicate_extra_ball lotteries
+							$winners_count_extra = 0;
+							if($has_dual_followers):
+								echo '<hr style="margin: 10px 0;">';
+								echo '<h5 class="text-success bg-light p-2 border rounded"><strong>Extra Balls</strong> (Range: '.$lottery->minimum_extra_ball.' - '.$lottery->maximum_extra_ball.')</h5>';
+								if(count($prev_picks_extra) > 0):
+									$s_picks_e = "";
+									$sum_e = 0;
+									$counts_e = current($prev_picks_extra);
+									do {
+										if($counts_e == current($prev_picks_extra)):
+											$num_e = key($prev_picks_extra);
+											$xwas_drawn = (isset($current_draw_numbers['extra']) && $num_e == $current_draw_numbers['extra']);
+											if($xwas_drawn) $winners_count_extra++;
+											$xmatch_class = $xwas_drawn ? ' class="prev-draw-match"' : '';
+											$s_picks_e .= 'Number <strong'.$xmatch_class.'>'.$num_e.'</strong>';
+											$xcurrent = next($prev_picks_extra);
+											$sum_e++;
+											if($counts_e != $xcurrent):
+												$s_picks_e .= ' has been drawn <strong>'.$counts_e.'</strong> Times.</p>';
+												echo "<p class='card-text'> ".$s_picks_e."</p>";
+												$counts_e = $xcurrent;
+												$s_picks_e = "";
+											else:
+												$s_picks_e .= ' AND ';
 											endif;
 										else:
-											$counts = next($prev_picks);
+											$counts_e = next($prev_picks_extra);
 										endif;
-									} while(!is_null(key($prev_picks)));
-									
-									echo '<small class="text-muted">Total: '.$sum.' followers</small>';
+									} while(!is_null(key($prev_picks_extra)));
+									echo '<p class="card-text">The total number of extra ball followers for this '.($is_extra ? 'extra ball' : 'ball').' is <strong>'.$sum_e.'</strong>.</p>';
 								else:
-									echo '<em>No followers found</em>';
-									$winners_count = 0;
+									echo '<p class="card-text">There are no extra ball followers for this '.($is_extra ? 'extra ball' : 'ball').' in the range of '.$lottery->last_drawn['range'].' draws.</p>';
 								endif;
-								?>
-								
-								<?php 
-								// Now display non-followers for this ball
+							endif; // end if($has_dual_followers)
+							?>
+							
+							<?php 
+							// Now display non-followers for this ball
 								if($prev_nonfollowers_data):
 										// Find non-followers for this specific ball
 										$nonfollowers_list = array();
+										$nonfollowers_list_extra = array();
 										foreach($prev_nonfollowers_array as $nf_data):
 											if(strpos($nf_data, '>') === FALSE) continue;
 											list($nf_ball_num, $nonfollowers_str) = explode(">", $nf_data, 2);
@@ -544,22 +598,19 @@
 												$nonfollowers_str = trim($nonfollowers_str);
 												
 												// Check for independent extra ball format (main#extra)
-												if($lottery->duplicate_extra_ball && strpos($nonfollowers_str, '#') !== FALSE && !$is_extra):
-													// Main ball - use first part
-													$parts = explode('#', $nonfollowers_str);
-													$main_data = $parts[0];
-													$nonfollowers_list = explode('|', $main_data);
-												elseif($lottery->duplicate_extra_ball && strpos($nonfollowers_str, '#') !== FALSE && $is_extra):
-													// Extra ball - use second part
-													$parts = explode('#', $nonfollowers_str);
-													$extra_data = isset($parts[1]) ? $parts[1] : $nonfollowers_str;
-													$nonfollowers_list = explode('|', $extra_data);
+												if($lottery->duplicate_extra_ball && strpos($nonfollowers_str, '#') !== FALSE):
+													// Parse both main and extra non-followers
+													$nf_parts = explode('#', $nonfollowers_str, 2);
+													$nonfollowers_list = explode('|', $nf_parts[0]);
+													$nonfollowers_list_extra = isset($nf_parts[1]) ? explode('|', $nf_parts[1]) : array();
+													$nonfollowers_list_extra = array_filter(array_map('trim', $nonfollowers_list_extra));
 												else:
 													// Standard format
 													$nonfollowers_list = explode('|', $nonfollowers_str);
+													$nonfollowers_list_extra = array();
 												endif;
 												
-												// Clean up the list
+												// Clean up the main list
 												$nonfollowers_list = array_filter(array_map('trim', $nonfollowers_list));
 												break;
 											endif;
@@ -570,7 +621,7 @@
 											<hr style="margin: 15px 0;">
 											<p class='card-text'>
 												<?php 
-												$non_picks = "These ".($lottery->duplicate_extra_ball && $is_extra ? "Extra Ball " : ($lottery->duplicate_extra_ball ? "Main Ball " : ""))."Numbers have <strong>NEVER</strong> followed this <?=($is_extra ? 'Extra Ball' : 'Ball');?> <strong><?=$ball_num;?></strong> for ".$lottery->last_drawn['range']." Draws:<br />";
+													$non_picks = "These ".($lottery->duplicate_extra_ball ? "Main Ball " : "")."Numbers have <strong>NEVER</strong> followed this <?=($is_extra ? 'Extra Ball' : 'Ball');?> <strong><?=$ball_num;?></strong> for ".$lottery->last_drawn['range']." Draws:<br />";
 												$nonfollowers_winners_count = 0; // Track winners in non-followers
 												
 												foreach($nonfollowers_list as $nf_num):
@@ -578,7 +629,16 @@
 													
 													// Check if this non-follower was actually drawn in the CURRENT/MOST RECENT draw
 													$was_drawn = false;
-													if($is_extra && isset($current_draw_numbers['extra']) && $nf_num == $current_draw_numbers['extra']):
+													if($has_dual_followers):
+														// In dual format, $nonfollowers_list always contains main ball numbers
+														if(in_array($nf_num, $current_draw_numbers)):
+															if(isset($current_draw_numbers['extra']) && $nf_num == $current_draw_numbers['extra']):
+																$was_drawn = false;
+															else:
+																$was_drawn = true;
+															endif;
+														endif;
+													elseif($is_extra && isset($current_draw_numbers['extra']) && $nf_num == $current_draw_numbers['extra']):
 														$was_drawn = true;
 													elseif(!$is_extra && in_array($nf_num, $current_draw_numbers)):
 														// EXCEPTION for duplicate_extra_ball lotteries:
@@ -602,28 +662,49 @@
 											<?php 
 											$plural_nf = (string) (count($nonfollowers_list) > 1 ?  " balls " : " ball "); 
 											?>
-											<p class='card-text'><strong><?php echo count($nonfollowers_list).$plural_nf; ?></strong> in this <?=($lottery->duplicate_extra_ball && !$is_extra ? 'main ball ' : '');?>non-follower group.</p>
+											<p class='card-text'><strong><?php echo count($nonfollowers_list).$plural_nf; ?></strong> in this <?=($lottery->duplicate_extra_ball ? 'main ball ' : '');?>non-follower group.</p>
 											<?php
+											// Display extra ball non-followers for duplicate_extra_ball lotteries
+											$nonfollowers_winners_count_extra = 0;
+											if($has_dual_followers && count($nonfollowers_list_extra) > 0):
+												echo '<hr style="margin: 10px 0;">';
+												echo '<h5 class="text-success bg-light p-2 border rounded"><strong>Extra Balls</strong> (Range: '.$lottery->minimum_extra_ball.' - '.$lottery->maximum_extra_ball.')</h5>';
+												$extra_non_picks = "These Extra Ball Numbers have <strong>NEVER</strong> followed this ".($is_extra ? 'Extra Ball' : 'Ball')." <strong>".$ball_num."</strong> for ".$lottery->last_drawn['range']." Draws:<br />";
+												foreach($nonfollowers_list_extra as $xnf_num):
+													if(empty($xnf_num)) continue;
+													$xnf_drawn = (isset($current_draw_numbers['extra']) && $xnf_num == $current_draw_numbers['extra']);
+													if($xnf_drawn) $nonfollowers_winners_count_extra++;
+													$xnf_class = $xnf_drawn ? ' class="prev-draw-match"' : '';
+													$extra_non_picks .= 'Number: <strong'.$xnf_class.'>'.$xnf_num.'</strong><br />';
+												endforeach;
+												echo '<p class="card-text">'.$extra_non_picks.'</p>';
+												$xnf_plural = (count($nonfollowers_list_extra) > 1) ? ' balls' : ' ball';
+												echo '<p class="card-text"><strong>'.count($nonfollowers_list_extra).$xnf_plural.'</strong> in the extra ball non-follower group.</p>';
+											endif;
 										else:
 											$nonfollowers_winners_count = 0;
+											$nonfollowers_winners_count_extra = 0;
 										endif;
 									else:
 										$nonfollowers_winners_count = 0;
+										$nonfollowers_winners_count_extra = 0;
 									endif;
 									
-									// Display total winners from both followers and non-followers
-									$total_winners = $winners_count + $nonfollowers_winners_count;
+									// Display total winners from all sections (followers + non-followers + extra ball followers + extra ball non-followers)
+									$total_winners = $winners_count + $nonfollowers_winners_count + $winners_count_extra + $nonfollowers_winners_count_extra;
 									if($total_winners > 0):
 										$plural_winners = ($total_winners > 1) ? "winners" : "winner";
+										// Build breakdown string
+										$breakdown_parts = array();
+										if($winners_count > 0) $breakdown_parts[] = $winners_count.' from main followers';
+										if($winners_count_extra > 0) $breakdown_parts[] = $winners_count_extra.' from extra ball followers';
+										if($nonfollowers_winners_count > 0) $breakdown_parts[] = $nonfollowers_winners_count.' from main non-followers';
+										if($nonfollowers_winners_count_extra > 0) $breakdown_parts[] = $nonfollowers_winners_count_extra.' from extra ball non-followers';
 										?>
 										<div style="margin-top: 15px; padding: 10px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px;">
-											<p class='card-text mb-0'><strong>Total Winners:</strong> <?=$total_winners;?> <?=$plural_winners;?> found 
-											<?php if($winners_count > 0 && $nonfollowers_winners_count > 0): ?>
-												(<?=$winners_count;?> from followers, <?=$nonfollowers_winners_count;?> from non-followers)
-											<?php elseif($winners_count > 0): ?>
-												(from followers)
-											<?php else: ?>
-												(from non-followers)
+											<p class='card-text mb-0'><strong>Total Winners:</strong> <?=$total_winners;?> <?=$plural_winners;?> found
+											<?php if(count($breakdown_parts) > 0): ?>
+												(<?=implode(', ', $breakdown_parts);?>)
 											<?php endif; ?>
 											</p>
 										</div>
