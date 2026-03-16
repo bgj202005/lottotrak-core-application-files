@@ -43,6 +43,11 @@
 <?php endif; ?>
 
 <section>
+<div class="container">
+<div class="row">
+<div class="col-12">
+<div class="card mt-3 p-4">
+
 <div class="container-fluid" style="margin-top:15px;">
 
 	<!-- Info row -->
@@ -133,6 +138,7 @@
 			<tr>
 				<th class="text-center" style="width:50px;">Rank</th>
 				<th class="text-center" style="width:60px;">Ball</th>
+				<th class="text-center">Occurrences</th>
 				<th class="text-center">Total Points</th>
 				<th class="text-center">Best H-W-C Pattern</th>
 				<th class="text-center">Times Occurred</th>
@@ -168,6 +174,7 @@
 			<td class="text-center align-middle">
 				<span class="ball-num" <?= $_ball_style ? 'style="'.$_ball_style.'"' : '' ?>><?= $result['ball'] ?></span>
 			</td>
+			<td class="text-center align-middle"><?= isset($hwc_scores[$_drawn_ball]) ? $hwc_scores[$_drawn_ball] : 0 ?></td>
 			<td class="text-center align-middle"><?= $_ball_pts ?></td>
 			<td class="text-center align-middle">
 				<?php if ($result['best_pattern'] !== '-' && strpos($result['best_pattern'], '-') !== false):
@@ -193,7 +200,7 @@
 		<!-- Expandable detail row (all patterns for this ball) -->
 		<?php if ($has_detail): ?>
 		<tr class="detail-wrap">
-			<td colspan="10">
+			<td colspan="11">
 				<div class="collapse" id="<?= $detail_id ?>">
 					<table class="table table-sm table-bordered detail-inner mb-0">
 						<thead>
@@ -255,6 +262,7 @@
 				<tr>
 					<th class="text-center" style="width:50px;">Rank</th>
 					<th class="text-center" style="width:60px;">Ball</th>
+					<th class="text-center">Occurrences</th>
 					<th class="text-center">Times Drawn</th>
 					<th class="text-center">Best H-W-C Pattern</th>
 					<th class="text-center">Times Occurred</th>
@@ -289,6 +297,7 @@
 				<td class="text-center align-middle">
 					<span class="ball-num xball-num" style="background:#6c757d;"><?= $result['ball'] ?></span>
 				</td>
+				<td class="text-center align-middle"><?= isset($hwc_scores[$result['ball']]) ? $hwc_scores[$result['ball']] : 0 ?></td>
 				<td class="text-center align-middle"><?= $result['times_drawn'] ?></td>
 				<td class="text-center align-middle">
 					<?php if ($result['best_pattern'] !== '-' && strpos($result['best_pattern'], '-') !== false):
@@ -312,7 +321,7 @@
 			</tr>
 			<?php if ($has_detail): ?>
 			<tr class="detail-wrap">
-				<td colspan="10">
+				<td colspan="11">
 					<div class="collapse" id="<?= $detail_id ?>">
 						<table class="table table-sm table-bordered detail-inner mb-0">
 							<thead>
@@ -356,6 +365,11 @@
 	<?php endif; ?>
 
 </div><!-- /container-fluid -->
+
+</div><!-- /card -->
+</div><!-- /col-12 -->
+</div><!-- /row -->
+</div><!-- /container -->
 </section>
 
 <script>
