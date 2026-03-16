@@ -24,6 +24,9 @@
 	.detail-wrap td { padding: 0 !important; }
 	.detail-inner { background: #f8f9fa; font-size: .875em; }
 	.detail-inner thead th { font-size: .8em; background: #e9ecef; }
+	/* Prevent header wrapping */
+	#hwcf-table thead th,
+	#hwcf-extra-table thead th { white-space: nowrap; font-size: .78em; }
 	/* Legend swatches */
 	.swatch { display:inline-block; width:14px; height:14px; border-radius:2px; vertical-align:middle; margin-right:3px; }
 	.swatch-green  { background:#28a745; }
