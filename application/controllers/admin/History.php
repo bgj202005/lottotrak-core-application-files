@@ -1415,7 +1415,7 @@ class History extends Admin_Controller {
 		$this->data['lottery']->C = $h_w_c['c_count'];
 
 		// Run the H-W-C + follower analysis across all balls
-		$this->data['hwc_follower_results'] = $this->history_m->get_hwc_follower_stats(
+		$_hwc_result = $this->history_m->get_hwc_follower_stats(
 			$tbl_name,
 			$this->data['lottery']->balls_drawn,
 			$this->data['lottery']->maximum_ball,
@@ -1426,8 +1426,15 @@ class History extends Admin_Controller {
 			$h_w_c['hots'],
 			$h_w_c['warms'],
 			$h_w_c['colds'],
-			$range
+			$range,
+			(bool) $this->data['lottery']->duplicate_extra_ball,
+			intval($this->data['lottery']->maximum_extra_ball)
 		);
+		$this->data['hwc_follower_results'] = $_hwc_result['main'];
+		$this->data['hwc_extra_results']    = $_hwc_result['extra'];
+		$this->data['is_dup_extra']         = (bool) $this->data['lottery']->duplicate_extra_ball;
+		$this->data['max_extra_ball']       = intval($this->data['lottery']->maximum_extra_ball);
+		$this->data['min_extra_ball']       = intval($this->data['lottery']->minimum_extra_ball);
 
 		// Compute the best follower-points ball (same logic as followers view)
 		$best_points_ball = 0;
