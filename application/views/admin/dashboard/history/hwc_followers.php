@@ -61,7 +61,7 @@
 					<h5 class="card-title text-muted mb-1"><strong>Last Draw</strong></h5>
 					<div class="mb-2 text-muted" style="font-size:1em;"><?php echo date('l, M-d-Y', strtotime(str_replace('/', '-', $lottery->last_drawn['draw_date']))); ?></div>
 					<div style="display:flex; flex-wrap:nowrap; justify-content:center; align-items:center; gap:3px; margin-top:6px;">
-				<?php for ($__i = 1; $__i <= $lottery->balls_drawn; $__i++): ?><span class="badge" style="background:#e67e00; color:#fff; font-size:clamp(0.6em,1.8vw,0.95em); padding:4px 5px;"><?= $lottery->last_drawn['ball'.$__i] ?></span><?php endfor; ?><?php if (!empty($lottery->last_drawn['extra'])): ?><span class="badge badge-secondary" style="font-size:clamp(0.6em,1.8vw,0.95em); padding:4px 5px;">+&nbsp;<?= $lottery->last_drawn['extra'] ?></span><?php endif; ?>
+				<?php for ($__i = 1; $__i <= $lottery->balls_drawn; $__i++): ?><span class="badge badge-dark" style="font-size:clamp(0.6em,1.8vw,0.95em); padding:4px 5px;"><?= $lottery->last_drawn['ball'.$__i] ?></span><?php endfor; ?><?php if (!empty($lottery->last_drawn['extra'])): ?><span class="badge badge-secondary" style="font-size:clamp(0.6em,1.8vw,0.95em); padding:4px 5px;">+&nbsp;<?= $lottery->last_drawn['extra'] ?></span><?php endif; ?>
 					</div>
 				</div>
 			</div>
@@ -133,7 +133,7 @@
 			<tr>
 				<th class="text-center" style="width:50px;">Rank</th>
 				<th class="text-center" style="width:60px;">Ball</th>
-				<th class="text-center">Times Drawn</th>
+				<th class="text-center">Total Points</th>
 				<th class="text-center">Best H-W-C Pattern</th>
 				<th class="text-center">Times Occurred</th>
 				<th class="text-center">Total Followers</th>
@@ -146,18 +146,18 @@
 		<tbody>
 		<?php
 		$rank = 1;
-		foreach ($hwc_follower_results as $result):
-			// Colour-code main row by best pattern occurrence count
-			$row_class = '';
-			if     ($result['best_times'] >= 10) $row_class = 'table-success';
-			elseif ($result['best_times'] >= 5)  $row_class = 'table-warning';
-			elseif ($result['best_times'] >= 2)  $row_class = 'table-info';
+		foreach ($last_drawn_balls as $_drawn_ball):
+			if (!isset($hwc_follower_results[$_drawn_ball])) continue;
+			$result = $hwc_follower_results[$_drawn_ball];
+			$_ball_pts    = isset($ball_points[$_drawn_ball]) ? $ball_points[$_drawn_ball] : 0;
+			$_is_xball    = (!empty($is_dup_extra) === false) && ($last_drawn_extra_ball > 0) && ($_drawn_ball === $last_drawn_extra_ball);
+			$_ball_style  = $_is_xball ? 'background:#6c757d;' : '';
 
 			$has_detail = count($result['all_patterns']) > 1;
 			$detail_id  = 'detail-' . $result['ball'];
 		?>
 		<!-- Main row -->
-		<tr class="hwcf-row <?= $row_class ?>"
+		<tr class="hwcf-row"
 			<?php if ($has_detail): ?>
 				data-toggle="collapse"
 				data-target="#<?= $detail_id ?>"
@@ -166,9 +166,9 @@
 			<?php endif; ?>>
 			<td class="text-center align-middle"><?= $rank++ ?></td>
 			<td class="text-center align-middle">
-				<span class="ball-num"><?= $result['ball'] ?></span>
+				<span class="ball-num" <?= $_ball_style ? 'style="'.$_ball_style.'"' : '' ?>><?= $result['ball'] ?></span>
 			</td>
-			<td class="text-center align-middle"><?= $result['times_drawn'] ?></td>
+			<td class="text-center align-middle"><?= $_ball_pts ?></td>
 			<td class="text-center align-middle">
 				<?php if ($result['best_pattern'] !== '-' && strpos($result['best_pattern'], '-') !== false):
 					$pp = explode('-', $result['best_pattern']); ?>
@@ -268,7 +268,9 @@
 			<tbody>
 			<?php
 			$rank = 1;
+			$_xball = isset($last_drawn_extra_ball) ? intval($last_drawn_extra_ball) : 0;
 			foreach ($hwc_extra_results as $result):
+				if ($_xball && $result['ball'] !== $_xball) continue;
 				$row_class = '';
 				if     ($result['best_times'] >= 10) $row_class = 'table-success';
 				elseif ($result['best_times'] >= 5)  $row_class = 'table-warning';
@@ -285,7 +287,7 @@
 				<?php endif; ?>>
 				<td class="text-center align-middle"><?= $rank++ ?></td>
 				<td class="text-center align-middle">
-					<span class="ball-num xball-num"><?= $result['ball'] ?></span>
+					<span class="ball-num xball-num" style="background:#6c757d;"><?= $result['ball'] ?></span>
 				</td>
 				<td class="text-center align-middle"><?= $result['times_drawn'] ?></td>
 				<td class="text-center align-middle">
@@ -357,23 +359,6 @@
 </section>
 
 <script>
-<?php
-// Build last-drawn ball list (main only for dup_extra; main+extra for normal lotteries)
-$__drawn       = array();
-$__drawn_extra = 0;
-for ($__i = 1; $__i <= $lottery->balls_drawn; $__i++) {
-	if (!empty($lottery->last_drawn['ball'.$__i])) $__drawn[] = intval($lottery->last_drawn['ball'.$__i]);
-}
-if (!empty($lottery->last_drawn['extra'])) {
-	$__drawn_extra = intval($lottery->last_drawn['extra']); // always separate — grey highlight
-}
-?>
-var _lastDrawnBalls     = <?= json_encode($__drawn); ?>;
-var _lastDrawnExtraBall = <?= intval($__drawn_extra) ?>;
-var _isDupExtra         = <?= !empty($is_dup_extra) ? 'true' : 'false' ?>;
-var _bestHwcBall        = <?= intval($best_points_ball) ?>;
-var _bestHwcBallPts     = <?= intval($best_points_val) ?>;
-var _bestHwcBallIsExtra = <?= !empty($best_points_is_extra) ? 'true' : 'false' ?>;
 $(document).ready(function() {
 	// Rotate chevron icon when row expands/collapses
 	$('.hwcf-row').on('click', function() {
@@ -382,43 +367,5 @@ $(document).ready(function() {
 			icon.toggleClass('fa-chevron-down fa-chevron-up');
 		}
 	});
-	// Highlight main-ball badges that were in the last draw (orange)
-	$('#hwcf-table .ball-num').each(function() {
-		if (_lastDrawnBalls.indexOf(parseInt($(this).text().trim(), 10)) !== -1) {
-			$(this).css({'background': '#e67e00', 'box-shadow': '0 0 0 3px #e67e00', 'color': '#fff'});
-		}
-	});
-	// Highlight the last-drawn extra/bonus ball in grey (main table, non-dup-extra lotteries only)
-	// For dup-extra lotteries the extra ball is a separate pool — do not touch main table balls
-	if (_lastDrawnExtraBall && !_isDupExtra) {
-		$('#hwcf-table .ball-num').each(function() {
-			if (parseInt($(this).text().trim(), 10) === _lastDrawnExtraBall) {
-				$(this).css({'background': '#6c757d', 'box-shadow': '0 0 0 3px #6c757d', 'color': '#fff'});
-			}
-		});
-	}
-	// Highlight the highest follower-points ball in green (overrides orange/grey — runs last)
-	if (_bestHwcBall) {
-		// For dup-extra lotteries: best ball may be in main table OR extra table
-		var $bestTarget = (_isDupExtra && _bestHwcBallIsExtra)
-			? $('#hwcf-extra-table .xball-num')
-			: $('#hwcf-table .ball-num');
-		$bestTarget.each(function() {
-			if (parseInt($(this).text().trim(), 10) === _bestHwcBall) {
-				$(this).css({'background': '#28a745', 'box-shadow': '0 0 0 3px #28a745', 'color': '#fff'});
-				$(this).closest('td').append(
-					'<div class="text-success small mt-1" style="white-space:nowrap;font-size:0.75em;">&#9733; Best Ball (' + _bestHwcBallPts + ' pts)</div>'
-				);
-			}
-		});
-	}
-	// Highlight the last-drawn extra ball in grey in the extra-pool table (dup-extra lotteries)
-	if (_lastDrawnExtraBall) {
-		$('#hwcf-extra-table .xball-num').each(function() {
-			if (parseInt($(this).text().trim(), 10) === _lastDrawnExtraBall) {
-				$(this).css({'background': '#6c757d', 'box-shadow': '0 0 0 3px #6c757d', 'color': '#fff'});
-			}
-		});
-	}
 });
 </script>

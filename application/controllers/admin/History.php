@@ -1436,10 +1436,25 @@ class History extends Admin_Controller {
 		$this->data['max_extra_ball']       = intval($this->data['lottery']->maximum_extra_ball);
 		$this->data['min_extra_ball']       = intval($this->data['lottery']->minimum_extra_ball);
 
-		// Compute the best follower-points ball (same logic as followers view)
+		// Parse HWC scores (ball => score) from hots/warms/colds strings
+		$hwc_scores = array();
+		foreach (array($h_w_c['hots'], $h_w_c['warms'], $h_w_c['colds']) as $_str) {
+			foreach (explode(',', $_str) as $_entry) {
+				if (strpos($_entry, '=') !== false) {
+					list($_b, $_s) = explode('=', $_entry, 2);
+					$_b = intval($_b); $_s = intval($_s);
+					if ($_b > 0) $hwc_scores[$_b] = $_s;
+				}
+			}
+		}
+		$this->data['hwc_scores'] = $hwc_scores;
+
+		// Compute follower points per ball (same logic as followers view)
+		// Also used to rank last-drawn balls and find the best ball
 		$best_points_ball     = 0;
 		$best_points_val      = 0;
 		$best_points_is_extra = false;
+		$ball_points          = array(); // ball_number => follower pts from last draw
 		$followers_data = $this->statistics_m->followers_exists($id);
 		if (!is_null($followers_data)) {
 			$p_group = $this->statistics_m->prize_group_profile($id);
@@ -1460,18 +1475,38 @@ class History extends Admin_Controller {
 				foreach ($wins_arr as $key => $value) {
 					if (strpos($key, '_points') !== false) $pts += intval($value);
 				}
+				$ball_num = $is_extra_pos ? intval($tmp_last['extra']) : intval($tmp_last['ball'.$i]);
+				$ball_points[$ball_num] = $pts;
 				if ($pts > $best_points_val) {
 					$best_points_val      = $pts;
 					$best_points_is_extra = $is_extra_pos;
-					$best_points_ball = $is_extra_pos
-						? intval($tmp_last['extra'])
-						: intval($tmp_last['ball'.$i]);
+					$best_points_ball     = $ball_num;
 				}
 			}
 		}
 		$this->data['best_points_ball']     = $best_points_ball;
 		$this->data['best_points_val']      = $best_points_val;
 		$this->data['best_points_is_extra'] = $best_points_is_extra;
+		$this->data['ball_points']          = $ball_points;
+
+		// Build last-drawn main ball list, sorted by follower points desc
+		$_last = $this->data['lottery']->last_drawn;
+		$_last_drawn_balls = array();
+		for ($_i = 1; $_i <= $this->data['lottery']->balls_drawn; $_i++) {
+			if (!empty($_last['ball'.$_i])) $_last_drawn_balls[] = intval($_last['ball'.$_i]);
+		}
+		// Include extra ball in main list for non-dup-extra lotteries (same pool)
+		if (!$this->data['lottery']->duplicate_extra_ball && !empty($_last['extra'])) {
+			$_last_drawn_balls[] = intval($_last['extra']);
+		}
+		usort($_last_drawn_balls, function($a, $b) use ($ball_points) {
+			$sa = isset($ball_points[$a]) ? $ball_points[$a] : 0;
+			$sb = isset($ball_points[$b]) ? $ball_points[$b] : 0;
+			return $sb - $sa;
+		});
+		$this->data['last_drawn_balls']      = $_last_drawn_balls;
+		// Track the extra ball number for all lotteries — view uses it to apply grey styling
+		$this->data['last_drawn_extra_ball'] = !empty($_last['extra']) ? intval($_last['extra']) : 0;
 
 		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
 		else $this->data['message'] = '';
