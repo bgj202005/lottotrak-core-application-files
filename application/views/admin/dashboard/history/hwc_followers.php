@@ -133,7 +133,9 @@
 				<th class="text-center">Times Drawn</th>
 				<th class="text-center">Best H-W-C Pattern</th>
 				<th class="text-center">Times Occurred</th>
+				<th class="text-center">Total Followers</th>
 				<th class="text-center">Follower Hits</th>
+				<th class="text-center">Total Non-Followers</th>
 				<th class="text-center">Non-Follower Hits</th>
 				<th class="text-center">Best in 1 Draw</th>
 			</tr>
@@ -178,7 +180,9 @@
 				<?php endif; ?>
 			</td>
 			<td class="text-center align-middle"><?= $result['best_times'] ?></td>
+			<td class="text-center align-middle"><?= $result['follower_count'] ?></td>
 			<td class="text-center align-middle"><?= $result['best_hits'] ?></td>
+			<td class="text-center align-middle"><?= intval($lottery->maximum_ball) - $result['follower_count'] ?></td>
 			<td class="text-center align-middle"><?= $result['best_non_hits'] ?></td>
 			<td class="text-center align-middle"><?= $result['best_max'] ?></td>
 		</tr>
@@ -186,7 +190,7 @@
 		<!-- Expandable detail row (all patterns for this ball) -->
 		<?php if ($has_detail): ?>
 		<tr class="detail-wrap">
-			<td colspan="8">
+			<td colspan="10">
 				<div class="collapse" id="<?= $detail_id ?>">
 					<table class="table table-sm table-bordered detail-inner mb-0">
 						<thead>
@@ -251,7 +255,9 @@
 					<th class="text-center">Times Drawn</th>
 					<th class="text-center">Best H-W-C Pattern</th>
 					<th class="text-center">Times Occurred</th>
+					<th class="text-center">Total Followers</th>
 					<th class="text-center">Follower Hits</th>
+					<th class="text-center">Total Non-Followers</th>
 					<th class="text-center">Non-Follower Hits</th>
 					<th class="text-center">Best in 1 Draw</th>
 				</tr>
@@ -293,13 +299,15 @@
 					<?php endif; ?>
 				</td>
 				<td class="text-center align-middle"><?= $result['best_times'] ?></td>
+				<td class="text-center align-middle"><?= $result['follower_count'] ?></td>
 				<td class="text-center align-middle"><?= $result['best_hits'] ?></td>
+				<td class="text-center align-middle"><?= intval($max_extra_ball) - $result['follower_count'] ?></td>
 				<td class="text-center align-middle"><?= $result['best_non_hits'] ?></td>
 				<td class="text-center align-middle"><?= $result['best_max'] ?></td>
 			</tr>
 			<?php if ($has_detail): ?>
 			<tr class="detail-wrap">
-				<td colspan="8">
+				<td colspan="10">
 					<div class="collapse" id="<?= $detail_id ?>">
 						<table class="table table-sm table-bordered detail-inner mb-0">
 							<thead>
@@ -362,6 +370,7 @@ var _lastDrawnExtraBall = <?= intval($__drawn_extra) ?>;
 var _isDupExtra         = <?= !empty($is_dup_extra) ? 'true' : 'false' ?>;
 var _bestHwcBall        = <?= intval($best_points_ball) ?>;
 var _bestHwcBallPts     = <?= intval($best_points_val) ?>;
+var _bestHwcBallIsExtra = <?= !empty($best_points_is_extra) ? 'true' : 'false' ?>;
 $(document).ready(function() {
 	// Rotate chevron icon when row expands/collapses
 	$('.hwcf-row').on('click', function() {
@@ -385,9 +394,13 @@ $(document).ready(function() {
 			}
 		});
 	}
-	// Highlight the highest follower-points ball in green (main table only — overrides other colours)
+	// Highlight the highest follower-points ball in green (overrides orange/grey — runs last)
 	if (_bestHwcBall) {
-		$('#hwcf-table .ball-num').each(function() {
+		// For dup-extra lotteries: best ball may be in main table OR extra table
+		var $bestTarget = (_isDupExtra && _bestHwcBallIsExtra)
+			? $('#hwcf-extra-table .xball-num')
+			: $('#hwcf-table .ball-num');
+		$bestTarget.each(function() {
 			if (parseInt($(this).text().trim(), 10) === _bestHwcBall) {
 				$(this).css({'background': '#28a745', 'box-shadow': '0 0 0 3px #28a745', 'color': '#fff'});
 				$(this).closest('td').append(

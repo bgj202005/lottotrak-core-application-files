@@ -1437,10 +1437,11 @@ class History extends Admin_Controller {
 		$this->data['min_extra_ball']       = intval($this->data['lottery']->minimum_extra_ball);
 
 		// Compute the best follower-points ball (same logic as followers view)
-		$best_points_ball = 0;
-		$best_points_val  = 0;
+		$best_points_ball     = 0;
+		$best_points_val      = 0;
+		$best_points_is_extra = false;
 		$followers_data = $this->statistics_m->followers_exists($id);
-		if (!is_null($followers_data) && !$this->data['lottery']->duplicate_extra_ball) {
+		if (!is_null($followers_data)) {
 			$p_group = $this->statistics_m->prize_group_profile($id);
 			$p_group = $this->statistics_m->prizes_only($p_group, $this->data['lottery']->extra_ball);
 			$tmp_last = (array) $this->lotteries_m->last_draw_db($tbl_name);
@@ -1451,7 +1452,8 @@ class History extends Admin_Controller {
 			$tmp_last = $this->history_m->last_draw_addpoints($tmp_last, $this->data['lottery']->balls_drawn, $h_w_c['extra_included'], 0);
 			$max_balls_pts = $this->data['lottery']->balls_drawn + ($h_w_c['extra_included'] ? 1 : 0);
 			for ($i = 1; $i <= $max_balls_pts; $i++) {
-				$wins_arr = ($i > $this->data['lottery']->balls_drawn)
+				$is_extra_pos = ($i > $this->data['lottery']->balls_drawn);
+				$wins_arr = $is_extra_pos
 					? (isset($tmp_last['extra_win'])    ? $tmp_last['extra_win']    : array())
 					: (isset($tmp_last['ball'.$i.'_win']) ? $tmp_last['ball'.$i.'_win'] : array());
 				$pts = 0;
@@ -1459,15 +1461,17 @@ class History extends Admin_Controller {
 					if (strpos($key, '_points') !== false) $pts += intval($value);
 				}
 				if ($pts > $best_points_val) {
-					$best_points_val  = $pts;
-					$best_points_ball = ($i > $this->data['lottery']->balls_drawn)
+					$best_points_val      = $pts;
+					$best_points_is_extra = $is_extra_pos;
+					$best_points_ball = $is_extra_pos
 						? intval($tmp_last['extra'])
 						: intval($tmp_last['ball'.$i]);
 				}
 			}
 		}
-		$this->data['best_points_ball'] = $best_points_ball;
-		$this->data['best_points_val']  = $best_points_val;
+		$this->data['best_points_ball']     = $best_points_ball;
+		$this->data['best_points_val']      = $best_points_val;
+		$this->data['best_points_is_extra'] = $best_points_is_extra;
 
 		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
 		else $this->data['message'] = '';
