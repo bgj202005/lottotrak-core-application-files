@@ -359,6 +359,7 @@ if (!empty($lottery->last_drawn['extra'])) {
 ?>
 var _lastDrawnBalls     = <?= json_encode($__drawn); ?>;
 var _lastDrawnExtraBall = <?= intval($__drawn_extra) ?>;
+var _isDupExtra         = <?= !empty($is_dup_extra) ? 'true' : 'false' ?>;
 var _bestHwcBall        = <?= intval($best_points_ball) ?>;
 var _bestHwcBallPts     = <?= intval($best_points_val) ?>;
 $(document).ready(function() {
@@ -375,8 +376,9 @@ $(document).ready(function() {
 			$(this).css({'background': '#e67e00', 'box-shadow': '0 0 0 3px #e67e00', 'color': '#fff'});
 		}
 	});
-	// Highlight the last-drawn extra/bonus ball in grey (main table for non-dup-extra lotteries)
-	if (_lastDrawnExtraBall) {
+	// Highlight the last-drawn extra/bonus ball in grey (main table, non-dup-extra lotteries only)
+	// For dup-extra lotteries the extra ball is a separate pool — do not touch main table balls
+	if (_lastDrawnExtraBall && !_isDupExtra) {
 		$('#hwcf-table .ball-num').each(function() {
 			if (parseInt($(this).text().trim(), 10) === _lastDrawnExtraBall) {
 				$(this).css({'background': '#6c757d', 'box-shadow': '0 0 0 3px #6c757d', 'color': '#fff'});
