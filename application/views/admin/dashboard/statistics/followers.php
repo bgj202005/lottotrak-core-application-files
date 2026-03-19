@@ -488,7 +488,8 @@
 								if(count($prev_picks) > 0):
 									$s_picks = "";
 									$sum = 0;
-								$winners_count = 0; // Track how many followers were actually drawn
+$winners_count = 0;       // followers drawn as main balls
+							$winners_count_as_extra = 0; // followers drawn as the extra ball (standard $is_extra sections)
 								$counts = current($prev_picks);
 								
 								do {
@@ -507,8 +508,13 @@
 													$was_drawn = true;
 												endif;
 											endif;
-										elseif($is_extra && isset($current_draw_numbers['extra']) && $num == $current_draw_numbers['extra']):
-											$was_drawn = true;
+elseif($is_extra):
+												// Extra ball's followers are main ball numbers - highlight if drawn as main ball or extra ball
+												if(in_array($num, $current_draw_numbers)):
+													$was_drawn = true;
+												elseif(isset($current_draw_numbers['extra']) && $num == $current_draw_numbers['extra']):
+													$was_drawn = true;
+												endif;
 										elseif(!$is_extra && in_array($num, $current_draw_numbers)):
 											// EXCEPTION for duplicate_extra_ball lotteries:
 											// Do NOT highlight if this number is the extra ball (appears in both main and extra)
@@ -519,7 +525,14 @@
 											endif;
 										endif;
 										
-										if($was_drawn) $winners_count++; // Increment winner counter
+										// Increment counter - track extra-ball hits separately from main-ball hits
+										if($was_drawn):
+											if(!$has_dual_followers && isset($current_draw_numbers['extra']) && $num == $current_draw_numbers['extra']):
+												$winners_count_as_extra++;
+											else:
+												$winners_count++;
+											endif;
+										endif;
 										
 										$match_class = $was_drawn ? ' class="prev-draw-match"' : '';
 										$s_picks .= 'Number <strong'.$match_class.'>'.$num.'</strong>';
@@ -622,7 +635,8 @@
 											<p class='card-text'>
 												<?php 
 													$non_picks = "These ".($lottery->duplicate_extra_ball ? "Main Ball " : "")."Numbers have <strong>NEVER</strong> followed this <?=($is_extra ? 'Extra Ball' : 'Ball');?> <strong><?=$ball_num;?></strong> for ".$lottery->last_drawn['range']." Draws:<br />";
-												$nonfollowers_winners_count = 0; // Track winners in non-followers
+$nonfollowers_winners_count = 0;       // non-followers drawn as main balls
+													$nonfollowers_winners_count_as_extra = 0; // non-followers drawn as the extra ball
 												
 												foreach($nonfollowers_list as $nf_num):
 													if(empty($nf_num)) continue;
@@ -638,8 +652,13 @@
 																$was_drawn = true;
 															endif;
 														endif;
-													elseif($is_extra && isset($current_draw_numbers['extra']) && $nf_num == $current_draw_numbers['extra']):
-														$was_drawn = true;
+elseif($is_extra):
+																// Extra ball's non-followers are main ball numbers - highlight if drawn as main ball or extra ball
+																if(in_array($nf_num, $current_draw_numbers)):
+																	$was_drawn = true;
+																elseif(isset($current_draw_numbers['extra']) && $nf_num == $current_draw_numbers['extra']):
+																	$was_drawn = true;
+																endif;
 													elseif(!$is_extra && in_array($nf_num, $current_draw_numbers)):
 														// EXCEPTION for duplicate_extra_ball lotteries:
 														// Do NOT highlight if this number is the extra ball (appears in both main and extra)
@@ -650,7 +669,14 @@
 														endif;
 													endif;
 													
-													if($was_drawn) $nonfollowers_winners_count++; // Increment winner counter
+// Increment counter - track extra-ball hits separately from main-ball hits
+															if($was_drawn):
+																if(!$has_dual_followers && isset($current_draw_numbers['extra']) && $nf_num == $current_draw_numbers['extra']):
+																$nonfollowers_winners_count_as_extra++;
+															else:
+																$nonfollowers_winners_count++;
+															endif;
+														endif;
 													
 													$match_class = $was_drawn ? ' class="prev-draw-match"' : '';
 													$non_picks .= 'Number: <strong'.$match_class.'>'.$nf_num.'</strong><br />';
@@ -690,16 +716,20 @@
 										$nonfollowers_winners_count_extra = 0;
 									endif;
 									
-									// Display total winners from all sections (followers + non-followers + extra ball followers + extra ball non-followers)
-									$total_winners = $winners_count + $nonfollowers_winners_count + $winners_count_extra + $nonfollowers_winners_count_extra;
-									if($total_winners > 0):
-										$plural_winners = ($total_winners > 1) ? "winners" : "winner";
-										// Build breakdown string
-										$breakdown_parts = array();
-										if($winners_count > 0) $breakdown_parts[] = $winners_count.' from main followers';
-										if($winners_count_extra > 0) $breakdown_parts[] = $winners_count_extra.' from extra ball followers';
-										if($nonfollowers_winners_count > 0) $breakdown_parts[] = $nonfollowers_winners_count.' from main non-followers';
-										if($nonfollowers_winners_count_extra > 0) $breakdown_parts[] = $nonfollowers_winners_count_extra.' from extra ball non-followers';
+										// Display total winners from all sections
+										$total_winners = $winners_count + $winners_count_as_extra + $nonfollowers_winners_count + $nonfollowers_winners_count_as_extra + $winners_count_extra + $nonfollowers_winners_count_extra;
+										if($total_winners > 0):
+											$plural_winners = ($total_winners > 1) ? "winners" : "winner";
+											// Build breakdown string
+											// Only use "main" qualifier when there are also extra-ball hits to distinguish from
+											$has_extra_hits = ($winners_count_as_extra > 0 || $nonfollowers_winners_count_as_extra > 0 || $winners_count_extra > 0 || $nonfollowers_winners_count_extra > 0);
+											$breakdown_parts = array();
+											if($winners_count > 0) $breakdown_parts[] = $winners_count.($has_extra_hits ? ' from main followers' : ' from followers');
+											if($winners_count_as_extra > 0) $breakdown_parts[] = $winners_count_as_extra.' extra '.($winners_count_as_extra == 1 ? 'follower' : 'followers');
+											if($winners_count_extra > 0) $breakdown_parts[] = $winners_count_extra.' from extra ball followers';
+											if($nonfollowers_winners_count > 0) $breakdown_parts[] = $nonfollowers_winners_count.($has_extra_hits ? ' from main non-followers' : ' from non-followers');
+											if($nonfollowers_winners_count_as_extra > 0) $breakdown_parts[] = $nonfollowers_winners_count_as_extra.' extra non-'.($nonfollowers_winners_count_as_extra == 1 ? 'follower' : 'followers');
+											if($nonfollowers_winners_count_extra > 0) $breakdown_parts[] = $nonfollowers_winners_count_extra.' from extra ball non-followers';
 										?>
 										<div style="margin-top: 15px; padding: 10px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px;">
 											<p class='card-text mb-0'><strong>Total Winners:</strong> <?=$total_winners;?> <?=$plural_winners;?> found
