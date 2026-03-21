@@ -1016,6 +1016,11 @@ class Statistics_m extends MY_Model
                 ->get('lottery_friends');
 		return $query->row_array();
 	}
+	
+	/**
+	 * Ensure lottery_friends table has friendship_matrix field for sliding window optimization
+	 * @return boolean Success
+	 */
 	/**
 	 * If existing Record for the NonFriends table exist
 	 * 
@@ -9533,55 +9538,116 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	}
 	
 	/**
+	 * Build a co-occurrence matrix from scratch using the last $range draws.
+	 * The matrix is stored as JSON in friendship_matrix and used by the sliding window.
+	 * Format: $matrix[$ball1][$ball2] = count (symmetric)
+	 *
+	 * @param	string	$name	Lottery table name
+	 * @param	integer	$max	Number of balls drawn per draw
+	 * @param	integer	$top	Highest ball number (unused, kept for signature consistency)
+	 * @param	integer	$bonus	1 if extra ball is included, 0 otherwise
+	 * @param	integer	$draws	Extra draws flag (0 = only include draws that have an extra ball)
+	 * @param	integer	$range	Number of draws to include
+	 * @param	boolean	$duple	Duplicate extra ball flag
+	 * @return	array	Co-occurrence matrix
+	 */
+	public function build_friends_matrix($name, $max, $top, $bonus = 0, $draws = 0, $range = 100, $duple = FALSE)
+	{
+		$where = (!$draws ? " WHERE extra <> '0'" : "");
+		$sql   = "SELECT * FROM {$name}{$where} ORDER BY draw_date DESC LIMIT {$range}";
+		$all_draws = $this->db->query($sql)->result_array();
+
+		$matrix = array();
+
+		foreach ($all_draws as $draw)
+		{
+			$balls = array();
+			for ($i = 1; $i <= $max; $i++)
+			{
+				$balls[] = intval($draw['ball' . $i]);
+			}
+
+			if ($bonus && isset($draw['extra']) && intval($draw['extra']) > 0)
+			{
+				$balls[] = intval($draw['extra']);
+			}
+
+			$ball_count = count($balls);
+			for ($i = 0; $i < $ball_count; $i++)
+			{
+				for ($j = $i + 1; $j < $ball_count; $j++)
+				{
+					$b1 = $balls[$i];
+					$b2 = $balls[$j];
+
+					if (!isset($matrix[$b1][$b2])) $matrix[$b1][$b2] = 0;
+					$matrix[$b1][$b2]++;
+
+					if (!isset($matrix[$b2][$b1])) $matrix[$b2][$b1] = 0;
+					$matrix[$b2][$b1]++;
+				}
+			}
+		}
+
+		return $matrix;
+	}
+
+	/**
 	 * Sliding window update for Friends statistics
-	 * Incrementally updates friend co-occurrence relationships when only one new draw is added
-	 * 
+	 * Incrementally updates friend co-occurrence relationships when only one new draw is added.
+	 * Uses the JSON co-occurrence matrix stored in friendship_matrix (built during full recalc).
+	 *
 	 * @param	string	$name			Lottery table name
-	 * @param	array	$ldn			Last drawn numbers (newest draw to add)
-	 * @param	integer	$max			Number of balls drawn
+	 * @param	array	$ldn			Last drawn numbers (newest draw)
+	 * @param	integer	$max			Number of balls drawn per draw
+	 * @param	integer	$top			Highest ball number (maximum_ball)
 	 * @param	boolean	$bonus			Extra ball included
 	 * @param	boolean	$draws			Extra draws included
 	 * @param	integer	$range			Range (100, 200, etc)
-	 * @param	array	$existing		Existing friends data from database
+	 * @param	array	$existing		Existing friends record from database
 	 * @param	boolean	$duple			Duplicate extra ball flag
-	 * @return	array	Result with 'lottery_friends' string and 'success' flag
+	 * @return	array	Result with 'lottery_friends' string, 'matrix' JSON string, and 'success' flag
 	 */
-	public function friends_sliding_window($name, $ldn, $max, $bonus, $draws, $range, $existing, $duple)
+	public function friends_sliding_window($name, $ldn, $max, $top, $bonus, $draws, $range, $existing, $duple)
 	{
-		// Parse existing friends data into co-occurrence matrix
-		$friend_data = $this->parse_friends_matrix($existing['lottery_friends']);
-		
-		// Get the oldest draw to remove from the window
+		// Load the JSON co-occurrence matrix cached from the last full recalc
+		if (empty($existing['friendship_matrix']))
+		{
+			return array('lottery_friends' => '', 'matrix' => '', 'success' => false);
+		}
+
+		$friend_data = json_decode($existing['friendship_matrix'], true);
+		if (!is_array($friend_data))
+		{
+			return array('lottery_friends' => '', 'matrix' => '', 'success' => false);
+		}
+
+		// Get the oldest draw to drop from the window
 		$oldest_draw = $this->get_draw_at_position_filtered($name, $range + 1, $draws);
-		if (!$oldest_draw) {
-			// Not enough draws for sliding window, fall back to full recalc
-			return array(
-				'lottery_friends' => '',
-				'success' => false
-			);
+		if (!$oldest_draw)
+		{
+			return array('lottery_friends' => '', 'matrix' => '', 'success' => false);
 		}
-		
-		// Get the newest draw (already have as $ldn, but need full draw record)
+
+		// Get the newest draw (position 1)
 		$newest_draw = $this->get_draw_at_position_filtered($name, 1, $draws);
-		if (!$newest_draw) {
-			return array(
-				'lottery_friends' => '',
-				'success' => false
-			);
+		if (!$newest_draw)
+		{
+			return array('lottery_friends' => '', 'matrix' => '', 'success' => false);
 		}
-		
-		// Remove oldest draw's co-occurrences
+
+		// Slide: remove oldest draw's co-occurrences, add newest draw's co-occurrences
 		$friend_data = $this->subtract_draw_friends($friend_data, $oldest_draw, $max, $bonus, $duple);
-		
-		// Add newest draw's co-occurrences
 		$friend_data = $this->add_draw_friends($friend_data, $newest_draw, $max, $bonus, $duple);
-		
-		// Rebuild friends string from updated data
-		$friends_string = $this->build_friends_string_from_matrix($friend_data);
-		
+
+		// Rebuild friends string in correct format: one entry per ball 1..top as "best_friend>count|date"
+		$date = isset($newest_draw['draw_date']) ? $newest_draw['draw_date'] : date('Y-m-d');
+		$friends_string = $this->build_friends_string_from_matrix($friend_data, $top, $date);
+
 		return array(
 			'lottery_friends' => $friends_string,
-			'success' => true
+			'matrix'          => json_encode($friend_data),
+			'success'         => true
 		);
 	}
 	
@@ -9744,38 +9810,42 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	}
 	
 	/**
-	 * Build friends string from co-occurrence matrix
-	 * 
-	 * @param	array	$matrix		Friends matrix
-	 * @return	string	Friends string in format "ball1=ball2:count,ball3:count<ball2=ball1:count"
+	 * Build friends string from co-occurrence matrix in the correct friends format.
+	 * Produces one entry per ball 1..$top: "best_friend>count|date"
+	 * separated by commas — identical to the format produced by friends_calculate().
+	 *
+	 * @param	array	$matrix		Co-occurrence matrix [ball][friend_ball] => count
+	 * @param	integer	$top		Highest ball number (maximum_ball)
+	 * @param	string	$date		Draw date string (Y-m-d) for the newest draw
+	 * @return	string	Comma-separated "best_friend>count|date" entries (one per ball 1..$top)
 	 */
-	private function build_friends_string_from_matrix($matrix)
+	private function build_friends_string_from_matrix($matrix, $top, $date)
 	{
-		if (empty($matrix)) {
-			return '';
-		}
-		
-		$ball_strings = array();
-		
-		ksort($matrix); // Sort by ball number
-		
-		foreach ($matrix as $ball => $friends) {
-			if (empty($friends)) continue;
-			
-			$friend_pairs = array();
-			ksort($friends); // Sort friends by ball number
-			
-			foreach ($friends as $friend_ball => $count) {
-				if ($count > 0) {
-					$friend_pairs[] = $friend_ball . ':' . $count;
+		$entries = array();
+
+		for ($ball = 1; $ball <= $top; $ball++)
+		{
+			if (empty($matrix[$ball]))
+			{
+				$entries[] = '0>0|' . $date;
+				continue;
+			}
+
+			// Find the friend with the highest co-occurrence count
+			$best_friend = 0;
+			$best_count  = 0;
+			foreach ($matrix[$ball] as $friend_ball => $count)
+			{
+				if ($count > $best_count)
+				{
+					$best_count  = $count;
+					$best_friend = $friend_ball;
 				}
 			}
-			
-			if (!empty($friend_pairs)) {
-				$ball_strings[] = $ball . '=' . implode(',', $friend_pairs);
-			}
+
+			$entries[] = $best_friend . '>' . $best_count . '|' . $date;
 		}
-		
-		return implode('<', $ball_strings);
+
+		return implode(',', $entries);
 	}
 }

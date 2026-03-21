@@ -3235,14 +3235,14 @@ class Statistics extends Admin_Controller {
 		$nonfriends = $this->statistics_m->nonfriends_exists($id);
 		
 		// Try sliding window optimization for friends
-		// TEMPORARILY DISABLED: Sliding window uses wrong data format (followers format instead of friends format)
 		$use_sliding_window = FALSE;
-		/*
+		
 		if(!is_null($friends) && !is_null($nonfriends) && !empty($friends['lottery_friends']) && $friends['draw_id'] > 0)
 		{
 			// Check if we can use sliding window (same settings, only one new draw)
 			$can_slide = (
 				$friends['draw_id'] == ($lotto->last_drawn['id'] - 1)  // Exactly one draw behind
+				&& !empty($friends['friendship_matrix']) // Has cached matrix
 			);
 			
 			if ($can_slide) {
@@ -3250,7 +3250,7 @@ class Statistics extends Admin_Controller {
 				$extra_included = isset($friends['extra_included']) ? $friends['extra_included'] : 0;
 				$extra_draws = isset($friends['extra_draws']) ? $friends['extra_draws'] : 0;
 				
-				$slide_result = $this->statistics_m->friends_sliding_window($tbl_name, $lotto->last_drawn, $drawn, $extra_included, $extra_draws, $range, $friends, $blnduplicate);
+				$slide_result = $this->statistics_m->friends_sliding_window($tbl_name, $lotto->last_drawn, $drawn, $max_ball, $extra_included, $extra_draws, $range, $friends, $blnduplicate);
 				
 				if ($slide_result['success']) {
 					$use_sliding_window = TRUE;
@@ -3273,7 +3273,10 @@ class Statistics extends Admin_Controller {
 					$friends_data = array(
 						'range'				=> $range,
 						'lottery_friends'	=> $str_friends,
+						'friendship_matrix'	=> $slide_result['matrix'], // Save updated matrix
 						'wins'				=> $fr_stats,
+						'extra_included'	=> $extra_included,
+						'extra_draws'		=> $extra_draws,
 						'draw_id'			=> $lotto->last_drawn['id'],
 						'lottery_id'		=> $id
 					);
@@ -3290,7 +3293,6 @@ class Statistics extends Admin_Controller {
 				}
 			}
 		}
-		*/  // End of disabled sliding window block
 		
 		// Full recalculation if sliding window wasn't used
 		if(!$use_sliding_window && !is_null($friends) && !is_null($nonfriends))
@@ -3302,17 +3304,24 @@ class Statistics extends Admin_Controller {
 			$associate = explode('+', $str_friends); // The '+' is the separator
 			$str_friends = $associate[0];			 // separated the friends
 			$str_nonfriends = $associate[1]; 		 // from the non friends
-			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball,   $friends['extra_draws'],  $friends['extra_draws'], $range, '', $blnduplicate);
+			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $friends['extra_included'], $friends['extra_draws'], $range, '', $blnduplicate);
 			$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
 			$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
-			$friends = array(
+			
+			// Build and cache the co-occurrence matrix for future sliding window updates
+			$matrix = $this->statistics_m->build_friends_matrix($tbl_name, $drawn, $max_ball, $friends['extra_included'], $friends['extra_draws'], $range, $blnduplicate);
+			
+			$friends_data = array(
 				'range'				=> $range,
 				'lottery_friends'	=> $str_friends,
+				'friendship_matrix'	=> json_encode($matrix), // Cache matrix
 				'wins'				=> $fr_stats,
+				'extra_included'	=> $friends['extra_included'],
+				'extra_draws'		=> $friends['extra_draws'],
 				'draw_id'			=> $lotto->last_drawn['id'],
 				'lottery_id'		=> $id
 			);
-			$this->statistics_m->friends_data_save($friends, TRUE);
+			$this->statistics_m->friends_data_save($friends_data, TRUE);
 			$nonfriends = array(
 				'range'					=> $range,
 				'lottery_nonfriends'	=> $str_nonfriends,
@@ -3330,13 +3339,20 @@ class Statistics extends Admin_Controller {
 			$associate = explode('+', $str_friends); // The '+' is the separator
 			$str_friends = $associate[0];			 // separated the friends
 			$str_nonfriends = $associate[1]; 		 // from the non friends
-			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $friends['extra_draws'],  $friends['extra_draws'], $new_range, '', $blnduplicate);
+			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, 0, 0, $new_range, '', $blnduplicate);
 			$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
 			$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
+			
+			// Build and cache matrix for first run
+			$matrix = $this->statistics_m->build_friends_matrix($tbl_name, $drawn, $max_ball, 0, 0, $new_range, $blnduplicate);
+			
 			$friends = array(
 				'range'				=> $new_range,
 				'lottery_friends'	=> $str_friends,
+				'friendship_matrix'	=> json_encode($matrix),
 				'wins'				=> $fr_stats,
+				'extra_included'	=> 0,
+				'extra_draws'		=> 0,
 				'draw_id'			=> $lotto->last_drawn['id'],
 				'lottery_id'		=> $id
 			);
