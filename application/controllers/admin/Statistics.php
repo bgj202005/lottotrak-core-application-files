@@ -1356,12 +1356,14 @@ class Statistics extends Admin_Controller {
 					$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
 					$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
 					$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
+					$matrix = $this->statistics_m->build_friends_matrix($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $blnduplicate);
 					
 					log_message('info', "Friends recalculation complete - wins=$fr_stats, relatives=".json_encode($relatives));
 					
 					$friends = array(
 						'range'				=> $new_range,
 						'lottery_friends'	=> $str_friends,
+						'friendship_matrix'	=> json_encode($matrix),
 						'wins'				=> $fr_stats,
 						'extra_included'	=> $this->data['lottery']->extra_included,
 						'extra_draws'		=> $this->data['lottery']->extra_draws,
@@ -1395,6 +1397,7 @@ class Statistics extends Admin_Controller {
 			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '', $blnduplicate);
 			$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
 			$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
+			$matrix = $this->statistics_m->build_friends_matrix($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $blnduplicate);
 			
 			// Check if friends data already exists (maybe from previous failed calculation)
 			$existing_check = $this->statistics_m->friends_exists($id);
@@ -1403,6 +1406,7 @@ class Statistics extends Admin_Controller {
 			$friends = array(
 				'range'				=> $new_range,
 				'lottery_friends'	=> $str_friends,
+				'friendship_matrix'	=> json_encode($matrix),
 				'wins'				=> $fr_stats,
 				'extra_included'	=> $this->data['lottery']->extra_included,
 				'extra_draws'		=> $this->data['lottery']->extra_draws,
