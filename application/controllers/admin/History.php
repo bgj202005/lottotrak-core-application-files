@@ -569,9 +569,18 @@ class History extends Admin_Controller {
 		if(!empty($hwc_stats) && !empty($hwc_stats['wins'])) {
 			$h_w_c_range = isset($hwc_stats['h_w_c_range']) ? $hwc_stats['h_w_c_range'] : '';
 			$this->data['hwc_winners'] = $this->parse_hwc_winners($hwc_stats['wins'], $id, $h_w_c_range);
+			
+				// Pass H-W-C Last 10 and Last 100 data to the view
+			$this->data['h_w_c_last_10'] = isset($hwc_stats['h_w_c_last_10']) ? $hwc_stats['h_w_c_last_10'] : '';
+			$this->data['h_w_c_range'] = $h_w_c_range;
 		} else {
 			$this->data['hwc_winners'] = array();
+			$this->data['h_w_c_last_10'] = '';
+			$this->data['h_w_c_range'] = '';
 		}
+		// Pass lottery draws count and range for labelling
+		$this->data['hwc_balls_drawn'] = $drawn;
+		$this->data['hwc_range'] = isset($h_w_c['range']) ? $h_w_c['range'] : 100;
 		
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the Statistics menu

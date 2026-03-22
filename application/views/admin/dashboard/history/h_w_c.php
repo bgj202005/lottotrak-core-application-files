@@ -1841,6 +1841,104 @@
 										</div>
 									</div>
 								</div>
+								
+								<?php if(!empty($h_w_c_last_10) || !empty($h_w_c_range)): ?>
+							<!-- H-W-C Last 10 and Last Range Tables - matching statistics page style -->
+							<?php
+								// Parse Last 10 - preserve DB order, include ALL patterns (even zeros)
+								$tbl_last10 = array();
+								if(!empty($h_w_c_last_10)) {
+									foreach(explode(',', $h_w_c_last_10) as $item) {
+										$parts = explode('=', trim($item));
+										if(count($parts) == 2 && $parts[0] !== '') {
+											$tbl_last10[$parts[0]] = (int)$parts[1];
+										}
+									}
+								}
+								// Parse Last Range - preserve DB order, include ALL patterns (even zeros)
+								$tbl_range = array();
+								if(!empty($h_w_c_range)) {
+									foreach(explode(',', $h_w_c_range) as $item) {
+										$parts = explode('=', trim($item));
+										if(count($parts) == 2 && $parts[0] !== '') {
+											$tbl_range[$parts[0]] = (int)$parts[1];
+										}
+									}
+								}
+							?>
+							<div class="row mt-4 justify-content-center">
+								<div class="col-12 col-sm-6 col-md-5 mb-3">
+									<div class="card border-0 shadow-sm">
+										<div class="card-header bg-info text-white py-2">
+											<h5 class="card-title mb-0 text-white">Last 10 Draws</h5>
+										</div>
+										<div class="card-body p-0">
+											<?php if(!empty($tbl_last10)): ?>
+											<table class="table table-striped table-sm mb-0">
+												<thead class="thead-dark">
+													<tr>
+														<th class="text-center datafont">H - W - C</th>
+														<th class="text-center datafont">Count</th>
+													</tr>
+												</thead>
+												<tbody>
+													<?php foreach($tbl_last10 as $pattern => $count): ?>
+														<tr<?= $count > 0 ? ' class="table-success"' : '' ?>>
+															<td class="text-center datafont"><?= str_replace('-', ' - ', $pattern) ?></td>
+															<td class="text-center datafont">
+																<?php if($count > 0): ?>
+																	<strong><?= $count ?></strong>
+																<?php else: ?>
+																	<span class="text-muted">0</span>
+																<?php endif; ?>
+															</td>
+														</tr>
+													<?php endforeach; ?>
+												</tbody>
+											</table>
+											<?php else: ?>
+												<p class="text-muted p-3 mb-0"><small>No Last 10 data. Please recalculate H-W-C statistics.</small></p>
+											<?php endif; ?>
+										</div>
+									</div>
+								</div>
+								<div class="col-12 col-sm-6 col-md-5 mb-3">
+									<div class="card border-0 shadow-sm">
+										<div class="card-header bg-success text-white py-2">
+											<h5 class="card-title mb-0 text-white">Last <?= isset($hwc_range) ? $hwc_range : 100 ?> Draws</h5>
+										</div>
+										<div class="card-body p-0">
+											<?php if(!empty($tbl_range)): ?>
+											<table class="table table-striped table-sm mb-0">
+												<thead class="thead-dark">
+													<tr>
+														<th class="text-center datafont">H - W - C</th>
+														<th class="text-center datafont">Count</th>
+													</tr>
+												</thead>
+												<tbody>
+													<?php foreach($tbl_range as $pattern => $count): ?>
+														<tr<?= $count > 0 ? ' class="table-success"' : '' ?>>
+															<td class="text-center datafont"><?= str_replace('-', ' - ', $pattern) ?></td>
+															<td class="text-center datafont">
+																<?php if($count > 0): ?>
+																	<strong><?= $count ?></strong>
+																<?php else: ?>
+																	<span class="text-muted">0</span>
+																<?php endif; ?>
+															</td>
+														</tr>
+													<?php endforeach; ?>
+												</tbody>
+											</table>
+											<?php else: ?>
+												<p class="text-muted p-3 mb-0"><small>No range data. Please recalculate H-W-C statistics.</small></p>
+											<?php endif; ?>
+										</div>
+									</div>
+								</div>
+								<?php endif; ?>
+								
 							</div>
 						</div>
 						
