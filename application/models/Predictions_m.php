@@ -470,15 +470,28 @@ class Predictions_m extends MY_Model
         
         // Fetch combination files with left join to check for active saved filters
         $this->db->select('lcf.id, lcf.file_name, lcf.N, lcf.R, lcf.CCCC, 
-                          COALESCE(MAX(lfc.active), 0) as active');
+                          COALESCE(MAX(lfc.active), 0) as active,
+                          lfc.file_name as saved_filter_file_name');
         $this->db->from('lottery_combination_files lcf');
-        $this->db->join('lottery_combination_filters lfc', 
-                       'lcf.id = lfc.combo_id AND lfc.user = 1 AND lfc.user_id = ' . (int)$current_user_id, 'left');
+		$this->db->join('lottery_combination_filters lfc', 
+			       'lcf.id = lfc.combo_id AND lfc.user = 1 AND lfc.user_id = ' . (int)$current_user_id . ' AND lfc.lottery_id = ' . (int)$lottery_id, 'left');
         $this->db->where('lcf.R', $balls_drawn); // Match the balls_drawn value
-        $this->db->group_by('lcf.id, lcf.file_name, lcf.N, lcf.R, lcf.CCCC');
+        $this->db->group_by('lcf.id, lcf.file_name, lcf.N, lcf.R, lcf.CCCC, lfc.file_name');
         $this->db->order_by('lcf.file_name', 'ASC');
         $query = $this->db->get();
-        return $query->result_array(); // Return the result as an array
+        
+        // Check if saved filtered files actually exist on disk
+        $results = $query->result_array();
+        foreach ($results as &$row) {
+            $row['saved_file_exists'] = false;
+            if (!empty($row['saved_filter_file_name'])) {
+                $pick_dir = FCPATH . 'combinations/pick' . $balls_drawn . '/';
+                $saved_file_path = $pick_dir . $row['saved_filter_file_name'] . '.txt';
+                $row['saved_file_exists'] = file_exists($saved_file_path);
+            }
+        }
+        
+        return $results; // Return the result as an array
     }
 	/**
      * Retrieves the H-W-C (High, Winning, Cold) range, extra draws, and extra included settings for a lottery.
@@ -678,42 +691,33 @@ class Predictions_m extends MY_Model
 		// Start with patterns that have occurrence counts (these definitely occurred)
 		$result = [];
 		
-		// First pass: Add only patterns with counts > 0 AND ranks (exclude unranked patterns)
-		foreach ($hwc_counts as $pattern => $count) {
-			if ($count > 0) {
-				$rank = isset($hwc_ranks[$pattern]) ? $hwc_ranks[$pattern] : 999;
-				
-				// Only include ranked patterns (exclude unranked patterns with rank = 999)
-				if ($rank != 999) {
-					$result[$pattern] = $pattern . ' (' . $count . ') - Rank #' . $rank;
-				}
-			}
-		}
-		
-		// Get patterns that need rank reassignment (only ranked ones with counts > 0)
+		// First pass: Add ranked patterns (those with wins)
 		$ranked_patterns = [];
-		foreach ($result as $pattern => $display) {
-			if (strpos($display, 'Rank #') !== false) {
-				$rank = isset($hwc_ranks[$pattern]) ? $hwc_ranks[$pattern] : 999;
-				$count = $hwc_counts[$pattern];
-				$points = isset($hwc_points[$pattern]) ? $hwc_points[$pattern] : 0;
-				
+		foreach ($hwc_counts as $pattern => $count) {
+			if ($count > 0 && isset($hwc_ranks[$pattern])) {
 				$ranked_patterns[$pattern] = [
 					'count' => $count,
-					'original_rank' => $rank,
-					'points' => $points
+					'original_rank' => $hwc_ranks[$pattern],
+					'points' => isset($hwc_points[$pattern]) ? $hwc_points[$pattern] : 0
 				];
 			}
 		}
 		
-		// Sort ranked patterns to get proper sequential order (already sorted by parse_hwc_points)
-		// Re-assign sequential ranks starting from 1
+		// Re-assign sequential ranks starting from 1 for ranked patterns
 		$new_rank = 1;
 		foreach ($hwc_points as $pattern => $points) {
 			if (isset($ranked_patterns[$pattern])) {
 				$count = $ranked_patterns[$pattern]['count'];
 				$result[$pattern] = $pattern . ' (' . $count . ') - Rank #' . $new_rank;
 				$new_rank++;
+			}
+		}
+		
+		// Second pass: Add unranked patterns (those with occurrences but no wins)
+		// These are shown at the end without a rank
+		foreach ($hwc_counts as $pattern => $count) {
+			if ($count > 0 && !isset($hwc_ranks[$pattern])) {
+				$result[$pattern] = $pattern . ' (' . $count . ') - No wins';
 			}
 		}
 		
@@ -1326,12 +1330,13 @@ class Predictions_m extends MY_Model
 		$h_positions = $hwc_data['h_positions'];
 		$w_positions = $hwc_data['w_positions'];
 		$c_positions = $hwc_data['c_positions'];
+		$position_stats = isset($hwc_data['position_stats']) ? $hwc_data['position_stats'] : null;
 		
-		// 5. Select numbers for each group by top position counts - optimized selection
+		// 5. PHASE 2 ENHANCED: Select numbers using intelligent win rate sorting
 		$selected = [];
-		$selected = array_merge($selected, $this->select_by_position_index_optimized($h_positions, $hots, $h_total));
-		$selected = array_merge($selected, $this->select_by_position_index_optimized($w_positions, $warms, $w_total));
-		$selected = array_merge($selected, $this->select_by_position_index_optimized($c_positions, $colds, $c_total));
+		$selected = array_merge($selected, $this->select_by_position_index_optimized($h_positions, $hots, $h_total, 'hot', $position_stats));
+		$selected = array_merge($selected, $this->select_by_position_index_optimized($w_positions, $warms, $w_total, 'warm', $position_stats));
+		$selected = array_merge($selected, $this->select_by_position_index_optimized($c_positions, $colds, $c_total, 'cold', $position_stats));
 
 		$elapsed = microtime(true) - $start_time;
 		log_message('info', "H-W-C generation completed in " . round($elapsed * 1000, 2) . "ms for lottery $lottery_id");
@@ -1339,25 +1344,47 @@ class Predictions_m extends MY_Model
 		return implode(',', $selected);
 	}
 	/**
-	 * Optimized version of select_by_position_index with improved performance
+	 * PHASE 2 ENHANCED: Optimized selection with intelligent win rate sorting
+	 * Uses position statistics to select best-performing positions instead of just highest occurrence
 	 */
-	private function select_by_position_index_optimized($positions, $numbers, $limit) {
+	private function select_by_position_index_optimized($positions, $numbers, $limit, $temperature = '', $position_stats = null) {
 		if ($limit <= 0) return [];
 		
-		// Sort positions by count (descending) - more efficient than arsort for smaller arrays
-		uasort($positions, function($a, $b) { return $b - $a; });
+		// Build array of positions with their performance data
+		$position_data = [];
+		foreach ($positions as $pos => $count) {
+			if (isset($numbers[$pos])) {
+				$position_data[] = [
+					'position' => $pos,
+					'number' => $numbers[$pos],
+					'count' => $count,
+					'win_rate' => $this->get_position_win_rate_predictions($pos, $temperature, $position_stats)
+				];
+			}
+		}
 		
+		// PHASE 2: Sort by win rate (descending), then by count (descending) as tiebreaker
+		usort($position_data, function($a, $b) {
+			// Primary sort: win_rate descending (higher is better)
+			if ($b['win_rate'] != $a['win_rate']) {
+				return $b['win_rate'] <=> $a['win_rate'];
+			}
+			// Tiebreaker: count descending (more occurrences)
+			return $b['count'] <=> $a['count'];
+		});
+		
+		// Select top N positions by performance
 		$selected = [];
 		$selected_lookup = []; // Use array for faster duplicate checking
 		
-		foreach ($positions as $pos => $count) {
-			if (isset($numbers[$pos]) && !isset($selected_lookup[$numbers[$pos]])) {
-				$number = $numbers[$pos];
-				$selected[] = $number;
-				$selected_lookup[$number] = true;
+		foreach ($position_data as $data) {
+			if (!isset($selected_lookup[$data['number']])) {
+				$selected[] = $data['number'];
+				$selected_lookup[$data['number']] = true;
 				if (count($selected) >= $limit) break;
 			}
 		}
+		
 		return $selected;
 	}
 	
@@ -1386,6 +1413,9 @@ class Predictions_m extends MY_Model
 			'hots' => $this->parse_hwc_numbers($hwc['hots']),
 			'warms' => $this->parse_hwc_numbers($hwc['warms']),
 			'colds' => $this->parse_hwc_numbers($hwc['colds']),
+			'h_count' => $hwc['h_count'],
+			'w_count' => $hwc['w_count'],
+			'c_count' => $hwc['c_count'],
 		];
 		
 		// Parse positions efficiently
@@ -1393,6 +1423,9 @@ class Predictions_m extends MY_Model
 		$parsed_data['h_positions'] = $this->parse_position_part_optimized($parts[0]);
 		$parsed_data['w_positions'] = $this->parse_position_part_optimized($parts[1]);
 		$parsed_data['c_positions'] = $this->parse_position_part_optimized($parts[2]);
+		
+		// PHASE 2 ENHANCEMENT: Load position statistics for intelligent selection
+		$parsed_data['position_stats'] = $this->load_position_statistics($lottery_id);
 		
 		// Cache the parsed data
 		$hwc_cache[$cache_key] = $parsed_data;
@@ -1403,6 +1436,115 @@ class Predictions_m extends MY_Model
 		}
 		
 		return $parsed_data;
+	}
+	
+	/**
+	 * Load position statistics from database for intelligent selection
+	 * PHASE 2: Retrieves historical position performance data
+	 */
+	private function load_position_statistics($lottery_id) {
+		$this->db->where('lottery_id', $lottery_id);
+		$query = $this->db->get('lottery_h_w_c_stats');
+		
+		if ($query->num_rows() == 0) {
+			return array(); // Cold start
+		}
+		
+		$result = $query->row();
+		
+		if (empty($result->position_stats)) {
+			return array(); // No statistics yet
+		}
+		
+		return $this->parse_position_statistics($result->position_stats);
+	}
+	
+	/**
+	 * Parse position statistics string from database
+	 * PHASE 2: Decodes position win tracking data
+	 */
+	private function parse_position_statistics($position_stats_string) {
+		if (empty($position_stats_string)) {
+			return array();
+		}
+		
+		$position_stats = array();
+		$pattern_parts = explode('||', $position_stats_string);
+		
+		foreach ($pattern_parts as $pattern_part) {
+			if (empty($pattern_part)) continue;
+			
+			$parts = explode('>', $pattern_part);
+			if (count($parts) != 2) continue;
+			
+			$pattern = $parts[0];
+			$temp_data = $parts[1];
+			
+			$position_stats[$pattern] = array('hot' => array(), 'warm' => array(), 'cold' => array());
+			
+			$temp_parts = explode('|', $temp_data);
+			foreach ($temp_parts as $temp_part) {
+				if (empty($temp_part)) continue;
+				
+				$temp_split = explode(':', $temp_part);
+				if (count($temp_split) != 2) continue;
+				
+				$temp_code = $temp_split[0];
+				$pos_data = $temp_split[1];
+				
+				$temp_map = array('H' => 'hot', 'W' => 'warm', 'C' => 'cold');
+				if (!isset($temp_map[$temp_code])) continue;
+				$temp_name = $temp_map[$temp_code];
+				
+				$position_values = explode(',', $pos_data);
+				foreach ($position_values as $pos_value) {
+					$pos_parts = explode('=', $pos_value);
+					if (count($pos_parts) != 2) continue;
+					
+					$pos = (int)$pos_parts[0];
+					$counts = explode('/', $pos_parts[1]);
+					if (count($counts) != 2) continue;
+					
+					$position_stats[$pattern][$temp_name][$pos] = array(
+						'selected' => (int)$counts[0],
+						'won' => (int)$counts[1]
+					);
+				}
+			}
+		}
+		
+		return $position_stats;
+	}
+	
+	/**
+	 * Get win rate for a specific position
+	 * PHASE 2: Calculates performance metric for intelligent selection
+	 */
+	private function get_position_win_rate_predictions($position, $temperature, $position_stats) {
+		// Cold start: No statistics available yet
+		if (empty($position_stats)) {
+			return -1; // Negative indicates no data - will sort by count
+		}
+		
+		// Aggregate win rates across all patterns for this position/temperature
+		$total_selected = 0;
+		$total_won = 0;
+		
+		foreach ($position_stats as $pattern => $temps) {
+			if (isset($temps[$temperature][$position])) {
+				$stats = $temps[$temperature][$position];
+				$total_selected += $stats['selected'];
+				$total_won += $stats['won'];
+			}
+		}
+		
+		// Minimum sample size: 10 selections before using win rate
+		if ($total_selected < 10) {
+			return -1; // Insufficient data - will sort by count
+		}
+		
+		// Calculate win rate
+		return $total_won / $total_selected;
 	}
 	
 	/**
@@ -1851,7 +1993,7 @@ class Predictions_m extends MY_Model
 	}
 	
 	/**
-	 * Optimized selection algorithm for H-W-C + Followers
+	 * PHASE 2 ENHANCED: Optimized selection algorithm for H-W-C + Followers with intelligent win rate sorting
 	 */
 	private function select_hwc_followers_numbers_optimized($hwc_data, $followers_data, $h_total, $w_total, $c_total, $combination_size) {
 		// Create list of all follower numbers for quick lookup
@@ -1868,20 +2010,21 @@ class Predictions_m extends MY_Model
 		$h_positions = $hwc_data['h_positions'];
 		$w_positions = $hwc_data['w_positions'];
 		$c_positions = $hwc_data['c_positions'];
+		$position_stats = isset($hwc_data['position_stats']) ? $hwc_data['position_stats'] : null;
 		
-		// Select from each H-W-C group, filtering by followers
+		// PHASE 2: Select from each H-W-C group using intelligent selection, then filter by followers
 		$selected = [];
 		
 		// Select hots that are in followers
-		$selected_hots = $this->select_hwc_filtered_by_followers($h_positions, $hots, $h_total, $follower_lookup);
+		$selected_hots = $this->select_hwc_filtered_by_followers($h_positions, $hots, $h_total, $follower_lookup, 'hot', $position_stats);
 		$selected = array_merge($selected, $selected_hots);
 		
 		// Select warms that are in followers
-		$selected_warms = $this->select_hwc_filtered_by_followers($w_positions, $warms, $w_total, $follower_lookup);
+		$selected_warms = $this->select_hwc_filtered_by_followers($w_positions, $warms, $w_total, $follower_lookup, 'warm', $position_stats);
 		$selected = array_merge($selected, $selected_warms);
 		
 		// Select colds that are in followers
-		$selected_colds = $this->select_hwc_filtered_by_followers($c_positions, $colds, $c_total, $follower_lookup);
+		$selected_colds = $this->select_hwc_filtered_by_followers($c_positions, $colds, $c_total, $follower_lookup, 'cold', $position_stats);
 		$selected = array_merge($selected, $selected_colds);
 		
 		// If not enough numbers, fill from followers data
@@ -1902,23 +2045,60 @@ class Predictions_m extends MY_Model
 	}
 	
 	/**
-	 * Helper method to select H-W-C numbers filtered by followers
+	 * PHASE 2 ENHANCED: Helper method to select H-W-C numbers filtered by followers with intelligent win rate sorting
 	 */
-	private function select_hwc_filtered_by_followers($positions, $numbers, $limit, $follower_lookup) {
+	private function select_hwc_filtered_by_followers($positions, $numbers, $limit, $follower_lookup, $temperature = '', $position_stats = null) {
 		if ($limit <= 0) return [];
 		
-		// Sort positions by count (descending) for top performers
-		uasort($positions, function($a, $b) { return $b - $a; });
+		// Build array of positions with their performance data
+		$position_data = [];
+		foreach ($positions as $pos => $count) {
+			if (isset($numbers[$pos])) {
+				$position_data[] = [
+					'position' => $pos,
+					'number' => $numbers[$pos],
+					'count' => $count,
+					'win_rate' => $this->get_position_win_rate_predictions($pos, $temperature, $position_stats),
+					'is_follower' => isset($follower_lookup[$numbers[$pos]])
+				];
+			}
+		}
 		
+		// PHASE 2: Sort by follower status first, then by win rate, then by count
+		usort($position_data, function($a, $b) {
+			// Primary: Followers first
+			if ($a['is_follower'] != $b['is_follower']) {
+				return $b['is_follower'] - $a['is_follower'];
+			}
+			// Secondary: win_rate descending (higher is better)
+			if ($b['win_rate'] != $a['win_rate']) {
+				return $b['win_rate'] <=> $a['win_rate'];
+			}
+			// Tiebreaker: count descending
+			return $b['count'] <=> $a['count'];
+		});
+		
+		// Select followers first, then non-followers if quota is not yet reached
 		$selected = [];
-		$count = 0;
+		$selected_lookup = [];
 		
-		foreach ($positions as $pos => $pos_count) {
-			if ($count >= $limit) break;
-			
-			if (isset($numbers[$pos]) && isset($follower_lookup[$numbers[$pos]])) {
-				$selected[] = $numbers[$pos];
-				$count++;
+		// First pass: followers only
+		foreach ($position_data as $data) {
+			if ($data['is_follower'] && !isset($selected_lookup[$data['number']])) {
+				$selected[] = $data['number'];
+				$selected_lookup[$data['number']] = true;
+				if (count($selected) >= $limit) break;
+			}
+		}
+		
+		// Second pass: fill remaining quota from non-followers in same heat group
+		if (count($selected) < $limit) {
+			foreach ($position_data as $data) {
+				if (!$data['is_follower'] && !isset($selected_lookup[$data['number']])) {
+					$selected[] = $data['number'];
+					$selected_lookup[$data['number']] = true;
+					if (count($selected) >= $limit) break;
+				}
 			}
 		}
 		

@@ -629,17 +629,20 @@ class Predictions extends Admin_Controller {
 		$this->data['last_draw_date'] = $lottery_status['last_draw_date'];
 		$this->data['expected_next_date'] = $lottery_status['expected_next_date'];
 		
-		// Check for outdated combination files that need to be expired
-		$this->check_outdated_combinations($id);
+		// DISABLED: Automatic expiration of combination files
+		// Filters should only be expired when checking results in Prize History
+		// $this->check_outdated_combinations($id);
 		
-		// Verify and update expired combination ticket filters
-		$expired_check = $this->lottery_data_m->verify_active_date($id, $tbl_name);
-		if (!$expired_check) {
-			$this->session->set_flashdata('message', '<div class="alert alert-danger">Unable to update expired combination tables before entering the prediction futures view.</div>');
-		}
+		// DISABLED: Automatic verification/expiration of active filters
+		// Filters should remain ACTIVE until results are checked in Prize History
+		// $expired_check = $this->lottery_data_m->verify_active_date($id, $tbl_name);
+		// if (!$expired_check) {
+		//     $this->session->set_flashdata('message', '<div class="alert alert-danger">Unable to update expired combination tables before entering the prediction futures view.</div>');
+		// }
 		
-		// Update expired combination filters with outdated lastdate to most recent draw
-		$this->update_expired_combination_filters_lastdate($id, $tbl_name);
+		// DISABLED: Automatic lastdate updates for expired filters
+		// Lastdate should only be updated when checking results in Prize History
+		// $this->update_expired_combination_filters_lastdate($id, $tbl_name);
 		
 		$drawn = $this->data['lottery']->balls_drawn; // Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$this->data['country_code'] = $this->lottery_data_m->get_lottery_country($id);
@@ -2324,7 +2327,7 @@ class Predictions extends Admin_Controller {
 				// Prepare filter array
 				// When "All" is selected for friends, disable friendship filtering completely
 				// Also disable filtering for "none" (0 friends) selection
-				$effective_friends_checked = $friends_checked && ($selected_friends !== 'all') && ($selected_friends !== 'none');
+				$effective_friends_checked = $friends_checked && ($selected_friends !== 'all');
 				
 				$filters = [
 					'selected_trends' => $selected_trends,
@@ -2447,10 +2450,13 @@ class Predictions extends Admin_Controller {
 		else {
 			// Restore form/filter values
 			$futures_form = $this->session->userdata('futures_form');
+			
+			// Check if session data exists
+			if ($futures_form && is_array($futures_form)) {
 				foreach ($futures_form as $key => $value) {
 					$this->data[$key] = $value;
 				}
-			// LOTTERY PROFILE STATISTICS PRESETS Settings
+				// LOTTERY PROFILE STATISTICS PRESETS Settings
 				$this->data['selected_h_w_c_group'] = $futures_form['selected_h_w_c_group'];
 				$this->data['selected_hwc'] = $futures_form['selected_hwc']; 
 				$this->data['selected_followers'] = $futures_form['selected_followers']; 
@@ -2469,12 +2475,14 @@ class Predictions extends Admin_Controller {
 				$this->data['selected_last_digits'] = $futures_form['selected_last_digits']; 		// last digits setting
 				$this->data['selected_number_range'] = $futures_form['selected_number_range'];		// number range setting
 				$this->data['selected_adjacents'] = $futures_form['selected_adjacents'];				// adjacents setting
+			}
+			
 			$number_array = $this->session->userdata('futures_number_array');
 			$combination_file = $this->session->userdata('combination_file_name'); // Use parsed filename
 			
 			// Check for friendship warnings in GET requests (when viewing existing results)
 			$friendship_warning = null;
-			if ($number_array && $futures_form['selected_friends_checkbox'] === 'on' && $futures_form['selected_friends'] !== 'all' && $futures_form['selected_friends'] !== 'none') {
+			if ($futures_form && is_array($futures_form) && $number_array && $futures_form['selected_friends_checkbox'] === 'on' && $futures_form['selected_friends'] !== 'all' && $futures_form['selected_friends'] !== 'none') {
 				// Analyze the current number array for friendship warnings
 				$friendship_analysis = $this->predictions_m->analyze_friendships($id, $number_array);
 				$selected_friends = $futures_form['selected_friends'];
@@ -2541,7 +2549,7 @@ class Predictions extends Admin_Controller {
 				// Also disable filtering for "none" (0 friends) selection
 				$friends_value = isset($futures_form['selected_friends']) ? $futures_form['selected_friends'] : '';
 				$friends_checkbox = isset($futures_form['selected_friends_checkbox']) ? $futures_form['selected_friends_checkbox'] : false;
-				$effective_friends_checked = $friends_checkbox && ($friends_value !== 'all') && ($friends_value !== 'none');
+				$effective_friends_checked = $friends_checkbox && ($friends_value !== 'all');
 				
 				$filters = [
 					'selected_trends' => $futures_form['selected_trends'],
@@ -2701,6 +2709,11 @@ class Predictions extends Admin_Controller {
 	 */
 	public function combination_save($id)
 	{
+		// Log the start of save operation
+		// Increase limits for large combination files
+		@ini_set('max_execution_time', '300'); // 5 minutes
+		@ini_set('memory_limit', '512M'); // Increase memory limit
+		
 		// Start output buffering to catch any unexpected output
 		if ($this->input->is_ajax_request()) {
 			ob_start();
@@ -2718,6 +2731,11 @@ class Predictions extends Admin_Controller {
 			$number_array = $this->session->userdata('futures_number_array');
 			$combination_file = $this->session->userdata('combination_file_name'); // Use parsed filename
 			$combo_id = $this->session->userdata('combination_file_id'); // Use stored combo_id
+
+			log_message('info', "Session check - Data: " . ($session_data ? 'YES' : 'NO') . 
+				", Numbers: " . ($number_array ? 'YES' : 'NO') . 
+				", File: " . ($combination_file ? $combination_file : 'NO') . 
+				", ID: " . ($combo_id ? $combo_id : 'NO'));
 
 
 
@@ -2797,39 +2815,31 @@ class Predictions extends Admin_Controller {
 			'lottery_highlights' => $this->data['lottery']->highlights
 		];
 		
-
-		
 		// Check if we have session data from recent generation that matches current settings
 		$stored_count = $this->session->userdata('current_filtered_count');
 		$stored_filters = $this->session->userdata('current_filters');
-		
-
 		
 		// Compare key filter values to see if they match current session
 		$filters_match = false;
 		if (!empty($stored_filters)) {
 			$filters_match = $this->filters_match($filters, $stored_filters);
+		}
 
+		// If filters don't match but we have stored filters from the last generation,
+		// prefer the stored filters to ensure save uses the same criteria as preview.
+		if (!$filters_match && !empty($stored_filters)) {
+			$filters = $stored_filters;
+			$filters_match = true;
 		}
 		
 		// Use stored count if available and filters match, otherwise recalculate
 		if (!empty($stored_count) && $filters_match) {
 			$filtered_count = $stored_count;
 
-			
-			// VERIFICATION: Double-check the stored count by recalculating (for debugging)
-			$verification_count = $this->combination_filters_m->get_filtered_combinations_count($filepath, $number_array, $filters);
-			if ($verification_count != $filtered_count) {
-				log_message('warning', "Combination Save - COUNT MISMATCH! Stored: {$filtered_count}, Recalculated: {$verification_count}");
-				log_message('warning', "Combination Save - Using recalculated count for accuracy");
-				$filtered_count = $verification_count;
-			} else {
-
-			}
+			// Skip verification for large files to prevent timeout during save
+			// The stored count is from the generation and is reliable
 		} else {
-
 			$filtered_count = $this->combination_filters_m->get_filtered_combinations_count($filepath, $number_array, $filters);
-
 		}
 		$current_user_id = $this->session->userdata('id');
 		$formatted_user_id = str_pad($current_user_id, 2, '0', STR_PAD_LEFT);
@@ -2848,6 +2858,7 @@ class Predictions extends Admin_Controller {
 		$this->db->where('combo_id', $combo_id);
 		$this->db->where('user_id', $current_user_id);
 		$this->db->where('user', 1); // Admin records only
+		$this->db->where('lottery_id', $id); // Scope to current lottery
 		$query = $this->db->get('lottery_combination_filters');
 		
 		if ($query->num_rows() > 0) {
@@ -2856,15 +2867,19 @@ class Predictions extends Admin_Controller {
 			if ($existing_record['active'] == 0) {
 				$status_changed = true;
 			}
+		} else {
 		}
 		
 		// Prepare data for saving
 		// For new records, set initial lastdate; for existing records, preserve existing lastdate
 		$initial_lastdate = null;
+		$latest_lastdate = null;
+		if (isset($this->data['lottery']->last_drawn['draw_date'])) {
+			$latest_lastdate = $this->lottery_data_m->format_date_to_mysql($this->data['lottery']->last_drawn['draw_date']);
+		}
 		if (!$existing_record) {
 			// For new records, set lastdate to lottery's last drawn date (will be processed by prize history)
-			$ld = $this->data['lottery']->last_drawn['draw_date'];
-			$initial_lastdate = $this->lottery_data_m->format_date_to_mysql($ld);
+			$initial_lastdate = $latest_lastdate;
 		}
 		
 		// Format the generated numbers as comma-separated string (e.g., "46,24,1,42,30,19,44")
@@ -2930,15 +2945,104 @@ class Predictions extends Admin_Controller {
 		// Save to database - either update existing record or create new one
 		$saved = false;
 		if ($existing_record) {
-			// Update existing record - exclude lastdate to preserve existing value
-			$update_data = $save_data;
-			unset($update_data['lastdate']); // Don't update lastdate for existing records
+			// CRITICAL: Only update if the filter is EXPIRED (active = 0)
+			// ACTIVE filters should NOT be modified - they are waiting to be checked in Prize History
+			if ($existing_record['active'] == 0) {
+				// Update existing EXPIRED record - preserve win records and update lastdate only when stale
+				$update_data = $save_data;
+				
+				// Only update lastdate when reactivating an EXPIRED record and date is not most recent
+				if ($latest_lastdate && ($existing_record['lastdate'] === null || $existing_record['lastdate'] === '' || $existing_record['lastdate'] !== $latest_lastdate)) {
+					$update_data['lastdate'] = $latest_lastdate;
+				} else {
+					unset($update_data['lastdate']);
+				}
+				
+				// CRITICAL: Preserve all existing win records - never overwrite them
+				// Win records can only be updated when checking results or reset manually
+				unset($update_data['extra']);
+				unset($update_data['1_win']);
+				unset($update_data['1_win_extra']);
+				unset($update_data['2_win']);
+				unset($update_data['2_win_extra']);
+				unset($update_data['3_win']);
+				unset($update_data['3_win_extra']);
+				unset($update_data['4_win']);
+				unset($update_data['4_win_extra']);
+				unset($update_data['5_win']);
+				unset($update_data['5_win_extra']);
+				unset($update_data['6_win']);
+				unset($update_data['6_win_extra']);
+				unset($update_data['7_win']);
+				unset($update_data['7_win_extra']);
+				unset($update_data['8_win']);
+				unset($update_data['8_win_extra']);
+				unset($update_data['9_win']);
+				unset($update_data['9_win_extra']);
 
-			$this->db->where('id', $existing_record['id']);
-			$saved = $this->db->update('lottery_combination_filters', $update_data);
+				log_message('debug', "Combination Save - Update data after unsets: active=" . (isset($update_data['active']) ? $update_data['active'] : 'NOT SET'));
+				
+				$this->db->where('id', $existing_record['id']);
+				$saved = $this->db->update('lottery_combination_filters', $update_data);
+				
+				log_message('debug', "Combination Save - Update result: " . ($saved ? 'SUCCESS' : 'FAILED'));
+				if ($saved) {
+					log_message('debug', "Combination Save - Affected rows: " . $this->db->affected_rows());
+				}
+			} else {
+				// Existing record is ACTIVE - Check if settings or count changed
+				// If the filter settings or CCCC count are different, allow update
+				$settings_changed = (
+					$existing_record['CCCC'] != $save_data['CCCC'] ||
+					$existing_record['selected_friends'] != $save_data['selected_friends'] ||
+					$existing_record['friends'] != $save_data['friends'] ||
+					$existing_record['repeaters'] != $save_data['repeaters'] ||
+					$existing_record['trends'] != $save_data['trends'] ||
+					$existing_record['winning_sums'] != $save_data['winning_sums'] ||
+					$existing_record['consecutives'] != $save_data['consecutives']
+				);
+				
+				if ($settings_changed) {
+					// Settings have changed - allow update
+					$update_data = $save_data;
+					
+					// Only update lastdate when reactivating and date is not most recent
+					if ($latest_lastdate && ($existing_record['lastdate'] === null || $existing_record['lastdate'] === '' || $existing_record['lastdate'] !== $latest_lastdate)) {
+						$update_data['lastdate'] = $latest_lastdate;
+					} else {
+						unset($update_data['lastdate']);
+					}
+					
+					// CRITICAL: Preserve all existing win records - never overwrite them
+					unset($update_data['extra']);
+					unset($update_data['1_win']);
+					unset($update_data['1_win_extra']);
+					unset($update_data['2_win']);
+					unset($update_data['2_win_extra']);
+					unset($update_data['3_win']);
+					unset($update_data['3_win_extra']);
+					unset($update_data['4_win']);
+					unset($update_data['4_win_extra']);
+					unset($update_data['5_win']);
+					unset($update_data['5_win_extra']);
+					unset($update_data['6_win']);
+					unset($update_data['6_win_extra']);
+					unset($update_data['7_win']);
+					unset($update_data['7_win_extra']);
+					unset($update_data['8_win']);
+					unset($update_data['8_win_extra']);
+					unset($update_data['9_win']);
+					unset($update_data['9_win_extra']);
+					
+					$this->db->where('id', $existing_record['id']);
+					$saved = $this->db->update('lottery_combination_filters', $update_data);
+				} else {
+					// No changes detected - skip update but treat as success
+					$saved = true;
+				}
+			}
 		} else {
-			// Create new record (includes initial lastdate if set)
-
+			// Create new record (includes initial lastdate if set and win columns at 0)
 			$saved = $this->predictions_m->save_combination_filter($save_data);
 		}
 		
@@ -2952,17 +3056,34 @@ class Predictions extends Admin_Controller {
 			$pick_file_path = $pick_dir . $file_name . '.txt';
 			
 			// Use file-based filtering for saving (always up-to-date and memory efficient)
-
 			$success = $this->combination_filters_m->save_filtered_combinations_to_file($filepath, $number_array, $filters, $pick_file_path);
 			
-			// Check actual saved file to verify what was written
+			// CRITICAL FIX: Use actual saved file count as the accurate CCCC value
+			// This ensures the database record matches what was actually saved
 			if (file_exists($pick_file_path)) {
 				$file_lines = file($pick_file_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-				$actual_lines = count($file_lines);
+				$actual_saved_count = count($file_lines);
+				
+				// Update the CCCC field with actual saved count if different from calculated
+				if ($actual_saved_count != $filtered_count) {
+					log_message('info', "CCCC Update: Calculated count was {$filtered_count}, but actual saved was {$actual_saved_count}. Updating database.");
+					
+					// Update the database record with correct CCCC value
+					if ($existing_record) {
+						$this->db->where('id', $existing_record['id']);
+						$this->db->update('lottery_combination_filters', ['CCCC' => $actual_saved_count]);
+					} else {
+						// For new records, we'll update after insert using the save_data array
+						// This will be handled below
+					}
+					
+					// Update the local variable for display
+					$filtered_count = $actual_saved_count;
+				}
 				
 				// Verify first few combinations if needed
-				if ($actual_lines > 0) {
-					$sample_lines = array_slice($file_lines, 0, min(3, $actual_lines));
+				if ($actual_saved_count > 0) {
+					$sample_lines = array_slice($file_lines, 0, min(3, $actual_saved_count));
 				}
 			} else {
 				// File was not created
@@ -3030,8 +3151,18 @@ class Predictions extends Admin_Controller {
 		
 		} catch (Exception $e) {
 			$error_message = 'Exception in combination_save: ' . $e->getMessage();
+			$error_details = 'File: ' . $e->getFile() . ' Line: ' . $e->getLine();
 			log_message('error', $error_message);
+			log_message('error', $error_details);
 			log_message('error', 'Exception stack trace: ' . $e->getTraceAsString());
+			
+			// Log combination file details for debugging
+			if (isset($combination_file)) {
+				log_message('error', "Combination file: {$combination_file}");
+			}
+			if (isset($filtered_count)) {
+				log_message('error', "Filtered count: {$filtered_count}");
+			}
 			
 			if ($this->input->is_ajax_request()) {
 				// Clean output buffer and send clean JSON
@@ -3040,7 +3171,7 @@ class Predictions extends Admin_Controller {
 					->set_content_type('application/json')
 					->set_output(json_encode([
 						'success' => false,
-						'message' => 'An error occurred while saving. Please check the logs for details.',
+						'message' => 'An error occurred while saving: ' . $e->getMessage(),
 						'debug' => ENVIRONMENT === 'development' ? $error_message : null
 					]));
 				return;
@@ -3049,8 +3180,18 @@ class Predictions extends Admin_Controller {
 			redirect('admin/predictions/futures/' . $id);
 		} catch (Error $e) {
 			$error_message = 'Fatal error in combination_save: ' . $e->getMessage();
+			$error_details = 'File: ' . $e->getFile() . ' Line: ' . $e->getLine();
 			log_message('error', $error_message);
+			log_message('error', $error_details);
 			log_message('error', 'Fatal error stack trace: ' . $e->getTraceAsString());
+			
+			// Log combination file details for debugging
+			if (isset($combination_file)) {
+				log_message('error', "Combination file: {$combination_file}");
+			}
+			if (isset($filtered_count)) {
+				log_message('error', "Filtered count: {$filtered_count}");
+			}
 			
 			if ($this->input->is_ajax_request()) {
 				// Clean output buffer and send clean JSON
@@ -3059,7 +3200,7 @@ class Predictions extends Admin_Controller {
 					->set_content_type('application/json')
 					->set_output(json_encode([
 						'success' => false,
-						'message' => 'A fatal error occurred while saving. Please check the logs for details.',
+						'message' => 'A fatal error occurred while saving: ' . $e->getMessage(),
 						'debug' => ENVIRONMENT === 'development' ? $error_message : null
 					]));
 				return;
@@ -4259,7 +4400,7 @@ class Predictions extends Admin_Controller {
 			'selected_repeaters', 'selected_consecutives', 'selected_parity',
 			'selected_decades', 'selected_last_digits', 'selected_number_range',
 			'selected_adjacents', 'selected_h_w_c_group', 'selected_hwc',
-			'selected_extra_ball', 'lottery_id', 'selected_followers',
+			'selected_extra_ball', 'lottery_id', 'selected_followers', 'selected_friends_checkbox',
 			'selected_after_ball', 'selected_friends', 'selected_after_ball_friends'
 		];
 		

@@ -140,45 +140,47 @@ class History extends Admin_Controller {
 		}
 		else																				
 		{
-			// #1 First Change Result
-			if($new_range) // Has a change in the range occurred?
+			// #1 First Change Result - Check for checkbox actions first (segment 5)
+			if($this->uri->segment(5)=='extra') 
+				{
+					// Toggle extra_included independently
+					if($glance->extra_included) 
+					{
+						$this->data['lottery']->extra_included = 0; // Turn off Extra Included
+					}
+					else
+					{
+						$this->data['lottery']->extra_included = 1; // Turn on Extra Included
+					}
+					// Preserve the current state of extra_draws
+					$this->data['lottery']->extra_draws = $glance->extra_draws;
+					$new_range = $glance->range;
+					$bln_chg = TRUE;
+				}
+				// #2 Second Change Result
+			elseif($this->uri->segment(5)=='draws') 
+				{
+					// Toggle extra_draws independently
+					if($glance->extra_draws) 
+					{
+						$this->data['lottery']->extra_draws = 0; // Turn off Extra Draws
+					}
+					else
+					{
+						$this->data['lottery']->extra_draws = 1; // Turn on Extra Draws
+					}
+					// Preserve the current state of extra_included
+					$this->data['lottery']->extra_included = $glance->extra_included;
+					$new_range = $glance->range;
+					$bln_chg = TRUE;
+				}
+			// #3 Third Change Result - Range changes
+			elseif($new_range) // Has a change in the range occurred?
 			{
 				$bln_chg = TRUE; // Change in the range?
 				$this->data['lottery']->extra_included = $glance->extra_included;
 				$this->data['lottery']->extra_draws = $glance->extra_draws;
 			} // if($new_range) 
-			// #2 Second Change Result
-			elseif($this->uri->segment(6)=='extra') 
-				{
-					if($glance->extra_included) 
-					{
-						$this->data['lottery']->extra_included = 0; // No Extra Included
-						$this->data['lottery']->extra_draws = 0; // No Extra Draws Included
-					}
-					else
-					{
-						$this->data['lottery']->extra_included = 1; // Only Extra Allowed
-						$this->data['lottery']->extra_draws = 0; 
-					}
-					$new_range = $glance->range;
-					$bln_chg = TRUE;
-				}
-				// #3 Third Change Result
-			elseif($this->uri->segment(6)=='draws') 
-				{
-					if($glance->extra_draws) 
-					{
-						$this->data['lottery']->extra_included = 0; // No Extra Included
-						$this->data['lottery']->extra_draws = 0; // No Extra Draws Included
-					}
-					else
-					{
-						$this->data['lottery']->extra_draws = 1;	// Only Extra Draws allowed
-						$this->data['lottery']->extra_included = 0;
-					}
-					$new_range = $glance->range;
-					$bln_chg = TRUE;
-				}
 			else 
 			{
 				$new_range = $glance->range;
@@ -567,9 +569,18 @@ class History extends Admin_Controller {
 		if(!empty($hwc_stats) && !empty($hwc_stats['wins'])) {
 			$h_w_c_range = isset($hwc_stats['h_w_c_range']) ? $hwc_stats['h_w_c_range'] : '';
 			$this->data['hwc_winners'] = $this->parse_hwc_winners($hwc_stats['wins'], $id, $h_w_c_range);
+			
+				// Pass H-W-C Last 10 and Last 100 data to the view
+			$this->data['h_w_c_last_10'] = isset($hwc_stats['h_w_c_last_10']) ? $hwc_stats['h_w_c_last_10'] : '';
+			$this->data['h_w_c_range'] = $h_w_c_range;
 		} else {
 			$this->data['hwc_winners'] = array();
+			$this->data['h_w_c_last_10'] = '';
+			$this->data['h_w_c_range'] = '';
 		}
+		// Pass lottery draws count and range for labelling
+		$this->data['hwc_balls_drawn'] = $drawn;
+		$this->data['hwc_range'] = isset($h_w_c['range']) ? $h_w_c['range'] : 100;
 		
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the Statistics menu
@@ -1368,6 +1379,167 @@ class History extends Admin_Controller {
 	}
 	
 	/**
+	 * Display H-W-C + Follower analysis: for every ball 1..max_ball, shows
+	 * which H-W-C draw pattern produced the highest average follower hits
+	 * in the next actual draw.  Followers are computed dynamically from the
+	 * draw history (threshold >= 3, same as the existing follower system).
+	 *
+	 * URL: /admin/history/hwc_followers/{lottery_id}
+	 *
+	 * @param  int  $id  Lottery id
+	 * @return void
+	 */
+	public function hwc_followers($id)
+	{
+		$this->data['message'] = '';
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+
+		if (empty($this->data['lottery'])) {
+			$this->session->set_flashdata('message', 'Lottery not found.');
+			redirect('admin/history');
+		}
+
+		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+
+		if (!$this->lotteries_m->lotto_table_exists($tbl_name)) {
+			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. ' . $tbl_name . ' Does not exist.');
+			redirect('admin/history');
+		}
+
+		// Require H-W-C data (provides range, H/W/C counts, classification strings)
+		$h_w_c = $this->statistics_m->h_w_c_exists($id);
+		if (is_null($h_w_c)) {
+			$this->session->set_flashdata('message', 'No H-W-C profile found. Calculate H-W-C in Statistics first.');
+			redirect('admin/history');
+		}
+
+		$range = min(500, intval($h_w_c['range']));
+
+		$this->data['lottery']->last_drawn  = (array) $this->lotteries_m->last_draw_db($tbl_name);
+		$this->data['lottery']->last_drawn['range'] = $range;
+		$this->data['lottery']->extra_included = $h_w_c['extra_included'];
+		$this->data['lottery']->extra_draws    = $h_w_c['extra_draws'];
+		$this->data['lottery']->H = $h_w_c['h_count'];
+		$this->data['lottery']->W = $h_w_c['w_count'];
+		$this->data['lottery']->C = $h_w_c['c_count'];
+
+		// Run the H-W-C + follower analysis across all balls
+		$_hwc_result = $this->history_m->get_hwc_follower_stats(
+			$tbl_name,
+			$this->data['lottery']->balls_drawn,
+			$this->data['lottery']->maximum_ball,
+			$h_w_c['extra_included'],
+			$h_w_c['extra_draws'],
+			$h_w_c['h_count'],
+			$h_w_c['w_count'],
+			$h_w_c['hots'],
+			$h_w_c['warms'],
+			$h_w_c['colds'],
+			$range,
+			(bool) $this->data['lottery']->duplicate_extra_ball,
+			intval($this->data['lottery']->maximum_extra_ball)
+		);
+		$this->data['hwc_follower_results'] = $_hwc_result['main'];
+		$this->data['hwc_extra_results']    = $_hwc_result['extra'];
+		$this->data['is_dup_extra']         = (bool) $this->data['lottery']->duplicate_extra_ball;
+		$this->data['max_extra_ball']       = intval($this->data['lottery']->maximum_extra_ball);
+		$this->data['min_extra_ball']       = intval($this->data['lottery']->minimum_extra_ball);
+
+		// Parse HWC scores (ball => score) from hots/warms/colds strings
+		$hwc_scores = array();
+		foreach (array($h_w_c['hots'], $h_w_c['warms'], $h_w_c['colds']) as $_str) {
+			foreach (explode(',', $_str) as $_entry) {
+				if (strpos($_entry, '=') !== false) {
+					list($_b, $_s) = explode('=', $_entry, 2);
+					$_b = intval($_b); $_s = intval($_s);
+					if ($_b > 0) $hwc_scores[$_b] = $_s;
+				}
+			}
+		}
+		$this->data['hwc_scores'] = $hwc_scores;
+
+		// Compute follower points per ball (same logic as followers view)
+		// Also used to rank last-drawn balls and find the best ball
+		$best_points_ball     = 0;
+		$best_points_val      = 0;
+		$best_points_is_extra = false;
+		$ball_points          = array(); // ball_number => follower pts from last draw
+		$followers_data = $this->statistics_m->followers_exists($id);
+		if (!is_null($followers_data)) {
+			$p_group = $this->statistics_m->prize_group_profile($id);
+			$p_group = $this->statistics_m->prizes_only($p_group, $this->data['lottery']->extra_ball);
+			$tmp_last = (array) $this->lotteries_m->last_draw_db($tbl_name);
+			$tmp_last = $this->history_m->last_draw_prizegroup($tmp_last, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_ball, $p_group);
+			$follower_wins   = explode('>', $followers_data['wins']);
+			$follow_poswins  = explode('>', $followers_data['positions']);
+			$tmp_last = $this->history_m->last_draw_addwins($tmp_last, $this->data['lottery']->balls_drawn, $h_w_c['extra_included'], $p_group, $follower_wins, $follow_poswins);
+			$tmp_last = $this->history_m->last_draw_addpoints($tmp_last, $this->data['lottery']->balls_drawn, $h_w_c['extra_included'], 0);
+			$max_balls_pts = $this->data['lottery']->balls_drawn + ($h_w_c['extra_included'] ? 1 : 0);
+			for ($i = 1; $i <= $max_balls_pts; $i++) {
+				$is_extra_pos = ($i > $this->data['lottery']->balls_drawn);
+				$wins_arr = $is_extra_pos
+					? (isset($tmp_last['extra_win'])    ? $tmp_last['extra_win']    : array())
+					: (isset($tmp_last['ball'.$i.'_win']) ? $tmp_last['ball'.$i.'_win'] : array());
+				$pts = 0;
+				foreach ($wins_arr as $key => $value) {
+					if (strpos($key, '_points') !== false) $pts += intval($value);
+				}
+				$ball_num = $is_extra_pos ? intval($tmp_last['extra']) : intval($tmp_last['ball'.$i]);
+				$ball_points[$ball_num] = $pts;
+				if ($pts > $best_points_val) {
+					$best_points_val      = $pts;
+					$best_points_is_extra = $is_extra_pos;
+					$best_points_ball     = $ball_num;
+				}
+			}
+		}
+		$this->data['best_points_ball']     = $best_points_ball;
+		$this->data['best_points_val']      = $best_points_val;
+		$this->data['best_points_is_extra'] = $best_points_is_extra;
+		$this->data['ball_points']          = $ball_points;
+
+		// Build last-drawn main ball list, sorted by follower points desc
+		$_last = $this->data['lottery']->last_drawn;
+		$_last_drawn_balls = array();
+		for ($_i = 1; $_i <= $this->data['lottery']->balls_drawn; $_i++) {
+			if (!empty($_last['ball'.$_i])) $_last_drawn_balls[] = intval($_last['ball'.$_i]);
+		}
+		// Include extra ball in main list for non-dup-extra lotteries (same pool)
+		if (!$this->data['lottery']->duplicate_extra_ball && !empty($_last['extra'])) {
+			$_last_drawn_balls[] = intval($_last['extra']);
+		}
+		usort($_last_drawn_balls, function($a, $b) use ($ball_points) {
+			$sa = isset($ball_points[$a]) ? $ball_points[$a] : 0;
+			$sb = isset($ball_points[$b]) ? $ball_points[$b] : 0;
+			return $sb - $sa;
+		});
+		$this->data['last_drawn_balls']      = $_last_drawn_balls;
+		// Track the extra ball number for all lotteries — view uses it to apply grey styling
+		$this->data['last_drawn_extra_ball'] = !empty($_last['extra']) ? intval($_last['extra']) : 0;
+
+		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
+		else $this->data['message'] = '';
+
+		$this->data['current'] = $this->uri->segment(2);
+		$this->session->set_userdata('uri', 'admin/' . $this->data['current']);
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		$this->data['users']    = $this->maintenance_m->logged_online(0);
+		$this->data['admins']   = $this->maintenance_m->logged_online(1);
+		$this->data['visitors'] = $this->maintenance_m->active_visitors();
+		$this->data['subview']  = 'admin/dashboard/history/hwc_followers';
+		$this->data['history']  = $this;
+		$this->load->view('admin/_layout_main', $this->data);
+	}
+
+	/**
+	 * H-W-C + Followers analysis icon button
+	 */
+	public function btn_hwc_followers($uri)
+	{
+		return anchor($uri, '<i class="fa fa-fire fa-2x" aria-hidden="true">', array('title' => 'H-W-C + Follower analysis: best H-W-C pattern per ball'));
+	}
+
+	/**
 	 * View the H-W-C winners based on calculated statistics and points
 	 * 
 	 * @param		$id		current id of Lottery related to the draw database of the lottery	
@@ -1548,8 +1720,8 @@ class History extends Admin_Controller {
 				}
 			}
 			
-			// Show patterns that actually occurred in the analyzed range, regardless of points
-			// This includes patterns with 0 points but occurrence_count > 0
+			// Show all patterns that occurred at least once in the range
+			// This includes patterns with 0 wins for complete analysis
 			if ($pattern_count > 0) {
 				$winners[] = array(
 					'hwc_pattern' => $hwc_pattern,

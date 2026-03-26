@@ -837,6 +837,7 @@ class Lotteries extends Admin_Controller {
 						$this->lotteries_m->update_lastdraw($id, $latest_date);
 					}
 				}
+				
 				echo json_encode(array('exit' => TRUE));
 			}
 		}

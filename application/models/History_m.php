@@ -26,7 +26,7 @@ class History_m extends MY_Model
     {
         // todo: load the range of lottery draws, ascending order
         $this->db->reset_query();	// Clear any previous queries that are cached
-        $ex_d = (!$e ?  ' WHERE extra <> "0"' : '');
+        $ex_d = (!$e ?  ' WHERE extra <> 0' : '');
   
         $query = $this->db->query('SELECT d.*
                                     FROM (
@@ -650,7 +650,7 @@ class History_m extends MY_Model
 	private function parity_list($rows, $e = 0, $tbl)
 	{
 		$this->db->reset_query();	// Clear any previous queries in the cache
-        $ex_d = (!empty($e) ? " WHERE extra <> '0' " : " ");
+        $ex_d = (!empty($e) ? " " : " WHERE extra <> 0 ");
         $query = $this->db->query("select odd, even, draw_date, count(*) from (SELECT * FROM 
         `".$tbl."`".$ex_d."ORDER BY draw_date DESC LIMIT ".$rows.") sub 
         group by odd, even ORDER BY draw_date ASC;");
@@ -709,13 +709,15 @@ class History_m extends MY_Model
             if(isset($dr['ball'.$ball])) $drawn[$ball] = $dr['ball'.$ball];
             ++$ball;
         } while($ball<10);
-        if($xt&&!$dxb)  // We don't want the extra bonus ball added here because it has it's own separate table 
+        // Include extra ball if requested, regardless of duplicate_extra_ball setting
+        // The $xt parameter indicates whether extra ball should be included in the display
+        if($xt)
         {
             $next = array_key_last($drawn); // next available index key value
             if($next!=NULL) 
             {
                 $next++;
-                $drawn[$next] = $dr['extra'];  // include the extra / bonus (whihc is the last ball!)
+                $drawn[$next] = $dr['extra'];  // include the extra / bonus (which is the last ball!)
             }
         }
         unset($dr);
@@ -766,6 +768,16 @@ class History_m extends MY_Model
 	*/
     public function last_draw_addwins($last_draw,$drn,$ei,$pg,$fp,$ps)
     {
+        // Canonical 19-category order used by the old wins-string format (get_empty_win_categories).
+        // When a stored string has exactly 19 values per ball we use this map to look up the
+        // correct index by category name so that lotteries with sparse prize profiles (e.g.
+        // LottoMAX which has no extra/1_win/2_win tiers) are read correctly even from legacy data.
+        $canonical_categories = ['extra','1_win','1_win_extra','2_win','2_win_extra',
+                                  '3_win','3_win_extra','4_win','4_win_extra',
+                                  '5_win','5_win_extra','6_win','6_win_extra',
+                                  '7_win','7_win_extra','8_win','8_win_extra',
+                                  '9_win','9_win_extra'];
+
         for($b = 1; $b<=$drn; $b++)
         {
             $ball = $last_draw['ball'.$b];
@@ -785,12 +797,30 @@ class History_m extends MY_Model
             } else {
                 $position_prizes = ['0','0','0','0','0','0','0','0','0','0']; // Default zeros
             }
-            
+
+            // Detect legacy 19-value format vs. lottery-specific format
+            $ball_uses_full_fmt     = (count($ball_prizes)     == 19);
+            $position_uses_full_fmt = (count($position_prizes) == 19);
+
             $index = 0;     
             foreach($pg as $prize => $value)
             {
-                $last_draw['ball'.$b.'_win'][$prize] = isset($ball_prizes[$index]) ? $ball_prizes[$index] : '0';
-                $last_draw['position'.$b.'_win'][$prize] = isset($position_prizes[$index]) ? $position_prizes[$index] : '0';
+                // Ball wins
+                if ($ball_uses_full_fmt) {
+                    $cat_pos = array_search($prize, $canonical_categories);
+                    $last_draw['ball'.$b.'_win'][$prize] = ($cat_pos !== false && isset($ball_prizes[$cat_pos])) ? $ball_prizes[$cat_pos] : '0';
+                } else {
+                    $last_draw['ball'.$b.'_win'][$prize] = isset($ball_prizes[$index]) ? $ball_prizes[$index] : '0';
+                }
+
+                // Position wins
+                if ($position_uses_full_fmt) {
+                    $cat_pos = array_search($prize, $canonical_categories);
+                    $last_draw['position'.$b.'_win'][$prize] = ($cat_pos !== false && isset($position_prizes[$cat_pos])) ? $position_prizes[$cat_pos] : '0';
+                } else {
+                    $last_draw['position'.$b.'_win'][$prize] = isset($position_prizes[$index]) ? $position_prizes[$index] : '0';
+                }
+
                 $index++;
             }
         }
@@ -813,12 +843,29 @@ class History_m extends MY_Model
             } else {
                 $position_prizes = ['0','0','0','0','0','0','0','0','0','0']; // Default zeros
             }
-            
+
+            $extra_uses_full_fmt    = (count($extra_prize)     == 19);
+            $ex_pos_uses_full_fmt   = (count($position_prizes) == 19);
+
             $index = 0;
             foreach($pg as $prize => $value)
             {
-                $last_draw['extra_win'][$prize] = isset($extra_prize[$index]) ? $extra_prize[$index] : '0';
-                $last_draw['position_extra_win'][$prize] = isset($position_prizes[$index]) ? $position_prizes[$index] : '0';
+                // Extra ball wins
+                if ($extra_uses_full_fmt) {
+                    $cat_pos = array_search($prize, $canonical_categories);
+                    $last_draw['extra_win'][$prize] = ($cat_pos !== false && isset($extra_prize[$cat_pos])) ? $extra_prize[$cat_pos] : '0';
+                } else {
+                    $last_draw['extra_win'][$prize] = isset($extra_prize[$index]) ? $extra_prize[$index] : '0';
+                }
+
+                // Extra position wins
+                if ($ex_pos_uses_full_fmt) {
+                    $cat_pos = array_search($prize, $canonical_categories);
+                    $last_draw['position_extra_win'][$prize] = ($cat_pos !== false && isset($position_prizes[$cat_pos])) ? $position_prizes[$cat_pos] : '0';
+                } else {
+                    $last_draw['position_extra_win'][$prize] = isset($position_prizes[$index]) ? $position_prizes[$index] : '0';
+                }
+
                 $index++;
             }
         }
@@ -968,4 +1015,272 @@ class History_m extends MY_Model
         }
         return $last_draw;
     }
+
+	/**
+	 * Analyse H-W-C patterns combined with dynamic follower hits for all balls.
+	 * For each ball 1..max_ball, scans historical draw pairs to find which H-W-C
+	 * draw pattern produced the most follower hits in the next draw.
+	 *
+	 * @param  string  $tbl_name       Lottery draw table name
+	 * @param  int     $picks          Balls drawn per draw
+	 * @param  int     $max_ball       Highest ball number in the lottery
+	 * @param  bool    $extra_included Whether extra/bonus ball is included in analysis
+	 * @param  bool    $extra_draws    Whether to include draws with extra = 0
+	 * @param  int     $h_count        Number of Hot positions
+	 * @param  int     $w_count        Number of Warm positions
+	 * @param  string  $hots_str       Hots string from lottery_h_w_c table ("n=count,...")
+	 * @param  string  $warms_str      Warms string
+	 * @param  string  $colds_str      Colds string
+	 * @param  int     $range          Draw range (capped at 500)
+	 * @return array   Results array keyed by ball number, sorted by best avg hits desc
+	 */
+	public function get_hwc_follower_stats($tbl_name, $picks, $max_ball, $extra_included, $extra_draws, $h_count, $w_count, $hots_str, $warms_str, $colds_str, $range, $is_dup_extra = false, $max_extra_ball = 0)
+	{
+		$range = min(500, intval($range));
+
+		// Build H-W-C lookup: ball_number => 'H' | 'W' | 'C'
+		$hwc_lookup = array();
+		foreach (explode(',', $hots_str) as $entry) {
+			$n = strstr($entry, '=', true);
+			if ($n !== false && $n !== '') $hwc_lookup[intval($n)] = 'H';
+		}
+		foreach (explode(',', $warms_str) as $entry) {
+			$n = strstr($entry, '=', true);
+			if ($n !== false && $n !== '') $hwc_lookup[intval($n)] = 'W';
+		}
+		foreach (explode(',', $colds_str) as $entry) {
+			$n = strstr($entry, '=', true);
+			if ($n !== false && $n !== '') $hwc_lookup[intval($n)] = 'C';
+		}
+
+		// Load range+1 draws (oldest first) so we have range draw pairs (draw i, draw i+1)
+		$draws = $this->load_history($tbl_name, 0, $range + 1, $extra_draws);
+		if (!$draws || count($draws) < 2) return array();
+
+		$total = count($draws);
+
+		// Build flat integer-ball arrays for speed.
+		// $draw_main_balls: main picks only — used for H-W-C pattern classification.
+		// $draw_balls:      main + extra (when extra_included) — used for follower computation.
+		$draw_balls      = array();
+		$draw_main_balls = array();
+		$extra_draw_ball = array(); // single extra ball per draw (dup_extra only)
+		foreach ($draws as $idx => $draw) {
+			$main = array();
+			for ($i = 1; $i <= $picks; $i++) {
+				$key = 'ball' . $i;
+				if (isset($draw[$key]) && intval($draw[$key]) > 0)
+					$main[] = intval($draw[$key]);
+			}
+			$draw_main_balls[$idx] = $main;   // main balls only
+			$balls = $main;
+			if ($extra_included && isset($draw['extra']) && intval($draw['extra']) > 0) {
+				$eb = intval($draw['extra']);
+				if ($is_dup_extra) {
+					$extra_draw_ball[$idx] = $eb; // separate pool — do not mix with main
+				} else {
+					$balls[] = $eb;               // merge into main pool
+				}
+			}
+			if ($is_dup_extra && !isset($extra_draw_ball[$idx])) {
+				$extra_draw_ball[$idx] = null;
+			}
+			$draw_balls[$idx] = $balls;       // main only (dup_extra) or main+extra (normal)
+		}
+
+		// Step 1: Compute dynamic followers for every ball that appears in draws
+		// followers[$ball][$follower] = occurrence count across all draw pairs
+		$followers = array();
+		for ($i = 0; $i < $total - 1; $i++) {
+			foreach ($draw_balls[$i] as $ball) {
+				if (!isset($followers[$ball])) $followers[$ball] = array();
+				foreach ($draw_balls[$i + 1] as $next) {
+					if (!isset($followers[$ball][$next])) $followers[$ball][$next] = 0;
+					$followers[$ball][$next]++;
+				}
+			}
+		}
+		// Apply minimum threshold (>= 3), matching the existing system
+		foreach ($followers as $ball => $flist) {
+			foreach ($flist as $fb => $cnt) {
+				if ($cnt < 3) unset($followers[$ball][$fb]);
+			}
+		}
+
+		// Step 1b: Compute extra-pool followers for duplicate_extra_ball lotteries
+		$extra_followers = array();
+		if ($is_dup_extra) {
+			for ($i = 0; $i < $total - 1; $i++) {
+				$eb = isset($extra_draw_ball[$i])     ? $extra_draw_ball[$i]     : null;
+				$nb = isset($extra_draw_ball[$i + 1]) ? $extra_draw_ball[$i + 1] : null;
+				if ($eb !== null && $nb !== null) {
+					if (!isset($extra_followers[$eb])) $extra_followers[$eb] = array();
+					if (!isset($extra_followers[$eb][$nb])) $extra_followers[$eb][$nb] = 0;
+					$extra_followers[$eb][$nb]++;
+				}
+			}
+			foreach ($extra_followers as $ball => $flist) {
+				foreach ($flist as $fb => $cnt) {
+					if ($cnt < 3) unset($extra_followers[$ball][$fb]);
+				}
+			}
+		}
+
+		// Step 2: Walk every draw pair once; for each ball in the draw,
+		//         classify the full draw as an H-W-C pattern and count follower hits
+		$pattern_stats       = array(); // [ball][pattern] = array(times, total_hits, max_hits)
+		$extra_pattern_stats = array(); // same but for extra-pool (dup_extra only)
+		$times_drawn         = array_fill(1, $max_ball, 0);
+		$extra_times_drawn   = ($is_dup_extra && $max_extra_ball > 0) ? array_fill(1, $max_extra_ball, 0) : array();
+
+		for ($i = 0; $i < $total - 1; $i++) {
+			$curr      = $draw_balls[$i];      // all balls (main + extra) for follower tracking
+			$curr_main = $draw_main_balls[$i]; // main balls only for H-W-C classification
+			$next      = $draw_balls[$i + 1];
+
+			// Classify the current draw into its H-W-C pattern (main balls only — no extra ball)
+			$h = 0; $w = 0; $c = 0;
+			foreach ($curr_main as $b) {
+				switch (isset($hwc_lookup[$b]) ? $hwc_lookup[$b] : 'C') {
+					case 'H': $h++; break;
+					case 'W': $w++; break;
+					default:  $c++; break;
+				}
+			}
+			$pattern = "{$h}-{$w}-{$c}";
+
+			// Build fast lookup for next-draw balls
+			$next_lookup = array_flip($next);
+
+			foreach ($curr as $ball) {
+				if ($ball < 1 || $ball > $max_ball) continue;
+				$times_drawn[$ball]++;
+
+				// Count how many of this ball's followers appeared in the next draw
+				$hits = 0;
+				if (!empty($followers[$ball])) {
+					foreach (array_keys($followers[$ball]) as $fb) {
+						if (isset($next_lookup[$fb])) $hits++;
+					}
+				}
+
+				if (!isset($pattern_stats[$ball])) $pattern_stats[$ball] = array();
+				if (!isset($pattern_stats[$ball][$pattern]))
+					$pattern_stats[$ball][$pattern] = array('times' => 0, 'total_hits' => 0, 'non_follower_hits' => 0, 'max_hits' => 0);
+
+				$pattern_stats[$ball][$pattern]['times']++;
+				$pattern_stats[$ball][$pattern]['total_hits'] += $hits;
+				// Non-follower hits = next-draw balls NOT in this ball's follower set
+				$non_hits = 0;
+				foreach ($next as $nb) {
+					if (empty($followers[$ball]) || !isset($followers[$ball][$nb])) $non_hits++;
+				}
+				$pattern_stats[$ball][$pattern]['non_follower_hits'] += $non_hits;
+				if ($hits > $pattern_stats[$ball][$pattern]['max_hits'])
+					$pattern_stats[$ball][$pattern]['max_hits'] = $hits;
+			}
+
+			// Track extra ball stats against the same main-ball H-W-C pattern (dup_extra only)
+			if ($is_dup_extra && $max_extra_ball > 0) {
+				$xb = isset($extra_draw_ball[$i]) ? $extra_draw_ball[$i] : null;
+				if ($xb !== null && $xb >= 1 && $xb <= $max_extra_ball) {
+					$extra_times_drawn[$xb]++;
+					$next_xb = isset($extra_draw_ball[$i + 1]) ? $extra_draw_ball[$i + 1] : null;
+					$xhits = ($next_xb !== null && !empty($extra_followers[$xb]) && isset($extra_followers[$xb][$next_xb])) ? 1 : 0;
+					$xnon  = ($next_xb !== null && (empty($extra_followers[$xb]) || !isset($extra_followers[$xb][$next_xb]))) ? 1 : 0;
+					if (!isset($extra_pattern_stats[$xb])) $extra_pattern_stats[$xb] = array();
+					if (!isset($extra_pattern_stats[$xb][$pattern]))
+						$extra_pattern_stats[$xb][$pattern] = array('times' => 0, 'total_hits' => 0, 'non_follower_hits' => 0, 'max_hits' => 0);
+					$extra_pattern_stats[$xb][$pattern]['times']++;
+					$extra_pattern_stats[$xb][$pattern]['total_hits']       += $xhits;
+					$extra_pattern_stats[$xb][$pattern]['non_follower_hits'] += $xnon;
+					if ($xhits > $extra_pattern_stats[$xb][$pattern]['max_hits'])
+						$extra_pattern_stats[$xb][$pattern]['max_hits'] = $xhits;
+				}
+			}
+		}
+
+		// Step 3: Build final results per ball
+		$results = array();
+		for ($ball = 1; $ball <= $max_ball; $ball++) {
+			$bstats = isset($pattern_stats[$ball]) ? $pattern_stats[$ball] : array();
+
+			// Calculate average hits per pattern occurrence (kept for row colour coding)
+			foreach ($bstats as $pattern => &$ps) {
+				$ps['avg'] = $ps['times'] > 0 ? round($ps['total_hits'] / $ps['times'], 2) : 0;
+			}
+			unset($ps);
+
+			// Sort patterns: most times occurred first, then total_hits desc
+			uasort($bstats, function($a, $b) {
+				if ($b['times'] != $a['times']) return $b['times'] - $a['times'];
+				return $b['total_hits'] - $a['total_hits'];
+			});
+
+			// Top pattern is first after sorting
+			reset($bstats);
+			$best_key = key($bstats);
+			$best = $best_key !== null
+				? $bstats[$best_key]
+				: array('times' => 0, 'total_hits' => 0, 'avg' => 0, 'max_hits' => 0);
+
+			$results[$ball] = array(
+				'ball'              => $ball,
+				'times_drawn'       => $times_drawn[$ball],
+				'follower_count'    => isset($followers[$ball]) ? count($followers[$ball]) : 0,
+				'best_pattern'      => $best_key !== null ? $best_key : '-',
+				'best_times'        => $best['times'],
+				'best_hits'         => $best['total_hits'],
+				'best_non_hits'     => $best['non_follower_hits'],
+				'best_avg'          => $best['avg'],
+				'best_max'          => $best['max_hits'],
+				'all_patterns'      => $bstats,
+			);
+		}
+
+		// Sort all balls: most times in best pattern first, then total_hits desc
+		uasort($results, function($a, $b) {
+			if ($b['best_times'] != $a['best_times']) return $b['best_times'] - $a['best_times'];
+			return $b['best_hits'] - $a['best_hits'];
+		});
+
+		// Build extra-pool results (duplicate_extra_ball lotteries only)
+		$extra_results = array();
+		if ($is_dup_extra && $max_extra_ball > 0) {
+			for ($ball = 1; $ball <= $max_extra_ball; $ball++) {
+				$bstats = isset($extra_pattern_stats[$ball]) ? $extra_pattern_stats[$ball] : array();
+				foreach ($bstats as $pattern => &$ps) {
+					$ps['avg'] = $ps['times'] > 0 ? round($ps['total_hits'] / $ps['times'], 2) : 0;
+				}
+				unset($ps);
+				uasort($bstats, function($a, $b) {
+					if ($b['times'] != $a['times']) return $b['times'] - $a['times'];
+					return $b['total_hits'] - $a['total_hits'];
+				});
+				reset($bstats);
+				$best_key = key($bstats);
+				$best = $best_key !== null
+					? $bstats[$best_key]
+					: array('times' => 0, 'total_hits' => 0, 'non_follower_hits' => 0, 'avg' => 0, 'max_hits' => 0);
+				$extra_results[$ball] = array(
+					'ball'           => $ball,
+					'times_drawn'    => $extra_times_drawn[$ball],
+					'follower_count' => isset($extra_followers[$ball]) ? count($extra_followers[$ball]) : 0,
+					'best_pattern'   => $best_key !== null ? $best_key : '-',
+					'best_times'     => $best['times'],
+					'best_hits'      => $best['total_hits'],
+					'best_non_hits'  => $best['non_follower_hits'],
+					'best_avg'       => $best['avg'],
+					'best_max'       => $best['max_hits'],
+					'all_patterns'   => $bstats,
+				);
+			}
+			uasort($extra_results, function($a, $b) {
+				if ($b['best_times'] != $a['best_times']) return $b['best_times'] - $a['best_times'];
+				return $b['best_hits'] - $a['best_hits'];
+			});
+		}
+
+		return array('main' => $results, 'extra' => $extra_results);
+	}
 }

@@ -884,13 +884,13 @@ class Prize extends Admin_Controller
             // Update the filter object for current view
             $filter->lastdate = $draw_info->draw_date;
             
-            // After processing wins, expire the filter since results are now final
-            // This happens after the user views the results
+            // After viewing results, expire the filter (wins have been added cumulatively)
+            // This marks the filter as processed for this draw
             $this->db->where('id', $filter->id);
             $this->db->where('user_id', $admin_id); // Security check
             $this->db->update('lottery_combination_filters', array('active' => 0));
             
-            // Update the filter object for current view (but display will still show results)
+            // Update the filter object for current view
             $filter->active = 0;
         }
         
@@ -942,8 +942,16 @@ class Prize extends Admin_Controller
             $this->data['back_link'] = base_url('admin/predictions/restore_settings/' . $lottery_id . '?combo_id=' . $combo_id . '&from_winners=1');
             $this->data['back_text'] = 'Back to Prediction Futures';
         } else {
-            // Default back navigation to prize history
-            $this->data['back_link'] = base_url('admin/prize/' . $filter->lottery_id);
+            // Default back navigation to prize history - preserve pagination state
+            $stored_offset = $this->input->get('stored_offset');
+            $stored_per_page = $this->input->get('stored_per_page');
+            
+            $back_url = base_url('admin/prize/' . $filter->lottery_id);
+            if ($stored_offset !== null && $stored_per_page !== null) {
+                $back_url .= '?offset=' . (int)$stored_offset . '&per_page=' . (int)$stored_per_page;
+            }
+            
+            $this->data['back_link'] = $back_url;
             $this->data['back_text'] = 'Back to Prize History';
         }
         
@@ -971,6 +979,10 @@ class Prize extends Admin_Controller
             $filter_id = $this->input->post('filter_id');
             $admin_id = $this->session->userdata('id');
             
+            // Get pagination state from POST data
+            $stored_offset = $this->input->post('stored_offset');
+            $stored_per_page = $this->input->post('stored_per_page');
+            
             if (!$admin_id || !$filter_id) {
                 echo json_encode(['success' => false, 'message' => 'Invalid request - missing parameters']);
                 return;
@@ -989,10 +1001,16 @@ class Prize extends Admin_Controller
                 return;
             }
             
+            // Build redirect URL with pagination parameters
+            $redirect_url = site_url('admin/prize/view_combination_tickets/' . $filter_id);
+            if ($stored_offset !== null && $stored_per_page !== null) {
+                $redirect_url .= '?stored_offset=' . (int)$stored_offset . '&stored_per_page=' . (int)$stored_per_page;
+            }
+            
             // Return success with redirect URL
             echo json_encode([
                 'success' => true,
-                'redirect' => site_url('admin/prize/view_combination_tickets/' . $filter_id),
+                'redirect' => $redirect_url,
                 'message' => 'Redirecting to combination tickets...'
             ]);
             
@@ -1167,7 +1185,8 @@ class Prize extends Admin_Controller
                 // Update the filter object for current response
                 $filter->lastdate = $draw_info->draw_date;
                 
-                // After processing wins, expire the filter since results are now final
+                // After viewing results, expire the filter (wins have been added cumulatively)
+                // This marks the filter as processed for this draw
                 $this->db->where('id', $filter->id);
                 $this->db->where('user_id', $admin_id); // Security check
                 $this->db->update('lottery_combination_filters', array('active' => 0));
@@ -2147,19 +2166,22 @@ class Prize extends Admin_Controller
             if (!empty($win_updates)) {
                 $update_data = array();
                 
-                // Add win record updates to existing values
+                // Add win record updates to existing values (NEVER replace or zero out)
                 foreach ($win_updates as $category => $count) {
-                    // Get current value and add new wins
-                    $this->db->select($category);
-                    $this->db->from('lottery_combination_filters');
-                    $this->db->where('id', $filter->id);
-                    $current_query = $this->db->get();
-                    $current_result = $current_query->row();
-                    
-                    if ($current_result) {
-                        $current_value = isset($current_result->$category) ? (int)$current_result->$category : 0;
-                        $new_value = $current_value + $count;
-                        $update_data[$category] = $new_value;
+                    // Only update categories that have NEW wins to add
+                    if ($count > 0) {
+                        // Get current value and add new wins
+                        $this->db->select($category);
+                        $this->db->from('lottery_combination_filters');
+                        $this->db->where('id', $filter->id);
+                        $current_query = $this->db->get();
+                        $current_result = $current_query->row();
+                        
+                        if ($current_result) {
+                            $current_value = isset($current_result->$category) ? (int)$current_result->$category : 0;
+                            $new_value = $current_value + $count;
+                            $update_data[$category] = $new_value;
+                        }
                     }
                 }
                 

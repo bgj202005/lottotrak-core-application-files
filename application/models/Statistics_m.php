@@ -1011,10 +1011,16 @@ class Statistics_m extends MY_Model
 	public function friends_exists($id)
 	{
 		$query = $this->db->where('lottery_id', $id)
+                ->order_by('draw_id', 'DESC')
                 ->limit(1, 0)
                 ->get('lottery_friends');
 		return $query->row_array();
 	}
+	
+	/**
+	 * Ensure lottery_friends table has friendship_matrix field for sliding window optimization
+	 * @return boolean Success
+	 */
 	/**
 	 * If existing Record for the NonFriends table exist
 	 * 
@@ -1024,6 +1030,7 @@ class Statistics_m extends MY_Model
 	public function nonfriends_exists($id)
 	{
 		$query = $this->db->where('lottery_id', $id)
+                ->order_by('draw_id', 'DESC')
                 ->limit(1, 0)
                 ->get('lottery_nonfriends');
 		return $query->row_array();
@@ -1668,6 +1675,8 @@ class Statistics_m extends MY_Model
 	*/
 	public function follower_data_save($data, $exist = FALSE)
 	{
+		log_message('error', "follower_data_save CALLED - lottery_id: {$data['lottery_id']}, exist: " . ($exist ? 'TRUE' : 'FALSE'));
+		
 		if (!$exist) 
 		{
 			$this->db->set($data);		// Set the query with the key / value pairs
@@ -1675,14 +1684,168 @@ class Statistics_m extends MY_Model
 		}
 		else
 		{
+			// Before updating, save current data as previous data
+			$current = $this->db->where('lottery_id', $data['lottery_id'])->get('lottery_followers')->row_array();
+			if ($current) {
+				// Only save as previous if current data is valid (not empty and draw_id > 0)
+				// After a reset, lottery_followers is '' and draw_id is 0, which shouldn't be saved as "previous"
+				if (!empty($current['lottery_followers']) && isset($current['draw_id']) && $current['draw_id'] > 0) {
+					$data['prev_lottery_followers'] = $current['lottery_followers'];
+					$data['prev_draw_id'] = $current['draw_id'];
+				} else {
+					// Current data is invalid (reset state), preserve existing prev_* values if they exist
+					if (isset($current['prev_lottery_followers'])) {
+						$data['prev_lottery_followers'] = $current['prev_lottery_followers'];
+					}
+					if (isset($current['prev_draw_id'])) {
+						$data['prev_draw_id'] = $current['prev_draw_id'];
+					}
+				}
+			}
+			
 			$this->db->set($data);		// Set the query with the key / value pairs
 			$this->db->where('lottery_id', $data['lottery_id']);
 			$this->db->update('lottery_followers');
+			
+			// After update, check if prev_* fields are still NULL and populate them
+			// This handles the case where Reset was done and first ReCalc has no previous data
+			$updated = $this->db->where('lottery_id', $data['lottery_id'])->get('lottery_followers')->row_array();
+			log_message('error', "follower_data_save UPDATE check - lottery_id: {$data['lottery_id']}");
+			log_message('error', "  prev_lottery_followers empty? " . (empty($updated['prev_lottery_followers']) ? 'YES' : 'NO'));
+			log_message('error', "  prev_draw_id value: " . (isset($updated['prev_draw_id']) ? $updated['prev_draw_id'] : 'NOT SET'));
+			log_message('error', "  prev_draw_id falsy? " . (!$updated['prev_draw_id'] ? 'YES' : 'NO'));
+			
+			if ($updated && (empty($updated['prev_lottery_followers']) || !$updated['prev_draw_id'])) {
+				// prev_* are NULL/empty, try to populate from previous draw
+				log_message('error', "Lottery {$data['lottery_id']}: TRIGGERING auto-populate from previous draw");
+				$this->populate_previous_followers_from_draw($data['lottery_id'], $updated);
+			} else {
+				log_message('error', "Lottery {$data['lottery_id']}: NOT triggering auto-populate");
+			}
 		}
 		
 		// CRITICAL: Clear cache after saving to ensure fresh data is retrieved
 		$cache_key = $this->generate_cache_key('followers', $data['lottery_id']);
 		$this->cache->delete($cache_key);
+	}
+	
+	/**
+	 * Populate prev_lottery_followers and prev_draw_id from the previous draw's calculation
+	 * Used after Reset+ReCalc when prev_* fields are NULL
+	 * 
+	 * @param int $lottery_id Lottery ID
+	 * @param array $current Current followers row
+	 */
+	private function populate_previous_followers_from_draw($lottery_id, $current)
+	{
+		// Get lottery info to get table name
+		$this->load->model('lotteries_m');
+		$lottery = $this->lotteries_m->get($lottery_id);
+		if (!$lottery) {
+			log_message('error', "Cannot populate prev_* - lottery $lottery_id not found");
+			return;
+		}
+		
+		$table_name = $lottery->table_name;
+		$range = isset($current['range']) ? $current['range'] : 100;
+		$extra_included = isset($current['extra_included']) ? $current['extra_included'] : 0;
+		$extra_draws = isset($current['extra_draws']) ? $current['extra_draws'] : 0;
+		
+		// Get the draw before the current draw_id
+		$prev_draw = $this->lotteries_m->get_previous_draw($table_name, $current['draw_id']);
+		if (!$prev_draw) {
+			log_message('info', "Cannot populate prev_* - no previous draw found before draw_id {$current['draw_id']}");
+			return;
+		}
+		
+		// Calculate followers for the previous draw using the same range
+		log_message('info', "Calculating followers for previous draw {$prev_draw->id} to populate prev_* fields");
+		
+		// Use the same logic as normal followers calculation but for the previous draw
+		$prev_followers = $this->calculate_followers_for_specific_draw(
+			$table_name,
+			$lottery_id, 
+			$prev_draw->id,
+			$range,
+			$extra_included,
+			$extra_draws,
+			$lottery->balls_drawn,
+			$lottery->duple_bonus,
+			$lottery->max_number,
+			$lottery->max_bonus
+		);
+		
+		if ($prev_followers && !empty($prev_followers['lottery_followers'])) {
+			// Update with previous data
+			$update_data = array(
+				'prev_lottery_followers' => $prev_followers['lottery_followers'],
+				'prev_draw_id' => $prev_draw->id
+			);
+			$this->db->where('lottery_id', $lottery_id)->update('lottery_followers', $update_data);
+			log_message('info', "Successfully populated prev_* fields for lottery $lottery_id with draw {$prev_draw->id}");
+			
+			// Clear cache
+			$cache_key = $this->generate_cache_key('followers', $lottery_id);
+			$this->cache->delete($cache_key);
+		}
+	}
+	
+	/**
+	 * Calculate followers for a specific draw (used for populating previous data)
+	 */
+	private function calculate_followers_for_specific_draw($table_name, $lottery_id, $draw_id, $range, $extra_included, $extra_draws, $balls_drawn, $duple_bonus, $max_number, $max_bonus)
+	{
+		// Get draws up to and including the specified draw_id
+		$query = $this->db->select('*')
+			->where('id <=', $draw_id)
+			->order_by('id', 'DESC')
+			->limit($range)
+			->get($table_name);
+		
+		if ($query->num_rows() < $range) {
+			log_message('info', "Not enough draws to calculate previous followers (need $range, have {$query->num_rows()})");
+			return null;
+		}
+		
+		$draws = $query->result_array();
+		
+		// Calculate followers using the same logic as normal calculation
+		$followers = array();
+		
+		// Initialize all possible numbers
+		for ($i = 1; $i <= $max_number; $i++) {
+			$followers[$i] = 0;
+		}
+		
+		// Count occurrences in the range
+		foreach ($draws as $draw) {
+			for ($b = 1; $b <= $balls_drawn; $b++) {
+				$ball_field = 'ball' . $b;
+				if (isset($draw[$ball_field]) && $draw[$ball_field] > 0) {
+					$followers[$draw[$ball_field]]++;
+				}
+			}
+			
+			// Extra ball if included
+			if ($extra_included && isset($draw['extra']) && $draw['extra'] > 0) {
+				// For extra ball, use separate array if duple_bonus is false
+				// For now, simplified version
+			}
+		}
+		
+		// Format as string (simplified - just the counts)
+		$follower_string = '';
+		foreach ($followers as $num => $count) {
+			if ($count > 0) {
+				$follower_string .= "$num:$count,";
+			}
+		}
+		$follower_string = rtrim($follower_string, ',');
+		
+		return array(
+			'lottery_followers' => $follower_string,
+			'draw_id' => $draw_id
+		);
 	}
 	/**
 	 * Sliding window follower calculation - incrementally update followers by removing oldest draw and adding newest
@@ -2100,8 +2263,11 @@ class Statistics_m extends MY_Model
 		// Add newest draw to counts
 		$heat_counts = $this->add_hwc_draw($heat_counts, $newest_draw, $picks, $bonus, $draws);
 		
-		// Sort by heat descending
-		arsort($heat_counts);
+		// Build recency map across the full range for tie-breaking
+		$recency_map = $this->build_recency_map($name, $range, $picks, $bonus, $draws);
+		
+		// Sort by heat descending, with recency as tie-breaker
+		$heat_counts = $this->sort_hwc_with_recency($heat_counts, $recency_map);
 		
 		// Split into hot, warm, cold categories
 		$result = $this->categorize_hwc($heat_counts, $w_start, $c_start);
@@ -2109,6 +2275,105 @@ class Statistics_m extends MY_Model
 		$result['draw_id'] = $newest_draw['id'];
 		
 		return $result;
+	}
+	
+	/**
+	 * Extract balls from a draw for recency tracking
+	 * 
+	 * @param	array	$draw		Draw data
+	 * @param	integer	$picks		Number of balls drawn
+	 * @param	integer	$bonus		Include extra ball
+	 * @param	integer	$draws		Include extra draws
+	 * @return	array	Array of ball numbers from the draw
+	 */
+	private function extract_balls_from_draw($draw, $picks, $bonus, $draws)
+	{
+		$balls = array();
+		
+		// Extract main balls
+		for ($i = 1; $i <= $picks; $i++) {
+			$ball = intval($draw['ball' . $i]);
+			if ($ball > 0) {
+				$balls[] = $ball;
+			}
+		}
+		
+		// Extract extra ball if included
+		if ($bonus && isset($draw['extra']) && $draw['extra'] > 0) {
+			if ($draws || $draw['extra'] == '0') {
+				$ball = intval($draw['extra']);
+				if ($ball > 0) {
+					$balls[] = $ball;
+				}
+			}
+		}
+		
+		return $balls;
+	}
+	
+	/**
+	 * Sort H-W-C counts by heat descending, with recency as tie-breaker
+	 * When counts are equal, balls from the most recent draw rank higher
+	 * 
+	 * @param	array	$counts			Heat counts [ball => count]
+	 * @param	array	$recency_map	Ball => recency index (0 = most recent)
+	 * @return	array	Sorted heat counts
+	 */
+	private function sort_hwc_with_recency($counts, $recency_map)
+	{
+		// Use uksort to sort by keys (ball numbers) with access to values (counts)
+		uksort($counts, function($ball_a, $ball_b) use ($counts, $recency_map) {
+			$count_a = $counts[$ball_a];
+			$count_b = $counts[$ball_b];
+			
+			// Primary sort: count descending (higher count = better position)
+			if ($count_a != $count_b) {
+				return $count_b - $count_a;
+			}
+			
+			// Tie-breaker: recency (lower index = more recent)
+			$a_recent = isset($recency_map[$ball_a]) ? $recency_map[$ball_a] : PHP_INT_MAX;
+			$b_recent = isset($recency_map[$ball_b]) ? $recency_map[$ball_b] : PHP_INT_MAX;
+			
+			if ($a_recent != $b_recent) {
+				return $a_recent - $b_recent; // More recent first
+			}
+			
+			// If still tied, sort by ball number ascending (lower ball number first)
+			return $ball_a - $ball_b;
+		});
+		
+		return $counts;
+	}
+
+	/**
+	 * Build a recency map for the last N draws
+	 * 
+	 * @param	string	$table		Lottery table name
+	 * @param	int		$range		Number of draws to inspect
+	 * @param	int		$picks		Number of balls drawn
+	 * @param	int		$bonus		Include extra ball
+	 * @param	int		$draws		Include extra draws
+	 * @return	array	Ball => recency index (0 = most recent)
+	 */
+	private function build_recency_map($table, $range, $picks, $bonus, $draws)
+	{
+		$recency = array();
+		
+		$sql = "SELECT * FROM {$table} ORDER BY id DESC LIMIT " . intval($range);
+		$query = $this->db->query($sql);
+		$draws_list = $query->result_array();
+		
+		foreach ($draws_list as $index => $draw) {
+			$balls = $this->extract_balls_from_draw($draw, $picks, $bonus, $draws);
+			foreach ($balls as $ball) {
+				if (!isset($recency[$ball])) {
+					$recency[$ball] = $index; // First occurrence from most recent
+				}
+			}
+		}
+		
+		return $recency;
 	}
 	
 	/**
@@ -2700,6 +2965,25 @@ class Statistics_m extends MY_Model
 		}
 		else
 		{
+			// Before updating, save current data as previous data
+			$current = $this->db->where('lottery_id', $data['lottery_id'])->get('lottery_nonfollowers')->row_array();
+			if ($current) {
+				// Only save as previous if current data is valid (not empty and draw_id > 0)
+				// After a reset, lottery_nonfollowers is '' and draw_id is 0, which shouldn't be saved as "previous"
+				if (!empty($current['lottery_nonfollowers']) && isset($current['draw_id']) && $current['draw_id'] > 0) {
+					$data['prev_lottery_nonfollowers'] = $current['lottery_nonfollowers'];
+					$data['prev_draw_id'] = $current['draw_id'];
+				} else {
+					// Current data is invalid (reset state), preserve existing prev_* values if they exist
+					if (isset($current['prev_lottery_nonfollowers'])) {
+						$data['prev_lottery_nonfollowers'] = $current['prev_lottery_nonfollowers'];
+					}
+					if (isset($current['prev_draw_id'])) {
+						$data['prev_draw_id'] = $current['prev_draw_id'];
+					}
+				}
+			}
+			
 			$this->db->set($data);		// Set the query with the key / value pairs
 			$this->db->where('lottery_id', $data['lottery_id']);
 			$this->db->update('lottery_nonfollowers');
@@ -3058,6 +3342,13 @@ class Statistics_m extends MY_Model
 	{
 		global $prizes;						// Retrieve Global $prizes array
 		$prize_counts = $prizes;
+		// Save the lottery-specific category template BEFORE the loop overwrites entries.
+		// This map (e.g. {3_win:0, 3_win_extra:0, ..., 7_win:0} for LottoMAX) is used to
+		// initialise each ball so that followers_prizecounts uses the correct categories and
+		// the exception-handling split (e.g. 7/7+bonus → 7_win + 6_win_extra) fires properly.
+		$prize_category_template = !empty($prizes)
+			? array_fill_keys(array_keys(reset($prizes)), 0)
+			: array_fill_keys(array_keys($this->get_empty_win_categories()), 0);
 		global $positions;					// Wins only by positions e.g. position 1 ... position 6 (pick 6 game)
 		
 		// Sliding Window Implementation: Need range*2 total draws for ideal calculation
@@ -3129,24 +3420,25 @@ class Statistics_m extends MY_Model
 				$query->free_result();
 				continue; // Skip to next ball if insufficient data
 			}
-				
-				// Initialize arrays for this ball
-				$followlist = array();
-				$nonfollowlist = array();
-				$sliding_window_draws = array(); // Track draws for sliding window removal
-				if($duple) $duplelist = array(); // Only if this lottery has a duplicate extra ball
-				
-				// Calculate adjusted phases based on actual draws available
-				// PHASE 1: Build initial followers (first half of available draws, or range if enough)
-				// PHASE 2: Calculate wins with sliding window (second half of draws)
-				$phase1_end = min($range - 1, floor($actual_draw_count / 2));
-				$phase2_start = $phase1_end + 1;
-				
-				log_message('debug', "complete_recalculation: Ball {$b} - Phase1: 0 to {$phase1_end}, Phase2: {$phase2_start} to ".($actual_draw_count-2));
-				
-				// PHASE 1: Build initial followers from draws 0 to phase1_end (NO win calculations yet)
-				// Process first portion of draws to build follower relationships only
-				for($draw_idx = 0; $draw_idx < $phase1_end && $draw_idx < ($actual_draw_count - 1); $draw_idx++) {
+			
+			// Initialize arrays for this ball
+			$followlist = array();
+			$nonfollowlist = array();
+			$sliding_window_draws = array(); // Track draws for sliding window removal
+			$prize_counts[$b] = $prize_category_template; // Initialize with lottery-specific categories (not the generic 19-category structure)
+			if($duple) $duplelist = array(); // Only if this lottery has a duplicate extra ball
+			
+			// Calculate adjusted phases based on actual draws available
+			// PHASE 1: Build initial followers (first half of available draws, or range if enough)
+			// PHASE 2: Calculate wins with sliding window (second half of draws)
+			$phase1_end = min($range - 1, floor($actual_draw_count / 2));
+			$phase2_start = $phase1_end + 1;
+			
+			log_message('debug', "complete_recalculation: Ball {$b} - Phase1: 0 to {$phase1_end}, Phase2: {$phase2_start} to ".($actual_draw_count-2));
+			
+			// PHASE 1: Build initial followers from draws 0 to phase1_end (NO win calculations yet)
+			// Process first portion of draws to build follower relationships only
+			for($draw_idx = 0; $draw_idx < $phase1_end && $draw_idx < ($actual_draw_count - 1); $draw_idx++) {
 					$current_draw = $all_draws[$draw_idx];
 					$next_draw = $all_draws[$draw_idx + 1];
 					
@@ -3521,8 +3813,17 @@ class Statistics_m extends MY_Model
 		// Find most frequent ball for each position
 		for($pos = 1; $pos <= $max_balls; $pos++) {
 			if(isset($position_frequency[$pos])) {
-				// Sort by frequency descending and get the most common ball
-				arsort($position_frequency[$pos]);
+				// Sort by frequency descending, then by ball number ascending for deterministic results
+				uksort($position_frequency[$pos], function($ball_a, $ball_b) use ($position_frequency, $pos) {
+					$freq_a = $position_frequency[$pos][$ball_a];
+					$freq_b = $position_frequency[$pos][$ball_b];
+					// Primary sort: frequency descending (higher frequency first)
+					if ($freq_a !== $freq_b) {
+						return $freq_b - $freq_a;
+					}
+					// Tie-breaker: ball number ascending (lower ball number first)
+					return $ball_a - $ball_b;
+				});
 				$position_balls[$pos] = array_key_first($position_frequency[$pos]);
 			} else {
 				// Fallback to position number if no data
@@ -4538,7 +4839,11 @@ class Statistics_m extends MY_Model
 		// Check duplicate occurrences in the array. If duplicate, go with most recent draw date following the latest trend for that number. return only 1 friend array
 		$friendlist = (!empty($friendlist) ? $this->duplicate_friends($friendlist) : NULL);
 		// Build Friend string
-		$friends .= $this->friends_string($friendlist); // Empty Set? Then Skip
+		$friend_str = $this->friends_string($friendlist);
+		if($b <= 3) { // Log first 3 balls for debugging
+			log_message('debug', "friends_calculate: Ball $b - friend_str length=".strlen($friend_str).", draws_processed=$safety_counter, friendlist count=".(is_null($friendlist) ? 0 : count($friendlist)));
+		}
+		$friends .= $friend_str; // Empty Set? Then Skip
 		// while not out of range
 		// Returns $friendr number associative numbers, save in this format e.g. friend ball drawn 10>6:2020/12/06
 		// update ball counter
@@ -4548,7 +4853,15 @@ class Statistics_m extends MY_Model
 			unset($friendlist);	// Destroy the old friendlist
 			$query->free_result();	// Removes the Memory associated with the result resource ID
 		} while ($b<=$top);
-		return $friends.'+'.$nonfriends;  	// return friends+nonfriends (without the '|' at the end of non friends)
+		
+		$result = $friends.'+'.$nonfriends;
+		$friends_parts = explode(',', $friends);
+		$empty_count = 0;
+		foreach($friends_parts as $part) {
+			if(strpos($part, '0>0') !== false) $empty_count++;
+		}
+		log_message('debug', "friends_calculate: Returning string length=".strlen($result).", balls_with_no_friends=$empty_count, preview=".substr($result, 0, 100));
+		return $result;  	// return friends+nonfriends (without the '|' at the end of non friends)
 	}
 	
 	/**
@@ -4892,6 +5205,8 @@ class Statistics_m extends MY_Model
 			$friends = $this->extract_friends($str_fr);
 			$nonfriends = $this->extract_nonfriends($str_nfr);
 			
+			log_message('debug', "friends_hits: Using bonus=$bonus, duple=$duple, friends count=".count($friends));
+			
 			// SLIDING WINDOW IMPLEMENTATION: Similar to followers_prizes
 			// Need range*2 draws total: first 'range' draws to build friendships, next 'range' draws to test wins
 			
@@ -5009,8 +5324,17 @@ class Statistics_m extends MY_Model
 	*/
 	private function friends_hitcounts($rel, $fr, $rw, $b, $d)
 	{
+		static $log_count = 0;
+		$log_count++;
+		
+		$original_count = count($rw) - 1; // -1 for draw_date
 		if(!$b) unset($rw['extra']); 	// No extra included in the hit count
 		unset($rw['draw_date']);		// Don't include
+		
+		if($log_count <= 3) { // Log first 3 test draws
+			log_message('debug', "friends_hitcounts #$log_count: bonus=$b, balls_in_draw=".count($rw)." (was $original_count), draw=".json_encode(array_values($rw)));
+		}
+		
 		$elim = array(); // Associate elimination array in this format
 						 // $elim = array(6 = 38, 2 = 5); // For 2 - way friendships only
 		$has_2way = FALSE;	// Track if any 2-way friendship found
@@ -5022,17 +5346,17 @@ class Statistics_m extends MY_Model
 			if((!$d)||($d&&$position!='extra')) // Never do the duplicate
 			{
 				$friend1 = $fr[$ball];		// Friend 1
-				$friend2 = $fr[$friend1];	// Friend 2
-				// Two way - check if this creates a 2-way friendship
-				if((in_array($friend1,$rw)&&in_array($friend2,$rw))&&(!isset($elim[$ball])&&(!isset($elim[$friend1])))) 
+				$friend2 = $fr[$friend1];	// Friend 2 (friend of friend1)
+				// Two way - check if this creates a MUTUAL 2-way friendship (A→B AND B→A)
+				if((in_array($friend1,$rw))&&($friend2==$ball)&&(!isset($elim[$ball])&&(!isset($elim[$friend1])))) 
 				{
 					$has_2way = TRUE;			// Found at least one 2-way friendship
-					$elim[$ball] = $friend1;	// Record this, so it is not duplicated, e.g. ball = friend2 
-					$elim[$friend1] = $ball;	// and friend2=ball
+					$elim[$ball] = $friend1;	// Record this, so it is not duplicated
+					$elim[$friend1] = $ball;	// Mark both balls as counted
 				}
-				elseif(!$has_2way && ((in_array($friend1,$rw))&&(!in_array($friend2,$rw))||(!in_array($friend1,$rw))&&(in_array($friend2,$rw)))) 
+				elseif(!$has_2way && (in_array($friend1,$rw))) 
 				{
-					$has_1way = TRUE; // Found at least one 1-way friendship
+					$has_1way = TRUE; // Found at least one 1-way friendship (A→B but B doesn't point back to A)
 				}
 			} 
 		}
@@ -5176,38 +5500,46 @@ class Statistics_m extends MY_Model
 	 */
 	public function h_w_c_calculate($lotto_tbl, $picks, $bonus = 0, $draws = 0, $range = 0, $w, $c, $last = '', $duple = FALSE)
 	{
-		// Build query
-		$sql_range = ($range ? ' ORDER BY draw_date DESC LIMIT '.$range : ' ORDER BY draw_date DESC');
-		$sql_date = '';
-		$sql_draws = '';
-		
-		// Handle date filtering - always apply when $last is provided
-		if (!empty($last)) {
-			$sql_date = ' WHERE draw_date <= "'.$last.'"';
+		// CRITICAL FIX: Use subquery to identify target draws first, ensuring all balls come from same draw set
+		// Build WHERE clause for draw selection
+		$draw_where = '';
+		if (!empty($last) && !$draws) {
+			// Has date filter AND extra_draws=NO
+			$draw_where = ' WHERE draw_date <= "'.$last.'" AND extra <> "0"';
+		} elseif (!empty($last) && $draws) {
+			// Has date filter BUT extra_draws=YES
+			$draw_where = ' WHERE draw_date <= "'.$last.'"';
+		} elseif (empty($last) && !$draws) {
+			// No date filter BUT extra_draws=NO
+			$draw_where = ' WHERE extra <> "0"';
 		}
+		// If both empty($last) and $draws==1, no WHERE clause needed
 		
-		// Handle extra draws filtering
-		if (!$draws) {
-			$sql_draws = (!empty($last) ? ' AND extra <> "0"' : ' WHERE extra <> "0"');
-		}
+		// Build ORDER BY and LIMIT
+		$draw_order_limit = ($range ? ' ORDER BY draw_date DESC, id DESC LIMIT '.$range : ' ORDER BY draw_date DESC, id DESC');
 		
-		$sql = 'SELECT ball_drawn, count(*) as heat FROM ((SELECT ball1 as ball_drawn FROM '
-		.$lotto_tbl.$sql_date.$sql_draws.$sql_range.') UNION ALL (SELECT ball2 as ball_drawn FROM '
-		.$lotto_tbl.$sql_date.$sql_draws.$sql_range.') UNION ALL (SELECT ball3 as ball_drawn FROM '
-		.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=4) $sql .= ' UNION ALL (SELECT ball4 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=5) $sql .= ' UNION ALL (SELECT ball5 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=6) $sql .= ' UNION ALL (SELECT ball6 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=7) $sql .= ' UNION ALL (SELECT ball7 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks>=8) $sql .= ' UNION ALL (SELECT ball8 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
-		if($picks==9) $sql .= ' UNION ALL (SELECT ball9 as ball_drawn FROM '.$lotto_tbl.$sql_date.$sql_draws.$sql_range.')';
+		// Build the query using a subquery to select target draws first
+		$target_draws_subquery = '(SELECT * FROM '.$lotto_tbl.$draw_where.$draw_order_limit.') AS target_draws';
+		
+		$sql = 'SELECT ball_drawn, MAX(draw_date) as last_draw_date, count(*) as heat FROM ((SELECT ball1 as ball_drawn, draw_date FROM '
+		.$target_draws_subquery.') UNION ALL (SELECT ball2 as ball_drawn, draw_date FROM '
+		.$target_draws_subquery.') UNION ALL (SELECT ball3 as ball_drawn, draw_date FROM '
+		.$target_draws_subquery.')';
+		if($picks>=4) $sql .= ' UNION ALL (SELECT ball4 as ball_drawn, draw_date FROM '.$target_draws_subquery.')';
+		if($picks>=5) $sql .= ' UNION ALL (SELECT ball5 as ball_drawn, draw_date FROM '.$target_draws_subquery.')';
+		if($picks>=6) $sql .= ' UNION ALL (SELECT ball6 as ball_drawn, draw_date FROM '.$target_draws_subquery.')';
+		if($picks>=7) $sql .= ' UNION ALL (SELECT ball7 as ball_drawn, draw_date FROM '.$target_draws_subquery.')';
+		if($picks>=8) $sql .= ' UNION ALL (SELECT ball8 as ball_drawn, draw_date FROM '.$target_draws_subquery.')';
+		if($picks==9) $sql .= ' UNION ALL (SELECT ball9 as ball_drawn, draw_date FROM '.$target_draws_subquery.')';
+		
 		$sql_bonus = '';
 		if($bonus&&!$duple) 
 		{
-			$bonus_date_filter = (!empty($last) ? ' AND draw_date <= "'.$last.'"' : '');
-			$sql_bonus = ' UNION ALL (SELECT extra as ball_drawn FROM '.$lotto_tbl.' WHERE extra <> "0"'.$bonus_date_filter.$sql_range.')';
+			// Bonus ball comes from same target draws, just filter WHERE extra <> "0"
+			$sql_bonus = ' UNION ALL (SELECT extra as ball_drawn, draw_date FROM '.$target_draws_subquery.' WHERE extra <> "0")';
 		}
-		$sql_ext = ') as hwc GROUP BY ball_drawn ORDER BY heat DESC;';
+		
+		$sql_ext = ') as hwc GROUP BY ball_drawn ORDER BY heat DESC, last_draw_date DESC, CAST(ball_drawn AS UNSIGNED) ASC;';
 		$query = $this->db->query($sql.$sql_bonus.$sql_ext);
 		$hwc_string = ""; // List string in the format of number=hits,
 		$i = 1; // non-zero integer
@@ -5288,7 +5620,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 				FROM ((SELECT extra as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
 				$sql .= ') as hwc
 				GROUP BY ball_drawn
-				ORDER BY heat DESC;';
+				ORDER BY heat DESC, CAST(ball_drawn AS UNSIGNED) ASC;';
 			$query = $this->db->query($sql);
 			
 			$xtra_string = "";
@@ -5570,7 +5902,14 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	public function hwc_data_save($data, $exist = FALSE)
 	{
 		$this->db->reset_query();
-		if (!$exist) 
+		
+		// Always check if record exists to prevent duplicate inserts
+		// regardless of what the caller passes for $exist parameter
+		$check_query = $this->db->where('lottery_id', $data['lottery_id'])
+			->get('lottery_h_w_c');
+		$record_exists = $check_query->num_rows() > 0;
+		
+		if (!$record_exists) 
 		{
 			$this->db->set($data);		// Set the query with the key / value pairs
 			$this->db->insert('lottery_h_w_c');
@@ -5774,7 +6113,11 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	public function positions($drawn_array, $heat_array, $position_array, $b, $e, $dp)
 	{
 
-	if (!$b||$dp||$e) 								// If a bonus number, extra ball or duplicate extra number 
+	// Only remove the extra ball from position counting if extra draws are NOT included
+	// $e = extra_draws setting (1 = include extra in calculations, 0 = exclude)
+	// $b = bonus ball value
+	// $dp = duplicate extra ball flag
+	if (!$e && ($b || $dp)) 	// If extra draws NOT included AND (bonus exists OR duplicate extra)
 	{
 		$key = array_key_last($drawn_array); 		//  Return the key from the drawn_array	
 		unset($drawn_array[$key]); 					// Remove the last element from the drawn numbers
@@ -5910,6 +6253,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			{
 				$index = array_search($value, $h_array);
 				$hp_totals[$index]--; // Decrement the count by 1
+				if($hp_totals[$index] < 0) $hp_totals[$index] = 0; // Ensure minimum is 0
 			}
 		}
 		// warm positions
@@ -5919,6 +6263,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			{
 				$index = array_search($value, $m_array);
 				$wp_totals[$index]--; // Decrement the count by 1
+				if($wp_totals[$index] < 0) $wp_totals[$index] = 0; // Ensure minimum is 0
 			}
 		}
 		// cold positions
@@ -5928,6 +6273,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			{
 				$index = array_search($value, $l_array);
 				$lp_totals[$index]--; // Decrement the count by 1
+				if($lp_totals[$index] < 0) $lp_totals[$index] = 0; // Ensure minimum is 0
 			}
 		}
 		// 7. Format the string for the previous draw positions
@@ -6885,10 +7231,44 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			'extra_included' => $extra_included,
 			'extra_draws' => $extra_draws
 		);
+		
+		// Before deleting, save current data as previous data
+		$current = $this->db->where('lottery_id', $lottery_id)->get('lottery_followers')->row_array();
+		if ($current) {
+			// Only save as previous if current data is valid (not empty and draw_id > 0)
+			// After a reset, lottery_followers is '' and draw_id is 0, which shouldn't be saved as "previous"
+			if (!empty($current['lottery_followers']) && isset($current['draw_id']) && $current['draw_id'] > 0) {
+				$save_data['prev_lottery_followers'] = $current['lottery_followers'];
+				$save_data['prev_draw_id'] = $current['draw_id'];
+			} else {
+				// Current data is invalid (reset state), preserve existing prev_* values if they exist
+				if (isset($current['prev_lottery_followers']) && !empty($current['prev_lottery_followers'])) {
+					$save_data['prev_lottery_followers'] = $current['prev_lottery_followers'];
+				}
+				if (isset($current['prev_draw_id']) && $current['prev_draw_id'] > 0) {
+					$save_data['prev_draw_id'] = $current['prev_draw_id'];
+				}
+			}
+		}
 
 		// Delete existing data and insert new
 		$this->db->where('lottery_id', $lottery_id)->delete('lottery_followers');
 		$this->db->insert('lottery_followers', $save_data);
+		
+		// After insert, check if prev_* fields are NULL and populate them
+		// This handles the case where Reset was done and first ReCalc has no previous data
+		$inserted = $this->db->where('lottery_id', $lottery_id)->get('lottery_followers')->row_array();
+		log_message('error', "do_complete_recalc_independent INSERT check - lottery_id: $lottery_id");
+		log_message('error', "  prev_lottery_followers empty? " . (empty($inserted['prev_lottery_followers']) ? 'YES' : 'NO'));
+		log_message('error', "  prev_draw_id value: " . (isset($inserted['prev_draw_id']) ? $inserted['prev_draw_id'] : 'NOT SET'));
+		log_message('error', "  prev_draw_id falsy? " . (!$inserted['prev_draw_id'] ? 'YES' : 'NO'));
+		
+		if ($inserted && (empty($inserted['prev_lottery_followers']) || !$inserted['prev_draw_id'])) {
+			log_message('error', "Lottery $lottery_id: TRIGGERING auto-populate from previous draw in complete recalc");
+			$this->populate_previous_followers_from_draw($lottery_id, $inserted);
+		} else {
+			log_message('error', "Lottery $lottery_id: NOT triggering auto-populate in complete recalc");
+		}
 
 		return $save_data;
 	}
@@ -7552,11 +7932,19 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		}
 		$this->hwc_positions = $hwc_positions;
 		
+		// PHASE 2 ENHANCED: Configuration-aware incremental learning
+		// Position stats are configuration-specific (depend on extra_included, extra_draws, range, etc.)
+		// Load existing stats ONLY if configuration matches (enables learning over time)
+		// If configuration changed, cold start (ensures deterministic results)
+		$config_fingerprint = $this->generate_config_fingerprint($lottery_id, $adjusted_range, $hots, $warms, $colds, $prediction_pool, $extra_included, $extra_draws);
+		$existing_position_stats = $this->load_position_statistics_with_config_check($lottery_id, $config_fingerprint);
+		$this->current_position_stats = $existing_position_stats; // Will be empty array if config changed (cold start)
+		$this->current_config_fingerprint = $config_fingerprint; // Store for saving later
 
 
 		// Phase 2: Analyze the next range using fixed positions
 		$new_win_statistics = $this->analyze_sliding_window($table_name, $adjusted_range, $hwc_positions, $prediction_pool, 
-			$hots, $warms, $colds, $lottery, $prize_profile, $extra_included);
+			$hots, $warms, $colds, $lottery, $prize_profile, $extra_included, $extra_draws);
 
 		// Phase 3: REPLACE existing data instead of merging (this was causing accumulation bug)
 		// $merged_wins_data = $this->merge_win_statistics($existing_wins_data, $new_win_statistics, $prize_profile);
@@ -7569,6 +7957,14 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$final_wins_string = $this->format_win_statistics($final_wins_data, $prize_profile);
 		
 		$this->save_wins_string($lottery_id, $adjusted_range, $hots, $warms, $colds, $prediction_pool, $extra_included, $extra_draws, $final_wins_string);
+		
+		// Phase 6: ENHANCED - Save position statistics with configuration fingerprint for intelligent selection
+		if (isset($this->position_stats_data) && !empty($this->position_stats_data)) {
+			$position_stats_string = $this->format_position_statistics($this->position_stats_data, $this->current_config_fingerprint);
+			$this->save_position_statistics($lottery_id, $adjusted_range, $hots, $warms, $colds, $prediction_pool, $position_stats_string);
+			$stats_source = empty($existing_position_stats) ? 'created (cold start)' : 'updated (incremental learning)';
+			log_message('info', "H-W-C position stats: Successfully saved position data for lottery_id=$lottery_id - $stats_source");
+		}
 		
 		log_message('info', "H-W-C win stats: Successfully saved wins data for lottery_id=$lottery_id, range=$adjusted_range");
 		return $final_wins_string;
@@ -7639,10 +8035,11 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	 * @param object $lottery Lottery configuration
 	 * @param array $prize_profile Prize profile configuration
 	 * @param boolean $extra_included Whether extra ball is included
+	 * @param boolean $extra_draws Whether extra draws are included
 	 * @return array Win statistics by H-W-C pattern
 	 */
 	private function analyze_sliding_window($table_name, $range, $hwc_positions, $prediction_pool, $hots, $warms, $colds, 
-		$lottery, $prize_profile, $extra_included)
+		$lottery, $prize_profile, $extra_included, $extra_draws)
 	{
 		$picks = $lottery->balls_drawn;
 		
@@ -7654,11 +8051,24 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 
 		
 		$win_stats = array();
+		
+		// Initialize position tracking per pattern
+		$position_stats = array(); // Track position selections and wins per pattern
 
-		// Get ALL draws needed for sliding window (first range + second range)
-		$sql = "SELECT * FROM {$table_name} ORDER BY draw_date ASC LIMIT " . ($range * 2);
+		// CRITICAL FIX: Filter draws based on extra_included and extra_draws settings
+		// This ensures win statistics use the same draw set as H-W-C position calculations
+		// USE NEWEST DRAWS (DESC) to match h_w_c_calculate, then reverse for chronological processing
+		$sql = "SELECT * FROM {$table_name}";
+		
+		// Apply filtering based on extra settings (must match h_w_c_calculate logic)
+		if (!$extra_draws) {
+			$sql .= " WHERE extra <> '0'";
+		}
+		
+		// Get NEWEST draws first (to match h_w_c_calculate which uses DESC), then reverse
+		$sql .= " ORDER BY draw_date DESC, id DESC LIMIT " . ($range * 2);
 		$query = $this->db->query($sql);
-		$all_draws = $query->result();
+		$all_draws = array_reverse($query->result()); // Reverse to chronological order for sliding window
 		
 		// Split into initial draws (1-100) and future draws (101-200)
 		$initial_draws = array_slice($all_draws, 0, $range);
@@ -7677,12 +8087,20 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			$prediction_numbers = $this->calculate_prediction_numbers($hwc_pattern, $prediction_pool, $picks);
 			
 			// Step 3: Get actual prediction numbers by cross-referencing H-W-C positions
-			$actual_prediction_numbers = $this->get_prediction_numbers_from_positions($prediction_numbers, $hwc_positions);
+			// ENHANCED: Track which positions were selected for this pattern
+			$prediction_data = $this->get_prediction_numbers_from_positions_with_tracking(
+				$prediction_numbers, $hwc_positions, $pattern_key, $position_stats
+			);
+			
+			$actual_prediction_numbers = $prediction_data['numbers'];
 			
 			// Step 4: Compare prediction numbers against actual draw and calculate wins
 			$win_categories = $this->calculate_win_categories_direct($actual_prediction_numbers, $draw, $prize_profile, $extra_included);
 			
-			// Step 5: Accumulate win statistics for valid patterns only
+			// Step 5: Track which positions contributed to wins
+			$this->track_position_wins($prediction_data, $draw, $hwc_positions, $pattern_key, $position_stats, $win_categories, $picks);
+			
+			// Step 6: Accumulate win statistics for valid patterns only
 			if (!isset($win_stats[$pattern_key])) {
 				$win_stats[$pattern_key] = $this->initialize_win_categories($prize_profile);
 			}
@@ -7692,10 +8110,13 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 				$win_stats[$pattern_key][$category] += $count;
 			}
 
-			// Step 6: SLIDING WINDOW - Remove oldest draw and add newest draw
+			// Step 7: SLIDING WINDOW - Remove oldest draw and add newest draw
 			$old_draw = $initial_draws[$draw_index]; // Draw to remove from window
 			$this->update_sliding_window($hwc_positions, $old_draw, $draw, $picks, $extra_included);
 		}
+		
+		// Store position statistics for future use
+		$this->position_stats_data = $position_stats;
 
 		return $win_stats;
 	}
@@ -7855,7 +8276,249 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	}
 
 	/**
+	 * Get prediction numbers from positions with position tracking
+	 * ENHANCED: Tracks which positions were selected for this pattern
+	 * 
+	 * @param array $prediction_numbers Distribution (hot, warm, cold counts)
+	 * @param array $hwc_positions Current H-W-C positions
+	 * @param string $pattern_key Pattern identifier (e.g., "2-2-2")
+	 * @param array &$position_stats Reference to position statistics array
+	 * @return array Selected numbers with position tracking data
+	 */
+	private function get_prediction_numbers_from_positions_with_tracking($prediction_numbers, $hwc_positions, $pattern_key, &$position_stats)
+	{
+		$all_numbers = array();
+		
+		// Initialize pattern tracking if not exists
+		if (!isset($position_stats[$pattern_key])) {
+			$position_stats[$pattern_key] = array(
+				'hot' => array(),
+				'warm' => array(),
+				'cold' => array()
+			);
+		}
+		
+		// Track selected positions for each temperature
+		$selected_positions = array('hot' => array(), 'warm' => array(), 'cold' => array());
+		
+		// Get hot numbers and track positions
+		if ($prediction_numbers['hot'] > 0) {
+			$result = $this->get_top_numbers_by_temperature_with_positions('hot', $prediction_numbers['hot']);
+			$all_numbers = array_merge($all_numbers, $result['numbers']);
+			$selected_positions['hot'] = $result['positions'];
+			
+			// Track position selections
+			foreach ($result['positions'] as $pos) {
+				if (!isset($position_stats[$pattern_key]['hot'][$pos])) {
+					$position_stats[$pattern_key]['hot'][$pos] = array('selected' => 0, 'won' => 0);
+				}
+				$position_stats[$pattern_key]['hot'][$pos]['selected']++;
+			}
+		}
+		
+		// Get warm numbers and track positions
+		if ($prediction_numbers['warm'] > 0) {
+			$result = $this->get_top_numbers_by_temperature_with_positions('warm', $prediction_numbers['warm']);
+			$all_numbers = array_merge($all_numbers, $result['numbers']);
+			$selected_positions['warm'] = $result['positions'];
+			
+			// Track position selections
+			foreach ($result['positions'] as $pos) {
+				if (!isset($position_stats[$pattern_key]['warm'][$pos])) {
+					$position_stats[$pattern_key]['warm'][$pos] = array('selected' => 0, 'won' => 0);
+				}
+				$position_stats[$pattern_key]['warm'][$pos]['selected']++;
+			}
+		}
+		
+		// Get cold numbers and track positions
+		if ($prediction_numbers['cold'] > 0) {
+			$result = $this->get_top_numbers_by_temperature_with_positions('cold', $prediction_numbers['cold']);
+			$all_numbers = array_merge($all_numbers, $result['numbers']);
+			$selected_positions['cold'] = $result['positions'];
+			
+			// Track position selections
+			foreach ($result['positions'] as $pos) {
+				if (!isset($position_stats[$pattern_key]['cold'][$pos])) {
+					$position_stats[$pattern_key]['cold'][$pos] = array('selected' => 0, 'won' => 0);
+				}
+				$position_stats[$pattern_key]['cold'][$pos]['selected']++;
+			}
+		}
+		
+		return array(
+			'numbers' => $all_numbers,
+			'positions' => $selected_positions
+		);
+	}
+
+	/**
+	 * Get top numbers by temperature with position information
+	 * PHASE 2 ENHANCED: Intelligent selection based on win rates instead of sequential order
+	 * 
+	 * @param string $temperature The temperature type ('hot', 'warm', 'cold')
+	 * @param int $count Number of numbers to select
+	 * @return array Array with 'numbers' and 'positions' keys
+	 */
+	private function get_top_numbers_by_temperature_with_positions($temperature, $count)
+	{
+		if ($count <= 0) return array('numbers' => array(), 'positions' => array());
+		
+		// Determine position range based on temperature
+		switch ($temperature) {
+			case 'hot':
+				$position_start = 1;
+				$position_end = $this->current_hots;
+				break;
+			case 'warm':
+				$position_start = $this->current_hots + 1;
+				$position_end = $this->current_hots + $this->current_warms;
+				break;
+			case 'cold':
+				$position_start = $this->current_hots + $this->current_warms + 1;
+				$position_end = $this->current_hots + $this->current_warms + $this->current_colds;
+				break;
+		}
+		
+		// Build list of available positions with their performance data
+		$available_positions = array();
+		foreach ($this->hwc_positions as $number => $data) {
+			if ($data['position'] >= $position_start && $data['position'] <= $position_end) {
+				$available_positions[] = array(
+					'number' => $number,
+					'position' => $data['position'],
+					'win_rate' => $this->get_position_win_rate($data['position'], $temperature)
+				);
+			}
+		}
+		
+		// PHASE 2: Sort by win rate (descending) with proper tie-breakers for deterministic results
+		usort($available_positions, function($a, $b) {
+			// Sort by win_rate descending with epsilon comparison for floating point
+			$epsilon = 0.0000001; // Tolerance for floating point comparison
+			$rate_diff = $b['win_rate'] - $a['win_rate'];
+			if (abs($rate_diff) > $epsilon) {
+				return ($rate_diff > 0) ? 1 : -1;
+			}
+			// Tie-breaker 1: position ascending (lower position = hotter = priority)
+			if ($a['position'] !== $b['position']) {
+				return $a['position'] <=> $b['position'];
+			}
+			// Tie-breaker 2: ball number ascending for complete determinism
+			return $a['number'] <=> $b['number'];
+		});
+		
+		// Select top N positions by performance
+		$selected_numbers = array();
+		$selected_positions = array();
+		for ($i = 0; $i < min($count, count($available_positions)); $i++) {
+			$selected_numbers[] = $available_positions[$i]['number'];
+			$selected_positions[] = $available_positions[$i]['position'];
+		}
+		
+		return array(
+			'numbers' => $selected_numbers,
+			'positions' => $selected_positions
+		);
+	}
+
+	/**
+	 * Get win rate for a specific position within a temperature category
+	 * PHASE 2: Uses historical data to determine position performance
+	 * 
+	 * @param int $position Position number to check
+	 * @param string $temperature Temperature category ('hot', 'warm', 'cold')
+	 * @return float Win rate (0.0 to 1.0), or -1 for cold start (no data)
+	 */
+	private function get_position_win_rate($position, $temperature)
+	{
+		// Cold start: No statistics available yet
+		if (empty($this->current_position_stats)) {
+			return -1; // Negative indicates no data - will sort by position
+		}
+		
+		// Aggregate win rates across all patterns for this position/temperature
+		$total_selected = 0;
+		$total_won = 0;
+		
+		foreach ($this->current_position_stats as $pattern => $temps) {
+			if (isset($temps[$temperature][$position])) {
+				$stats = $temps[$temperature][$position];
+				$total_selected += $stats['selected'];
+				$total_won += $stats['won'];
+			}
+		}
+		
+		// Minimum sample size: 10 selections before using win rate
+		if ($total_selected < 10) {
+			return -1; // Insufficient data - will sort by position
+		}
+		
+		// Calculate win rate
+		return $total_won / $total_selected;
+	}
+
+	/**
+	 * Track which positions contributed to wins for this pattern
+	 * 
+	 * @param array $prediction_data Prediction data with numbers and positions
+	 * @param object $draw Actual draw data
+	 * @param array $hwc_positions Current H-W-C positions
+	 * @param string $pattern_key Pattern identifier
+	 * @param array &$position_stats Reference to position statistics array
+	 * @param array $win_categories Win categories detected
+	 * @param int $picks Number of balls drawn (for dynamic ball count support)
+	 */
+	private function track_position_wins($prediction_data, $draw, $hwc_positions, $pattern_key, &$position_stats, $win_categories, $picks)
+	{
+		// Only track if there was a win
+		$has_win = false;
+		foreach ($win_categories as $category => $count) {
+			if ($count > 0) {
+				$has_win = true;
+				break;
+			}
+		}
+		
+		if (!$has_win) return;
+		
+		// Get actual drawn numbers (dynamic for 6, 7, 8, or 9-ball lotteries)
+		$drawn_numbers = array();
+		for ($i = 1; $i <= $picks; $i++) {
+			$ball_field = "ball{$i}";
+			if (isset($draw->$ball_field)) {
+				$drawn_numbers[] = (int)$draw->$ball_field;
+			}
+		}
+		
+		// For each temperature, check which selected positions had winning numbers
+		foreach (array('hot', 'warm', 'cold') as $temp) {
+			if (empty($prediction_data['positions'][$temp])) continue;
+			
+			// Map positions to numbers for this temperature
+			foreach ($prediction_data['positions'][$temp] as $pos) {
+				// Find the number at this position
+				$number_at_position = null;
+				foreach ($hwc_positions as $num => $data) {
+					if ($data['position'] == $pos) {
+						$number_at_position = $num;
+						break;
+					}
+				}
+				
+				// If this number was drawn, increment won count
+				if ($number_at_position && in_array($number_at_position, $drawn_numbers)) {
+					if (isset($position_stats[$pattern_key][$temp][$pos])) {
+						$position_stats[$pattern_key][$temp][$pos]['won']++;
+					}
+				}
+			}
+		}
+	}
+
+	/**
 	 * Get top numbers by temperature from current H-W-C positions
+	 * LEGACY: Original sequential selection method (kept for compatibility)
 	 * 
 	 * @param string $temperature The temperature type ('hot', 'warm', 'cold')
 	 * @param int $count Number of numbers to select
@@ -8125,10 +8788,31 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 		}
 
-		// Re-sort positions by hit count (descending) - this is the key to H-W-C ordering
-		uasort($hwc_positions, function($a, $b) {
-			return $b['hit_count'] - $a['hit_count'];
+		// Re-sort positions by hit count (descending) with ball number tie-breaker for deterministic results
+		// Extract balls with their hit counts for stable sorting
+		$balls_with_counts = array();
+		foreach ($hwc_positions as $ball_number => $data) {
+			$balls_with_counts[] = array(
+				'ball' => $ball_number,
+				'hit_count' => $data['hit_count']
+			);
+		}
+
+		// Sort by hit count DESC, then by ball number ASC for deterministic results when hit counts match
+		usort($balls_with_counts, function($a, $b) {
+			if ($b['hit_count'] !== $a['hit_count']) {
+				return $b['hit_count'] - $a['hit_count'];
+			}
+			// Tie-breaker: sort by ball number (ascending) for deterministic ordering
+			return $a['ball'] - $b['ball'];
 		});
+
+		// Rebuild hwc_positions array in sorted order
+		$sorted_positions = array();
+		foreach ($balls_with_counts as $item) {
+			$sorted_positions[$item['ball']] = $hwc_positions[$item['ball']];
+		}
+		$hwc_positions = $sorted_positions;
 
 		// Update position numbers based on new sort order
 		$position = 1;
@@ -8204,10 +8888,31 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 		}
 
-		// Re-sort positions by hit count (descending)
-		uasort($hwc_positions, function($a, $b) {
-			return $b['hit_count'] - $a['hit_count'];
+		// Re-sort positions by hit count (descending) with ball number tie-breaker for deterministic results
+		// Extract balls with their hit counts for stable sorting
+		$balls_with_counts = array();
+		foreach ($hwc_positions as $ball_number => $data) {
+			$balls_with_counts[] = array(
+				'ball' => $ball_number,
+				'hit_count' => $data['hit_count']
+			);
+		}
+
+		// Sort by hit count DESC, then by ball number ASC for deterministic results when hit counts match
+		usort($balls_with_counts, function($a, $b) {
+			if ($b['hit_count'] !== $a['hit_count']) {
+				return $b['hit_count'] - $a['hit_count'];
+			}
+			// Tie-breaker: sort by ball number (ascending) for deterministic ordering
+			return $a['ball'] - $b['ball'];
 		});
+
+		// Rebuild hwc_positions array in sorted order
+		$sorted_positions = array();
+		foreach ($balls_with_counts as $item) {
+			$sorted_positions[$item['ball']] = $hwc_positions[$item['ball']];
+		}
+		$hwc_positions = $sorted_positions;
 
 		// Update position numbers based on new sort order
 		$position = 1;
@@ -8462,6 +9167,300 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	}
 
 	/**
+	 * Format position statistics for database storage
+	 * ENHANCED: Creates encoded string of position win tracking data with configuration fingerprint
+	 * Format: fingerprint##pattern>temp:pos=selected/won,pos=selected/won|pattern>...
+	 * Example: "abc123##2-2-2>H:1=100/12,2=100/14,3=100/22|W:5=100/65|C:8=100/45|3-1-2>H:1=50/8,2=50/10..."
+	 * 
+	 * @param array $position_stats Position statistics data by pattern
+	 * @param string $config_fingerprint Configuration fingerprint (optional)
+	 * @return string Formatted position statistics string with fingerprint prefix
+	 */
+	private function format_position_statistics($position_stats, $config_fingerprint = '')
+	{
+		$pattern_parts = array();
+		
+		foreach ($position_stats as $pattern => $temperatures) {
+			$temp_parts = array();
+			
+			foreach ($temperatures as $temp => $positions) {
+				if (empty($positions)) continue;
+				
+				// Format positions for this temperature
+				$position_values = array();
+				foreach ($positions as $pos => $stats) {
+					$selected = isset($stats['selected']) ? $stats['selected'] : 0;
+					$won = isset($stats['won']) ? $stats['won'] : 0;
+					$position_values[] = "{$pos}={$selected}/{$won}";
+				}
+				
+				if (!empty($position_values)) {
+					// Temp prefix: H=hot, W=warm, C=cold
+					$temp_code = strtoupper(substr($temp, 0, 1));
+					$temp_parts[] = $temp_code . ':' . implode(',', $position_values);
+				}
+			}
+			
+			if (!empty($temp_parts)) {
+				$pattern_parts[] = $pattern . '>' . implode('|', $temp_parts);
+			}
+		}
+		
+		$stats_string = implode('||', $pattern_parts);
+		
+		// Prepend configuration fingerprint if provided (enables config validation on load)
+		if (!empty($config_fingerprint)) {
+			return $config_fingerprint . '##' . $stats_string;
+		}
+		
+		return $stats_string;
+	}
+
+	/**
+	 * Parse position statistics string from database
+	 * ENHANCED: Decodes position win tracking data
+	 * 
+	 * @param string $position_stats_string Encoded position statistics
+	 * @return array Position statistics array by pattern/temperature/position
+	 */
+	private function parse_position_statistics($position_stats_string)
+	{
+		if (empty($position_stats_string)) {
+			return array();
+		}
+		
+		$position_stats = array();
+		
+		// Split by pattern
+		$pattern_parts = explode('||', $position_stats_string);
+		
+		foreach ($pattern_parts as $pattern_part) {
+			if (empty($pattern_part)) continue;
+			
+			// Split pattern from temperature data
+			$parts = explode('>', $pattern_part);
+			if (count($parts) != 2) continue;
+			
+			$pattern = $parts[0];
+			$temp_data = $parts[1];
+			
+			$position_stats[$pattern] = array('hot' => array(), 'warm' => array(), 'cold' => array());
+			
+			// Split by temperature
+			$temp_parts = explode('|', $temp_data);
+			
+			foreach ($temp_parts as $temp_part) {
+				if (empty($temp_part)) continue;
+				
+				// Split temperature code from position data
+				$temp_split = explode(':', $temp_part);
+				if (count($temp_split) != 2) continue;
+				
+				$temp_code = $temp_split[0];
+				$pos_data = $temp_split[1];
+				
+				// Map temp code to full name
+				$temp_map = array('H' => 'hot', 'W' => 'warm', 'C' => 'cold');
+				if (!isset($temp_map[$temp_code])) continue;
+				$temp_name = $temp_map[$temp_code];
+				
+				// Parse position data
+				$position_values = explode(',', $pos_data);
+				foreach ($position_values as $pos_value) {
+					$pos_parts = explode('=', $pos_value);
+					if (count($pos_parts) != 2) continue;
+					
+					$pos = (int)$pos_parts[0];
+					$counts = explode('/', $pos_parts[1]);
+					if (count($counts) != 2) continue;
+					
+					$position_stats[$pattern][$temp_name][$pos] = array(
+						'selected' => (int)$counts[0],
+						'won' => (int)$counts[1]
+					);
+				}
+			}
+		}
+		
+		return $position_stats;
+	}
+
+	/**
+	 * Generate configuration fingerprint for position stats validation
+	 * Enables incremental learning by detecting configuration changes
+	 * 
+	 * @param int $lottery_id Lottery ID
+	 * @param int $range Analysis range
+	 * @param int $hots Number of hot numbers
+	 * @param int $warms Number of warm numbers
+	 * @param int $colds Number of cold numbers
+	 * @param int $prediction_pool Prediction pool size
+	 * @param boolean $extra_included Whether extra ball included
+	 * @param boolean $extra_draws Whether extra draws included
+	 * @return string MD5 hash of configuration
+	 */
+	private function generate_config_fingerprint($lottery_id, $range, $hots, $warms, $colds, $prediction_pool, $extra_included, $extra_draws)
+	{
+		// Create unique identifier from all configuration parameters that affect position statistics
+		$config_string = implode('|', array(
+			$lottery_id,
+			$range,
+			$hots,
+			$warms,
+			$colds,
+			$prediction_pool,
+			$extra_included ? '1' : '0',
+			$extra_draws ? '1' : '0'
+		));
+		
+		return md5($config_string);
+	}
+
+	/**
+	 * Parse position statistics string with fingerprint validation
+	 * 
+	 * @param string $position_stats_string Formatted position statistics string (with optional fingerprint)
+	 * @return array Array with 'fingerprint' and 'stats' keys
+	 */
+	private function parse_position_statistics_with_fingerprint($position_stats_string)
+	{
+		$result = array(
+			'fingerprint' => null,
+			'stats' => array()
+		);
+		
+		if (empty($position_stats_string)) {
+			return $result;
+		}
+		
+		// Check for fingerprint prefix (format: "fingerprint##stats_data")
+		if (strpos($position_stats_string, '##') !== false) {
+			list($fingerprint, $stats_string) = explode('##', $position_stats_string, 2);
+			$result['fingerprint'] = $fingerprint;
+		} else {
+			// Legacy format without fingerprint
+			$stats_string = $position_stats_string;
+		}
+		
+		$result['stats'] = $this->parse_position_statistics($stats_string);
+		return $result;
+	}
+
+	/**
+	 * Load position statistics from database with configuration validation
+	 * Only loads stats if configuration fingerprint matches (enables safe incremental learning)
+	 * 
+	 * @param int $lottery_id Lottery ID
+	 * @param string $current_fingerprint Current configuration fingerprint
+	 * @return array Position statistics or empty array if config changed
+	 */
+	private function load_position_statistics_with_config_check($lottery_id, $current_fingerprint)
+	{
+		$this->db->where('lottery_id', $lottery_id);
+		$query = $this->db->get('lottery_h_w_c_stats');
+		
+		if ($query->num_rows() == 0) {
+			log_message('info', "H-W-C position stats: No existing position stats for lottery_id=$lottery_id (cold start)");
+			return array();
+		}
+		
+		$result = $query->row();
+		
+		if (empty($result->position_stats)) {
+			log_message('info', "H-W-C position stats: Empty position_stats for lottery_id=$lottery_id (cold start)");
+			return array();
+		}
+		
+		// Parse position stats and extract fingerprint
+		$parsed_data = $this->parse_position_statistics_with_fingerprint($result->position_stats);
+		
+		if (!isset($parsed_data['fingerprint'])) {
+			// Legacy format without fingerprint - cold start for safety
+			log_message('info', "H-W-C position stats: Legacy data without fingerprint for lottery_id=$lottery_id (cold start)");
+			return array();
+		}
+		
+		// Validate configuration fingerprint
+		if ($parsed_data['fingerprint'] !== $current_fingerprint) {
+			log_message('info', "H-W-C position stats: Configuration changed for lottery_id=$lottery_id (cold start) - Old: {$parsed_data['fingerprint']}, New: $current_fingerprint");
+			return array();
+		}
+		
+		// Configuration matches - safe to load stats for incremental learning
+		log_message('info', "H-W-C position stats: Configuration matched for lottery_id=$lottery_id - Loading " . count($parsed_data['stats']) . " patterns (incremental learning)");
+		return $parsed_data['stats'];
+	}
+
+	/**
+	 * Load existing position statistics from database
+	 * PHASE 2: Retrieves historical position performance data for intelligent selection
+	 * 
+	 * @param int $lottery_id Lottery ID
+	 * @return array Position statistics array, or empty array if none exist
+	 */
+	private function load_position_statistics($lottery_id)
+	{
+		$this->db->where('lottery_id', $lottery_id);
+		$query = $this->db->get('lottery_h_w_c_stats');
+		
+		if ($query->num_rows() == 0) {
+			log_message('info', "H-W-C position stats: No existing position stats for lottery_id=$lottery_id (cold start)");
+			return array();
+		}
+		
+		$result = $query->row();
+		
+		if (empty($result->position_stats)) {
+			log_message('info', "H-W-C position stats: Empty position_stats for lottery_id=$lottery_id (cold start)");
+			return array();
+		}
+		
+		// Parse with fingerprint support (but ignore fingerprint validation)
+		$parsed_data = $this->parse_position_statistics_with_fingerprint($result->position_stats);
+		$position_stats = isset($parsed_data['stats']) ? $parsed_data['stats'] : array();
+		log_message('info', "H-W-C position stats: Loaded position stats for lottery_id=$lottery_id - " . count($position_stats) . " patterns");
+		
+		return $position_stats;
+	}
+
+	/**
+	 * Save position statistics to database
+	 * ENHANCED: Stores position win tracking data for intelligent selection
+	 * 
+	 * @param int $lottery_id Lottery ID
+	 * @param int $range Range value
+	 * @param int $hots Hot count
+	 * @param int $warms Warm count
+	 * @param int $colds Cold count
+	 * @param int $prediction_pool Prediction pool size
+	 * @param string $position_stats_string Formatted position statistics
+	 */
+	private function save_position_statistics($lottery_id, $range, $hots, $warms, $colds, $prediction_pool, $position_stats_string)
+	{
+		// Check if column exists in lottery_h_w_c_stats table
+		$table_check = $this->db->query("SHOW COLUMNS FROM lottery_h_w_c_stats LIKE 'position_stats'");
+		
+		if ($table_check->num_rows() == 0) {
+			// Add position_stats column if it doesn't exist
+			$this->db->query("ALTER TABLE lottery_h_w_c_stats ADD COLUMN position_stats TEXT NULL AFTER wins");
+			log_message('info', "H-W-C position stats: Added position_stats column to lottery_h_w_c_stats table");
+		}
+		
+		// NOTE: lottery_h_w_c_stats only has lottery_id as unique key
+		// The H-W-C configuration (h_count, w_count, c_count, range, prediction_pool) is in lottery_h_w_c table
+		// We update position_stats based on lottery_id only, matching the pattern used by save_wins_string()
+		$this->db->where('lottery_id', $lottery_id);
+		
+		$this->db->update('lottery_h_w_c_stats', array('position_stats' => $position_stats_string));
+		
+		if ($this->db->affected_rows() > 0) {
+			log_message('info', "H-W-C position stats: Updated position_stats for lottery_id=$lottery_id, range=$range, h_w_c={$hots}-{$warms}-{$colds}");
+		} else {
+			log_message('warning', "H-W-C position stats: No rows affected when saving position_stats for lottery_id=$lottery_id");
+		}
+	}
+
+	/**
 	 * Ensure all H-W-C patterns from the range data are included in wins statistics
 	 * This adds missing patterns with zero wins to prevent gaps in the display
 	 * 
@@ -8539,55 +9538,116 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	}
 	
 	/**
+	 * Build a co-occurrence matrix from scratch using the last $range draws.
+	 * The matrix is stored as JSON in friendship_matrix and used by the sliding window.
+	 * Format: $matrix[$ball1][$ball2] = count (symmetric)
+	 *
+	 * @param	string	$name	Lottery table name
+	 * @param	integer	$max	Number of balls drawn per draw
+	 * @param	integer	$top	Highest ball number (unused, kept for signature consistency)
+	 * @param	integer	$bonus	1 if extra ball is included, 0 otherwise
+	 * @param	integer	$draws	Extra draws flag (0 = only include draws that have an extra ball)
+	 * @param	integer	$range	Number of draws to include
+	 * @param	boolean	$duple	Duplicate extra ball flag
+	 * @return	array	Co-occurrence matrix
+	 */
+	public function build_friends_matrix($name, $max, $top, $bonus = 0, $draws = 0, $range = 100, $duple = FALSE)
+	{
+		$where = (!$draws ? " WHERE extra <> '0'" : "");
+		$sql   = "SELECT * FROM {$name}{$where} ORDER BY draw_date DESC LIMIT {$range}";
+		$all_draws = $this->db->query($sql)->result_array();
+
+		$matrix = array();
+
+		foreach ($all_draws as $draw)
+		{
+			$balls = array();
+			for ($i = 1; $i <= $max; $i++)
+			{
+				$balls[] = intval($draw['ball' . $i]);
+			}
+
+			if ($bonus && isset($draw['extra']) && intval($draw['extra']) > 0)
+			{
+				$balls[] = intval($draw['extra']);
+			}
+
+			$ball_count = count($balls);
+			for ($i = 0; $i < $ball_count; $i++)
+			{
+				for ($j = $i + 1; $j < $ball_count; $j++)
+				{
+					$b1 = $balls[$i];
+					$b2 = $balls[$j];
+
+					if (!isset($matrix[$b1][$b2])) $matrix[$b1][$b2] = 0;
+					$matrix[$b1][$b2]++;
+
+					if (!isset($matrix[$b2][$b1])) $matrix[$b2][$b1] = 0;
+					$matrix[$b2][$b1]++;
+				}
+			}
+		}
+
+		return $matrix;
+	}
+
+	/**
 	 * Sliding window update for Friends statistics
-	 * Incrementally updates friend co-occurrence relationships when only one new draw is added
-	 * 
+	 * Incrementally updates friend co-occurrence relationships when only one new draw is added.
+	 * Uses the JSON co-occurrence matrix stored in friendship_matrix (built during full recalc).
+	 *
 	 * @param	string	$name			Lottery table name
-	 * @param	array	$ldn			Last drawn numbers (newest draw to add)
-	 * @param	integer	$max			Number of balls drawn
+	 * @param	array	$ldn			Last drawn numbers (newest draw)
+	 * @param	integer	$max			Number of balls drawn per draw
+	 * @param	integer	$top			Highest ball number (maximum_ball)
 	 * @param	boolean	$bonus			Extra ball included
 	 * @param	boolean	$draws			Extra draws included
 	 * @param	integer	$range			Range (100, 200, etc)
-	 * @param	array	$existing		Existing friends data from database
+	 * @param	array	$existing		Existing friends record from database
 	 * @param	boolean	$duple			Duplicate extra ball flag
-	 * @return	array	Result with 'lottery_friends' string and 'success' flag
+	 * @return	array	Result with 'lottery_friends' string, 'matrix' JSON string, and 'success' flag
 	 */
-	public function friends_sliding_window($name, $ldn, $max, $bonus, $draws, $range, $existing, $duple)
+	public function friends_sliding_window($name, $ldn, $max, $top, $bonus, $draws, $range, $existing, $duple)
 	{
-		// Parse existing friends data into co-occurrence matrix
-		$friend_data = $this->parse_friends_matrix($existing['lottery_friends']);
-		
-		// Get the oldest draw to remove from the window
+		// Load the JSON co-occurrence matrix cached from the last full recalc
+		if (empty($existing['friendship_matrix']))
+		{
+			return array('lottery_friends' => '', 'matrix' => '', 'success' => false);
+		}
+
+		$friend_data = json_decode($existing['friendship_matrix'], true);
+		if (!is_array($friend_data))
+		{
+			return array('lottery_friends' => '', 'matrix' => '', 'success' => false);
+		}
+
+		// Get the oldest draw to drop from the window
 		$oldest_draw = $this->get_draw_at_position_filtered($name, $range + 1, $draws);
-		if (!$oldest_draw) {
-			// Not enough draws for sliding window, fall back to full recalc
-			return array(
-				'lottery_friends' => '',
-				'success' => false
-			);
+		if (!$oldest_draw)
+		{
+			return array('lottery_friends' => '', 'matrix' => '', 'success' => false);
 		}
-		
-		// Get the newest draw (already have as $ldn, but need full draw record)
+
+		// Get the newest draw (position 1)
 		$newest_draw = $this->get_draw_at_position_filtered($name, 1, $draws);
-		if (!$newest_draw) {
-			return array(
-				'lottery_friends' => '',
-				'success' => false
-			);
+		if (!$newest_draw)
+		{
+			return array('lottery_friends' => '', 'matrix' => '', 'success' => false);
 		}
-		
-		// Remove oldest draw's co-occurrences
+
+		// Slide: remove oldest draw's co-occurrences, add newest draw's co-occurrences
 		$friend_data = $this->subtract_draw_friends($friend_data, $oldest_draw, $max, $bonus, $duple);
-		
-		// Add newest draw's co-occurrences
 		$friend_data = $this->add_draw_friends($friend_data, $newest_draw, $max, $bonus, $duple);
-		
-		// Rebuild friends string from updated data
-		$friends_string = $this->build_friends_string_from_matrix($friend_data);
-		
+
+		// Rebuild friends string in correct format: one entry per ball 1..top as "best_friend>count|date"
+		$date = isset($newest_draw['draw_date']) ? $newest_draw['draw_date'] : date('Y-m-d');
+		$friends_string = $this->build_friends_string_from_matrix($friend_data, $top, $date);
+
 		return array(
 			'lottery_friends' => $friends_string,
-			'success' => true
+			'matrix'          => json_encode($friend_data),
+			'success'         => true
 		);
 	}
 	
@@ -8750,38 +9810,42 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	}
 	
 	/**
-	 * Build friends string from co-occurrence matrix
-	 * 
-	 * @param	array	$matrix		Friends matrix
-	 * @return	string	Friends string in format "ball1=ball2:count,ball3:count<ball2=ball1:count"
+	 * Build friends string from co-occurrence matrix in the correct friends format.
+	 * Produces one entry per ball 1..$top: "best_friend>count|date"
+	 * separated by commas — identical to the format produced by friends_calculate().
+	 *
+	 * @param	array	$matrix		Co-occurrence matrix [ball][friend_ball] => count
+	 * @param	integer	$top		Highest ball number (maximum_ball)
+	 * @param	string	$date		Draw date string (Y-m-d) for the newest draw
+	 * @return	string	Comma-separated "best_friend>count|date" entries (one per ball 1..$top)
 	 */
-	private function build_friends_string_from_matrix($matrix)
+	private function build_friends_string_from_matrix($matrix, $top, $date)
 	{
-		if (empty($matrix)) {
-			return '';
-		}
-		
-		$ball_strings = array();
-		
-		ksort($matrix); // Sort by ball number
-		
-		foreach ($matrix as $ball => $friends) {
-			if (empty($friends)) continue;
-			
-			$friend_pairs = array();
-			ksort($friends); // Sort friends by ball number
-			
-			foreach ($friends as $friend_ball => $count) {
-				if ($count > 0) {
-					$friend_pairs[] = $friend_ball . ':' . $count;
+		$entries = array();
+
+		for ($ball = 1; $ball <= $top; $ball++)
+		{
+			if (empty($matrix[$ball]))
+			{
+				$entries[] = '0>0|' . $date;
+				continue;
+			}
+
+			// Find the friend with the highest co-occurrence count
+			$best_friend = 0;
+			$best_count  = 0;
+			foreach ($matrix[$ball] as $friend_ball => $count)
+			{
+				if ($count > $best_count)
+				{
+					$best_count  = $count;
+					$best_friend = $friend_ball;
 				}
 			}
-			
-			if (!empty($friend_pairs)) {
-				$ball_strings[] = $ball . '=' . implode(',', $friend_pairs);
-			}
+
+			$entries[] = $best_friend . '>' . $best_count . '|' . $date;
 		}
-		
-		return implode('<', $ball_strings);
+
+		return implode(',', $entries);
 	}
 }

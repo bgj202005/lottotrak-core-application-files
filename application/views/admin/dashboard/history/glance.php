@@ -109,7 +109,7 @@ $b = 1;
 							<div class="p-2">
 								<div class="form-check">
 									<?php // Removed $js = "location.href='".base_url()."admin/history/glance/".$lottery->id."/".(!$interval ? $sel_range : ($sel_range*100))."/extra'";
-									$js = "location.href='" . base_url() . "admin/history/glance/" . $lottery->id . "/0/extra'";
+							$js = "location.href='" . base_url() . "admin/history/glance/" . $lottery->id . "/extra'";
 									$attr = array(
 										'onClick' 	=> "$js",
 										'class'		=> "form-check-input",
@@ -124,7 +124,7 @@ $b = 1;
 							<div class="p-3">
 								<div class="form-check" style="margin-top:-8px;">
 									<?php // Removed $js = "location.href='".base_url()."admin/history/glance/".$lottery->id."/".(!$interval ? $sel_range : ($sel_range*100))."/draws'";
-									$js = "location.href='" . base_url() . "admin/history/glance/" . $lottery->id . "/0/draws'";
+							$js = "location.href='" . base_url() . "admin/history/glance/" . $lottery->id . "/draws'";
 									$attr = array(
 										'onClick' 	=> "$js",
 										'class'		=> "form-check-input",

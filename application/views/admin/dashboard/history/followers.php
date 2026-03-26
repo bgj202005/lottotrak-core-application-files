@@ -713,3 +713,23 @@
 			</div>
 		</div>
 	</section>
+<script>
+(function() {
+	if (!window._bestPointsBalls || !window._bestPointsBalls.length) return;
+	// Highlight the nav tab(s) whose text matches a best-ball number
+	document.querySelectorAll('#myTab .nav-link').forEach(function(el) {
+		var txt = el.textContent.replace(/[^0-9]/g, '').trim();
+		if (!txt) return;
+		var num = parseInt(txt, 10);
+		if (window._bestPointsBalls.indexOf(num) !== -1) {
+			el.style.backgroundColor = '#d4edda';
+			el.style.color = '#155724';
+			el.style.fontWeight = 'bold';
+			el.style.borderRadius = '4px';
+			el.insertAdjacentHTML('afterend',
+				'<div class="text-success small mt-1" style="white-space:nowrap;">&#9733; Highest Points (' + window._bestPointsVal + ' pts)</div>'
+			);
+		}
+	});
+})();
+</script>

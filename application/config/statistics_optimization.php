@@ -18,7 +18,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 */
 
 // Threshold for switching to AJAX pagination (number of draws)
-$config['ajax_pagination_threshold'] = 600;
+$config['ajax_pagination_threshold'] = 500;
 
 // Default page size for AJAX pagination
 $config['default_page_size'] = 50;
