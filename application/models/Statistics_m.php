@@ -5197,109 +5197,63 @@ class Statistics_m extends MY_Model
 	 */
 	public function friends_hits($str_fr, $str_nfr, $name, $max, $top, $bonus = 0, $draws = 0, $range = 100, $last = '', $duple = FALSE)
 	{
-			global $relatives;		// friendship array win totals for non friendship wins, 1 - way friendships and 2 way friendships
-			global $nonrelatives;	// non friendship array win totals for non friendships, 1 non-friendship win occurence, 2 non-friendship
-									// win occurences, 3 non-friendship win occurences, and 4 non-friendship win occurrences  
-			$friends = array();		// Index array of friends
-			$nonfriends = array();	// Associative  array of non friends
-			$friends = $this->extract_friends($str_fr);
-			$nonfriends = $this->extract_nonfriends($str_nfr);
-			
-			log_message('debug', "friends_hits: Using bonus=$bonus, duple=$duple, friends count=".count($friends));
-			
-			// SLIDING WINDOW IMPLEMENTATION: Similar to followers_prizes
-			// Need range*2 draws total: first 'range' draws to build friendships, next 'range' draws to test wins
-			
-			// Build Query
-			$s = 'ball'; 
-			/* Part 1 */
-			$i = 1; 	// Default Ball 1
-			do
-			{	
-				$s .= $i;
-				$i++;
-				if($i<=$max) $s .= ', ball';
-			} 
-			while($i<=$max);
-			$s .= ', extra, draw_date'; // Include the draw date is this query
+		global $relatives;	// friendship array win totals: no friends, 1-way, 2-way
 
-			$w = (!$draws ? ' WHERE extra <> "0" ' : ' ');
-			$w .= (!empty($last)&&(!$draws) ? " AND draw_date <= '".$last."'" : "");
-			$w .= (!empty($last)&&($draws) ? " WHERE draw_date <= '".$last."'" : "");  
-			
-			// CRITICAL FIX: Use range*2 draws for sliding window approach
-			$sliding_window_size = $range * 2;
-			
-			// Check how many draws are actually available
-			$count_sql = "SELECT COUNT(*) as total FROM ".$name.$w;
-			$count_query = $this->db->query($count_sql);
-			$available_draws = $count_query->row()->total;
-			
-			// Adjust window size if insufficient draws available
-			$actual_window_size = min($sliding_window_size, $available_draws);
-			
-			// Need at least 20 draws minimum for meaningful friendship analysis
-			if($actual_window_size < 20) {
-				log_message('warning', "friends_hits: Insufficient draws ({$actual_window_size} < 20), using simple calculation");
-				// Fall back to simple calculation with available draws
-				$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$actual_window_size.") as t ORDER BY t.draw_date ASC;";
-				$query = $this->db->query($sql);
-				
-				if($query->num_rows() > 0) {
-					foreach($query->result_array() as $row) {
-						$relatives = $this->friends_hitcounts($relatives,$friends,$row,$bonus,$duple);
-					}
-				}
-				$query->free_result();
-			} else {
-				log_message('info', "friends_hits: Using sliding window with {$actual_window_size} draws (ideal={$sliding_window_size}, range={$range})");
-				
-				// Get range*2 draws (or maximum available)
-				$sql = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".$actual_window_size.") as t ORDER BY t.draw_date ASC;";
-				$query = $this->db->query($sql);
-				$all_draws = $query->result_array();
-				$total_draws = count($all_draws);
-				
-				// Calculate phase boundaries
-				$phase1_end = min($range - 1, floor($total_draws / 2));
-				$phase2_start = $phase1_end + 1;
-				
-				log_message('debug', "friends_hits: Phase1 (build): 0 to {$phase1_end}, Phase2 (test): {$phase2_start} to ".($total_draws-1));
-				
-				// PHASE 1: Build initial friendship relationships from first half of draws
-				// This establishes which balls are friends with each other
-				$friendship_window = array(); // Track friendship occurrences for sliding window
-				
-				for($draw_idx = 0; $draw_idx < $phase1_end && $draw_idx < $total_draws; $draw_idx++) {
-					$current_draw = $all_draws[$draw_idx];
-					
-					// Track this draw's friendships for later removal in sliding window
-					$friendship_window[] = $current_draw;
-				}
-				
-				// PHASE 2: Sliding window through remaining draws with win calculations
-				// Test friendship patterns and count 0-way, 1-way, 2-way wins
-				for($draw_idx = $phase2_start; $draw_idx < $total_draws; $draw_idx++) {
-					$test_draw = $all_draws[$draw_idx];
-					
-					// Count wins using current friendship patterns against this test draw
-					$relatives = $this->friends_hitcounts($relatives, $friends, $test_draw, $bonus, $duple);
-					
-					// SLIDING WINDOW: Remove oldest friendship occurrence and add newest
-					if(count($friendship_window) >= $phase1_end) {
-						// Remove oldest draw from friendship tracking
-						array_shift($friendship_window);
-					}
-					
-					// Add current test draw to friendship window for next iteration
-					$friendship_window[] = $test_draw;
-				}
-				
-				$query->free_result();
+		// Build column list
+		$s = 'ball';
+		$i = 1;
+		do
+		{
+			$s .= $i;
+			$i++;
+			if ($i <= $max) $s .= ', ball';
+		}
+		while ($i <= $max);
+		$s .= ', extra, draw_date';
+
+		$w  = (!$draws ? ' WHERE extra <> "0" ' : ' ');
+		$w .= (!empty($last) && (!$draws) ? " AND draw_date <= '".$last."'" : "");
+		$w .= (!empty($last) && ($draws)  ? " WHERE draw_date <= '".$last."'" : "");
+
+		// Fetch 2*range draws, oldest first.
+		// Phase 1 (index 0 .. range-1)      : build initial co-occurrence matrix.
+		// Phase 2 (index range .. 2*range-1) : slide matrix one draw at a time and count wins.
+		$sql      = "SELECT t.* FROM (SELECT ".$s." FROM ".$name.$w." ORDER BY draw_date DESC LIMIT ".($range * 2).") as t ORDER BY t.draw_date ASC;";
+		$all_draws = $this->db->query($sql)->result_array();
+		$total     = count($all_draws);
+
+		if ($total < $range + 1)
+		{
+			// Not enough draws for sliding window — use static friend list from supplied string
+			$friends = $this->extract_friends($str_fr);
+			foreach ($all_draws as $row)
+			{
+				$relatives = $this->friends_hitcounts($relatives, $friends, $row, $bonus, $duple);
 			}
-			
-		unset($friends);		// Destroy the old friendlist
-		unset($nonfriends);
+			return;
+		}
+
+		// Phase 1: build initial co-occurrence matrix from the oldest $range draws
+		$matrix = array();
+		for ($idx = 0; $idx < $range; $idx++)
+		{
+			$matrix = $this->add_draw_friends($matrix, $all_draws[$idx], $max, $bonus, $duple);
+		}
+
+		// Phase 2: slide and count
+		//   - Derive each ball's current best friend from the live matrix
+		//   - Count win type (0/1/2-way) for the test draw
+		//   - Slide: drop draw (idx - range), add draw (idx) so the window stays at $range draws
+		for ($idx = $range; $idx < $total; $idx++)
+		{
+			$current_friends = $this->best_friends_from_matrix($matrix, $top);
+			$relatives = $this->friends_hitcounts($relatives, $current_friends, $all_draws[$idx], $bonus, $duple);
+
+			$matrix = $this->subtract_draw_friends($matrix, $all_draws[$idx - $range], $max, $bonus, $duple);
+			$matrix = $this->add_draw_friends($matrix,      $all_draws[$idx],           $max, $bonus, $duple);
+		}
+
+		unset($matrix);
 	}	/**
 	* Return the non existent friends after the current draw
 	* @param	array	$list		Associative Array of non followers and the counts
@@ -9700,6 +9654,40 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		return $matrix;
 	}
 	
+	/**
+	 * Derive a best-friend-per-ball lookup from the co-occurrence matrix.
+	 * Returns an index array [ball => best_friend_ball] for every ball 1..$top.
+	 * Balls with no co-occurrences map to 0.
+	 *
+	 * @param	array	$matrix		Co-occurrence matrix [ball][friend_ball] => count
+	 * @param	integer	$top		Highest ball number (maximum_ball)
+	 * @return	array				[ball => best_friend_ball]
+	 */
+	private function best_friends_from_matrix($matrix, $top)
+	{
+		$friends = array();
+		for ($ball = 1; $ball <= $top; $ball++)
+		{
+			if (empty($matrix[$ball]))
+			{
+				$friends[$ball] = 0;
+				continue;
+			}
+			$best_ball  = 0;
+			$best_count = 0;
+			foreach ($matrix[$ball] as $friend_ball => $count)
+			{
+				if ($count > $best_count)
+				{
+					$best_count = $count;
+					$best_ball  = $friend_ball;
+				}
+			}
+			$friends[$ball] = $best_ball;
+		}
+		return $friends;
+	}
+
 	/**
 	 * Remove co-occurrences from oldest draw being dropped from window
 	 * 
