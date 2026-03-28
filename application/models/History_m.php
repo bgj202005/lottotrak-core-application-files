@@ -617,6 +617,187 @@ class History_m extends MY_Model
         unset($draws);    
     return $oe_text;   
     }
+    /**
+     * digit_sum_prediction computes the most likely next Digit Sum and the best associated
+     * Winning Number Sum using two complementary signals:
+     *
+     *   Signal 1 — Frequency (from stored winning_digits string):
+     *     How often each Digit Sum has appeared in the last N draws (top-10 stored).
+     *
+     *   Signal 2 — Overdue (from raw $draws array, when provided):
+     *     overdue_ratio = draws_since_last_seen / avg_gap_between_appearances.
+     *     A ratio > 1.0 means the value is overdue; higher = more overdue.
+     *     Capped at 3× avg to prevent extreme outliers dominating.
+     *
+     *   Combined score = (0.5 × normalised_frequency) + (0.5 × capped_overdue_ratio / 3)
+     *   The Digit Sum with the highest combined score is selected as the prediction.
+     *
+     *   Best Number Sum: the most frequently co-occurring sum_draw in the raw draws
+     *   where sum_digits equals the predicted Digit Sum.
+     *   Falls back to the frequency + trend approach when raw draws are unavailable.
+     *
+     * @param   string  $winning_digits  Stored string e.g. "42=7,33=5,41=4|10=19,INCREASE"
+     * @param   string  $winning_sums    Stored string e.g. "163=4,147=3,178=3|5=17,INCREASE"
+     * @param   array   $draws           Optional raw draws array (each row has sum_digits, sum_draw)
+     * @return  array   ['predicted_digit_sum' => int, 'predicted_winning_sum' => int, 'predicted_runners_up' => string]
+     *                  predicted_runners_up format: "32=125,41=143" (2nd=sum,3rd=sum)
+     */
+    public function digit_sum_prediction($winning_digits, $winning_sums, $draws = array())
+    {
+        $predicted_digit_sum   = 0;
+        $predicted_winning_sum = 0;
+        $predicted_runners_up  = '';
+        $digit_trend_dir       = 'INCREASE';
+        $sum_trend_dir         = 'INCREASE';
+
+        // --- Parse Digit Sum frequency data from stored string ---
+        $digit_freq = array();
+        if (!empty($winning_digits))
+        {
+            $parts           = explode('|', $winning_digits);
+            $entries         = explode(',', $parts[0]);
+            $digit_trend_dir = (isset($parts[1]) && strpos($parts[1], 'INCREASE') !== FALSE) ? 'INCREASE' : 'DECREASE';
+            foreach ($entries as $entry)
+            {
+                $kv = explode('=', $entry);
+                if (count($kv) === 2 && intval($kv[0]) > 0)
+                {
+                    $digit_freq[intval($kv[0])] = intval($kv[1]);
+                }
+            }
+        }
+
+        if (empty($digit_freq))
+        {
+            return array('predicted_digit_sum' => 0, 'predicted_winning_sum' => 0, 'predicted_runners_up' => '');
+        }
+
+        // --- Signal 2: Overdue analysis using raw draws ---
+        if (!empty($draws))
+        {
+            $total_draws    = count($draws);
+            $last_seen      = array();  // digit_sum => draws since last appearance (0 = most recent)
+            $all_ds_ordered = array();  // digit sums newest-first, for raw count
+
+            // Traverse newest-first to find last-seen gap for each digit sum
+            $reversed = array_reverse($draws);
+            foreach ($reversed as $gap => $draw)
+            {
+                $ds = intval($draw['sum_digits']);
+                if ($ds > 0)
+                {
+                    $all_ds_ordered[] = $ds;
+                    if (!isset($last_seen[$ds]))
+                    {
+                        $last_seen[$ds] = $gap; // gap = number of draws since last seen
+                    }
+                }
+            }
+            unset($reversed);
+
+            // Compute overdue ratio: current_gap / avg_gap
+            $raw_counts = array_count_values($all_ds_ordered);
+            $overdue    = array();
+            foreach ($raw_counts as $ds => $cnt)
+            {
+                $avg_gap      = ($cnt > 0) ? ($total_draws / $cnt) : $total_draws;
+                $current_gap  = isset($last_seen[$ds]) ? $last_seen[$ds] : $total_draws;
+                $overdue[$ds] = ($avg_gap > 0) ? ($current_gap / $avg_gap) : 0.0;
+            }
+            unset($all_ds_ordered);
+
+            // Combined score: 50% normalised frequency + 50% overdue (capped at 3× avg)
+            $max_freq = max($digit_freq);
+            $scored   = array();
+            foreach ($digit_freq as $ds => $freq)
+            {
+                $norm_freq   = $freq / $max_freq;
+                $overdue_val = isset($overdue[$ds]) ? min($overdue[$ds], 3.0) / 3.0 : 0.0;
+                $scored[$ds] = (0.5 * $norm_freq) + (0.5 * $overdue_val);
+            }
+            arsort($scored);
+
+            // Extract top 3 digit sums from the scored ranking
+            $top3_ds = array_slice(array_keys($scored), 0, 3, TRUE);
+
+            // For each top-3 digit sum, find its best associated number sum from raw draws
+            $best_sums = array(); // ds => best_sum
+            foreach ($top3_ds as $ds)
+            {
+                $sum_tally = array();
+                foreach ($draws as $draw)
+                {
+                    if (intval($draw['sum_digits']) === $ds && intval($draw['sum_draw']) > 0)
+                    {
+                        $sd = intval($draw['sum_draw']);
+                        $sum_tally[$sd] = isset($sum_tally[$sd]) ? $sum_tally[$sd] + 1 : 1;
+                    }
+                }
+                if (!empty($sum_tally))
+                {
+                    arsort($sum_tally);
+                    $best_sums[$ds] = intval(key($sum_tally));
+                }
+                else
+                {
+                    $best_sums[$ds] = 0;
+                }
+            }
+
+            // Assign 1st, 2nd, 3rd
+            $predicted_digit_sum   = isset($top3_ds[0]) ? intval($top3_ds[0]) : 0;
+            $predicted_winning_sum = isset($best_sums[$predicted_digit_sum]) ? $best_sums[$predicted_digit_sum] : 0;
+
+            $runners = array();
+            for ($i = 1; $i <= 2; $i++)
+            {
+                if (isset($top3_ds[$i]) && $top3_ds[$i] > 0)
+                {
+                    $ds2  = intval($top3_ds[$i]);
+                    $sum2 = isset($best_sums[$ds2]) ? $best_sums[$ds2] : 0;
+                    $runners[] = $ds2 . '=' . $sum2;
+                }
+            }
+            $predicted_runners_up = implode(',', $runners);
+        }
+        else
+        {
+            // Fallback (cache read path): frequency + trend tiebreaker only — top 3 by frequency
+            arsort($digit_freq);
+            $top3_keys = array_slice(array_keys($digit_freq), 0, 3);
+            $predicted_digit_sum = ($digit_trend_dir === 'INCREASE') ? intval(max((array)$top3_keys[0])) : intval(min((array)$top3_keys[0]));
+            // Runners-up remain empty on cache-read path (no raw draws available)
+        }
+
+        // --- Fallback for predicted_winning_sum if not resolved from raw draws ---
+        if ($predicted_winning_sum === 0 && !empty($winning_sums))
+        {
+            $parts         = explode('|', $winning_sums);
+            $entries       = explode(',', $parts[0]);
+            $sum_trend_dir = (isset($parts[1]) && strpos($parts[1], 'INCREASE') !== FALSE) ? 'INCREASE' : 'DECREASE';
+            $sum_freq      = array();
+            foreach ($entries as $entry)
+            {
+                $kv = explode('=', $entry);
+                if (count($kv) === 2 && intval($kv[0]) > 0)
+                {
+                    $sum_freq[intval($kv[0])] = intval($kv[1]);
+                }
+            }
+            if (!empty($sum_freq))
+            {
+                $max_freq  = max($sum_freq);
+                $top_keys  = array_keys($sum_freq, $max_freq);
+                $predicted_winning_sum = ($sum_trend_dir === 'INCREASE') ? intval(max($top_keys)) : intval(min($top_keys));
+            }
+        }
+
+        return array(
+            'predicted_digit_sum'   => $predicted_digit_sum,
+            'predicted_winning_sum' => $predicted_winning_sum,
+            'predicted_runners_up'  => $predicted_runners_up
+        );
+    }
     /** 
 	* glance_data_save. Insert / Update the At a Glance Statistics to the database
 	* 

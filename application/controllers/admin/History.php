@@ -214,22 +214,32 @@ class History extends Admin_Controller {
 		{
 			$this->session->set_flashdata('message', 'Problem retrieving the odd / even combinations for the last '.$new_range.' draws. Please check the '.$tbl_name.' database.');
 			redirect('admin/history'); 
-		} 
+		}
+		// Digit Sum Prediction: read from cache or compute (with overdue analysis) from raw draws
+		$_prediction = ((!empty($glance)&&!$bln_chg && isset($glance->predicted_digit_sum))
+			? array('predicted_digit_sum' => $glance->predicted_digit_sum, 'predicted_winning_sum' => $glance->predicted_winning_sum, 'predicted_runners_up' => (isset($glance->predicted_runners_up) ? $glance->predicted_runners_up : ''))
+			: $this->history_m->digit_sum_prediction($this->data['lottery']->last_drawn['digits_history'], $this->data['lottery']->last_drawn['sums_history'], $drawings));
+		$this->data['lottery']->last_drawn['predicted_digit_sum']   = $_prediction['predicted_digit_sum'];
+		$this->data['lottery']->last_drawn['predicted_winning_sum'] = $_prediction['predicted_winning_sum'];
+		$this->data['lottery']->last_drawn['predicted_runners_up']  = $_prediction['predicted_runners_up'];
 		/***** End of Statistic Calculations ******/
 		$aag = array(
-			'range'				=> $new_range,
-			'trends'			=> $this->data['lottery']->last_drawn['trends'],
-			'repeats'			=> $this->data['lottery']->last_drawn['repeats'],
-			'consecutives'		=> $this->data['lottery']->last_drawn['consecutives'],
-			'adjacents'			=> $this->data['lottery']->last_drawn['adjacents'],
-			'winning_sums'		=> $this->data['lottery']->last_drawn['sums_history'],
-			'winning_digits'	=> $this->data['lottery']->last_drawn['digits_history'],
-			'number_range'		=> $this->data['lottery']->last_drawn['range_history'],
-			'parity'			=> $this->data['lottery']->last_drawn['parity_history'],
-			'draw_id'			=> $draw_db->id,
-			'lottery_id'		=> $id,
-			'extra_included'	=> $this->data['lottery']->extra_included,
-			'extra_draws'		=> $this->data['lottery']->extra_draws
+			'range'					=> $new_range,
+			'trends'				=> $this->data['lottery']->last_drawn['trends'],
+			'repeats'				=> $this->data['lottery']->last_drawn['repeats'],
+			'consecutives'			=> $this->data['lottery']->last_drawn['consecutives'],
+			'adjacents'				=> $this->data['lottery']->last_drawn['adjacents'],
+			'winning_sums'			=> $this->data['lottery']->last_drawn['sums_history'],
+			'winning_digits'		=> $this->data['lottery']->last_drawn['digits_history'],
+			'number_range'			=> $this->data['lottery']->last_drawn['range_history'],
+			'parity'				=> $this->data['lottery']->last_drawn['parity_history'],
+			'predicted_digit_sum'	=> $this->data['lottery']->last_drawn['predicted_digit_sum'],
+			'predicted_winning_sum'	=> $this->data['lottery']->last_drawn['predicted_winning_sum'],
+			'predicted_runners_up'	=> $this->data['lottery']->last_drawn['predicted_runners_up'],
+			'draw_id'				=> $draw_db->id,
+			'lottery_id'			=> $id,
+			'extra_included'		=> $this->data['lottery']->extra_included,
+			'extra_draws'			=> $this->data['lottery']->extra_draws
 		); // $aag - At A Glance Data
 		if($bln_chg)	// Only if 1 of the 3 options have changed
 		{

@@ -269,6 +269,36 @@ $b = 1;
 													echo "<br />";
 													echo "<span style='display: inline'>" . $s . "</span><br />";
 													?>
+													<div class="d-flex justify-content-between align-items-center border-bottom mb-3 mt-3">
+														<p class="text-warning text-xl">
+															<i class="ion ion-ios-stats"></i>
+														</p>
+														<p class="d-flex flex-column text-right">
+															<span class="text-muted">DIGIT SUM PREDICTION</span>
+														</p>
+													</div>
+													<!-- /.d-flex -->
+													<?php
+													$pred_digit = intval($lottery->last_drawn['predicted_digit_sum']);
+													$pred_sum   = intval($lottery->last_drawn['predicted_winning_sum']);
+													$runners_up = isset($lottery->last_drawn['predicted_runners_up']) ? $lottery->last_drawn['predicted_runners_up'] : '';
+													if ($pred_digit > 0 && $pred_sum > 0) :
+														echo "<p><strong>1st:</strong> Digit Sum <strong>" . $pred_digit . "</strong> &mdash; Number Sum <strong>" . $pred_sum . "</strong></p>";
+														if (!empty($runners_up)) :
+															$runner_pairs = explode(',', $runners_up);
+															$places = array('2nd', '3rd');
+															foreach ($runner_pairs as $idx => $pair) :
+																$kv = explode('=', $pair);
+																if (count($kv) === 2 && intval($kv[0]) > 0) :
+																	$place = isset($places[$idx]) ? $places[$idx] : '';
+																	echo "<p><strong>" . $place . ":</strong> Digit Sum <strong>" . intval($kv[0]) . "</strong> &mdash; Number Sum <strong>" . intval($kv[1]) . "</strong></p>";
+																endif;
+															endforeach;
+														endif;
+													else :
+														echo "<p>Insufficient data to generate a prediction.</p>";
+													endif;
+													?>
 												</h5>
 											</div>
 										</div>
