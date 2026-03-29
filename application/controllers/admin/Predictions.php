@@ -2736,6 +2736,12 @@ class Predictions extends Admin_Controller {
 				", Numbers: " . ($number_array ? 'YES' : 'NO') . 
 				", File: " . ($combination_file ? $combination_file : 'NO') . 
 				", ID: " . ($combo_id ? $combo_id : 'NO'));
+			
+			// CRITICAL DEBUG: Log actual numbers being used for substitution
+			if ($number_array) {
+				log_message('info', "Number array being used for save: " . implode(',', $number_array));
+				log_message('info', "Number array count: " . count($number_array));
+			}
 
 
 

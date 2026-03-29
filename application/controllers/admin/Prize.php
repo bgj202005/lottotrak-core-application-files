@@ -1371,68 +1371,10 @@ class Prize extends Admin_Controller
             return array();
         }
         
-        // Check if any filters are applied
-        $has_filters = $this->has_active_filters($filter);
+        // The file already contains the ACTUAL SUBSTITUTED NUMBERS (not positions)
+        // So we read them directly without any further substitution
         
-        
-        if ($has_filters) {
-            // Use filtering model when filters are applied
-            $page = ($offset / $per_page) + 1;
-            $number_array = $this->get_generated_numbers($filter->lottery_id);
-            $filter_data = $this->build_filter_array($filter);
-            
-            
-            $combinations = $this->combination_filters_m->get_filtered_combinations(
-                $file_path, 
-                $number_array, 
-                $filter_data, 
-                $page, 
-                $per_page
-            );
-            
-            
-            // Convert to ticket format
-            $tickets = array();
-            foreach ($combinations as $index => $combo) {
-                $ticket_number = $offset + $index + 1;
-                
-                if (is_array($combo) && isset($combo['main_numbers']) && isset($combo['extra_ball'])) {
-                    // Independent extra ball lottery with structured data
-                    $main_numbers = $combo['main_numbers'];
-                    $extra_ball = $combo['extra_ball'];
-                    
-                    $all_numbers = array_values($main_numbers);
-                    $all_numbers[] = $extra_ball;
-                    
-                    $tickets[] = array(
-                        'ticket_number' => $ticket_number,
-                        'numbers' => $all_numbers,
-                        'main_numbers' => array_values($main_numbers),
-                        'extra_ball' => $extra_ball,
-                        'is_independent_extra_ball' => true
-                    );
-                } else {
-                    // Regular lottery - combo is just an array of numbers
-                    $numbers = is_array($combo) ? array_values($combo) : $combo;
-                    $tickets[] = array(
-                        'ticket_number' => $ticket_number,
-                        'numbers' => $numbers,
-                        'is_independent_extra_ball' => $is_independent_extra_ball
-                    );
-                    
-                    // For independent extra ball lotteries without structured data (fallback)
-                    if ($is_independent_extra_ball && is_array($numbers) && count($numbers) > $expected_picks) {
-                        $tickets[count($tickets) - 1]['main_numbers'] = array_slice($numbers, 0, $expected_picks);
-                        $tickets[count($tickets) - 1]['extra_ball'] = $numbers[$expected_picks];
-                    }
-                }
-            }
-            
-            return $tickets;
-        } else {
-        }
-
-        // Fallback to direct file reading when no filters are applied
+        // Fallback to direct file reading - read actual numbers from file
         // Read and parse the file with pagination
         $tickets = array();
         $file_content = file_get_contents($file_path);
@@ -1538,7 +1480,7 @@ class Prize extends Admin_Controller
         
         if ($has_filters) {
             // Use filtering model when filters are applied
-            $number_array = $this->get_generated_numbers($filter->lottery_id);
+            $number_array = $this->get_generated_numbers($filter->lottery_id, $filter);
             $filter_data = $this->build_filter_array($filter);
             
             $count = $this->combination_filters_m->get_filtered_combinations_count(
@@ -2541,10 +2483,19 @@ class Prize extends Admin_Controller
     /**
      * Get generated numbers for a lottery
      */
-    private function get_generated_numbers($lottery_id)
+    private function get_generated_numbers($lottery_id, $filter = null)
     {
-        // This should load the generated numbers that were used to create the combinations
-        // For now, return a simple range - this may need to be enhanced based on your system
+        // First, try to get the numbers from the filter being processed
+        // This is stored in the lottery_combination_filters.numbers field
+        if ($filter && isset($filter->numbers) && !empty($filter->numbers)) {
+            $numbers = explode(',', $filter->numbers);
+            $numbers = array_map('trim', $numbers);
+            $numbers = array_map('intval', $numbers);
+            log_message('debug', "get_generated_numbers: Using filter numbers - " . implode(', ', $numbers));
+            return $numbers;
+        }
+        
+        // Fallback: use lottery range if no filter-specific numbers found
         $this->db->select('range');
         $this->db->from('lottery_profiles');
         $this->db->where('id', $lottery_id);
@@ -2552,10 +2503,12 @@ class Prize extends Admin_Controller
         
         if ($lottery && !empty($lottery->range)) {
             $range = (int)$lottery->range;
+            log_message('debug', "get_generated_numbers: Using lottery range 1-{$range}");
             return range(1, $range);
         }
         
         // Fallback to default range
+        log_message('debug', "get_generated_numbers: Using default range 1-49");
         return range(1, 49);
     }
     
