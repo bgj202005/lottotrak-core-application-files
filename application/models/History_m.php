@@ -640,7 +640,14 @@ class History_m extends MY_Model
      * @param   string  $winning_sums    Stored string e.g. "163=4,147=3,178=3|5=17,INCREASE"
      * @param   array   $draws           Optional raw draws array (each row has sum_digits, sum_draw)
      * @return  array   ['predicted_digit_sum' => int, 'predicted_winning_sum' => int, 'predicted_runners_up' => string]
-     *                  predicted_runners_up format: "32=125,41=143" (2nd=sum,3rd=sum)
+     *                  predicted_runners_up stores all 3 candidates with scores.
+     *                  Format per entry: ds=ws=combined=freq=overdue  e.g. "41=140=0.72=0.85=1.75"
+     *                  Three entries separated by commas e.g. "41=140=0.72=0.85=1.75,38=128=0.68=0.78=1.22,35=98=0.61=0.65=0.88"
+     *                    ds       = Digit Sum
+     *                    ws       = best associated Number Sum
+     *                    combined = final score 0-1 (higher = stronger overall prediction)
+     *                    freq     = normalised frequency 0-1 (1.0 = appeared as often as the most frequent)
+     *                    overdue  = overdue ratio 0-3 (1.0 = right on schedule, 2.0 = twice overdue)
      */
     public function digit_sum_prediction($winning_digits, $winning_sums, $draws = array())
     {
@@ -707,13 +714,17 @@ class History_m extends MY_Model
             unset($all_ds_ordered);
 
             // Combined score: 50% normalised frequency + 50% overdue (capped at 3× avg)
-            $max_freq = max($digit_freq);
-            $scored   = array();
+            $max_freq     = max($digit_freq);
+            $scored       = array();
+            $freq_norms   = array(); // normalised frequency 0-1 per ds
+            $overdue_caps = array(); // raw overdue ratio, capped at 3.0, per ds
             foreach ($digit_freq as $ds => $freq)
             {
-                $norm_freq   = $freq / $max_freq;
-                $overdue_val = isset($overdue[$ds]) ? min($overdue[$ds], 3.0) / 3.0 : 0.0;
-                $scored[$ds] = (0.5 * $norm_freq) + (0.5 * $overdue_val);
+                $norm_freq         = $freq / $max_freq;
+                $overdue_capped    = isset($overdue[$ds]) ? min($overdue[$ds], 3.0) : 0.0;
+                $freq_norms[$ds]   = $norm_freq;
+                $overdue_caps[$ds] = $overdue_capped;
+                $scored[$ds]       = (0.5 * $norm_freq) + (0.5 * ($overdue_capped / 3.0));
             }
             arsort($scored);
 
@@ -744,29 +755,33 @@ class History_m extends MY_Model
                 }
             }
 
-            // Assign 1st, 2nd, 3rd
+            // Assign 1st place
             $predicted_digit_sum   = isset($top3_ds[0]) ? intval($top3_ds[0]) : 0;
             $predicted_winning_sum = isset($best_sums[$predicted_digit_sum]) ? $best_sums[$predicted_digit_sum] : 0;
 
-            $runners = array();
-            for ($i = 1; $i <= 2; $i++)
+            // Build full scored string for all 3 candidates stored in predicted_runners_up
+            // Format: ds=ws=combined=freq=overdue  e.g. "41=140=0.72=0.85=1.75"
+            $all_runners = array();
+            foreach ($top3_ds as $ds)
             {
-                if (isset($top3_ds[$i]) && $top3_ds[$i] > 0)
+                if ($ds > 0)
                 {
-                    $ds2  = intval($top3_ds[$i]);
-                    $sum2 = isset($best_sums[$ds2]) ? $best_sums[$ds2] : 0;
-                    $runners[] = $ds2 . '=' . $sum2;
+                    $ws      = isset($best_sums[$ds]) ? $best_sums[$ds] : 0;
+                    $comb    = number_format(isset($scored[$ds]) ? $scored[$ds] : 0, 2);
+                    $freq_s  = number_format(isset($freq_norms[$ds]) ? $freq_norms[$ds] : 0, 2);
+                    $over_s  = number_format(isset($overdue_caps[$ds]) ? $overdue_caps[$ds] : 0, 2);
+                    $all_runners[] = $ds . '=' . $ws . '=' . $comb . '=' . $freq_s . '=' . $over_s;
                 }
             }
-            $predicted_runners_up = implode(',', $runners);
+            $predicted_runners_up = implode(',', $all_runners);
         }
         else
         {
-            // Fallback (cache read path): frequency + trend tiebreaker only — top 3 by frequency
+            // Fallback (cache read path): frequency + trend tiebreaker only
             arsort($digit_freq);
-            $top3_keys = array_slice(array_keys($digit_freq), 0, 3);
+            $top3_keys           = array_slice(array_keys($digit_freq), 0, 3);
             $predicted_digit_sum = ($digit_trend_dir === 'INCREASE') ? intval(max((array)$top3_keys[0])) : intval(min((array)$top3_keys[0]));
-            // Runners-up remain empty on cache-read path (no raw draws available)
+            // No raw draws available — scores cannot be calculated
         }
 
         // --- Fallback for predicted_winning_sum if not resolved from raw draws ---
@@ -797,6 +812,22 @@ class History_m extends MY_Model
             'predicted_winning_sum' => $predicted_winning_sum,
             'predicted_runners_up'  => $predicted_runners_up
         );
+    }
+    /**
+     * glance_prediction_save. Updates only the three prediction fields in lottery_highlights.
+     * Used when scores are being backfilled without a full recalculation of all columns.
+     *
+     * @param   integer $lottery_id     Lottery id
+     * @param   array   $prediction     Array with keys: predicted_digit_sum, predicted_winning_sum, predicted_runners_up
+     * @return  boolean                 TRUE on success, FALSE on failure
+     */
+    public function glance_prediction_save($lottery_id, $prediction)
+    {
+        $this->db->set('predicted_digit_sum',   $prediction['predicted_digit_sum']);
+        $this->db->set('predicted_winning_sum', $prediction['predicted_winning_sum']);
+        $this->db->set('predicted_runners_up',  $prediction['predicted_runners_up']);
+        $this->db->where('lottery_id', $lottery_id);
+        return $this->db->update('lottery_highlights');
     }
     /** 
 	* glance_data_save. Insert / Update the At a Glance Statistics to the database

@@ -215,10 +215,34 @@ class History extends Admin_Controller {
 			$this->session->set_flashdata('message', 'Problem retrieving the odd / even combinations for the last '.$new_range.' draws. Please check the '.$tbl_name.' database.');
 			redirect('admin/history'); 
 		}
-		// Digit Sum Prediction: read from cache or compute (with overdue analysis) from raw draws
-		$_prediction = ((!empty($glance)&&!$bln_chg && isset($glance->predicted_digit_sum))
-			? array('predicted_digit_sum' => $glance->predicted_digit_sum, 'predicted_winning_sum' => $glance->predicted_winning_sum, 'predicted_runners_up' => (isset($glance->predicted_runners_up) ? $glance->predicted_runners_up : ''))
-			: $this->history_m->digit_sum_prediction($this->data['lottery']->last_drawn['digits_history'], $this->data['lottery']->last_drawn['sums_history'], $drawings));
+		// Digit Sum Prediction: use cache only if scores already exist in the new 5-part format.
+		// If the stored runners_up is missing or in legacy format (no scores), recalculate now
+		// using the raw draws already in memory, then save just the prediction fields immediately.
+		$_cached_runners = (isset($glance->predicted_runners_up) ? $glance->predicted_runners_up : '');
+		$_has_scores     = (!empty($_cached_runners) && count(explode('=', explode(',', $_cached_runners)[0])) === 5);
+		if (!empty($glance) && !$bln_chg && isset($glance->predicted_digit_sum) && $_has_scores)
+		{
+			// Fully cached — all three scores present, no calculation needed
+			$_prediction = array(
+				'predicted_digit_sum'   => $glance->predicted_digit_sum,
+				'predicted_winning_sum' => $glance->predicted_winning_sum,
+				'predicted_runners_up'  => $_cached_runners
+			);
+		}
+		else
+		{
+			// Calculate fresh (new draw, changed settings, or legacy record without scores)
+			$_prediction = $this->history_m->digit_sum_prediction(
+				$this->data['lottery']->last_drawn['digits_history'],
+				$this->data['lottery']->last_drawn['sums_history'],
+				$drawings
+			);
+			// Save prediction fields immediately if glance record exists but scores were missing
+			if (!empty($glance) && !$bln_chg && !$_has_scores)
+			{
+				$this->history_m->glance_prediction_save($id, $_prediction);
+			}
+		}
 		$this->data['lottery']->last_drawn['predicted_digit_sum']   = $_prediction['predicted_digit_sum'];
 		$this->data['lottery']->last_drawn['predicted_winning_sum'] = $_prediction['predicted_winning_sum'];
 		$this->data['lottery']->last_drawn['predicted_runners_up']  = $_prediction['predicted_runners_up'];

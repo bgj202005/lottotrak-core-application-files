@@ -279,22 +279,64 @@ $b = 1;
 													</div>
 													<!-- /.d-flex -->
 													<?php
-													$pred_digit = intval($lottery->last_drawn['predicted_digit_sum']);
-													$pred_sum   = intval($lottery->last_drawn['predicted_winning_sum']);
-													$runners_up = isset($lottery->last_drawn['predicted_runners_up']) ? $lottery->last_drawn['predicted_runners_up'] : '';
-													if ($pred_digit > 0 && $pred_sum > 0) :
-														echo "<p><strong>1st:</strong> Digit Sum <strong>" . $pred_digit . "</strong> &mdash; Number Sum <strong>" . $pred_sum . "</strong></p>";
-														if (!empty($runners_up)) :
-															$runner_pairs = explode(',', $runners_up);
-															$places = array('2nd', '3rd');
-															foreach ($runner_pairs as $idx => $pair) :
-																$kv = explode('=', $pair);
-																if (count($kv) === 2 && intval($kv[0]) > 0) :
-																	$place = isset($places[$idx]) ? $places[$idx] : '';
-																	echo "<p><strong>" . $place . ":</strong> Digit Sum <strong>" . intval($kv[0]) . "</strong> &mdash; Number Sum <strong>" . intval($kv[1]) . "</strong></p>";
-																endif;
-															endforeach;
-														endif;
+													$runners_up  = isset($lottery->last_drawn['predicted_runners_up']) ? $lottery->last_drawn['predicted_runners_up'] : '';
+													$all_entries = (!empty($runners_up)) ? explode(',', $runners_up) : array();
+													$places      = array('1st', '2nd', '3rd');
+													$place_badges = array(
+														'1st' => 'badge badge-warning',
+														'2nd' => 'badge badge-secondary',
+														'3rd' => 'badge badge-light border'
+													);
+													// Detect new format (5 parts per entry: ds=ws=combined=freq=overdue)
+													$has_scores = (!empty($all_entries) && count(explode('=', $all_entries[0])) === 5);
+													if ($has_scores) :
+													?>
+													<div class="table-responsive">
+														<table class="table table-sm table-bordered mb-2" style="font-size:0.88rem;">
+															<thead class="thead-light">
+																<tr>
+																	<th class="text-center" style="white-space:nowrap;">Place</th>
+																	<th class="text-center" style="white-space:nowrap;">Digit Sum</th>
+																	<th class="text-center" style="white-space:nowrap;">Winning Sum</th>
+																	<th class="text-center" style="white-space:nowrap;">Frequency</th>
+																	<th class="text-center" style="white-space:nowrap;">Overdue</th>
+																	<th class="text-center" style="white-space:nowrap;">Overall</th>
+																</tr>
+															</thead>
+															<tbody>
+																<?php foreach ($all_entries as $idx => $entry) :
+																	$p = explode('=', $entry);
+																	if (count($p) === 5 && intval($p[0]) > 0) :
+																		$place      = isset($places[$idx]) ? $places[$idx] : '';
+																		$badge_cls  = isset($place_badges[$place]) ? $place_badges[$place] : 'badge badge-secondary';
+																		$overdue_v  = floatval($p[4]);
+																		$overdue_cl = ($overdue_v >= 2.0) ? 'text-danger font-weight-bold' : (($overdue_v >= 1.0) ? 'text-warning font-weight-bold' : 'text-muted');
+																		$row_cls    = ($idx === 0) ? 'table-warning' : '';
+																?>
+																<tr class="<?= $row_cls ?>">
+																	<td class="text-center"><span class="<?= $badge_cls ?>"><?= $place ?></span></td>
+																	<td class="text-center"><strong><?= intval($p[0]) ?></strong></td>
+																	<td class="text-center"><strong><?= intval($p[1]) ?></strong></td>
+																	<td class="text-center"><?= $p[3] ?></td>
+																	<td class="text-center <?= $overdue_cl ?>"><?= $p[4] ?>&times;</td>
+																	<td class="text-center"><?= $p[2] ?></td>
+																</tr>
+																<?php endif; endforeach; ?>
+															</tbody>
+														</table>
+													</div>
+													<small class="text-muted d-block mt-1">
+														<strong>Frequency (0&ndash;1):</strong> How often vs. the top value.
+														<strong class="ml-2">Overdue (&times;):</strong> Gap since last seen &divide; avg gap.
+														<strong class="ml-2">Overall (0&ndash;1):</strong> Prediction strength &mdash; higher is stronger.
+														<span class="text-warning font-weight-bold ml-2">&#9679;</span> &ge;1.0&times; overdue &nbsp;
+														<span class="text-danger font-weight-bold">&#9679;</span> &ge;2.0&times; very overdue.
+													</small>
+													<?php
+													elseif (intval($lottery->last_drawn['predicted_digit_sum']) > 0) :
+														// Legacy format — scores will recalculate on next visit after draw import
+														echo "<p><strong>1st:</strong> Digit Sum <strong>" . intval($lottery->last_drawn['predicted_digit_sum']) . "</strong> &mdash; Winning Sum <strong>" . intval($lottery->last_drawn['predicted_winning_sum']) . "</strong></p>";
+														echo "<p class='text-muted'><small>Scores will appear after the next draw is imported.</small></p>";
 													else :
 														echo "<p>Insufficient data to generate a prediction.</p>";
 													endif;
