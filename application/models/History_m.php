@@ -41,6 +41,31 @@ class History_m extends MY_Model
      * @param		integer     $lotto_id	Lottery id
 	 * @return      boolean		TRUE/FALSE  At A Glance Statistics Exist (TRUE) / Do not exist (FALSE)	
 	 */
+    /**
+     * Load a batch of draws starting at a given offset from the most recent draw.
+     * Used by digit_sum_prediction to look back beyond the initial draw window.
+     *
+     * @param  string  $tbl       Draw table name
+     * @param  int     $lotto_id  Lottery ID
+     * @param  int     $coverage  Number of draws to fetch
+     * @param  int     $offset    How many draws to skip (newest-first)
+     * @param  int     $e         Extra draws flag (matches load_history convention)
+     * @return array|false
+     */
+    public function load_history_offset($tbl, $lotto_id, $coverage = 100, $offset = 0, $e = 0)
+    {
+        $this->db->reset_query();
+        $ex_d = (!$e ? ' WHERE extra <> 0' : '');
+        $query = $this->db->query('SELECT d.*
+                                    FROM (
+                                    SELECT *
+                                    FROM '.$tbl.$ex_d.
+                                    ' ORDER BY draw_date DESC LIMIT '.$coverage.' OFFSET '.$offset.'
+                                    ) as d ORDER BY d.draw_date ASC;');
+        $history = $query->result_array();
+        return (!is_null($history) && !empty($history)) ? $history : FALSE;
+    }
+
     public function glance_exists($lotto_id)
     {
         // todo: load the range of lottery draws, ascending order
@@ -649,7 +674,7 @@ class History_m extends MY_Model
      *                    freq     = normalised frequency 0-1 (1.0 = appeared as often as the most frequent)
      *                    overdue  = overdue ratio 0-3 (1.0 = right on schedule, 2.0 = twice overdue)
      */
-    public function digit_sum_prediction($winning_digits, $winning_sums, $draws = array())
+    public function digit_sum_prediction($winning_digits, $winning_sums, $draws = array(), $tbl_name = '', $lottery_id = 0, $extra_draws = 0)
     {
         $predicted_digit_sum   = 0;
         $predicted_winning_sum = 0;
@@ -731,7 +756,9 @@ class History_m extends MY_Model
             // Extract top 3 digit sums from the scored ranking
             $top3_ds = array_slice(array_keys($scored), 0, 3, TRUE);
 
-            // For each top-3 digit sum, find its best associated number sum from raw draws
+            // For each top-3 digit sum, find its best associated number sum from raw draws.
+            // If all co-occurring sums tie (each appeared only once), look back an additional
+            // 100 draws at a time (up to 5 extra batches) until a winner clearly emerges.
             $best_sums = array(); // ds => best_sum
             foreach ($top3_ds as $ds)
             {
@@ -744,6 +771,35 @@ class History_m extends MY_Model
                         $sum_tally[$sd] = isset($sum_tally[$sd]) ? $sum_tally[$sd] + 1 : 1;
                     }
                 }
+
+                // Iterative lookback: if still tied, fetch older batches one at a time
+                if (!empty($sum_tally) && !empty($tbl_name) && $lottery_id > 0)
+                {
+                    $offset    = count($draws); // skip the draws we already have
+                    $max_batch = 5;             // look back up to 5 × 100 = 500 more draws
+                    for ($batch = 0; $batch < $max_batch; $batch++)
+                    {
+                        // Check whether there is a clear winner (one sum leads over all others)
+                        $max_count = max($sum_tally);
+                        $tie_count = 0;
+                        foreach ($sum_tally as $c) { if ($c === $max_count) $tie_count++; }
+                        if ($tie_count === 1) break; // clear winner found — stop looking back
+
+                        $more_draws = $this->load_history_offset($tbl_name, $lottery_id, 100, $offset, $extra_draws);
+                        if (empty($more_draws)) break; // no more history available
+
+                        foreach ($more_draws as $draw)
+                        {
+                            if (intval($draw['sum_digits']) === $ds && intval($draw['sum_draw']) > 0)
+                            {
+                                $sd = intval($draw['sum_draw']);
+                                $sum_tally[$sd] = isset($sum_tally[$sd]) ? $sum_tally[$sd] + 1 : 1;
+                            }
+                        }
+                        $offset += 100;
+                    }
+                }
+
                 if (!empty($sum_tally))
                 {
                     arsort($sum_tally);

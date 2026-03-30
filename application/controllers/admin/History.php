@@ -235,7 +235,10 @@ class History extends Admin_Controller {
 			$_prediction = $this->history_m->digit_sum_prediction(
 				$this->data['lottery']->last_drawn['digits_history'],
 				$this->data['lottery']->last_drawn['sums_history'],
-				$drawings
+				$drawings,
+				$tbl_name,
+				$id,
+				$this->data['lottery']->extra_draws
 			);
 			// Save prediction fields immediately if glance record exists but scores were missing
 			if (!empty($glance) && !$bln_chg && !$_has_scores)
