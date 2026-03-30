@@ -1216,7 +1216,7 @@ class Combination_filters_m extends MY_Model
      * @param int $user_id Optional user ID to filter by (defaults to session user)
      * @return array|false The saved settings array or false if not found
      */
-    public function get_saved_settings($id, $user_id = null)
+    public function get_saved_settings($id, $user_id = null, $lottery_id = null)
     {
         // Get CodeIgniter instance for session access
         $CI =& get_instance();
@@ -1232,6 +1232,9 @@ class Combination_filters_m extends MY_Model
             $this->db->where('user', 1); // Must be admin record
             $this->db->where('user_id', $user_id); // Must belong to current admin
         }
+        if ($lottery_id) {
+            $this->db->where('lottery_id', $lottery_id); // Must belong to correct lottery
+        }
         $this->db->limit(1);
         
         $query = $this->db->get('lottery_combination_filters');
@@ -1246,6 +1249,9 @@ class Combination_filters_m extends MY_Model
         $this->db->where('combo_id', $id);
         $this->db->where('user', 1);
         $this->db->where('user_id', $user_id);
+        if ($lottery_id) {
+            $this->db->where('lottery_id', $lottery_id);
+        }
         $count_query = $this->db->get('lottery_combination_filters');
         $count_result = $count_query->row_array();
         
@@ -1253,13 +1259,17 @@ class Combination_filters_m extends MY_Model
             return false; // No records for this admin, don't allow access
         }
         
-        // Get the actual record
+        // Get the actual record - prefer active over inactive, then most recent
         $this->db->where('combo_id', $id);
         if ($user_id) {
             $this->db->where('user', 1); // Must be admin record
             $this->db->where('user_id', $user_id); // Must belong to current admin
         }
-        $this->db->order_by('id', 'DESC'); // Get the most recent record if multiple exist
+        if ($lottery_id) {
+            $this->db->where('lottery_id', $lottery_id);
+        }
+        $this->db->order_by('active', 'DESC'); // Prefer active records
+        $this->db->order_by('id', 'DESC'); // Then most recent
         $this->db->limit(1);
         
         $query = $this->db->get('lottery_combination_filters');
