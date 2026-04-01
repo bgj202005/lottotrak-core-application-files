@@ -709,14 +709,16 @@ elseif($is_extra):
 											endif;
 										else:
 											$nonfollowers_winners_count = 0;
-											$nonfollowers_winners_count_extra = 0;
-										endif;
-									else:
-										$nonfollowers_winners_count = 0;
-										$nonfollowers_winners_count_extra = 0;
-									endif;
+									$nonfollowers_winners_count_as_extra = 0;
+									$nonfollowers_winners_count_extra = 0;
+								endif;
+							else:
+								$nonfollowers_winners_count = 0;
+								$nonfollowers_winners_count_as_extra = 0;
+								$nonfollowers_winners_count_extra = 0;
+							endif;
 									
-										// Display total winners from all sections
+									// Display total winners from all sections
 										$total_winners = $winners_count + $winners_count_as_extra + $nonfollowers_winners_count + $nonfollowers_winners_count_as_extra + $winners_count_extra + $nonfollowers_winners_count_extra;
 										if($total_winners > 0):
 											$plural_winners = ($total_winners > 1) ? "winners" : "winner";
