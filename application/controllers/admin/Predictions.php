@@ -2736,6 +2736,12 @@ class Predictions extends Admin_Controller {
 				", Numbers: " . ($number_array ? 'YES' : 'NO') . 
 				", File: " . ($combination_file ? $combination_file : 'NO') . 
 				", ID: " . ($combo_id ? $combo_id : 'NO'));
+			
+			// CRITICAL DEBUG: Log actual numbers being used for substitution
+			if ($number_array) {
+				log_message('info', "Number array being used for save: " . implode(',', $number_array));
+				log_message('info', "Number array count: " . count($number_array));
+			}
 
 
 
@@ -3248,7 +3254,7 @@ class Predictions extends Admin_Controller {
 		
 		// Load the combination_filters_m model to get saved settings
 		$this->load->model('combination_filters_m');
-		$saved_settings = $this->combination_filters_m->get_saved_settings($record_id);
+		$saved_settings = $this->combination_filters_m->get_saved_settings($record_id, null, $id);
 		
 		if (!$saved_settings) {
 			$this->session->set_flashdata('message', '<div class="alert alert-danger">No saved settings found for combination ID: ' . $record_id . ' for current administrator (ID: ' . $current_user_id . '). This combination may belong to a different administrator or may have been deleted.</div>');
@@ -3368,7 +3374,7 @@ class Predictions extends Admin_Controller {
 		$this->data['position_points_options'] = $position_points_options;
 		
 		// **RESTORE ALL SAVED SETTINGS TO FORM VARIABLES**
-		$this->data['selected_wheeling'] = $record_id . '|' . $original_filename;
+		$this->data['selected_wheeling'] = $combo_id . '|' . $original_filename;
 		$this->data['selected_h_w_c_group'] = !empty($saved_settings['h_w_c_group']) ? urldecode($saved_settings['h_w_c_group']) : '';
 		$this->data['selected_extra_ball'] = $saved_settings['extra_balls'] ?? 'ALL';
 		$this->data['selected_followers_type'] = $saved_settings['follower_type'] ?? '';
@@ -3427,7 +3433,7 @@ class Predictions extends Admin_Controller {
 			'selected_hwc' => (bool)($saved_settings['hwc'] ?? false),
 			'selected_followers' => (bool)($saved_settings['followers'] ?? false),
 			'selected_friends_checkbox' => (bool)($saved_settings['friends'] ?? false),
-			'selected_wheeling' => $record_id . '|' . $original_filename,
+			'selected_wheeling' => $combo_id . '|' . $original_filename,
 			'selected_trends' => $saved_settings['trends'] ?? '',
 			'selected_winning_sums' => $saved_settings['winning_sums'] ?? '',
 			'selected_winning_digits' => $saved_settings['winning_digits'] ?? '',
@@ -3543,7 +3549,7 @@ class Predictions extends Admin_Controller {
 		
 		// Load the combination_filters_m model to get saved settings
 		$this->load->model('combination_filters_m');
-		$saved_settings = $this->combination_filters_m->get_saved_settings($record_id);
+		$saved_settings = $this->combination_filters_m->get_saved_settings($record_id, null, $id);
 		
 		if (!$saved_settings) {
 			$this->session->set_flashdata('message', '<div class="alert alert-danger">No saved settings found for combination ID: ' . $record_id . '</div>');
@@ -3647,7 +3653,7 @@ class Predictions extends Admin_Controller {
 		$this->data['selected_position_points'] = $saved_settings['position_points'];
 		$this->data['selected_friends'] = $saved_settings['selected_friends'];
 		
-		$this->data['selected_wheeling'] = $record_id . '|' . $original_filename; // Set dropdown value format
+		$this->data['selected_wheeling'] = $combo_id . '|' . $original_filename; // Set dropdown value format
 		$this->data['combo_id'] = $combo_id;
 		$this->data['active'] = $this->combination_filters_m->get_active_flag($record_id);	
 		// Restore filter selections
@@ -3681,7 +3687,7 @@ class Predictions extends Admin_Controller {
 			'selected_hwc' => (bool)$saved_settings['hwc'],
 			'selected_followers' => (bool)$saved_settings['followers'],
 			'selected_friends_checkbox' => (bool)$saved_settings['friends'],
-			'selected_wheeling' => $record_id . '|' . $original_filename,
+			'selected_wheeling' => $combo_id . '|' . $original_filename,
 			'selected_trends' => $saved_settings['trends'],
 			'selected_winning_sums' => $saved_settings['winning_sums'],
 			'selected_winning_digits' => $saved_settings['winning_digits'],

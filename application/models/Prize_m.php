@@ -1073,7 +1073,8 @@ class Prize_m extends MY_Model
             $digits_history = $this->history_m->digits_history($drawings_with_extra);
             $range_history = $this->history_m->range_history($drawings_with_extra, $lottery->balls_drawn);
             $parity_history = $this->history_m->parity_history($drawings_with_extra, $lottery->balls_drawn, $extra_draws, $table_name);
-            
+            $prediction = $this->history_m->digit_sum_prediction($digits_history, $sums_history, $drawings_with_extra, $table_name, $lottery_id, $extra_draws);
+
             // Prepare data for saving with preserved settings
             $highlight_data = array(
                 'range' => $range,
@@ -1085,6 +1086,9 @@ class Prize_m extends MY_Model
                 'winning_digits' => $digits_history,
                 'number_range' => $range_history,
                 'parity' => $parity_history,
+                'predicted_digit_sum'   => $prediction['predicted_digit_sum'],
+                'predicted_winning_sum' => $prediction['predicted_winning_sum'],
+                'predicted_runners_up'  => $prediction['predicted_runners_up'],
                 'draw_id' => $latest_draw->id,
                 'lottery_id' => $lottery_id,
                 'extra_included' => $extra_included,

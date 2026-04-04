@@ -214,22 +214,59 @@ class History extends Admin_Controller {
 		{
 			$this->session->set_flashdata('message', 'Problem retrieving the odd / even combinations for the last '.$new_range.' draws. Please check the '.$tbl_name.' database.');
 			redirect('admin/history'); 
-		} 
+		}
+		// Digit Sum Prediction: use cache only if scores already exist in the new 5-part format.
+		// If the stored runners_up is missing or in legacy format (no scores), recalculate now
+		// using the raw draws already in memory, then save just the prediction fields immediately.
+		$_cached_runners = (isset($glance->predicted_runners_up) ? $glance->predicted_runners_up : '');
+		$_has_scores     = (!empty($_cached_runners) && count(explode('=', explode(',', $_cached_runners)[0])) === 5);
+		if (!empty($glance) && !$bln_chg && isset($glance->predicted_digit_sum) && $_has_scores)
+		{
+			// Fully cached — all three scores present, no calculation needed
+			$_prediction = array(
+				'predicted_digit_sum'   => $glance->predicted_digit_sum,
+				'predicted_winning_sum' => $glance->predicted_winning_sum,
+				'predicted_runners_up'  => $_cached_runners
+			);
+		}
+		else
+		{
+			// Calculate fresh (new draw, changed settings, or legacy record without scores)
+			$_prediction = $this->history_m->digit_sum_prediction(
+				$this->data['lottery']->last_drawn['digits_history'],
+				$this->data['lottery']->last_drawn['sums_history'],
+				$drawings,
+				$tbl_name,
+				$id,
+				$this->data['lottery']->extra_draws
+			);
+			// Save prediction fields immediately if glance record exists but scores were missing
+			if (!empty($glance) && !$bln_chg && !$_has_scores)
+			{
+				$this->history_m->glance_prediction_save($id, $_prediction);
+			}
+		}
+		$this->data['lottery']->last_drawn['predicted_digit_sum']   = $_prediction['predicted_digit_sum'];
+		$this->data['lottery']->last_drawn['predicted_winning_sum'] = $_prediction['predicted_winning_sum'];
+		$this->data['lottery']->last_drawn['predicted_runners_up']  = $_prediction['predicted_runners_up'];
 		/***** End of Statistic Calculations ******/
 		$aag = array(
-			'range'				=> $new_range,
-			'trends'			=> $this->data['lottery']->last_drawn['trends'],
-			'repeats'			=> $this->data['lottery']->last_drawn['repeats'],
-			'consecutives'		=> $this->data['lottery']->last_drawn['consecutives'],
-			'adjacents'			=> $this->data['lottery']->last_drawn['adjacents'],
-			'winning_sums'		=> $this->data['lottery']->last_drawn['sums_history'],
-			'winning_digits'	=> $this->data['lottery']->last_drawn['digits_history'],
-			'number_range'		=> $this->data['lottery']->last_drawn['range_history'],
-			'parity'			=> $this->data['lottery']->last_drawn['parity_history'],
-			'draw_id'			=> $draw_db->id,
-			'lottery_id'		=> $id,
-			'extra_included'	=> $this->data['lottery']->extra_included,
-			'extra_draws'		=> $this->data['lottery']->extra_draws
+			'range'					=> $new_range,
+			'trends'				=> $this->data['lottery']->last_drawn['trends'],
+			'repeats'				=> $this->data['lottery']->last_drawn['repeats'],
+			'consecutives'			=> $this->data['lottery']->last_drawn['consecutives'],
+			'adjacents'				=> $this->data['lottery']->last_drawn['adjacents'],
+			'winning_sums'			=> $this->data['lottery']->last_drawn['sums_history'],
+			'winning_digits'		=> $this->data['lottery']->last_drawn['digits_history'],
+			'number_range'			=> $this->data['lottery']->last_drawn['range_history'],
+			'parity'				=> $this->data['lottery']->last_drawn['parity_history'],
+			'predicted_digit_sum'	=> $this->data['lottery']->last_drawn['predicted_digit_sum'],
+			'predicted_winning_sum'	=> $this->data['lottery']->last_drawn['predicted_winning_sum'],
+			'predicted_runners_up'	=> $this->data['lottery']->last_drawn['predicted_runners_up'],
+			'draw_id'				=> $draw_db->id,
+			'lottery_id'			=> $id,
+			'extra_included'		=> $this->data['lottery']->extra_included,
+			'extra_draws'			=> $this->data['lottery']->extra_draws
 		); // $aag - At A Glance Data
 		if($bln_chg)	// Only if 1 of the 3 options have changed
 		{
