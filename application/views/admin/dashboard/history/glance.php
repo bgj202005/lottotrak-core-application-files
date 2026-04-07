@@ -326,9 +326,9 @@ $b = 1;
 														</table>
 													</div>
 													<small class="text-muted d-block mt-1">
-														<strong>Frequency (0&ndash;1):</strong> How often vs. the top value.
-														<strong class="ml-2">Overdue (&times;):</strong> Gap since last seen &divide; avg gap.
-														<strong class="ml-2">Overall (0&ndash;1):</strong> Prediction strength &mdash; higher is stronger.
+														<strong>Frequency (0&ndash;1):</strong> Recency-weighted — recent draws score higher (last 20 = 3&times;, last 50 = 2&times;, older = 1&times;).
+														<strong class="ml-2">Overdue (&times;):</strong> Gap since last seen &divide; avg gap (tiebreaker only).
+														<strong class="ml-2">Overall (0&ndash;1):</strong> 40% frequency + 45% Markov transition + 15% overdue &mdash; higher is stronger.
 														<span class="text-warning font-weight-bold ml-2">&#9679;</span> &ge;1.0&times; overdue &nbsp;
 														<span class="text-danger font-weight-bold">&#9679;</span> &ge;2.0&times; very overdue.
 													</small>
