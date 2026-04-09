@@ -704,30 +704,83 @@ class History_m extends MY_Model
             return array('predicted_digit_sum' => 0, 'predicted_winning_sum' => 0, 'predicted_runners_up' => '');
         }
 
-        // --- Signal 2: Overdue analysis using raw draws ---
+        // --- Signal analysis using raw draws ---
         if (!empty($draws))
         {
-            $total_draws    = count($draws);
-            $last_seen      = array();  // digit_sum => draws since last appearance (0 = most recent)
-            $all_ds_ordered = array();  // digit sums newest-first, for raw count
+            $total_draws = count($draws);
 
-            // Traverse newest-first to find last-seen gap for each digit sum
+            // -------------------------------------------------------
+            // Signal 1: Recency-weighted frequency
+            // Draws in the last 20 get weight 3, last 21-50 get 2, older get 1.
+            // This captures momentum/streaks rather than flat historical count.
+            // -------------------------------------------------------
+            $weighted_freq = array();
+            foreach (array_keys($digit_freq) as $ds) { $weighted_freq[$ds] = 0.0; }
+
+            foreach ($draws as $age_asc => $draw)
+            {
+                // $age_asc is 0 = oldest, $total_draws-1 = most recent
+                $ds      = intval($draw['sum_digits']);
+                $recency = $total_draws - 1 - $age_asc; // 0 = most recent
+                if ($ds <= 0) continue;
+                if      ($recency < 20) $w = 3;
+                elseif  ($recency < 50) $w = 2;
+                else                    $w = 1;
+                $weighted_freq[$ds] = isset($weighted_freq[$ds]) ? $weighted_freq[$ds] + $w : $w;
+            }
+
+            // -------------------------------------------------------
+            // Signal 2: Markov transition — P(next_ds | last_drawn_ds)
+            // Build transition counts from consecutive draw pairs.
+            // -------------------------------------------------------
+            $from_ds     = 0;   // digit sum of the most recent draw
+            $transitions = array(); // [from_ds][to_ds] => count
+            $prev_ds     = 0;
+            foreach ($draws as $draw)
+            {
+                $ds = intval($draw['sum_digits']);
+                if ($ds <= 0) continue;
+                if ($prev_ds > 0)
+                {
+                    if (!isset($transitions[$prev_ds][$ds])) $transitions[$prev_ds][$ds] = 0;
+                    $transitions[$prev_ds][$ds]++;
+                }
+                $prev_ds = $ds;
+            }
+            $from_ds = $prev_ds; // last draw's digit sum is the "from" state
+
+            // Compute Markov probability for each candidate ds from current state
+            $markov_scores = array();
+            if ($from_ds > 0 && isset($transitions[$from_ds]))
+            {
+                $row_total = array_sum($transitions[$from_ds]);
+                foreach ($digit_freq as $ds => $freq)
+                {
+                    $cnt = isset($transitions[$from_ds][$ds]) ? $transitions[$from_ds][$ds] : 0;
+                    $markov_scores[$ds] = ($row_total > 0) ? ($cnt / $row_total) : 0.0;
+                }
+            }
+            else
+            {
+                // No transition data for current state — fall back to uniform (no signal)
+                foreach ($digit_freq as $ds => $freq) { $markov_scores[$ds] = 0.0; }
+            }
+
+            // -------------------------------------------------------
+            // Signal 3: Overdue (kept as a small tiebreaker only — 15%)
+            // -------------------------------------------------------
+            $last_seen      = array();
+            $all_ds_ordered = array();
             $reversed = array_reverse($draws);
             foreach ($reversed as $gap => $draw)
             {
                 $ds = intval($draw['sum_digits']);
-                if ($ds > 0)
-                {
-                    $all_ds_ordered[] = $ds;
-                    if (!isset($last_seen[$ds]))
-                    {
-                        $last_seen[$ds] = $gap; // gap = number of draws since last seen
-                    }
-                }
+                if ($ds <= 0) continue;
+                $all_ds_ordered[] = $ds;
+                if (!isset($last_seen[$ds])) $last_seen[$ds] = $gap;
             }
             unset($reversed);
 
-            // Compute overdue ratio: current_gap / avg_gap
             $raw_counts = array_count_values($all_ds_ordered);
             $overdue    = array();
             foreach ($raw_counts as $ds => $cnt)
@@ -738,18 +791,26 @@ class History_m extends MY_Model
             }
             unset($all_ds_ordered);
 
-            // Combined score: 50% normalised frequency + 50% overdue (capped at 3× avg)
-            $max_freq     = max($digit_freq);
+            // -------------------------------------------------------
+            // Combined score: 40% recency-freq + 45% Markov + 15% overdue
+            // -------------------------------------------------------
+            $max_wfreq  = (!empty($weighted_freq)) ? max($weighted_freq) : 1;
+            $max_markov = (!empty($markov_scores)) ? max($markov_scores) : 1;
+            if ($max_markov == 0) $max_markov = 1; // avoid divide-by-zero when all Markov = 0
+
             $scored       = array();
-            $freq_norms   = array(); // normalised frequency 0-1 per ds
-            $overdue_caps = array(); // raw overdue ratio, capped at 3.0, per ds
+            $freq_norms   = array();
+            $overdue_caps = array();
             foreach ($digit_freq as $ds => $freq)
             {
-                $norm_freq         = $freq / $max_freq;
+                $norm_wfreq        = isset($weighted_freq[$ds]) ? ($weighted_freq[$ds] / $max_wfreq) : 0.0;
+                $norm_markov       = isset($markov_scores[$ds]) ? ($markov_scores[$ds] / $max_markov) : 0.0;
                 $overdue_capped    = isset($overdue[$ds]) ? min($overdue[$ds], 3.0) : 0.0;
-                $freq_norms[$ds]   = $norm_freq;
+                $freq_norms[$ds]   = $norm_wfreq;
                 $overdue_caps[$ds] = $overdue_capped;
-                $scored[$ds]       = (0.5 * $norm_freq) + (0.5 * ($overdue_capped / 3.0));
+                $scored[$ds]       = (0.40 * $norm_wfreq)
+                                   + (0.45 * $norm_markov)
+                                   + (0.15 * ($overdue_capped / 3.0));
             }
             arsort($scored);
 

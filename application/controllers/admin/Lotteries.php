@@ -117,12 +117,16 @@ class Lotteries extends Admin_Controller {
 			$table = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 			 // Check for prior draws
     		$this->data['has_prior_draws'] = $this->lotteries_m->check_prior_draws($table, $this->data['lottery']->firstdate);
+			// Store original lottery data for comparison
+			$this->data['original_lottery'] = clone $this->data['lottery'];
 		} else {
 			//load file helper
 			$this->data['lottery'] = $this->lotteries_m->get_new();
 			$this->data['has_prior_draws'] = FALSE; // No Prior Draws
+			$this->data['original_lottery'] = NULL;
 		}
 		$this->data['message'] = '';  // Create a Message object
+		$this->data['requires_confirmation'] = FALSE; // Flag for showing confirmation modal
 		$error = NULL;				  // Related to Image upload only
 		// Setup the form
 
@@ -199,6 +203,31 @@ class Lotteries extends Admin_Controller {
 					'enabled'
 			) );
 
+			// Check if critical parameters have changed (only for existing lotteries)
+			if ($id && $this->has_critical_parameter_changed($this->data['original_lottery'], $data)) {
+				// Check if user has confirmed the deletion
+				$confirmed = $this->input->post('confirm_data_deletion');
+				
+				if ($confirmed === 'no') {
+					// User declined to clear data - cancel the save completely
+					$this->session->set_flashdata('message', 'Lottery profile update cancelled. Critical parameter changes require clearing historical data. No changes were saved.');
+					redirect('admin/lotteries/edit/' . $id);
+					return;
+				} elseif ($confirmed !== 'yes') {
+					// First time submitting with critical changes - show confirmation modal
+					$this->data['requires_confirmation'] = TRUE;
+					$this->data['pending_changes'] = $data;
+					$this->data['message'] = '';
+					// Update lottery object with pending changes so form shows new values
+					$this->data['lottery'] = $this->lotteries_m->array_to_object($this->data['lottery'], $data);
+					// Don't save yet, show confirmation first
+					goto skip_save;
+				} else {
+					// User confirmed (yes) - clear historical data and proceed with save
+					$this->clear_historical_prediction_data($id);
+					$this->data['message'] = 'Historical prediction data has been cleared due to parameter changes. ';
+				}
+			}
 			$data['lottery_image'] = (empty($data['lottery_image']) ? $_POST['image']: $data['lottery_image']);  // Only if not updating the image
 			foreach ($data as $key => $value)
 			{
@@ -213,7 +242,9 @@ class Lotteries extends Admin_Controller {
 			if (!$id) $this->lotteries_m->create_lottery_db($data);
 			else $this->lotteries_m->update_lottery_db($data);
 
-			$this->data['message'] = (is_null($id) ? "The Lottery Profile has been added to the Database." : "The ".$this->data['lottery']->lottery_name." Profile has been updated.");
+			$this->data['message'] .= (is_null($id) ? "The Lottery Profile has been added to the Database." : "The ".$this->data['lottery']->lottery_name." Profile has been updated.");
+			
+			skip_save: // Label for skipping save when confirmation is needed
 		}
 		else 
 		{
@@ -1701,5 +1732,107 @@ class Lotteries extends Admin_Controller {
 		$status_text = ($new_status == 1) ? 'made visible' : 'hidden';
 		$this->session->set_flashdata('message', 'Lottery "' . $lottery->lottery_name . '" has been ' . $status_text . '.');
 		redirect('admin/lotteries');
+	}
+
+	/**
+	 * Check if critical lottery parameters have changed that would invalidate historical predictions
+	 * 
+	 * @param object $original Original lottery data
+	 * @param array $new_data New lottery data from form
+	 * @return boolean TRUE if critical parameters changed, FALSE otherwise
+	 */
+	private function has_critical_parameter_changed($original, $new_data) {
+		// Define critical parameters that invalidate historical data
+		$critical_params = array(
+			'balls_drawn',       // Number of balls drawn
+			'minimum_ball',      // Lowest ball number
+			'maximum_ball',      // Highest ball number
+			'extra_ball',        // Extra ball inclusion (0 or 1)
+			'minimum_extra_ball',// Lowest extra ball
+			'maximum_extra_ball' // Highest extra ball
+		);
+		
+		// Check each critical parameter
+		foreach ($critical_params as $param) {
+			$original_value = isset($original->$param) ? $original->$param : NULL;
+			$new_value = isset($new_data[$param]) ? $new_data[$param] : NULL;
+			
+			// Convert to same type for comparison
+			$original_value = intval($original_value);
+			$new_value = intval($new_value);
+			
+			if ($original_value !== $new_value) {
+				log_message('info', "Critical parameter change detected: $param changed from $original_value to $new_value");
+				return TRUE;
+			}
+		}
+		
+		return FALSE;
+	}
+
+	/**
+	 * Clear all historical prediction data for a lottery
+	 * This includes H-W-C, Followers, Friends, and Non-Followers data
+	 * 
+	 * @param int $lottery_id Lottery ID
+	 * @return boolean TRUE on success, FALSE on failure
+	 */
+	private function clear_historical_prediction_data($lottery_id) {
+		try {
+			$deleted_count = 0;
+			
+			// Clear from lottery_followers table
+			$this->db->where('lottery_id', $lottery_id);
+			$this->db->delete('lottery_followers');
+			$deleted_count += $this->db->affected_rows();
+			log_message('info', "Deleted " . $this->db->affected_rows() . " rows from lottery_followers");
+			
+			// Clear from lottery_nonfollowers table
+			$this->db->where('lottery_id', $lottery_id);
+			$this->db->delete('lottery_nonfollowers');
+			$deleted_count += $this->db->affected_rows();
+			log_message('info', "Deleted " . $this->db->affected_rows() . " rows from lottery_nonfollowers");
+			
+			// Clear from lottery_friends table
+			$this->db->where('lottery_id', $lottery_id);
+			$this->db->delete('lottery_friends');
+			$deleted_count += $this->db->affected_rows();
+			log_message('info', "Deleted " . $this->db->affected_rows() . " rows from lottery_friends");
+			
+			// Clear from lottery_h_w_c table (Hot-Warm-Cold data)
+			if ($this->db->table_exists('lottery_h_w_c')) {
+				$this->db->where('lottery_id', $lottery_id);
+				$this->db->delete('lottery_h_w_c');
+				$deleted_count += $this->db->affected_rows();
+				log_message('info', "Deleted " . $this->db->affected_rows() . " rows from lottery_h_w_c");
+			}
+			
+			// Clear from lottery_h_w_c_stats table (Hot-Warm-Cold history statistics)
+			if ($this->db->table_exists('lottery_h_w_c_stats')) {
+				$this->db->where('lottery_id', $lottery_id);
+				$this->db->delete('lottery_h_w_c_stats');
+				$deleted_count += $this->db->affected_rows();
+				log_message('info', "Deleted " . $this->db->affected_rows() . " rows from lottery_h_w_c_stats");
+			}
+			
+			// Clear statistics cache
+			if (isset($this->statistics_m)) {
+				$lottery = $this->lotteries_m->get($lottery_id);
+				if ($lottery) {
+					$table_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+					$this->statistics_m->clear_cache($table_name);
+					log_message('info', "Cleared statistics cache for $table_name");
+				}
+			}
+			
+			// Set a flag to force complete recalculation on next statistics view
+			$this->session->set_userdata('force_recalc_lottery_' . $lottery_id, TRUE);
+			
+			log_message('info', "Historical prediction data cleared for lottery_id=$lottery_id (Total: $deleted_count rows deleted)");
+			return TRUE;
+		} catch (Exception $e) {
+			log_message('error', "Failed to clear historical data for lottery_id=$lottery_id: " . $e->getMessage());
+			return FALSE;
+		}
 	}
 }

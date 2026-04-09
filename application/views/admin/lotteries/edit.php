@@ -478,6 +478,87 @@
         </form>
     </div>
 <?php endif; ?>
+
+<!-- Critical Parameter Change Confirmation Modal -->
+<?php if (isset($requires_confirmation) && $requires_confirmation): ?>
+<div class="modal fade show" id="confirmModal" tabindex="-1" role="dialog" aria-labelledby="confirmModalLabel" style="display: block; background-color: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="confirmModalLabel">
+                    <i class="fa fa-exclamation-triangle"></i> Warning: Critical Parameter Changes Detected
+                </h5>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger" role="alert">
+                    <h5 class="alert-heading"><i class="fa fa-warning"></i> These changes will invalidate all historical predictions!</h5>
+                    <hr>
+                    <p><strong>You have changed critical lottery parameters that affect predictions:</strong></p>
+                    <ul class="mb-3">
+                        <li>Number of balls drawn, ball range, or extra ball settings</li>
+                        <li>These changes make the old lottery history incompatible with the new configuration</li>
+                    </ul>
+                </div>
+                
+                <div class="alert alert-warning" role="alert">
+                    <h6 class="font-weight-bold">The following data will be permanently deleted:</h6>
+                    <ul class="mb-2">
+                        <li><strong>H-W-C (Hot-Warm-Cold)</strong> classifications</li>
+                        <li><strong>Followers</strong> predictions</li>
+                        <li><strong>Friends</strong> predictions</li>
+                        <li><strong>All statistical cache</strong> data</li>
+                    </ul>
+                    <p class="mb-0 text-danger"><i class="fa fa-exclamation-circle"></i> <strong>This action cannot be undone!</strong></p>
+                </div>
+
+                <div class="alert alert-info" role="alert">
+                    <p class="mb-2"><i class="fa fa-info-circle"></i> <strong>Minimum draws for predictions:</strong></p>
+                    <p class="mb-0">After clearing, you will need at least <strong>200 draws</strong> (default 100-draw range × 2) before accurate predictions can be made again.</p>
+                </div>
+
+                <div class="form-group mt-3">
+                    <h6 class="font-weight-bold">Do you want to delete the old lottery draw history and prediction tables?</h6>
+                    <p class="text-muted">Choose one of the following options:</p>
+                    <ul class="text-muted">
+                        <li><strong>Cancel:</strong> No changes will be saved, lottery profile remains unchanged</li>
+                        <li><strong>Proceed:</strong> Historical data will be cleared and new parameters will be saved</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <form method="post" action="<?php echo site_url('admin/lotteries/edit/' . $lottery->id); ?>" id="confirmForm">
+                    <?php 
+                    // Re-populate all form data as hidden fields
+                    if (isset($pending_changes)) {
+                        foreach ($pending_changes as $key => $value) {
+                            if (!is_array($value)) {
+                                echo '<input type="hidden" name="' . htmlspecialchars($key) . '" value="' . htmlspecialchars($value) . '">';
+                            }
+                        }
+                    }
+                    ?>
+                    <input type="hidden" name="confirm_data_deletion" value="no" id="confirmValue">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('confirmValue').value='no'; document.getElementById('confirmForm').submit();">
+                        <i class="fa fa-ban"></i> Cancel - Don't Save Any Changes
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="if(confirm('Are you absolutely sure? This cannot be undone!')) { document.getElementById('confirmValue').value='yes'; document.getElementById('confirmForm').submit(); }">
+                        <i class="fa fa-trash"></i> Proceed - Clear Data & Save Changes
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+// Prevent closing modal by clicking outside
+$(document).ready(function() {
+    $('#confirmModal').modal({
+        backdrop: 'static',
+        keyboard: false
+    });
+});
+</script>
+<?php endif; ?>
 <script type="text/javascript">
 $(document).ready(function() {
   // Enhanced datepicker initialization with proper view mode for lottery
