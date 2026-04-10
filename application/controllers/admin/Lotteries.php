@@ -191,6 +191,7 @@ class Lotteries extends Admin_Controller {
 					'duplicate_extra_ball',
 					'minimum_extra_ball',
 					'maximum_extra_ball',
+					'prediction_min_range',
 					'monday',
 					'tuesday',
 					'wednesday',

@@ -214,18 +214,33 @@
 										echo form_error('maximum_extra_ball', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
 									</div>
 								</div>
-								
-							<div class="text-center">
-								<div class="d-flex flex-wrap justify-content-center">
-							<?php if ($lottery->id) // If $id
-								{ 
-									$extra = array('style' => 'margin:10px 5px;', 'class' => 'btn btn-primary btn-lg btn-info');
-									echo form_submit('submit', 'Update Lottery Profile', $extra);
-								}
-								else
-								{
-									echo form_submit('submit', 'Create Lottery Profile', 'style = "margin:10px 5px;" class="btn btn-primary btn-lg btn-info"');
-								}
+
+							<!-- Prediction Minimum Range Field -->
+							<div class="form-group form-group-lg row"> 
+								<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
+								echo form_label('Prediction Start Range', 'prediction_min_range_lb', $extra); ?>
+								<div class="col-8">
+									<?php 
+									$range_options = array(
+										'100' => '100 (Standard - 200 draws required)',
+										'50'  => '50 (Faster - 100 draws required)',
+										'25'  => '25 (Quick - 50 draws required)'
+									);
+									$selected_range = isset($lottery->prediction_min_range) ? $lottery->prediction_min_range : '100';
+									$extra = array('class' => 'form-control', 'id' => 'prediction_min_range', 'style'=> 'width:100%');
+									echo form_dropdown('prediction_min_range', $range_options, set_value('prediction_min_range', $selected_range), $extra); 
+									?>
+									<small class="form-text text-muted">
+										<i class="fa fa-info-circle"></i> Lower ranges allow faster predictions but may be less accurate. 
+										Standard (100) requires 200 draws for best results.
+									</small>
+									<?php echo form_error('prediction_min_range', '<div class="bg-warning" style = "margin-top:10px; padding: 10px; text-align: center; color:#ffffff; font-size:16px;">', '</div>'); ?>
+								</div>
+							</div>
+						</div>
+						<!-- Action Buttons -->
+						<div class="text-center mt-3 mb-3">
+							<?php
 								$js = "location.href='".base_url()."admin/lotteries/prizes/".$lottery->id."'";
 								$class = ($lottery->id ? "btn btn-primary btn-lg btn-info" : "btn btn-secondary btn-lg disabled");
 								if ($lottery->id) 
@@ -298,8 +313,6 @@
 								);
 								echo form_button('lotteries_list', 'Back to Lotteries List', $attributes); 
 								?>
-								</div>
-							</div>
 						</div>
 					</div>				
 				</div>
@@ -513,7 +526,11 @@
 
                 <div class="alert alert-info" role="alert">
                     <p class="mb-2"><i class="fa fa-info-circle"></i> <strong>Minimum draws for predictions:</strong></p>
-                    <p class="mb-0">After clearing, you will need at least <strong>200 draws</strong> (default 100-draw range × 2) before accurate predictions can be made again.</p>
+                    <p class="mb-0">After clearing, you will need at least <strong><?php 
+                        $min_range = isset($lottery->prediction_min_range) ? intval($lottery->prediction_min_range) : 100;
+                        $min_draws_required = $min_range * 2;
+                        echo $min_draws_required;
+                    ?> draws</strong> (<?php echo $min_range; ?>-draw range × 2) before accurate predictions can be made again.</p>
                 </div>
 
                 <div class="form-group mt-3">
