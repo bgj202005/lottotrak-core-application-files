@@ -71,6 +71,11 @@ class Lotteries_m extends MY_Model
 			'label' => 'Hightest Extra Ball', 
 			'rules' => 'max_length[2]|less_than_equal_to[54]|callback__extra_ball_set|integer'
 		),
+		'prediction_min_range' => array(
+			'field' => 'prediction_min_range', 
+			'label' => 'Prediction Start Range', 
+			'rules' => 'integer|in_list[25,50,100]'
+		),
 		'monday' => array(
 			'field' => 'monday', 
 			'label' => 'Monday', 
@@ -226,6 +231,7 @@ class Lotteries_m extends MY_Model
 		$lottery->duplicate_extra = 0; // 0 = False 1 = True
 		$lottery->minimum_extra_ball = 0;
 		$lottery->maximum_extra_ball = 0;
+		$lottery->prediction_min_range = 100; // Default to standard range
 		$lottery->days = array(
 			'sunday' => 0,
 			'monday' => 0,
