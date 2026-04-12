@@ -925,6 +925,7 @@ class Lotteries_m extends MY_Model
 	 * @return integer $query->num_rows()	// Returns the number of rows in the query      
 	 */
 	public function check_prior_draws($table_name, $start_date) {
+    if (empty($start_date)) return 0; // Guard against NULL/empty date causing invalid SQL
     $this->db->where('draw_date <', $start_date);
     $query = $this->db->get($table_name);
    	$rows = $this->db->affected_rows(); // $query->num_rows(); Error on some servers

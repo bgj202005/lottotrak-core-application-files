@@ -240,6 +240,7 @@
 						</div>
 						<!-- Action Buttons -->
 						<div class="text-center mt-3 mb-3">
+							<?php echo form_submit('save', ($lottery->id ? 'Update Lottery Profile' : 'Add Lottery Profile'), 'class="btn btn-success btn-lg" style="margin:10px 5px;"'); ?>
 							<?php
 								$js = "location.href='".base_url()."admin/lotteries/prizes/".$lottery->id."'";
 								$class = ($lottery->id ? "btn btn-primary btn-lg btn-info" : "btn btn-secondary btn-lg disabled");
