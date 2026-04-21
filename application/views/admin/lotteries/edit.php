@@ -12,7 +12,19 @@
 	<div class="container">
 		<?php echo form_open_multipart(base_url().'admin/lotteries/edit/'.$lottery->id); ?>
 		<h2><?php echo empty($lottery->id) ? 'Add a new Lottery' : 'Edit Lottery: '.$lottery->lottery_name; ?></h2>
-		<?php if (!empty($message)) ?> <h3 class="bg-warning" style = "text-align:center;"><?=$message; ?></h3>
+		<?php if (!empty($message)): ?>
+			<?php if (isset($firstdate_change_required) && $firstdate_change_required): ?>
+				<div class="alert alert-danger alert-dismissible fade show" role="alert" style="margin-bottom: 20px;">
+					<h4 class="alert-heading"><i class="fa fa-exclamation-triangle"></i> Action Required!</h4>
+					<hr>
+					<?=$message; ?>
+					<hr class="mt-3 mb-2">
+					<p class="mb-0"><i class="fa fa-arrow-down"></i> <strong>Scroll down to "Date of First Draw" field and update it before saving.</strong></p>
+				</div>
+			<?php else: ?>
+				<h3 class="bg-warning" style = "text-align:center;"><?=$message; ?></h3>
+			<?php endif; ?>
+		<?php endif; ?>
 		<div class="row">
 			<div class="col-lg-7 col-md-12" style ="width:100%;">
 				<div class ="card">
@@ -122,7 +134,15 @@
 									</div>
 								</div>
 								<!-- Date of the first draw in the lottery history -->
-								<div class = "form group form-group-lg row">
+								<div class = "form group form-group-lg row <?php echo (isset($firstdate_change_required) && $firstdate_change_required) ? 'border border-danger rounded p-3' : ''; ?>" 
+									<?php echo (isset($firstdate_change_required) && $firstdate_change_required) ? 'style="background-color: #fff3cd;"' : ''; ?>>
+									<?php if (isset($firstdate_change_required) && $firstdate_change_required): ?>
+										<div class="col-12 mb-2">
+											<div class="alert alert-danger mb-2">
+												<i class="fa fa-exclamation-triangle"></i> <strong>UPDATE REQUIRED:</strong> Please change this date to specify when the new lottery configuration starts.
+											</div>
+										</div>
+									<?php endif; ?>
 									<?php $extra = array('class' => 'col-4 col-form-label col-form-label-md');
 										echo form_label('Date of First Draw:', 'first_draw_date_lb', $extra); ?>
 									<div class="col-8">
@@ -522,6 +542,19 @@
                         <li><strong>Friends</strong> predictions</li>
                         <li><strong>All statistical cache</strong> data</li>
                     </ul>
+                    <?php if (isset($affected_draw_range) && $affected_draw_range): ?>
+                    <hr>
+                    <p class="mb-2"><i class="fa fa-calendar"></i> <strong>Historical draw period affected:</strong></p>
+                    <p class="mb-2">
+                        <strong>Draw #<?php echo $affected_draw_range['first_draw_id']; ?></strong> (<?php echo date('F j, Y', strtotime($affected_draw_range['first_date'])); ?>)<br>
+                        <strong>to</strong><br>
+                        <strong>Draw #<?php echo $affected_draw_range['last_draw_id']; ?></strong> (<?php echo date('F j, Y', strtotime($affected_draw_range['last_date'])); ?>)
+                    </p>
+                    <p class="mb-0 font-weight-bold text-danger">
+                        <i class="fa fa-database"></i> Total draws to be deleted: <?php echo number_format($affected_draw_range['total_draws']); ?>
+                    </p>
+                    <?php endif; ?>
+                    <hr>
                     <p class="mb-0 text-danger"><i class="fa fa-exclamation-circle"></i> <strong>This action cannot be undone!</strong></p>
                 </div>
 
@@ -579,6 +612,17 @@ $(document).ready(function() {
 <?php endif; ?>
 <script type="text/javascript">
 $(document).ready(function() {
+  <?php if (isset($firstdate_change_required) && $firstdate_change_required): ?>
+  // Scroll to First Draw Date field when update is required
+  setTimeout(function() {
+    $('html, body').animate({
+      scrollTop: $('#firstdate').offset().top - 150
+    }, 1000);
+    // Add pulsing effect to draw attention
+    $('#firstdate').parent().addClass('shadow-lg');
+  }, 500);
+  <?php endif; ?>
+  
   // Enhanced datepicker initialization with proper view mode for lottery
   $('#firstdate').datepicker({
     format: 'dd-mm-yyyy',

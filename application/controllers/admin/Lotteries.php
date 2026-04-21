@@ -215,10 +215,44 @@ class Lotteries extends Admin_Controller {
 					redirect('admin/lotteries/edit/' . $id);
 					return;
 				} elseif ($confirmed !== 'yes') {
-					// First time submitting with critical changes - show confirmation modal
+					// Check if the first draw date has been changed
+					// Critical parameter changes require a new starting date for the lottery
+					$original_firstdate = date('Y-m-d', strtotime($this->data['original_lottery']->firstdate));
+					$new_firstdate = $data['firstdate'];
+					
+					if ($original_firstdate === $new_firstdate) {
+						// First draw date hasn't changed - require the administrator to update it
+						$this->data['message'] = '<strong>REQUIRED:</strong> You must update the <strong>First Draw Date</strong> when changing critical lottery parameters. '
+							. 'The old draw history will be deleted, so you need to specify a new starting date for this lottery configuration. '
+							. 'Please adjust the First Draw Date before proceeding.';
+						$this->data['firstdate_change_required'] = TRUE;
+						// Update lottery object with pending changes so form shows new values
+						$this->data['lottery'] = $this->lotteries_m->array_to_object($this->data['lottery'], $data);
+						goto skip_save;
+					}
+					
+					// First draw date has been changed - proceed with confirmation modal
 					$this->data['requires_confirmation'] = TRUE;
 					$this->data['pending_changes'] = $data;
 					$this->data['message'] = '';
+					
+					// Fetch the date range of draws that will be affected
+					$first_draw = $this->lotteries_m->first_draw_db($this->data['lottery']->lottery_name);
+					$last_draw = $this->lotteries_m->last_draw_db($this->data['lottery']->lottery_name);
+					$total_draws = $this->lotteries_m->count_draws_db($this->data['lottery']->lottery_name);
+					
+					if ($first_draw && $first_draw !== 'nodraws' && $last_draw && $last_draw !== 'nodraws') {
+						$this->data['affected_draw_range'] = array(
+							'first_date' => $first_draw->draw_date,
+							'last_date' => $last_draw->draw_date,
+							'first_draw_id' => isset($first_draw->id) ? $first_draw->id : 1,
+							'last_draw_id' => isset($last_draw->id) ? $last_draw->id : $total_draws,
+							'total_draws' => $total_draws
+						);
+					} else {
+						$this->data['affected_draw_range'] = null;
+					}
+					
 					// Update lottery object with pending changes so form shows new values
 					$this->data['lottery'] = $this->lotteries_m->array_to_object($this->data['lottery'], $data);
 					// Don't save yet, show confirmation first

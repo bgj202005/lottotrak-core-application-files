@@ -525,6 +525,47 @@ class Lotteries_m extends MY_Model
 		}
 	return FALSE;
 	}
+	
+	/**
+	 * Retrieves the first draw from the lottery database table
+	 * 
+	 * @param       string	$lottery_name		Corresponding lottery name to convert to table name
+	 * @return 		object	$row				First draw row object, 'nodraws' if table empty, FALSE if table doesn't exist
+	 */
+	public function first_draw_db($lottery_name)
+	{
+		$lottery_name = $this->lotto_table_convert($lottery_name); // Converts with Underscores
+
+		if ($this->lotto_table_exists($lottery_name))
+		{
+			$sql = "SELECT * FROM `".$lottery_name."` WHERE `draw_date` IN (SELECT MIN(`draw_date`) FROM `".$lottery_name."`) LIMIT 1";
+			$result = $this->db->query($sql);
+			$row = $result->row();
+			return ($result->num_rows() === 1) ? $row : 'nodraws';
+		}
+		return FALSE;
+	}
+	
+	/**
+	 * Returns total count of draws in the lottery database table
+	 * 
+	 * @param       string	$lottery_name		Corresponding lottery name to convert to table name
+	 * @return 		int		$count				Total number of draws, 0 if table empty, FALSE if table doesn't exist
+	 */
+	public function count_draws_db($lottery_name)
+	{
+		$lottery_name = $this->lotto_table_convert($lottery_name); // Converts with Underscores
+
+		if ($this->lotto_table_exists($lottery_name))
+		{
+			$sql = "SELECT COUNT(*) as total FROM `".$lottery_name."`";
+			$result = $this->db->query($sql);
+			$row = $result->row();
+			return ($row && isset($row->total)) ? intval($row->total) : 0;
+		}
+		return FALSE;
+	}
+	
 	/**
 	 * Returns TRUE if the date is after the first draw date found in the lottery, otherwise return false
 	 * 
