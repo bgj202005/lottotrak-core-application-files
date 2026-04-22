@@ -21,6 +21,13 @@
 					<hr class="mt-3 mb-2">
 					<p class="mb-0"><i class="fa fa-arrow-down"></i> <strong>Scroll down to "Date of First Draw" field and update it before saving.</strong></p>
 				</div>
+			<?php elseif (isset($message_type) && $message_type === 'info'): ?>
+				<div class="alert alert-info alert-dismissible fade show" role="alert" style="margin-bottom: 20px;">
+					<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+					<i class="fa fa-info-circle"></i> <?=$message; ?>
+				</div>
 			<?php else: ?>
 				<h3 class="bg-warning" style = "text-align:center;"><?=$message; ?></h3>
 			<?php endif; ?>
@@ -588,11 +595,11 @@
                         }
                     }
                     ?>
-                    <input type="hidden" name="confirm_data_deletion" value="no" id="confirmValue">
-                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('confirmValue').value='no'; document.getElementById('confirmForm').submit();">
+                    <input type="hidden" name="confirm_data_deletion" value="yes" id="confirmValue">
+                    <a href="<?php echo site_url('admin/lotteries/edit/' . $lottery->id . '?cancelled=1'); ?>" class="btn btn-secondary">
                         <i class="fa fa-ban"></i> Cancel - Don't Save Any Changes
-                    </button>
-                    <button type="button" class="btn btn-danger" onclick="if(confirm('Are you absolutely sure? This cannot be undone!')) { document.getElementById('confirmValue').value='yes'; document.getElementById('confirmForm').submit(); }">
+                    </a>
+                    <button type="button" class="btn btn-danger" onclick="if(confirm('Are you absolutely sure? This cannot be undone!')) { document.getElementById('confirmForm').submit(); }">
                         <i class="fa fa-trash"></i> Proceed - Clear Data & Save Changes
                     </button>
                 </form>

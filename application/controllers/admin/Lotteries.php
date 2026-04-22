@@ -109,6 +109,17 @@ class Lotteries extends Admin_Controller {
 	}
 	
 	public function edit($id = NULL) {
+		// Initialize message type (default to warning)
+		$this->data['message_type'] = 'warning';
+		
+		// Check if user cancelled parameter change confirmation
+		if ($this->input->get('cancelled') == '1' && $id) {
+			$this->data['message'] = 'Update cancelled. No changes were made to the lottery profile.';
+			$this->data['message_type'] = 'info'; // Info message for cancellation
+		} else {
+			$this->data['message'] = '';  // Create a Message object
+		}
+		
 		// Fetch a lottery profile or create a new one
 		if ($id) {
 			$this->data['lottery'] = $this->lotteries_m->get($id);
@@ -125,7 +136,6 @@ class Lotteries extends Admin_Controller {
 			$this->data['has_prior_draws'] = FALSE; // No Prior Draws
 			$this->data['original_lottery'] = NULL;
 		}
-		$this->data['message'] = '';  // Create a Message object
 		$this->data['requires_confirmation'] = FALSE; // Flag for showing confirmation modal
 		$error = NULL;				  // Related to Image upload only
 		// Setup the form
@@ -1119,8 +1129,10 @@ class Lotteries extends Admin_Controller {
 	 */
 	public function _file_check($str){
         $allowed_mime_type_arr = array('image/gif','image/jpeg','image/pjpeg','image/png','image/x-png');
-        $mime = get_mime_by_extension($_FILES['lottery_image']['name']);
+        
+        // Check if file upload exists and has a name before getting mime type
         if(isset($_FILES['lottery_image']['name']) && $_FILES['lottery_image']['name']!=""){
+            $mime = get_mime_by_extension($_FILES['lottery_image']['name']);
             if(in_array($mime, $allowed_mime_type_arr)){
                 return TRUE;
             }else{
@@ -1128,7 +1140,7 @@ class Lotteries extends Admin_Controller {
                 return FALSE;
             }
         }else{
-            $this->form_validation->set_message('_file_check', 'Please choose a file to upload.');
+            // No file uploaded, which is OK for updates
             return TRUE;
         }
 	}
@@ -1173,12 +1185,18 @@ class Lotteries extends Admin_Controller {
 	}
 	/**
 	 * Returns FALSE if the first date is greater than or equal to the last date
+	 * EXCEPTION: Skips validation if critical parameters changed and first date was updated
 	 * 
 	 * @param       none		
-	 * @return      TRUE/FALSE 	TRUE (if firstdate is less than lastdate), FALSE (if firstdate is greater than lastdate)
+	 * @return      TRUE/FALSE 	TRUE (if firstdate is less than lastdate OR exception applies), FALSE (if firstdate is greater than lastdate)
 	 */
 	public function _firstdate_greater_equal_lastdate() 
 	{
+		// Check if we should skip validation due to critical parameter change with new firstdate
+		if ($this->should_skip_date_validation()) {
+			return TRUE;
+		}
+		
 		$firstdate = strtotime($this->input->post('firstdate'));
 		$lastdate  = strtotime($this->input->post('lastdate'));
 		if ($firstdate>=$lastdate) 
@@ -1190,12 +1208,18 @@ class Lotteries extends Admin_Controller {
 	}
 	/**
 	 * Returns FALSE if the first date is greater than or equal to the last date
+	 * EXCEPTION: Skips validation if critical parameters changed and first date was updated
 	 * 
 	 * @param       none		
-	 * @return      TRUE/FALSE 	TRUE (if lastdate is less than firstdate), FALSE (if lastdate is greater than or equal lastdate)
+	 * @return      TRUE/FALSE 	TRUE (if lastdate is less than firstdate OR exception applies), FALSE (if lastdate is greater than or equal lastdate)
 	 */
 	public function _lastdate_less_equal_firstdate() 
 	{
+		// Check if we should skip validation due to critical parameter change with new firstdate
+		if ($this->should_skip_date_validation()) {
+			return TRUE;
+		}
+		
 		$firstdate = strtotime($this->input->post('firstdate'));
 		$lastdate  = strtotime($this->input->post('lastdate'));
 		if ($lastdate<=$firstdate) 
@@ -1205,6 +1229,52 @@ class Lotteries extends Admin_Controller {
 		}
 	return TRUE;
 	}
+	
+	/**
+	 * Determines if date validation should be skipped
+	 * Skips when critical parameters have changed AND first draw date has been updated
+	 * 
+	 * @return      bool TRUE if validation should be skipped, FALSE otherwise
+	 */
+	private function should_skip_date_validation() 
+	{
+		// Check if we have an original lottery stored (only available during edit)
+		if (!isset($this->data['original_lottery']) || !$this->data['original_lottery']) {
+			return FALSE;
+		}
+		
+		// Get current POST data to compare
+		$current_data = array(
+			'balls_drawn' => $this->input->post('balls_drawn'),
+			'minimum_ball' => $this->input->post('minimum_ball'),
+			'maximum_ball' => $this->input->post('maximum_ball'),
+			'extra_ball' => $this->input->post('extra_ball') ? 1 : 0,
+			'minimum_extra_ball' => $this->input->post('minimum_extra_ball'),
+			'maximum_extra_ball' => $this->input->post('maximum_extra_ball')
+		);
+		
+		// Check if critical parameters have changed
+		$critical_params_changed = $this->has_critical_parameter_changed($this->data['original_lottery'], $current_data);
+		
+		if (!$critical_params_changed) {
+			return FALSE; // No critical changes, apply normal validation
+		}
+		
+		// Critical parameters changed - check if first date was also updated
+		$original_firstdate = date('Y-m-d', strtotime($this->data['original_lottery']->firstdate));
+		$new_firstdate_input = $this->input->post('firstdate');
+		
+		// Convert the posted date from dd-mm-yyyy to Y-m-d for comparison
+		$firstdate_obj = DateTime::createFromFormat('d-m-Y', $new_firstdate_input);
+		if (!$firstdate_obj) {
+			return FALSE; // Invalid date format, apply normal validation
+		}
+		$new_firstdate = $firstdate_obj->format('Y-m-d');
+		
+		// Skip validation if critical params changed AND first date was updated
+		return ($original_firstdate !== $new_firstdate);
+	}
+	
 	/**
 	 * Add Draw input boxes to the latest draw
 	 * 
