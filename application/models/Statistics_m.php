@@ -611,7 +611,9 @@ class Statistics_m extends MY_Model
 	public function sum_last($tbl, $drawn)
 	{	
 		if (!$this->lotteries_m->lotto_table_exists($tbl)) return 'NA';
-		$row_last = (array) $this->db_row($tbl, 0);
+		$draw = $this->db_row($tbl, 0);
+		if (!$draw) return 'NA';  // No draws exist in the table
+		$row_last = (array) $draw;
 
 		$b = 1;
 		$sum = 0;
@@ -635,8 +637,11 @@ class Statistics_m extends MY_Model
 	public function repeaters($tbl, $drawn)
 	{	
 		if (!$this->lotteries_m->lotto_table_exists($tbl)) return 'NA';	// Draw Database Does not Exist
-		$row_last = (array) $this->db_row($tbl, 0);
-		$row_previous = (array) $this->db_row($tbl, 1);
+		$draw_last = $this->db_row($tbl, 0);
+		$draw_prev = $this->db_row($tbl, 1);
+		if (!$draw_last || !$draw_prev) return 'NA';  // Need at least 2 draws to compare
+		$row_last = (array) $draw_last;
+		$row_previous = (array) $draw_prev;
 
 		$b = 1;
 		$current = array();
@@ -674,6 +679,7 @@ class Statistics_m extends MY_Model
 	{	
 		if (!$this->lotteries_m->lotto_table_exists($tbl)) return 'NA';	// Draw Database Does not Exist
 		$draw = $this->db_row($tbl, 0);
+		if (!$draw) return 'NA';  // No draws exist in the table
 		return $draw->draw_date;	// Return the draw date (YYYY-MM-DD format)			
 	}
 
@@ -6142,6 +6148,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	public function positions_before_last($table, $max, $xtra, $dup, $highs, $middles, $lows, $current)
 	{
 		$pv = $this->db_row($table);  	 // Get the most recent drawn numbers
+		if (!$pv) return '';  // No draws exist in the table
 		$pv = (array)$pv; 	 		   	  // Convert the object to an array
 		$prev_drawn = $this->only_picks($max, $pv); // Get the numbers drawn only
 		if($xtra&&!$dup) // If the extra ball is included

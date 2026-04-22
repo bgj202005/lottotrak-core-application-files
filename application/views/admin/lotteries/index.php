@@ -507,7 +507,15 @@
 		<td style = "text-align:center; font-size: 0.7em;" class="mobile-hide"><?=($lottery->duplicate_extra_ball ? 'Yes' : 'No'); ?></td>
 		<td style = "text-align:center; font-size: 0.7em;" class="mobile-hide"><?=($lottery->extra_ball ? $lottery->minimum_extra_ball : '--'); ?></td>
 		<td style = "text-align:center; font-size: 0.7em;" class="mobile-hide"><?=($lottery->extra_ball ? $lottery->maximum_extra_ball : '--'); ?></td>
-		<td style = "text-align:center; font-size: 0.85em;" class="tablet-hide action-btns"><?php echo btn_view('admin/lotteries/view_draws/'.$lottery->id); ?></td>
+		<td style = "text-align:center; font-size: 0.85em;" class="tablet-hide action-btns">
+			<?php if (!empty($lottery->last_date) && !empty($lottery->last_draw)): ?>
+				<?php echo btn_view('admin/lotteries/view_draws/'.$lottery->id); ?>
+			<?php else: ?>
+				<span style="color: #ccc; cursor: not-allowed;" title="No draws available">
+					<i class="fa fa-eye fa-2x" aria-hidden="true"></i>
+				</span>
+			<?php endif; ?>
+		</td>
 		<td style = "text-align:center; font-size: 0.85em;" class="action-btns"><?php echo btn_edit('admin/lotteries/edit/'.$lottery->id); ?></td>
 		<td style = "text-align:center; font-size: 0.85em;" class="action-btns"><?php echo btn_prizes('admin/lotteries/prizes/'.$lottery->id); ?></td>
 		<td style = "text-align:center; font-size: 0.85em;" class="action-btns"><?php echo btn_import('admin/lotteries/import/'.$lottery->id); ?></td>

@@ -512,7 +512,6 @@
         Draws prior to the start date. Do you want to delete prior draws? (Y/N)
         <form method="post" action="<?php echo site_url('admin/lotteries/delete_prior_draws'); ?>">
             <input type="hidden" name="lottery_id" value="<?php echo $lottery->id; ?>">
-            <input type="hidden" name="table_name" value="<?php echo $lottery->lottery_name; ?>">
             <input type="hidden" name="start_date" value="<?php echo $lottery->firstdate; ?>">
             <button type="submit" name="confirm" value="Y" class="btn btn-danger">Yes</button>
             <button type="submit" name="confirm" value="N" class="btn btn-secondary">No</button>
@@ -596,10 +595,10 @@
                     }
                     ?>
                     <input type="hidden" name="confirm_data_deletion" value="yes" id="confirmValue">
-                    <a href="<?php echo site_url('admin/lotteries/edit/' . $lottery->id . '?cancelled=1'); ?>" class="btn btn-secondary">
+                    <a href="<?php echo site_url('admin/lotteries/edit/' . $lottery->id . '?cancelled=1'); ?>" class="btn btn-secondary" style="color: #fff !important; text-decoration: none;">
                         <i class="fa fa-ban"></i> Cancel - Don't Save Any Changes
                     </a>
-                    <button type="button" class="btn btn-danger" onclick="if(confirm('Are you absolutely sure? This cannot be undone!')) { document.getElementById('confirmForm').submit(); }">
+                    <button type="button" class="btn btn-danger" id="proceedBtn" onclick="confirmAndDelete()">
                         <i class="fa fa-trash"></i> Proceed - Clear Data & Save Changes
                     </button>
                 </form>
@@ -607,7 +606,31 @@
         </div>
     </div>
 </div>
+
+<!-- Loading Overlay for Deletion Progress -->
+<div id="deletionLoadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="text-align: center; background: #fff; padding: 40px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+        <div style="margin-bottom: 20px;">
+            <i class="fa fa-spinner fa-spin" style="font-size: 48px; color: #dc3545;"></i>
+        </div>
+        <h3 style="color: #dc3545; margin-bottom: 10px;">Deleting Historical Data</h3>
+        <p style="font-size: 16px; color: #666; margin-bottom: 5px;">Clearing draws and prediction tables...</p>
+        <p style="font-size: 14px; color: #999;">Please wait, this may take a moment.</p>
+    </div>
+</div>
+
 <script>
+function confirmAndDelete() {
+    if(confirm('Are you absolutely sure? This cannot be undone!')) {
+        // Show loading overlay
+        document.getElementById('deletionLoadingOverlay').style.display = 'flex';
+        // Disable the button to prevent double-clicks
+        document.getElementById('proceedBtn').disabled = true;
+        // Submit the form
+        document.getElementById('confirmForm').submit();
+    }
+}
+
 // Prevent closing modal by clicking outside
 $(document).ready(function() {
     $('#confirmModal').modal({

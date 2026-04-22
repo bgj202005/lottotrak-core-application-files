@@ -182,7 +182,7 @@ class Lotteries extends Admin_Controller {
 		$this->form_validation->set_rules($rules);
 		
 		if ($this->form_validation->run() == TRUE&&is_null($error)) {
- 			$_POST['lottery_image'] = (is_null($_FILES['lottery_image']) ? '': $_FILES['lottery_image']['name']); 
+ 			$_POST['lottery_image'] = (isset($_FILES['lottery_image']['name']) && !empty($_FILES['lottery_image']['name']) ? $_FILES['lottery_image']['name'] : ''); 
 			$firstdate = new DateTime($_POST['firstdate']); 
 			$_POST['firstdate'] = $firstdate->format('Y-m-d');
 			$lastdate = new DateTime($_POST['lastdate']);
@@ -273,7 +273,7 @@ class Lotteries extends Admin_Controller {
 					$this->data['message'] = 'Historical prediction data has been cleared due to parameter changes. ';
 				}
 			}
-			$data['lottery_image'] = (empty($data['lottery_image']) ? $_POST['image']: $data['lottery_image']);  // Only if not updating the image
+			$data['lottery_image'] = (empty($data['lottery_image']) && isset($_POST['image']) ? $_POST['image'] : $data['lottery_image']);  // Only if not updating the image
 			foreach ($data as $key => $value)
 			{
 				if(intval($value)&&(!$this->is_valid_date($value))) // If the value is an integer and not a date	
@@ -344,20 +344,117 @@ class Lotteries extends Admin_Controller {
 	 * @return none
 	 */
 	public function delete_prior_draws() {
-    $lottery_id = $this->input->post('lottery_id');
-    $table_name = $this->input->post('table_name');
-    $start_date = $this->input->post('start_date');
-    $confirm = $this->input->post('confirm');
+		$lottery_id = $this->input->post('lottery_id');
+		$start_date = $this->input->post('start_date');
+		$confirm = $this->input->post('confirm');
 
-    if ($confirm === 'Y') {
-        $this->db->where('draw_date <', $start_date);
-        $this->db->delete($table_name);
-        $this->session->set_flashdata('message', 'Prior draws deleted successfully.');
-    } else {
-        $this->session->set_flashdata('message', 'No draws were deleted.');
-    }
-    redirect('admin/lotteries/edit/' . $lottery_id);
+		if ($confirm === 'Y') {
+			// Get the lottery by ID to get the actual lottery name
+			$lottery = $this->lotteries_m->get($lottery_id);
+			
+			if (!$lottery) {
+				$this->session->set_flashdata('error', 'Lottery not found.');
+				redirect('admin/lotteries/edit/' . $lottery_id);
+				return;
+			}
+			
+			// Convert lottery name to table name (e.g., "Lotto Max" -> "lotto_max")
+			$table_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+			
+			// Check if the table exists
+			if (!$this->db->table_exists($table_name)) {
+				$this->session->set_flashdata('error', 'Lottery draw table does not exist: ' . $table_name);
+				redirect('admin/lotteries/edit/' . $lottery_id);
+				return;
+			}
+			
+			// Count draws that will be deleted
+			$this->db->where('draw_date <', $start_date);
+			$count_to_delete = $this->db->count_all_results($table_name);
+			
+			// Delete the draws
+			$this->db->where('draw_date <', $start_date);
+			$this->db->delete($table_name);
+			$deleted_count = $this->db->affected_rows();
+			
+			log_message('info', "Deleted $deleted_count draws prior to $start_date from $table_name");
+			
+			// Check if there are any remaining draws
+			$remaining_draws = $this->db->count_all($table_name);
+			
+			// Log lottery_image value before any updates to verify it's not being affected
+			log_message('info', "Before update - Lottery #{$lottery_id} lottery_image: " . ($lottery->lottery_image ?: 'NULL'));
+			
+			if ($remaining_draws == 0) {
+				// No draws left - update lottery profile to reflect this
+				$update_data = array(
+					'lastdate' => NULL
+				);
+				
+				// Enable query logging to debug the update
+				$this->db->db_debug = TRUE;
+				log_message('info', "Executing UPDATE lottery_profiles SET lastdate=NULL WHERE id=$lottery_id");
+				
+				$this->db->where('id', $lottery_id);
+				$affected = $this->db->update('lottery_profiles', $update_data);
+				
+				log_message('info', "Update affected $affected rows. Last query: " . $this->db->last_query());
+				
+				// Verify lottery_image was not affected by the update
+				$lottery_check = $this->lotteries_m->get($lottery_id);
+				log_message('info', "After update (no draws) - Lottery #{$lottery_id} lottery_image: " . ($lottery_check->lottery_image ?: 'NULL'));
+				
+				// Clear all prediction data since there are no draws
+				$this->clear_historical_prediction_data($lottery_id);
+				
+				// Clear statistics cache
+				if (isset($this->statistics_m)) {
+					$this->statistics_m->clear_cache($table_name);
+				}
+				
+				$this->session->set_flashdata('message', "All prior draws ($deleted_count) have been deleted. The lottery has no remaining draws. Last Date and Numbers have been set to N/A.");
+			} else {
+				// Some draws remain - update the lastdate to the most recent draw
+				$this->db->select('MAX(draw_date) as max_date');
+				$this->db->from($table_name);
+				$query = $this->db->get();
+				$result = $query->row();
+				
+				if ($result && $result->max_date) {
+					$update_data = array(
+						'lastdate' => $result->max_date
+					);
+					
+					// Enable query logging to debug the update
+					log_message('info', "Executing UPDATE lottery_profiles SET lastdate='{$result->max_date}' WHERE id=$lottery_id");
+					
+					$this->db->where('id', $lottery_id);
+					$affected = $this->db->update('lottery_profiles', $update_data);
+					
+					log_message('info', "Update affected $affected rows. Last query: " . $this->db->last_query());
+					
+					// Verify lottery_image was not affected by the update
+					$lottery_check = $this->lotteries_m->get($lottery_id);
+					log_message('info', "After update (draws remain) - Lottery #{$lottery_id} lottery_image: " . ($lottery_check->lottery_image ?: 'NULL'));
+				}
+				
+				// Clear prediction data as the draw history has changed
+				$this->clear_historical_prediction_data($lottery_id);
+				
+				// Clear statistics cache
+				if (isset($this->statistics_m)) {
+					$this->statistics_m->clear_cache($table_name);
+				}
+				
+				$this->session->set_flashdata('message', "$deleted_count draws prior to $start_date have been deleted successfully. $remaining_draws draws remain in the database.");
+			}
+		} else {
+			$this->session->set_flashdata('message', 'No draws were deleted.');
+		}
+		
+		redirect('admin/lotteries/edit/' . $lottery_id);
 	}
+	
 	/**
 	 * Lottery Prize Breakdown
 	 * 
@@ -1194,11 +1291,15 @@ class Lotteries extends Admin_Controller {
 	{
 		// Check if we should skip validation due to critical parameter change with new firstdate
 		if ($this->should_skip_date_validation()) {
+			log_message('info', 'Date validation skipped for firstdate - critical parameters changed with updated first date');
 			return TRUE;
 		}
 		
 		$firstdate = strtotime($this->input->post('firstdate'));
 		$lastdate  = strtotime($this->input->post('lastdate'));
+		
+		log_message('info', 'Validating firstdate vs lastdate: ' . date('Y-m-d', $firstdate) . ' vs ' . date('Y-m-d', $lastdate));
+		
 		if ($firstdate>=$lastdate) 
 		{
 			$this->form_validation->set_message('_firstdate_greater_equal_lastdate', 'The First Date must be less than the Last Date.');
@@ -1217,11 +1318,15 @@ class Lotteries extends Admin_Controller {
 	{
 		// Check if we should skip validation due to critical parameter change with new firstdate
 		if ($this->should_skip_date_validation()) {
+			log_message('info', 'Date validation skipped for lastdate - critical parameters changed with updated first date');
 			return TRUE;
 		}
 		
 		$firstdate = strtotime($this->input->post('firstdate'));
 		$lastdate  = strtotime($this->input->post('lastdate'));
+		
+		log_message('info', 'Validating lastdate vs firstdate: ' . date('Y-m-d', $lastdate) . ' vs ' . date('Y-m-d', $firstdate));
+		
 		if ($lastdate<=$firstdate) 
 		{
 			$this->form_validation->set_message('_lastdate_less_equal_firstdate', 'The Last Date must be greater than the First Date.');
@@ -1233,13 +1338,21 @@ class Lotteries extends Admin_Controller {
 	/**
 	 * Determines if date validation should be skipped
 	 * Skips when critical parameters have changed AND first draw date has been updated
+	 * Also skips during confirmation flow
 	 * 
 	 * @return      bool TRUE if validation should be skipped, FALSE otherwise
 	 */
 	private function should_skip_date_validation() 
 	{
+		// Skip validation if we're in the confirmation flow
+		if ($this->input->post('confirm_data_deletion') === 'yes') {
+			log_message('info', 'Skipping date validation - in confirmation flow');
+			return TRUE;
+		}
+		
 		// Check if we have an original lottery stored (only available during edit)
 		if (!isset($this->data['original_lottery']) || !$this->data['original_lottery']) {
+			log_message('info', 'Not skipping date validation - no original lottery data');
 			return FALSE;
 		}
 		
@@ -1257,8 +1370,11 @@ class Lotteries extends Admin_Controller {
 		$critical_params_changed = $this->has_critical_parameter_changed($this->data['original_lottery'], $current_data);
 		
 		if (!$critical_params_changed) {
+			log_message('info', 'Not skipping date validation - no critical parameter changes detected');
 			return FALSE; // No critical changes, apply normal validation
 		}
+		
+		log_message('info', 'Critical parameters changed - checking if first date was updated');
 		
 		// Critical parameters changed - check if first date was also updated
 		$original_firstdate = date('Y-m-d', strtotime($this->data['original_lottery']->firstdate));
@@ -1267,12 +1383,37 @@ class Lotteries extends Admin_Controller {
 		// Convert the posted date from dd-mm-yyyy to Y-m-d for comparison
 		$firstdate_obj = DateTime::createFromFormat('d-m-Y', $new_firstdate_input);
 		if (!$firstdate_obj) {
-			return FALSE; // Invalid date format, apply normal validation
+			// Try alternative format in case of different date input
+			$firstdate_obj = DateTime::createFromFormat('Y-m-d', $new_firstdate_input);
+			if (!$firstdate_obj) {
+				log_message('error', 'Failed to parse first date input: ' . $new_firstdate_input);
+				return FALSE; // Invalid date format, apply normal validation
+			}
 		}
 		$new_firstdate = $firstdate_obj->format('Y-m-d');
 		
+		$date_changed = ($original_firstdate !== $new_firstdate);
+		log_message('info', 'First date comparison: original=' . $original_firstdate . ', new=' . $new_firstdate . ', changed=' . ($date_changed ? 'YES' : 'NO'));
+		
+		// Additional check: if the new first date is after the last date AND critical params changed,
+		// this is clearly a scenario where validation should be skipped (new configuration starting in future)
+		if ($date_changed) {
+			$lastdate_input = $this->input->post('lastdate');
+			$lastdate_obj = DateTime::createFromFormat('d-m-Y', $lastdate_input);
+			if (!$lastdate_obj) {
+				$lastdate_obj = DateTime::createFromFormat('Y-m-d', $lastdate_input);
+			}
+			if ($lastdate_obj) {
+				$new_lastdate = $lastdate_obj->format('Y-m-d');
+				if ($new_firstdate > $new_lastdate) {
+					log_message('info', 'Skipping validation - new first date is after last date (new configuration setup)');
+					return TRUE;
+				}
+			}
+		}
+		
 		// Skip validation if critical params changed AND first date was updated
-		return ($original_firstdate !== $new_firstdate);
+		return $date_changed;
 	}
 	
 	/**
