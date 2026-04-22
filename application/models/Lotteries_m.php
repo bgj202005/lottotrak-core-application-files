@@ -518,7 +518,8 @@ class Lotteries_m extends MY_Model
 
 		if ($this->lotto_table_exists($lottery_name))
 		{
-			$sql = "SELECT * FROM `".$lottery_name."` WHERE `draw_date` IN (SELECT MAX(`draw_date`) FROM `".$lottery_name."`) LIMIT 1";
+			// Only select main draws (where extra != 0), excluding bonus/extra draws (extra = 0)
+			$sql = "SELECT * FROM `".$lottery_name."` WHERE `extra` <> '0' AND `draw_date` IN (SELECT MAX(`draw_date`) FROM `".$lottery_name."` WHERE `extra` <> '0') LIMIT 1";
 			$result = $this->db->query($sql);
 			$row = $result->row();
 			return ($result->num_rows() === 1) ? $row : 'nodraws';
@@ -538,7 +539,8 @@ class Lotteries_m extends MY_Model
 
 		if ($this->lotto_table_exists($lottery_name))
 		{
-			$sql = "SELECT * FROM `".$lottery_name."` WHERE `draw_date` IN (SELECT MIN(`draw_date`) FROM `".$lottery_name."`) LIMIT 1";
+			// Only select main draws (where extra != 0), excluding bonus/extra draws (extra = 0)
+			$sql = "SELECT * FROM `".$lottery_name."` WHERE `extra` <> '0' AND `draw_date` IN (SELECT MIN(`draw_date`) FROM `".$lottery_name."` WHERE `extra` <> '0') LIMIT 1";
 			$result = $this->db->query($sql);
 			$row = $result->row();
 			return ($result->num_rows() === 1) ? $row : 'nodraws';
@@ -558,7 +560,8 @@ class Lotteries_m extends MY_Model
 
 		if ($this->lotto_table_exists($lottery_name))
 		{
-			$sql = "SELECT COUNT(*) as total FROM `".$lottery_name."`";
+			// Only count main draws (where extra != 0), excluding bonus/extra draws (extra = 0)
+			$sql = "SELECT COUNT(*) as total FROM `".$lottery_name."` WHERE `extra` <> '0'";
 			$result = $this->db->query($sql);
 			$row = $result->row();
 			return ($row && isset($row->total)) ? intval($row->total) : 0;
@@ -966,10 +969,12 @@ class Lotteries_m extends MY_Model
 	 * @return integer $query->num_rows()	// Returns the number of rows in the query      
 	 */
 	public function check_prior_draws($table_name, $start_date) {
-    if (empty($start_date)) return 0; // Guard against NULL/empty date causing invalid SQL
-    $this->db->where('draw_date <', $start_date);
-    $query = $this->db->get($table_name);
-   	$rows = $this->db->affected_rows(); // $query->num_rows(); Error on some servers
+		if (empty($start_date)) return 0; // Guard against NULL/empty date causing invalid SQL
+		// Only check main draws (where extra != 0), excluding bonus/extra draws (extra = 0)
+		$this->db->where('draw_date <', $start_date);
+		$this->db->where('extra !=', '0');
+		$query = $this->db->get($table_name);
+		$rows = $this->db->affected_rows(); // $query->num_rows(); Error on some servers
 		if ($rows > 0) {
 			return $rows;
 		} else {
@@ -1214,8 +1219,10 @@ class Lotteries_m extends MY_Model
 	public function get_latest_draw_date($table_name)
 	{
 		if ($this->lotto_table_exists($table_name)) {
+			// Only consider main draws (where extra != 0), excluding bonus/extra draws (extra = 0)
 			$this->db->select('MAX(draw_date) as latest_date');
 			$this->db->from($table_name);
+			$this->db->where('extra !=', '0');
 			$result = $this->db->get();
 			
 			if ($result->num_rows() > 0) {
