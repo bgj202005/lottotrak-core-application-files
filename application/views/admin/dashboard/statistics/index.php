@@ -84,8 +84,12 @@
 		<td style = "text-align:center;"><?=$lottery->average_sum; ?></td>
 		<td style = "text-align:center;"><?=$lottery->sum_last; ?></td>
 		<td style = "text-align:center;"><?=$lottery->repeaters; ?></td>
-		<td style = "text-align:center;"><?php echo $statistics->btn_stat('admin/statistics/view_draws/'.$lottery->id); ?></td>
-		<?php if($lottery->needs_recalc): ?>
+		<td style = "text-align:center;"><?php echo $statistics->btn_stat('admin/statistics/view_draws/'.$lottery->id, $lottery->draw_count == 0); ?></td>
+		<?php if(!$lottery->min_draws_met): ?>
+		<td colspan="3" style="text-align:center; vertical-align:top; padding:8px;">
+			<span style="color: #d9534f; font-weight: bold; font-size:0.875em;">The minimum of <?=$lottery->required_draws;?> draws has NOT BEEN MET.</span>
+		</td>
+		<?php elseif($lottery->needs_recalc): ?>
 		<td colspan="3" style="text-align:center; vertical-align:top; padding:8px;">
 			<span style="color: #d9534f; font-weight: bold; font-size:0.875em;">ReCalc Required</span>
 		</td>
@@ -94,8 +98,8 @@
 		<td style = "text-align:center;"><?php echo $statistics->btn_followers('admin/statistics/followers/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_friends('admin/statistics/friends/'.$lottery->id); ?></td>
 		<?php endif; ?>
-		<td style = "text-align:center;"><?php echo $statistics->btn_calculate('admin/statistics/calculate/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><input type="checkbox" name="recalc" value="<?=$lottery->id;?>" class="recalc<?=$lottery->id;?>" id="recalc" <?=($lottery->last_draw!='NA' ? '' : 'disabled');?> >
+		<td style = "text-align:center;"><?php echo $statistics->btn_calculate('admin/statistics/calculate/'.$lottery->id, $lottery->draw_count == 0); ?></td>
+		<td style = "text-align:center;"><input type="checkbox" name="recalc" value="<?=$lottery->id;?>" class="recalc<?=$lottery->id;?>" id="recalc" <?=(!$lottery->min_draws_met ? 'disabled' : '');?> >
 		<td style = "text-align:center;">
 			<button type="button" class="btn btn-sm btn-warning reset-followers" 
 					data-lottery-id="<?=$lottery->id;?>"

@@ -33,6 +33,22 @@ class Statistics extends Admin_Controller {
 
 			$lottery->last_date = $this->statistics_m->last_date($tbl_name);
 			$lottery->last_draw = $this->statistics_m->last_draw($tbl_name, $lottery->balls_drawn, $lottery->extra_ball);
+			
+			// Get draw count for minimum range checking
+			$lottery->draw_count = $this->lotteries_m->count_draws_db($lottery->lottery_name);
+			if ($lottery->draw_count === FALSE) $lottery->draw_count = 0;
+			
+			// Get prediction_min_range (default to 100 if not set)
+			$lottery->prediction_min_range = isset($lottery->prediction_min_range) && $lottery->prediction_min_range > 0 
+				? intval($lottery->prediction_min_range) 
+				: 100;
+			
+			// Calculate required draws based on prediction range
+			$lottery->required_draws = $lottery->prediction_min_range * 2;
+			
+			// Check if minimum draw requirement is met
+			$lottery->min_draws_met = ($lottery->draw_count >= $lottery->required_draws);
+			
 			$c = $this->statistics_m->lottery_rows($tbl_name);
 			if($c>100) $c = 100;
 			$lottery->average_sum = $this->statistics_m->lottery_average_sum($tbl_name, $c);
@@ -67,10 +83,14 @@ class Statistics extends Admin_Controller {
 	 * View Commulative Statistics of each draw
 	 * 
 	 * @param       string	$uri	uri admin address of the statistics page
+	 * @param       bool	$disabled	Whether to grey out the icon
 	 * @return      none
 	 */
-	public function btn_stat($uri) 
+	public function btn_stat($uri, $disabled = false) 
 	{
+		if ($disabled) {
+			return '<span style="color: #ccc; cursor: not-allowed;" title="No draws available"><i class="fa fa-line-chart fa-2x" aria-hidden="true"></i></span>';
+		}
 		return anchor($uri, '<i class="fa fa-line-chart fa-2x" aria-hidden="true">', array('title' => 'View Commulative Statistics', 'class' => 'stats'));
 	}
 
@@ -111,10 +131,14 @@ class Statistics extends Admin_Controller {
 	 * Calculate the Current History or Update to the latest Draw
 	 * 
 	 * @param       string	$uri	uri admin address of the statistics page
+	 * @param       bool	$disabled	Whether to grey out the icon
 	 * @return      none
 	 */
-	public function btn_calculate($uri)
+	public function btn_calculate($uri, $disabled = false)
 	{
+		if ($disabled) {
+			return '<span style="color: #ccc; cursor: not-allowed;" title="No draws available"><i class="fa fa-calculator fa-2x" aria-hidden="true"></i></span>';
+		}
 		return anchor($uri, '<i class="fa fa-calculator fa-2x" aria-hidden="true">', array('title' => 'Calculate the Current History or Update to the latest Draw', 'class' => 'calculate'));
 	}
 	/**
