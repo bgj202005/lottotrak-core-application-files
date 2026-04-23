@@ -593,6 +593,10 @@
                             }
                         }
                     }
+                    // Preserve the original lottery image
+                    if (!empty($lottery->lottery_image)) {
+                        echo '<input type="hidden" name="image" value="' . htmlspecialchars($lottery->lottery_image) . '">';
+                    }
                     ?>
                     <input type="hidden" name="confirm_data_deletion" value="yes" id="confirmValue">
                     <a href="<?php echo site_url('admin/lotteries/edit/' . $lottery->id . '?cancelled=1'); ?>" class="btn btn-secondary" style="color: #fff !important; text-decoration: none;">

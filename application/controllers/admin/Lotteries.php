@@ -183,6 +183,12 @@ class Lotteries extends Admin_Controller {
 		
 		if ($this->form_validation->run() == TRUE&&is_null($error)) {
  			$_POST['lottery_image'] = (isset($_FILES['lottery_image']['name']) && !empty($_FILES['lottery_image']['name']) ? $_FILES['lottery_image']['name'] : ''); 
+			
+			// Preserve the original image if no new image was uploaded
+			if (empty($_POST['lottery_image']) && isset($_POST['image']) && !empty($_POST['image'])) {
+				$_POST['lottery_image'] = $_POST['image'];
+			}
+			
 			$firstdate = new DateTime($_POST['firstdate']); 
 			$_POST['firstdate'] = $firstdate->format('Y-m-d');
 			$lastdate = new DateTime($_POST['lastdate']);
