@@ -115,9 +115,18 @@ class History extends Admin_Controller {
 		}
 
 		$all = $this->lotteries_m->db_row_count($tbl_name); // Return the total number of draws for this lottery
-		if($all>100)
+		
+		// Get filtered counts for dropdown
+		$this->db->reset_query();
+		$all_regular = $this->db->where('extra <>', 0)->count_all_results($tbl_name); // Count of regular draws only
+		
+		// Check glance to determine current extra_draws setting
+		$temp_glance = $this->history_m->glance_exists($id);
+		$display_all = (!empty($temp_glance) && $temp_glance->extra_draws) ? $all : $all_regular;
+		
+		if($display_all>100)
 		{
-			$interval = intval($all / 100); // Create the drop down in multiples of 100 and typecast to an integer value (truncates the floating point portion)
+			$interval = intval($display_all / 100); // Create the drop down in multiples of 100 and typecast to an integer value (truncates the floating point portion)
 			if(!$interval) $interval = 1;	// 1 to 100 draws
 		}
 		else
@@ -188,22 +197,43 @@ class History extends Admin_Controller {
 				$this->data['lottery']->extra_draws = $glance->extra_draws;
 			}
 		} // if(!empty($glance))	
+		
+		// Recalculate display_all based on final checkbox state
+		$display_all = $this->data['lottery']->extra_draws ? $all : $all_regular;
+		
+		// Adjust new_range if it exceeds available draws
+		if($new_range > $display_all) {
+			$new_range = $display_all;
+		}
+		
+		if($display_all>100)
+		{
+			$interval = intval($display_all / 100);
+			if(!$interval) $interval = 1;
+		}
+		else
+		{
+			$interval = 0;
+		}
+		
 		$sel_range = ($new_range>100 ? $sel_range = intval($new_range / 100) : $sel_range = 1);
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
 		$this->data['lottery']->last_drawn['range'] = $new_range;
-		$this->data['lottery']->last_drawn['all'] = $all;
-		$drawings = $this->history_m->load_history($tbl_name, $id, $new_range, 0); // $this->data['lottery']->extra_draws is all 0 for trends and repeats
+		$this->data['lottery']->last_drawn['all'] = $display_all; // Use filtered count based on checkbox state
+		$this->data['lottery']->last_drawn['all_total'] = $all; // Store total count for reference
+		$this->data['lottery']->last_drawn['all_regular'] = $all_regular; // Store regular draws count
+		$drawings = $this->history_m->load_history($tbl_name, $id, $new_range, $this->data['lottery']->extra_draws);
 		if(!$drawings)
 		{
 			$this->session->set_flashdata('message', 'Problem loading draws for the last'.$new_range.' draws. Make sure there is a minimum of 100 draws and statistics available.');
 			redirect('admin/history'); 
 		}
+		// Store the actual count of filtered draws
+		$this->data['lottery']->last_drawn['actual_count'] = count($drawings);
 		/**** At A Glance Statistics Analysis Methods up to the latest draw *****/
 		$this->data['lottery']->last_drawn['trends'] = ((!empty($glance)&&!$bln_chg) ? $glance->trends : $this->history_m->trend_history($drawings, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_included));
 		$this->data['lottery']->last_drawn['repeats'] = ((!empty($glance)&&!$bln_chg) ? $glance->repeats : $this->history_m->repeat_history($drawings, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_included));
-		// Required to get the drawings with or without the extra draws, consecutives is OK, adjacents is OK, sums are OK, digits are OK, Range is OK, Parity is OK
-		$drawings = $this->history_m->load_history($tbl_name, $id, $new_range, $this->data['lottery']->extra_draws);
 		$this->data['lottery']->last_drawn['consecutives'] = ((!empty($glance)&&!$bln_chg) ? $glance->consecutives : $this->history_m->consecutive_history($drawings, $this->data['lottery']->balls_drawn, $this->data['lottery']->extra_draws, $this->data['lottery']->extra_included));		
 		$this->data['lottery']->last_drawn['adjacents'] = ((!empty($glance)&&!$bln_chg) ? $glance->adjacents : $this->history_m->adjacents_history($drawings, $this->data['lottery']->balls_drawn));
 		$this->data['lottery']->last_drawn['sums_history'] = ((!empty($glance)&&!$bln_chg) ? $glance->winning_sums : $this->history_m->sums_history($drawings));		

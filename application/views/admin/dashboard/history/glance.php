@@ -90,8 +90,8 @@ $b = 1;
 									<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
 										<?php $interval = (int) $lottery->last_drawn['interval'];
 										if (!$interval) :
-											$sel_range = $lottery->last_drawn['range']; ?>
-											<a class="dropdown-item active" href="<?= base_url('admin/history/glance/' . $lottery->id) ?>">All Draws (<?= $lottery->last_drawn['range']; ?>) </a>
+										$sel_range = $lottery->last_drawn['all']; ?>
+										<a class="dropdown-item active" href="<?= base_url('admin/history/glance/' . $lottery->id) ?>">All Draws (<?= $lottery->last_drawn['all']; ?>) </a>
 											<?php else :
 												$sel_range = (int) $lottery->last_drawn['sel_range']; // Selected a different range from the complete range of draws?
 												for ($i = 1; $i <= $interval; $i++) :
@@ -136,6 +136,9 @@ $b = 1;
 									?>
 								</div>
 							</div>
+							<div class="p-2" style="margin-right: auto;">
+								<span style="font-size: 1.1em;">Draw Range: <?= $lottery->last_drawn['actual_count']; ?> Draws</span>
+							</div>
 						</div>
 					</div>
 					<?php if (!empty($message)): ?>
@@ -162,7 +165,7 @@ $b = 1;
 										<div class="card-body">
 											<div class="d-flex">
 												<h5 class="d-flex flex-column ">
-													<span class="text-bold text-lg">Over the last <strong><?= $lottery->last_drawn['range']; ?> </strong> Draws.</span>
+
 													<div class="d-flex justify-content-between align-items-center border-bottom mb-3">
 														<p class="text-success text-xl">
 															<i class="ion ion-ios-refresh-empty"></i>
@@ -204,7 +207,7 @@ $b = 1;
 										<div class="card-body">
 											<div class="d-flex">
 												<h5 class="d-flex flex-column">
-													<span>Over the last <strong><?= $lottery->last_drawn['range']; ?> </strong> Draws.</span>
+
 													<div class="d-flex justify-content-between align-items-center border-bottom mb-3">
 														<p class="text-success text-xl">
 															<i class="ion ion-ios-refresh-empty"></i>
@@ -358,7 +361,7 @@ $b = 1;
 										<div class="card-body">
 											<div class="d-flex">
 												<h5 class="d-flex flex-column">
-													<span>Over the last <strong><?= $lottery->last_drawn['range']; ?> </strong> Draws.</span>
+
 													<div class="d-flex justify-content-between align-items-center border-bottom mb-3">
 														<p class="text-success text-xl">
 															<i class="ion ion-ios-refresh-empty"></i>
@@ -377,7 +380,7 @@ $b = 1;
 														$repeaters = explode('=', $t);
 														if (!empty($repeaters[1])) :
 															$s .= '<strong>' . $repeaters[0] . '</strong> Repeaters in <strong>' . $repeaters[1] . "</strong> draws ("
-																. intval((($repeaters[1] / $lottery->last_drawn['range']) * 100)) . "% of the time).<br />";
+																. intval((($repeaters[1] / $lottery->last_drawn['actual_count']) * 100)) . "% of the time).<br />";
 														endif;
 													endforeach;
 													echo "<span style='display: inline'>" . $s . "</span>";
@@ -408,7 +411,7 @@ $b = 1;
 														$consecutives = explode('=', $t);
 														if ($consecutives[1]) :
 															$s .= '<strong>' . $consecutives[0] . '</strong> consecutives drawn, <strong> ' . $consecutives[1] . '</strong> times ('
-																. intval((($consecutives[1] / $lottery->last_drawn['range']) * 100)) . "% of the time).<br />";
+																. intval((($consecutives[1] / $lottery->last_drawn['actual_count']) * 100)) . "% of the time).<br />";
 														endif;
 													endforeach;
 													echo "<span style='display: inline'>" . $s . "</span>";
@@ -432,7 +435,7 @@ $b = 1;
 										<div class="card-body">
 											<div class="d-flex">
 												<h5 class="d-flex flex-column">
-													<span>Over the last <strong><?= $lottery->last_drawn['range']; ?> </strong> Draws.</span>
+
 													<div class="d-flex justify-content-between align-items-center border-bottom mb-3">
 														<p class="text-success text-xl">
 															<i class="ion ion-ios-refresh-empty"></i>
