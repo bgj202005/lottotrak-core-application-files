@@ -25,6 +25,67 @@
     .page-loading-content i {
         color: #007bff;
     }
+    
+    /* Custom Dialog Styling - Centered on screen */
+    .custom-dialog-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 10001;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .custom-dialog-box {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        min-width: 400px;
+        max-width: 600px;
+        animation: dialogSlideIn 0.3s ease-out;
+    }
+    @keyframes dialogSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    .custom-dialog-header {
+        padding: 20px;
+        border-bottom: 1px solid #dee2e6;
+        background: #f8f9fa;
+        border-radius: 8px 8px 0 0;
+    }
+    .custom-dialog-header h4 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #333;
+    }
+    .custom-dialog-body {
+        padding: 25px;
+        font-size: 14px;
+        color: #555;
+        line-height: 1.6;
+    }
+    .custom-dialog-footer {
+        padding: 15px 20px;
+        border-top: 1px solid #dee2e6;
+        background: #f8f9fa;
+        border-radius: 0 0 8px 8px;
+        text-align: right;
+    }
+    .custom-dialog-footer .btn {
+        margin-left: 10px;
+    }
+    
     .card {
         background-color: #ffffff;
         border: 1px solid rgba(0, 34, 51, 0.1);
@@ -155,6 +216,12 @@
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
+                                </div>
+                                <!-- Master Reset Button -->
+                                <div class="form-group" style="margin-top: 10px;">
+                                    <button type="button" id="reset_all_prizes_btn" class="btn btn-warning btn-sm">
+                                        <i class="fa fa-refresh"></i> RESET ALL WIN RECORDS
+                                    </button>
                                 </div>
                             </div>
                             <div class="col-sm-4">
@@ -362,14 +429,21 @@
     outline: none !important;
 }
 /* Reset button styling */
-.reset-win-record {
-    padding: 4px 8px;
-    font-size: 11px;
+.reset-win-record, #reset_all_prizes_btn {
     background-color: #ffc107;
     border-color: #ffc107;
     color: #212529;
 }
-.reset-win-record:hover {
+.reset-win-record {
+    padding: 4px 8px;
+    font-size: 11px;
+}
+#reset_all_prizes_btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+.reset-win-record:hover, #reset_all_prizes_btn:hover {
     background-color: #e0a800;
     border-color: #d39e00;
     color: #212529;
@@ -534,7 +608,142 @@ $(document).ready(function() {
             }
         });
     }
+    
+    // Handle RESET ALL button click
+    $('#reset_all_prizes_btn').click(function(e) {
+        e.preventDefault();
+        
+        var lottery_id = <?php echo $lottery->id; ?>;
+        
+        // Show custom centered confirmation dialog
+        showConfirmDialog(
+            '⚠️ WARNING: RESET ALL WIN RECORDS',
+            'This will clear ALL Prize History for ALL combination files!\n\n' +
+            'All Win Records will be permanently Reset to 0.\n\n' +
+            'Do you want to Proceed?',
+            function() {
+                // User confirmed - proceed with reset
+                
+                // Show loading overlay
+                var loadingOverlay = $('<div class="page-loading-overlay"><div class="page-loading-content">' +
+                    '<i class="fa fa-spinner fa-spin fa-lg"></i>' +
+                    '<p style="margin-top: 0.5rem; margin-bottom: 0;">Resetting all win records...</p>' +
+                    '</div></div>');
+                $('body').append(loadingOverlay);
+                
+                // Make AJAX call to reset all prizes
+                $.ajax({
+                    url: '<?php echo site_url("admin/prize/reset_all_prizes"); ?>',
+                    type: 'POST',
+                    data: {
+                        lottery_id: lottery_id
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        loadingOverlay.remove();
+                        
+                        if (response.success) {
+                            showAlertDialog('✅ Success', response.message, 'success', function() {
+                                location.reload();
+                            });
+                        } else {
+                            showAlertDialog('❌ Error', response.message, 'error');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        loadingOverlay.remove();
+                        showAlertDialog('❌ Error', 'Error resetting prize records. Server responded with: ' + xhr.status + ' ' + xhr.statusText, 'error');
+                    }
+                });
+            }
+        );
+    });
 });
+
+// Custom centered dialog functions
+function showConfirmDialog(title, message, onConfirm, onCancel) {
+    // Remove any existing dialogs
+    $('.custom-dialog-overlay').remove();
+    
+    // Create dialog overlay
+    var dialog = $('<div class="custom-dialog-overlay">' +
+        '<div class="custom-dialog-box">' +
+        '<div class="custom-dialog-header">' +
+        '<h4>' + title + '</h4>' +
+        '</div>' +
+        '<div class="custom-dialog-body">' +
+        '<p style="white-space: pre-line;">' + message + '</p>' +
+        '</div>' +
+        '<div class="custom-dialog-footer">' +
+        '<button class="btn btn-secondary dialog-cancel">Cancel</button>' +
+        '<button class="btn btn-warning dialog-confirm">Yes, Proceed</button>' +
+        '</div>' +
+        '</div>' +
+        '</div>');
+    
+    $('body').append(dialog);
+    
+    // Handle confirm
+    dialog.find('.dialog-confirm').click(function() {
+        dialog.remove();
+        if (onConfirm) onConfirm();
+    });
+    
+    // Handle cancel
+    dialog.find('.dialog-cancel').click(function() {
+        dialog.remove();
+        if (onCancel) onCancel();
+    });
+    
+    // Close on overlay click
+    dialog.click(function(e) {
+        if ($(e.target).hasClass('custom-dialog-overlay')) {
+            dialog.remove();
+            if (onCancel) onCancel();
+        }
+    });
+}
+
+function showAlertDialog(title, message, type, onClose) {
+    // Remove any existing dialogs
+    $('.custom-dialog-overlay').remove();
+    
+    var iconClass = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+    var iconColor = type === 'success' ? '#28a745' : '#dc3545';
+    
+    // Create dialog overlay
+    var dialog = $('<div class="custom-dialog-overlay">' +
+        '<div class="custom-dialog-box">' +
+        '<div class="custom-dialog-header">' +
+        '<i class="fa ' + iconClass + '" style="color: ' + iconColor + '; margin-right: 10px;"></i>' +
+        '<h4 style="display: inline;">' + title + '</h4>' +
+        '</div>' +
+        '<div class="custom-dialog-body">' +
+        '<p>' + message + '</p>' +
+        '</div>' +
+        '<div class="custom-dialog-footer">' +
+        '<button class="btn btn-primary dialog-ok">OK</button>' +
+        '</div>' +
+        '</div>' +
+        '</div>');
+    
+    $('body').append(dialog);
+    
+    // Handle OK
+    dialog.find('.dialog-ok').click(function() {
+        dialog.remove();
+        if (onClose) onClose();
+    });
+    
+    // Close on overlay click
+    dialog.click(function(e) {
+        if ($(e.target).hasClass('custom-dialog-overlay')) {
+            dialog.remove();
+            if (onClose) onClose();
+        }
+    });
+}
+
 // Global functions for inline handlers and jQuery events
 function resetWinRecord(filterId, filename) {
     $.ajax({

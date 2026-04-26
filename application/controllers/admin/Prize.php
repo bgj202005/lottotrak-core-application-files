@@ -114,6 +114,92 @@ class Prize extends Admin_Controller
     }
     
     /**
+     * Reset all prize history win records for all combination filters
+     * This sets all win fields to 0 for all filters
+     */
+    public function reset_all_prizes()
+    {
+        // Check if this is an AJAX request
+        if (!$this->input->is_ajax_request()) {
+            show_error('Direct access not allowed', 403);
+            return;
+        }
+        
+        // Verify admin is logged in
+        $admin_id = $this->session->userdata('id');
+        if (!$admin_id) {
+            echo json_encode(['success' => false, 'message' => 'Not authorized']);
+            return;
+        }
+        
+        // Get lottery_id from POST
+        $lottery_id = $this->input->post('lottery_id');
+        if (!$lottery_id) {
+            echo json_encode(['success' => false, 'message' => 'Lottery ID required']);
+            return;
+        }
+        
+        try {
+            // Build update data for all win fields
+            $update_data = [
+                'extra' => 0,
+                '1_win' => 0,
+                '1_win_extra' => 0,
+                '2_win' => 0,
+                '2_win_extra' => 0,
+                '3_win' => 0,
+                '3_win_extra' => 0,
+                '4_win' => 0,
+                '4_win_extra' => 0,
+                '5_win' => 0,
+                '5_win_extra' => 0,
+                '6_win' => 0,
+                '6_win_extra' => 0,
+                '7_win' => 0,
+                '7_win_extra' => 0,
+                '8_win' => 0,
+                '8_win_extra' => 0,
+                '9_win' => 0,
+                '9_win_extra' => 0
+            ];
+            
+            // Update all filters for this lottery and admin
+            // First, count how many filters exist
+            $this->db->where('lottery_id', $lottery_id);
+            $this->db->where('user', 1);  // Admin user type
+            $this->db->where('user_id', $admin_id);
+            $total_filters = $this->db->count_all_results('lottery_combination_filters');
+            
+            // Now update all filters
+            $this->db->where('lottery_id', $lottery_id);
+            $this->db->where('user', 1);  // Admin user type
+            $this->db->where('user_id', $admin_id);
+            $result = $this->db->update('lottery_combination_filters', $update_data);
+            
+            if ($result !== false) {
+                log_message('info', "Prize History Reset: {$total_filters} filters reset for lottery {$lottery_id} by admin {$admin_id}");
+                
+                echo json_encode([
+                    'success' => true,
+                    'message' => "Successfully reset {$total_filters} combination file(s) to 0 wins.",
+                    'affected_rows' => $total_filters
+                ]);
+            } else {
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Database update failed'
+                ]);
+            }
+        } catch (Exception $e) {
+            log_message('error', 'Prize History Reset Error: ' . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'message' => 'An error occurred: ' . $e->getMessage()
+            ]);
+        }
+    }
+    
+    /**
      * Get all unique prize columns for lotteries used by an admin
      * @param int $admin_id Administrator ID
      * @return array Unique prize columns across all admin's lotteries
