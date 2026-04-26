@@ -938,6 +938,102 @@ class History_m extends MY_Model
      * @param   array   $prediction     Array with keys: predicted_digit_sum, predicted_winning_sum, predicted_runners_up
      * @return  boolean                 TRUE on success, FALSE on failure
      */
+
+    /**
+     * short_repeat_indicator — for each unique DS and WS value that appeared in the
+     * last $window draws, checks whether it historically tends to repeat within
+     * $window draws of any occurrence. Only values with >= $min_repeats confirmed
+     * short-repeats are returned.
+     *
+     * @param   array   $draws          Raw draw rows (from load_history), oldest first
+     * @param   int     $window         Look-ahead / look-back window in draws (default 10)
+     * @param   int     $min_repeats    Minimum confirmed repeats to qualify (default 3)
+     * @return  array   Keys 'ds' and 'ws', each an array of qualifying candidates sorted by rate desc
+     */
+    public function short_repeat_indicator($draws, $window = 10, $min_repeats = 3)
+    {
+        if (empty($draws)) return array();
+
+        $draws = array_values($draws); // ensure 0-indexed
+        $n     = count($draws);
+
+        // Collect unique DS and WS values seen in the last $window draws
+        $recent_start = max(0, $n - $window);
+        $recent_ds    = array();
+        $recent_ws    = array();
+        for ($i = $recent_start; $i < $n; $i++)
+        {
+            $ds = intval($draws[$i]['sum_digits']);
+            $ws = intval($draws[$i]['sum_draw']);
+            if ($ds > 0) $recent_ds[$ds] = true;
+            if ($ws > 0) $recent_ws[$ws] = true;
+        }
+
+        $fields = array(
+            'ds' => array('field' => 'sum_digits', 'candidates' => array_keys($recent_ds)),
+            'ws' => array('field' => 'sum_draw',   'candidates' => array_keys($recent_ws)),
+        );
+
+        $result = array('ds' => array(), 'ws' => array());
+
+        foreach ($fields as $key => $cfg)
+        {
+            $field = $cfg['field'];
+            foreach ($cfg['candidates'] as $val)
+            {
+                if ($val <= 0) continue;
+
+                $occurrences   = 0;
+                $short_repeats = 0;
+
+                for ($i = 0; $i < $n; $i++)
+                {
+                    if (intval($draws[$i][$field]) !== $val) continue;
+                    $occurrences++;
+                    $end = min($i + $window, $n - 1);
+                    for ($j = $i + 1; $j <= $end; $j++)
+                    {
+                        if (intval($draws[$j][$field]) === $val)
+                        {
+                            $short_repeats++;
+                            break; // one repeat counted per trigger occurrence
+                        }
+                    }
+                }
+
+                if ($short_repeats < $min_repeats) continue; // not enough evidence
+
+                // How many draws since this value last appeared?
+                $draws_since = 0;
+                for ($i = $n - 1; $i >= 0; $i--)
+                {
+                    if (intval($draws[$i][$field]) === $val) break;
+                    $draws_since++;
+                }
+
+                $rate = ($occurrences > 0) ? round($short_repeats / $occurrences, 2) : 0.0;
+
+                $result[$key][] = array(
+                    'value'       => $val,
+                    'occurrences' => $occurrences,
+                    'repeats'     => $short_repeats,
+                    'rate'        => $rate,
+                    'draws_since' => $draws_since,
+                );
+            }
+
+            // Sort by repeat rate descending
+            if (!empty($result[$key]))
+            {
+                usort($result[$key], function($a, $b) {
+                    return $b['rate'] <=> $a['rate'];
+                });
+            }
+        }
+
+        return $result;
+    }
+
     public function glance_prediction_save($lottery_id, $prediction)
     {
         $this->db->set('predicted_digit_sum',   $prediction['predicted_digit_sum']);

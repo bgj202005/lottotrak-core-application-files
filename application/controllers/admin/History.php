@@ -305,6 +305,8 @@ class History extends Admin_Controller {
 		$this->data['lottery']->last_drawn['predicted_digit_sum']   = $_prediction['predicted_digit_sum'];
 		$this->data['lottery']->last_drawn['predicted_winning_sum'] = $_prediction['predicted_winning_sum'];
 		$this->data['lottery']->last_drawn['predicted_runners_up']  = $_prediction['predicted_runners_up'];
+		// Short-cycle repeat indicator — always computed fresh from current draw window (lightweight)
+		$this->data['lottery']->last_drawn['short_repeat'] = $this->history_m->short_repeat_indicator($drawings);
 		/***** End of Statistic Calculations ******/
 		$aag = array(
 			'range'					=> $new_range,

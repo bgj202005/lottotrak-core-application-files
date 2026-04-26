@@ -343,6 +343,33 @@ $b = 1;
 													else :
 														echo "<p>Insufficient data to generate a prediction.</p>";
 													endif;
+													// --- Short-Cycle Repeat Indicator ---
+													$_sr     = isset($lottery->last_drawn['short_repeat']) ? $lottery->last_drawn['short_repeat'] : array();
+													$_sr_ds  = (!empty($_sr['ds'])) ? $_sr['ds'] : array();
+													$_sr_ws  = (!empty($_sr['ws'])) ? $_sr['ws'] : array();
+													if (!empty($_sr_ds) || !empty($_sr_ws)) :
+													?>
+													<div class="border-top mt-3 pt-2">
+														<small class="text-muted d-block mb-1"><strong>Short-Cycle Repeat Pattern</strong> <span class="font-weight-normal">(drawn in last 10, historically repeats within 10, min. 3 confirmed)</span></small>
+														<?php foreach ($_sr_ds as $_item) : ?>
+														<small class="d-block mt-1">
+															<span class="badge badge-info">DS&nbsp;<?= $_item['value'] ?></span>
+															repeated within 10 draws <strong><?= $_item['repeats'] ?></strong> of <?= $_item['occurrences'] ?> times
+															(<strong><?= round($_item['rate'] * 100) ?>%</strong>)
+															&mdash; last drawn <?= $_item['draws_since'] ?> draw<?= ($_item['draws_since'] != 1 ? 's' : '') ?> ago
+														</small>
+														<?php endforeach; ?>
+														<?php foreach ($_sr_ws as $_item) : ?>
+														<small class="d-block mt-1">
+															<span class="badge badge-secondary">WS&nbsp;<?= $_item['value'] ?></span>
+															repeated within 10 draws <strong><?= $_item['repeats'] ?></strong> of <?= $_item['occurrences'] ?> times
+															(<strong><?= round($_item['rate'] * 100) ?>%</strong>)
+															&mdash; last drawn <?= $_item['draws_since'] ?> draw<?= ($_item['draws_since'] != 1 ? 's' : '') ?> ago
+														</small>
+														<?php endforeach; ?>
+													</div>
+													<?php
+													endif;
 													?>
 												</h5>
 											</div>
