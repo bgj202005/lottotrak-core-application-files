@@ -43,6 +43,32 @@ class History extends Admin_Controller {
 
 			$lottery->last_date = $this->statistics_m->last_date($tbl_name);
 			$lottery->last_draw = $this->statistics_m->last_draw($tbl_name, $lottery->balls_drawn, $lottery->extra_ball);
+			
+			// Get draw count for minimum range checking
+			$lottery->draw_count = $this->lotteries_m->count_draws_db($lottery->lottery_name);
+			if ($lottery->draw_count === FALSE) $lottery->draw_count = 0;
+			
+			// Get prediction_min_range (default to 100 if not set)
+			$lottery->prediction_min_range = isset($lottery->prediction_min_range) && $lottery->prediction_min_range > 0 
+				? intval($lottery->prediction_min_range) 
+				: 100;
+			
+			// Calculate required draws based on prediction range
+			$lottery->required_draws = $lottery->prediction_min_range * 2;
+			
+			// Check if minimum draw requirement is met
+			$lottery->min_draws_met = ($lottery->draw_count >= $lottery->required_draws);
+			
+			// Check if data needs recalculation
+			$followers_check = $this->statistics_m->followers_exists($lottery->id);
+			$lottery->needs_followers_recalc = (is_null($followers_check) || empty($followers_check['lottery_followers']));
+			
+			$hwc_check = $this->statistics_m->h_w_c_exists($lottery->id);
+			$lottery->needs_hwc_recalc = (is_null($hwc_check) || empty($hwc_check['hots']) || empty($hwc_check['warms']) || empty($hwc_check['colds']) || $hwc_check['draw_id'] == 0);
+			
+			$friends_check = $this->statistics_m->friends_exists($lottery->id);
+			$lottery->needs_friends_recalc = (is_null($friends_check) || empty($friends_check['lottery_friends']));
+			
 			$c = $this->statistics_m->lottery_rows($tbl_name);
 			if($c>100) $c = 100;
 		}
@@ -367,6 +393,32 @@ class History extends Admin_Controller {
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		
+		// Check draw count for minimum range requirement
+		$draw_count = $this->lotteries_m->count_draws_db($this->data['lottery']->lottery_name);
+		if ($draw_count === FALSE) $draw_count = 0;
+		
+		// Get prediction_min_range (default to 100 if not set)
+		$prediction_min_range = isset($this->data['lottery']->prediction_min_range) && $this->data['lottery']->prediction_min_range > 0 
+			? intval($this->data['lottery']->prediction_min_range) 
+			: 100;
+		
+		// Calculate required draws based on prediction range
+		$required_draws = $prediction_min_range * 2;
+		
+		// Check if minimum draw requirement is met
+		if ($draw_count < $required_draws) {
+			$this->session->set_flashdata('message', 'The minimum of ' . $required_draws . ' draws has NOT BEEN MET for H-W-C calculations. Please add more draw data to this lottery.');
+			redirect('admin/history');
+		}
+		
+		// Check if H-W-C data has been calculated
+		$hwc_check = $this->statistics_m->h_w_c_exists($id);
+		if (is_null($hwc_check) || empty($hwc_check['hots']) || empty($hwc_check['warms']) || empty($hwc_check['colds']) || $hwc_check['draw_id'] == 0) {
+			$this->session->set_flashdata('message', 'H-W-C data needs to be calculated. Please go to Statistics page and check the ReCalc checkbox for this lottery.');
+			redirect('admin/history');
+		}
+		
 		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$max_ball = $this->data['lottery']->maximum_ball;	// Get the highest ball drawn for this lottery, e.g. 49 in Lottery 649, 50 in Lottomax
 		// duplicate extra ball flag
@@ -673,6 +725,32 @@ class History extends Admin_Controller {
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		
+		// Check draw count for minimum range requirement
+		$draw_count = $this->lotteries_m->count_draws_db($this->data['lottery']->lottery_name);
+		if ($draw_count === FALSE) $draw_count = 0;
+		
+		// Get prediction_min_range (default to 100 if not set)
+		$prediction_min_range = isset($this->data['lottery']->prediction_min_range) && $this->data['lottery']->prediction_min_range > 0 
+			? intval($this->data['lottery']->prediction_min_range) 
+			: 100;
+		
+		// Calculate required draws based on prediction range
+		$required_draws = $prediction_min_range * 2;
+		
+		// Check if minimum draw requirement is met
+		if ($draw_count < $required_draws) {
+			$this->session->set_flashdata('message', 'The minimum of ' . $required_draws . ' draws has NOT BEEN MET for Followers calculations. Please add more draw data to this lottery.');
+			redirect('admin/history');
+		}
+		
+		// Check if followers data has been calculated
+		$followers_check = $this->statistics_m->followers_exists($id);
+		if (is_null($followers_check) || empty($followers_check['lottery_followers'])) {
+			$this->session->set_flashdata('message', 'Followers data needs to be calculated. Please go to Statistics page and check the ReCalc checkbox for this lottery.');
+			redirect('admin/history');
+		}
+		
 		$drawn = $this->data['lottery']->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$last_drawn = $this->lotteries_m->last_draw_db($tbl_name);
 		$ld = $last_drawn->draw_date;				// Return last draw date
@@ -1107,6 +1185,34 @@ class History extends Admin_Controller {
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		
+		// Check draw count for minimum range requirement
+		$draw_count = $this->lotteries_m->count_draws_db($this->data['lottery']->lottery_name);
+		if ($draw_count === FALSE) $draw_count = 0;
+		
+		// Get prediction_min_range (default to 100 if not set)
+		$prediction_min_range = isset($this->data['lottery']->prediction_min_range) && $this->data['lottery']->prediction_min_range > 0 
+			? intval($this->data['lottery']->prediction_min_range) 
+			: 100;
+		
+		// Calculate required draws based on prediction range
+		$required_draws = $prediction_min_range * 2;
+		
+		// Check if minimum draw requirement is met
+		if ($draw_count < $required_draws) {
+			$this->session->set_flashdata('message', 'The minimum of ' . $required_draws . ' draws has NOT BEEN MET for Friends calculations. Please add more draw data to this lottery.');
+			redirect('admin/history');
+		}
+		
+		// Check if friends data has been calculated
+		$friends = $this->statistics_m->friends_exists($id);
+		$nonfriends = $this->statistics_m->nonfriends_exists($id);
+		
+		if (is_null($friends) || is_null($nonfriends) || empty($friends['lottery_friends']) || empty($nonfriends['lottery_nonfriends'])) {
+			$this->session->set_flashdata('message', 'Friends data needs to be calculated. Please go to Statistics page and check the ReCalc checkbox for this lottery.');
+			redirect('admin/history');
+		}
+		
 		$last_drawn = $this->lotteries_m->last_draw_db($tbl_name);
 		$ld = $last_drawn->draw_date;				// Return last draw date
 		$day = $this->lotteries_m->return_day($ld);	// Returns the day of draw, Saturday, Sunday, etc.
@@ -1119,8 +1225,6 @@ class History extends Admin_Controller {
 		}
 		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 
-		$friends = $this->statistics_m->friends_exists($id);
-		$nonfriends = $this->statistics_m->nonfriends_exists($id);
 		if(!is_null($friends)&&(!is_null($nonfriends)))
 		{
 			$this->data['lottery']->extra_included = $friends['extra_included'];
@@ -1194,10 +1298,20 @@ class History extends Admin_Controller {
 	 * View the Results of the Hot Warm Cold Numbers as it applies to the H-W-C
 	 * 
 	 * @param       string	$uri	uri admin address of the statistics page
+	 * @param       bool	$disabled	Whether to grey out the icon
+	 * @param       int		$required_draws	Minimum draws required
+	 * @param       bool	$needs_recalc	Whether recalc is needed
 	 * @return      none
 	 */
-	public function btn_hwc($uri) 
+	public function btn_hwc($uri, $disabled = false, $required_draws = 0, $needs_recalc = false) 
 	{
+		if ($disabled) {
+			$tooltip = "Minimum draw requirement of {$required_draws} draws not met";
+			if ($needs_recalc) {
+				$tooltip .= " and ReCalc is required after the draw requirement is met";
+			}
+			return '<span style="color: #ccc; cursor: not-allowed;" title="' . $tooltip . '"><i class="fa fa-thermometer-full fa-2x" aria-hidden="true"></i></span>';
+		}
 		return anchor($uri, '<i class="fa fa-thermometer-full fa-2x" aria-hidden="true">', array('title' => 'View the actual win results of H-W-C from positional values'));
 	}
 
@@ -1205,10 +1319,20 @@ class History extends Admin_Controller {
 	 * View the results of historic wins from  Followers of the last draw
 	 * 
 	 * @param       string	$uri	uri admin address of the statistics page
+	 * @param       bool	$disabled	Whether to grey out the icon
+	 * @param       int		$required_draws	Minimum draws required
+	 * @param       bool	$needs_recalc	Whether recalc is needed
 	 * @return      none
 	 */
-	public function btn_followers($uri)
+	public function btn_followers($uri, $disabled = false, $required_draws = 0, $needs_recalc = false)
 	{
+		if ($disabled) {
+			$tooltip = "Minimum draw requirement of {$required_draws} draws not met";
+			if ($needs_recalc) {
+				$tooltip .= " and ReCalc is required after the draw requirement is met";
+			}
+			return '<span style="color: #ccc; cursor: not-allowed;" title="' . $tooltip . '"><i class="fa fa-retweet fa-2x" aria-hidden="true"></i></span>';
+		}
 		return anchor($uri, '<i class="fa fa-retweet fa-2x" aria-hidden="true">', array('title' => 'View the actual results of follower wins'));
 	}
 	
@@ -1226,10 +1350,20 @@ class History extends Admin_Controller {
 	 * Calculate the Current History or Update to the latest Draw
 	 * 
 	 * @param       string	$uri	uri admin address of the statistics page
+	 * @param       bool	$disabled	Whether to grey out the icon
+	 * @param       int		$required_draws	Minimum draws required
+	 * @param       bool	$needs_recalc	Whether recalc is needed
 	 * @return      none
 	 */
-	public function btn_friends($uri)
+	public function btn_friends($uri, $disabled = false, $required_draws = 0, $needs_recalc = false)
 	{
+		if ($disabled) {
+			$tooltip = "Minimum draw requirement of {$required_draws} draws not met";
+			if ($needs_recalc) {
+				$tooltip .= " and ReCalc is required after the draw requirement is met";
+			}
+			return '<span style="color: #ccc; cursor: not-allowed;" title="' . $tooltip . '"><i class="fa fa-history fa-2x" aria-hidden="true"></i></span>';
+		}
 		return anchor($uri, '<i class="fa fa-history fa-2x" aria-hidden="true">', array('title' => 'Calculate the Current History or Update to the latest Draw', 'class' => 'calculate'));
 	}
 	/**
@@ -1472,6 +1606,38 @@ class History extends Admin_Controller {
 			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. ' . $tbl_name . ' Does not exist.');
 			redirect('admin/history');
 		}
+		
+		// Check draw count for minimum range requirement
+		$draw_count = $this->lotteries_m->count_draws_db($this->data['lottery']->lottery_name);
+		if ($draw_count === FALSE) $draw_count = 0;
+		
+		// Get prediction_min_range (default to 100 if not set)
+		$prediction_min_range = isset($this->data['lottery']->prediction_min_range) && $this->data['lottery']->prediction_min_range > 0 
+			? intval($this->data['lottery']->prediction_min_range) 
+			: 100;
+		
+		// Calculate required draws based on prediction range
+		$required_draws = $prediction_min_range * 2;
+		
+		// Check if minimum draw requirement is met
+		if ($draw_count < $required_draws) {
+			$this->session->set_flashdata('message', 'The minimum of ' . $required_draws . ' draws has NOT BEEN MET for H-W-C + Followers calculations. Please add more draw data to this lottery.');
+			redirect('admin/history');
+		}
+		
+		// Check if H-W-C data has been calculated
+		$hwc_check_pre = $this->statistics_m->h_w_c_exists($id);
+		if (is_null($hwc_check_pre) || empty($hwc_check_pre['hots']) || empty($hwc_check_pre['warms']) || empty($hwc_check_pre['colds']) || $hwc_check_pre['draw_id'] == 0) {
+			$this->session->set_flashdata('message', 'H-W-C data needs to be calculated. Please go to Statistics page and check the ReCalc checkbox for this lottery.');
+			redirect('admin/history');
+		}
+		
+		// Check if followers data has been calculated
+		$followers_check = $this->statistics_m->followers_exists($id);
+		if (is_null($followers_check) || empty($followers_check['lottery_followers'])) {
+			$this->session->set_flashdata('message', 'Followers data needs to be calculated. Please go to Statistics page and check the ReCalc checkbox for this lottery.');
+			redirect('admin/history');
+		}
 
 		// Require H-W-C data (provides range, H/W/C counts, classification strings)
 		$h_w_c = $this->statistics_m->h_w_c_exists($id);
@@ -1600,9 +1766,22 @@ class History extends Admin_Controller {
 
 	/**
 	 * H-W-C + Followers analysis icon button
+	 * 
+	 * @param       string	$uri	uri admin address of the statistics page
+	 * @param       bool	$disabled	Whether to grey out the icon
+	 * @param       int		$required_draws	Minimum draws required
+	 * @param       bool	$needs_recalc	Whether recalc is needed
+	 * @return      none
 	 */
-	public function btn_hwc_followers($uri)
+	public function btn_hwc_followers($uri, $disabled = false, $required_draws = 0, $needs_recalc = false)
 	{
+		if ($disabled) {
+			$tooltip = "Minimum draw requirement of {$required_draws} draws not met";
+			if ($needs_recalc) {
+				$tooltip .= " and ReCalc is required after the draw requirement is met";
+			}
+			return '<span style="color: #ccc; cursor: not-allowed;" title="' . $tooltip . '"><i class="fa fa-fire fa-2x" aria-hidden="true"></i></span>';
+		}
 		return anchor($uri, '<i class="fa fa-fire fa-2x" aria-hidden="true">', array('title' => 'H-W-C + Follower analysis: best H-W-C pattern per ball'));
 	}
 

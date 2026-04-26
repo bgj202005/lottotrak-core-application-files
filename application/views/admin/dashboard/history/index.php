@@ -55,10 +55,10 @@
 		<td style = "text-align:center; white-space: nowrap;"><?=$lottery->lottery_state_prov; ?></td>
 		<td style = "text-align:center; white-space: nowrap;"><?=$lottery->lottery_country_id; ?></td>
 		<td style = "text-align:center;"><?php echo $history->btn_glance('admin/history/glance/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><?php echo $history->btn_hwc('admin/history/h_w_c/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><?php echo $history->btn_followers('admin/history/followers/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><?php echo $history->btn_hwc_followers('admin/history/hwc_followers/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><?php echo $history->btn_friends('admin/history/friends/'.$lottery->id); ?></td>
+		<td style = "text-align:center;"><?php echo $history->btn_hwc('admin/history/h_w_c/'.$lottery->id, !$lottery->min_draws_met || $lottery->needs_hwc_recalc, $lottery->required_draws, $lottery->needs_hwc_recalc); ?></td>
+		<td style = "text-align:center;"><?php echo $history->btn_followers('admin/history/followers/'.$lottery->id, !$lottery->min_draws_met || $lottery->needs_followers_recalc, $lottery->required_draws, $lottery->needs_followers_recalc); ?></td>
+		<td style = "text-align:center;"><?php echo $history->btn_hwc_followers('admin/history/hwc_followers/'.$lottery->id, !$lottery->min_draws_met || $lottery->needs_hwc_recalc || $lottery->needs_followers_recalc, $lottery->required_draws, $lottery->needs_hwc_recalc || $lottery->needs_followers_recalc); ?></td>
+		<td style = "text-align:center;"><?php echo $history->btn_friends('admin/history/friends/'.$lottery->id, !$lottery->min_draws_met || $lottery->needs_friends_recalc, $lottery->required_draws, $lottery->needs_friends_recalc); ?></td>
 	</tr>
 	<?php endforeach; ?> 
 	

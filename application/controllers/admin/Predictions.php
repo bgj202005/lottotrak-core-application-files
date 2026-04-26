@@ -1190,12 +1190,14 @@ class Predictions extends Admin_Controller {
 	 * 
 	 * @param       string	$uri	uri admin address of the statistics page
 	 * @param       bool	$disabled	Whether to grey out the icon
+	 * @param       int		$required_draws	Minimum draws required
 	 * @return      none
 	 */
-	public function btn_predicts($uri, $disabled = false)
+	public function btn_predicts($uri, $disabled = false, $required_draws = 0)
 	{
 		if ($disabled) {
-			return '<span style="color: #ccc; cursor: not-allowed;" title="Minimum draw requirement not met"><i class="fa fa-eye fa-2x" aria-hidden="true"></i></span>';
+			$tooltip = "Minimum draw requirement of {$required_draws} draws not met for Predictions to be made";
+			return '<span style="color: #ccc; cursor: not-allowed;" title="' . $tooltip . '"><i class="fa fa-eye fa-2x" aria-hidden="true"></i></span>';
 		}
 		return anchor($uri, '<i class="fa fa-eye fa-2x" aria-hidden="true">', 
 		array('title' => 'The Best Predictions for the next draw', 'class' => 'predict'));
