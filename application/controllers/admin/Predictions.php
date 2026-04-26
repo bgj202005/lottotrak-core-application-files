@@ -34,6 +34,21 @@ class Predictions extends Admin_Controller {
 		// Check if there is at least one generated file for each lottery
 		foreach ($this->data['lotteries'] as &$lottery) {
 			$lottery->has_generated_file = $this->predictions_m->has_generated_file($lottery->balls_drawn); // Check if a file exists
+			
+			// Get draw count for minimum range checking
+			$lottery->draw_count = $this->lotteries_m->count_draws_db($lottery->lottery_name);
+			if ($lottery->draw_count === FALSE) $lottery->draw_count = 0;
+			
+			// Get prediction_min_range (default to 100 if not set)
+			$lottery->prediction_min_range = isset($lottery->prediction_min_range) && $lottery->prediction_min_range > 0 
+				? intval($lottery->prediction_min_range) 
+				: 100;
+			
+			// Calculate required draws based on prediction range
+			$lottery->required_draws = $lottery->prediction_min_range * 2;
+			
+			// Check if minimum draw requirement is met
+			$lottery->min_draws_met = ($lottery->draw_count >= $lottery->required_draws);
 		}
 		// If futures_form session exists, destroy it
 		if ($this->session->userdata('futures_form')) {
@@ -594,6 +609,35 @@ class Predictions extends Admin_Controller {
 	 */
 	public function futures($id)
 	{
+		// First, load lottery to check minimum draw requirements
+		$lottery_check = $this->lotteries_m->get($id);
+		
+		// Check if lottery was found
+		if (!$lottery_check) {
+			$this->session->set_flashdata('message', '<div class="alert alert-danger">Lottery not found with ID: ' . $id . '</div>');
+			redirect('admin/predictions');
+			return;
+		}
+		
+		// Get draw count for minimum range checking
+		$draw_count = $this->lotteries_m->count_draws_db($lottery_check->lottery_name);
+		if ($draw_count === FALSE) $draw_count = 0;
+		
+		// Get prediction_min_range (default to 100 if not set)
+		$prediction_min_range = isset($lottery_check->prediction_min_range) && $lottery_check->prediction_min_range > 0 
+			? intval($lottery_check->prediction_min_range) 
+			: 100;
+		
+		// Calculate required draws based on prediction range
+		$required_draws = $prediction_min_range * 2;
+		
+		// Check if minimum draw requirement is met
+		if ($draw_count < $required_draws) {
+			$this->session->set_flashdata('message', '<div class="alert alert-danger">The minimum of ' . $required_draws . ' draws has NOT BEEN MET for Predictions to be made.</div>');
+			redirect('admin/predictions');
+			return;
+		}
+		
 		// Check if this is a timeout redirect from combination generation
 		if ($this->input->get('timeout') === '1') {
 			$timeout_value = $this->input->get('timeout_value') ?: '5';
@@ -1145,10 +1189,14 @@ class Predictions extends Admin_Controller {
 	 * Predictions for the next draw
 	 * 
 	 * @param       string	$uri	uri admin address of the statistics page
+	 * @param       bool	$disabled	Whether to grey out the icon
 	 * @return      none
 	 */
-	public function btn_predicts($uri)
+	public function btn_predicts($uri, $disabled = false)
 	{
+		if ($disabled) {
+			return '<span style="color: #ccc; cursor: not-allowed;" title="Minimum draw requirement not met"><i class="fa fa-eye fa-2x" aria-hidden="true"></i></span>';
+		}
 		return anchor($uri, '<i class="fa fa-eye fa-2x" aria-hidden="true">', 
 		array('title' => 'The Best Predictions for the next draw', 'class' => 'predict'));
 	}
