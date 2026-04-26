@@ -12,11 +12,18 @@
 	}
 
 	.glance-top {
-		height: 80vh;
+		height: auto;
 	}
 
 	.glance-bottom {
-		height: 207vh;
+		height: auto;
+	}
+	.glance-col {
+		display: flex;
+		flex-direction: column;
+	}
+	.glance-col .glance-bottom {
+		flex: 1 1 auto;
 	}
 
 	.tab-card-header {
@@ -154,8 +161,8 @@ $b = 1;
 					<?php endif; ?>
 					<div class="content">
 						<div class="container-fluid">
-							<div class="row">
-								<div class="col-lg-6 mt-4">
+						<div class="row align-items-stretch">
+							<div class="col-lg-6 mt-4 glance-col">
 									<div class="card glance-top">
 										<div class="card-header border-0">
 											<div class="d-flex justify-content-between">
@@ -192,9 +199,6 @@ $b = 1;
 												</h5>
 											</div>
 											<!-- /.d-flex -->
-											<div class="position-relative mb-2">
-												<canvas height="140"></canvas>
-											</div>
 										</div>
 									</div>
 									<!-- /.card -->
@@ -378,7 +382,7 @@ $b = 1;
 									<!-- /.card -->
 								</div>
 								<!-- /.col-md-6 -->
-								<div class="col-lg-6  mt-4">
+								<div class="col-lg-6 mt-4 glance-col">
 									<div class="card glance-top">
 										<div class="card-header border-0">
 											<div class="d-flex justify-content-between">
@@ -449,9 +453,6 @@ $b = 1;
 												</h5>
 											</div>
 											<!-- /.d-flex -->
-											<div class="position-relative mb-2">
-												<canvas height="20"></canvas>
-											</div>
 										</div>
 									</div>
 									<!-- /.card -->
