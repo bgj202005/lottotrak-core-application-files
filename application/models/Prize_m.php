@@ -61,28 +61,44 @@ class Prize_m extends MY_Model
         }
         
         // Apply sorting if specified and order is not 'none'
+        // Note: For actual_filtered_count, we'll sort in PHP after calculating actual values
+        $php_sort_column = null;
+        $php_sort_order = null;
+        $fetch_all_for_sorting = false;
+        
         if ($sort_column && $sort_order && $sort_order !== 'none') {
-            // Map column names to actual database fields
-            $column_map = array(
-                'N' => 'CAST(lcfiles.N AS UNSIGNED)',
-                'original_cccc' => 'CAST(lcfiles.CCCC AS UNSIGNED)',
-                'actual_filtered_count' => 'CAST(lcf.CCCC AS UNSIGNED)',
-                'is_active' => 'lcf.active',
-                'lastdate' => 'lcf.lastdate'
-            );
-            
-            if (isset($column_map[$sort_column])) {
-                $this->db->order_by($column_map[$sort_column], strtoupper($sort_order), FALSE);
+            if ($sort_column === 'actual_filtered_count') {
+                // Store for PHP sorting later
+                $php_sort_column = $sort_column;
+                $php_sort_order = $sort_order;
+                $fetch_all_for_sorting = true;
+                // Don't apply database sorting for this column
+                // Don't apply limit/offset yet - we'll do it after PHP sorting
             } else {
-                // Default sort
-                $this->db->order_by('lcf.id', 'DESC');
+                // Map column names to actual database fields for SQL sorting
+                $column_map = array(
+                    'N' => 'CAST(lcfiles.N AS UNSIGNED)',
+                    'original_cccc' => 'CAST(lcfiles.CCCC AS UNSIGNED)',
+                    'is_active' => 'lcf.active',
+                    'lastdate' => 'lcf.lastdate'
+                );
+                
+                if (isset($column_map[$sort_column])) {
+                    $this->db->order_by($column_map[$sort_column], strtoupper($sort_order), FALSE);
+                } else {
+                    // Default sort
+                    $this->db->order_by('lcf.id', 'DESC');
+                }
             }
         } else {
             // Default sort when no sorting specified
             $this->db->order_by('lcf.id', 'DESC');
         }
         
-        $this->db->limit($limit, $offset);
+        // Apply limit/offset only if not sorting by actual_filtered_count
+        if (!$fetch_all_for_sorting) {
+            $this->db->limit($limit, $offset);
+        }
         
         $query = $this->db->get();
         $results = $query->result();
@@ -101,11 +117,31 @@ class Prize_m extends MY_Model
             // Calculate the actual filtered count from the combination file
             $record->actual_filtered_count = $this->calculate_actual_filtered_count($record);
             
-            // Add row number
-            $record->row_number = $offset + $key + 1;
-            
             // Format saved filename using original filename to avoid duplication
             $record->saved_filename = $record->original_filename . 'ADMIN' . sprintf('%02d', $admin_id);
+        }
+        
+        // Apply PHP sorting for actual_filtered_count if needed
+        if ($php_sort_column === 'actual_filtered_count' && !empty($results)) {
+            // Sort all results by actual_filtered_count
+            usort($results, function($a, $b) use ($php_sort_order) {
+                $val_a = (int)$a->actual_filtered_count;
+                $val_b = (int)$b->actual_filtered_count;
+                
+                if ($php_sort_order === 'asc') {
+                    return $val_a - $val_b;
+                } else {
+                    return $val_b - $val_a;
+                }
+            });
+            
+            // Apply pagination after sorting
+            $results = array_slice($results, $offset, $limit);
+        }
+        
+        // Add row numbers after sorting and pagination
+        foreach ($results as $key => $record) {
+            $record->row_number = $offset + $key + 1;
         }
         
         return $results;
