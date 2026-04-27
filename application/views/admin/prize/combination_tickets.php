@@ -372,11 +372,11 @@
                                             <?php 
                                             if (!empty($filter->friends) && $filter->friends > 0) {
                                                 if ($filter->friends == 1) {
-                                                    echo '1-way friend';
+                                                    echo '1-way Friend';
                                                 } else if ($filter->friends == 2) {
-                                                    echo '2-way friends';
+                                                    echo '2-way Friends';
                                                 } else {
-                                                    echo $filter->friends . '-way friends';
+                                                    echo $filter->friends . '-way Friends';
                                                 }
                                             } else {
                                                 echo 'No Friends';
