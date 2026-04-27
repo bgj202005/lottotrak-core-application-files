@@ -299,6 +299,169 @@
                         </div>
                     </div>
 
+                    <!-- Lottery Profile Statistics Presets Container -->
+                    <div class="profile-presets-container" style="margin-bottom: 15px; padding: 12px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107;">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h5 style="margin-bottom: 10px; color: #856404;"><strong><i class="fa fa-cog"></i> Lottery Profile Statistics Presets:</strong></h5>
+                                <div class="presets-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px;">
+                                    
+                                    <!-- H-W-C Settings -->
+                                    <div class="preset-item">
+                                        <strong style="color: #495057;">H-W-C:</strong>
+                                        <span style="color: #212529;">
+                                            <?php echo !empty($filter->hwc) && $filter->hwc == 1 ? 'Enabled' : 'Disabled'; ?>
+                                            <?php if (!empty($filter->h_w_c_group) && $filter->h_w_c_group !== 'ALL'): ?>
+                                                <small style="color: #6c757d;"> (<?php echo htmlspecialchars($filter->h_w_c_group); ?>)</small>
+                                            <?php endif; ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Followers Settings -->
+                                    <div class="preset-item">
+                                        <strong style="color: #495057;">Followers:</strong>
+                                        <span style="color: #212529;">
+                                            <?php echo !empty($filter->followers) && $filter->followers == 1 ? 'Enabled' : 'Disabled'; ?>
+                                            <?php if (!empty($filter->follower_type)): ?>
+                                                <small style="color: #6c757d;">(<?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $filter->follower_type))); ?>
+                                                <?php if ($filter->follower_type == 'after_ball' && !empty($filter->ball_points) && $filter->ball_points !== 'ALL'): ?>,
+                                                    Ball: <?php echo htmlspecialchars($filter->ball_points); ?>
+                                                <?php endif; ?>
+                                                <?php if ($filter->follower_type == 'position' && !empty($filter->position_points) && $filter->position_points !== 'ALL'): ?>,
+                                                    Pos: <?php echo htmlspecialchars($filter->position_points); ?>
+                                                <?php endif; ?>)</small>
+                                            <?php endif; ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Extra Ball Settings -->
+                                    <div class="preset-item">
+                                        <strong style="color: #495057;">Extra Ball:</strong>
+                                        <span style="color: #212529;">
+                                            <?php echo !empty($filter->extra_balls) ? htmlspecialchars($filter->extra_balls) : 'Not Used'; ?>
+                                            <?php if (!empty($filter->duplicate_extra_ball)): ?>
+                                                <small style="color: #6c757d;"> (Independent: <?php echo $filter->duplicate_extra_ball == 1 ? 'Yes' : 'No'; ?>)</small>
+                                            <?php endif; ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Number Range -->
+                                    <div class="preset-item">
+                                        <strong style="color: #495057;">Number Range:</strong>
+                                        <span style="color: #212529;">
+                                            <?php echo !empty($filter->number_range) ? htmlspecialchars($filter->number_range) : 'ALL'; ?>
+                                        </span>
+                                    </div>
+                                    
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Filter Settings Container -->
+                    <div class="filter-settings-container" style="margin-bottom: 15px; padding: 12px; background: #d1ecf1; border-radius: 8px; border: 1px solid #17a2b8;">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h5 style="margin-bottom: 10px; color: #0c5460;"><strong><i class="fa fa-filter"></i> Applied Filter Settings:</strong></h5>
+                                <div class="filters-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px;">
+                                    
+                                    <!-- Friends -->
+                                    <div class="filter-item">
+                                        <strong style="color: #495057;">Friends:</strong>
+                                        <span style="color: #212529;">
+                                            <?php 
+                                            if (!empty($filter->friends) && $filter->friends > 0) {
+                                                if ($filter->friends == 1) {
+                                                    echo '1-way friend';
+                                                } else if ($filter->friends == 2) {
+                                                    echo '2-way friends';
+                                                } else {
+                                                    echo $filter->friends . '-way friends';
+                                                }
+                                            } else {
+                                                echo 'No Friends';
+                                            }
+                                            ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Trends -->
+                                    <div class="filter-item">
+                                        <strong style="color: #495057;">Trends:</strong>
+                                        <span style="color: #212529;">
+                                            <?php echo !empty($filter->trends) ? htmlspecialchars($filter->trends) : 'Not Applied'; ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Winning Sums -->
+                                    <div class="filter-item">
+                                        <strong style="color: #495057;">Winning Sums:</strong>
+                                        <span style="color: #212529;">
+                                            <?php echo !empty($filter->winning_sums) ? htmlspecialchars($filter->winning_sums) : 'Not Applied'; ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Digit Sums -->
+                                    <div class="filter-item">
+                                        <strong style="color: #495057;">Digit Sums:</strong>
+                                        <span style="color: #212529;">
+                                            <?php echo !empty($filter->winning_digits) ? htmlspecialchars($filter->winning_digits) : 'Not Applied'; ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Repeaters -->
+                                    <div class="filter-item">
+                                        <strong style="color: #495057;">Repeaters:</strong>
+                                        <span style="color: #212529;">
+                                            <?php echo !empty($filter->repeaters) ? htmlspecialchars($filter->repeaters) : 'Not Applied'; ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Consecutives -->
+                                    <div class="filter-item">
+                                        <strong style="color: #495057;">Consecutives:</strong>
+                                        <span style="color: #212529;">
+                                            <?php echo !empty($filter->consecutives) ? htmlspecialchars($filter->consecutives) : 'Not Applied'; ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Odd / Even -->
+                                    <div class="filter-item">
+                                        <strong style="color: #495057;">Odd/Even:</strong>
+                                        <span style="color: #212529;">
+                                            <?php echo !empty($filter->parity) ? htmlspecialchars($filter->parity) : 'Not Applied'; ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Decades -->
+                                    <div class="filter-item">
+                                        <strong style="color: #495057;">Decades:</strong>
+                                        <span style="color: #212529;">
+                                            <?php echo !empty($filter->decades) ? htmlspecialchars($filter->decades) : 'Not Applied'; ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Last Digits -->
+                                    <div class="filter-item">
+                                        <strong style="color: #495057;">Last Digits:</strong>
+                                        <span style="color: #212529;">
+                                            <?php echo !empty($filter->last_digits) ? htmlspecialchars($filter->last_digits) : 'Not Applied'; ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Adjacent -->
+                                    <div class="filter-item">
+                                        <strong style="color: #495057;">Adjacent:</strong>
+                                        <span style="color: #212529;">
+                                            <?php echo !empty($filter->adjacents) ? htmlspecialchars($filter->adjacents) : 'Not Applied'; ?>
+                                        </span>
+                                    </div>
+                                    
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Number Highlighting Legend -->
                     <div class="legend-container" style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
                         <div class="row">
@@ -994,6 +1157,71 @@ tr:has(.result-bonus-win) {
 .sortable-check-results.desc .sort-icon::before {
     content: "↓";
     color: #007bff;
+}
+
+/* Profile Presets Container Styling */
+.profile-presets-container {
+    animation: fadeIn 0.5s ease-in;
+}
+
+.presets-grid {
+    font-size: 14px;
+}
+
+.preset-item {
+    padding: 6px 10px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #ffc107;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.preset-item strong {
+    display: inline;
+    margin-right: 6px;
+}
+
+/* Filter Settings Container Styling */
+.filter-settings-container {
+    animation: fadeIn 0.5s ease-in 0.2s;
+    animation-fill-mode: both;
+}
+
+.filters-grid {
+    font-size: 14px;
+}
+
+.filter-item {
+    padding: 6px 10px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #17a2b8;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.filter-item strong {
+    display: inline;
+    margin-right: 6px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .presets-grid, .filters-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 </style>
 
