@@ -30,7 +30,7 @@ class Prize_m extends MY_Model
      * @param int $lottery_id Lottery ID to filter by
      * @return array Prize history records
      */
-    public function get_admin_prize_history($admin_id, $limit = 10, $offset = 0, $lottery_id = null)
+    public function get_admin_prize_history($admin_id, $limit = 10, $offset = 0, $lottery_id = null, $sort_column = null, $sort_order = 'asc')
     {
         // Load lotteries model for table name conversion
         $this->load->model('lotteries_m');
@@ -60,8 +60,29 @@ class Prize_m extends MY_Model
             $this->db->where('lcf.lottery_id', $lottery_id);
         }
         
+        // Apply sorting if specified and order is not 'none'
+        if ($sort_column && $sort_order && $sort_order !== 'none') {
+            // Map column names to actual database fields
+            $column_map = array(
+                'N' => 'CAST(lcfiles.N AS UNSIGNED)',
+                'original_cccc' => 'CAST(lcfiles.CCCC AS UNSIGNED)',
+                'actual_filtered_count' => 'CAST(lcf.CCCC AS UNSIGNED)',
+                'is_active' => 'lcf.active',
+                'lastdate' => 'lcf.lastdate'
+            );
+            
+            if (isset($column_map[$sort_column])) {
+                $this->db->order_by($column_map[$sort_column], strtoupper($sort_order), FALSE);
+            } else {
+                // Default sort
+                $this->db->order_by('lcf.id', 'DESC');
+            }
+        } else {
+            // Default sort when no sorting specified
+            $this->db->order_by('lcf.id', 'DESC');
+        }
+        
         $this->db->limit($limit, $offset);
-        $this->db->order_by('lcf.id', 'DESC');
         
         $query = $this->db->get();
         $results = $query->result();

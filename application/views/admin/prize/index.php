@@ -124,13 +124,41 @@
     }
     /* Specific column widths for better fit */
     #prizeHistoryTable th:nth-child(1) { width: 30px; }     /* # */
-    #prizeHistoryTable th:nth-child(2) { width: 100px; }    /* Original */
+    #prizeHistoryTable th:nth-child(2) { width: 120px; }    /* Filename (was Saved) */
     #prizeHistoryTable th:nth-child(3) { width: 50px; }     /* Picks */
-    #prizeHistoryTable th:nth-child(4) { width: 120px; }    /* Original Combinations */
-    #prizeHistoryTable th:nth-child(5) { width: 100px; }    /* Saved */
-    #prizeHistoryTable th:nth-child(6) { width: 120px; }    /* Actual Filtered Combinations */
-    #prizeHistoryTable th:nth-child(7) { width: 80px; }     /* Active */
-    #prizeHistoryTable th:nth-child(8) { width: 90px; }     /* Last Date */
+    #prizeHistoryTable th:nth-child(4) { width: 120px; }    /* Original Count */
+    #prizeHistoryTable th:nth-child(5) { width: 120px; }    /* Actual Filtered */
+    #prizeHistoryTable th:nth-child(6) { width: 80px; }     /* Status */
+    #prizeHistoryTable th:nth-child(7) { width: 90px; }     /* Last Date */
+    /* Sortable column styling */
+    .sortable-header {
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+        padding-right: 20px !important;
+    }
+    .sortable-header:hover {
+        background-color: #e9ecef;
+    }
+    .sort-indicator {
+        position: absolute;
+        right: 5px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 10px;
+        color: #6c757d;
+    }
+    .sort-indicator.asc::after {
+        content: '▲';
+        color: #007bff;
+    }
+    .sort-indicator.desc::after {
+        content: '▼';
+        color: #007bff;
+    }
+    .sort-indicator.none::after {
+        content: '⇅';
+    }
     /* Win record columns */
     .win-record-col {
         width: 30px !important;
@@ -244,20 +272,29 @@
                             <thead>
                                 <tr>
                                     <th>#</th>
-                                    <th>Original</th>
-                                    <th>Picks</th>
-                                    <th>Original Count</th>
-                                    <th>Saved</th>
-                                    <th>Actual Filtered</th>
-                                    <th>Status</th>
-                                    <th>Last Date</th>
+                                    <th>Filename</th>
+                                    <th class="sortable-header" data-sort-column="N" data-sort-order="none">
+                                        Picks <span class="sort-indicator none"></span>
+                                    </th>
+                                    <th class="sortable-header" data-sort-column="original_cccc" data-sort-order="none">
+                                        Original Count <span class="sort-indicator none"></span>
+                                    </th>
+                                    <th class="sortable-header" data-sort-column="actual_filtered_count" data-sort-order="none">
+                                        Actual Filtered <span class="sort-indicator none"></span>
+                                    </th>
+                                    <th class="sortable-header" data-sort-column="is_active" data-sort-order="none">
+                                        Status <span class="sort-indicator none"></span>
+                                    </th>
+                                    <th class="sortable-header" data-sort-column="lastdate" data-sort-order="none">
+                                        Last Date <span class="sort-indicator none"></span>
+                                    </th>
                                     <?php $prize_columns = isset($prize_columns) ? $prize_columns : array(); ?>
                                     <th colspan="<?php echo max(1, count($prize_columns) + 1); ?>" class="text-center" style="background-color: #f4f4f4;">
                                         <strong>Win Record</strong>
                                     </th>
                                 </tr>
                                 <tr>
-                                    <th colspan="8"></th>
+                                    <th colspan="7"></th>
                                     <!-- Dynamic Win Record Sub-headers -->
                                     <?php if(!empty($prize_columns)): ?>
                                         <?php foreach($prize_columns as $column): ?>
@@ -283,7 +320,7 @@
                                 <tbody>
                                     <?php if(empty($prize_records)): ?>
                                         <tr>
-                                            <td colspan="<?php echo 8 + max(1, count($prize_columns)) + 1; ?>" class="text-center">
+                                            <td colspan="<?php echo 7 + max(1, count($prize_columns)) + 1; ?>" class="text-center">
                                                 <em>No prize history records found for this administrator.</em>
                                             </td>
                                         </tr>
@@ -298,9 +335,6 @@
                                                         <?php echo sprintf('%02d', $record->row_number); ?>
                                                     </button>
                                                 </td>
-                                                <td><?php echo htmlspecialchars($record->original_filename); ?></td>
-                                                <td class="text-center"><?php echo sprintf('%02d', $record->N); ?></td>
-                                                <td class="text-center"><?php echo number_format($record->original_cccc); ?></td>
                                                 <td>
                                                     <button type="button" class="btn btn-link combination-link p-0" 
                                                             data-filter-id="<?php echo $record->id; ?>" 
@@ -309,6 +343,8 @@
                                                         <?php echo htmlspecialchars(preg_replace('/ADMIN.*/', '', $record->saved_filename)); ?>
                                                     </button>
                                                 </td>
+                                                <td class="text-center"><?php echo sprintf('%02d', $record->N); ?></td>
+                                                <td class="text-center"><?php echo number_format($record->original_cccc); ?></td>
                                                 <td class="text-center"><?php echo number_format($record->actual_filtered_count); ?></td>
                                                 <td class="text-center">
                                                     <?php if($record->is_active == 'YES'): ?>
@@ -516,6 +552,19 @@ $(document).ready(function() {
         };
     }
     
+    // Restore sort indicators from PHP data
+    <?php if (isset($sort_column) && isset($sort_order) && $sort_order !== 'none'): ?>
+    var sortColumn = '<?php echo $sort_column; ?>';
+    var sortOrder = '<?php echo $sort_order; ?>';
+    
+    $('.sortable-header').each(function() {
+        if ($(this).data('sort-column') === sortColumn) {
+            $(this).data('sort-order', sortOrder);
+            $(this).find('.sort-indicator').removeClass('asc desc none').addClass(sortOrder);
+        }
+    });
+    <?php endif; ?>
+    
     // Handle reset win record clicks
     $(document).on('click', '.reset-win-record', function(e) {
         e.preventDefault();
@@ -577,7 +626,7 @@ $(document).ready(function() {
         var pageLoader = $('<div class="page-loading-overlay"><div class="page-loading-content"><i class="fa fa-spinner fa-spin fa-lg"></i><p style="margin-top: 0.5rem; margin-bottom: 0;">Updating...</p></div></div>');
         $('body').append(pageLoader);
         // Show loading indicator in table
-        var totalCols = 9 + <?php echo max(1, count($prize_columns)) + 1; ?>;
+        var totalCols = 8 + <?php echo max(1, count($prize_columns)) + 1; ?>;
         $('#prizeHistoryTable tbody').html('<tr><td colspan="' + totalCols + '" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading Prize History Data...</td></tr>');
         $.ajax({
             url: '<?php echo site_url("admin/prize/get_table_data"); ?>',
@@ -658,6 +707,87 @@ $(document).ready(function() {
             }
         );
     });
+    
+    // Handle sortable column clicks
+    $('.sortable-header').click(function() {
+        var $header = $(this);
+        var sortColumn = $header.data('sort-column');
+        var currentOrder = $header.data('sort-order');
+        var newOrder = 'asc';
+        
+        if (currentOrder === 'asc') {
+            newOrder = 'desc';
+        } else if (currentOrder === 'desc') {
+            newOrder = 'none';
+        }
+        
+        // Reset all other headers
+        $('.sortable-header').each(function() {
+            if ($(this).data('sort-column') !== sortColumn) {
+                $(this).data('sort-order', 'none');
+                $(this).find('.sort-indicator').removeClass('asc desc').addClass('none');
+            }
+        });
+        
+        // Update clicked header
+        $header.data('sort-order', newOrder);
+        $header.find('.sort-indicator').removeClass('asc desc none').addClass(newOrder);
+        
+        // Load page with sorting
+        loadPageWithSort(<?php echo $current_page; ?>, $('#per_page_select').val(), sortColumn, newOrder);
+    });
+    
+    function loadPageWithSort(page, per_page, sortColumn, sortOrder) {
+        var offset = (page - 1) * per_page;
+        
+        // Show loading overlay
+        var pageLoader = $('<div class="page-loading-overlay"><div class="page-loading-content"><i class="fa fa-spinner fa-spin fa-lg"></i><p style="margin-top: 0.5rem; margin-bottom: 0;">Sorting...</p></div></div>');
+        $('body').append(pageLoader);
+        
+        // Show loading in table
+        var totalCols = 8 + <?php echo max(1, count($prize_columns)) + 1; ?>;
+        $('#prizeHistoryTable tbody').html('<tr><td colspan="' + totalCols + '" class="text-center"><i class="fa fa-spinner fa-spin"></i> Sorting data...</td></tr>');
+        
+        $.ajax({
+            url: '<?php echo site_url("admin/prize/get_table_data"); ?>',
+            type: 'POST',
+            data: {
+                per_page: per_page,
+                offset: offset,
+                sort_column: sortColumn,
+                sort_order: sortOrder
+            },
+            dataType: 'json',
+            success: function(response) {
+                if (response.error) {
+                    alert(response.error);
+                    pageLoader.remove();
+                    return;
+                }
+                
+                // Update URL with sorting parameters
+                var url = new URL(window.location);
+                url.searchParams.set('per_page', per_page);
+                url.searchParams.set('offset', offset);
+                if (sortOrder !== 'none') {
+                    url.searchParams.set('sort_column', sortColumn);
+                    url.searchParams.set('sort_order', sortOrder);
+                } else {
+                    url.searchParams.delete('sort_column');
+                    url.searchParams.delete('sort_order');
+                }
+                window.history.pushState({}, '', url);
+                
+                // Reload to show sorted data
+                location.reload();
+            },
+            error: function() {
+                pageLoader.remove();
+                alert('Error sorting data. Please try again.');
+                location.reload();
+            }
+        });
+    }
 });
 
 // Custom centered dialog functions

@@ -44,6 +44,10 @@ class Prize extends Admin_Controller
         $per_page = $this->input->get('per_page') ? (int)$this->input->get('per_page') : 10;
         $offset = $this->input->get('offset') ? (int)$this->input->get('offset') : 0;
         
+        // Get sorting parameters
+        $sort_column = $this->input->get('sort_column') ? $this->input->get('sort_column') : null;
+        $sort_order = $this->input->get('sort_order') ? $this->input->get('sort_order') : 'asc';
+        
         // Get logged in admin user ID
         $admin_id = $this->session->userdata('id');
         
@@ -54,7 +58,7 @@ class Prize extends Admin_Controller
         // This ensures filters remain active until user actually views the results
         
         // Get prize history data for the specific lottery and admin
-        $this->data['prize_records'] = $this->prize_m->get_admin_prize_history($admin_id, $per_page, $offset, $lottery_id);
+        $this->data['prize_records'] = $this->prize_m->get_admin_prize_history($admin_id, $per_page, $offset, $lottery_id, $sort_column, $sort_order);
         $this->data['total_records'] = $this->prize_m->count_admin_prize_records($admin_id, $lottery_id);
         $this->data['lottery'] = $lottery;
         
@@ -66,6 +70,8 @@ class Prize extends Admin_Controller
         $this->data['offset'] = $offset;
         $this->data['total_pages'] = ceil($this->data['total_records'] / $per_page);
         $this->data['current_page'] = floor($offset / $per_page) + 1;
+        $this->data['sort_column'] = $sort_column;
+        $this->data['sort_order'] = $sort_order;
         
         // Pagination options
         $this->data['pagination_options'] = array(10, 20, 50);
@@ -93,6 +99,8 @@ class Prize extends Admin_Controller
     {
         $per_page = $this->input->post('per_page') ? (int)$this->input->post('per_page') : 10;
         $offset = $this->input->post('offset') ? (int)$this->input->post('offset') : 0;
+        $sort_column = $this->input->post('sort_column') ? $this->input->post('sort_column') : null;
+        $sort_order = $this->input->post('sort_order') ? $this->input->post('sort_order') : 'asc';
         $admin_id = $this->session->userdata('id');
         
         if (!$admin_id) {
@@ -100,7 +108,7 @@ class Prize extends Admin_Controller
             return;
         }
         
-        $prize_records = $this->prize_m->get_admin_prize_history($admin_id, $per_page, $offset);
+        $prize_records = $this->prize_m->get_admin_prize_history($admin_id, $per_page, $offset, null, $sort_column, $sort_order);
         $total_records = $this->prize_m->count_admin_prize_records($admin_id);
         $prize_columns = $this->get_admin_prize_columns($admin_id);
         
