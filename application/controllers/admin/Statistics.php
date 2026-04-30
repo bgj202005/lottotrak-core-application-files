@@ -49,6 +49,20 @@ class Statistics extends Admin_Controller {
 			// Check if minimum draw requirement is met
 			$lottery->min_draws_met = ($lottery->draw_count >= $lottery->required_draws);
 			
+			// If minimum not met, calculate draws remaining and next prediction date
+			if (!$lottery->min_draws_met) {
+				$lottery->draws_remaining = $lottery->required_draws - $lottery->draw_count;
+				$lottery->next_prediction_date = $this->lotteries_m->calculate_next_prediction_date(
+					$lottery, 
+					$lottery->draw_count, 
+					$lottery->required_draws
+				);
+				// If date calculation fails, set a default message
+				if ($lottery->next_prediction_date === FALSE) {
+					$lottery->next_prediction_date = 'Unable to calculate';
+				}
+			}
+			
 			$c = $this->statistics_m->lottery_rows($tbl_name);
 			if($c>100) $c = 100;
 			$lottery->average_sum = $this->statistics_m->lottery_average_sum($tbl_name, $c);

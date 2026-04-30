@@ -1232,4 +1232,61 @@ class Lotteries_m extends MY_Model
 		}
 		return FALSE;
 	}
+
+	/**
+	 * Calculate the date when required draws will be reached based on weekly schedule
+	 * 
+	 * @param	object	$lottery			Lottery object with draw schedule
+	 * @param	int		$current_draws		Current number of draws
+	 * @param	int		$required_draws		Required number of draws
+	 * @return	string|false				Formatted date string or FALSE on error
+	 */
+	public function calculate_next_prediction_date($lottery, $current_draws, $required_draws)
+	{
+		// Get the table name
+		$table_name = $this->lotto_table_convert($lottery->lottery_name);
+		
+		// Get the last draw date
+		$last_draw_date = $this->get_latest_draw_date($table_name);
+		if ($last_draw_date === FALSE) {
+			return FALSE;
+		}
+		
+		// Calculate how many more draws are needed
+		$draws_remaining = $required_draws - $current_draws;
+		
+		// Build array of enabled draw days (0 = Sunday, 6 = Saturday)
+		$draw_days = array();
+		if ($lottery->sunday == 1) $draw_days[] = 0;
+		if ($lottery->monday == 1) $draw_days[] = 1;
+		if ($lottery->tuesday == 1) $draw_days[] = 2;
+		if ($lottery->wednesday == 1) $draw_days[] = 3;
+		if ($lottery->thursday == 1) $draw_days[] = 4;
+		if ($lottery->friday == 1) $draw_days[] = 5;
+		if ($lottery->saturday == 1) $draw_days[] = 6;
+		
+		// If no draw days are set, return FALSE
+		if (empty($draw_days)) {
+			return FALSE;
+		}
+		
+		// Start from the last draw date and count forward
+		$current_date = new DateTime($last_draw_date);
+		$draws_counted = 0;
+		
+		// Move forward through dates until we reach the required number of draws
+		while ($draws_counted < $draws_remaining) {
+			// Move to next day
+			$current_date->modify('+1 day');
+			
+			// Check if this day is a draw day
+			$day_of_week = (int)$current_date->format('w'); // 0 = Sunday, 6 = Saturday
+			if (in_array($day_of_week, $draw_days)) {
+				$draws_counted++;
+			}
+		}
+		
+		// Format the date: "Wednesday, April 29, 2026"
+		return $current_date->format('l, F j, Y');
+	}
 }

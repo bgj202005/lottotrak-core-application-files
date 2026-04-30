@@ -51,7 +51,10 @@
 		<td style = "text-align:center;"><?php echo $predictions->btn_table_of_wins('admin/predictions/files/'.$lottery->id, $predictions->active($lottery->has_generated_file)); ?></td>
 		<?php if(!$lottery->min_draws_met): ?>
 		<td colspan="2" style="text-align:center; vertical-align:top; padding:8px;">
-			<span style="color: #d9534f; font-weight: bold; font-size:0.875em;">The minimum of <?=$lottery->required_draws;?> draws has NOT BEEN MET for Predictions to be made.</span>
+			<span style="color: #d9534f; font-weight: bold; font-size:0.85em;">
+				<?=$lottery->draws_remaining;?> Draws left to reach the minimum of <?=$lottery->required_draws;?> draws for the next prediction. 
+				The Earliest prediction draw date is <?=$lottery->next_prediction_date;?>.
+			</span>
 		</td>
 		<?php else: ?>
 		<td style = "text-align:center;"><?php echo $predictions->btn_predicts('admin/predictions/futures/'.$lottery->id); ?></td>

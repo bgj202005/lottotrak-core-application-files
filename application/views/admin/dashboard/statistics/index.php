@@ -87,7 +87,10 @@
 		<td style = "text-align:center;"><?php echo $statistics->btn_stat('admin/statistics/view_draws/'.$lottery->id, $lottery->draw_count == 0); ?></td>
 		<?php if(!$lottery->min_draws_met): ?>
 		<td colspan="3" style="text-align:center; vertical-align:top; padding:8px;">
-			<span style="color: #d9534f; font-weight: bold; font-size:0.875em;">The minimum of <?=$lottery->required_draws;?> draws has NOT BEEN MET.</span>
+			<span style="color: #d9534f; font-weight: bold; font-size:1.25em;">
+				<?=$lottery->draws_remaining;?> Draws left to reach the minimum of <?=$lottery->required_draws;?> draws for the next prediction. 
+				The Earliest prediction draw date is <?=$lottery->next_prediction_date;?>.
+			</span>
 		</td>
 		<?php elseif($lottery->needs_recalc): ?>
 		<td colspan="3" style="text-align:center; vertical-align:top; padding:8px;">
