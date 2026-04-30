@@ -5,6 +5,12 @@
 	tr{
 		font-size: 0.60em; /* Minimum size before horizontal toolbar appears under list */
 	}
+	/* Logo cell styling */
+	td img {
+		max-width: 75px !important;
+		height: auto !important;
+		width: auto !important;
+	}
 	label {
     	display: inline-flex;
     	margin-bottom: .5rem;
@@ -12,11 +18,13 @@
 }
 /* Reset button styling - match prize history */
 .reset-followers {
-	padding: 4px 8px;
-	font-size: 11px;
+	padding: 2px 12px;
+	font-size: 9px;
 	background-color: #ffc107;
 	border-color: #ffc107;
 	color: #212529;
+	border-radius: 3px;
+	min-width: 60px;
 }
 .reset-followers:hover {
 	background-color: #e0a800;
