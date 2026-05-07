@@ -953,6 +953,62 @@ class History extends Admin_Controller {
 		}
 		$this->data['lottery']->last_drawn['range'] = $range;
 		
+		// Extract previous draw followers/nonfollowers data for display
+		$prev_followers_data = null;
+		$prev_nonfollowers_data = null;
+		if ($followers && isset($followers['prev_lottery_followers']) && $followers['prev_lottery_followers']) {
+			$prev_followers_data = $followers['prev_lottery_followers'];
+		}
+		$nonfollowers = $this->statistics_m->nonfollowers_exists($id);
+		if ($nonfollowers && isset($nonfollowers['prev_lottery_nonfollowers']) && $nonfollowers['prev_lottery_nonfollowers']) {
+			$prev_nonfollowers_data = $nonfollowers['prev_lottery_nonfollowers'];
+		}
+		$this->data['prev_followers_data'] = $prev_followers_data;
+		$this->data['prev_nonfollowers_data'] = $prev_nonfollowers_data;
+
+		// Fetch the previous draw using prev_draw_id from the followers table
+		$prev_draw_data = null;
+		if ($followers && isset($followers['prev_draw_id']) && $followers['prev_draw_id']) {
+			$prev_draw_data = $this->lotteries_m->get_draw_by_id($tbl_name, $followers['prev_draw_id']);
+		}
+
+		// Build current draw numbers array for comparison
+		$current_draw_numbers = array();
+		for ($b = 1; $b <= $drawn; $b++) {
+			$ball_key = 'ball' . $b;
+			if (isset($this->data['lottery']->last_drawn[$ball_key])) {
+				$current_draw_numbers[] = $this->data['lottery']->last_drawn[$ball_key];
+			}
+		}
+		if ($this->data['lottery']->extra_ball && !empty($this->data['lottery']->extra_included) && isset($this->data['lottery']->last_drawn['extra'])) {
+			$current_draw_numbers['extra'] = $this->data['lottery']->last_drawn['extra'];
+		}
+
+		if ($prev_draw_data) {
+			$prev_draw_numbers = array();
+			$prev_draw_balls = array();
+			for ($b = 1; $b <= $drawn; $b++) {
+				$ball_key = 'ball' . $b;
+				if (isset($prev_draw_data->$ball_key)) {
+					$prev_draw_numbers[] = $prev_draw_data->$ball_key;
+					$prev_draw_balls['ball' . $b] = $prev_draw_data->$ball_key;
+				}
+			}
+			if ($this->data['lottery']->extra_ball && !empty($this->data['lottery']->extra_included) && isset($prev_draw_data->extra)) {
+				$prev_draw_numbers['extra'] = $prev_draw_data->extra;
+				$prev_draw_balls['extra'] = $prev_draw_data->extra;
+			}
+			$this->data['prev_draw'] = array(
+				'numbers' => $prev_draw_numbers,
+				'balls'   => $prev_draw_balls,
+				'date'    => $prev_draw_data->draw_date,
+				'exists'  => true
+			);
+		} else {
+			$this->data['prev_draw'] = array('exists' => false);
+		}
+		$this->data['current_draw_numbers'] = $current_draw_numbers;
+
 		$this->data['current'] = $this->uri->segment(2); 				// Sets the Admins Menu Highlighted
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/followers'.($id ? '/'.$id : ''));
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
