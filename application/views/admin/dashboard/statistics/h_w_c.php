@@ -107,6 +107,9 @@
 				<div class="col-12">
 					<div class="card mt-3 tab-card">
 					<div id = "error"></div>
+					<?php if($this->session->flashdata('hwc_prediction_message')): ?>
+						<div class="alert alert-info" style="margin: 15px;"><?=$this->session->flashdata('hwc_prediction_message');?></div>
+					<?php endif; ?>
 					<?php if($this->session->flashdata('heat_message')): ?>
 						<div class="alert alert-info" style="margin: 15px;"><?=$this->session->flashdata('heat_message');?></div>
 					<?php endif; ?>
@@ -256,6 +259,64 @@
 								</div>
 							</div>
 						</div>
+						
+						<!-- Third Row: H-W-C Prediction Option -->
+						<div style="margin-top: 15px; white-space: nowrap; text-align: center; border-top: 1px solid #dee2e6; padding-top: 15px;">
+							<div style="display: inline-block; text-align: left; vertical-align: top;">
+								<strong>Prediction Option:</strong><br>
+								<div class="form-check form-check-inline" style="margin-top: 6px;">
+									<input class="form-check-input" type="radio" name="hwc_option_display" id="hwc_option_1" value="1" <?=($hwc_option==1 ? 'checked' : '');?>>
+									<label class="form-check-label" for="hwc_option_1">Top Ranked / Count H-W-C</label>
+								</div>
+								<div class="form-check form-check-inline" style="margin-top: 6px;">
+									<input class="form-check-input" type="radio" name="hwc_option_display" id="hwc_option_2" value="2" <?=($hwc_option==2 ? 'checked' : '');?>>
+									<label class="form-check-label" for="hwc_option_2">Manual Selected H-W-C</label>
+								</div>
+								<div id="hwc_manual_select" style="margin-top: 8px; display:<?=($hwc_option==2 ? 'block' : 'none');?>;">
+									<label for="hwc_select_dropdown">Select H-W-C Group:</label>
+									<select id="hwc_select_dropdown" name="hwc_select_display" class="form-control" style="display:inline-block; width:auto; margin-left:5px;">
+										<?php if(!empty($h_w_c_group)): $rank_idx = 1; foreach($h_w_c_group as $pattern => $display): ?>
+										<option value="<?=$rank_idx;?>" <?=($hwc_select==$rank_idx ? 'selected' : '');?>><?=htmlspecialchars($display);?></option>
+										<?php $rank_idx++; endforeach; endif; ?>
+									</select>
+								</div>
+							</div>
+							<div style="display: inline-block; margin-left: 80px; vertical-align: top; margin-top: 22px;">
+								<?php $frm_attr = array('id' => 'frmhwcoption_submit', 'style' => 'display:inline-block;');
+								echo form_open(base_url('admin/statistics/h_w_c/'.$lottery->id), $frm_attr); ?>
+								<input type="hidden" name="hwc_option" id="hwc_option_hidden" value="<?=$hwc_option;?>">
+								<input type="hidden" name="hwc_select" id="hwc_select_hidden" value="<?=$hwc_select;?>">
+								<?php $attr = array('class' => 'btn btn-primary', 'style' => 'vertical-align: top;');
+								echo form_submit("change_hwc_option", "Change H-W-C Option", $attr);
+								echo form_close(); ?>
+							</div>
+						</div>
+						
+						<!-- Predicted Numbers Display -->
+						<?php if(!empty($hwc_predictions)): ?>
+						<div style="margin: 15px; padding: 12px 15px; background-color: #e8f5e9; border-left: 4px solid #28a745; border-radius: 4px;">
+							<strong>Predicted Numbers for the Next Draw</strong>
+							<?php
+							$option_label = ($hwc_option == 2) ? 'Manual Selected' : 'Top Ranked';
+							if(!empty($h_w_c_group)):
+								$group_patterns = array_keys($h_w_c_group);
+								$idx = $hwc_select - 1;
+								$used_pattern = isset($group_patterns[$idx]) ? $group_patterns[$idx] : (isset($group_patterns[0]) ? $group_patterns[0] : '');
+								$used_display  = isset($h_w_c_group[$used_pattern]) ? $h_w_c_group[$used_pattern] : $used_pattern;
+							else:
+								$used_display = '';
+							endif;
+							?>
+							<span class="text-muted" style="font-size:0.85em; margin-left:8px;">(<?=$option_label;?><?=($used_display ? ' &mdash; ' . htmlspecialchars($used_display) : '');?>)</span><br>
+							<div style="margin-top: 8px;">
+								<?php $pred_numbers = explode(',', $hwc_predictions);
+								foreach($pred_numbers as $num): ?>
+								<span style="display:inline-block; background:#28a745; color:#fff; border-radius:50%; width:36px; height:36px; line-height:36px; text-align:center; margin:3px; font-weight:bold;"><?=trim($num);?></span>
+								<?php endforeach; ?>
+							</div>
+						</div>
+						<?php endif; ?>
+						
 						<div class="container" id="content" style = "margin:20px;">
 							<div class = "row justify-content-center">
 								<table class="table">
@@ -492,6 +553,26 @@
     	});
 	});
 	
+	// H-W-C Option radio buttons: show/hide manual select dropdown
+	$('input[name="hwc_option_display"]').on('change', function() {
+		var val = $(this).val();
+		$('#hwc_option_hidden').val(val);
+		if(val === '2') {
+			$('#hwc_manual_select').show();
+		} else {
+			$('#hwc_manual_select').hide();
+		}
+	});
+	// Sync the manual select dropdown value to the hidden field
+	$('#hwc_select_dropdown').on('change', function() {
+		$('#hwc_select_hidden').val($(this).val());
+	});
+	// On form submit, ensure hidden fields are up to date
+	$('#frmhwcoption_submit').on('submit', function() {
+		$('#hwc_option_hidden').val($('input[name="hwc_option_display"]:checked').val());
+		$('#hwc_select_hidden').val($('#hwc_select_dropdown').val());
+	});
+
 	// Initialize jQuery UI spinners with proper IDs
     $("#hots_spinner").spinner({
     	min: 1,

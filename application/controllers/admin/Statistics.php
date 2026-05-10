@@ -1684,6 +1684,40 @@ class Statistics extends Admin_Controller {
 					if(!isset($this->data['lottery']->W)) $this->data['lottery']->W = $warms;
 					if(!isset($this->data['lottery']->C)) $this->data['lottery']->C = $colds;
 				}
+				
+				// Handle H-W-C option (radio button + Change H-W-C Option button)
+				$hwc_option_button_pressed = $this->input->post('change_hwc_option');
+				if($hwc_option_button_pressed) {
+					$this->load->model('Predictions_m', 'predictions_m');
+					$posted_option = (int) $this->input->post('hwc_option');
+					$posted_option = ($posted_option === 2) ? 2 : 1;
+					$posted_select = max(1, (int) $this->input->post('hwc_select'));
+					// Get ranked H-W-C groups for this lottery
+					$h_w_c_groups = $this->predictions_m->get_h_w_c_range_with_rank($id);
+					$group_patterns = array_keys($h_w_c_groups);
+					// Determine which pattern to use
+					if($posted_option === 1) {
+						// Top Ranked: first pattern in the ranked list
+						$selected_pattern = !empty($group_patterns) ? $group_patterns[0] : '';
+						$posted_select = 1;
+					} else {
+						// Manual: pick by rank index (1-based)
+						$idx = $posted_select - 1;
+						$selected_pattern = isset($group_patterns[$idx]) ? $group_patterns[$idx] : (!empty($group_patterns) ? $group_patterns[0] : '');
+					}
+					// Generate predictions if a pattern is available
+					if(!empty($selected_pattern)) {
+						$pool_size = isset($h_w_c['prediction_pool']) ? (int)$h_w_c['prediction_pool'] : 18;
+						$generated = $this->predictions_m->hwc_only($id, $pool_size, $selected_pattern);
+						$hwc_predictions_str = $generated ? $generated : '';
+					} else {
+						$hwc_predictions_str = '';
+					}
+					$this->statistics_m->hwc_save_predictions($id, $posted_option, $posted_select, $hwc_predictions_str);
+					$this->session->set_flashdata('hwc_prediction_message', 'Generating Numbers for the next draw');
+					redirect('admin/statistics/h_w_c/' . $id);
+					return;
+				}
 			}
 			// Toggle extra_included when /extra is in URL, otherwise use database value
 			if($this->uri->segment(6)=='extra') {
@@ -2026,6 +2060,14 @@ class Statistics extends Admin_Controller {
 			}
 			redirect($redirect_url);
 		}
+		
+		// Load prediction-related data for the H-W-C option UI
+		$this->load->model('Predictions_m', 'predictions_m');
+		$h_w_c_current = $this->statistics_m->h_w_c_exists($id);
+		$this->data['hwc_option']      = isset($h_w_c_current['hwc_option'])      ? (int)$h_w_c_current['hwc_option']      : 1;
+		$this->data['hwc_select']      = isset($h_w_c_current['hwc_select'])      ? (int)$h_w_c_current['hwc_select']      : 1;
+		$this->data['hwc_predictions'] = isset($h_w_c_current['hwc_predictions']) ? $h_w_c_current['hwc_predictions']      : '';
+		$this->data['h_w_c_group']     = $this->predictions_m->get_h_w_c_range_with_rank($id);
 		
 		$this->data['subview']  = 'admin/dashboard/statistics/h_w_c';
 		$this->load->view('admin/_layout_main', $this->data);
@@ -2815,6 +2857,29 @@ class Statistics extends Admin_Controller {
 		$this->statistics_m->hwc_history_save($hwc_h_data, TRUE); // Update existing lottery H W C Record
 		unset($h_w_c); 		 // Remove this temporary holding place for h-w-c's
 		unset($hwc_history); // Remove this temporary holding place for historic h-w-c's
+		
+		// Re-generate H-W-C predictions after recalc using the stored option settings
+		$this->load->model('Predictions_m', 'predictions_m');
+		$h_w_c_after = $this->statistics_m->h_w_c_exists($id);
+		if(!is_null($h_w_c_after)) {
+			$stored_option  = isset($h_w_c_after['hwc_option'])  ? (int)$h_w_c_after['hwc_option']  : 1;
+			$stored_select  = isset($h_w_c_after['hwc_select'])  ? (int)$h_w_c_after['hwc_select']  : 1;
+			$pool_size      = isset($h_w_c_after['prediction_pool']) ? (int)$h_w_c_after['prediction_pool'] : 18;
+			$h_w_c_groups   = $this->predictions_m->get_h_w_c_range_with_rank($id);
+			$group_patterns = array_keys($h_w_c_groups);
+			if(!empty($group_patterns)) {
+				if($stored_option === 2) {
+					$idx = $stored_select - 1;
+					$pattern = isset($group_patterns[$idx]) ? $group_patterns[$idx] : $group_patterns[0];
+				} else {
+					$pattern = $group_patterns[0]; // Top ranked
+				}
+				$generated = $this->predictions_m->hwc_only($id, $pool_size, $pattern);
+				if($generated) {
+					$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated);
+				}
+			}
+		}
 	}
 	/**
 	* ReCALCULATES the Lottery Followers for the next draw,

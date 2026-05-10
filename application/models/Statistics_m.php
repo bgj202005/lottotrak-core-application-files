@@ -5887,6 +5887,29 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	}
 
 	/** 
+	* Save only the H-W-C prediction fields (hwc_option, hwc_select, hwc_predictions) for a lottery
+	* without overwriting any other fields in lottery_h_w_c.
+	*
+	* @param	integer	$lottery_id		Lottery ID
+	* @param	integer	$option			1 = Top Ranked, 2 = Manual Selected
+	* @param	integer	$select			Rank index (1-based) of the selected H-W-C group
+	* @param	string	$predictions	Comma-separated generated numbers
+	* @return   none
+	*/
+	public function hwc_save_predictions($lottery_id, $option, $select, $predictions)
+	{
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update('lottery_h_w_c', array(
+			'hwc_option'      => (int) $option,
+			'hwc_select'      => (int) $select,
+			'hwc_predictions' => $predictions,
+		));
+		// Clear cache so the new predictions are picked up on next read
+		$cache_key = $this->generate_cache_key('h_w_c', $lottery_id);
+		$this->cache->delete($cache_key);
+	}
+
+	/** 
 	* Insert / Update the historic hots, warms and colds over the given range
 	* 
 	* @param 	array	$data		key / value pairs of Friend Profile to be inserted / updated
