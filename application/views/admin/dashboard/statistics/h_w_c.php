@@ -91,7 +91,35 @@
 	}
 	#hwc_paginate{
     float:right;
-	}	  
+	}
+	.hwc-controls-grid {
+		display: grid;
+		grid-template-columns: max-content max-content;
+		align-items: center;
+		gap: 10px 20px;
+		width: fit-content;
+		margin: 0 auto;
+		padding-top: 20px;
+	}
+	@media (max-width: 768px) {
+		.hwc-controls-grid {
+			grid-template-columns: 1fr;
+			width: 100%;
+		}
+		.hwc-controls-grid .hwc-btn-cell {
+			padding-top: 0 !important;
+			border-top: none !important;
+			margin-top: 0 !important;
+			text-align: center;
+		}
+		.hwc-controls-grid .hwc-btn-cell form {
+			display: block !important;
+			text-align: center;
+		}
+		.hwc-controls-grid .hwc-btn-cell .btn {
+			display: inline-block;
+		}
+	}
 </style>
 	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
 	<script src="//code.jquery.com/jquery-1.12.4.js"></script>
@@ -178,8 +206,7 @@
 								</div>		
 							</div>
 						<!-- All 3 control rows in a single 2-column grid so buttons stay vertically aligned -->
-						<div style="padding-top: 20px; display: grid; grid-template-columns: max-content max-content; align-items: center; gap: 10px 20px; width: fit-content; margin: 0 auto;">
-
+						<div class="hwc-controls-grid">
 							<!-- Row 1 col 1: Hots / Warms / Colds spinners -->
 							<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px;">
 								<?php echo form_label("Hots:", "id => 'lb_hots'");
@@ -214,7 +241,7 @@
 								echo form_input($c_details); ?>
 							</div>
 							<!-- Row 1 col 2: Change Heat Levels button -->
-							<div>
+							<div class="hwc-btn-cell">
 								<?php $frm_attr = array('id' => 'frmheat_submit', 'style' => 'display:inline-block;');
 								echo form_open(base_url('admin/statistics/h_w_c/'.$lottery->id), $frm_attr);
 								?><input type="hidden" name="hots" id="hots_hidden" value="">
@@ -248,7 +275,7 @@
 								echo form_input($pool_details); ?>
 							</div>
 							<!-- Row 2 col 2: Change Number Pool button -->
-							<div>
+							<div class="hwc-btn-cell">
 								<?php $frm_attr = array('id' => 'frmnumberpool_submit', 'style' => 'display:inline-block;');
 								echo form_open(base_url('admin/statistics/h_w_c/'.$lottery->id), $frm_attr);
 								?><input type="hidden" name="prediction_pool" id="prediction_pool_hidden" value="">
@@ -281,7 +308,7 @@
 								</div>
 							</div>
 							<!-- Row 3 col 2: Change H-W-C Option button (with top separator) -->
-							<div style="border-top: 1px solid #dee2e6; padding-top: 12px; margin-top: 4px; align-self: start;">
+							<div class="hwc-btn-cell" style="border-top: 1px solid #dee2e6; padding-top: 12px; margin-top: 4px; align-self: start;">
 								<?php $frm_attr = array('id' => 'frmhwcoption_submit', 'style' => 'display:inline-block;');
 								echo form_open(base_url('admin/statistics/h_w_c/'.$lottery->id), $frm_attr); ?>
 								<input type="hidden" name="hwc_option" id="hwc_option_hidden" value="<?=$hwc_option;?>">
