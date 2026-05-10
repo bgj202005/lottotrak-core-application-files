@@ -1713,7 +1713,9 @@ class Statistics extends Admin_Controller {
 					} else {
 						$hwc_predictions_str = '';
 					}
-					$this->statistics_m->hwc_save_predictions($id, $posted_option, $posted_select, $hwc_predictions_str);
+					// Save current predictions as the previous before replacing with new ones
+					$prev_str = isset($h_w_c['hwc_predictions']) ? $h_w_c['hwc_predictions'] : '';
+					$this->statistics_m->hwc_save_predictions($id, $posted_option, $posted_select, $hwc_predictions_str, $prev_str);
 					$this->session->set_flashdata('hwc_prediction_message', 'Generating Numbers for the next draw');
 					redirect('admin/statistics/h_w_c/' . $id);
 					return;
@@ -2876,7 +2878,8 @@ class Statistics extends Admin_Controller {
 				}
 				$generated = $this->predictions_m->hwc_only($id, $pool_size, $pattern);
 				if($generated) {
-					$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated);
+					// Recalc blanks prev_h_w_c_predictions (fresh cycle after a new draw)
+					$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated, '');
 				}
 			}
 		}

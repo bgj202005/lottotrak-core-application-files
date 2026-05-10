@@ -819,6 +819,72 @@
 								</div>		
 							</div>
 						</div>
+						<?php
+						// H-W-C Previous Predicted Winners — shown above tabs
+						if(!empty($prev_hwc_predictions)):
+							$prev_ball_nums = array_filter(array_map('trim', explode(',', $prev_hwc_predictions)), 'strlen');
+							// Separate extra/bonus ball from main drawn balls
+							$extra_ball_val = ($lottery->extra_ball && isset($lottery->last_drawn['extra']))
+								? (string) trim($lottery->last_drawn['extra']) : '';
+							$main_winning_balls = array();
+							if(!empty($lottery->draw)):
+								$balls_drawn_count = (int) $lottery->balls_drawn;
+								$draw_idx = 0;
+								foreach($lottery->draw as $wb):
+									$draw_idx++;
+									// Only count it as a main winner if it's within balls_drawn count
+									if($draw_idx <= $balls_drawn_count):
+										$main_winning_balls[] = (string) trim($wb);
+									endif;
+								endforeach;
+							endif;
+						?>
+						<div style="margin: 0 20px 16px; padding: 14px 18px; background-color: #e8f5e9; border-left: 4px solid #28a745; border-radius: 4px; text-align: center;">
+							<strong>H-W-C Previous Predicted Winners</strong>
+							<div style="margin-top: 10px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;">
+								<?php foreach($prev_ball_nums as $pball):
+									$pball       = (string) trim($pball);
+									$is_bonus    = ($extra_ball_val !== '' && $pball === $extra_ball_val);
+									$is_main_win = in_array($pball, $main_winning_balls);
+									if ($is_bonus):
+										$bg     = '#1565C0'; // blue for bonus ball match
+										$color  = '#fff';
+										$border = 'border: 2px solid #0d47a1;';
+										$title  = 'Bonus/Extra Ball!';
+									elseif ($is_main_win):
+										$bg     = '#FFD700'; // gold for main ball match
+										$color  = '#333';
+										$border = 'border: 2px solid #b8860b;';
+										$title  = 'Winner!';
+									else:
+										$bg     = '#28a745'; // green — not drawn
+										$color  = '#fff';
+										$border = '';
+										$title  = '';
+									endif;
+								?>
+								<div title="<?=$title;?>" style="
+									display: inline-flex; align-items: center; justify-content: center;
+									width: 40px; height: 40px; border-radius: 50%;
+									background-color: <?=$bg;?>; color: <?=$color;?>;
+									font-weight: bold; font-size: 14px;
+									box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+									<?=$border;?>
+								"><?=$pball;?></div>
+								<?php endforeach; ?>
+							</div>
+							<p style="margin-top: 8px; font-size: 0.85em; color: #555;">
+								<span style="display:inline-block; width:14px; height:14px; background:#FFD700; border-radius:50%; border:1px solid #b8860b; vertical-align:middle;"></span>
+								Gold = main ball match &nbsp;
+								<?php if($lottery->extra_ball): ?>
+								<span style="display:inline-block; width:14px; height:14px; background:#1565C0; border-radius:50%; border:1px solid #0d47a1; vertical-align:middle;"></span>
+								Blue = bonus/extra ball match &nbsp;
+								<?php endif; ?>
+								<span style="display:inline-block; width:14px; height:14px; background:#28a745; border-radius:50%; vertical-align:middle;"></span>
+								Green = not drawn
+							</p>
+						</div>
+						<?php endif; ?>
 						<ul class="nav nav-tabs nav-fill" id="myTab" role="tablist" style="margin-left: 20px; margin-right: 20px;">
 							<li class="nav-item">
 								<a class="nav-link active" id="home-tab" data-toggle="tab" href="#home" role="tab" aria-controls="home" aria-selected="true">

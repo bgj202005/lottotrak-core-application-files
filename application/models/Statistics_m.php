@@ -5896,15 +5896,47 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	* @param	string	$predictions	Comma-separated generated numbers
 	* @return   none
 	*/
-	public function hwc_save_predictions($lottery_id, $option, $select, $predictions)
-	{
-		$this->db->where('lottery_id', $lottery_id);
-		$this->db->update('lottery_h_w_c', array(
+	public function hwc_save_predictions($lottery_id, $option, $select, $predictions, $prev_predictions = null)	{
+		$update = array(
 			'hwc_option'      => (int) $option,
 			'hwc_select'      => (int) $select,
 			'hwc_predictions' => $predictions,
-		));
+		);
+		// When $prev_predictions is passed (even as empty string), update that field too
+		if (!is_null($prev_predictions)) {
+			$update['prev_h_w_c_predictions'] = $prev_predictions;
+		}
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update('lottery_h_w_c', $update);
 		// Clear cache so the new predictions are picked up on next read
+		$cache_key = $this->generate_cache_key('h_w_c', $lottery_id);
+		$this->cache->delete($cache_key);
+	}
+
+	/** 
+	* Copy the current hwc_predictions into prev_h_w_c_predictions.
+	* Called when a new draw is imported or manually entered so the history
+	* page can show which numbers were predicted before that draw.
+	* Does nothing if hwc_predictions is empty.
+	*
+	* @param	integer $lottery_id
+	* @return   void
+	*/
+	public function hwc_snapshot_predictions($lottery_id)
+	{
+		// Bypass cache — read directly from DB so we always get the live hwc_predictions value
+		$query = $this->db->where('lottery_id', $lottery_id)
+		        ->limit(1)
+		        ->get('lottery_h_w_c');
+		$row = $query->row_array();
+		if (empty($row) || empty($row['hwc_predictions'])) {
+			return; // Nothing to snapshot
+		}
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update('lottery_h_w_c', array(
+			'prev_h_w_c_predictions' => $row['hwc_predictions'],
+		));
+		// Clear cache so history page reads the fresh row
 		$cache_key = $this->generate_cache_key('h_w_c', $lottery_id);
 		$this->cache->delete($cache_key);
 	}

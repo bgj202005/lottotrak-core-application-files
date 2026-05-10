@@ -1016,7 +1016,13 @@ class Lotteries extends Admin_Controller {
 						$this->lotteries_m->update_lastdraw($id, $latest_date);
 					}
 				}
-				
+
+				// Snapshot current hwc_predictions → prev_h_w_c_predictions so history
+				// page can highlight which balls were predicted before this new draw
+				if ($processed_count > 0) {
+					$this->statistics_m->hwc_snapshot_predictions($id);
+				}
+
 				echo json_encode(array('exit' => TRUE));
 			}
 		}
@@ -1536,6 +1542,10 @@ class Lotteries extends Admin_Controller {
 					
 					// Update lastdate field in lottery_profiles with the new draw date
 					$this->lotteries_m->update_lastdraw($id, $draw['draw_date']);
+
+					// Snapshot current hwc_predictions → prev_h_w_c_predictions so history
+					// page can show which balls were predicted before this new draw
+					$this->statistics_m->hwc_snapshot_predictions($id);
 				} 
 				else
 				{
