@@ -177,92 +177,91 @@
 									</div>
 								</div>		
 							</div>
-						<div style="padding-top: 20px;">
-							<!-- First Row: Hots, Warms, Colds with Change Heat Levels button on same line -->
-							<div style="margin-bottom: 15px; white-space: nowrap; text-align: center;">
-								<div style="display: inline-block; width: 400px; text-align: center;">
-									<?php echo form_label("Hots:", "id => 'lb_hots'");
-									$h_details = array( 'name'          => 'hots_spinner',
-														'id'            => 'hots_spinner',
-														'value'         => $lottery->H,
-														'min'		    => '1',
-														'max' 	        => '50',
-														'step'			=> '1',
-														'style'         => 'margin:5px 8px -5px 5px; width:3em; height:30px;'
-									);
-									echo form_input($h_details);
-									echo form_label("Warms:", "id => 'lb_warms'");
-									$w_details = array( 'name'          => 'warms_spinner',
-														'id'            => 'warms_spinner',
-														'value'         => $lottery->W,
-														'min'		    => '1',
-														'max' 	        => '50',
-														'step'			=> '1',
-														'style'         => 'margin:5px 8px -5px 5px; width:3em; height:30px;'
-									);
-									echo form_input($w_details);
-									echo form_label("Colds:", "id => 'lb_colds'");
-									$c_details = array( 'name'          => 'colds_spinner',
-														'id'            => 'colds_spinner',
-														'value'         => $lottery->C,
-														'min'		    => '1',
-														'max' 	        => '50',
-														'step'			=> '1',
-														'style'         => 'margin:5px 8px -5px 5px; width:3em; height:30px;'
-									);
-									echo form_input($c_details); ?>
-								</div>
-								<div style="display: inline-block; margin-left: 100px; vertical-align: top;">
-									<?php $frm_attr = array('id' => 'frmheat_submit', 'style' => 'display:inline-block;');
-									echo form_open(base_url('admin/statistics/h_w_c/'.$lottery->id), $frm_attr);
-									?><input type="hidden" name="hots" id="hots_hidden" value="">
-									<input type="hidden" name="warms" id="warms_hidden" value="">
-									<input type="hidden" name="colds" id="colds_hidden" value="">
-									<input type="hidden" name="heat" id="heat_hidden" value="">
-									<?php
-									echo form_hidden('original_hots', $lottery->H);
-									echo form_hidden('original_warms', $lottery->W);
-									echo form_hidden('original_colds', $lottery->C);
-									$attr = array('class'	=> 'btn btn-primary', 'style' => 'vertical-align: top;');
-									echo form_submit("heat", "Change Heat Levels", $attr);
-									echo form_close(); ?>
-								</div>
+						<!-- All 3 control rows in a single 2-column grid so buttons stay vertically aligned -->
+						<div style="padding-top: 20px; display: grid; grid-template-columns: max-content max-content; align-items: center; gap: 10px 20px; width: fit-content; margin: 0 auto;">
+
+							<!-- Row 1 col 1: Hots / Warms / Colds spinners -->
+							<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px;">
+								<?php echo form_label("Hots:", "id => 'lb_hots'");
+								$h_details = array( 'name'  => 'hots_spinner',
+													'id'    => 'hots_spinner',
+													'value' => $lottery->H,
+													'min'   => '1',
+													'max'   => '50',
+													'step'  => '1',
+													'style' => 'width:3em; height:30px;'
+								);
+								echo form_input($h_details);
+								echo form_label("Warms:", "id => 'lb_warms'");
+								$w_details = array( 'name'  => 'warms_spinner',
+													'id'    => 'warms_spinner',
+													'value' => $lottery->W,
+													'min'   => '1',
+													'max'   => '50',
+													'step'  => '1',
+													'style' => 'width:3em; height:30px;'
+								);
+								echo form_input($w_details);
+								echo form_label("Colds:", "id => 'lb_colds'");
+								$c_details = array( 'name'  => 'colds_spinner',
+													'id'    => 'colds_spinner',
+													'value' => $lottery->C,
+													'min'   => '1',
+													'max'   => '50',
+													'step'  => '1',
+													'style' => 'width:3em; height:30px;'
+								);
+								echo form_input($c_details); ?>
 							</div>
-							
-							<!-- Second Row: Prediction Number Pool with Change Number Pool button on same line -->
-							<div style="white-space: nowrap; text-align: center;">
-								<div style="display: inline-block; width: 400px; text-align: center;">
-									<?php echo form_label("Prediction Number Pool:", "id => 'lb_numberpool'");
-									$min_pool = $lottery->balls_drawn; // Minimum is the pick number (e.g., 6 for pick 6)
-									$max_pool = intval($lottery->maximum_ball / 2); // Maximum is half of total numbers
-									$current_pool = isset($lottery->prediction_pool) ? $lottery->prediction_pool : 18; // Default to 18 if not set
-									$pool_details = array( 'name'          => 'prediction_pool_spinner',
-														'id'            => 'prediction_pool_spinner',
-														'value'         => $current_pool,
-														'min'		    => $min_pool,
-														'max' 	        => $max_pool,
-														'step'			=> '1',
-														'style'         => 'margin:5px 8px -5px 5px; width:4em; height:30px;'
-									);
-									echo form_input($pool_details); ?>
-								</div>
-								<div style="display: inline-block; margin-left: 100px; vertical-align: top;">
-									<?php $frm_attr = array('id' => 'frmnumberpool_submit', 'style' => 'display:inline-block;');
-									echo form_open(base_url('admin/statistics/h_w_c/'.$lottery->id), $frm_attr);
-									?><input type="hidden" name="prediction_pool" id="prediction_pool_hidden" value="">
-									<input type="hidden" name="original_prediction_pool" value="<?php echo $current_pool; ?>">
-									<input type="hidden" name="change_pool" id="change_pool_hidden" value="">
-									<?php
-									$attr = array('class'	=> 'btn btn-success', 'style' => 'vertical-align: top;');
-									echo form_submit("change_pool", "Change Number Pool", $attr);
-									echo form_close(); ?>
-								</div>
+							<!-- Row 1 col 2: Change Heat Levels button -->
+							<div>
+								<?php $frm_attr = array('id' => 'frmheat_submit', 'style' => 'display:inline-block;');
+								echo form_open(base_url('admin/statistics/h_w_c/'.$lottery->id), $frm_attr);
+								?><input type="hidden" name="hots" id="hots_hidden" value="">
+								<input type="hidden" name="warms" id="warms_hidden" value="">
+								<input type="hidden" name="colds" id="colds_hidden" value="">
+								<input type="hidden" name="heat" id="heat_hidden" value="">
+								<?php
+								echo form_hidden('original_hots', $lottery->H);
+								echo form_hidden('original_warms', $lottery->W);
+								echo form_hidden('original_colds', $lottery->C);
+								$attr = array('class' => 'btn btn-primary');
+								echo form_submit("heat", "Change Heat Levels", $attr);
+								echo form_close(); ?>
 							</div>
-						</div>
-						
-						<!-- Third Row: H-W-C Prediction Option -->
-						<div style="margin-top: 15px; white-space: nowrap; text-align: center; border-top: 1px solid #dee2e6; padding-top: 15px;">
-							<div style="display: inline-block; text-align: left; vertical-align: top;">
+
+							<!-- Row 2 col 1: Prediction Number Pool spinner -->
+							<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px;">
+								<?php
+								$min_pool     = $lottery->balls_drawn;
+								$max_pool     = intval($lottery->maximum_ball / 2);
+								$current_pool = isset($lottery->prediction_pool) ? $lottery->prediction_pool : 18;
+								echo form_label("Prediction Number Pool:", "id => 'lb_numberpool'");
+								$pool_details = array( 'name'  => 'prediction_pool_spinner',
+													'id'    => 'prediction_pool_spinner',
+													'value' => $current_pool,
+													'min'   => $min_pool,
+													'max'   => $max_pool,
+													'step'  => '1',
+													'style' => 'width:4em; height:30px;'
+								);
+								echo form_input($pool_details); ?>
+							</div>
+							<!-- Row 2 col 2: Change Number Pool button -->
+							<div>
+								<?php $frm_attr = array('id' => 'frmnumberpool_submit', 'style' => 'display:inline-block;');
+								echo form_open(base_url('admin/statistics/h_w_c/'.$lottery->id), $frm_attr);
+								?><input type="hidden" name="prediction_pool" id="prediction_pool_hidden" value="">
+								<input type="hidden" name="original_prediction_pool" value="<?php echo $current_pool; ?>">
+								<input type="hidden" name="change_pool" id="change_pool_hidden" value="">
+								<?php
+								$attr = array('class' => 'btn btn-success');
+								echo form_submit("change_pool", "Change Number Pool", $attr);
+								echo form_close(); ?>
+							</div>
+
+							<!-- Row 3 col 1: H-W-C Prediction Option radios (with top separator) -->
+							<div style="border-top: 1px solid #dee2e6; padding-top: 12px; margin-top: 4px; text-align: left;">
 								<strong>Prediction Option:</strong><br>
 								<div class="form-check form-check-inline" style="margin-top: 6px;">
 									<input class="form-check-input" type="radio" name="hwc_option_display" id="hwc_option_1" value="1" <?=($hwc_option==1 ? 'checked' : '');?>>
@@ -281,20 +280,22 @@
 									</select>
 								</div>
 							</div>
-							<div style="display: inline-block; margin-left: 80px; vertical-align: top; margin-top: 22px;">
+							<!-- Row 3 col 2: Change H-W-C Option button (with top separator) -->
+							<div style="border-top: 1px solid #dee2e6; padding-top: 12px; margin-top: 4px; align-self: start;">
 								<?php $frm_attr = array('id' => 'frmhwcoption_submit', 'style' => 'display:inline-block;');
 								echo form_open(base_url('admin/statistics/h_w_c/'.$lottery->id), $frm_attr); ?>
 								<input type="hidden" name="hwc_option" id="hwc_option_hidden" value="<?=$hwc_option;?>">
 								<input type="hidden" name="hwc_select" id="hwc_select_hidden" value="<?=$hwc_select;?>">
-								<?php $attr = array('class' => 'btn btn-primary', 'style' => 'vertical-align: top;');
+								<?php $attr = array('class' => 'btn btn-primary');
 								echo form_submit("change_hwc_option", "Change H-W-C Option", $attr);
 								echo form_close(); ?>
 							</div>
+
 						</div>
 						
 						<!-- Predicted Numbers Display -->
 						<?php if(!empty($hwc_predictions)): ?>
-						<div style="margin: 15px; padding: 12px 15px; background-color: #e8f5e9; border-left: 4px solid #28a745; border-radius: 4px;">
+						<div style="margin: 15px; padding: 12px 15px; background-color: #e8f5e9; border-left: 4px solid #28a745; border-radius: 4px; text-align: center;">
 							<strong>Predicted Numbers for the Next Draw</strong>
 							<?php
 							$option_label = ($hwc_option == 2) ? 'Manual Selected' : 'Top Ranked';
@@ -308,10 +309,10 @@
 							endif;
 							?>
 							<span class="text-muted" style="font-size:0.85em; margin-left:8px;">(<?=$option_label;?><?=($used_display ? ' &mdash; ' . htmlspecialchars($used_display) : '');?>)</span><br>
-							<div style="margin-top: 8px;">
+							<div style="margin-top: 8px; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;">
 								<?php $pred_numbers = explode(',', $hwc_predictions);
 								foreach($pred_numbers as $num): ?>
-								<span style="display:inline-block; background:#28a745; color:#fff; border-radius:50%; width:36px; height:36px; line-height:36px; text-align:center; margin:3px; font-weight:bold;"><?=trim($num);?></span>
+								<span style="display:inline-flex; align-items:center; justify-content:center; background:#28a745; color:#fff; border-radius:50%; width:38px; height:38px; font-weight:bold; font-size:0.95em;"><?=trim($num);?></span>
 								<?php endforeach; ?>
 							</div>
 						</div>
