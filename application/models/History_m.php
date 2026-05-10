@@ -948,9 +948,12 @@ class History_m extends MY_Model
      * @param   array   $draws          Raw draw rows (from load_history), oldest first
      * @param   int     $window         Look-ahead / look-back window in draws (default 10)
      * @param   int     $min_repeats    Minimum confirmed repeats to qualify (default 3)
+     * @param   array   $extra_ds       Additional DS values to evaluate (e.g. top-3 predicted)
+     *                                  even if they did not appear in the last $window draws.
+     *                                  Only the single best qualifier is returned, tagged 'from_prediction'.
      * @return  array   Keys 'ds' and 'ws', each an array of qualifying candidates sorted by rate desc
      */
-    public function short_repeat_indicator($draws, $window = 10, $min_repeats = 3)
+    public function short_repeat_indicator($draws, $window = 10, $min_repeats = 3, $extra_ds = array())
     {
         if (empty($draws)) return array();
 
@@ -1014,11 +1017,12 @@ class History_m extends MY_Model
                 $rate = ($occurrences > 0) ? round($short_repeats / $occurrences, 2) : 0.0;
 
                 $result[$key][] = array(
-                    'value'       => $val,
-                    'occurrences' => $occurrences,
-                    'repeats'     => $short_repeats,
-                    'rate'        => $rate,
-                    'draws_since' => $draws_since,
+                    'value'           => $val,
+                    'occurrences'     => $occurrences,
+                    'repeats'         => $short_repeats,
+                    'rate'            => $rate,
+                    'draws_since'     => $draws_since,
+                    'from_prediction' => false,
                 );
             }
 
@@ -1026,6 +1030,72 @@ class History_m extends MY_Model
             if (!empty($result[$key]))
             {
                 usort($result[$key], function($a, $b) {
+                    return $b['rate'] <=> $a['rate'];
+                });
+            }
+        }
+
+        // --- Extra DS from prediction: check top-3 predicted values not already in recent window ---
+        if (!empty($extra_ds))
+        {
+            // Keys already shown from recent-window scan
+            $already_shown = array();
+            foreach ($result['ds'] as $item) { $already_shown[$item['value']] = true; }
+
+            $best_prediction = null;
+            foreach ($extra_ds as $val)
+            {
+                $val = intval($val);
+                if ($val <= 0 || isset($already_shown[$val])) continue;
+
+                $occurrences   = 0;
+                $short_repeats = 0;
+
+                for ($i = 0; $i < $n; $i++)
+                {
+                    if (intval($draws[$i]['sum_digits']) !== $val) continue;
+                    $occurrences++;
+                    $end = min($i + $window, $n - 1);
+                    for ($j = $i + 1; $j <= $end; $j++)
+                    {
+                        if (intval($draws[$j]['sum_digits']) === $val)
+                        {
+                            $short_repeats++;
+                            break;
+                        }
+                    }
+                }
+
+                if ($short_repeats < $min_repeats) continue;
+
+                $draws_since = 0;
+                for ($i = $n - 1; $i >= 0; $i--)
+                {
+                    if (intval($draws[$i]['sum_digits']) === $val) break;
+                    $draws_since++;
+                }
+
+                $rate = ($occurrences > 0) ? round($short_repeats / $occurrences, 2) : 0.0;
+                $candidate = array(
+                    'value'           => $val,
+                    'occurrences'     => $occurrences,
+                    'repeats'         => $short_repeats,
+                    'rate'            => $rate,
+                    'draws_since'     => $draws_since,
+                    'from_prediction' => true,
+                );
+                // Keep only the best-rate prediction candidate
+                if ($best_prediction === null || $rate > $best_prediction['rate'])
+                {
+                    $best_prediction = $candidate;
+                }
+            }
+
+            if ($best_prediction !== null)
+            {
+                $result['ds'][] = $best_prediction;
+                // Re-sort so prediction entry appears in natural rate order
+                usort($result['ds'], function($a, $b) {
                     return $b['rate'] <=> $a['rate'];
                 });
             }

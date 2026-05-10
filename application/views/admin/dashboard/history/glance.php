@@ -357,7 +357,12 @@ $b = 1;
 														<small class="text-muted d-block mb-1"><strong>Short-Cycle Repeat Pattern</strong> <span class="font-weight-normal">(drawn in last 10, historically repeats within 10, min. 3 confirmed)</span></small>
 														<?php foreach ($_sr_ds as $_item) : ?>
 														<small class="d-block mt-1">
+															<?php if (!empty($_item['from_prediction'])) : ?>
+															<span class="badge badge-warning">DS&nbsp;<?= $_item['value'] ?></span>
+															<em class="text-muted">(predicted)</em>
+															<?php else : ?>
 															<span class="badge badge-info">DS&nbsp;<?= $_item['value'] ?></span>
+															<?php endif; ?>
 															repeated within 10 draws <strong><?= $_item['repeats'] ?></strong> of <?= $_item['occurrences'] ?> times
 															(<strong><?= round($_item['rate'] * 100) ?>%</strong>)
 															&mdash; last drawn <?= $_item['draws_since'] ?> draw<?= ($_item['draws_since'] != 1 ? 's' : '') ?> ago

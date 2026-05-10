@@ -306,7 +306,18 @@ class History extends Admin_Controller {
 		$this->data['lottery']->last_drawn['predicted_winning_sum'] = $_prediction['predicted_winning_sum'];
 		$this->data['lottery']->last_drawn['predicted_runners_up']  = $_prediction['predicted_runners_up'];
 		// Short-cycle repeat indicator — always computed fresh from current draw window (lightweight)
-		$this->data['lottery']->last_drawn['short_repeat'] = $this->history_m->short_repeat_indicator($drawings);
+		// Also pass top-3 predicted DS values so the best prediction candidate with a repeat pattern is included
+		$_runners_raw = isset($_prediction['predicted_runners_up']) ? $_prediction['predicted_runners_up'] : '';
+		$_predicted_ds_vals = array();
+		if (!empty($_runners_raw))
+		{
+			foreach (explode(',', $_runners_raw) as $_entry)
+			{
+				$_parts = explode('=', $_entry);
+				if (!empty($_parts[0]) && intval($_parts[0]) > 0) $_predicted_ds_vals[] = intval($_parts[0]);
+			}
+		}
+		$this->data['lottery']->last_drawn['short_repeat'] = $this->history_m->short_repeat_indicator($drawings, 10, 3, $_predicted_ds_vals);
 		/***** End of Statistic Calculations ******/
 		$aag = array(
 			'range'					=> $new_range,
