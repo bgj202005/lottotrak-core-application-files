@@ -2876,10 +2876,27 @@ class Statistics extends Admin_Controller {
 				} else {
 					$pattern = $group_patterns[0]; // Top ranked
 				}
+				// Generate predictions for the NEXT draw from current H-W-C data
 				$generated = $this->predictions_m->hwc_only($id, $pool_size, $pattern);
+				// Generate "previous" predictions: what H-W-C suggested for the LAST draw,
+				// using hots_last/warms_last/colds_last (H-W-C data excluding the last draw)
+				$prev_gen = '';
+				$prev_hots  = isset($h_w_c_after['hots_last'])  ? $h_w_c_after['hots_last']  : '';
+				$prev_warms = isset($h_w_c_after['warms_last']) ? $h_w_c_after['warms_last'] : '';
+				$prev_colds = isset($h_w_c_after['colds_last']) ? $h_w_c_after['colds_last'] : '';
+				$h_count    = isset($h_w_c_after['h_count'])   ? (int)$h_w_c_after['h_count'] : 0;
+				$w_count    = isset($h_w_c_after['w_count'])   ? (int)$h_w_c_after['w_count'] : 0;
+				$c_count    = isset($h_w_c_after['c_count'])   ? (int)$h_w_c_after['c_count'] : 0;
+				if(!empty($prev_hots) && !empty($prev_warms) && !empty($prev_colds)) {
+					$prev_gen = $this->predictions_m->hwc_only_from_strings(
+						$prev_hots, $prev_warms, $prev_colds,
+						$h_count, $w_count, $c_count,
+						$pool_size, $pattern
+					);
+					if($prev_gen === FALSE) $prev_gen = '';
+				}
 				if($generated) {
-					// Recalc blanks prev_h_w_c_predictions (fresh cycle after a new draw)
-					$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated, '');
+					$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated, $prev_gen);
 				}
 			}
 		}

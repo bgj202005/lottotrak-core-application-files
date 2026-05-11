@@ -1283,6 +1283,55 @@ class Predictions_m extends MY_Model
 	return $adjacents_arr;
 	}
 	/**
+	 * Generate H-W-C predictions directly from raw hot/warm/cold strings.
+	 * Used during recalc to produce "previous" predictions — i.e., what H-W-C would have
+	 * suggested for the last draw — using hots_last/warms_last/colds_last (H-W-C data
+	 * calculated excluding the last draw). Does not require a DB lookup for ball data.
+	 *
+	 * @param string $hots_str        Comma-separated "ball=heat" pairs for hot numbers
+	 * @param string $warms_str       Comma-separated "ball=heat" pairs for warm numbers
+	 * @param string $colds_str       Comma-separated "ball=heat" pairs for cold numbers
+	 * @param int    $h_count         Size of the hot pool (used for boundary awareness only)
+	 * @param int    $w_count         Size of the warm pool
+	 * @param int    $c_count         Size of the cold pool
+	 * @param int    $combination_size Total numbers to select
+	 * @param string $h_w_c           H-W-C pattern string, e.g. "3-3-3 (17)"
+	 * @return string|FALSE           Comma-separated selected numbers, or FALSE on failure
+	 */
+	public function hwc_only_from_strings($hots_str, $warms_str, $colds_str, $h_count, $w_count, $c_count, $combination_size, $h_w_c)
+	{
+		if (!preg_match('/(\d+)-(\d+)-(\d+)/', $h_w_c, $matches)) {
+			return FALSE;
+		}
+		$h = (int)$matches[1];
+		$w = (int)$matches[2];
+		$c = (int)$matches[3];
+		$total = $h + $w + $c;
+		if ($total == 0) return FALSE;
+
+		$h_total = round(($h / $total) * $combination_size);
+		$w_total = round(($w / $total) * $combination_size);
+		$c_total = $combination_size - $h_total - $w_total;
+
+		// Parse each string into ordered arrays of ball numbers (highest heat first)
+		$hots  = $this->parse_hwc_numbers($hots_str);
+		$warms = $this->parse_hwc_numbers($warms_str);
+		$colds = $this->parse_hwc_numbers($colds_str);
+
+		if (empty($hots) && empty($warms) && empty($colds)) return FALSE;
+
+		// Select the required count from each group (front of list = highest heat)
+		$selected = array_merge(
+			array_slice($hots,  0, max(0, $h_total)),
+			array_slice($warms, 0, max(0, $w_total)),
+			array_slice($colds, 0, max(0, $c_total))
+		);
+
+		if (empty($selected)) return FALSE;
+		return implode(',', $selected);
+	}
+
+	/**
 	 * Generate a set of numbers using the H-W-C (Hot-Warm-Cold) method for a given lottery.
 	 *
 	 * @param int    $lottery_id         The lottery ID.
