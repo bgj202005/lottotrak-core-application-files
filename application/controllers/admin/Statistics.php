@@ -1713,9 +1713,10 @@ class Statistics extends Admin_Controller {
 					} else {
 						$hwc_predictions_str = '';
 					}
-					// Save current predictions as the previous before replacing with new ones
-					$prev_str = isset($h_w_c['hwc_predictions']) ? $h_w_c['hwc_predictions'] : '';
-					$this->statistics_m->hwc_save_predictions($id, $posted_option, $posted_select, $hwc_predictions_str, $prev_str);
+					// Clear prev_h_w_c_predictions — a new prediction is being generated so any
+					// previous snapshot is no longer valid. It will be repopulated the next
+					// time a draw is imported or manually entered.
+					$this->statistics_m->hwc_save_predictions($id, $posted_option, $posted_select, $hwc_predictions_str, '');
 					$this->session->set_flashdata('hwc_prediction_message', 'Generating Numbers for the next draw');
 					redirect('admin/statistics/h_w_c/' . $id);
 					return;
@@ -2896,7 +2897,12 @@ class Statistics extends Admin_Controller {
 					if($prev_gen === FALSE) $prev_gen = '';
 				}
 				if($generated) {
-					$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated, $prev_gen);
+					// Preserve any snapshot taken at import/manual-entry time.
+					// Only fall back to the computed $prev_gen when no snapshot exists yet
+					// (e.g. fresh install before the first import with this feature active).
+					$existing_prev = isset($h_w_c_after['prev_h_w_c_predictions']) ? $h_w_c_after['prev_h_w_c_predictions'] : '';
+					$final_prev = !empty($existing_prev) ? null : $prev_gen; // null = don't overwrite
+					$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated, $final_prev);
 				}
 			}
 		}
