@@ -723,6 +723,9 @@ class History extends Admin_Controller {
 		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	 
 		// Pass H-W-C previous predictions for "Winners from Previous Draw" display
 		$this->data['prev_hwc_predictions'] = isset($h_w_c['prev_h_w_c_predictions']) ? $h_w_c['prev_h_w_c_predictions'] : '';
+		$this->data['hwc_option']  = isset($h_w_c['hwc_option'])  ? (int)$h_w_c['hwc_option']  : 1;
+		$this->data['hwc_select']  = isset($h_w_c['hwc_select'])  ? (int)$h_w_c['hwc_select']  : 1;
+		$this->data['h_w_c_group'] = $this->predictions_m->get_h_w_c_range_with_rank($id);
 
 		$this->data['subview'] = 'admin/dashboard/history/h_w_c';
 		$this->data['history'] = $this;										// Access the methods in the view

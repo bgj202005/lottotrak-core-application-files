@@ -841,6 +841,18 @@
 						?>
 						<div style="margin: 0 20px 16px; padding: 14px 18px; background-color: #e8f5e9; border-left: 4px solid #28a745; border-radius: 4px; text-align: center;">
 							<strong>H-W-C Previous Predicted Winners</strong>
+							<?php
+							$_option_label = ($hwc_option == 2) ? 'Manual Selected' : 'Top Ranked';
+							if(!empty($h_w_c_group)):
+								$_group_patterns = array_keys($h_w_c_group);
+								$_idx = $hwc_select - 1;
+								$_used_pattern = isset($_group_patterns[$_idx]) ? $_group_patterns[$_idx] : (isset($_group_patterns[0]) ? $_group_patterns[0] : '');
+								$_used_display = isset($h_w_c_group[$_used_pattern]) ? $h_w_c_group[$_used_pattern] : $_used_pattern;
+							else:
+								$_used_display = '';
+							endif;
+							?>
+							<span class="text-muted" style="font-size:0.85em; margin-left:8px;">(<?=$_option_label;?><?=($_used_display ? ' &mdash; ' . htmlspecialchars($_used_display) : '');?>)</span>
 							<div style="margin-top: 10px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;">
 								<?php foreach($prev_ball_nums as $pball):
 									$pball       = (string) trim($pball);
