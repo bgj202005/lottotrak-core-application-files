@@ -328,7 +328,10 @@
 								$drawn_balls_list[] = array('num' => (int)$lottery->last_drawn['ball'.$pi], 'is_extra' => false);
 							}
 						}
-						if ($lottery->extra_ball && isset($lottery->last_drawn['extra']) && $lottery->last_drawn['extra'] > 0) {
+						// Only include the extra ball when it shares the same pool as main balls.
+						// For duplicate_extra_ball lotteries the extra ball is independent and
+						// has no meaningful friendship relationship with the main balls.
+						if ($lottery->extra_ball && !$lottery->duplicate_extra_ball && isset($lottery->last_drawn['extra']) && $lottery->last_drawn['extra'] > 0) {
 							$drawn_balls_list[] = array('num' => (int)$lottery->last_drawn['extra'], 'is_extra' => true);
 						}
 						// Build a flat array of just the drawn ball numbers for easy lookup
@@ -400,7 +403,7 @@
 								<span class="friends-legend-dot" style="background:#FFD700; border:2px solid #b8860b;"></span>Gold = 2-Way Friend &nbsp;&nbsp;
 								<span class="friends-legend-dot" style="background:#1565C0; border:2px solid #0d47a1;"></span>Blue = 1-Way Friend &nbsp;&nbsp;
 								<span class="friends-legend-dot" style="background:#6c757d; border:2px solid #495057;"></span>Grey = No Friends
-								<?php if($lottery->extra_ball): ?>
+								<?php if($lottery->extra_ball && !$lottery->duplicate_extra_ball): ?>
 								&nbsp;&nbsp; <em>(Dashed border = Bonus/Extra Ball)</em>
 								<?php endif; ?>
 							</div>
@@ -416,7 +419,7 @@
 								<li><strong>1-Way Friend <span class="friends-legend-dot" style="background:#1565C0; border:2px solid #0d47a1; width:12px; height:12px;"></span>:</strong> One ball considers the other a close friend, but not vice versa.</li>
 								<li><strong>No Friends <span class="friends-legend-dot" style="background:#6c757d; border:2px solid #495057; width:12px; height:12px;"></span>:</strong> No close friendship pairing found for this ball over the draw range.</li>
 								<li><strong>Previous Draw Friends Section:</strong> Shows the friendship type for each ball drawn on <?=date("l, F j, Y", strtotime(str_replace('/', '-', $lottery->last_drawn['draw_date'])));?> — no clicking required.</li>
-								<?php if($lottery->extra_ball): ?>
+								<?php if($lottery->extra_ball && !$lottery->duplicate_extra_ball): ?>
 								<li><strong>Dashed border:</strong> Indicates the Bonus/Extra Ball.</li>
 								<?php endif; ?>
 							</ul>
