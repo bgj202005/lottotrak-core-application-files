@@ -57,6 +57,45 @@
 		max-width: 280px;
 		margin:20px;
 	}
+	/* Previous Draw Friends styles */
+	.prev-friends-ball {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 44px;
+		height: 44px;
+		border-radius: 50%;
+		font-weight: bold;
+		font-size: 14px;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+		margin: 4px;
+	}
+	.prev-friends-ball.two-way {
+		background-color: #FFD700;
+		color: #333;
+		border: 2px solid #b8860b;
+	}
+	.prev-friends-ball.one-way {
+		background-color: #1565C0;
+		color: #fff;
+		border: 2px solid #0d47a1;
+	}
+	.prev-friends-ball.no-friend {
+		background-color: #6c757d;
+		color: #fff;
+		border: 2px solid #495057;
+	}
+	.prev-friends-ball.extra-ball {
+		border-style: dashed;
+	}
+	.friends-legend-dot {
+		display: inline-block;
+		width: 16px;
+		height: 16px;
+		border-radius: 50%;
+		vertical-align: middle;
+		margin-right: 4px;
+	}
 	/* directions table */
 	table.directions{
  		border:1px solid black;
@@ -277,6 +316,112 @@
 								</div>
 							</div>
 						</div>
+
+						<?php
+						// ============================================================
+						// PREVIOUS DRAW FRIENDS — show all drawn balls coloured by friendship type
+						// ============================================================
+						$drawn_balls_list = array();
+						$balls_drawn_count = (int) $lottery->balls_drawn;
+						for ($pi = 1; $pi <= $balls_drawn_count; $pi++) {
+							if (isset($lottery->last_drawn['ball'.$pi])) {
+								$drawn_balls_list[] = array('num' => (int)$lottery->last_drawn['ball'.$pi], 'is_extra' => false);
+							}
+						}
+						if ($lottery->extra_ball && isset($lottery->last_drawn['extra']) && $lottery->last_drawn['extra'] > 0) {
+							$drawn_balls_list[] = array('num' => (int)$lottery->last_drawn['extra'], 'is_extra' => true);
+						}
+						// Build a flat array of just the drawn ball numbers for easy lookup
+						$drawn_nums_only = array_column($drawn_balls_list, 'num');
+						?>
+						<div style="margin: 30px 20px 20px 20px; padding: 20px; background-color: #f8f9fa; border: 2px solid #28a745; border-radius: 5px;">
+							<h4 class="mb-3" style="color: #155724;">
+								<strong>&#128101; Previous Draw Friends</strong>
+								&mdash; <span style="font-size:0.85em; font-weight:normal;">
+									<?=date("F j, Y", strtotime(str_replace('/', '-', $lottery->last_drawn['draw_date'])));?>
+								</span>
+							</h4>
+							<p class="text-muted mb-3" style="font-size:0.9em;">
+								Each drawn ball is highlighted based on its friendship type with its closest friend number.
+							</p>
+							<div style="display:flex; flex-wrap:wrap; justify-content:center; gap:12px; margin-bottom:20px;">
+								<?php foreach($drawn_balls_list as $dball):
+									$num      = $dball['num'];
+									$is_extra = $dball['is_extra'];
+									// Get the direction string stored for this ball number (e.g. "<>15" or ">23")
+									$direction = isset($lottery->friend['ball_friend'.$num]) ? $lottery->friend['ball_friend'.$num] : '';
+									// Determine the relationship type and extract the friend ball number
+									if (substr($direction, 0, 2) === '<>') {
+										$friend_ball  = ltrim($direction, '<>');
+										$friend_type  = 'two-way';
+									} elseif (substr($direction, 0, 1) === '>') {
+										$friend_ball  = ltrim($direction, '>');
+										$friend_type  = 'one-way';
+									} else {
+										$friend_ball  = '';
+										$friend_type  = 'none';
+									}
+									// The friend ball MUST also be in the drawn numbers to count as 1-Way or 2-Way
+									$friend_was_drawn = ($friend_ball !== '' && in_array((int)$friend_ball, $drawn_nums_only));
+									if ($friend_type !== 'none' && $friend_was_drawn) {
+										if ($friend_type === 'two-way') {
+											$css_class  = 'two-way';
+											$type_label = '2-Way Friend';
+											$title      = '2-Way Friend with Ball ' . $friend_ball;
+										} else {
+											$css_class  = 'one-way';
+											$type_label = '1-Way Friend';
+											$title      = '1-Way Friend with Ball ' . $friend_ball;
+										}
+									} else {
+										$css_class   = 'no-friend';
+										$type_label  = 'No Friends';
+										$friend_ball = '';
+										$title       = 'No Friends';
+									}
+									if ($is_extra) $css_class .= ' extra-ball';
+								?>
+								<div style="text-align:center;">
+									<div class="prev-friends-ball <?=$css_class;?>" title="<?=htmlspecialchars($title);?>">
+										<?=$num;?>
+									</div>
+									<div style="font-size:0.72em; color:#555; margin-top:2px; max-width:52px;">
+										<?=$type_label;?>
+										<?php if($friend_ball): ?>
+										<br><span style="color:#888;">&#8594; <?=$friend_ball;?></span>
+										<?php endif; ?>
+									</div>
+								</div>
+								<?php endforeach; ?>
+							</div>
+
+							<!-- Legend -->
+							<div style="font-size:0.85em; color:#555; text-align:center; border-top:1px solid #dee2e6; padding-top:10px;">
+								<span class="friends-legend-dot" style="background:#FFD700; border:2px solid #b8860b;"></span>Gold = 2-Way Friend &nbsp;&nbsp;
+								<span class="friends-legend-dot" style="background:#1565C0; border:2px solid #0d47a1;"></span>Blue = 1-Way Friend &nbsp;&nbsp;
+								<span class="friends-legend-dot" style="background:#6c757d; border:2px solid #495057;"></span>Grey = No Friends
+								<?php if($lottery->extra_ball): ?>
+								&nbsp;&nbsp; <em>(Dashed border = Bonus/Extra Ball)</em>
+								<?php endif; ?>
+							</div>
+						</div>
+
+						<!-- How to Read This Page -->
+						<div style="margin: 20px; padding: 15px 20px; background-color: #fff8e1; border-left: 4px solid #ffc107; border-radius: 4px;">
+							<strong>How to Read This Page:</strong>
+							<ul class="mb-0 mt-2">
+								<li><strong>Friendship Directions Tab:</strong> Shows the closest friend ball for each ball number (1 to <?=$max;?>) and the direction of friendship.</li>
+								<li><strong>Friendship Occurrences Table:</strong> Counts how many draws had No Friends, 1-Way Friends, or 2-Way Friends drawn together.</li>
+								<li><strong>2-Way Friend <span class="friends-legend-dot" style="background:#FFD700; border:2px solid #b8860b; width:12px; height:12px;"></span>:</strong> Both balls consider each other close friends &mdash; a mutual pairing over the range.</li>
+								<li><strong>1-Way Friend <span class="friends-legend-dot" style="background:#1565C0; border:2px solid #0d47a1; width:12px; height:12px;"></span>:</strong> One ball considers the other a close friend, but not vice versa.</li>
+								<li><strong>No Friends <span class="friends-legend-dot" style="background:#6c757d; border:2px solid #495057; width:12px; height:12px;"></span>:</strong> No close friendship pairing found for this ball over the draw range.</li>
+								<li><strong>Previous Draw Friends Section:</strong> Shows the friendship type for each ball drawn on <?=date("l, F j, Y", strtotime(str_replace('/', '-', $lottery->last_drawn['draw_date'])));?> — no clicking required.</li>
+								<?php if($lottery->extra_ball): ?>
+								<li><strong>Dashed border:</strong> Indicates the Bonus/Extra Ball.</li>
+								<?php endif; ?>
+							</ul>
+						</div>
+
 					</div>
 				</div>
 			</div>
