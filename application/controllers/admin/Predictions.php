@@ -534,6 +534,63 @@ class Predictions extends Admin_Controller {
 		echo json_encode($output);
 	}
 	/**
+	 * Verifies that ALL combinations have been generated in the text file.
+	 * Compares the actual line count against the expected combination count (CCCC).
+	 * If incomplete, truncates the file and clears session progress so generation
+	 * can be restarted from scratch.
+	 *
+	 * @param   integer $id     Lottery id
+	 * @return  none  (JSON output)
+	 */
+	public function verify_combinations($id)
+	{
+		$file_name = $this->input->post('filename', TRUE);
+		$expected  = (int) $this->input->post('combinations', TRUE);
+
+		if (empty($file_name) || $expected <= 0) {
+			echo json_encode(['success' => FALSE, 'error' => 'Invalid parameters.']);
+			return;
+		}
+
+		$file_path = $this->combination_files_m->full_path($file_name);
+
+		// Count actual non-empty lines in the file
+		$actual = 0;
+		if (file_exists($file_path) && filesize($file_path) > 0) {
+			$fp = fopen($file_path, 'r');
+			while (!feof($fp)) {
+				$line = fgets($fp);
+				if ($line !== FALSE && trim($line) !== '') {
+					$actual++;
+				}
+			}
+			fclose($fp);
+		}
+
+		if ($actual >= $expected) {
+			echo json_encode([
+				'success'  => TRUE,
+				'verified' => TRUE,
+				'actual'   => $actual,
+				'expected' => $expected,
+			]);
+		} else {
+			// Truncate the file so generation can restart cleanly
+			file_put_contents($file_path, '');
+			// Clear any stored progress session data for this file
+			$this->session->unset_userdata('percent_'  . $file_name);
+			$this->session->unset_userdata('offset_'   . $file_name);
+			$this->session->unset_userdata('complete_' . $file_name);
+			echo json_encode([
+				'success'  => TRUE,
+				'verified' => FALSE,
+				'actual'   => $actual,
+				'expected' => $expected,
+			]);
+		}
+	}
+
+	/**
 	 * Get the data from the selected combination file record, begin the combination calculation process
 	 * with HTML and PHP using ajax calls
 	 * @param		integer	$id			Lottery id

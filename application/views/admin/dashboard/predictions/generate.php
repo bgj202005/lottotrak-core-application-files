@@ -250,7 +250,19 @@
 										$extra['disabled'] = 'disabled';
 									}
 								   echo form_submit('submit', 'Generate Full Wheel Combination', $extra);
-								   
+
+								   // "Verify Full Wheeling Table" button — enabled only when the file is already generated
+								   $verify_attrs = array(
+										'class' => 'btn btn-success btn-lg',
+										'style' => "margin:10px 5px; white-space: nowrap;",
+										'id'    => 'verify',
+										'type'  => 'button',
+									);
+								   if (!$is_generated) {
+										$verify_attrs['disabled'] = 'disabled';
+									}
+								   echo form_button('verify', 'Verify Full Wheeling Table', $verify_attrs);
+
 										$js = "location.href='".base_url()."admin/predictions/delete/$lottery->id/$filename";
 										$attributes = array(
 										'href' 		=> base_url()."admin/predictions/delete/'.$lottery->id.'/'.$filename",
@@ -287,6 +299,7 @@ $(document).ready(function () {
     var progress = <?= $is_generated ? 100 : 0; ?>; // Set progress to 100% if combinations are already generated
     var URL_counter = "<?= base_url(); ?>admin/predictions/combo_counter/<?=$filename;?>/<?=$combinations;?>";
     var URL = "<?= base_url().'admin/predictions/combo_gen/'.$lottery->id; ?>";
+    var URL_verify = "<?= base_url().'admin/predictions/verify_combinations/'.$lottery->id; ?>";
     var clear_timer = null; // Declare clear_timer globally and initialize to null
 	var is_complete = false; // Add a flag to track completion
 
@@ -405,6 +418,42 @@ $(document).ready(function () {
         } else {
             return false;
         }
+    });
+
+    // Handle "Verify Full Wheeling Table" button click
+    $('#verify').on('click', function () {
+        var $btn = $(this);
+        $btn.prop('disabled', true).text('Verifying...');
+
+        $.ajax({
+            type: 'POST',
+            url: URL_verify,
+            data: {
+                filename: '<?= $filename; ?>',
+                combinations: <?= $combinations; ?>
+            },
+            dataType: 'json',
+            success: function (data) {
+                if (data.verified) {
+                    $('#message').html('<h3 class="bg-success" style="margin:15px; text-align:center; color:#fff;">The Combinations have all been generated and Verified.</h3>');
+                    $btn.prop('disabled', false).text('Verify Full Wheeling Table');
+                } else {
+                    $('#message').html('<h3 class="bg-danger" style="margin:15px; text-align:center; color:#fff;">The Combinations are not complete. Click Full Wheeling Table button to regenerated.</h3>');
+                    // Re-enable Generate button and reset progress so admin can regenerate
+                    $('#submit').prop('disabled', false);
+                    $('#combinations').val('');
+                    progress = 0;
+                    is_complete = false;
+                    updateProgressCircle(0);
+                    $('.progress-value').html('<p>0%</p>');
+                    $btn.prop('disabled', false).text('Verify Full Wheeling Table');
+                }
+            },
+            error: function () {
+                $('#message').html('<h3 class="bg-danger" style="margin:15px; text-align:center; color:#fff;">An error occurred during verification. Please try again.</h3>');
+                $btn.prop('disabled', false).text('Verify Full Wheeling Table');
+            }
+        });
     });
 });
 </script>
