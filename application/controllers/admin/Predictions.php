@@ -2,7 +2,12 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Predictions extends Admin_Controller {
-		
+
+	// Write-buffer for streaming combination output (avoids millions of tiny fwrite calls)
+	private $_combo_buffer       = '';
+	private $_combo_buffer_count = 0;
+	const   COMBO_BUFFER_SIZE    = 500; // flush every N combinations
+	
 		public function __construct() {
 		 parent::__construct();
 		 $this->load->model('lotteries_m'); // Lottery Model
@@ -338,100 +343,127 @@ class Predictions extends Admin_Controller {
 	 */
 	public function combo_gen($id)
 	{
-		$message = "";							// Defaulted to No Error Messages
-		$error = FALSE;
-		
+		$message = '';
+		$error   = FALSE;
+
+		// Raise limits for potentially large combination sets
+		@ini_set('memory_limit', '512M');
+		set_time_limit(300);
+
 		$this->data['lottery'] = $this->lotteries_m->get($id);
-		$file_name = $this->input->post('filename', TRUE);  // POST value from radio selection
-		
+		$file_name = $this->input->post('filename', TRUE);
+
 		// Reset ALL session variables for this file at the start of new generation
-		$percent_key = 'percent_' . $file_name;
-		$offset_key = 'offset_' . $file_name;
-		$complete_key = 'complete_' . $file_name;
-		
-		$this->session->unset_userdata($percent_key);
-		$this->session->unset_userdata($offset_key);
-		$this->session->unset_userdata($complete_key);
+		$this->session->unset_userdata('percent_'  . $file_name);
+		$this->session->unset_userdata('offset_'   . $file_name);
+		$this->session->unset_userdata('complete_' . $file_name);
+
 		$this->data['lottery']->generate = $this->combination_files_m->lottery_combination_record($file_name);
-		$this->data['combinations']=$this->data['lottery']->generate->CCCC; 	//Calculated Combinations
-		$this->data['predict']=$this->data['lottery']->generate->N;			//Number of Predictions
-		$this->data['pick']=$this->data['lottery']->generate->R;				// Pick Game
-		$this->data['filename']=$this->data['lottery']->generate->file_name;		// File name of text file
+		$this->data['combinations'] = $this->data['lottery']->generate->CCCC;
+		$this->data['predict']      = $this->data['lottery']->generate->N;
+		$this->data['pick']         = $this->data['lottery']->generate->R;
+		$this->data['filename']     = $this->data['lottery']->generate->file_name;
 		unset($this->data['lottery']->generate);
-		//$this->data['subview'] = 'admin/dashboard/predictions/generate';
-		$predict = $this->number_generation_m->wheeled($this->data['predict']);
-		
-		// Check if this is a lottery with independent extra balls
-		if($this->data['lottery']->duplicate_extra_ball && $this->data['lottery']->extra_ball) {
-			// Special generation for lotteries with independent extra balls
-			$main_combinations = $this->math_combinatorics->combinations($predict, $this->data['pick']); // Main combinations
-			$combinations = array();
-			
-			// Check if minimum and maximum extra ball values are set
-			if (!isset($this->data['lottery']->minimum_extra_ball) || !isset($this->data['lottery']->maximum_extra_ball)) {
-				log_message('error', "Missing minimum_extra_ball or maximum_extra_ball for lottery ID: " . $this->data['lottery']->id);
-				$message = "Error: Lottery configuration missing minimum_extra_ball or maximum_extra_ball values.";
-				$error = TRUE;
+
+		$predict   = $this->number_generation_m->wheeled($this->data['predict']);
+		$file_path = $this->combination_files_m->full_path($file_name);
+
+		if ($this->combination_files_m->combs_already($this->data['filename'], $this->data['combinations'])) {
+			$message = 'This Combination File: ' . $this->data['filename'] . '.txt ALREADY has the combinations.';
+			$error   = TRUE;
+		} else {
+			$fp = fopen($file_path, 'w');
+			if (!$fp) {
+				$message = 'Unable to open ' . $this->data['filename'] . '.txt for writing.';
+				$error   = TRUE;
 			} else {
-				// Generate combinations with each possible extra ball
-				for($extra = $this->data['lottery']->minimum_extra_ball; $extra <= $this->data['lottery']->maximum_extra_ball; $extra++) {
-					foreach($main_combinations as $main_combo) {
-						// Add the extra ball to each main combination
-						$full_combo = $main_combo;
-						$full_combo[] = $extra; // Add extra ball as the last number
-						$combinations[] = $full_combo;
+				// Reset the write buffer
+				$this->_combo_buffer       = '';
+				$this->_combo_buffer_count = 0;
+				$current      = [];
+				$actual_count = 0;
+
+				if ($this->data['lottery']->duplicate_extra_ball && $this->data['lottery']->extra_ball) {
+					// Lotteries with independent extra / bonus balls
+					if (!isset($this->data['lottery']->minimum_extra_ball) || !isset($this->data['lottery']->maximum_extra_ball)) {
+						$message = 'Error: Lottery configuration missing minimum_extra_ball or maximum_extra_ball values.';
+						$error   = TRUE;
+					} else {
+						for ($extra = $this->data['lottery']->minimum_extra_ball;
+						     $extra <= $this->data['lottery']->maximum_extra_ball;
+						     $extra++) {
+							$current      = [];
+							$actual_count += $this->_stream_combos_to_file($fp, $predict, $this->data['pick'], 0, $current, $extra);
+						}
 					}
+				} else {
+					// Standard lottery — stream directly to file, no large array in memory
+					$actual_count = $this->_stream_combos_to_file($fp, $predict, $this->data['pick'], 0, $current);
+				}
+
+				// Flush any remaining buffered output
+				if ($this->_combo_buffer !== '') {
+					fwrite($fp, $this->_combo_buffer);
+					$this->_combo_buffer       = '';
+					$this->_combo_buffer_count = 0;
+				}
+				fclose($fp);
+
+				if (!$error && $actual_count === 0) {
+					log_message('error', 'No combinations generated for file: ' . $this->data['filename']);
+					$message = 'Error: No combinations were generated. Check lottery configuration.';
+					$error   = TRUE;
 				}
 			}
-		} else {
-			// Standard generation for regular lotteries
-			$combinations = $this->math_combinatorics->combinations($predict, $this->data['pick']); // Based on the pick game 
 		}
-		
-		$this->data['combinations'] = count($combinations);
-		
-		// Additional check to prevent saving empty files
-		if ($this->data['combinations'] == 0) {
-			log_message('error', "No combinations generated for file: " . $this->data['filename']);
-			$message = "Error: No combinations were generated. Check lottery configuration.";
-			$error = TRUE;
-		} else {
-			if(!$this->combination_files_m->combs_already($this->data['filename'], $this->data['combinations']))
-			{
-				if(!$this->combination_files_m->text_combs_save($this->data['filename'],$combinations)) //Separate into the proper format and save to the text file
-					{
-					//$this->data['message'] = "An error has occurred to convert the combinations to a text file.";
-						$message = "An error has occurred to convert the combinations to a text file.";
-						$error = TRUE;
-					}
-					else 
-					{
-						$error = FALSE;
-						//$message = "The Data File has ADDED the Combinations to the ".$this->data['filename'].".txt file.";
-					}
-				}
-				else
-				{
-					//$this->data['message'] = "This Combination File:".$this->data['filename'].".txt ALREADY have the combinations added to the file.";
-					$message = "This Combination File:".$this->data['filename'].".txt ALREADY have the combinations added to the file.";
-					$error = TRUE;
-				}
-		}
-		if($error)
-		{
-			$output = array(
-			'success'	=> FALSE,
-			'error'  => $message
-			);
-		} 
-		else
-		{
-			$output = array(
-			'success'  => TRUE,
-			'message'  => $message
+
+		header('Content-Type: application/json');
+		echo json_encode($error
+			? ['success' => FALSE, 'error'   => $message]
+			: ['success' => TRUE,  'message' => $message]
 		);
+	}
+
+	/**
+	 * Recursively generate combinations and write them directly to a file pointer,
+	 * buffering output in chunks to minimise syscall overhead.
+	 * Memory usage is O(pick) regardless of total combination count.
+	 *
+	 * @param  resource  $fp          Open writable file pointer
+	 * @param  array     $numbers     Pool of numbers to choose from
+	 * @param  int       $pick        How many numbers to pick (R)
+	 * @param  int       $start_idx   Current index into $numbers
+	 * @param  array     &$current    Working combination (passed by reference — no copying)
+	 * @param  int|null  $extra_ball  Optional extra ball appended to every line
+	 * @return int  Number of combinations written
+	 */
+	private function _stream_combos_to_file($fp, $numbers, $pick, $start_idx, &$current, $extra_ball = NULL)
+	{
+		$pick = (int) $pick; // DB returns strings; cast so === and arithmetic are correct
+		if (count($current) === $pick) {
+			$line = implode(' ', $current);
+			if ($extra_ball !== NULL) $line .= ' ' . $extra_ball;
+			$this->_combo_buffer .= $line . "\n";
+			$this->_combo_buffer_count++;
+			if ($this->_combo_buffer_count >= self::COMBO_BUFFER_SIZE) {
+				fwrite($fp, $this->_combo_buffer);
+				$this->_combo_buffer       = '';
+				$this->_combo_buffer_count = 0;
+			}
+			return 1;
 		}
-		echo json_encode($output);
+
+		$n      = count($numbers);
+		$needed = $pick - count($current);
+		$count  = 0;
+
+		for ($i = $start_idx; $i <= $n - $needed; $i++) {
+			$current[] = $numbers[$i];
+			$count += $this->_stream_combos_to_file($fp, $numbers, $pick, $i + 1, $current, $extra_ball);
+			array_pop($current);
+		}
+
+		return $count;
 	}
 	/**
 	 * Combination Counter
@@ -442,9 +474,13 @@ class Predictions extends Admin_Controller {
 	 */
 	public function combo_counter($name, $combs)
 	{
+		header('Content-Type: application/json');
 		$fp = fopen($this->combination_files_m->full_path($name), "r");
 		$combotext = '';
-		$processed_combinations = 20; // Process 20 combinations at a time
+		// Adaptive batch: always complete in ~20 iterations regardless of file size.
+		// Cap display lines at 200 so each response stays small for the browser.
+		$processed_combinations = max(100, (int)ceil($combs / 20));
+		$max_display_lines = 200;
 		
 		// Use file-specific session keys to prevent conflicts
 		$percent_key = 'percent_' . $name;
@@ -493,12 +529,18 @@ class Predictions extends Admin_Controller {
 			echo json_encode($output);
 			return;
 		}
-		// Process combinations in chunks
-		$i = $interval;
+		// Process combinations in chunks: read up to $max_display_lines for display,
+		// then skip the remainder of the batch without loading it into memory.
 		fseek($fp, $offset); // Move the file pointer to the last processed position
-		while ($i > 0 && !feof($fp)) {
-			$combotext .= fgets($fp);
-			$i--;
+		$display_count = min($max_display_lines, $interval);
+		for ($i = 0; $i < $display_count && !feof($fp); $i++) {
+			$line = fgets($fp);
+			if ($line !== FALSE) $combotext .= $line;
+		}
+		// Skip any remaining lines in the batch (read & discard — no memory build-up)
+		$skip = $interval - $display_count;
+		for ($i = 0; $i < $skip && !feof($fp); $i++) {
+			fgets($fp);
 		}
 		$new_offset = ftell($fp); // Update the file pointer offset
 		

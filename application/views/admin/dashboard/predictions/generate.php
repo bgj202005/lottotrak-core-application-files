@@ -108,7 +108,7 @@
     border-right: 0;
     -webkit-transform-origin: center right;
     transform-origin: center right;
-    animation: loading-1 1.8s linear forwards;
+    transform: rotate(0deg);
 }
 
 .progress .progress-value {
@@ -130,7 +130,7 @@
 }
 
 .progress.blue .progress-left .progress-bar {
-    animation: loading-2 1.5s linear forwards 1.8s;
+    transform: rotate(0deg);
 }
 
 @keyframes loading-1 {
@@ -290,10 +290,9 @@
 		</div>
 	</section>
 	<script>
-	// Do not Run until submit and combinations need to be created for the text file
-	$('.progress.blue .progress-bar').css('border-color', '#049dff;');
-	$('.progress .progress-right .progress-bar').css('animation', 'loading-1 0.0s linear forwards');
-	$('.progress.blue .progress-left .progress-bar').css('animation', 'loading-2 0.0s linear forwards 0.0s');
+	// Reset both progress-bar segments to 0° so the circle starts completely black
+	$('.progress .progress-right .progress-bar').css({'animation': 'none', '-webkit-transform': 'rotate(0deg)', 'transform': 'rotate(0deg)'});
+	$('.progress .progress-left .progress-bar').css({'animation': 'none', '-webkit-transform': 'rotate(0deg)', 'transform': 'rotate(0deg)'});
 
 $(document).ready(function () {
     var progress = <?= $is_generated ? 100 : 0; ?>; // Set progress to 100% if combinations are already generated
@@ -302,6 +301,7 @@ $(document).ready(function () {
     var URL_verify = "<?= base_url().'admin/predictions/verify_combinations/'.$lottery->id; ?>";
     var clear_timer = null; // Declare clear_timer globally and initialize to null
 	var is_complete = false; // Add a flag to track completion
+	var is_fetching = false; // Prevent overlapping counter requests
 
     // Initialize progress circle if combinations are already generated
     if (progress === 100) {
@@ -314,62 +314,77 @@ $(document).ready(function () {
 
     // Handle form submission for generating combinations
     $("#frmgenerate").submit(function (e) {
-        e.preventDefault(); // Prevent default form submission
-		// Clear any existing timer before starting a new one
+        e.preventDefault();
+
+        // Clear any existing counter timer
         if (clear_timer !== null) {
-            console.log("Clearing existing timer:", clear_timer);
             clearInterval(clear_timer);
-			clear_timer = null; // Reset clear_timer to null
+            clear_timer = null;
         }
-		
-		// Clear the combinations textarea at the start of new generation
-		$("#combinations").val('');
-		
+
+        // Reset state for a fresh generation
+        is_complete  = false;
+        is_fetching  = false;
+        progress     = 0;
+        $("#combinations").val('');
+        updateProgressCircle(0);
+        $('.progress-value').html('<p>0%</p>');
+
+        // Immediately lock the button and show a "working" message
+        $('#submit').prop('disabled', true);
+        $('#verify').prop('disabled', true);
+        $('#message').html('<h3 class="bg-info" style="margin:15px; text-align:center; color:#fff;">Generating combinations, please wait&hellip;</h3>');
+
         $.ajax({
-            type: "POST",
-            url: URL,
-            data: new FormData(this),
-            dataType: "json",
+            type:        "POST",
+            url:         URL,
+            data:        new FormData(this),
+            dataType:    "json",
             contentType: false,
-            async: false,
-            cache: false,
+            cache:       false,
             processData: false,
             success: function (data) {
                 if (data.success) {
-                    if (clear_timer === null) { // Ensure no timer is already running
-                        clear_timer = setInterval(combination, 500); // Start processing combinations
-                        console.log("Timer started:", clear_timer); // Debugging log
-                    }
-                    $('#submit').prop('disabled', true); // Disable the Generate button
+                    // File is written — start the progress counter
                     $('.progress.blue .progress-bar').css('border-color', '#049dff');
-                    $('#message').html('<h3 class="bg-warning" style="margin: 15px; text-align:center;">' + data.message + '</h3>');
+                    $('#message').html('<h3 class="bg-warning" style="margin:15px; text-align:center;">Reading progress&hellip;</h3>');
+                    if (clear_timer === null) {
+                        clear_timer = setInterval(combination, 100);
+                    }
+                } else if (data.error) {
+                    $('#submit').prop('disabled', false);
+                    $('#verify').prop('disabled', true);
+                    $('#message').html('<h3 class="bg-danger" style="margin:15px; text-align:center; color:#fff;">' + data.error + '</h3>');
                 }
-                if (data.error) {
-                    $('#message').html('<h3 class="bg-warning" style="margin: 15px; text-align:center;">' + data.error + '</h3>');
-                }
+            },
+            error: function (xhr, status, err) {
+                $('#submit').prop('disabled', false);
+                $('#verify').prop('disabled', true);
+                $('#message').html('<h3 class="bg-danger" style="margin:15px; text-align:center; color:#fff;">Request failed: ' + err + '. Please try again.</h3>');
             }
         });
+
+        return false; // belt-and-suspenders — stops normal form navigation
     });
 
     // Function to process combinations in chunks
     function combination() {
-		if (is_complete) {
-			console.log("Already complete, stopping function");
-			return; // Stop further updates if already complete
+		if (is_complete || is_fetching) {
+			return; // Already done, or a request is still in-flight — skip this tick
 		}
-		
+		is_fetching = true;
+
 		$.ajax({
 			url: URL_counter,
 			dataType: "json",
 			success: function (data) {
+				is_fetching = false;
 				if (data.success) {
 					progress = Math.min(data.percent, 100); // Cap progress at 100%
-					console.log("Progress:", progress, "Data percent:", data.percent); // Enhanced debugging log
 					$('.progress-value').html('<p>' + Math.round(progress) + '%</p>');
 					
 					// Append new combinations without extra spaces
 					if (data.combotext && data.combotext.trim() !== '') {
-						console.log("Adding combinations text, length:", data.combotext.trim().length);
 						$("#combinations").val(function (index, value) {
 							return value + data.combotext.trim() + '\n';
 						});
@@ -378,24 +393,23 @@ $(document).ready(function () {
 					updateProgressCircle(progress);
 					
 					if (progress >= 100) {
-						console.log("Reached 100%, clearing timer and marking complete");
 						clearInterval(clear_timer); // Stop the timer
-                        clear_timer = null; // Reset clear_timer to null
-						$('#message').html('<h3 class="bg-warning" style="margin: 15px; text-align:center;">The Data File has ADDED the Combinations to the <?=$filename;?>.txt file.</h3>');
-						$('#submit').prop('disabled', true); // Disable the Generate button
-						is_complete = true; // Mark as complete
+                        clear_timer = null;
+						$('#message').html('<h3 class="bg-warning" style="margin: 15px; text-align:center;">The Combinations have been generated and saved to the <?=$filename;?>.txt file.</h3>');
+						$('#submit').prop('disabled', true);
+						$('#verify').prop('disabled', false); // Enable Verify now that generation is complete
+						is_complete = true;
 					}
 				} else if (data.error) {
-					console.log("Error received:", data.error);
-					clearInterval(clear_timer);
-					clear_timer = null;
+					// Show the error but keep the timer running so subsequent ticks can retry
+					console.log("Counter error:", data.error);
 					$('#message').html('<h3 class="bg-warning" style="margin: 15px; text-align:center;">' + data.error + '</h3>');
 				}
 			},
 			error: function(xhr, status, error) {
-				console.log("AJAX error:", error);
-				clearInterval(clear_timer);
-				clear_timer = null;
+				is_fetching = false;
+				// Transient network/server error — log it and let the next tick retry
+				console.log("AJAX counter error:", error);
 			}
 		});
 	}
@@ -444,6 +458,7 @@ $(document).ready(function () {
                     $('#combinations').val('');
                     progress = 0;
                     is_complete = false;
+                    is_fetching = false;
                     updateProgressCircle(0);
                     $('.progress-value').html('<p>0%</p>');
                     $btn.prop('disabled', false).text('Verify Full Wheeling Table');
