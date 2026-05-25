@@ -44,12 +44,12 @@
 		color:steelblue;	
 	}
 	.progress {
-    width: 150px;
-    height: 150px !important;
-    float: left;
-    line-height: 150px;
+    width: 350px;
+    height: 350px !important;
+    float: none;
+    line-height: 350px;
     background: none;
-    margin: 20px;
+    margin: 0;
     box-shadow: none;
     position: relative;
 }
@@ -59,7 +59,7 @@
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    border: 12px solid #fff;
+    border: 24px solid #fff;
     position: absolute;
     top: 0;
     left: 0;
@@ -82,7 +82,7 @@
     width: 100%;
     height: 100%;
     background: none;
-    border-width: 12px;
+    border-width: 24px;
     border-style: solid;
     position: absolute;
     top: 0
@@ -90,8 +90,8 @@
 
 .progress .progress-left .progress-bar {
     left: 100%;
-    border-top-right-radius: 80px;
-    border-bottom-right-radius: 80px;
+    border-top-right-radius: 175px;
+    border-bottom-right-radius: 175px;
     border-left: 0;
     -webkit-transform-origin: center left;
     transform-origin: center left;
@@ -103,8 +103,8 @@
 
 .progress .progress-right .progress-bar {
     left: -100%;
-    border-top-left-radius: 80px;
-    border-bottom-left-radius: 80px;
+    border-top-left-radius: 175px;
+    border-bottom-left-radius: 175px;
     border-right: 0;
     -webkit-transform-origin: center right;
     transform-origin: center right;
@@ -116,13 +116,20 @@
     height: 90%;
     border-radius: 50%;
     background: #000;
-    font-size: 24px;
+    font-size: 48px;
     color: #fff;
-    line-height: 135px;
+    line-height: 1;
     text-align: center;
     position: absolute;
     top: 5%;
     left: 5%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.progress .progress-value p {
+    margin: 0;
+    line-height: 1;
 }
 
 .progress.blue .progress-bar {
@@ -199,9 +206,9 @@
 								?>
 								</div>
 								<!-- Combination Counter Display -->
-								<div class="form-group form-group-lg row clearfix" style = "margin: 0 auto; display: block;"> 
+								<div class="form-group form-group-lg clearfix" style="display: flex; align-items: center; gap: 2em;"> 
 
-									<div class="card bg-light mb-3 pull-left" style="width: 25em; max-width: 25rem;">
+									<div class="card bg-light mb-3" style="flex: 0 0 auto; width: 25em; max-width: 25rem;">
 										<div class="card-header">Combination Counter</div>
 										<div class="card-body">
 											<h5 class="card-title"><div id="row_number">Combination File: <?=$filename;?>.txt</div></h5>
@@ -222,20 +229,21 @@
 											</div></p>
 										</div>
 									</div>
-										<div class="progress blue pull-right" style = "margin-left: 2em; margin-top: -2px;">
-										<span class="progress-left"> <span class="progress-bar"></span></span>
-										<span class="progress-right"> <span class="progress-bar"></span></span>
+									<div style="flex: 1; display: flex; justify-content: center; align-items: center; min-height: 350px;">
+										<div class="progress blue">
+											<span class="progress-left"> <span class="progress-bar"></span></span>
+											<span class="progress-right"> <span class="progress-bar"></span></span>
 											<div class="progress-value">0%</div>
 										</div>
+									</div>
 								</div>
 								 <div class="form-group form-group-lg row">
 								  <div class="d-flex flex-wrap justify-content-center align-items-center" style="width: 100%;">
 								  <?php 
 								  // Add "Back to Combinations List" button
-								  $js = "location.href='".base_url()."admin/predictions/generate/".$lottery->id."'";
 								  $back_attributes = array(
 										'class' => 'btn btn-secondary btn-lg',
-										'onClick' => "$js",
+										'id'    => 'back_to_combinations_btn',
 										'style' => "margin:10px 5px; white-space: nowrap;",
 									);
 								  echo form_button('back_to_combinations', 'Back to Combinations List', $back_attributes);
@@ -289,6 +297,27 @@
 			</div>
 		</div>
 	</section>
+
+<!-- Cancel-generation confirmation modal -->
+<div class="modal fade" id="cancelGenModal" tabindex="-1" role="dialog" aria-labelledby="cancelGenModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered" role="document">
+		<div class="modal-content">
+			<div class="modal-header bg-warning">
+				<h5 class="modal-title" id="cancelGenModalLabel"><strong>Generation In Progress</strong></h5>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+			</div>
+			<div class="modal-body">
+				<p>Generation is still in progress.</p>
+				<p><strong>Do you want to exit early before the combinations are generated?</strong></p>
+				<p class="text-muted">Choosing <em>Yes</em> will clear the partial file and the status will revert to <span class="badge badge-warning">Not Generated</span>.</p>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-danger btn-lg" id="cancelGenConfirm">Yes</button>
+				<button type="button" class="btn btn-secondary btn-lg" data-dismiss="modal">No</button>
+			</div>
+		</div>
+	</div>
+</div>
 	<script>
 	// Reset both progress-bar segments to 0° so the circle starts completely black
 	$('.progress .progress-right .progress-bar').css({'animation': 'none', '-webkit-transform': 'rotate(0deg)', 'transform': 'rotate(0deg)'});
@@ -299,6 +328,8 @@ $(document).ready(function () {
     var URL_counter = "<?= base_url(); ?>admin/predictions/combo_counter/<?=$filename;?>/<?=$combinations;?>";
     var URL = "<?= base_url().'admin/predictions/combo_gen/'.$lottery->id; ?>";
     var URL_verify = "<?= base_url().'admin/predictions/verify_combinations/'.$lottery->id; ?>";
+    var URL_cancel = "<?= base_url().'admin/predictions/cancel_generation/'.$lottery->id; ?>";
+    var URL_back   = "<?= base_url().'admin/predictions/generate/'.$lottery->id; ?>";
     var clear_timer = null; // Declare clear_timer globally and initialize to null
 	var is_complete = false; // Add a flag to track completion
 	var is_fetching = false; // Prevent overlapping counter requests
@@ -383,11 +414,17 @@ $(document).ready(function () {
 					progress = Math.min(data.percent, 100); // Cap progress at 100%
 					$('.progress-value').html('<p>' + Math.round(progress) + '%</p>');
 					
-					// Append new combinations without extra spaces
+					// Append new combinations without extra spaces; on the final batch
+					// replace the textarea so we see the true last combinations in the file.
 					if (data.combotext && data.combotext.trim() !== '') {
-						$("#combinations").val(function (index, value) {
-							return value + data.combotext.trim() + '\n';
-						});
+						if (progress >= 100) {
+							$("#combinations").val(data.combotext.trim());						// Scroll to bottom so the last combination is immediately visible
+						var ta = document.getElementById('combinations');
+						ta.scrollTop = ta.scrollHeight;						} else {
+							$("#combinations").val(function (index, value) {
+								return value + data.combotext.trim() + '\n';
+							});
+						}
 					}
 					
 					updateProgressCircle(progress);
@@ -467,6 +504,32 @@ $(document).ready(function () {
             error: function () {
                 $('#message').html('<h3 class="bg-danger" style="margin:15px; text-align:center; color:#fff;">An error occurred during verification. Please try again.</h3>');
                 $btn.prop('disabled', false).text('Verify Full Wheeling Table');
+            }
+        });
+    });
+
+    // Back to Combinations List — warn if a generation is actively in progress
+    $('#back_to_combinations_btn').on('click', function () {
+        if (clear_timer !== null) {
+            $('#cancelGenModal').modal('show');
+        } else {
+            window.location.href = URL_back;
+        }
+    });
+
+    // "Yes, Exit Early" inside the modal
+    $('#cancelGenConfirm').on('click', function () {
+        $('#cancelGenModal').modal('hide');
+        clearInterval(clear_timer);
+        clear_timer = null;
+        $.ajax({
+            type:     'POST',
+            url:      URL_cancel,
+            data:     { filename: '<?= $filename; ?>' },
+            dataType: 'json',
+            complete: function () {
+                // Navigate regardless of AJAX success/failure
+                window.location.href = URL_back;
             }
         });
     });

@@ -551,6 +551,23 @@ class Predictions extends Admin_Controller {
 		// Ensure we don't exceed 100%
 		if ($new_percent >= 100 || $new_processed >= $combs) {
 			$new_percent = 100;
+			// On the final batch, tail-read the actual last $max_display_lines lines so the
+			// textarea shows the true end of the file (e.g. "19 20 21 22 23 24 25").
+			fseek($fp, 0, SEEK_END);
+			$pos    = ftell($fp);
+			$chunk  = '';
+			$target = $max_display_lines + 1; // +1 handles trailing newline
+			$found  = 0;
+			while ($pos > 0 && $found < $target) {
+				$read  = min(4096, $pos);
+				$pos  -= $read;
+				fseek($fp, $pos);
+				$chunk = fread($fp, $read) . $chunk;
+				$found = substr_count($chunk, "\n");
+			}
+			$tail_lines = explode("\n", $chunk);
+			if (end($tail_lines) === '') array_pop($tail_lines); // trim trailing empty element
+			$combotext = implode("\n", array_slice($tail_lines, -$max_display_lines)) . "\n";
 			// Mark as complete and clear session data
 			$this->session->set_userdata($complete_key, true);
 			$this->session->unset_userdata($percent_key);
@@ -630,6 +647,36 @@ class Predictions extends Admin_Controller {
 				'expected' => $expected,
 			]);
 		}
+	}
+
+	/**
+	 * Cancels an in-progress generation: truncates the partial combinations file
+	 * and clears session progress so the status reverts to "Not Generated".
+	 *
+	 * @param   integer $id  Lottery id (unused but kept for CSRF route consistency)
+	 * @return  void  (JSON output)
+	 */
+	public function cancel_generation($id)
+	{
+		header('Content-Type: application/json');
+		$file_name = $this->input->post('filename', TRUE);
+
+		if (empty($file_name)) {
+			echo json_encode(['success' => FALSE, 'error' => 'No filename provided.']);
+			return;
+		}
+
+		$file_path = $this->combination_files_m->full_path($file_name);
+
+		// Truncate the partial file — makes the file appear "Not Generated" on the list page
+		file_put_contents($file_path, '');
+
+		// Clear all session progress keys so a fresh generation can start later
+		$this->session->unset_userdata('percent_'  . $file_name);
+		$this->session->unset_userdata('offset_'   . $file_name);
+		$this->session->unset_userdata('complete_' . $file_name);
+
+		echo json_encode(['success' => TRUE]);
 	}
 
 	/**
