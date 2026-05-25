@@ -311,19 +311,28 @@ class Predictions extends Admin_Controller {
 		$this->data['predict']=$this->data['lottery']->generate->N;				//Number of Predictions
 		$this->data['pick']=$this->data['lottery']->generate->R;					// Pick Game
 		$this->data['filename']=$this->data['lottery']->generate->file_name;		// File name of text file
-		// Read the content of the file
+		// Read only the first $page_size lines for a fast initial load
+		$page_size = 3000;
     	$file_path = $this->combination_files_m->full_path($file_name);
-		if (file_exists($file_path)) {
-			$file_content = file_get_contents($file_path); // Read file content
-			$is_generated = !empty(trim($file_content)); // Check if file content is not empty
-		} 
-		else {
-			$file_content = ''; // No content if file does not exist
-			$is_generated = false; // File does not exist, so not generated
+		if (file_exists($file_path) && filesize($file_path) > 0) {
+			$fp           = fopen($file_path, 'r');
+			$file_content = '';
+			$line_count   = 0;
+			while ($line_count < $page_size && !feof($fp)) {
+				$line = fgets($fp);
+				if ($line !== FALSE) { $file_content .= $line; $line_count++; }
+			}
+			fclose($fp);
+			$is_generated = $line_count > 0;
+		} else {
+			$file_content = '';
+			$is_generated = false;
 		}
 		// Pass these variables to the view
 		$this->data['file_content'] = $file_content;
 		$this->data['is_generated'] = $is_generated;
+		$this->data['combo_page']   = 1;
+		$this->data['page_size']    = $page_size;
 		unset($this->data['lottery']->generate);
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the predictions menu
@@ -680,10 +689,60 @@ class Predictions extends Admin_Controller {
 	}
 
 	/**
-	 * Get the data from the selected combination file record, begin the combination calculation process
-	 * with HTML and PHP using ajax calls
-	 * @param		integer	$id			Lottery id
-	 * @return      none
+	 * Returns a page of 3000 lines from a combinations file for paginated browsing.
+	 *
+	 * @param   integer $id   Lottery id
+	 * @return  void  (JSON output)
+	 */
+	public function get_combinations_chunk($id)
+	{
+		header('Content-Type: application/json');
+		$file_name = $this->input->post('filename', TRUE);
+		$page      = max(1, (int) $this->input->post('page', TRUE));
+		$per_page  = 3000;
+
+		if (empty($file_name)) {
+			echo json_encode(['success' => FALSE, 'error' => 'No filename provided.']);
+			return;
+		}
+
+		$file_path = $this->combination_files_m->full_path($file_name);
+		if (!file_exists($file_path) || filesize($file_path) === 0) {
+			echo json_encode(['success' => FALSE, 'error' => 'File not found or empty.']);
+			return;
+		}
+
+		$fp    = fopen($file_path, 'r');
+		$skip  = ($page - 1) * $per_page;
+		$done  = 0;
+
+		// Skip lines before the requested page
+		while ($done < $skip && !feof($fp)) {
+			fgets($fp);
+			$done++;
+		}
+
+		// Read $per_page lines
+		$content = '';
+		$count   = 0;
+		while ($count < $per_page && !feof($fp)) {
+			$line = fgets($fp);
+			if ($line !== FALSE) { $content .= $line; $count++; }
+		}
+		fclose($fp);
+
+		echo json_encode([
+			'success' => TRUE,
+			'content' => $content,
+			'page'    => $page,
+			'count'   => $count,
+		]);
+	}
+
+	/**
+	 * Deletes a combination file and its database record.
+	 * @param   integer $id  Lottery id
+	 * @return  none
 	 */
 	public function delete($id)
 	{		

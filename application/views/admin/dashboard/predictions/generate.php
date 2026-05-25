@@ -227,6 +227,14 @@
 												);
 											echo form_textarea($data); ?>
 											</div></p>
+											<?php if (isset($combo_page) && $is_generated):
+												$combo_total_pages = max(1, (int)ceil($combinations / $page_size)); ?>
+											<div class="d-flex justify-content-between align-items-center mt-2">
+												<button type="button" class="btn btn-outline-secondary btn-sm" id="combo_prev_page" disabled>&laquo; Prev</button>
+												<small id="combo_page_info" class="text-muted">Page <?= $combo_page; ?> of <?= $combo_total_pages; ?></small>
+												<button type="button" class="btn btn-outline-secondary btn-sm" id="combo_next_page" <?= $combo_total_pages <= 1 ? 'disabled' : ''; ?>>Next &raquo;</button>
+											</div>
+											<?php endif; ?>
 										</div>
 									</div>
 									<div style="flex: 1; display: flex; justify-content: center; align-items: center; min-height: 350px;">
@@ -330,6 +338,12 @@ $(document).ready(function () {
     var URL_verify = "<?= base_url().'admin/predictions/verify_combinations/'.$lottery->id; ?>";
     var URL_cancel = "<?= base_url().'admin/predictions/cancel_generation/'.$lottery->id; ?>";
     var URL_back   = "<?= base_url().'admin/predictions/generate/'.$lottery->id; ?>";
+    <?php if (isset($combo_page)): ?>
+    var URL_chunk      = "<?= base_url().'admin/predictions/get_combinations_chunk/'.$lottery->id; ?>";
+    var combo_page     = <?= $combo_page; ?>;
+    var combo_per_page = <?= $page_size; ?>;
+    var combo_pages    = Math.ceil(<?= $combinations; ?> / <?= $page_size; ?>);
+    <?php endif; ?>
     var clear_timer = null; // Declare clear_timer globally and initialize to null
 	var is_complete = false; // Add a flag to track completion
 	var is_fetching = false; // Prevent overlapping counter requests
@@ -507,6 +521,36 @@ $(document).ready(function () {
             }
         });
     });
+
+    <?php if (isset($combo_page)): ?>
+    // Paginated combination file browsing (only available when file is pre-generated)
+    function loadComboPage(page) {
+        if (page < 1 || page > combo_pages) return;
+        $('#combo_prev_page, #combo_next_page').prop('disabled', true);
+        $.ajax({
+            type:     'POST',
+            url:      URL_chunk,
+            data:     { filename: '<?= $filename; ?>', page: page },
+            dataType: 'json',
+            success: function (data) {
+                if (data.success) {
+                    combo_page = data.page;
+                    $('#combinations').val(data.content.trimEnd());
+                    document.getElementById('combinations').scrollTop = 0;
+                    $('#combo_page_info').text('Page ' + combo_page + ' of ' + combo_pages);
+                    $('#combo_prev_page').prop('disabled', combo_page <= 1);
+                    $('#combo_next_page').prop('disabled', combo_page >= combo_pages);
+                }
+            },
+            error: function () {
+                $('#combo_prev_page').prop('disabled', combo_page <= 1);
+                $('#combo_next_page').prop('disabled', combo_page >= combo_pages);
+            }
+        });
+    }
+    $('#combo_prev_page').on('click', function () { loadComboPage(combo_page - 1); });
+    $('#combo_next_page').on('click', function () { loadComboPage(combo_page + 1); });
+    <?php endif; ?>
 
     // Back to Combinations List — warn if a generation is actively in progress
     $('#back_to_combinations_btn').on('click', function () {
