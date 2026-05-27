@@ -5941,6 +5941,81 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$this->cache->delete($cache_key);
 	}
 
+	// -----------------------------------------------------------------------
+	// H-W-C + Followers combined prediction record (lottery_h_w_c_followers)
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Return the H-W-C + Followers record for a lottery, or NULL if none.
+	 *
+	 * @param  integer $lottery_id
+	 * @return array|null
+	 */
+	public function hwc_followers_exists($lottery_id)
+	{
+		$query = $this->db->where('lottery_id', $lottery_id)
+		                  ->limit(1)
+		                  ->get('lottery_h_w_c_followers');
+		return ($query->num_rows() > 0) ? $query->row_array() : null;
+	}
+
+	/**
+	 * Insert or update the H-W-C + Followers prediction settings and generated numbers.
+	 * Pass $prev_numbers = null to leave prev_lottery_numbers untouched.
+	 *
+	 * @param  integer      $lottery_id
+	 * @param  string       $h_w_c_group        e.g. "4-1-1"
+	 * @param  string       $follower_type       "after_ball" or "position"
+	 * @param  string       $ball_points         selected ball value (after_ball mode)
+	 * @param  string       $position_points     selected position value (position mode)
+	 * @param  string       $lottery_numbers     comma-separated generated numbers
+	 * @param  string|null  $prev_numbers        previous numbers (null = don't overwrite)
+	 * @return void
+	 */
+	public function hwc_followers_save($lottery_id, $h_w_c_group, $follower_type, $ball_points, $position_points, $lottery_numbers, $prev_numbers = null)
+	{
+		$existing = $this->hwc_followers_exists($lottery_id);
+
+		$data = array(
+			'lottery_id'      => (int) $lottery_id,
+			'h_w_c_group'     => $h_w_c_group,
+			'follower_type'   => $follower_type,
+			'ball_points'     => $ball_points,
+			'position_points' => $position_points,
+			'lottery_numbers' => $lottery_numbers,
+		);
+
+		if (!is_null($prev_numbers)) {
+			$data['prev_lottery_numbers'] = $prev_numbers;
+		}
+
+		if ($existing) {
+			$this->db->where('lottery_id', $lottery_id);
+			$this->db->update('lottery_h_w_c_followers', $data);
+		} else {
+			$this->db->insert('lottery_h_w_c_followers', $data);
+		}
+	}
+
+	/**
+	 * Copy lottery_numbers → prev_lottery_numbers in the H-W-C + Followers record.
+	 * Called on import / manual draw entry (same pattern as hwc_snapshot_predictions).
+	 *
+	 * @param  integer $lottery_id
+	 * @return void
+	 */
+	public function hwc_followers_snapshot($lottery_id)
+	{
+		$row = $this->hwc_followers_exists($lottery_id);
+		if (empty($row) || empty($row['lottery_numbers'])) {
+			return;
+		}
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update('lottery_h_w_c_followers', array(
+			'prev_lottery_numbers' => $row['lottery_numbers'],
+		));
+	}
+
 	/** 
 	* Insert / Update the historic hots, warms and colds over the given range
 	* 

@@ -364,6 +364,51 @@
 	</div>
 	<?php endif; ?>
 
+	<!-- H-W-C + Followers Previous Predicted Winners -->
+	<?php if(!empty($prev_hwc_followers)):
+		$_prev_ball_nums = array_filter(array_map('trim', explode(',', $prev_hwc_followers)), 'strlen');
+		$_extra_ball_val = ($lottery->extra_ball && isset($lottery->last_drawn['extra'])) ? (string)intval($lottery->last_drawn['extra']) : '';
+		$_main_winning   = array();
+		for ($_wi = 1; $_wi <= $lottery->balls_drawn; $_wi++) {
+			if (!empty($lottery->last_drawn['ball'.$_wi])) {
+				$_main_winning[] = (string)intval($lottery->last_drawn['ball'.$_wi]);
+			}
+		}
+		if($hwcf_saved_follower_type === 'position') {
+			$_fl_sub = 'Position ' . htmlspecialchars($hwcf_saved_position_points);
+		} else {
+			$_fl_sub = !empty($hwcf_saved_ball_points) ? 'After Ball ' . htmlspecialchars($hwcf_saved_ball_points) : '';
+		}
+	?>
+	<div class="mt-4" style="padding:14px 18px; background-color:#e8f5e9; border-left:4px solid #28a745; border-radius:4px; text-align:center;">
+		<strong>H-W-C + Followers Previous Predicted Winners</strong>
+		<span class="text-muted" style="font-size:0.85em; margin-left:8px;">(<?=htmlspecialchars($hwcf_saved_h_w_c_group);?><?=($_fl_sub ? ' &mdash; ' . $_fl_sub : '');?>)</span>
+		<div style="margin-top:10px; display:flex; flex-wrap:wrap; justify-content:center; gap:8px;">
+			<?php foreach($_prev_ball_nums as $_pball):
+				$_pball    = (string)trim($_pball);
+				$_is_bonus = ($_extra_ball_val !== '' && $_pball === $_extra_ball_val);
+				$_is_main  = in_array($_pball, $_main_winning);
+				if($_is_bonus):
+					$_bg = '#1565C0'; $_color = '#fff'; $_border = 'border:2px solid #0d47a1;'; $_title = 'Bonus/Extra Ball!';
+				elseif($_is_main):
+					$_bg = '#FFD700'; $_color = '#333'; $_border = 'border:2px solid #b8860b;'; $_title = 'Winner!';
+				else:
+					$_bg = '#28a745'; $_color = '#fff'; $_border = ''; $_title = '';
+				endif;
+			?>
+			<div title="<?=$_title;?>" style="display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:50%; background-color:<?=$_bg;?>; color:<?=$_color;?>; font-weight:bold; font-size:14px; box-shadow:0 2px 4px rgba(0,0,0,0.25); <?=$_border;?>"><?=$_pball;?></div>
+			<?php endforeach; ?>
+		</div>
+		<p style="margin-top:8px; font-size:0.85em; color:#555;">
+			<span style="display:inline-block; width:14px; height:14px; background:#FFD700; border-radius:50%; border:1px solid #b8860b; vertical-align:middle;"></span> Gold = main ball match &nbsp;
+			<?php if($lottery->extra_ball): ?>
+			<span style="display:inline-block; width:14px; height:14px; background:#1565C0; border-radius:50%; border:1px solid #0d47a1; vertical-align:middle;"></span> Blue = bonus/extra ball match &nbsp;
+			<?php endif; ?>
+			<span style="display:inline-block; width:14px; height:14px; background:#28a745; border-radius:50%; vertical-align:middle;"></span> Green = not drawn
+		</p>
+	</div>
+	<?php endif; ?>
+
 </div><!-- /container-fluid -->
 
 </div><!-- /card -->

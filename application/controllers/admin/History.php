@@ -1828,6 +1828,14 @@ class History extends Admin_Controller {
 		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
 		else $this->data['message'] = '';
 
+		// Load H-W-C + Followers previous predicted numbers for winner highlighting
+		$hwcf_record = $this->statistics_m->hwc_followers_exists($id);
+		$this->data['prev_hwc_followers']          = ($hwcf_record && !empty($hwcf_record['prev_lottery_numbers'])) ? $hwcf_record['prev_lottery_numbers'] : '';
+		$this->data['hwcf_saved_h_w_c_group']      = ($hwcf_record && !empty($hwcf_record['h_w_c_group']))      ? $hwcf_record['h_w_c_group']      : '';
+		$this->data['hwcf_saved_follower_type']    = ($hwcf_record && !empty($hwcf_record['follower_type']))    ? $hwcf_record['follower_type']    : '';
+		$this->data['hwcf_saved_ball_points']      = ($hwcf_record && !empty($hwcf_record['ball_points']))      ? $hwcf_record['ball_points']      : '';
+		$this->data['hwcf_saved_position_points']  = ($hwcf_record && !empty($hwcf_record['position_points']))  ? $hwcf_record['position_points']  : '';
+
 		$this->data['current'] = $this->uri->segment(2);
 		$this->session->set_userdata('uri', 'admin/' . $this->data['current']);
 		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();

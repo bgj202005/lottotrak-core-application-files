@@ -1021,15 +1021,14 @@ class Lotteries extends Admin_Controller {
 				// page can highlight which balls were predicted before this new draw
 				if ($processed_count > 0) {
 					$this->statistics_m->hwc_snapshot_predictions($id);
+					$this->statistics_m->hwc_followers_snapshot($id);
 				}
-
-				echo json_encode(array('exit' => TRUE));
-			}
-		}
-		$this->session->unset_userdata(array('new_file_name', 'table_name', 'last_draw', 'balls_drawn', 'extra_ball', 'minimum_ball', 
+				$this->session->unset_userdata(array('new_file_name', 'table_name', 'last_draw', 'balls_drawn', 'extra_ball', 'minimum_ball', 
 							'maximum_ball', 'minimum_ball', 'minimum_extra_ball', 'maximum_extra_ball', 'duplicate_extra', 'allow_zero_extra', 'elim'));
-		unset($lottery_props);					
-	}
+			unset($lottery_props);					
+			} // close elseif(!isset($draw_data))
+		} // close if(!empty(new_file_name))
+	} // close import_process
 	
 	/**
 	 * Determines the current row count of the csv to data
@@ -1546,6 +1545,7 @@ class Lotteries extends Admin_Controller {
 					// Snapshot current hwc_predictions → prev_h_w_c_predictions so history
 					// page can show which balls were predicted before this new draw
 					$this->statistics_m->hwc_snapshot_predictions($id);
+					$this->statistics_m->hwc_followers_snapshot($id);
 				} 
 				else
 				{

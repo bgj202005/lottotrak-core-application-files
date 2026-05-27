@@ -60,6 +60,7 @@
 				<th style = "text-align:center; white-space: nowrap;">H-W-C</th>
 				<th>Followers</th>
 				<th>Friends</th>
+				<th style="text-align:center; white-space: nowrap;">H-W-C+Follow</th>
 				<th>Calculate</th>
 				<th style = "text-align:center; white-space: nowrap;">ReCalc?</th>
 				<th style = "text-align:center; white-space: nowrap;">Reset</th>
@@ -94,20 +95,21 @@
 		<td style = "text-align:center;"><?=$lottery->repeaters; ?></td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_stat('admin/statistics/view_draws/'.$lottery->id, $lottery->draw_count == 0); ?></td>
 		<?php if(!$lottery->min_draws_met): ?>
-		<td colspan="3" style="text-align:center; vertical-align:top; padding:8px;">
+		<td colspan="4" style="text-align:center; vertical-align:top; padding:8px;">
 			<span style="color: #d9534f; font-weight: bold; font-size:1.25em;">
 				<?=$lottery->draws_remaining;?> Draws left to reach the minimum of <?=$lottery->required_draws;?> draws for the next prediction. 
 				The Earliest prediction draw date is <?=$lottery->next_prediction_date;?>.
 			</span>
 		</td>
 		<?php elseif($lottery->needs_recalc): ?>
-		<td colspan="3" style="text-align:center; vertical-align:top; padding:8px;">
+		<td colspan="4" style="text-align:center; vertical-align:top; padding:8px;">
 			<span style="color: #d9534f; font-weight: bold; font-size:0.875em;">ReCalc Required</span>
 		</td>
 		<?php else: ?>
 		<td style = "text-align:center;"><?php echo $statistics->btn_hwc('admin/statistics/h_w_c/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_followers('admin/statistics/followers/'.$lottery->id); ?></td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_friends('admin/statistics/friends/'.$lottery->id); ?></td>
+		<td style = "text-align:center;"><?php echo $statistics->btn_hwc_followers('admin/statistics/hwc_followers/'.$lottery->id); ?></td>
 		<?php endif; ?>
 		<td style = "text-align:center;"><?php echo $statistics->btn_calculate('admin/statistics/calculate/'.$lottery->id, $lottery->draw_count == 0); ?></td>
 		<td style = "text-align:center;"><input type="checkbox" name="recalc" value="<?=$lottery->id;?>" class="recalc<?=$lottery->id;?>" id="recalc" <?=(!$lottery->min_draws_met ? 'disabled' : '');?> >
@@ -125,7 +127,7 @@
 	
 	<?php else: ?>
 		<tr>
-			<td colspan="16" style = "text-align:center">No Lotteries are available.</td>
+			<td colspan="17" style = "text-align:center">No Lotteries are available.</td>
 		</tr>
 <?php endif; ?>
 		</tbody>
@@ -174,6 +176,12 @@ $(document).ready(function(){
 		$('#status').css('display', 'block');
 		$('#message').css('display', 'none'); 
 		document.getElementById("status").innerHTML = "Retrieving the Friends of numbers and History for the next draw. Please Wait.";
+		setTimeout(fade_out, 10500);
+	});
+	$('.hwc-followers').click(function(){
+		$('#status').css('display', 'block');
+		$('#message').css('display', 'none'); 
+		document.getElementById("status").innerHTML = "Retrieving the H-W-C + Followers prediction for the next draw. Please Wait.";
 		setTimeout(fade_out, 10500);
 	});
 	

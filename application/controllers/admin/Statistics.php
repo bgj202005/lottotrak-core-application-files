@@ -142,6 +142,17 @@ class Statistics extends Admin_Controller {
 	}
 
 	/**
+	 * View H-W-C + Followers combined prediction for the next draw
+	 *
+	 * @param       string  $uri    uri admin address of the page
+	 * @return      none
+	 */
+	public function btn_hwc_followers($uri)
+	{
+		return anchor($uri, '<i class="fa fa-fire fa-2x" aria-hidden="true" style="color: #e74c3c;"></i>', array('title' => 'View H-W-C + Followers Predicted Numbers for the Next Draw', 'class' => 'hwc-followers'));
+	}
+
+	/**
 	 * Calculate the Current History or Update to the latest Draw
 	 * 
 	 * @param       string	$uri	uri admin address of the statistics page
@@ -4098,5 +4109,186 @@ class Statistics extends Admin_Controller {
 		$this->db->update($table);
 		
 		log_message('info', "Set extra_draws=$value for lottery_id=$lottery_id in table=$table");
+	}
+
+	// -------------------------------------------------------------------------
+
+	/**
+	 * H-W-C + Followers combined prediction page for the next draw.
+	 * Allows saving H-W-C group + follower type/ball settings and displays
+	 * the generated prediction numbers.
+	 *
+	 * @param  integer  $id  Lottery ID
+	 * @return void
+	 */
+	public function hwc_followers($id)
+	{
+		$this->data['message'] = '';
+
+		// Must have H-W-C calculated before this page is usable
+		$hwc_check = $this->statistics_m->h_w_c_exists($id);
+		if (is_null($hwc_check) || empty($hwc_check['hots']) || empty($hwc_check['warms']) || empty($hwc_check['colds']) || $hwc_check['draw_id'] == 0) {
+			$this->session->set_flashdata('message', 'H-W-C must be calculated (ReCalc) before using the H-W-C + Followers prediction page.');
+			redirect('admin/statistics');
+			return;
+		}
+
+		// Must have followers calculated
+		$followers_check = $this->statistics_m->followers_exists($id);
+		if (is_null($followers_check) || empty($followers_check['lottery_followers'])) {
+			$this->session->set_flashdata('message', 'Followers must be ReCalculated before using the H-W-C + Followers prediction page.');
+			redirect('admin/statistics');
+			return;
+		}
+
+		$this->data['lottery'] = $this->lotteries_m->get($id);
+		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+
+		if (!$this->lotteries_m->lotto_table_exists($tbl_name)) {
+			$this->session->set_flashdata('message', 'Internal error: lottery table ' . $tbl_name . ' does not exist.');
+			redirect('admin/statistics');
+		}
+
+		// Load model dependencies on-demand
+		$this->load->model('Predictions_m', 'predictions_m');
+		$this->load->model('Lottery_statistics_m', 'lottery_statistics_m');
+		$this->load->model('History_m', 'history_m');
+
+		$drawn      = (int) $this->data['lottery']->balls_drawn;
+		$pool_size  = isset($hwc_check['prediction_pool']) ? (int) $hwc_check['prediction_pool'] : 18;
+
+		// Build H-W-C group dropdown (ranked list)
+		$this->data['h_w_c_group'] = $this->predictions_m->get_h_w_c_range_with_rank($id);
+
+		// Build ball and position points options using the full followers points chain
+		$p_group = $this->statistics_m->prize_group_profile($id);
+		$p_group = $this->statistics_m->prizes_only($p_group, $this->data['lottery']->extra_ball);
+		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_prizegroup($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_ball, $p_group);
+		$extra_included_f  = isset($followers_check['extra_included']) ? (int) $followers_check['extra_included'] : 0;
+		$follower_wins     = explode('>', $followers_check['wins']);
+		$follow_poswins    = explode('>', $followers_check['positions']);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $extra_included_f, $p_group, $follower_wins, $follow_poswins);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $extra_included_f, $this->data['lottery']->duplicate_extra_ball);
+
+		$ball_points_raw = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
+		$ball_points_options = [];
+		foreach ($ball_points_raw as $label) {
+			if (strpos($label, '+') === 0) {
+				$value = substr($label, 0, strpos($label, ' '));
+			} else {
+				$value = strtok($label, ' ');
+			}
+			$ball_points_options[$value] = $label;
+		}
+		$this->data['ball_points_options'] = $ball_points_options;
+
+		$position_points_raw = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
+		$position_points_options = [];
+		foreach ($position_points_raw as $label) {
+			if (strpos($label, '+') === 0) {
+				$value = substr($label, 0, strpos($label, ' '));
+			} else {
+				$value = strtok($label, ' ');
+			}
+			$position_points_options[$value] = $label;
+		}
+		$this->data['position_points_options'] = $position_points_options;
+
+		// Handle "Change H-W-C + Follower Options" form submission
+		if (!empty($this->input->post(NULL, true)) && $this->input->post('change_hwc_follower_options')) {
+
+			$h_w_c_group_keys = array_keys($this->data['h_w_c_group']);
+			$posted_h_w_c    = $this->input->post('h_w_c_group', true);
+			$follower_type   = $this->input->post('follower_type', true);
+			$ball_points     = $this->input->post('ball_points', true);
+			$position_points = $this->input->post('position_points', true);
+
+			// Validate h_w_c_group
+			if (!in_array($posted_h_w_c, $h_w_c_group_keys)) {
+				$posted_h_w_c = !empty($h_w_c_group_keys) ? $h_w_c_group_keys[0] : '';
+			}
+
+			// Normalise follower_type
+			$follower_type = ($follower_type === 'position') ? 'position' : 'after_ball';
+
+			// Determine which follower_select to use
+			$follower_select = ($follower_type === 'position') ? $position_points : $ball_points;
+			$follower_select = trim((string) $follower_select);
+
+			if (empty($posted_h_w_c) || empty($follower_select)) {
+				$this->session->set_flashdata('message', 'Please select a valid H-W-C group and follower option.');
+				redirect('admin/statistics/hwc_followers/' . $id);
+				return;
+			}
+
+			// Generate the prediction
+			$generated = $this->predictions_m->hwc_followers($id, $pool_size, $posted_h_w_c, $follower_type, $follower_select);
+
+			$lottery_numbers = $generated ? $generated : '';
+
+			if (!$generated) {
+				$this->session->set_flashdata('message', 'The selected H-W-C group and follower combination did not produce any predictions. Please try different settings.');
+			}
+
+			$this->statistics_m->hwc_followers_save(
+				$id,
+				$posted_h_w_c,
+				$follower_type,
+				$ball_points,
+				$position_points,
+				$lottery_numbers,
+				''   // clear prev_lottery_numbers when options change
+			);
+
+			$this->session->set_flashdata('hwc_follower_message', 'Prediction updated with H-W-C (' . $posted_h_w_c . ') + ' . ($follower_type === 'position' ? 'Position ' . $follower_select : 'After Ball ' . $follower_select));
+			redirect('admin/statistics/hwc_followers/' . $id);
+			return;
+		}
+
+		// Load saved prediction record
+		$hwc_followers_record = $this->statistics_m->hwc_followers_exists($id);
+
+		// Pass H-W-C settings (range, extra_included, extra_draws) — read-only display
+		$hwc_settings = $this->statistics_m->h_w_c_exists($id);
+		$this->data['hwc_settings'] = array(
+			'range'          => isset($hwc_settings['range'])          ? $hwc_settings['range']          : 'N/A',
+			'extra_included' => isset($hwc_settings['extra_included']) ? (int) $hwc_settings['extra_included'] : 0,
+			'extra_draws'    => isset($hwc_settings['extra_draws'])    ? (int) $hwc_settings['extra_draws']    : 0,
+		);
+
+		// Pass Followers settings (range, extra_included, extra_draws) — read-only display
+		$followers_settings = $this->statistics_m->followers_exists($id);
+		$this->data['followers_settings'] = array(
+			'range'          => isset($followers_settings['range'])          ? $followers_settings['range']          : 'N/A',
+			'extra_included' => isset($followers_settings['extra_included']) ? (int) $followers_settings['extra_included'] : 0,
+			'extra_draws'    => isset($followers_settings['extra_draws'])    ? (int) $followers_settings['extra_draws']    : 0,
+		);
+
+		$this->data['hwc_followers_record']    = $hwc_followers_record;
+		$this->data['saved_h_w_c_group']       = $hwc_followers_record ? $hwc_followers_record['h_w_c_group']     : '';
+		$this->data['saved_follower_type']     = $hwc_followers_record ? $hwc_followers_record['follower_type']   : 'after_ball';
+		$this->data['saved_ball_points']       = $hwc_followers_record ? $hwc_followers_record['ball_points']     : '';
+		$this->data['saved_position_points']   = $hwc_followers_record ? $hwc_followers_record['position_points'] : '';
+		$this->data['lottery_numbers']         = $hwc_followers_record ? $hwc_followers_record['lottery_numbers'] : '';
+		$this->data['prev_lottery_numbers']    = $hwc_followers_record ? $hwc_followers_record['prev_lottery_numbers'] : '';
+
+		// Next draw date (last_drawn already set via the points chain above)
+		$ld  = $this->data['lottery']->last_drawn['draw_date'];
+		$day = $this->lotteries_m->return_day($ld);
+		$this->data['next_draw_date'] = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
+
+		// Flash messages
+		if ($this->session->flashdata('hwc_follower_message')) {
+			$this->data['hwc_follower_message'] = $this->session->flashdata('hwc_follower_message');
+		}
+
+		$this->data['current']     = $this->uri->segment(2);
+		$this->data['maintenance'] = $this->maintenance_m->maintenance_check();
+		$this->data['users']       = $this->maintenance_m->logged_online(0);
+		$this->data['admins']      = $this->maintenance_m->logged_online(1);
+		$this->data['visitors']    = $this->maintenance_m->active_visitors();
+		$this->data['subview']     = 'admin/dashboard/statistics/hwc_followers';
+		$this->load->view('admin/_layout_main', $this->data);
 	}
 }
