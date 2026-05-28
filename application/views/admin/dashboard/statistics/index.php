@@ -44,7 +44,7 @@
 	<div class = "status"></div>
 	<div class="table-responsive">
 	<div class ="table-responsive-xl">
-	<table class="table table-striped">
+	<table class="table table-striped table-sm">
 		<thead>
 			<tr> 
 				<td style = "text-align:center; white-space: nowrap;">Logo</td>
@@ -56,12 +56,12 @@
 				<td style = "text-align:center; white-space: nowrap;">Sum(100)</td>
 				<td style = "text-align:center; white-space: nowrap;">Sum(LD)</td>
 				<td style = "text-align:center; white-space: nowrap;">Repeaters</td>
-				<th>Stats</th>
+				<th style="text-align:center; white-space: nowrap;">Stats</th>
 				<th style = "text-align:center; white-space: nowrap;">H-W-C</th>
-				<th>Followers</th>
-				<th>Friends</th>
-				<th style="text-align:center; white-space: nowrap;">H-W-C + Follow</th>
-				<th>Calculate</th>
+				<th style="text-align:center; white-space: nowrap;">Followers</th>
+				<th style="text-align:center; white-space: nowrap;">Friends</th>
+				<th style="text-align:center; white-space: nowrap;">H-W-C + Followers</th>
+				<th style="text-align:center; white-space: nowrap;">Calculate</th>
 				<th style = "text-align:center; white-space: nowrap;">ReCalc?</th>
 				<th style = "text-align:center; white-space: nowrap;">Reset</th>
 			</tr>

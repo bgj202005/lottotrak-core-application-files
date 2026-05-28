@@ -127,7 +127,7 @@ class Statistics extends Admin_Controller {
 	 */
 	public function btn_followers($uri)
 	{
-		return anchor($uri, '<i class="fa fa-retweet fa-2x" aria-hidden="true" style="color: #007bff;"></i>', array('title' => 'View Historic Follower Statistics after the last draw', 'class' => 'followers followers-btn'));
+		return anchor($uri, '<i class="fa fa-retweet fa-2x" aria-hidden="true"></i>', array('title' => 'View Historic Follower Statistics after the last draw', 'class' => 'followers followers-btn'));
 	}
 
 	/**
@@ -149,7 +149,7 @@ class Statistics extends Admin_Controller {
 	 */
 	public function btn_hwc_followers($uri)
 	{
-		return anchor($uri, '<i class="fa fa-fire fa-2x" aria-hidden="true" style="color: #e74c3c;"></i>', array('title' => 'View H-W-C + Followers Predicted Numbers for the Next Draw', 'class' => 'hwc-followers'));
+		return anchor($uri, '<i class="fa fa-fire fa-2x" aria-hidden="true"></i>', array('title' => 'View H-W-C + Followers Predicted Numbers for the Next Draw', 'class' => 'hwc-followers'));
 	}
 
 	/**
