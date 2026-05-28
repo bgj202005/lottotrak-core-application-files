@@ -60,7 +60,7 @@
 				<th style = "text-align:center; white-space: nowrap;">H-W-C</th>
 				<th>Followers</th>
 				<th>Friends</th>
-				<th style="text-align:center; white-space: nowrap;">H-W-C+Follow</th>
+				<th style="text-align:center; white-space: nowrap;">H-W-C + Follow</th>
 				<th>Calculate</th>
 				<th style = "text-align:center; white-space: nowrap;">ReCalc?</th>
 				<th style = "text-align:center; white-space: nowrap;">Reset</th>
