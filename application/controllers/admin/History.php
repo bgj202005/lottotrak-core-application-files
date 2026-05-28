@@ -1828,13 +1828,24 @@ class History extends Admin_Controller {
 		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
 		else $this->data['message'] = '';
 
-		// Load H-W-C + Followers previous predicted numbers for winner highlighting
+		// Load H-W-C + Followers previous predicted numbers for winner highlighting.
+		// prev_lottery_numbers is encoded as: follower_type|ball_points|position_points|numbers
 		$hwcf_record = $this->statistics_m->hwc_followers_exists($id);
-		$this->data['prev_hwc_followers']          = ($hwcf_record && !empty($hwcf_record['prev_lottery_numbers'])) ? $hwcf_record['prev_lottery_numbers'] : '';
-		$this->data['hwcf_saved_h_w_c_group']      = ($hwcf_record && !empty($hwcf_record['h_w_c_group']))      ? $hwcf_record['h_w_c_group']      : '';
-		$this->data['hwcf_saved_follower_type']    = ($hwcf_record && !empty($hwcf_record['follower_type']))    ? $hwcf_record['follower_type']    : '';
-		$this->data['hwcf_saved_ball_points']      = ($hwcf_record && !empty($hwcf_record['ball_points']))      ? $hwcf_record['ball_points']      : '';
-		$this->data['hwcf_saved_position_points']  = ($hwcf_record && !empty($hwcf_record['position_points']))  ? $hwcf_record['position_points']  : '';
+		$_prev_raw   = ($hwcf_record && !empty($hwcf_record['prev_lottery_numbers'])) ? $hwcf_record['prev_lottery_numbers'] : '';
+		if (!empty($_prev_raw) && strpos($_prev_raw, '|') !== false) {
+			$_prev_parts = explode('|', $_prev_raw, 4);
+			$this->data['prev_hwc_followers']         = isset($_prev_parts[3]) ? $_prev_parts[3] : '';
+			$this->data['hwcf_saved_follower_type']   = isset($_prev_parts[0]) ? $_prev_parts[0] : '';
+			$this->data['hwcf_saved_ball_points']     = isset($_prev_parts[1]) ? $_prev_parts[1] : '';
+			$this->data['hwcf_saved_position_points'] = isset($_prev_parts[2]) ? $_prev_parts[2] : '';
+		} else {
+			// Legacy format: no encoded metadata, just lottery numbers
+			$this->data['prev_hwc_followers']         = $_prev_raw;
+			$this->data['hwcf_saved_follower_type']   = ($hwcf_record && !empty($hwcf_record['follower_type']))    ? $hwcf_record['follower_type']    : '';
+			$this->data['hwcf_saved_ball_points']     = ($hwcf_record && !empty($hwcf_record['ball_points']))      ? $hwcf_record['ball_points']      : '';
+			$this->data['hwcf_saved_position_points'] = ($hwcf_record && !empty($hwcf_record['position_points']))  ? $hwcf_record['position_points']  : '';
+		}
+		$this->data['hwcf_saved_h_w_c_group'] = ($hwcf_record && !empty($hwcf_record['h_w_c_group'])) ? $hwcf_record['h_w_c_group'] : '';
 
 		$this->data['current'] = $this->uri->segment(2);
 		$this->session->set_userdata('uri', 'admin/' . $this->data['current']);

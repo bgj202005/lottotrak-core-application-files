@@ -4273,6 +4273,46 @@ class Statistics extends Admin_Controller {
 		$this->data['lottery_numbers']         = $hwc_followers_record ? $hwc_followers_record['lottery_numbers'] : '';
 		$this->data['prev_lottery_numbers']    = $hwc_followers_record ? $hwc_followers_record['prev_lottery_numbers'] : '';
 
+		// Auto-refresh: if the saved ball/position is no longer in the current draw's options
+		// (stale after a new draw import), regenerate the prediction with the top-ranked option.
+		if ($hwc_followers_record && !empty($this->data['lottery_numbers'])) {
+			$_curr_type = $this->data['saved_follower_type'];
+			$_stale = false;
+			if ($_curr_type === 'position') {
+				$_stale = !empty($this->data['saved_position_points'])
+					&& !array_key_exists($this->data['saved_position_points'], $position_points_options);
+			} else {
+				$_stale = !empty($this->data['saved_ball_points'])
+					&& !array_key_exists($this->data['saved_ball_points'], $ball_points_options);
+			}
+
+			if ($_stale) {
+				$_new_ball = !empty($ball_points_options)     ? (string) array_key_first($ball_points_options)     : $this->data['saved_ball_points'];
+				$_new_pos  = !empty($position_points_options) ? (string) array_key_first($position_points_options) : $this->data['saved_position_points'];
+				$_follower_select = ($_curr_type === 'position') ? $_new_pos : $_new_ball;
+
+				$_generated = $this->predictions_m->hwc_followers(
+					$id, $pool_size, $hwc_followers_record['h_w_c_group'], $_curr_type, $_follower_select
+				);
+				$_new_numbers = $_generated ?: $this->data['lottery_numbers'];
+
+				// Save updated ball/position and regenerated numbers; keep prev_lottery_numbers intact
+				$this->statistics_m->hwc_followers_save(
+					$id,
+					$hwc_followers_record['h_w_c_group'],
+					$_curr_type,
+					$_new_ball,
+					$_new_pos,
+					$_new_numbers,
+					null   // null = leave prev_lottery_numbers unchanged
+				);
+
+				$this->data['saved_ball_points']     = $_new_ball;
+				$this->data['saved_position_points'] = $_new_pos;
+				$this->data['lottery_numbers']       = $_new_numbers;
+			}
+		}
+
 		// Next draw date (last_drawn already set via the points chain above)
 		$ld  = $this->data['lottery']->last_drawn['draw_date'];
 		$day = $this->lotteries_m->return_day($ld);

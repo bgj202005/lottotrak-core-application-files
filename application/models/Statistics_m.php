@@ -6010,9 +6010,15 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		if (empty($row) || empty($row['lottery_numbers'])) {
 			return;
 		}
+		// Encode follower_type|ball_points|position_points|lottery_numbers so the
+		// history page can show exactly which options were active before this draw.
+		$follower_type   = isset($row['follower_type'])   ? $row['follower_type']   : 'after_ball';
+		$ball_points     = isset($row['ball_points'])     ? $row['ball_points']     : '';
+		$position_points = isset($row['position_points']) ? $row['position_points'] : '';
+		$prev_encoded    = $follower_type . '|' . $ball_points . '|' . $position_points . '|' . $row['lottery_numbers'];
 		$this->db->where('lottery_id', $lottery_id);
 		$this->db->update('lottery_h_w_c_followers', array(
-			'prev_lottery_numbers' => $row['lottery_numbers'],
+			'prev_lottery_numbers' => $prev_encoded,
 		));
 	}
 
