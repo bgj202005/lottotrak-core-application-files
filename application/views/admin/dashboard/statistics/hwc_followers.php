@@ -105,6 +105,31 @@
 			</table>
 		</div>
 
+		<!-- Last Draw -->
+		<div style="flex: 1; min-width: 240px; background: #f8f9fa; border: 1px solid #adb5bd; border-radius: 6px; padding: 12px 16px;">
+			<div style="font-weight: bold; color: #343a40; margin-bottom: 8px;">
+				<i class="fa fa-calendar" aria-hidden="true"></i> Last Draw <small class="text-muted">(read-only)</small>
+			</div>
+			<div style="color:#555; font-size:0.9em; margin-bottom:8px;">
+				<?php if(!empty($lottery->last_drawn['draw_date'])): ?>
+					<?=date('D, M j, Y', strtotime(str_replace('/', '-', $lottery->last_drawn['draw_date'])));?>
+				<?php else: ?>
+					<span class="text-muted">N/A</span>
+				<?php endif; ?>
+			</div>
+			<div style="display:flex; flex-wrap:wrap; align-items:center; gap:4px;">
+				<?php for($__i = 1; $__i <= $lottery->balls_drawn; $__i++): ?>
+					<?php if(!empty($lottery->last_drawn['ball'.$__i])): ?>
+					<span class="badge badge-dark" style="font-size:0.9em; padding:5px 6px;"><?=(int)$lottery->last_drawn['ball'.$__i];?></span>
+					<?php endif; ?>
+				<?php endfor; ?>
+				<?php if($lottery->extra_ball && !empty($lottery->last_drawn['extra'])): ?>
+					<span style="margin:0 2px; color:#888;">+</span>
+					<span class="badge badge-secondary" style="font-size:0.9em; padding:5px 6px;"><?=(int)$lottery->last_drawn['extra'];?></span>
+				<?php endif; ?>
+			</div>
+		</div>
+
 		<!-- Followers Settings -->
 		<div style="flex: 1; min-width: 240px; background: #eafaf1; border: 1px solid #a9dfbf; border-radius: 6px; padding: 12px 16px;">
 			<div style="font-weight: bold; color: #1e8449; margin-bottom: 8px;">
