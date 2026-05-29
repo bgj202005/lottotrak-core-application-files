@@ -499,25 +499,26 @@ class Prize_m extends MY_Model
         $prize_categories = array(9, 8, 7, 6, 5, 4, 3, 2, 1);
         
         // Generate dynamic prize columns based on what's available in prize profile
+        // Extra columns (with +) always appear before regular columns
         foreach ($prize_categories as $category) {
             $regular_field = $category . '_win';
             $extra_field = $category . '_win_extra';
             
-            // Add regular category if it exists and is not NULL
-            if (property_exists($prize_profile, $regular_field) && !is_null($prize_profile->$regular_field)) {
-                $columns[] = array(
-                    'key' => 'win_' . $category,
-                    'label' => (string)$category,
-                    'tooltip' => $category . ' numbers matched'
-                );
-            }
-            
-            // Add extra category if it exists and is not NULL
+            // Add extra category FIRST if it exists and is not NULL
             if (property_exists($prize_profile, $extra_field) && !is_null($prize_profile->$extra_field)) {
                 $columns[] = array(
                     'key' => 'win_' . $category . '_extra',
                     'label' => $category . '+',
                     'tooltip' => $category . ' numbers matched with extra ball'
+                );
+            }
+            
+            // Add regular category SECOND if it exists and is not NULL
+            if (property_exists($prize_profile, $regular_field) && !is_null($prize_profile->$regular_field)) {
+                $columns[] = array(
+                    'key' => 'win_' . $category,
+                    'label' => (string)$category,
+                    'tooltip' => $category . ' numbers matched'
                 );
             }
         }
@@ -563,22 +564,12 @@ class Prize_m extends MY_Model
         $categories = array();
         $prize_numbers = array(9, 8, 7, 6, 5, 4, 3, 2, 1);
         
+        // Extra categories (with +) always appear before regular categories
         foreach ($prize_numbers as $number) {
             $regular_field = $number . '_win';
             $extra_field = $number . '_win_extra';
             
-            // Check if regular category exists and is not NULL
-            if (property_exists($prize_profile, $regular_field) && !is_null($prize_profile->$regular_field)) {
-                $categories[] = array(
-                    'key' => 'win_' . $number,
-                    'label' => (string)$number,
-                    'type' => 'regular',
-                    'matches' => $number,
-                    'tooltip' => $number . ' numbers matched'
-                );
-            }
-            
-            // Check if extra category exists and is not NULL
+            // Check if extra category exists FIRST and is not NULL
             if (property_exists($prize_profile, $extra_field) && !is_null($prize_profile->$extra_field)) {
                 $categories[] = array(
                     'key' => 'win_' . $number . '_extra',
@@ -586,6 +577,17 @@ class Prize_m extends MY_Model
                     'type' => 'extra',
                     'matches' => $number,
                     'tooltip' => $number . ' numbers matched with extra ball'
+                );
+            }
+            
+            // Check if regular category exists SECOND and is not NULL
+            if (property_exists($prize_profile, $regular_field) && !is_null($prize_profile->$regular_field)) {
+                $categories[] = array(
+                    'key' => 'win_' . $number,
+                    'label' => (string)$number,
+                    'type' => 'regular',
+                    'matches' => $number,
+                    'tooltip' => $number . ' numbers matched'
                 );
             }
         }
