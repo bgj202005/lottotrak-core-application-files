@@ -2289,6 +2289,43 @@ class Statistics extends Admin_Controller {
 		$this->data['lottery'] = $this->lotteries_m->get($id);
 		// Retrieve the lottery table name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
+		
+		// Check minimum draw requirement before attempting recalculation
+		// If lottery has extra_ball = 1, exclude draws where extra = 0 from count
+		if (intval($this->data['lottery']->extra_ball) == 1) {
+			// Count only draws where extra != 0 (valid draws with extra ball)
+			$draw_count = $this->statistics_m->lottery_rows_noextra($tbl_name, $this->data['lottery']->extra_ball);
+			if ($draw_count === FALSE || $draw_count === NULL) $draw_count = 0;
+		} else {
+			// Count all draws
+			$draw_count = $this->lotteries_m->db_row_count($tbl_name);
+			if ($draw_count === FALSE || $draw_count === NULL) $draw_count = 0;
+		}
+		
+		// Get prediction_min_range (default to 25 if not set)
+		$prediction_min_range = isset($this->data['lottery']->prediction_min_range) && $this->data['lottery']->prediction_min_range > 0 
+			? intval($this->data['lottery']->prediction_min_range) 
+			: 25;
+		
+		$required_draws = $prediction_min_range * 2;
+		
+		// If minimum draws not met, show error message and redirect
+		if ($draw_count < $required_draws) {
+			$draws_remaining = $required_draws - $draw_count;
+			$extra_note = (intval($this->data['lottery']->extra_ball) == 1) 
+				? ' <em>(Note: Only draws with valid extra ball numbers are counted. Draws with extra = 0 are excluded.)</em>' 
+				: '';
+			$this->session->set_flashdata('message', 
+				'<div class="alert alert-warning">' .
+				'<strong>Insufficient Draws:</strong> This lottery (' . htmlspecialchars($this->data['lottery']->lottery_name) . ') requires a minimum of <strong>' . $required_draws . 
+				' draws</strong> before ReCalc can be performed. Currently there are <strong>' . $draw_count . 
+				' valid draw(s)</strong> in the database. Please add <strong>' . $draws_remaining . ' more valid draw(s)</strong> before attempting recalculation.' .
+				$extra_note .
+				'</div>'
+			);
+			redirect('admin/statistics');
+			return;
+		}
 	
 		$recalc = FALSE;
 		$stats_exist = $this->statistics_m->last_stats_exist($tbl_name);
