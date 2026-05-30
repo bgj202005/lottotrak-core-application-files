@@ -2076,6 +2076,14 @@ class Lotteries extends Admin_Controller {
 				$deleted_count += $this->db->affected_rows();
 				log_message('info', "Deleted " . $this->db->affected_rows() . " rows from lottery_h_w_c_stats");
 			}
+
+			// Clear the prev snapshot fields in lottery_h_w_c_followers — lottery parameters
+			// have changed so previous predicted numbers are no longer meaningful.
+			if ($this->db->table_exists('lottery_h_w_c_followers')) {
+				$this->db->where('lottery_id', $lottery_id);
+				$this->db->update('lottery_h_w_c_followers', array('prev_lottery_numbers' => ''));
+				log_message('info', "Cleared prev_lottery_numbers in lottery_h_w_c_followers for lottery_id=$lottery_id");
+			}
 			
 			// Clear statistics cache
 			if (isset($this->statistics_m)) {

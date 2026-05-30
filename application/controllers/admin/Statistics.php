@@ -1724,10 +1724,9 @@ class Statistics extends Admin_Controller {
 					} else {
 						$hwc_predictions_str = '';
 					}
-					// Clear prev_h_w_c_predictions — a new prediction is being generated so any
-					// previous snapshot is no longer valid. It will be repopulated the next
-					// time a draw is imported or manually entered.
-					$this->statistics_m->hwc_save_predictions($id, $posted_option, $posted_select, $hwc_predictions_str, '');
+					// Preserve prev_h_w_c_predictions — only cleared when the lottery profile
+					// itself changes (critical parameters). Pass null to leave it untouched.
+					$this->statistics_m->hwc_save_predictions($id, $posted_option, $posted_select, $hwc_predictions_str, null);
 					$this->session->set_flashdata('hwc_prediction_message', 'Generating Numbers for the next draw');
 					redirect('admin/statistics/h_w_c/' . $id);
 					return;
@@ -4275,7 +4274,7 @@ class Statistics extends Admin_Controller {
 				$ball_points,
 				$position_points,
 				$lottery_numbers,
-				''   // clear prev_lottery_numbers when options change
+				null   // preserve prev_lottery_numbers; only cleared on lottery profile changes
 			);
 
 			$this->session->set_flashdata('hwc_follower_message', 'Prediction updated with H-W-C (' . $posted_h_w_c . ') + ' . ($follower_type === 'position' ? 'Position ' . $follower_select : 'After Ball ' . $follower_select));
