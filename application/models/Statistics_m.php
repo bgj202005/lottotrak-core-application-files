@@ -6022,6 +6022,47 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		));
 	}
 
+	/**
+	 * Snapshot the current friends wins string → prev_wins before a new draw is added.
+	 *
+	 * Called on import and manual draw entry (BEFORE the user runs ReCalc).
+	 * At that point lottery_friends.wins still reflects the friendship relationships
+	 * computed from the previous recalc — i.e. without the new draw — so it is the
+	 * correct "pre-draw" state to check against the incoming draw in the history page.
+	 *
+	 * The prev_wins column is added automatically if it does not already exist.
+	 *
+	 * @param  integer $lottery_id
+	 * @return void
+	 */
+	public function friends_snapshot($lottery_id)
+	{
+		// Ensure prev_wins column exists (added on first call)
+		$col_check = $this->db->query("SHOW COLUMNS FROM lottery_friends LIKE 'prev_wins'");
+		if ($col_check->num_rows() == 0) {
+			$this->db->query("ALTER TABLE lottery_friends ADD COLUMN prev_wins MEDIUMTEXT NULL AFTER wins");
+			log_message('info', "friends_snapshot: Added prev_wins column to lottery_friends");
+		}
+
+		// Read current wins directly from DB (bypass any cache)
+		$query = $this->db->where('lottery_id', $lottery_id)
+		                  ->order_by('draw_id', 'DESC')
+		                  ->limit(1)
+		                  ->get('lottery_friends');
+		$row = $query->row_array();
+		if (empty($row) || empty($row['wins'])) {
+			return; // No friends data yet — nothing to snapshot
+		}
+
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update('lottery_friends', array('prev_wins' => $row['wins']));
+
+		// Clear cache so History page reads the fresh row
+		$cache_key = $this->generate_cache_key('friends', $lottery_id);
+		$this->cache->delete($cache_key);
+		log_message('info', "friends_snapshot: Snapshotted wins → prev_wins for lottery_id=$lottery_id");
+	}
+
 	/** 
 	* Insert / Update the historic hots, warms and colds over the given range
 	* 

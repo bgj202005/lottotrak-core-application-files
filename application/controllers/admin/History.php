@@ -1321,10 +1321,15 @@ class History extends Admin_Controller {
 				$this->data['lottery']->nonfriends['ball'.$b] = $nonfriends_draw[$b-1];  // Array is zero based
 				$b++;
 			}
-			if(isset($friends['wins']) && !empty($friends['wins'])) 
+			// Use prev_wins (snapshotted before the last draw was added) for the
+			// "Previous Draw Friends" panel so friendship directions reflect the
+			// state BEFORE the draw — not the post-recalc state that includes it.
+			// Fall back to wins if prev_wins is not yet populated (first run).
+			$wins_source = (!empty($friends['prev_wins'])) ? $friends['prev_wins'] : $friends['wins'];
+			if(isset($wins_source) && !empty($wins_source)) 
 			{
 				// Friend only wins
-				$wins = explode("|", $friends['wins']); // $wins[0]  = broken like this nofriends,1-wayfriends,2-wayfriends & wins[1] = 1 - 49 (canada 649 for example), 1-way or 2 way friends 
+				$wins = explode("|", $wins_source); // $wins[0]  = broken like this nofriends,1-wayfriends,2-wayfriends & wins[1] = 1 - 49 (canada 649 for example), 1-way or 2 way friends 
 				$direction = explode(",", $wins[0]); // no friends ($direction[0]), 1 - way ($direction[1]) and 2 - way ($direction[2])
 				$this->data['lottery']->friend['nofriends'] = $direction[0];
 				$this->data['lottery']->friend['1-way'] = $direction[1];
