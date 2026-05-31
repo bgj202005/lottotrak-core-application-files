@@ -1724,9 +1724,16 @@ class Statistics extends Admin_Controller {
 					} else {
 						$hwc_predictions_str = '';
 					}
+					// Build label and encode as "label|numbers" so the snapshot carries the full context.
+					// $_disp_lbl already contains "- Rank #N" from get_h_w_c_range_with_rank().
+					$_opt_lbl  = ($posted_option === 2) ? 'Manual Selected' : 'Top Ranked';
+					$_disp_lbl = isset($h_w_c_groups[$selected_pattern]) ? $h_w_c_groups[$selected_pattern] : $selected_pattern;
+					$hwc_predictions_encoded = !empty($hwc_predictions_str)
+						? ($_opt_lbl . ' — ' . $_disp_lbl . '|' . $hwc_predictions_str)
+						: '';
 					// Preserve prev_h_w_c_predictions — only cleared when the lottery profile
 					// itself changes (critical parameters). Pass null to leave it untouched.
-					$this->statistics_m->hwc_save_predictions($id, $posted_option, $posted_select, $hwc_predictions_str, null);
+					$this->statistics_m->hwc_save_predictions($id, $posted_option, $posted_select, $hwc_predictions_encoded, null);
 					$this->session->set_flashdata('hwc_prediction_message', 'Generating Numbers for the next draw');
 					redirect('admin/statistics/h_w_c/' . $id);
 					return;
@@ -2079,6 +2086,7 @@ class Statistics extends Admin_Controller {
 		$h_w_c_current = $this->statistics_m->h_w_c_exists($id);
 		$this->data['hwc_option']      = isset($h_w_c_current['hwc_option'])      ? (int)$h_w_c_current['hwc_option']      : 1;
 		$this->data['hwc_select']      = isset($h_w_c_current['hwc_select'])      ? (int)$h_w_c_current['hwc_select']      : 1;
+		// hwc_predictions may be encoded as "label|numbers" — pass raw; view parses it.
 		$this->data['hwc_predictions'] = isset($h_w_c_current['hwc_predictions']) ? $h_w_c_current['hwc_predictions']      : '';
 		$this->data['h_w_c_group']     = $this->predictions_m->get_h_w_c_range_with_rank($id);
 		
@@ -2926,30 +2934,15 @@ class Statistics extends Admin_Controller {
 				}
 				// Generate predictions for the NEXT draw from current H-W-C data
 				$generated = $this->predictions_m->hwc_only($id, $pool_size, $pattern);
-				// Generate "previous" predictions: what H-W-C suggested for the LAST draw,
-				// using hots_last/warms_last/colds_last (H-W-C data excluding the last draw)
-				$prev_gen = '';
-				$prev_hots  = isset($h_w_c_after['hots_last'])  ? $h_w_c_after['hots_last']  : '';
-				$prev_warms = isset($h_w_c_after['warms_last']) ? $h_w_c_after['warms_last'] : '';
-				$prev_colds = isset($h_w_c_after['colds_last']) ? $h_w_c_after['colds_last'] : '';
-				$h_count    = isset($h_w_c_after['h_count'])   ? (int)$h_w_c_after['h_count'] : 0;
-				$w_count    = isset($h_w_c_after['w_count'])   ? (int)$h_w_c_after['w_count'] : 0;
-				$c_count    = isset($h_w_c_after['c_count'])   ? (int)$h_w_c_after['c_count'] : 0;
-				if(!empty($prev_hots) && !empty($prev_warms) && !empty($prev_colds)) {
-					$prev_gen = $this->predictions_m->hwc_only_from_strings(
-						$prev_hots, $prev_warms, $prev_colds,
-						$h_count, $w_count, $c_count,
-						$pool_size, $pattern
-					);
-					if($prev_gen === FALSE) $prev_gen = '';
-				}
 				if($generated) {
-					// Preserve any snapshot taken at import/manual-entry time.
-					// Only fall back to the computed $prev_gen when no snapshot exists yet
-					// (e.g. fresh install before the first import with this feature active).
-					$existing_prev = isset($h_w_c_after['prev_h_w_c_predictions']) ? $h_w_c_after['prev_h_w_c_predictions'] : '';
-					$final_prev = !empty($existing_prev) ? null : $prev_gen; // null = don't overwrite
-					$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated, $final_prev);
+					// Build label and encode as "label|numbers" so the snapshot carries the full context.
+					// $_r_disp_lbl already contains "- Rank #N" from get_h_w_c_range_with_rank().
+					$_r_opt_lbl  = ($stored_option === 2) ? 'Manual Selected' : 'Top Ranked';
+					$_r_disp_lbl = isset($h_w_c_groups[$pattern]) ? $h_w_c_groups[$pattern] : $pattern;
+					$generated_encoded = $_r_opt_lbl . ' — ' . $_r_disp_lbl . '|' . $generated;
+					// Never touch prev_h_w_c_predictions here — it is only written by
+					// hwc_snapshot_predictions() when a draw is imported or manually entered.
+					$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated_encoded, null);
 				}
 			}
 		}

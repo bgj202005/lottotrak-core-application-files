@@ -822,7 +822,18 @@
 						<?php
 						// H-W-C Previous Predicted Winners — shown above tabs
 						if(!empty($prev_hwc_predictions)):
-							$prev_ball_nums = array_filter(array_map('trim', explode(',', $prev_hwc_predictions)), 'strlen');
+							// Parse "label|numbers" format (new) or plain numbers (legacy).
+							if (strpos($prev_hwc_predictions, '|') !== false) {
+								$_prev_parts    = explode('|', $prev_hwc_predictions, 2);
+								$_prev_lbl      = $_prev_parts[0];
+								$_prev_num_str  = $_prev_parts[1];
+							} else {
+								// Legacy format: plain numbers, no option metadata stored.
+								// Do NOT reconstruct label from current options — they may have changed.
+								$_prev_lbl     = '';
+								$_prev_num_str = $prev_hwc_predictions;
+							}
+							$prev_ball_nums = array_filter(array_map('trim', explode(',', $_prev_num_str)), 'strlen');
 							// Separate extra/bonus ball from main drawn balls
 							$extra_ball_val = ($lottery->extra_ball && isset($lottery->last_drawn['extra']))
 								? (string) trim($lottery->last_drawn['extra']) : '';
@@ -841,18 +852,9 @@
 						?>
 						<div style="margin: 0 20px 16px; padding: 14px 18px; background-color: #e8f5e9; border-left: 4px solid #28a745; border-radius: 4px; text-align: center;">
 							<strong>H-W-C Previous Predicted Winners</strong>
-							<?php
-							$_option_label = ($hwc_option == 2) ? 'Manual Selected' : 'Top Ranked';
-							if(!empty($h_w_c_group)):
-								$_group_patterns = array_keys($h_w_c_group);
-								$_idx = $hwc_select - 1;
-								$_used_pattern = isset($_group_patterns[$_idx]) ? $_group_patterns[$_idx] : (isset($_group_patterns[0]) ? $_group_patterns[0] : '');
-								$_used_display = isset($h_w_c_group[$_used_pattern]) ? $h_w_c_group[$_used_pattern] : $_used_pattern;
-							else:
-								$_used_display = '';
-							endif;
-							?>
-							<span class="text-muted" style="font-size:0.85em; margin-left:8px;">(<?=$_option_label;?><?=($_used_display ? ' &mdash; ' . htmlspecialchars($_used_display) : '');?>)</span>
+							<?php if(!empty($_prev_lbl)): ?>
+							<span class="text-muted" style="font-size:0.85em; margin-left:8px;">(<?=htmlspecialchars($_prev_lbl);?>)</span>
+							<?php endif; ?>
 							<div style="margin-top: 10px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;">
 								<?php foreach($prev_ball_nums as $pball):
 									$pball       = (string) trim($pball);

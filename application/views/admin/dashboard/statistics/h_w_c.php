@@ -321,27 +321,29 @@
 						</div>
 						
 						<!-- Predicted Numbers Display -->
-						<?php if(!empty($hwc_predictions)): ?>
-						<div style="margin: 15px; padding: 12px 15px; background-color: #e8f5e9; border-left: 4px solid #28a745; border-radius: 4px; text-align: center;">
-							<strong>Predicted Numbers for the Next Draw</strong>
-							<?php
-							$option_label = ($hwc_option == 2) ? 'Manual Selected' : 'Top Ranked';
-							if(!empty($h_w_c_group)):
-								$group_patterns = array_keys($h_w_c_group);
-								$idx = $hwc_select - 1;
-								$used_pattern = isset($group_patterns[$idx]) ? $group_patterns[$idx] : (isset($group_patterns[0]) ? $group_patterns[0] : '');
-								$used_display  = isset($h_w_c_group[$used_pattern]) ? $h_w_c_group[$used_pattern] : $used_pattern;
-							else:
-								$used_display = '';
-							endif;
-							?>
-							<span class="text-muted" style="font-size:0.85em; margin-left:8px;">(<?=$option_label;?><?=($used_display ? ' &mdash; ' . htmlspecialchars($used_display) : '');?>)</span><br>
-							<div style="margin-top: 8px; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;">
-								<?php $pred_numbers = explode(',', $hwc_predictions);
-								foreach($pred_numbers as $num): ?>
-								<span style="display:inline-flex; align-items:center; justify-content:center; background:#28a745; color:#fff; border-radius:50%; width:38px; height:38px; font-weight:bold; font-size:0.95em;"><?=trim($num);?></span>
-								<?php endforeach; ?>
-							</div>
+					<?php
+					// hwc_predictions may be encoded as "label|numbers" — parse both formats.
+					if (strpos($hwc_predictions, '|') !== false) {
+						$_hwc_parts  = explode('|', $hwc_predictions, 2);
+						$_pred_label = $_hwc_parts[0];
+						$_pred_nums  = $_hwc_parts[1];
+					} else {
+						// Legacy format: plain numbers, no option metadata stored.
+						$_pred_label = '';
+						$_pred_nums  = $hwc_predictions;
+					}
+					?>
+					<?php if(!empty($_pred_nums)): ?>
+					<div style="margin: 15px; padding: 12px 15px; background-color: #e8f5e9; border-left: 4px solid #28a745; border-radius: 4px; text-align: center;">
+						<strong>Predicted Numbers for the Next Draw</strong>
+						<?php if(!empty($_pred_label)): ?>
+						<span class="text-muted" style="font-size:0.85em; margin-left:8px;">(<?=htmlspecialchars($_pred_label);?>)</span>
+						<?php endif; ?><br>
+						<div style="margin-top: 8px; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;">
+							<?php foreach(explode(',', $_pred_nums) as $num): ?>
+							<span style="display:inline-flex; align-items:center; justify-content:center; background:#28a745; color:#fff; border-radius:50%; width:38px; height:38px; font-weight:bold; font-size:0.95em;"><?=trim($num);?></span>
+							<?php endforeach; ?>
+						</div>
 						</div>
 						<?php endif; ?>
 						
