@@ -828,8 +828,10 @@
 								$_prev_lbl      = $_prev_parts[0];
 								$_prev_num_str  = $_prev_parts[1];
 							} else {
-								// Legacy format: plain numbers, no option metadata stored.
-								// Do NOT reconstruct label from current options — they may have changed.
+								// Legacy format: plain numbers stored without a label.
+								// We do not know which option was active at snapshot time,
+								// so show no label. The correct frozen label will appear
+								// automatically after the next draw is imported/entered.
 								$_prev_lbl     = '';
 								$_prev_num_str = $prev_hwc_predictions;
 							}

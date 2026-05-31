@@ -328,9 +328,17 @@
 						$_pred_label = $_hwc_parts[0];
 						$_pred_nums  = $_hwc_parts[1];
 					} else {
-						// Legacy format: plain numbers, no option metadata stored.
-						$_pred_label = '';
+						// Legacy format: plain numbers with no embedded label.
+						// Reconstruct the label from the current option/select values.
 						$_pred_nums  = $hwc_predictions;
+						$_pred_label = '';
+						if (!empty($h_w_c_group)) {
+							$_gp = array_keys($h_w_c_group);
+							$_di = $hwc_select - 1;
+							$_up = isset($_gp[$_di]) ? $_gp[$_di] : (isset($_gp[0]) ? $_gp[0] : '');
+							$_ud = isset($h_w_c_group[$_up]) ? $h_w_c_group[$_up] : $_up;
+							$_pred_label = (($hwc_option == 2) ? 'Manual Selected' : 'Top Ranked') . ' — ' . $_ud;
+						}
 					}
 					?>
 					<?php if(!empty($_pred_nums)): ?>
