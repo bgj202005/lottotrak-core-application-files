@@ -1321,31 +1321,47 @@ class History extends Admin_Controller {
 				$this->data['lottery']->nonfriends['ball'.$b] = $nonfriends_draw[$b-1];  // Array is zero based
 				$b++;
 			}
-			// Use prev_wins (snapshotted before the last draw was added) for the
-			// "Previous Draw Friends" panel so friendship directions reflect the
-			// state BEFORE the draw — not the post-recalc state that includes it.
-			// Fall back to wins if prev_wins is not yet populated (first run).
-			$wins_source = (!empty($friends['prev_wins'])) ? $friends['prev_wins'] : $friends['wins'];
-			if(isset($wins_source) && !empty($wins_source)) 
-			{
-				// Friend only wins
-				$wins = explode("|", $wins_source); // $wins[0]  = broken like this nofriends,1-wayfriends,2-wayfriends & wins[1] = 1 - 49 (canada 649 for example), 1-way or 2 way friends 
-				$direction = explode(",", $wins[0]); // no friends ($direction[0]), 1 - way ($direction[1]) and 2 - way ($direction[2])
-				$this->data['lottery']->friend['nofriends'] = $direction[0];
-				$this->data['lottery']->friend['1-way'] = $direction[1];
-				$this->data['lottery']->friend['2-way'] = $direction[2];
-				$ball_friend = explode(',', $wins[1]);
-				// Zero-based, so all balls drawn start at ba1l 1
-				foreach($ball_friend as $friend => $direct)
-				{
-					$this->data['lottery']->friend['ball_friend'.($friend+1)] = $direct;
-				} 
-			}
-			else
-			{
+			// Friendship Occurrences + Friendship Directions tables use the CURRENT post-recalc
+			// wins data — the same source as the tab panels — so clicking ball N and reading
+			// the table always agree.
+			if (!empty($friends['wins'])) {
+				$cur = explode("|", $friends['wins']);
+				$cur_dir = explode(",", $cur[0]);
+				$this->data['lottery']->friend['nofriends'] = $cur_dir[0];
+				$this->data['lottery']->friend['1-way']     = $cur_dir[1];
+				$this->data['lottery']->friend['2-way']     = $cur_dir[2];
+				if (isset($cur[1])) {
+					$cur_ball_dirs = explode(',', $cur[1]);
+					foreach ($cur_ball_dirs as $idx => $dir) {
+						$this->data['lottery']->friend['ball_dir'.($idx+1)] = $dir;
+					}
+				}
+			} else {
 				$this->session->set_flashdata('message', 'There is no win information associated with this lottery. Select Lottery Profile Statistics in dropdown, Recalc Checkbox');
 				redirect('admin/history');
-			}	
+			}
+			// Previous Draw Friends panel uses prev_wins (pre-draw state), keyed by
+			// prev_draw_id.  Recomputed automatically whenever the last draw changes.
+			$current_draw_id = (int)$this->data['lottery']->last_drawn['id'];
+			$cached_draw_id  = (isset($friends['prev_draw_id']) && $friends['prev_draw_id'] !== null)
+			                   ? (int)$friends['prev_draw_id'] : -1;
+			if (!empty($friends['prev_wins']) && $cached_draw_id === $current_draw_id) {
+				$wins_source = $friends['prev_wins'];
+			} else {
+				$wins_source = $this->statistics_m->friends_prev_snapshot($id, $friends, $this->data['lottery'], $tbl_name);
+				if (empty($wins_source)) {
+					$wins_source = $friends['wins']; // Fallback: not enough draws for prev computation
+				}
+			}
+			if (isset($wins_source) && !empty($wins_source)) {
+				$wins = explode("|", $wins_source);
+				if (isset($wins[1])) {
+					$ball_friend = explode(',', $wins[1]);
+					foreach ($ball_friend as $friend => $direct) {
+						$this->data['lottery']->friend['ball_friend'.($friend+1)] = $direct;
+					}
+				}
+			}
 		}
 		else
 		{

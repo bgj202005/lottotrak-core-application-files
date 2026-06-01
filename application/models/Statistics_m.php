@@ -6023,26 +6023,37 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	}
 
 	/**
+	 * Ensure the prev_wins column exists in lottery_friends (adds it if missing).
+	 * Shared by friends_snapshot() and friends_prev_snapshot().
+	 */
+	private function _ensure_prev_wins_column()
+	{
+		$col_check = $this->db->query("SHOW COLUMNS FROM lottery_friends LIKE 'prev_wins'");
+		if ($col_check->num_rows() == 0) {
+			$this->db->query("ALTER TABLE lottery_friends ADD COLUMN prev_wins MEDIUMTEXT NULL AFTER wins");
+			log_message('info', "friends: Added prev_wins column to lottery_friends");
+		}
+		$col_check2 = $this->db->query("SHOW COLUMNS FROM lottery_friends LIKE 'prev_draw_id'");
+		if ($col_check2->num_rows() == 0) {
+			$this->db->query("ALTER TABLE lottery_friends ADD COLUMN prev_draw_id INT(11) NULL AFTER prev_wins");
+			log_message('info', "friends: Added prev_draw_id column to lottery_friends");
+		}
+	}
+
+	/**
 	 * Snapshot the current friends wins string → prev_wins before a new draw is added.
 	 *
-	 * Called on import and manual draw entry (BEFORE the user runs ReCalc).
-	 * At that point lottery_friends.wins still reflects the friendship relationships
-	 * computed from the previous recalc — i.e. without the new draw — so it is the
-	 * correct "pre-draw" state to check against the incoming draw in the history page.
-	 *
-	 * The prev_wins column is added automatically if it does not already exist.
+	 * Called on import, manual draw entry, and at the start of recalc when draw_id
+	 * has advanced.  At that point lottery_friends.wins still reflects the friendship
+	 * relationships computed from the previous recalc (i.e. without the new draw),
+	 * so it is the correct "pre-draw" state to show in the history page.
 	 *
 	 * @param  integer $lottery_id
 	 * @return void
 	 */
 	public function friends_snapshot($lottery_id)
 	{
-		// Ensure prev_wins column exists (added on first call)
-		$col_check = $this->db->query("SHOW COLUMNS FROM lottery_friends LIKE 'prev_wins'");
-		if ($col_check->num_rows() == 0) {
-			$this->db->query("ALTER TABLE lottery_friends ADD COLUMN prev_wins MEDIUMTEXT NULL AFTER wins");
-			log_message('info', "friends_snapshot: Added prev_wins column to lottery_friends");
-		}
+		$this->_ensure_prev_wins_column();
 
 		// Read current wins directly from DB (bypass any cache)
 		$query = $this->db->where('lottery_id', $lottery_id)
@@ -6061,6 +6072,77 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$cache_key = $this->generate_cache_key('friends', $lottery_id);
 		$this->cache->delete($cache_key);
 		log_message('info', "friends_snapshot: Snapshotted wins → prev_wins for lottery_id=$lottery_id");
+	}
+
+	/**
+	 * Compute the friendship win string as it existed BEFORE the last draw was included,
+	 * and cache it in prev_wins / prev_draw_id.
+	 *
+	 * Called lazily from History::friends() whenever prev_draw_id does not match the
+	 * current last draw's ID — which happens after every new draw is added, regardless
+	 * of whether a snapshot was taken at import time.  This makes the display self-healing
+	 * and always correct without depending on the snapshot machinery.
+	 *
+	 * The result is keyed by prev_draw_id so subsequent page loads hit the cache.
+	 *
+	 * @param  integer $lottery_id
+	 * @param  array   $friends    Row from lottery_friends (provides range/extra_included/extra_draws)
+	 * @param  object  $lotto      Lottery profile (provides balls_drawn/maximum_ball/duplicate_extra_ball)
+	 * @param  string  $tbl_name   Draw table name (already converted)
+	 * @return string  The computed wins string, or '' if there are not enough draws
+	 */
+	public function friends_prev_snapshot($lottery_id, $friends, $lotto, $tbl_name)
+	{
+		global $relatives, $nonrelatives;
+
+		// Get both the current last draw ID and the second-to-last draw date in one query
+		$rows_result = $this->db->query(
+			"SELECT id, draw_date FROM `{$tbl_name}` WHERE extra <> '0' ORDER BY draw_date DESC LIMIT 2"
+		);
+		$top_rows = $rows_result->result_array();
+		if (count($top_rows) < 2) {
+			return ''; // Fewer than 2 draws — nothing meaningful to compute
+		}
+		$current_draw_id = (int)$top_rows[0]['id'];   // most recent draw
+		$cutoff_date     = $top_rows[1]['draw_date']; // second-to-last draw date (inclusive cutoff)
+
+		$drawn    = (int)$lotto->balls_drawn;
+		$max_ball = (int)$lotto->maximum_ball;
+		$duple    = (bool)$lotto->duplicate_extra_ball;
+		$range    = isset($friends['range'])          ? (int)$friends['range']          : 100;
+		$bonus    = isset($friends['extra_included']) ? (int)$friends['extra_included'] : 0;
+		$draws    = isset($friends['extra_draws'])    ? (int)$friends['extra_draws']    : 0;
+
+		// Reset global win counters before computing
+		$relatives    = $this->create_friend_array();
+		$nonrelatives = $this->create_nonfriend_array();
+
+		// Calculate friendships and win counts using draws up to (but not including) the last draw
+		$str_friends_raw = $this->friends_calculate($tbl_name, $drawn, $max_ball, $bonus, $draws, $range, $cutoff_date, $duple);
+		$associate       = explode('+', $str_friends_raw);
+		$str_friends     = $associate[0];
+		$str_nonfriends  = isset($associate[1]) ? $associate[1] : '';
+
+		$this->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $bonus, $draws, $range, $cutoff_date, $duple);
+		$wins_str = $this->combine_friends_string($relatives, $str_friends, $max_ball);
+
+		if (empty($wins_str)) {
+			return '';
+		}
+
+		// Persist keyed by the current last draw ID so subsequent page loads are instant
+		// and the cache is automatically invalidated when a new draw is added.
+		$this->_ensure_prev_wins_column();
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update('lottery_friends', array(
+			'prev_wins'    => $wins_str,
+			'prev_draw_id' => $current_draw_id,
+		));
+		$cache_key = $this->generate_cache_key('friends', $lottery_id);
+		$this->cache->delete($cache_key);
+		log_message('info', "friends_prev_snapshot: Computed prev_wins for lottery_id=$lottery_id, draw_id=$current_draw_id, cutoff=$cutoff_date");
+
+		return $wins_str;
 	}
 
 	/** 

@@ -1022,7 +1022,6 @@ class Lotteries extends Admin_Controller {
 				if ($processed_count > 0) {
 					$this->statistics_m->hwc_snapshot_predictions($id);
 					$this->statistics_m->hwc_followers_snapshot($id);
-					$this->statistics_m->friends_snapshot($id);
 				}
 				$this->session->unset_userdata(array('new_file_name', 'table_name', 'last_draw', 'balls_drawn', 'extra_ball', 'minimum_ball', 
 							'maximum_ball', 'minimum_ball', 'minimum_extra_ball', 'maximum_extra_ball', 'duplicate_extra', 'allow_zero_extra', 'elim'));
@@ -1547,7 +1546,6 @@ class Lotteries extends Admin_Controller {
 					// page can show which balls were predicted before this new draw
 					$this->statistics_m->hwc_snapshot_predictions($id);
 					$this->statistics_m->hwc_followers_snapshot($id);
-					$this->statistics_m->friends_snapshot($id);
 				} 
 				else
 				{

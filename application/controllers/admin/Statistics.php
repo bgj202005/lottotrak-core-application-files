@@ -3406,7 +3406,7 @@ class Statistics extends Admin_Controller {
 		$lotto->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
 		$friends = $this->statistics_m->friends_exists($id);
 		$nonfriends = $this->statistics_m->nonfriends_exists($id);
-		
+
 		// Try sliding window optimization for friends
 		$use_sliding_window = FALSE;
 		

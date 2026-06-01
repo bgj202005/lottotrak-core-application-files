@@ -291,12 +291,12 @@
 										<tbody>
 											<?php  
 												for($ball = $row; $ball <= $max; $ball++):	
-													if(isset($lottery->friend['ball_friend'.$counter]))
-													{  echo "<tr class='row-striped'>";
-													   echo "<td class='text-center'>".$ball."</td>";
-													   $direction = ((substr($lottery->friend['ball_friend'.$counter],0,2)=='<>') ? '<i class="fa fa-arrows-h fa-2x" aria-hidden="true"></i> '
-													   .ltrim($lottery->friend['ball_friend'.$counter],'<>') : 
-													   '<i class="fa fa-long-arrow-right fa-2x" aria-hidden="true"></i> '.ltrim($lottery->friend['ball_friend'.$counter],">"));
+												if(isset($lottery->friend['ball_dir'.$counter]))
+												{  echo "<tr class='row-striped'>";
+												   echo "<td class='text-center'>".$ball."</td>";
+												   $direction = ((substr($lottery->friend['ball_dir'.$counter],0,2)=='<>') ? '<i class="fa fa-arrows-h fa-2x" aria-hidden="true"></i> '
+												   .ltrim($lottery->friend['ball_dir'.$counter],'<>') : 
+												   '<i class="fa fa-long-arrow-right fa-2x" aria-hidden="true"></i> '.ltrim($lottery->friend['ball_dir'.$counter],">"));
 													   echo "<td class='text-center'>".$direction."</td>";
 													   echo "</tr>";
 													}
