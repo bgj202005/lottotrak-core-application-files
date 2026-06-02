@@ -249,6 +249,9 @@ class Statistics extends Admin_Controller {
 		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins
 		
 		$this->data['stat_method'] = $this;				// Access the methods in the view
+		// Load H-W-C lookup for per-draw H/W/C pattern column
+		$hwc_raw = $this->statistics_m->h_w_c_exists($id);
+		$this->data['hwc_lookup'] = $this->_parse_hwc_lookup($hwc_raw);
 		$this->load->view('admin/_layout_main', $this->data);
 	}
 
@@ -338,6 +341,10 @@ class Statistics extends Admin_Controller {
 		// Process draws for display (minimal processing for performance)
 		$processed_draws = [];
 		
+		// Load H-W-C lookup for per-draw classification
+		$hwc_raw_ajax = $this->statistics_m->h_w_c_exists($id);
+		$hwc_lookup_ajax = $this->_parse_hwc_lookup($hwc_raw_ajax);
+		
 		foreach ($draws as $key => $draw) {
 			$next_draw = isset($draws[$key + 1]) ? $draws[$key + 1] : null;
 			$repeaters = [];
@@ -404,6 +411,20 @@ class Statistics extends Admin_Controller {
 			if (intval($lottery->balls_drawn) >= 8) $processed_draw['ball8'] = $draw->ball8;
 			if (intval($lottery->balls_drawn) == 9) $processed_draw['ball9'] = $draw->ball9;
 			if (intval($lottery->extra_ball) == 1) $processed_draw['extra'] = $draw->extra;
+			
+			// Compute H-W-C pattern for this draw
+			if (!empty($hwc_lookup_ajax)) {
+				$_h = 0; $_w = 0; $_c = 0;
+				for ($_b = 1; $_b <= intval($lottery->balls_drawn); $_b++) {
+					$_bv = $draw->{'ball'.$_b};
+					if (in_array($_bv, $hwc_lookup_ajax['hots'])) $_h++;
+					elseif (in_array($_bv, $hwc_lookup_ajax['warms'])) $_w++;
+					elseif (in_array($_bv, $hwc_lookup_ajax['colds'])) $_c++;
+				}
+				$processed_draw['hwc_pattern'] = "{$_h}-{$_w}-{$_c}";
+			} else {
+				$processed_draw['hwc_pattern'] = '-';
+			}
 			
 			$processed_draws[] = $processed_draw;
 		}
@@ -585,6 +606,13 @@ class Statistics extends Admin_Controller {
 					redirect('admin/statistics');
 				}
 			}						
+			// Calculate or update H-W-C if minimum draws are met
+			$all_draws = $this->lotteries_m->db_row_count($tbl_name);
+			$prediction_min_range = isset($this->data['lottery']->prediction_min_range) && $this->data['lottery']->prediction_min_range > 0
+				? intval($this->data['lottery']->prediction_min_range) : 100;
+			if ($all_draws >= $prediction_min_range) {
+				$this->recalc_hwc($id, $this->data['lottery'], true); // skip expensive history loop; only hots/warms/colds need updating
+			}
 			$this->session->set_flashdata('message', 'Draw Statistics Complete and Up To-Date.'); // Yahoo! Statistics Updated!
 			redirect('admin/statistics');
 	}
@@ -638,6 +666,42 @@ class Statistics extends Admin_Controller {
 			$n++;
 		}
 	return (object) $repeats;	
+	}
+
+	/**
+	 * Parse H-W-C raw database row into lookup arrays of ball numbers.
+	 *
+	 * @param  array|null $hwc_raw   Row from h_w_c_exists() or NULL
+	 * @return array|null            ['hots'=>[int,...],'warms'=>[int,...],'colds'=>[int,...]] or NULL
+	 */
+	private function _parse_hwc_lookup($hwc_raw)
+	{
+		if (is_null($hwc_raw) || empty($hwc_raw['hots'])) return null;
+
+		// Classify draws using hots_last/warms_last/colds_last — the H-W-C that was
+		// current BEFORE the most recent draw.  This matches the h_w_c page's
+		// h_w_c_last_1 value (which predicts the last draw against pre-draw H-W-C).
+		// Falls back to current hots/warms/colds only when _last fields are absent
+		// (e.g. on first-time initialisation before any _last state exists).
+		$use_last = !empty($hwc_raw['hots_last'])
+		         && !empty($hwc_raw['warms_last'])
+		         && !empty($hwc_raw['colds_last']);
+		$map = [
+			'hots'  => $use_last ? 'hots_last'  : 'hots',
+			'warms' => $use_last ? 'warms_last' : 'warms',
+			'colds' => $use_last ? 'colds_last' : 'colds',
+		];
+
+		$lookup = ['hots' => [], 'warms' => [], 'colds' => []];
+		foreach ($map as $dest => $src) {
+			if (!empty($hwc_raw[$src])) {
+				foreach (explode(',', $hwc_raw[$src]) as $item) {
+					$n = strstr($item, '=', TRUE);
+					if ($n !== false) $lookup[$dest][] = intval($n);
+				}
+			}
+		}
+		return $lookup;
 	}
 
 	/**
@@ -1539,7 +1603,7 @@ class Statistics extends Admin_Controller {
 		$hwc_check = $this->statistics_m->h_w_c_exists($id);
 		
 		if(is_null($hwc_check) || empty($hwc_check['hots']) || empty($hwc_check['warms']) || empty($hwc_check['colds']) || $hwc_check['draw_id'] == 0) {
-			$this->session->set_flashdata('message', 'Click the ReCalc checkbox first before viewing H-W-C data.');
+			$this->session->set_flashdata('message', 'H-W-C data has not been calculated yet. Click the Calculate button to initialize H-W-C.');
 			redirect('admin/statistics');
 			return;
 		}
@@ -2618,7 +2682,7 @@ class Statistics extends Admin_Controller {
 	 * @param 	array	$lotto		Lottery Profile Objects
 	 * @return 	none
 	 */
-	public function recalc_hwc($id, $lotto)
+	public function recalc_hwc($id, $lotto, $skip_history = false)
 	{
 	 // Retrieve the lottery table name for the database
 	 $tbl = $this->lotteries_m->lotto_table_convert($lotto->lottery_name);
@@ -2717,6 +2781,7 @@ class Statistics extends Admin_Controller {
 					$hot_count, $warm_count, $cold_count,
 					$h_w_c['extra_included'], $h_w_c['extra_draws']);
 					
+				if (!$skip_history) {
 				// Update history stats
 				$hwc_history = $this->h_w_c_history($id, $tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
 				$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl, $drawn, $lotto->extra_included, $blnduplicate, $strhots_last, $strwarms_last, $strcolds_last, $hwc_history['position']);
@@ -2736,6 +2801,7 @@ class Statistics extends Admin_Controller {
 					'extra_draws'		=> 	$h_w_c['extra_draws'],
 				);
 				$this->statistics_m->hwc_history_save($hwc_h_data, TRUE);
+				} // end !$skip_history (sliding window)
 			}
 		}
 	 }
@@ -2798,10 +2864,12 @@ class Statistics extends Admin_Controller {
 			$hot_count, $warm_count, $cold_count,
 			$h_w_c['extra_included'], $h_w_c['extra_draws']);
 			
+		if (!$skip_history) {
 		$pos_last = $this->statistics_m->position_copylasts($id);
 		// Recalculation is nesessary
 		$hwc_history = $this->h_w_c_history($id, $tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
 	 	$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl, $drawn, $this->data['lottery']->extra_included, $blnduplicate, $h_w_c['hots_last'], $h_w_c['warms_last'], $h_w_c['colds_last'], $hwc_history['position']);
+		} // end !$skip_history (full recalc)
 	 }
 	 else 
 	 {
@@ -2871,11 +2939,14 @@ class Statistics extends Admin_Controller {
 					 'c_count'			=> $this->data['lottery']->C	
 				 );
 		$this->statistics_m->hwc_data_save($hwc, FALSE);
+		if (!$skip_history) {
 		 // Recalculation is nesessary
 		$pos_last = $this->statistics_m->position_copylasts($id);	
 		$hwc_history = $this->h_w_c_history($id, $tbl, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, $blnduplicate);
 	 	$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl, $drawn, $this->data['lottery']->extra_included, $blnduplicate, $strhots_last, $strwarms_last, $strcolds_last, $hwc_history['position']);
+		} // end !$skip_history (new init)
 	 }
+	 if (!$skip_history) { // history section - skipped when called from calculate() for performance
 	 if (!$hwc_history) // Problem with calculating H-W-C's over range
 	 {
 		$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$new_range.' Draws.');
@@ -2915,6 +2986,7 @@ class Statistics extends Admin_Controller {
 		$this->statistics_m->hwc_history_save($hwc_h_data, TRUE); // Update existing lottery H W C Record
 		unset($h_w_c); 		 // Remove this temporary holding place for h-w-c's
 		unset($hwc_history); // Remove this temporary holding place for historic h-w-c's
+	 } // end !$skip_history
 		
 		// Re-generate H-W-C predictions after recalc using the stored option settings
 		$this->load->model('Predictions_m', 'predictions_m');

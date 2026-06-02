@@ -241,8 +241,7 @@
 							<?php if (intval($lottery->balls_drawn)>=7): ?><th class="datafont">Ball 7</th><?php endif; ?>
 							<?php if (intval($lottery->balls_drawn)>=8): ?><th class="datafont">Ball 8</th><?php endif; ?>
 							<?php if (intval($lottery->balls_drawn)==9): ?><th class="datafont">Ball 9</th><?php endif; ?>
-							<?php if (intval($lottery->extra_ball)==1): ?><th class="datafont">Extra Ball</th><?php endif; ?>
-							<th class="datafont">Sum</th>
+							<?php if (intval($lottery->extra_ball)==1): ?><th class="datafont">Extra Ball</th><?php endif; ?>						<th class="datafont">H-W-C</th>							<th class="datafont">Sum</th>
 							<th class="datafont">Digits Sum</th>
 							<th class="datafont">Odd</th>
 							<th class="datafont">Even</th>
@@ -419,6 +418,9 @@ class DrawsPagination {
 			
 			// Extra ball only shows trends, no repeaters (following synchronous logic)
 			if (lotteryConfig.extra_ball == 1) ballsHtml += `<td class="datafont">${draw.extra}${getTrend('extra')}</td>`;
+			
+			// H-W-C pattern column
+			ballsHtml += `<td class="datafont">${draw.hwc_pattern || '-'}</td>`;
 			
 			ballsHtml += `
 				<td class="datafont">${draw.sum_draw}</td>

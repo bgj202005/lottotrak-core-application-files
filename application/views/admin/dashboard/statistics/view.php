@@ -196,6 +196,7 @@
 				<?php if (intval($lottery->balls_drawn)>=8): ?><th class="no-sort datafont">Ball 8</th><?php endif; ?>
 				<?php if (intval($lottery->balls_drawn)==9): ?><th class="no-sort datafont">Ball 9</th><?php endif; ?>
 				<?php if (intval($lottery->extra_ball)==1): ?><th class="no-sort datafont">Extra Ball</th><?php endif; ?>
+				<th class="datafont" data-field="hwc_pattern" data-sortable="true" data-filter-control="select">H-W-C</th>
 				<th class = "datafont" data-field="sum_draw" data-sortable="true" data-filter-control="select">Sum</th>
 				<th class = "datafont" data-field="sum_digits" data-sortable="true" data-filter-control="select">Digits Sum</th>
 				<th class = "datafont" data-field="odd" data-sortable="true" data-filter-control="select">Odd</th>
@@ -277,8 +278,20 @@
 					<?php endif; ?>			
 					<?php if (intval($lottery->extra_ball)==1): ?><td class="datafont"><?=$draw->extra; 
 					if($trend&&($prev!==false)): echo $stat_method->trend($prev->extra, $curr->extra); endif;
-					endif; ?></td>
-					<td class="datafont"><?=$draw->sum_draw; ?></td>
+					endif; ?></td>				<?php
+				$_hwc_disp = '-';
+				if (!empty($hwc_lookup)) {
+					$_h = 0; $_w = 0; $_c = 0;
+					for ($_b = 1; $_b <= intval($lottery->balls_drawn); $_b++) {
+						$_bv = $draw->{'ball'.$_b};
+						if (in_array($_bv, $hwc_lookup['hots'])) $_h++;
+						elseif (in_array($_bv, $hwc_lookup['warms'])) $_w++;
+						elseif (in_array($_bv, $hwc_lookup['colds'])) $_c++;
+					}
+					$_hwc_disp = "{$_h}-{$_w}-{$_c}";
+				}
+				?>
+				<td class="datafont"><?=$_hwc_disp?></td>					<td class="datafont"><?=$draw->sum_draw; ?></td>
 					<td class="datafont"><?=$draw->sum_digits; ?></td>
 					<td class="datafont"><?=$draw->odd; ?></td>
 					<td class="datafont"><?=$draw->even; ?></td>

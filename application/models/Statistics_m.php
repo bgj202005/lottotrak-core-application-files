@@ -5478,25 +5478,25 @@ class Statistics_m extends MY_Model
 		// Build ORDER BY and LIMIT
 		$draw_order_limit = ($range ? ' ORDER BY draw_date DESC, id DESC LIMIT '.$range : ' ORDER BY draw_date DESC, id DESC');
 		
-		// Build the query using a subquery to select target draws first
-		$target_draws_subquery = '(SELECT * FROM '.$lotto_tbl.$draw_where.$draw_order_limit.') AS target_draws';
+		// Use a CTE so MySQL materialises the target-draw scan only once (not once per ball column)
+		$cte = 'WITH target_draws AS (SELECT * FROM '.$lotto_tbl.$draw_where.$draw_order_limit.') ';
 		
-		$sql = 'SELECT ball_drawn, MAX(draw_date) as last_draw_date, count(*) as heat FROM ((SELECT ball1 as ball_drawn, draw_date FROM '
-		.$target_draws_subquery.') UNION ALL (SELECT ball2 as ball_drawn, draw_date FROM '
-		.$target_draws_subquery.') UNION ALL (SELECT ball3 as ball_drawn, draw_date FROM '
-		.$target_draws_subquery.')';
-		if($picks>=4) $sql .= ' UNION ALL (SELECT ball4 as ball_drawn, draw_date FROM '.$target_draws_subquery.')';
-		if($picks>=5) $sql .= ' UNION ALL (SELECT ball5 as ball_drawn, draw_date FROM '.$target_draws_subquery.')';
-		if($picks>=6) $sql .= ' UNION ALL (SELECT ball6 as ball_drawn, draw_date FROM '.$target_draws_subquery.')';
-		if($picks>=7) $sql .= ' UNION ALL (SELECT ball7 as ball_drawn, draw_date FROM '.$target_draws_subquery.')';
-		if($picks>=8) $sql .= ' UNION ALL (SELECT ball8 as ball_drawn, draw_date FROM '.$target_draws_subquery.')';
-		if($picks==9) $sql .= ' UNION ALL (SELECT ball9 as ball_drawn, draw_date FROM '.$target_draws_subquery.')';
+		$sql = $cte.'SELECT ball_drawn, MAX(draw_date) as last_draw_date, count(*) as heat FROM ('
+		.'(SELECT ball1 as ball_drawn, draw_date FROM target_draws)'
+		.' UNION ALL (SELECT ball2 as ball_drawn, draw_date FROM target_draws)'
+		.' UNION ALL (SELECT ball3 as ball_drawn, draw_date FROM target_draws)';
+		if($picks>=4) $sql .= ' UNION ALL (SELECT ball4 as ball_drawn, draw_date FROM target_draws)';
+		if($picks>=5) $sql .= ' UNION ALL (SELECT ball5 as ball_drawn, draw_date FROM target_draws)';
+		if($picks>=6) $sql .= ' UNION ALL (SELECT ball6 as ball_drawn, draw_date FROM target_draws)';
+		if($picks>=7) $sql .= ' UNION ALL (SELECT ball7 as ball_drawn, draw_date FROM target_draws)';
+		if($picks>=8) $sql .= ' UNION ALL (SELECT ball8 as ball_drawn, draw_date FROM target_draws)';
+		if($picks==9) $sql .= ' UNION ALL (SELECT ball9 as ball_drawn, draw_date FROM target_draws)';
 		
 		$sql_bonus = '';
 		if($bonus&&!$duple) 
 		{
-			// Bonus ball comes from same target draws, just filter WHERE extra <> "0"
-			$sql_bonus = ' UNION ALL (SELECT extra as ball_drawn, draw_date FROM '.$target_draws_subquery.' WHERE extra <> "0")';
+			// Bonus ball from same materialised CTE; extra=0 draws filtered here if needed
+			$sql_bonus = ' UNION ALL (SELECT extra as ball_drawn, draw_date FROM target_draws WHERE extra <> "0")';
 		}
 		
 		$sql_ext = ') as hwc GROUP BY ball_drawn ORDER BY heat DESC, last_draw_date DESC, CAST(ball_drawn AS UNSIGNED) ASC;';
