@@ -281,14 +281,14 @@
 					endif; ?></td>				<?php
 				$_hwc_disp = '-';
 				if (!empty($hwc_lookup)) {
-					$_h = 0; $_w = 0; $_c = 0;
-					for ($_b = 1; $_b <= intval($lottery->balls_drawn); $_b++) {
-						$_bv = $draw->{'ball'.$_b};
-						if (in_array($_bv, $hwc_lookup['hots'])) $_h++;
-						elseif (in_array($_bv, $hwc_lookup['warms'])) $_w++;
-						elseif (in_array($_bv, $hwc_lookup['colds'])) $_c++;
+					// When extra_draws=0, draws where extra=0 are excluded — always show '-'
+					$_hwc_excluded = ($hwc_lookup['extra_draws'] == 0
+					               && intval($lottery->extra_ball) == 1
+					               && intval($draw->extra) == 0);
+					if (!$_hwc_excluded) {
+						// Use pre-computed H-W-C pattern stored in draw table by recalc_hwc()
+						$_hwc_disp = (!empty($draw->h_w_c) ? $draw->h_w_c : '-');
 					}
-					$_hwc_disp = "{$_h}-{$_w}-{$_c}";
 				}
 				?>
 				<td class="datafont"><?=$_hwc_disp?></td>					<td class="datafont"><?=$draw->sum_draw; ?></td>

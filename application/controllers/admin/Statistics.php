@@ -413,15 +413,15 @@ class Statistics extends Admin_Controller {
 			if (intval($lottery->extra_ball) == 1) $processed_draw['extra'] = $draw->extra;
 			
 			// Compute H-W-C pattern for this draw
-			if (!empty($hwc_lookup_ajax)) {
-				$_h = 0; $_w = 0; $_c = 0;
-				for ($_b = 1; $_b <= intval($lottery->balls_drawn); $_b++) {
-					$_bv = $draw->{'ball'.$_b};
-					if (in_array($_bv, $hwc_lookup_ajax['hots'])) $_h++;
-					elseif (in_array($_bv, $hwc_lookup_ajax['warms'])) $_w++;
-					elseif (in_array($_bv, $hwc_lookup_ajax['colds'])) $_c++;
-				}
-				$processed_draw['hwc_pattern'] = "{$_h}-{$_w}-{$_c}";
+			// When extra_draws=0, draws where extra=0 are excluded from H-W-C — always show '-'
+			$_skip_hwc = (!empty($hwc_lookup_ajax)
+				&& $hwc_lookup_ajax['extra_draws'] == 0
+				&& intval($lottery->extra_ball) == 1
+				&& intval($draw->extra) == 0);
+			// Use pre-computed H-W-C pattern stored in the draw table by recalc_hwc().
+			// This matches the h_w_c page's Last N Draws counts exactly.
+			if (!empty($hwc_lookup_ajax) && !$_skip_hwc) {
+				$processed_draw['hwc_pattern'] = (!empty($draw->h_w_c) ? $draw->h_w_c : '-');
 			} else {
 				$processed_draw['hwc_pattern'] = '-';
 			}
@@ -607,7 +607,15 @@ class Statistics extends Admin_Controller {
 				}
 			}						
 			// Calculate or update H-W-C if minimum draws are met
-			$all_draws = $this->lotteries_m->db_row_count($tbl_name);
+			// When extra_draws=0, only draws with extra!=0 count toward the minimum
+			$_hwc_cfg = $this->statistics_m->h_w_c_exists($id);
+			$_hwc_extra_draws = (!is_null($_hwc_cfg) && isset($_hwc_cfg['extra_draws'])) ? intval($_hwc_cfg['extra_draws']) : 1;
+			if ($_hwc_extra_draws == 0 && intval($this->data['lottery']->extra_ball) == 1) {
+				$all_draws = $this->statistics_m->lottery_rows_noextra($tbl_name, TRUE);
+				if ($all_draws === FALSE || $all_draws === NULL) $all_draws = 0;
+			} else {
+				$all_draws = $this->lotteries_m->db_row_count($tbl_name);
+			}
 			$prediction_min_range = isset($this->data['lottery']->prediction_min_range) && $this->data['lottery']->prediction_min_range > 0
 				? intval($this->data['lottery']->prediction_min_range) : 100;
 			if ($all_draws >= $prediction_min_range) {
@@ -671,29 +679,32 @@ class Statistics extends Admin_Controller {
 	/**
 	 * Parse H-W-C raw database row into lookup arrays of ball numbers.
 	 *
+	 * Returns two sets of H/W/C ball arrays:
+	 *  - hots/warms/colds      : current lists (used for all draws except the most recent)
+	 *  - hots_prev/warms_prev/colds_prev : pre-last-draw snapshot (used for the most recent
+	 *                            draw only, so it matches the h_w_c page's h_w_c_last_1)
+	 *  - last_draw_id          : draw_id of the most recent draw in lottery_h_w_c
+	 *
 	 * @param  array|null $hwc_raw   Row from h_w_c_exists() or NULL
-	 * @return array|null            ['hots'=>[int,...],'warms'=>[int,...],'colds'=>[int,...]] or NULL
+	 * @return array|null
 	 */
 	private function _parse_hwc_lookup($hwc_raw)
 	{
 		if (is_null($hwc_raw) || empty($hwc_raw['hots'])) return null;
 
-		// Classify draws using hots_last/warms_last/colds_last — the H-W-C that was
-		// current BEFORE the most recent draw.  This matches the h_w_c page's
-		// h_w_c_last_1 value (which predicts the last draw against pre-draw H-W-C).
-		// Falls back to current hots/warms/colds only when _last fields are absent
-		// (e.g. on first-time initialisation before any _last state exists).
-		$use_last = !empty($hwc_raw['hots_last'])
-		         && !empty($hwc_raw['warms_last'])
-		         && !empty($hwc_raw['colds_last']);
-		$map = [
-			'hots'  => $use_last ? 'hots_last'  : 'hots',
-			'warms' => $use_last ? 'warms_last' : 'warms',
-			'colds' => $use_last ? 'colds_last' : 'colds',
+		$lookup = [
+			'hots'         => [],
+			'warms'        => [],
+			'colds'        => [],
+			'hots_prev'    => [],
+			'warms_prev'   => [],
+			'colds_prev'   => [],
+			'last_draw_id' => isset($hwc_raw['draw_id']) ? intval($hwc_raw['draw_id']) : 0,
+			'extra_draws'  => isset($hwc_raw['extra_draws']) ? intval($hwc_raw['extra_draws']) : 1,
 		];
 
-		$lookup = ['hots' => [], 'warms' => [], 'colds' => []];
-		foreach ($map as $dest => $src) {
+		// Current H/W/C — used for all draws except the most recent
+		foreach (['hots' => 'hots', 'warms' => 'warms', 'colds' => 'colds'] as $dest => $src) {
 			if (!empty($hwc_raw[$src])) {
 				foreach (explode(',', $hwc_raw[$src]) as $item) {
 					$n = strstr($item, '=', TRUE);
@@ -701,6 +712,25 @@ class Statistics extends Admin_Controller {
 				}
 			}
 		}
+
+		// Pre-last-draw snapshot — used only for the most recent draw so it matches h_w_c_last_1
+		$has_prev = !empty($hwc_raw['hots_last'])
+		         && !empty($hwc_raw['warms_last'])
+		         && !empty($hwc_raw['colds_last']);
+		if ($has_prev) {
+			foreach (['hots_prev' => 'hots_last', 'warms_prev' => 'warms_last', 'colds_prev' => 'colds_last'] as $dest => $src) {
+				foreach (explode(',', $hwc_raw[$src]) as $item) {
+					$n = strstr($item, '=', TRUE);
+					if ($n !== false) $lookup[$dest][] = intval($n);
+				}
+			}
+		} else {
+			// No _last state yet (first-time init) — fall back to current lists
+			$lookup['hots_prev']  = $lookup['hots'];
+			$lookup['warms_prev'] = $lookup['warms'];
+			$lookup['colds_prev'] = $lookup['colds'];
+		}
+
 		return $lookup;
 	}
 
@@ -2072,7 +2102,12 @@ class Statistics extends Admin_Controller {
 		}
 		else
 		{
-			if(($old_range!=$new_range)||($blnheat))	 // Range has changed OR change in extra draws / extra ball included
+			// Detect corrupted h_w_c_range: valid data has many pattern=count entries separated by commas.
+			// A single entry (no comma) means the ball-count parameters were stored instead of pattern frequencies.
+			$_range_corrupted = !empty($hwc_history['h_w_c_range'])
+			                 && strpos($hwc_history['h_w_c_range'], ',') === false;
+
+			if(($old_range!=$new_range)||($blnheat)||($_range_corrupted))	 // Range has changed OR change in extra draws / extra ball included OR corrupted data
 			{
 				// Recalculation is nesessary
 				$hwc_history = $this->h_w_c_history($id, $tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, $blnduplicate);
@@ -2701,6 +2736,12 @@ class Statistics extends Admin_Controller {
 	 $prev_str_dupextra = ""; // Empty String
 	 $prev_draw = array();	// Initialize the previous draw array
 	 $h_w_c = $this->statistics_m->h_w_c_exists($id);
+	 // If extra_draws=0, only draws with extra!=0 count toward qualifying totals / new_range
+	 $_recalc_extra_draws = (!is_null($h_w_c) && isset($h_w_c['extra_draws'])) ? intval($h_w_c['extra_draws']) : 1;
+	 if ($_recalc_extra_draws == 0 && intval($lotto->extra_ball) == 1) {
+	 	$_qualifying = $this->statistics_m->lottery_rows_noextra($tbl, TRUE);
+	 	if ($_qualifying !== FALSE && $_qualifying !== NULL && $_qualifying > 0) $all = $_qualifying;
+	 }
 	 
 	 // Try sliding window optimization if existing data is present
 	 $use_sliding_window = false;
@@ -2718,8 +2759,8 @@ class Statistics extends Admin_Controller {
 		
 		// Check if we can use sliding window (same settings, only one new draw)
 		$can_slide = (
-			$h_w_c['extra_included'] == $lotto->extra_included &&
-			$h_w_c['extra_draws'] == $lotto->extra_draws &&
+			$h_w_c['extra_included'] == (isset($lotto->extra_included) ? $lotto->extra_included : $h_w_c['extra_included']) &&
+			$h_w_c['extra_draws'] == (isset($lotto->extra_draws) ? $lotto->extra_draws : $h_w_c['extra_draws']) &&
 			$h_w_c['draw_id'] == ($lotto->last_drawn['id'] - 1)  // Exactly one draw behind
 		);
 		
@@ -2883,7 +2924,7 @@ class Statistics extends Admin_Controller {
 			 $saved_extra_draws = $this->statistics_m->extra_draws($id, FALSE, 'lottery_followers');
 			 $this->data['lottery']->extra_draws = $saved_extra_draws ? 1 : 0;
 		 }
-		 
+		 // For new-init: if extra_draws=0, $all was already adjusted above to qualifying count
 		 $new_range = ($all<100 ? $all : 100);
 		 $heat = explode('-', $this->statistics_m->hwc_defaults[$max_ball]); 	// Break out the H-W-C into a new array
 		 $w_start = intval($heat[0]+1);					// Warms
@@ -2946,6 +2987,13 @@ class Statistics extends Admin_Controller {
 	 	$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl, $drawn, $this->data['lottery']->extra_included, $blnduplicate, $strhots_last, $strwarms_last, $strcolds_last, $hwc_history['position']);
 		} // end !$skip_history (new init)
 	 }
+	 // Store per-draw H-W-C patterns in draw table so stats view matches h_w_c history page exactly.
+	 // Runs regardless of $skip_history so Calculate always produces correct per-draw labels.
+	 $_pd_xtra_inc  = (!is_null($h_w_c) ? $h_w_c['extra_included'] : (isset($lotto->extra_included) ? $lotto->extra_included : 0));
+	 $_pd_xtra_drws = (!is_null($h_w_c) ? $h_w_c['extra_draws']    : (isset($lotto->extra_draws)    ? $lotto->extra_draws    : 0));
+	 $this->statistics_m->hwc_store_draw_patterns(
+	 	$tbl, $drawn, $_pd_xtra_inc, $_pd_xtra_drws, $new_range, $w_start, $c_start, $blnduplicate);
+
 	 if (!$skip_history) { // history section - skipped when called from calculate() for performance
 	 if (!$hwc_history) // Problem with calculating H-W-C's over range
 	 {

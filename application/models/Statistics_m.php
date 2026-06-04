@@ -6171,6 +6171,76 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$cache_key = $this->generate_cache_key('hwc_history', $data['lottery_id']);
 		$this->cache->delete($cache_key);
 	}
+	/**
+	 * Compute the H-W-C pattern for each draw in the last $range draws and
+	 * store it in the draw table's h_w_c column.
+	 * Uses the same per-draw snapshot method as h_w_c_history() so the
+	 * statistics view matches the h_w_c page's Last N Draws counts exactly.
+	 *
+	 * @param string $table   Draw table name
+	 * @param int    $picks   Balls drawn per draw
+	 * @param int    $bn      extra_included flag
+	 * @param int    $xtra    extra_draws flag
+	 * @param int    $range   Number of draws to label
+	 * @param int    $w_bound Lower bound of warm zone
+	 * @param int    $c_bound Lower bound of cold zone
+	 * @param bool   $dup     Duplicate extra ball flag
+	 * @return bool
+	 */
+	public function hwc_store_draw_patterns($table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $dup)
+	{
+		$examine_date = $this->lottery_return_date($table, $range + 1, $xtra);
+		if (!$examine_date) return false;
+
+		$row = 1;
+		do {
+			// Compute H/W/C state BEFORE this draw — identical to h_w_c_history() loop
+			$str_h_w_c = $this->h_w_c_calculate($table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $examine_date, $dup);
+			$str_hots  = $this->hots($str_h_w_c);
+			$str_warms = $this->warms($str_h_w_c);
+			$str_colds = $this->colds($str_h_w_c);
+
+			$highs = []; $averages = []; $lows = [];
+			foreach (explode(',', $str_hots) as $item) {
+				$parts = explode('=', $item);
+				if (count($parts) == 2) $highs[] = $parts[0];
+			}
+			foreach (explode(',', $str_warms) as $item) {
+				$parts = explode('=', $item);
+				if (count($parts) == 2) $averages[] = $parts[0];
+			}
+			foreach (explode(',', $str_colds) as $item) {
+				$parts = explode('=', $item);
+				if (count($parts) == 2) $lows[] = $parts[0];
+			}
+
+			// Get next draw AFTER $examine_date (same as h_w_c_history)
+			$fd = $this->hwc_next_draw($table, $examine_date);
+			if (!$fd) break;
+
+			$examine_date = $fd['draw_date'];
+
+			// Classify draw balls
+			$h = 0; $w = 0; $c = 0;
+			for ($i = 1; $i <= $picks; $i++) {
+				$ball = $fd['ball' . $i];
+				if      (in_array($ball, $highs))    $h++;
+				elseif  (in_array($ball, $averages)) $w++;
+				elseif  (in_array($ball, $lows))     $c++;
+			}
+			$pattern = "{$h}-{$w}-{$c}";
+
+			// Store in draw table
+			$this->db->reset_query();
+			$this->db->where('id', $fd['id']);
+			$this->db->update($table, ['h_w_c' => $pattern]);
+
+			$row++;
+		} while ($row <= $range);
+
+		return true;
+	}
+
 	/** 
 	* Returns the next resulting draw from the given date
 	* 
