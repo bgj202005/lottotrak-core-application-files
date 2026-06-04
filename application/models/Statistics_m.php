@@ -6189,56 +6189,134 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	 */
 	public function hwc_store_draw_patterns($table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $dup)
 	{
-		$examine_date = $this->lottery_return_date($table, $range + 1, $xtra);
-		if (!$examine_date) return false;
+		// Optimised: single SELECT + PHP sliding-window + one batched UPDATE.
+		// Replaces ~200 queries (100 h_w_c_calculate + 100 UPDATE) with just 2.
+		//
+		// Always filter extra<>"0" to match hwc_next_draw() iteration logic.
+		// (Lotteries with xtra=1 have no extra=0 rows in practice, so results are identical.)
+		$need = $range * 2;
+		$sql  = 'SELECT * FROM ' . $table
+		      . ' WHERE extra <> "0"'
+		      . ' ORDER BY draw_date DESC, id DESC LIMIT ' . $need;
+		$res  = $this->db->query($sql);
+		if (!$res) return false;
 
-		$row = 1;
-		do {
-			// Compute H/W/C state BEFORE this draw — identical to h_w_c_history() loop
-			$str_h_w_c = $this->h_w_c_calculate($table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $examine_date, $dup);
-			$str_hots  = $this->hots($str_h_w_c);
-			$str_warms = $this->warms($str_h_w_c);
-			$str_colds = $this->colds($str_h_w_c);
+		// Reverse to chronological order (oldest first)
+		$draws = array_reverse($res->result_array());
+		$total = count($draws);
 
-			$highs = []; $averages = []; $lows = [];
-			foreach (explode(',', $str_hots) as $item) {
-				$parts = explode('=', $item);
-				if (count($parts) == 2) $highs[] = $parts[0];
-			}
-			foreach (explode(',', $str_warms) as $item) {
-				$parts = explode('=', $item);
-				if (count($parts) == 2) $averages[] = $parts[0];
-			}
-			foreach (explode(',', $str_colds) as $item) {
-				$parts = explode('=', $item);
-				if (count($parts) == 2) $lows[] = $parts[0];
-			}
+		// Need at least range+1 rows: range for the initial window + ≥1 to classify
+		if ($total <= $range) return false;
 
-			// Get next draw AFTER $examine_date (same as h_w_c_history)
-			$fd = $this->hwc_next_draw($table, $examine_date);
-			if (!$fd) break;
+		// Build initial ball-count window from draws[0..range-1]
+		$ball_count    = [];  // ball_number => frequency in current window
+		$ball_idx_list = [];  // ball_number => [draw_index, ...] oldest-first
 
-			$examine_date = $fd['draw_date'];
+		for ($i = 0; $i < $range; $i++) {
+			$this->_hwc_window_add($draws[$i], $i, $picks, $bn, $dup, $ball_count, $ball_idx_list);
+		}
 
-			// Classify draw balls
+		$updates = [];
+
+		// Classify draws[range..total-1]
+		for ($i = $range; $i < $total; $i++) {
+			$draw   = $draws[$i];
+			$sorted = $this->_hwc_window_sort($ball_count, $ball_idx_list, $draws);
+
 			$h = 0; $w = 0; $c = 0;
-			for ($i = 1; $i <= $picks; $i++) {
-				$ball = $fd['ball' . $i];
-				if      (in_array($ball, $highs))    $h++;
-				elseif  (in_array($ball, $averages)) $w++;
-				elseif  (in_array($ball, $lows))     $c++;
+			for ($b = 1; $b <= $picks; $b++) {
+				$ball = isset($draw['ball' . $b]) ? intval($draw['ball' . $b]) : 0;
+				if (!$ball) continue;
+				$pos = array_search($ball, $sorted, true);
+				if ($pos === false) { $c++; continue; }
+				$pos++; // 1-based position
+				if      ($pos < $w_bound) $h++;
+				elseif  ($pos < $c_bound) $w++;
+				else                      $c++;
 			}
-			$pattern = "{$h}-{$w}-{$c}";
+			$updates[$draw['id']] = "{$h}-{$w}-{$c}";
 
-			// Store in draw table
-			$this->db->reset_query();
-			$this->db->where('id', $fd['id']);
-			$this->db->update($table, ['h_w_c' => $pattern]);
+			// Slide: add current draw to window, remove the oldest draw from window
+			$this->_hwc_window_add($draw, $i, $picks, $bn, $dup, $ball_count, $ball_idx_list);
+			$this->_hwc_window_remove($draws[$i - $range], $i - $range, $picks, $bn, $dup, $ball_count, $ball_idx_list);
+		}
 
-			$row++;
-		} while ($row <= $range);
+		// One batched UPDATE for all classified draws
+		if (!empty($updates)) {
+			$cases = '';
+			$ids   = [];
+			foreach ($updates as $id => $pattern) {
+				$cases .= ' WHEN ' . intval($id) . " THEN '" . $this->db->escape_str($pattern) . "'";
+				$ids[]  = intval($id);
+			}
+			$id_list = implode(',', $ids);
+			$this->db->query("UPDATE `{$table}` SET `h_w_c` = CASE `id` {$cases} END WHERE `id` IN ({$id_list})");
+		}
 
 		return true;
+	}
+
+	/** Add one draw's balls to the sliding-window counters. */
+	private function _hwc_window_add($draw, $idx, $picks, $bn, $dup, &$ball_count, &$ball_idx_list)
+	{
+		$balls = [];
+		for ($b = 1; $b <= $picks; $b++) {
+			$ball = isset($draw['ball' . $b]) ? intval($draw['ball' . $b]) : 0;
+			if ($ball) $balls[] = $ball;
+		}
+		if ($bn && !$dup && !empty($draw['extra']) && intval($draw['extra']) !== 0) {
+			$balls[] = intval($draw['extra']);
+		}
+		foreach ($balls as $ball) {
+			$ball_count[$ball]      = ($ball_count[$ball] ?? 0) + 1;
+			$ball_idx_list[$ball][] = $idx; // append draw index (chronological order)
+		}
+	}
+
+	/** Remove one draw's balls from the sliding-window counters. */
+	private function _hwc_window_remove($draw, $idx, $picks, $bn, $dup, &$ball_count, &$ball_idx_list)
+	{
+		$balls = [];
+		for ($b = 1; $b <= $picks; $b++) {
+			$ball = isset($draw['ball' . $b]) ? intval($draw['ball' . $b]) : 0;
+			if ($ball) $balls[] = $ball;
+		}
+		if ($bn && !$dup && !empty($draw['extra']) && intval($draw['extra']) !== 0) {
+			$balls[] = intval($draw['extra']);
+		}
+		foreach ($balls as $ball) {
+			if (!isset($ball_count[$ball])) continue;
+			$ball_count[$ball]--;
+			if ($ball_count[$ball] <= 0) {
+				unset($ball_count[$ball], $ball_idx_list[$ball]);
+			} else {
+				// $idx is the oldest entry — it will be at the front of the list
+				if (!empty($ball_idx_list[$ball]) && $ball_idx_list[$ball][0] === $idx) {
+					array_shift($ball_idx_list[$ball]);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Sort balls by (frequency DESC, most-recent-draw-date DESC, ball-number ASC)
+	 * to match h_w_c_calculate()'s ORDER BY heat DESC, last_draw_date DESC, ball ASC.
+	 * Returns array of ball numbers, 0-indexed (position+1 = 1-based rank).
+	 */
+	private function _hwc_window_sort($ball_count, $ball_idx_list, $draws)
+	{
+		$meta = [];
+		foreach ($ball_count as $ball => $count) {
+			$last_idx  = !empty($ball_idx_list[$ball]) ? end($ball_idx_list[$ball]) : 0;
+			$last_date = isset($draws[$last_idx]['draw_date']) ? $draws[$last_idx]['draw_date'] : '0000-00-00';
+			$meta[]    = ['ball' => intval($ball), 'count' => $count, 'date' => $last_date];
+		}
+		usort($meta, static function ($a, $b) {
+			if ($a['count'] !== $b['count']) return $b['count'] - $a['count']; // higher count first
+			if ($a['date']  !== $b['date'])  return strcmp($b['date'], $a['date']); // more recent first
+			return $a['ball'] - $b['ball']; // lower ball number first
+		});
+		return array_column($meta, 'ball');
 	}
 
 	/** 
