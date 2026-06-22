@@ -289,7 +289,7 @@
                                         Last Date <span class="sort-indicator none"></span>
                                     </th>
                                     <?php $prize_columns = isset($prize_columns) ? $prize_columns : array(); ?>
-                                    <th colspan="<?php echo max(1, count($prize_columns) + 1); ?>" class="text-center" style="background-color: #f4f4f4;">
+                                    <th colspan="<?php echo max(1, count($prize_columns) + 4); ?>" class="text-center" style="background-color: #f4f4f4;">
                                         <strong>Win Record</strong>
                                     </th>
                                 </tr>
@@ -304,12 +304,30 @@
                                                 <?php echo htmlspecialchars($column['label']); ?>
                                             </th>
                                         <?php endforeach; ?>
+                                        <th class="text-center" style="background-color: #d4edda; font-weight: bold;">
+                                            Total Wins
+                                        </th>
+                                        <th class="text-center" style="background-color: #d4edda; font-weight: bold;">
+                                            Total Tickets
+                                        </th>
+                                        <th class="text-center" style="background-color: #d4edda; font-weight: bold;">
+                                            Win %
+                                        </th>
                                         <th class="text-center" style="background-color: #f8d7da;">
                                             Reset
                                         </th>
                                     <?php else: ?>
                                         <th class="text-center" style="background-color: #e8f5e8;">
                                             No Prize Categories
+                                        </th>
+                                        <th class="text-center" style="background-color: #d4edda; font-weight: bold;">
+                                            Total Wins
+                                        </th>
+                                        <th class="text-center" style="background-color: #d4edda; font-weight: bold;">
+                                            Total Tickets
+                                        </th>
+                                        <th class="text-center" style="background-color: #d4edda; font-weight: bold;">
+                                            Win %
                                         </th>
                                         <th class="text-center" style="background-color: #f8d7da;">
                                             Reset
@@ -320,7 +338,7 @@
                                 <tbody>
                                     <?php if(empty($prize_records)): ?>
                                         <tr>
-                                            <td colspan="<?php echo 7 + max(1, count($prize_columns)) + 1; ?>" class="text-center">
+                                            <td colspan="<?php echo 7 + max(1, count($prize_columns)) + 4; ?>" class="text-center">
                                                 <em>No prize history records found for this administrator.</em>
                                             </td>
                                         </tr>
@@ -356,15 +374,30 @@
                                                 <td><?php echo date('D M j, Y', strtotime($record->lastdate)); ?></td>
                                                 <!-- Dynamic Win Record Columns -->
                                                 <?php if(!empty($prize_columns)): ?>
-                                                    <?php foreach($prize_columns as $column): ?>
+                                                    <?php 
+                                                    $total_wins = 0;
+                                                    foreach($prize_columns as $column): 
+                                                        $key = $column['key'];
+                                                        $win_val = property_exists($record->win_records, $key) ? (int)$record->win_records->$key : 0;
+                                                        $total_wins += $win_val;
+                                                    ?>
                                                         <td class="text-center win-record">
-                                                            <?php 
-                                                            $key = $column['key'];
-                                                            echo property_exists($record->win_records, $key) ? 
-                                                                 $record->win_records->$key : '0'; 
-                                                            ?>
+                                                            <?php echo $win_val; ?>
                                                         </td>
                                                     <?php endforeach; ?>
+                                                    <?php 
+                                                    $total_tickets_db = isset($record->total_tickets) ? (int)$record->total_tickets : 0;
+                                                    $win_pct = ($total_tickets_db > 0) ? round(($total_wins / $total_tickets_db) * 100, 2) : 0;
+                                                    ?>
+                                                    <td class="text-center" style="font-weight: bold; background-color: #f0fff0;">
+                                                        <?php echo number_format($total_wins); ?>
+                                                    </td>
+                                                    <td class="text-center" style="font-weight: bold; background-color: #f0fff0;">
+                                                        <?php echo number_format($total_tickets_db); ?>
+                                                    </td>
+                                                    <td class="text-center" style="font-weight: bold; background-color: #f0fff0;">
+                                                        <?php echo $win_pct; ?>%
+                                                    </td>
                                                     <!-- Reset Button Column -->
                                                     <td class="text-center">
                                                         <button type="button" class="btn btn-sm btn-warning reset-win-record" 
@@ -376,6 +409,9 @@
                                                     </td>
                                                 <?php else: ?>
                                                     <td class="text-center win-record">-</td>
+                                                    <td class="text-center" style="font-weight: bold; background-color: #f0fff0;">0</td>
+                                                    <td class="text-center" style="font-weight: bold; background-color: #f0fff0;">0</td>
+                                                    <td class="text-center" style="font-weight: bold; background-color: #f0fff0;">0%</td>
                                                     <td class="text-center">
                                                         <button type="button" class="btn btn-sm btn-warning reset-win-record" 
                                                                 data-filter-id="<?php echo $record->id; ?>" 

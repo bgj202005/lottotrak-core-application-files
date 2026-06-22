@@ -168,7 +168,8 @@ class Prize extends Admin_Controller
                 '8_win' => 0,
                 '8_win_extra' => 0,
                 '9_win' => 0,
-                '9_win_extra' => 0
+                '9_win_extra' => 0,
+                'total_tickets' => 0
             ];
             
             // Update all filters for this lottery and admin
@@ -792,7 +793,7 @@ class Prize extends Admin_Controller
                 '4_win' => 0, '4_win_extra' => 0, '5_win' => 0, '5_win_extra' => 0,
                 '6_win' => 0, '6_win_extra' => 0, '7_win' => 0, '7_win_extra' => 0,
                 '8_win' => 0, '8_win_extra' => 0, '9_win' => 0, '9_win_extra' => 0,
-                'extra' => 0
+                'extra' => 0, 'total_tickets' => 0
             );
             
             // Update the filter record
@@ -2198,6 +2199,17 @@ class Prize extends Admin_Controller
                 }
             }
             
+            // Increment total_tickets by the number of tickets processed for this draw
+            $tickets_this_draw = count($combination_tickets);
+            $this->db->select('total_tickets');
+            $this->db->from('lottery_combination_filters');
+            $this->db->where('id', $filter->id);
+            $tickets_row = $this->db->get()->row();
+            $current_total_tickets = ($tickets_row && isset($tickets_row->total_tickets)) ? (int)$tickets_row->total_tickets : 0;
+            $new_total_tickets = $current_total_tickets + $tickets_this_draw;
+            $this->db->where('id', $filter->id);
+            $this->db->update('lottery_combination_filters', array('total_tickets' => $new_total_tickets));
+
             // Update the filter's win record fields in database
             if (!empty($win_updates)) {
                 $update_data = array();
