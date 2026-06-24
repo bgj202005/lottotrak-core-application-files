@@ -142,6 +142,97 @@
     #prizeHistoryTable td:nth-child(7) {
         white-space: nowrap;
     }
+    /* Win record columns */
+    .win-record-col {
+        width: 22px !important;
+        font-size: 0.80em;
+        white-space: nowrap;
+    }
+    /* Total/Win% summary columns */
+    .win-summary-col {
+        width: 46px !important;
+        font-size: 0.80em;
+        white-space: nowrap;
+    }
+    /* Reset button column */
+    .reset-col {
+        width: 50px !important;
+        white-space: nowrap;
+    }
+    .reset-col .btn {
+        font-size: 0.72em;
+        padding: 2px 3px;
+    }
+    /* Responsive table wrapper - scrolls horizontally on small screens */
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 0;
+    }
+    /* Hint shown on small screens to indicate scrollability */
+    .table-scroll-hint {
+        display: none;
+        font-size: 0.75em;
+        color: #888;
+        text-align: right;
+        margin-bottom: 4px;
+    }
+
+    /* ── Tablet (≤992px) ── */
+    @media (max-width: 992px) {
+        #prizeHistoryTable {
+            font-size: 0.74em;
+            table-layout: auto;
+            width: auto;
+            min-width: 700px;
+        }
+        #prizeHistoryTable th {
+            font-size: 0.74em;
+            padding: 0.25rem 0.15rem;
+        }
+        #prizeHistoryTable td {
+            padding: 0.2rem 0.15rem;
+        }
+        #prizeHistoryTable th:nth-child(1) { width: 20px; }
+        #prizeHistoryTable th:nth-child(2) { width: 90px; }
+        #prizeHistoryTable th:nth-child(3) { width: 34px; }
+        #prizeHistoryTable th:nth-child(4) { width: 56px; }
+        #prizeHistoryTable th:nth-child(5) { width: 56px; }
+        #prizeHistoryTable th:nth-child(6) { width: 52px; }
+        #prizeHistoryTable th:nth-child(7) { width: 76px; }
+        .win-record-col { width: 20px !important; font-size: 0.74em; }
+        .win-summary-col { width: 42px !important; font-size: 0.74em; }
+        .reset-col { width: 46px !important; }
+        .reset-col .btn { font-size: 0.68em; padding: 2px 3px; }
+        .table-scroll-hint { display: block; }
+    }
+
+    /* ── Mobile (≤576px) ── */
+    @media (max-width: 576px) {
+        .card-body { padding: 0.4rem; }
+        #prizeHistoryTable {
+            font-size: 0.68em;
+            min-width: 600px;
+        }
+        #prizeHistoryTable th {
+            font-size: 0.68em;
+            padding: 0.2rem 0.1rem;
+        }
+        #prizeHistoryTable td {
+            padding: 0.18rem 0.1rem;
+        }
+        #prizeHistoryTable th:nth-child(2) { width: 80px; }
+        #prizeHistoryTable th:nth-child(7) { width: 66px; }
+        .win-record-col { width: 18px !important; font-size: 0.68em; }
+        .win-summary-col { width: 38px !important; font-size: 0.68em; }
+        .reset-col { width: 42px !important; }
+        .reset-col .btn { font-size: 0.65em; padding: 1px 2px; }
+        .sortable-header { padding-right: 14px !important; }
+        .sort-indicator { right: 2px; font-size: 8px; }
+        .table-scroll-hint { display: block; }
+        /* Stack pagination controls vertically */
+        .pagination-controls .row > div { margin-bottom: 0.5rem; }
+    }
     /* Sortable column styling */
     .sortable-header {
         cursor: pointer;
@@ -293,6 +384,7 @@
                         </div>
                     </div>
                     <!-- Prize History Table -->
+                    <div class="table-scroll-hint">&#8592; Scroll to see all columns &#8594;</div>
                     <div class="table-responsive">
                         <table class="table table-bordered table-striped" id="prizeHistoryTable">
                             <thead>
