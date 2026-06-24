@@ -104,32 +104,44 @@
     .card-body {
         width: 100%;
         box-sizing: border-box;
-        padding: 1.5rem;
+        padding: 0.75rem;
     }
     /* Reduce table width and font size to fit in card */
     #prizeHistoryTable {
-        font-size: 0.85em;
+        font-size: 0.80em;
         margin: 0 auto;
-        max-width: 100%;
+        table-layout: fixed;
+        width: 100%;
     }
-    #prizeHistoryTable th,
+    #prizeHistoryTable th {
+        font-size: 0.80em;
+        font-weight: bold;
+        white-space: nowrap;
+        padding: 0.3rem 0.2rem;
+        text-align: center;
+    }
     #prizeHistoryTable td {
-        padding: 0.4rem 0.3rem;
+        padding: 0.25rem 0.2rem;
         text-align: center;
         white-space: nowrap;
     }
-    #prizeHistoryTable th {
-        font-size: 0.8em;
-        font-weight: bold;
-    }
     /* Specific column widths for better fit */
-    #prizeHistoryTable th:nth-child(1) { width: 30px; }     /* # */
-    #prizeHistoryTable th:nth-child(2) { width: 120px; }    /* Filename (was Saved) */
-    #prizeHistoryTable th:nth-child(3) { width: 50px; }     /* Picks */
-    #prizeHistoryTable th:nth-child(4) { width: 120px; }    /* Original Count */
-    #prizeHistoryTable th:nth-child(5) { width: 120px; }    /* Actual Filtered */
-    #prizeHistoryTable th:nth-child(6) { width: 80px; }     /* Status */
-    #prizeHistoryTable th:nth-child(7) { width: 90px; }     /* Last Date */
+    #prizeHistoryTable th:nth-child(1) { width: 22px; }     /* # */
+    #prizeHistoryTable th:nth-child(2) { width: 100px; }    /* Filename */
+    #prizeHistoryTable th:nth-child(3) { width: 38px; }     /* Picks */
+    #prizeHistoryTable th:nth-child(4) { width: 62px; }     /* Original */
+    #prizeHistoryTable th:nth-child(5) { width: 62px; }     /* Filtered */
+    #prizeHistoryTable th:nth-child(6) { width: 56px; }     /* Status */
+    #prizeHistoryTable th:nth-child(7) { width: 88px; }     /* Last Date */
+    /* Filename and Last Date td truncation */
+    #prizeHistoryTable td:nth-child(2) {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    #prizeHistoryTable td:nth-child(7) {
+        white-space: nowrap;
+    }
     /* Sortable column styling */
     .sortable-header {
         cursor: pointer;
@@ -161,9 +173,24 @@
     }
     /* Win record columns */
     .win-record-col {
-        width: 30px !important;
-        min-width: 30px;
-        font-size: 0.75em;
+        width: 22px !important;
+        font-size: 0.80em;
+        white-space: nowrap;
+    }
+    /* Total/Win% summary columns */
+    .win-summary-col {
+        width: 46px !important;
+        font-size: 0.80em;
+        white-space: nowrap;
+    }
+    /* Reset button column */
+    .reset-col {
+        width: 50px !important;
+        white-space: nowrap;
+    }
+    .reset-col .btn {
+        font-size: 0.72em;
+        padding: 2px 3px;
     }
     .table-responsive {
         overflow-x: auto;
@@ -180,14 +207,13 @@
     /* Enhanced Status Tags */
     .status-tag {
         display: inline-block;
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-size: 0.75em;
+        padding: 2px 4px;
+        border-radius: 10px;
+        font-size: 0.72em;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.3px;
         border: 1px solid;
-        min-width: 60px;
         text-align: center;
     }
     .status-active {
@@ -214,7 +240,7 @@
         <h5 style="text-align:left"><?php echo anchor('admin/predictions', 'Back to Predictions Dashboard', 'title="Back to Predictions"'); ?></h5>
     </section>
     <section class="content">
-        <div class="container mt-4">
+        <div class="container-fluid mt-2">
             <!-- White Card -->
             <div class="card shadow-sm">
                 <div class="card-body">
@@ -276,11 +302,11 @@
                                     <th class="sortable-header" data-sort-column="N" data-sort-order="none">
                                         Picks <span class="sort-indicator none"></span>
                                     </th>
-                                    <th class="sortable-header" data-sort-column="original_cccc" data-sort-order="none">
-                                        Original Count <span class="sort-indicator none"></span>
+                                    <th class="sortable-header" data-sort-column="original_cccc" data-sort-order="none" title="Original Count">
+                                        Original <span class="sort-indicator none"></span>
                                     </th>
-                                    <th class="sortable-header" data-sort-column="actual_filtered_count" data-sort-order="none">
-                                        Actual Filtered <span class="sort-indicator none"></span>
+                                    <th class="sortable-header" data-sort-column="actual_filtered_count" data-sort-order="none" title="Actual Filtered Count">
+                                        Filtered <span class="sort-indicator none"></span>
                                     </th>
                                     <th class="sortable-header" data-sort-column="is_active" data-sort-order="none">
                                         Status <span class="sort-indicator none"></span>
@@ -304,32 +330,32 @@
                                                 <?php echo htmlspecialchars($column['label']); ?>
                                             </th>
                                         <?php endforeach; ?>
-                                        <th class="text-center" style="background-color: #d4edda; font-weight: bold;">
-                                            Total Wins
+                                        <th class="text-center win-summary-col" style="background-color: #d4edda; font-weight: bold;" title="Total Wins">
+                                            Wins
                                         </th>
-                                        <th class="text-center" style="background-color: #d4edda; font-weight: bold;">
-                                            Total Tickets
+                                        <th class="text-center win-summary-col" style="background-color: #d4edda; font-weight: bold;" title="Total Tickets Processed">
+                                            Tickets
                                         </th>
-                                        <th class="text-center" style="background-color: #d4edda; font-weight: bold;">
+                                        <th class="text-center win-summary-col" style="background-color: #d4edda; font-weight: bold;" title="Win Percentage">
                                             Win %
                                         </th>
-                                        <th class="text-center" style="background-color: #f8d7da;">
+                                        <th class="text-center reset-col" style="background-color: #f8d7da;">
                                             Reset
                                         </th>
                                     <?php else: ?>
                                         <th class="text-center" style="background-color: #e8f5e8;">
                                             No Prize Categories
                                         </th>
-                                        <th class="text-center" style="background-color: #d4edda; font-weight: bold;">
-                                            Total Wins
+                                        <th class="text-center win-summary-col" style="background-color: #d4edda; font-weight: bold;" title="Total Wins">
+                                            Wins
                                         </th>
-                                        <th class="text-center" style="background-color: #d4edda; font-weight: bold;">
-                                            Total Tickets
+                                        <th class="text-center win-summary-col" style="background-color: #d4edda; font-weight: bold;" title="Total Tickets Processed">
+                                            Tickets
                                         </th>
-                                        <th class="text-center" style="background-color: #d4edda; font-weight: bold;">
+                                        <th class="text-center win-summary-col" style="background-color: #d4edda; font-weight: bold;" title="Win Percentage">
                                             Win %
                                         </th>
-                                        <th class="text-center" style="background-color: #f8d7da;">
+                                        <th class="text-center reset-col" style="background-color: #f8d7da;">
                                             Reset
                                         </th>
                                     <?php endif; ?>
@@ -371,7 +397,7 @@
                                                         <span class="status-tag status-expired">EXPIRED</span>
                                                     <?php endif; ?>
                                                 </td>
-                                                <td><?php echo date('D M j, Y', strtotime($record->lastdate)); ?></td>
+                                                <td title="<?php echo date('D M j, Y', strtotime($record->lastdate)); ?>"><?php echo date('M j, Y', strtotime($record->lastdate)); ?></td>
                                                 <!-- Dynamic Win Record Columns -->
                                                 <?php if(!empty($prize_columns)): ?>
                                                     <?php 
@@ -389,17 +415,17 @@
                                                     $total_tickets_db = isset($record->total_tickets) ? (int)$record->total_tickets : 0;
                                                     $win_pct = ($total_tickets_db > 0) ? round(($total_wins / $total_tickets_db) * 100, 2) : 0;
                                                     ?>
-                                                    <td class="text-center" style="font-weight: bold; background-color: #f0fff0;">
+                                                    <td class="text-center win-summary-col" style="font-weight: bold; background-color: #f0fff0;">
                                                         <?php echo number_format($total_wins); ?>
                                                     </td>
-                                                    <td class="text-center" style="font-weight: bold; background-color: #f0fff0;">
+                                                    <td class="text-center win-summary-col" style="font-weight: bold; background-color: #f0fff0;">
                                                         <?php echo number_format($total_tickets_db); ?>
                                                     </td>
-                                                    <td class="text-center" style="font-weight: bold; background-color: #f0fff0;">
+                                                    <td class="text-center win-summary-col" style="font-weight: bold; background-color: #f0fff0;">
                                                         <?php echo $win_pct; ?>%
                                                     </td>
                                                     <!-- Reset Button Column -->
-                                                    <td class="text-center">
+                                                    <td class="text-center reset-col">
                                                         <button type="button" class="btn btn-sm btn-warning reset-win-record" 
                                                                 data-filter-id="<?php echo $record->id; ?>" 
                                                                 data-filename="<?php echo htmlspecialchars($record->saved_filename); ?>"
@@ -409,10 +435,10 @@
                                                     </td>
                                                 <?php else: ?>
                                                     <td class="text-center win-record">-</td>
-                                                    <td class="text-center" style="font-weight: bold; background-color: #f0fff0;">0</td>
-                                                    <td class="text-center" style="font-weight: bold; background-color: #f0fff0;">0</td>
-                                                    <td class="text-center" style="font-weight: bold; background-color: #f0fff0;">0%</td>
-                                                    <td class="text-center">
+                                                    <td class="text-center win-summary-col" style="font-weight: bold; background-color: #f0fff0;">0</td>
+                                                    <td class="text-center win-summary-col" style="font-weight: bold; background-color: #f0fff0;">0</td>
+                                                    <td class="text-center win-summary-col" style="font-weight: bold; background-color: #f0fff0;">0%</td>
+                                                    <td class="text-center reset-col">
                                                         <button type="button" class="btn btn-sm btn-warning reset-win-record" 
                                                                 data-filter-id="<?php echo $record->id; ?>" 
                                                                 data-filename="<?php echo htmlspecialchars($record->saved_filename); ?>"
