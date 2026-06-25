@@ -1906,6 +1906,16 @@ class Statistics extends Admin_Controller {
 						'prediction_pool'	=> 	$this->data['lottery']->prediction_pool
 					);
 					$this->statistics_m->hwc_data_save($hwc, TRUE);
+
+					// Update per-draw h_w_c column: clear all rows first then write new range's patterns.
+					// This ensures draws outside the new range (e.g. rows 101-500 when dropping from 500→100)
+					// are blanked rather than retaining stale patterns from the previous range.
+					$this->statistics_m->hwc_store_draw_patterns(
+						$tbl_name, $drawn,
+						$this->data['lottery']->extra_included,
+						$this->data['lottery']->extra_draws,
+						$new_range, $w_start, $c_start, $blnduplicate
+					);
 					
 					// Calculate H-W-C win statistics when recalculation occurs
 					// Calculate counts from the actual hot/warm/cold arrays, not from non-existent properties
@@ -1992,6 +2002,14 @@ class Statistics extends Admin_Controller {
 						'prediction_pool'	=> 	$this->data['lottery']->prediction_pool
 					);
 			$this->statistics_m->hwc_data_save($hwc, FALSE);
+
+			// Update per-draw h_w_c column for new H-W-C setup.
+			$this->statistics_m->hwc_store_draw_patterns(
+				$tbl_name, $drawn,
+				$this->data['lottery']->extra_included,
+				$this->data['lottery']->extra_draws,
+				$new_range, $w_start, $c_start, $blnduplicate
+			);
 			
 			// Calculate H-W-C win statistics for new H-W-C setup
 			// Calculate counts from the actual hot/warm/cold arrays, not from non-existent properties

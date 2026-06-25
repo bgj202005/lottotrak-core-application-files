@@ -6192,6 +6192,10 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		// Optimised: single SELECT + PHP sliding-window + one batched UPDATE.
 		// Replaces ~200 queries (100 h_w_c_calculate + 100 UPDATE) with just 2.
 		//
+		// Clear ALL existing h_w_c values first so draws outside the new range
+		// don't retain stale patterns from a previous (e.g. larger) range.
+		$this->db->query("UPDATE `{$table}` SET `h_w_c` = ''");
+
 		// Always filter extra<>"0" to match hwc_next_draw() iteration logic.
 		// (Lotteries with xtra=1 have no extra=0 rows in practice, so results are identical.)
 		$need = $range * 2;
