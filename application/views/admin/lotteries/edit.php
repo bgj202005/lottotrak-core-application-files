@@ -21,6 +21,13 @@
 					<hr class="mt-3 mb-2">
 					<p class="mb-0"><i class="fa fa-arrow-down"></i> <strong>Scroll down to "Date of First Draw" field and update it before saving.</strong></p>
 				</div>
+			<?php elseif (isset($message_type) && $message_type === 'danger'): ?>
+				<div class="alert alert-danger alert-dismissible fade show" role="alert" style="margin-bottom: 20px;">
+					<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+					<i class="fa fa-exclamation-triangle"></i> <?=$message; ?>
+				</div>
 			<?php elseif (isset($message_type) && $message_type === 'info'): ?>
 				<div class="alert alert-info alert-dismissible fade show" role="alert" style="margin-bottom: 20px;">
 					<button type="button" class="close" data-dismiss="alert" aria-label="Close">
@@ -29,7 +36,12 @@
 					<i class="fa fa-info-circle"></i> <?=$message; ?>
 				</div>
 			<?php else: ?>
-				<h3 class="bg-warning" style = "text-align:center;"><?=$message; ?></h3>
+				<div class="alert alert-success alert-dismissible fade show" role="alert" style="margin-bottom: 20px;">
+					<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+					<i class="fa fa-check-circle"></i> <?=$message; ?>
+				</div>
 			<?php endif; ?>
 		<?php endif; ?>
 		<div class="row">
@@ -513,6 +525,7 @@
         <form id="deletePriorDrawsForm" method="post" action="<?php echo site_url('admin/lotteries/delete_prior_draws'); ?>">
             <input type="hidden" name="lottery_id" value="<?php echo $lottery->id; ?>">
             <input type="hidden" name="start_date" value="<?php echo $lottery->firstdate; ?>">
+            <input type="hidden" id="confirmValue" name="confirm" value="">
             <button type="button" id="deletePriorDrawsYes" class="btn btn-danger">Yes</button>
             <button type="button" id="deletePriorDrawsNo" class="btn btn-secondary">No</button>
         </form>
@@ -702,20 +715,8 @@ $(document).ready(function() {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('Delete prior draws: Yes clicked');
-    
     var form = $('#deletePriorDrawsForm');
-    
-    // Add confirm hidden input with value Y
-    $('<input>').attr({
-      type: 'hidden',
-      name: 'confirm',
-      value: 'Y'
-    }).appendTo(form);
-    
-    console.log('Submitting form to:', form.attr('action'));
-    
-    // Submit the form directly
+    $('#confirmValue').val('Y');
     form[0].submit();
   });
   
@@ -723,20 +724,8 @@ $(document).ready(function() {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('Delete prior draws: No clicked');
-    
     var form = $('#deletePriorDrawsForm');
-    
-    // Add confirm hidden input with value N
-    $('<input>').attr({
-      type: 'hidden',
-      name: 'confirm',
-      value: 'N'
-    }).appendTo(form);
-    
-    console.log('Submitting form to:', form.attr('action'));
-    
-    // Submit the form directly
+    $('#confirmValue').val('N');
     form[0].submit();
   });
 });

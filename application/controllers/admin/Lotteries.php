@@ -112,8 +112,15 @@ class Lotteries extends Admin_Controller {
 		// Initialize message type (default to warning)
 		$this->data['message_type'] = 'warning';
 		
+		// Check for flashdata messages first (from redirects like delete_prior_draws)
+		if ($this->session->flashdata('message')) {
+			$this->data['message'] = $this->session->flashdata('message');
+		} elseif ($this->session->flashdata('error')) {
+			$this->data['message'] = $this->session->flashdata('error');
+			$this->data['message_type'] = 'danger';
+		}
 		// Check if user cancelled parameter change confirmation
-		if ($this->input->get('cancelled') == '1' && $id) {
+		elseif ($this->input->get('cancelled') == '1' && $id) {
 			$this->data['message'] = 'Update cancelled. No changes were made to the lottery profile.';
 			$this->data['message_type'] = 'info'; // Info message for cancellation
 		} else {
@@ -353,6 +360,14 @@ class Lotteries extends Admin_Controller {
 		$lottery_id = $this->input->post('lottery_id');
 		$start_date = $this->input->post('start_date');
 		$confirm = $this->input->post('confirm');
+		
+		// Validate required inputs
+		if (!$lottery_id || !$start_date || !$confirm) {
+			log_message('error', 'delete_prior_draws - Missing required parameters');
+			$this->session->set_flashdata('error', 'Missing required parameters for deletion.');
+			redirect('admin/lotteries/edit/' . ($lottery_id ?: ''));
+			return;
+		}
 
 		if ($confirm === 'Y') {
 			// Get the lottery by ID to get the actual lottery name
@@ -383,13 +398,8 @@ class Lotteries extends Admin_Controller {
 			$this->db->delete($table_name);
 			$deleted_count = $this->db->affected_rows();
 			
-			log_message('info', "Deleted $deleted_count draws prior to $start_date from $table_name");
-			
 			// Check if there are any remaining draws
 			$remaining_draws = $this->db->count_all($table_name);
-			
-			// Log lottery_image value before any updates to verify it's not being affected
-			log_message('info', "Before update - Lottery #{$lottery_id} lottery_image: " . ($lottery->lottery_image ?: 'NULL'));
 			
 			if ($remaining_draws == 0) {
 				// No draws left - update lottery profile to reflect this
@@ -397,18 +407,8 @@ class Lotteries extends Admin_Controller {
 					'lastdate' => NULL
 				);
 				
-				// Enable query logging to debug the update
-				$this->db->db_debug = TRUE;
-				log_message('info', "Executing UPDATE lottery_profiles SET lastdate=NULL WHERE id=$lottery_id");
-				
 				$this->db->where('id', $lottery_id);
-				$affected = $this->db->update('lottery_profiles', $update_data);
-				
-				log_message('info', "Update affected $affected rows. Last query: " . $this->db->last_query());
-				
-				// Verify lottery_image was not affected by the update
-				$lottery_check = $this->lotteries_m->get($lottery_id);
-				log_message('info', "After update (no draws) - Lottery #{$lottery_id} lottery_image: " . ($lottery_check->lottery_image ?: 'NULL'));
+				$this->db->update('lottery_profiles', $update_data);
 				
 				// Clear all prediction data since there are no draws
 				$this->clear_historical_prediction_data($lottery_id);
@@ -431,17 +431,8 @@ class Lotteries extends Admin_Controller {
 						'lastdate' => $result->max_date
 					);
 					
-					// Enable query logging to debug the update
-					log_message('info', "Executing UPDATE lottery_profiles SET lastdate='{$result->max_date}' WHERE id=$lottery_id");
-					
 					$this->db->where('id', $lottery_id);
-					$affected = $this->db->update('lottery_profiles', $update_data);
-					
-					log_message('info', "Update affected $affected rows. Last query: " . $this->db->last_query());
-					
-					// Verify lottery_image was not affected by the update
-					$lottery_check = $this->lotteries_m->get($lottery_id);
-					log_message('info', "After update (draws remain) - Lottery #{$lottery_id} lottery_image: " . ($lottery_check->lottery_image ?: 'NULL'));
+					$this->db->update('lottery_profiles', $update_data);
 				}
 				
 				// Clear prediction data as the draw history has changed
