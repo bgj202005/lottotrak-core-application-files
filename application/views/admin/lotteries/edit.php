@@ -510,11 +510,11 @@
 <?php if ($has_prior_draws): ?>
     <div class="alert alert-warning">
         Draws prior to the start date. Do you want to delete prior draws? (Y/N)
-        <form method="post" action="<?php echo site_url('admin/lotteries/delete_prior_draws'); ?>">
+        <form id="deletePriorDrawsForm" method="post" action="<?php echo site_url('admin/lotteries/delete_prior_draws'); ?>">
             <input type="hidden" name="lottery_id" value="<?php echo $lottery->id; ?>">
             <input type="hidden" name="start_date" value="<?php echo $lottery->firstdate; ?>">
-            <button type="submit" name="confirm" value="Y" class="btn btn-danger">Yes</button>
-            <button type="submit" name="confirm" value="N" class="btn btn-secondary">No</button>
+            <button type="button" id="deletePriorDrawsYes" class="btn btn-danger">Yes</button>
+            <button type="button" id="deletePriorDrawsNo" class="btn btn-secondary">No</button>
         </form>
     </div>
 <?php endif; ?>
@@ -695,6 +695,49 @@ $(document).ready(function() {
     setTimeout(function() {
       $(self).datepicker('show');
     }, 50);
+  });
+  
+  // Handle delete prior draws form submission
+  $('#deletePriorDrawsYes').click(function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('Delete prior draws: Yes clicked');
+    
+    var form = $('#deletePriorDrawsForm');
+    
+    // Add confirm hidden input with value Y
+    $('<input>').attr({
+      type: 'hidden',
+      name: 'confirm',
+      value: 'Y'
+    }).appendTo(form);
+    
+    console.log('Submitting form to:', form.attr('action'));
+    
+    // Submit the form directly
+    form[0].submit();
+  });
+  
+  $('#deletePriorDrawsNo').click(function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('Delete prior draws: No clicked');
+    
+    var form = $('#deletePriorDrawsForm');
+    
+    // Add confirm hidden input with value N
+    $('<input>').attr({
+      type: 'hidden',
+      name: 'confirm',
+      value: 'N'
+    }).appendTo(form);
+    
+    console.log('Submitting form to:', form.attr('action'));
+    
+    // Submit the form directly
+    form[0].submit();
   });
 });
 </script>
