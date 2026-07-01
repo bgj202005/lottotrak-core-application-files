@@ -875,7 +875,14 @@ class Lotteries extends Admin_Controller {
 			}
 			
 			// PHASE 2: Process only the records that need importing
-			
+
+			// Ensure the h_w_c column exists in the draw table before inserting rows.
+			$col_check = $this->db->query("SHOW COLUMNS FROM `{$table}` LIKE 'h_w_c'");
+			if ($col_check->num_rows() === 0)
+			{
+				$this->db->query("ALTER TABLE `{$table}` ADD COLUMN `h_w_c` VARCHAR(20) NULL DEFAULT NULL");
+			}
+
 			foreach ($records_to_import as $row_index => $row) {
 				$csv_date = (strpos($row[0], '-')) ? explode('-', $row[0]) : explode('/', $row[0]);
 				$unix_date = (isset($csv_date[2])&&isset($csv_date[1])&&isset($csv_date[0]) ? strtotime($csv_date[0].'/'.$csv_date[1].'/'.$csv_date[2]) : FALSE);

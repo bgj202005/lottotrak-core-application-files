@@ -1095,7 +1095,8 @@ class Statistics_m extends MY_Model
 					->where('lottery_id', $id)
                 	->limit(1,0)
                 	->get($table);
-		$row = $query->row();			
+		$row = $query->row();
+		if ($row === null) return 0;
 		$included = $row->extra_included;
 		if($update)
 		{
@@ -1131,7 +1132,9 @@ class Statistics_m extends MY_Model
 				->where('lottery_id', $id)
                 ->limit(1, 0)
                 ->get($table);
-		$included = $query->row()->extra_draws;
+		$row = $query->row();
+		if ($row === null) return 0;
+		$included = $row->extra_draws;
 
 		if($update)
 		{
@@ -6192,6 +6195,13 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		// Optimised: single SELECT + PHP sliding-window + one batched UPDATE.
 		// Replaces ~200 queries (100 h_w_c_calculate + 100 UPDATE) with just 2.
 		//
+		// Ensure the h_w_c column exists in the draw table before writing to it.
+		$col_check = $this->db->query("SHOW COLUMNS FROM `{$table}` LIKE 'h_w_c'");
+		if ($col_check->num_rows() === 0)
+		{
+			$this->db->query("ALTER TABLE `{$table}` ADD COLUMN `h_w_c` VARCHAR(20) NULL DEFAULT NULL");
+		}
+
 		// Clear ALL existing h_w_c values first so draws outside the new range
 		// don't retain stale patterns from a previous (e.g. larger) range.
 		$this->db->query("UPDATE `{$table}` SET `h_w_c` = ''");

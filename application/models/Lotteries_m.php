@@ -908,6 +908,13 @@ class Lotteries_m extends MY_Model
 	*/
 	public function insert_draw($table, $data)
 	{
+		// Ensure the h_w_c column exists before inserting.
+		$col_check = $this->db->query("SHOW COLUMNS FROM `{$table}` LIKE 'h_w_c'");
+		if ($col_check->num_rows() === 0)
+		{
+			$this->db->query("ALTER TABLE `{$table}` ADD COLUMN `h_w_c` VARCHAR(20) NULL DEFAULT NULL");
+		}
+
 		$this->db->set($data);		// Set the query with the key / value pairs
 		$this->db->insert($table);	// Query insert a new record
 	return $this->db->insert_id();	// Return the latest id
