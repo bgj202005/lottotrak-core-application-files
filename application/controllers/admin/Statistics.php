@@ -1548,9 +1548,12 @@ class Statistics extends Admin_Controller {
 			$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
 			$matrix = $this->statistics_m->build_friends_matrix($tbl_name, $drawn, $max_ball, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $blnduplicate);
 			
-			// Check if friends data already exists (maybe from previous failed calculation)
-			$existing_check = $this->statistics_m->friends_exists($id);
-			$use_update = !is_null($existing_check);
+			// Check independently whether friends and nonfriends records already exist
+			// so we INSERT when missing rather than silently doing a no-op UPDATE.
+			$existing_check           = $this->statistics_m->friends_exists($id);
+			$existing_nonfriends_check = $this->statistics_m->nonfriends_exists($id);
+			$use_update           = !is_null($existing_check);
+			$use_nonfriends_update = !is_null($existing_nonfriends_check);
 			
 			$friends = array(
 				'range'				=> $new_range,
@@ -1569,7 +1572,7 @@ class Statistics extends Admin_Controller {
 				'draw_id'				=> $this->data['lottery']->last_drawn['id'],
 				'lottery_id'			=> $id
 			);
-			$this->statistics_m->nonfriends_data_save($nonfriends, $use_update);
+			$this->statistics_m->nonfriends_data_save($nonfriends, $use_nonfriends_update);
 		}
 		
 		// 4. Extract the friends string into the array counter parts
@@ -3649,6 +3652,14 @@ class Statistics extends Admin_Controller {
 		}
 		else 
 		{
+			// Capture whether records existed BEFORE we overwrite the variables below,
+			// so we use INSERT (FALSE) or UPDATE (TRUE) correctly for every case:
+			//  - First run (both null)          → INSERT for both
+			//  - Sliding-window fallthrough      → UPDATE for both (records exist)
+			//  - Mixed (one null, one not)       → INSERT the missing one, UPDATE the other
+			$friends_exists   = !is_null($friends);
+			$nonfriends_exists = !is_null($nonfriends);
+
 			$new_range = ($all<100 ? $all : 100);
 			$relatives = $this->statistics_m->create_friend_array();
 			$nonrelatives = $this->statistics_m->create_nonfriend_array();
@@ -3674,14 +3685,14 @@ class Statistics extends Admin_Controller {
 				'draw_id'			=> $lotto->last_drawn['id'],
 				'lottery_id'		=> $id
 			);
-			$this->statistics_m->friends_data_save($friends, FALSE);
+			$this->statistics_m->friends_data_save($friends, $friends_exists);
 			$nonfriends = array(
 				'range'					=> $new_range,
 				'lottery_nonfriends'	=> $str_nonfriends,
-				'draw_id'				=> $this->data['lottery']->last_drawn['id'],
+				'draw_id'				=> $lotto->last_drawn['id'],
 				'lottery_id'			=> $id
 			);
-			$this->statistics_m->nonfriends_data_save($nonfriends, TRUE);
+			$this->statistics_m->nonfriends_data_save($nonfriends, $nonfriends_exists);
 		}
 	}
 
