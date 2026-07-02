@@ -1466,7 +1466,7 @@ class Statistics extends Admin_Controller {
 		$old_range = $friends['range'];
 		if(!$new_range) $new_range = $old_range;	// Database Range
 		$sel_range = 1;								// All Defaults
-		$this->data['lottery']->extra_included = 0; // No Extra Ball as part of the calculation
+		$this->data['lottery']->extra_included = ($this->data['lottery']->extra_ball ? 1 : 0); // Default to lottery's extra ball setting
 		$this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
 		if(!is_null($friends)&&(!is_null($nonfriends)))
 		{
@@ -1530,6 +1530,12 @@ class Statistics extends Admin_Controller {
 		}
 		else 
 		{
+			// Handle /extra and /draws URL toggles even for first-time record creation
+			if ($this->uri->segment(6) == 'extra') {
+				$this->data['lottery']->extra_included = ($this->data['lottery']->extra_included ? 0 : 1);
+			} elseif ($this->uri->segment(6) == 'draws') {
+				$this->data['lottery']->extra_draws = ($this->data['lottery']->extra_draws ? 0 : 1);
+			}
 			$relatives = $this->statistics_m->create_friend_array();
 			$nonrelatives = $this->statistics_m->create_nonfriend_array();
 			$new_range = ($all<100 ? $all : 100);
@@ -3646,23 +3652,24 @@ class Statistics extends Admin_Controller {
 			$new_range = ($all<100 ? $all : 100);
 			$relatives = $this->statistics_m->create_friend_array();
 			$nonrelatives = $this->statistics_m->create_nonfriend_array();
-			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, 0, 0, $new_range, '', $blnduplicate);
+			$extra_included_default = ($lotto->extra_ball ? 1 : 0);
+			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $extra_included_default, 0, $new_range, '', $blnduplicate);
 			$associate = explode('+', $str_friends); // The '+' is the separator
 			$str_friends = $associate[0];			 // separated the friends
 			$str_nonfriends = $associate[1]; 		 // from the non friends
-			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, 0, 0, $new_range, '', $blnduplicate);
+			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $extra_included_default, 0, $new_range, '', $blnduplicate);
 			$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
 			$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
 			
 			// Build and cache matrix for first run
-			$matrix = $this->statistics_m->build_friends_matrix($tbl_name, $drawn, $max_ball, 0, 0, $new_range, $blnduplicate);
+			$matrix = $this->statistics_m->build_friends_matrix($tbl_name, $drawn, $max_ball, $extra_included_default, 0, $new_range, $blnduplicate);
 			
 			$friends = array(
 				'range'				=> $new_range,
 				'lottery_friends'	=> $str_friends,
 				'friendship_matrix'	=> json_encode($matrix),
 				'wins'				=> $fr_stats,
-				'extra_included'	=> 0,
+				'extra_included'	=> ($lotto->extra_ball ? 1 : 0),
 				'extra_draws'		=> 0,
 				'draw_id'			=> $lotto->last_drawn['id'],
 				'lottery_id'		=> $id
