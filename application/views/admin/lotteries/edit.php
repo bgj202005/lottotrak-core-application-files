@@ -368,7 +368,8 @@
 											'maxlength' => '50', 'size' => '50', 'style'=> 'width:100%; max-width: 200px;'); ?>
 							<div class="input-group date ml-sm-2" id="datepicker1" data-provide="datepicker"> 
 								<?php if (is_null($lottery->lastdate)): $lottery->lastdate = date('d-m-Y'); // Only on a New Lottery
-									  else: $lottery->lastdate = $lastdraw->draw_date; 
+								  elseif (is_object($lastdraw) && isset($lastdraw->draw_date)): $lottery->lastdate = $lastdraw->draw_date;
+								  // else: no draws yet — keep the existing $lottery->lastdate value
 								endif;
 								echo form_input('lastdate', set_value('lastdate', date("D, M-d-Y",strtotime(str_replace('/','-',$lottery->lastdate)))), $extra); ?>
 								<span class="input-group-addon"><i class="fa fa-calendar" style = "padding:5px;"></i></span>
