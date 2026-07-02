@@ -1828,7 +1828,7 @@ class Statistics extends Admin_Controller {
 						$hwc_predictions_str = '';
 					}
 					// Build label and encode as "label|numbers" so the snapshot carries the full context.
-					// $_disp_lbl already contains "- Rank #N" from get_h_w_c_range_with_rank().
+					// Both options show the ranked group detail (e.g. "4-2-0 (50) - Rank #1").
 					$_opt_lbl  = ($posted_option === 2) ? 'Manual Selected' : 'Top Ranked';
 					$_disp_lbl = isset($h_w_c_groups[$selected_pattern]) ? $h_w_c_groups[$selected_pattern] : $selected_pattern;
 					$hwc_predictions_encoded = !empty($hwc_predictions_str)
@@ -3083,7 +3083,7 @@ class Statistics extends Admin_Controller {
 				$generated = $this->predictions_m->hwc_only($id, $pool_size, $pattern);
 				if($generated) {
 					// Build label and encode as "label|numbers" so the snapshot carries the full context.
-					// $_r_disp_lbl already contains "- Rank #N" from get_h_w_c_range_with_rank().
+					// Both options show the ranked group detail (e.g. "4-2-0 (50) - Rank #1").
 					$_r_opt_lbl  = ($stored_option === 2) ? 'Manual Selected' : 'Top Ranked';
 					$_r_disp_lbl = isset($h_w_c_groups[$pattern]) ? $h_w_c_groups[$pattern] : $pattern;
 					$generated_encoded = $_r_opt_lbl . ' — ' . $_r_disp_lbl . '|' . $generated;
