@@ -477,7 +477,7 @@ class Lotteries_m extends MY_Model
 		$field_count = count($fields);
 		if($balls_drawn!=$field_count)
 		{
-			$last_ball = intval(substr(array_key_last($fields), -1));	// Returns the last key in array, get the last character and return it as an integer
+			$last_ball = intval(substr(array_key_last($fields), 4));	// Returns the last key in array, strip the 'ball' prefix (4 chars) and return the numeric suffix as an integer
 			if($balls_drawn<$field_count)	
 			{
 				
