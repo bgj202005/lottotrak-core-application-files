@@ -8276,21 +8276,28 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			return FALSE;
 		}
 
-		// Get total draws available
-		$total_draws = $this->lotteries_m->db_row_count($table_name);
-		log_message('info', "H-W-C win stats: lottery_id=$lottery_id, total_draws=$total_draws, requested_range=$range");
-		
-		// Adjust range for lotteries with fewer draws
+		// Count qualifying draws respecting the extra_draws filter (same filter as analyze_sliding_window).
+		// When extra_draws=0 we exclude rows where extra=0, so use the filtered count — not all rows —
+		// to avoid falsely passing the range check and ending up with an empty $future_draws window.
+		$extra_filter = $extra_draws ? '' : " WHERE extra <> '0'";
+		$count_query  = $this->db->query("SELECT COUNT(*) AS cnt FROM `{$table_name}`{$extra_filter}");
+		$total_draws  = ($count_query && $count_query->num_rows() > 0)
+		              ? (int)$count_query->row()->cnt
+		              : $this->lotteries_m->db_row_count($table_name);
+
+		log_message('info', "H-W-C win stats: lottery_id=$lottery_id, qualifying_draws=$total_draws, requested_range=$range, extra_draws=$extra_draws");
+
+		// Adjust range for lotteries with fewer qualifying draws
 		$adjusted_range = $range;
 		$minimum_required = $range + 50; // More flexible requirement
-		
+
 		if ($total_draws < ($range * 2)) {
 			if ($total_draws >= $minimum_required) {
 				// Use a smaller range that fits available data
 				$adjusted_range = max(50, intval($total_draws / 2));
 				log_message('info', "H-W-C win stats: Adjusting range from $range to $adjusted_range for lottery_id=$lottery_id");
 			} else {
-				log_message('error', "H-W-C win stats: Insufficient draws for lottery_id=$lottery_id. Has $total_draws, needs at least $minimum_required");
+				log_message('error', "H-W-C win stats: Insufficient qualifying draws for lottery_id=$lottery_id. Has $total_draws, needs at least $minimum_required");
 				return FALSE;
 			}
 		}
@@ -9468,6 +9475,26 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$query = $this->db->get_where('lottery_h_w_c_stats', $where);
 		
 		if ($query->num_rows() > 0) {
+			$existing_row = $query->row_array();
+			
+			// Safety guard: only preserve existing wins if the new string is empty AND
+			// the extra_draws/extra_included settings match (same configuration).
+			// When parameters change, always write the newly computed wins (even if empty)
+			// so stale wins from the old configuration are not displayed.
+			$same_config = (intval($existing_row['extra_included']) === intval($extra_included))
+			            && (intval($existing_row['extra_draws'])    === intval($extra_draws));
+
+			if (empty($wins_string) && !empty($existing_row['wins']) && $same_config) {
+				log_message('info', "save_wins_string: New wins_string is empty for lottery_id=$lottery_id (same config); preserving existing wins to avoid data loss.");
+				$update_data = array(
+					'range' => $range,
+					'h_w_c_range' => $h_w_c_range,
+					'extra_included' => $extra_included,
+					'extra_draws' => $extra_draws
+				);
+				return $this->db->update('lottery_h_w_c_stats', $update_data, $where);
+			}
+			
 			// Update existing record - update wins, range, h_w_c_range, extra_included, and extra_draws
 			$update_data = array(
 				'wins' => $wins_string,
