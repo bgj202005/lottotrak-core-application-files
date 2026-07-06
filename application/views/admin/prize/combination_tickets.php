@@ -499,9 +499,18 @@
                                    class="table table-bordered table-striped">
                                 <thead>
                                     <tr>
-                                        <th style="width: 8%;">##</th>
-                                        <th style="width: 60%;">Combination</th>
-                                        <th style="width: 32%;" class="text-center sortable-check-results" data-sort="asc">
+                                        <th style="width: 4%;">##</th>
+                                        <th style="width: 32%;">Combination</th>
+                                        <th style="width: 4%;">Sum</th>
+                                        <th style="width: 6%;">Digit Sum</th>
+                                        <th style="width: 6%;">Repeats</th>
+                                        <th style="width: 7%;">Consecutives</th>
+                                        <th style="width: 4%;">Odd</th>
+                                        <th style="width: 4%;">Even</th>
+                                        <th style="width: 5%;">Decade</th>
+                                        <th style="width: 4%;">Last</th>
+                                        <th style="width: 5%;">Range</th>
+                                        <th style="width: 19%;" class="text-center sortable-check-results" data-sort="asc">
                                             Check Results 
                                             <span class="sort-icon">⇅</span>
                                         </th>
@@ -510,7 +519,7 @@
                                 <tbody id="tickets-tbody">
                                     <?php if(empty($tickets)): ?>
                                         <tr>
-                                            <td colspan="3" class="text-center">
+                                            <td colspan="12" class="text-center">
                                                 <em>No combination tickets found.</em>
                                             </td>
                                         </tr>
@@ -577,10 +586,10 @@
                                                 data-row-number="<?php echo sprintf('%02d', $current_row_number); ?>"
                                                 data-combination="<?php echo htmlspecialchars(implode(' ', array_map(function($n) { return sprintf('%02d', $n); }, $ticket['numbers']))); ?>"
                                                 data-check-results="<?php echo $result_sort_value; ?>">
-                                                <td class="text-center">
+                                                <td class="text-center" data-label="##">
                                                     <?php echo sprintf('%02d', $current_row_number); ?>
                                                 </td>
-                                                <td class="combination-numbers">
+                                                <td class="combination-numbers" data-label="Combination">
                                                     <?php 
                                                     $winning_count = 0;
                                                     $has_bonus = false;
@@ -717,7 +726,16 @@
                                                     $ticket['calculated_has_bonus'] = $has_bonus;
                                                     ?>
                                                 </td>
-                                                <td class="text-center check-results">
+                                                <td class="text-center" data-label="Sum"><?php echo isset($ticket['sum']) ? $ticket['sum'] : '-'; ?></td>
+                                                <td class="text-center" data-label="Digit Sum"><?php echo isset($ticket['digit_sum']) ? $ticket['digit_sum'] : '-'; ?></td>
+                                                <td class="text-center" data-label="Repeats"><?php echo isset($ticket['repeaters']) ? $ticket['repeaters'] : '-'; ?></td>
+                                                <td class="text-center" data-label="Consecutives"><?php echo isset($ticket['consecutives']) ? $ticket['consecutives'] : '-'; ?></td>
+                                                <td class="text-center" data-label="Odd"><?php echo isset($ticket['odd']) ? $ticket['odd'] : '-'; ?></td>
+                                                <td class="text-center" data-label="Even"><?php echo isset($ticket['even']) ? $ticket['even'] : '-'; ?></td>
+                                                <td class="text-center" data-label="Decade"><?php echo isset($ticket['decade']) ? $ticket['decade'] : '-'; ?></td>
+                                                <td class="text-center" data-label="Last"><?php echo isset($ticket['last']) ? $ticket['last'] : '-'; ?></td>
+                                                <td class="text-center" data-label="Range"><?php echo isset($ticket['range']) ? $ticket['range'] : '-'; ?></td>
+                                                <td class="text-center check-results" data-label="Check Results">
                                                     <?php if(isset($display_mode) && $display_mode == 'tbd'): ?>
                                                         <?php if ($filter->active == 0): ?>
                                                             <span class="check-result-out-of-date" style="background-color: #ff0000; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;">Draw is Out of Date</span>
@@ -922,16 +940,22 @@
     display: inline-block;
     background-color: #f8f9fa;
     color: #333;
-    padding: 4px 10px;
-    margin: 2px;
-    border-radius: 6px;
-    min-width: 30px;
+    padding: 3px 7px;
+    margin: 1px;
+    border-radius: 4px;
+    min-width: 29px;
     text-align: center;
     font-weight: bold;
     border: 2px solid #dee2e6;
-    font-size: 14px;
+    font-size: 13px;
     transition: all 0.3s ease;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.combination-numbers {
+    white-space: nowrap;
+    font-size: 13px;
+    line-height: 1.5;
 }
 
 .winning-number {
@@ -1111,10 +1135,15 @@ tr:has(.result-bonus-win) {
     }
     
     .combination-number {
-        min-width: 25px;
-        padding: 3px 7px;
+        min-width: 26px;
+        padding: 3px 6px;
         font-size: 12px;
         margin: 1px;
+    }
+    
+    .combination-numbers {
+        white-space: normal !important;
+        font-size: 12px;
     }
     
     /* Maintain enhanced styling on mobile */
@@ -1125,11 +1154,107 @@ tr:has(.result-bonus-win) {
     .bonus-number-match {
         transform: scale(1.02) !important;
     }
-}
     
-    .table-responsive {
+    /* Stack table for better mobile viewing */
+    #combinationTicketsTable thead {
+        display: none;
+    }
+    
+    #combinationTicketsTable tbody tr {
+        display: block;
+        margin-bottom: 15px;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        padding: 10px;
+    }
+    
+    #combinationTicketsTable tbody td {
+        display: block;
+        text-align: left !important;
+        padding: 5px;
         border: none;
     }
+    
+    #combinationTicketsTable tbody td:before {
+        content: attr(data-label);
+        font-weight: bold;
+        display: inline-block;
+        width: 120px;
+    }
+}
+
+/* Statistics columns styling */
+#combinationTicketsTable th:nth-child(n+3):nth-child(-n+11) {
+    text-align: center;
+    font-size: 10px;
+    white-space: nowrap;
+    padding: 8px 2px;
+    line-height: 1.2;
+}
+
+#combinationTicketsTable td:nth-child(n+3):nth-child(-n+11) {
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    color: #495057;
+    padding: 8px 2px;
+}
+
+/* Ensure combination column doesn't wrap */
+#combinationTicketsTable td:nth-child(2) {
+    white-space: nowrap;
+    overflow: visible;
+}
+
+#combinationTicketsTable th:nth-child(2) {
+    white-space: nowrap;
+}
+
+/* Table responsive wrapper */
+.table-responsive {
+    border: none;
+    overflow-x: auto !important;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    max-width: 100%;
+    display: block;
+}
+
+/* Ensure table triggers scrollbar */
+.table-responsive::-webkit-scrollbar {
+    height: 12px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+#combinationTicketsTable {
+    min-width: 1250px;
+    table-layout: fixed;
+}
+
+/* Table header styling */
+#combinationTicketsTable thead th {
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#combinationTicketsTable tbody td {
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Custom Check Results Sorting */
@@ -1369,7 +1494,7 @@ $(document).ready(function() {
         tbody.empty();
         
         if (tickets.length === 0) {
-            tbody.append('<tr><td colspan="3" class="text-center"><em>No combination tickets found.</em></td></tr>');
+            tbody.append('<tr><td colspan="12" class="text-center"><em>No combination tickets found.</em></td></tr>');
             return;
         }
         
@@ -1526,7 +1651,19 @@ $(document).ready(function() {
             }
             
             row += '</td>';
-            row += '<td class="text-center check-results">';
+            
+            // Add statistics columns
+            row += '<td class="text-center" data-label="Sum">' + (ticket.sum !== undefined ? ticket.sum : '-') + '</td>';
+            row += '<td class="text-center" data-label="Digit Sum">' + (ticket.digit_sum !== undefined ? ticket.digit_sum : '-') + '</td>';
+            row += '<td class="text-center" data-label="Repeats">' + (ticket.repeaters !== undefined ? ticket.repeaters : '-') + '</td>';
+            row += '<td class="text-center" data-label="Consecutives">' + (ticket.consecutives !== undefined ? ticket.consecutives : '-') + '</td>';
+            row += '<td class="text-center" data-label="Odd">' + (ticket.odd !== undefined ? ticket.odd : '-') + '</td>';
+            row += '<td class="text-center" data-label="Even">' + (ticket.even !== undefined ? ticket.even : '-') + '</td>';
+            row += '<td class="text-center" data-label="Decade">' + (ticket.decade !== undefined ? ticket.decade : '-') + '</td>';
+            row += '<td class="text-center" data-label="Last">' + (ticket.last !== undefined ? ticket.last : '-') + '</td>';
+            row += '<td class="text-center" data-label="Range">' + (ticket.range !== undefined ? ticket.range : '-') + '</td>';
+            
+            row += '<td class="text-center check-results" data-label="Check Results">';
             
             // Check for TBD display mode
             if (response.display_mode === 'tbd') {

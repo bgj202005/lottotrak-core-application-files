@@ -1517,6 +1517,10 @@ class Prize extends Admin_Controller
                         $ticket_data['extra_ball'] = $numbers[$expected_picks]; // Last number is the extra ball
                     }
                     
+                    // Calculate ticket statistics
+                    $statistics = $this->calculate_ticket_statistics($numbers, $filter->lottery_id, $filter);
+                    $ticket_data = array_merge($ticket_data, $statistics);
+                    
                     $tickets[] = $ticket_data;
                     $returned_tickets++;
                     $valid_line_count++; // Only increment AFTER adding ticket to avoid double counting
@@ -2691,6 +2695,132 @@ class Prize extends Admin_Controller
         
         return array(
             'range' => $lottery ? (int)$lottery->range : 49
+        );
+    }
+    
+    /**
+     * Calculate ticket statistics (Sum, Digit Sum, Repeaters, Consecutives, Odd, Even, Decade, Last, Range)
+     * 
+     * @param array $numbers The ticket numbers
+     * @param int $lottery_id The lottery ID for specific calculations
+     * @param object $filter The filter object containing lottery configuration
+     * @return array Array of calculated statistics
+     */
+    private function calculate_ticket_statistics($numbers, $lottery_id, $filter)
+    {
+        // Get main numbers (exclude extra ball for independent extra ball lotteries)
+        $is_independent_extra_ball = (!empty($filter->duplicate_extra_ball) && $filter->duplicate_extra_ball == 1);
+        $main_numbers = $numbers;
+        
+        if ($is_independent_extra_ball && count($numbers) > $filter->balls_drawn) {
+            // Last number is the extra ball, exclude it from statistics
+            $main_numbers = array_slice($numbers, 0, $filter->balls_drawn);
+        }
+        
+        // 1. Sum (Winning Sum)
+        $sum = array_sum($main_numbers);
+        
+        // 2. Digit Sum
+        $digit_sum = array_sum(array_map(function($num) {
+            return array_sum(str_split($num));
+        }, $main_numbers));
+        
+        // 3. Odd/Even count
+        $odd_count = 0;
+        $even_count = 0;
+        foreach ($main_numbers as $num) {
+            if ($num % 2 == 0) {
+                $even_count++;
+            } else {
+                $odd_count++;
+            }
+        }
+        
+        // 4. Consecutives
+        $sorted_numbers = $main_numbers;
+        sort($sorted_numbers);
+        $consecutive_count = 0;
+        for ($i = 0; $i < count($sorted_numbers) - 1; $i++) {
+            if ($sorted_numbers[$i + 1] - $sorted_numbers[$i] == 1) {
+                $consecutive_count++;
+            }
+        }
+        
+        // 5. Decades (count of unique decades represented)
+        $decades = array();
+        foreach ($main_numbers as $num) {
+            $decade = floor($num / 10);
+            $decades[$decade] = true;
+        }
+        $decade_count = count($decades);
+        
+        // 6. Last Digits (count of unique last digits)
+        $last_digits = array();
+        foreach ($main_numbers as $num) {
+            $last_digit = $num % 10;
+            $last_digits[$last_digit] = true;
+        }
+        $last_digit_count = count($last_digits);
+        
+        // 7. Range
+        $range = max($main_numbers) - min($main_numbers);
+        
+        // 8. Repeaters (requires last draw information)
+        $repeater_count = 0;
+        if (!empty($filter->lottery_id)) {
+            // Get last draw
+            $this->db->select('*');
+            $this->db->from('lottery_profiles');
+            $this->db->where('id', $filter->lottery_id);
+            $lottery = $this->db->get()->row();
+            
+            if ($lottery && isset($lottery->lottery_name)) {
+                // Load the Lotteries model to convert lottery name to table name
+                if (!isset($this->lotteries_m)) {
+                    $this->load->model('Lotteries_m', 'lotteries_m');
+                }
+                $table_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+                
+                if ($table_name) {
+                    $last_draw_numbers = array();
+                    
+                    // Get the most recent draw
+                    $this->db->select('*');
+                    $this->db->from($table_name);
+                    $this->db->order_by('draw_date', 'DESC');
+                    $this->db->limit(1);
+                    $last_draw = $this->db->get()->row();
+                    
+                    if ($last_draw) {
+                        // Extract numbers from last draw
+                        for ($i = 1; $i <= $filter->balls_drawn; $i++) {
+                            $ball_field = 'ball' . $i;
+                            if (property_exists($last_draw, $ball_field)) {
+                                $last_draw_numbers[] = (int)$last_draw->$ball_field;
+                            }
+                        }
+                        
+                        // Count repeaters (numbers that appear in both current combo and last draw)
+                        foreach ($main_numbers as $num) {
+                            if (in_array($num, $last_draw_numbers)) {
+                                $repeater_count++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return array(
+            'sum' => $sum,
+            'digit_sum' => $digit_sum,
+            'repeaters' => $repeater_count,
+            'consecutives' => $consecutive_count,
+            'odd' => $odd_count,
+            'even' => $even_count,
+            'decade' => $decade_count,
+            'last' => $last_digit_count,
+            'range' => $range
         );
     }
     
