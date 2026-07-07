@@ -2746,21 +2746,27 @@ class Prize extends Admin_Controller
             }
         }
         
-        // 5. Decades (count of unique decades represented)
+        // 5. Decades (maximum count of numbers in the same decade)
         $decades = array();
         foreach ($main_numbers as $num) {
             $decade = floor($num / 10);
-            $decades[$decade] = true;
+            if (!isset($decades[$decade])) {
+                $decades[$decade] = 0;
+            }
+            $decades[$decade]++;
         }
-        $decade_count = count($decades);
+        $decade_count = empty($decades) ? 0 : max($decades);
         
-        // 6. Last Digits (count of unique last digits)
+        // 6. Last Digits (maximum count of numbers with the same last digit)
         $last_digits = array();
         foreach ($main_numbers as $num) {
             $last_digit = $num % 10;
-            $last_digits[$last_digit] = true;
+            if (!isset($last_digits[$last_digit])) {
+                $last_digits[$last_digit] = 0;
+            }
+            $last_digits[$last_digit]++;
         }
-        $last_digit_count = count($last_digits);
+        $last_digit_count = empty($last_digits) ? 0 : max($last_digits);
         
         // 7. Range
         $range = max($main_numbers) - min($main_numbers);
