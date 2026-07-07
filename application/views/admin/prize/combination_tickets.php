@@ -978,6 +978,30 @@
     font-weight: 900 !important;
 }
 
+/* More specific selectors for predicted numbers section */
+.predicted-numbers-display .combination-number.winning-number,
+.predicted-numbers-list .combination-number.winning-number {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+    color: white !important;
+    border-color: #20c997 !important;
+    box-shadow: 0 3px 8px rgba(40, 167, 69, 0.4) !important;
+    transform: scale(1.05) !important;
+    animation: winningPulse 2s infinite !important;
+    font-weight: 900 !important;
+}
+
+.predicted-numbers-display .combination-number.bonus-number-match,
+.predicted-numbers-list .combination-number.bonus-number-match,
+.extra-predicted-numbers-list .combination-number.bonus-number-match {
+    background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%) !important;
+    color: #000 !important;
+    border-color: #fd7e14 !important;
+    box-shadow: 0 3px 8px rgba(255, 193, 7, 0.4) !important;
+    transform: scale(1.05) !important;
+    animation: bonusPulse 2s infinite !important;
+    font-weight: 900 !important;
+}
+
 /* Enhanced animations for winning numbers */
 @keyframes winningPulse {
     0%, 100% {
@@ -1807,16 +1831,19 @@ $(document).ready(function() {
             return;
         }
         
-        // Check if this is an independent extra ball lottery
-        var isIndependentExtraBall = (response.filter.duplicate_extra_ball && response.filter.extra_balls);
+        // Check if this is an independent extra ball lottery - must be explicitly 1 or true, not just truthy
+        var isIndependentExtraBall = (response.filter.duplicate_extra_ball === 1 || 
+                                      response.filter.duplicate_extra_ball === '1' || 
+                                      response.filter.duplicate_extra_ball === true) && 
+                                     response.filter.extra_balls;
         
         // Parse predicted numbers
         var predictedNumbers = response.filter.numbers.split(',');
         var drawnNumbers = [];
         var bonusNumbers = [];
         
-        // Get drawn numbers if available
-        if (response.draw_info) {
+        // Get drawn numbers if available - collect regardless of display_mode for proper highlighting
+        if (response.draw_info && response.display_mode !== 'tbd') {
             // Collect main drawn numbers
             for (var i = 1; i <= response.filter.N; i++) {
                 var ballField = 'ball' + i;
@@ -1826,11 +1853,20 @@ $(document).ready(function() {
             }
             
             // Collect bonus numbers if they exist (check multiple possible field names)
-            if (response.filter.extra_balls && response.draw_info.extra_ball_included) {
+            // Check extra_ball_included - handle both boolean and numeric (0/1) values
+            var hasExtraBall = response.draw_info.extra_ball_included === true || 
+                              response.draw_info.extra_ball_included === 1 || 
+                              response.draw_info.extra_ball_included === '1';
+            
+            if (hasExtraBall) {
                 var bonusFields = ['extra', 'bonus', 'extra_ball', 'bonus_ball', 'bonus_number'];
                 for (var j = 0; j < bonusFields.length; j++) {
                     var field = bonusFields[j];
-                    if (response.draw_info[field] && response.draw_info[field] != null) {
+                    if (response.draw_info[field] !== undefined && 
+                        response.draw_info[field] !== null && 
+                        response.draw_info[field] !== '' &&
+                        response.draw_info[field] !== 0 &&
+                        response.draw_info[field] !== '0') {
                         bonusNumbers.push(response.draw_info[field].toString());
                         break; // Only get the first bonus number found
                     }
@@ -1850,12 +1886,15 @@ $(document).ready(function() {
             for (var i = 0; i < predictedNumbers.length; i++) {
                 var number = predictedNumbers[i].trim();
                 var className = 'combination-number';
+                var inlineStyle = 'margin-right: 8px;';
                 
-                if (drawnNumbers.indexOf(number) !== -1) {
+                // Apply highlighting if not TBD mode
+                if (response.display_mode !== 'tbd' && drawnNumbers.indexOf(number) !== -1) {
                     className += ' winning-number';
+                    inlineStyle += ' background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border-color: #20c997;';
                 }
                 
-                numbersHtml += '<span class="' + className + '" style="margin-right: 8px;">' + String(number).padStart(2, '0') + '</span>';
+                numbersHtml += '<span class="' + className + '" style="' + inlineStyle + '">' + String(number).padStart(2, '0') + '</span>';
             }
             
             numbersHtml += '</div>';
@@ -1875,14 +1914,17 @@ $(document).ready(function() {
                         
                         for (var k = 0; k < sortedExtraBalls.length; k++) {
                             var occurrence = sortedExtraBalls[k];
-                            var extraNumber = occurrence.value;
+                            var extraNumber = occurrence.value.toString();
                             var extraClassName = 'combination-number';
+                            var extraInlineStyle = 'margin-right: 8px;';
                             
-                            if (bonusNumbers.indexOf(extraNumber.toString()) !== -1) {
+                            // Apply bonus highlighting if not TBD mode
+                            if (response.display_mode !== 'tbd' && bonusNumbers.indexOf(extraNumber) !== -1) {
                                 extraClassName += ' bonus-number-match';
+                                extraInlineStyle += ' background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%); color: #000; border-color: #fd7e14;';
                             }
                             
-                            numbersHtml += '<span class="' + extraClassName + '" style="margin-right: 8px;">' + String(extraNumber).padStart(2, '0') + '</span>';
+                            numbersHtml += '<span class="' + extraClassName + '" style="' + extraInlineStyle + '">' + String(extraNumber).padStart(2, '0') + '</span>';
                         }
                     } else {
                         numbersHtml += '<span style="color: #6c757d; font-style: italic;">All extra numbers included</span>';
@@ -1892,12 +1934,15 @@ $(document).ready(function() {
                     for (var j = 0; j < extraNumbers.length; j++) {
                         var extraNumber = extraNumbers[j].trim();
                         var extraClassName = 'combination-number';
+                        var extraInlineStyle = 'margin-right: 8px;';
                         
-                        if (bonusNumbers.indexOf(extraNumber) !== -1) {
+                        // Apply bonus highlighting if not TBD mode
+                        if (response.display_mode !== 'tbd' && bonusNumbers.indexOf(extraNumber) !== -1) {
                             extraClassName += ' bonus-number-match';
+                            extraInlineStyle += ' background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%); color: #000; border-color: #fd7e14;';
                         }
                         
-                        numbersHtml += '<span class="' + extraClassName + '" style="margin-right: 8px;">' + String(extraNumber).padStart(2, '0') + '</span>';
+                        numbersHtml += '<span class="' + extraClassName + '" style="' + extraInlineStyle + '">' + String(extraNumber).padStart(2, '0') + '</span>';
                     }
                 }
             } else {
@@ -1914,14 +1959,20 @@ $(document).ready(function() {
             for (var i = 0; i < predictedNumbers.length; i++) {
                 var number = predictedNumbers[i].trim();
                 var className = 'combination-number';
+                var inlineStyle = 'margin-right: 8px;';
                 
-                if (drawnNumbers.indexOf(number) !== -1) {
-                    className += ' winning-number';
-                } else if (bonusNumbers.indexOf(number) !== -1) {
-                    className += ' bonus-number-match';
+                // Apply highlighting if not TBD mode
+                if (response.display_mode !== 'tbd') {
+                    if (drawnNumbers.indexOf(number) !== -1) {
+                        className += ' winning-number';
+                        inlineStyle += ' background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border-color: #20c997;';
+                    } else if (bonusNumbers.indexOf(number) !== -1) {
+                        className += ' bonus-number-match';
+                        inlineStyle += ' background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%); color: #000; border-color: #fd7e14;';
+                    }
                 }
                 
-                numbersHtml += '<span class="' + className + '" style="margin-right: 8px;">' + String(number).padStart(2, '0') + '</span>';
+                numbersHtml += '<span class="' + className + '" style="' + inlineStyle + '">' + String(number).padStart(2, '0') + '</span>';
             }
             
             numbersHtml += '</div>';
