@@ -3118,9 +3118,10 @@ class Predictions extends Admin_Controller {
 		}
 		$current_user_id = $this->session->userdata('id');
 		$formatted_user_id = str_pad($current_user_id, 2, '0', STR_PAD_LEFT);
-		// Create filename: 060828ADMIN01 format (MMDDYY + ADMIN + user_id)
-		//$current_date = date('mdy'); // Get current date in MMDDYY format
-		$file_name = $combination_file . 'ADMIN' . $formatted_user_id;
+		$formatted_lottery_id = str_pad($id, 3, '0', STR_PAD_LEFT);
+		// Create filename: 060828L001ADMIN01 format (RRNNCCCC + L + lottery_id + ADMIN + user_id)
+		// This ensures each lottery has unique filenames even when using the same combination file
+		$file_name = $combination_file . 'L' . $formatted_lottery_id . 'ADMIN' . $formatted_user_id;
 		// Get N from the 2 digits of the combination file name instead of the database
 		$N = substr($combination_file, 2, 2); // eg 060828 is R = 06, N = 8 and 28 is the number of ticket combinations
 		$R = $this->data['lottery']->balls_drawn; // Pick number from lottery data (Pick 5, Pick 6, etc.)
@@ -3361,11 +3362,12 @@ class Predictions extends Admin_Controller {
 					$sample_lines = array_slice($file_lines, 0, min(3, $actual_saved_count));
 				}
 			} else {
-				// File was not created
-			}
-			
-			if ($success) {
-				$message = 'Combination Ticket File ' . preg_replace('/ADMIN.*/', '', $file_name) . ' is Successfully Saved to the combinations/pick' . $R . ' Directory.';
+			// File was not created
+		}
+		
+		if ($success) {
+			// Remove L###ADMIN## suffix for display message
+			$message = 'Combination Ticket File ' . preg_replace('/(L\d{3})?ADMIN.*/', '', $file_name) . ' is Successfully Saved to the combinations/pick' . $R . ' Directory.';
 				if ($is_ajax) {
 					// Clean output buffer and send clean JSON
 					ob_clean();
@@ -4466,12 +4468,13 @@ class Predictions extends Admin_Controller {
 			if ($file_exists_before) {
 				$file_deleted = unlink($full_file_path);
 				if (!$file_deleted) {
-					log_message('error', 'Failed to delete combination file: ' . $full_file_path);
-				}
+				log_message('error', 'Failed to delete combination file: ' . $full_file_path);
 			}
-			
-			// Set detailed success message
-			$message = 'Combination Table previously saved settings for "' . preg_replace('/ADMIN.*/', '', $combination_filter->file_name) . '" have been successfully deleted from the database';
+		}
+		
+		// Set detailed success message
+		// Remove L###ADMIN## suffix for display message
+		$message = 'Combination Table previously saved settings for "' . preg_replace('/(L\d{3})?ADMIN.*/', '', $combination_filter->file_name) . '" have been successfully deleted from the database';
 			if ($file_exists_before) {
 				if ($file_deleted) {
 					$message .= ' and the associated text file has been removed from the pick' . $lottery->balls_drawn . ' directory';
@@ -4546,57 +4549,72 @@ class Predictions extends Admin_Controller {
 					redirect('admin/predictions/futures/' . $lottery_id);
 					return;
 				}
-			} else {
-				$this->session->set_flashdata('error_message', 'Invalid filename format. Expected filename with ADMIN suffix. Received: ' . $file_name);
-				redirect('admin/predictions/futures/' . $lottery_id);
-				return;
-			}
-			
-			// Extract base file name for pattern matching
-			$base_file_name = preg_replace('/ADMIN\d+/', '', $file_name);
-			$base_file_name = str_replace('.txt', '', $base_file_name);
-			
-			// Get lottery details
-			$this->db->select('lottery_name, balls_drawn');
-			$this->db->from('lottery_profiles');
-			$this->db->where('id', $lottery_id);
-			$lottery = $this->db->get()->row();
-			
-			if (!$lottery) {
-				$this->session->set_flashdata('error_message', 'Lottery not found.');
-				redirect('admin/predictions');
-				return;
-			}
-			
-			// Get all records that match the criteria before deletion (for counting and file cleanup)
-			$this->db->select('combo_id, file_name, user_id, CCCC');
-			$this->db->from('lottery_combination_filters');
-			$this->db->where('lottery_id', $lottery_id);
-			$this->db->where('file_name LIKE', $base_file_name . 'ADMIN%'); // Match base filename with ADMIN suffix
-			$this->db->where('user_id', $current_user_id); // Only delete records belonging to current admin
-			$records_to_delete = $this->db->get()->result();
-			
-			if (empty($records_to_delete)) {
-				$this->session->set_flashdata('info_message', 'No saved combination filter records found for this file and admin.');
-				redirect('admin/predictions/futures/' . $lottery_id);
-				return;
-			}
-			
-			// Begin transaction
-			$this->db->trans_start();
-			
-			// Delete all matching records
-			$this->db->where('lottery_id', $lottery_id);
-			$this->db->where('file_name LIKE', $base_file_name . 'ADMIN%');
-			$this->db->where('user_id', $current_user_id);
-			$delete_result = $this->db->delete('lottery_combination_filters');
-			
-			// Complete transaction
-			$this->db->trans_complete();
-			
-			if ($this->db->trans_status() === FALSE || !$delete_result) {
-				throw new Exception('Failed to delete combination filter records from database.');
-			}
+		} else {
+			$this->session->set_flashdata('error_message', 'Invalid filename format. Expected filename with ADMIN suffix. Received: ' . $file_name);
+			redirect('admin/predictions/futures/' . $lottery_id);
+			return;
+		}
+		
+		// Extract base file name for pattern matching
+		// Remove L###ADMIN## suffix (handles both new and legacy formats)
+		$base_file_name = preg_replace('/(L\d{3})?ADMIN\d+/', '', $file_name);
+		$base_file_name = str_replace('.txt', '', $base_file_name);
+		
+		// Build LIKE patterns for database search
+		// New format: 060828L016ADMIN% (includes lottery_id)
+		// Legacy format: 060828ADMIN% (backward compatibility)
+		$formatted_lottery_id = str_pad($lottery_id, 3, '0', STR_PAD_LEFT);
+		$file_name_pattern_new = $base_file_name . 'L' . $formatted_lottery_id . 'ADMIN%';
+		$file_name_pattern_legacy = $base_file_name . 'ADMIN%';
+		
+		// Get lottery details
+		$this->db->select('lottery_name, balls_drawn');
+		$this->db->from('lottery_profiles');
+		$this->db->where('id', $lottery_id);
+		$lottery = $this->db->get()->row();
+		
+		if (!$lottery) {
+			$this->session->set_flashdata('error_message', 'Lottery not found.');
+			redirect('admin/predictions');
+			return;
+		}
+		
+		// Get all records that match the criteria before deletion (for counting and file cleanup)
+		// Search for both new and legacy format patterns
+		$this->db->select('combo_id, file_name, user_id, CCCC');
+		$this->db->from('lottery_combination_filters');
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->where('user_id', $current_user_id); // Only delete records belonging to current admin
+		$this->db->group_start();
+		$this->db->where("file_name LIKE '{$file_name_pattern_new}'", NULL, FALSE);
+		$this->db->or_where("file_name LIKE '{$file_name_pattern_legacy}'", NULL, FALSE);
+		$this->db->group_end();
+		$records_to_delete = $this->db->get()->result();
+		
+		if (empty($records_to_delete)) {
+			$this->session->set_flashdata('info_message', 'No saved combination filter records found for this file and admin.');
+			redirect('admin/predictions/futures/' . $lottery_id);
+			return;
+		}
+		
+		// Begin transaction
+		$this->db->trans_start();
+		
+		// Delete all matching records (both new and legacy formats)
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->where('user_id', $current_user_id);
+		$this->db->group_start();
+		$this->db->where("file_name LIKE '{$file_name_pattern_new}'", NULL, FALSE);
+		$this->db->or_where("file_name LIKE '{$file_name_pattern_legacy}'", NULL, FALSE);
+		$this->db->group_end();
+		$delete_result = $this->db->delete('lottery_combination_filters');
+		
+		// Complete transaction
+		$this->db->trans_complete();
+		
+		if ($this->db->trans_status() === FALSE || !$delete_result) {
+			throw new Exception('Failed to delete combination filter records from database.');
+		}
 			
 			// Clean up associated files
 			$directory = FCPATH . 'combinations/pick' . $lottery->balls_drawn . '/';

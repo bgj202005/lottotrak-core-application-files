@@ -118,7 +118,8 @@ class Prize_m extends MY_Model
             $record->actual_filtered_count = $this->calculate_actual_filtered_count($record);
             
             // Format saved filename using original filename to avoid duplication
-            $record->saved_filename = $record->original_filename . 'ADMIN' . sprintf('%02d', $admin_id);
+            // Include lottery_id to differentiate between lotteries using the same combination file
+            $record->saved_filename = $record->original_filename . 'L' . sprintf('%03d', $record->lottery_id) . 'ADMIN' . sprintf('%02d', $admin_id);
         }
         
         // Apply PHP sorting for actual_filtered_count if needed

@@ -1282,15 +1282,16 @@ class Combination_filters_m extends MY_Model
     }
 
     /**
-     * Extract original filename by removing ADMIN## suffix
+     * Extract original filename by removing L###ADMIN## suffix
      * 
-     * @param string $filename The filename with ADMIN suffix (e.g., "0612924ADMIN01")
+     * @param string $filename The filename with lottery and ADMIN suffix (e.g., "0612924L001ADMIN01")
      * @return string The original filename (e.g., "0612924")
      */
     public function extract_original_filename($filename)
     {
-        // Remove ADMIN## pattern from the end of filename
-        $pattern = '/ADMIN\d+$/';
+        // Remove L###ADMIN## pattern from the end of filename
+        // Handles both new format (L###ADMIN##) and legacy format (ADMIN##)
+        $pattern = '/(L\d{3})?ADMIN\d+$/';
         return preg_replace($pattern, '', $filename);
     }
 

@@ -224,10 +224,13 @@ class Lottery_data_m extends MY_Model
                 if (strpos($file_name, 'ADMIN') === false) {
                     return null; // File doesn't contain ADMIN keyword
                 }
-                // Extract user ID from end of filename (e.g., 0612924ADMIN01 -> 01)
-                $admin_id = (int)substr($file_name, -2, 2);
+                // Extract user ID from end of filename
+                // Handles both new format (e.g., 0612924L001ADMIN01 -> 01) and legacy format (0612924ADMIN01 -> 01)
+                preg_match('/(L\d{3})?ADMIN(\d{2})$/', $file_name, $matches);
+                $admin_id = isset($matches[2]) ? (int)$matches[2] : null;
+                
                 // Check if the user IDs match
-                if ($user_id !== $admin_id) {
+                if ($admin_id === null || $user_id !== $admin_id) {
                     return null; // User doesn't own this filter
                 }
             }
@@ -373,14 +376,16 @@ class Lottery_data_m extends MY_Model
         if ($query->num_rows() > 0) {
             $results = $query->result_array();
             
-            // Process each result to truncate the filename (remove ADMIN and user ID)
+            // Process each result to truncate the filename (remove L### and ADMIN with user ID)
             foreach ($results as &$result) {
                 $file_name = $result['file_name'];
                 
-                // Find the ADMIN position and truncate everything from ADMIN onwards
-                $admin_pos = strpos($file_name, 'ADMIN');
-                if ($admin_pos !== false) {
-                    $result['display_filename'] = substr($file_name, 0, $admin_pos);
+                // Find the L### position (new format) or ADMIN position (legacy format) and truncate
+                // New format: 060828L001ADMIN01 -> 060828
+                // Legacy format: 060828ADMIN01 -> 060828
+                if (preg_match('/(L\d{3})?ADMIN/', $file_name, $matches, PREG_OFFSET_CAPTURE)) {
+                    $truncate_pos = $matches[0][1];
+                    $result['display_filename'] = substr($file_name, 0, $truncate_pos);
                 } else {
                     $result['display_filename'] = $file_name; // Fallback if no ADMIN found
                 }

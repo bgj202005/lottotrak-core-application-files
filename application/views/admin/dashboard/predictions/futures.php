@@ -2015,7 +2015,8 @@
 			// Check if we have the required data
 			if (comboId && fileName) {
 				// Use the same confirmation message as the trash can icon
-				if (confirm('You are about to delete the Combination Ticket file: ' + fileName.replace(/ADMIN.*/, '') + '. Do You want to Continue? (Y/N)')) {
+				// Remove L###ADMIN## suffix for display (handles both new and legacy formats)
+				if (confirm('You are about to delete the Combination Ticket file: ' + fileName.replace(/(L\d{3})?ADMIN.*/, '') + '. Do You want to Continue? (Y/N)')) {
 					window.location.href = '<?= base_url() ?>admin/predictions/delete_combo/' + comboId;
 				}
 			} else {
@@ -2246,7 +2247,8 @@
     }
     
     function deleteFilter(comboId, fileName) {
-        if (confirm('You are about to delete the Combination Ticket file: ' + fileName.replace(/ADMIN.*/, '') + '. This will REMOVE ALL winning data. Do You want to Continue? (Y/N)')) {
+        // Remove L###ADMIN## suffix for display (handles both new and legacy formats)
+        if (confirm('You are about to delete the Combination Ticket file: ' + fileName.replace(/(L\d{3})?ADMIN.*/, '') + '. This will REMOVE ALL winning data. Do You want to Continue? (Y/N)')) {
             // Future implementation for delete functionality
              window.location.href = '<?= base_url() ?>admin/predictions/delete_combo/' + comboId;
         }
@@ -2254,7 +2256,8 @@
     
     // Enhanced deletion function for combination file filters
     function deleteCombinationFileFilters(lotteryId, fullFileName, adminId) {
-        const baseFileName = fullFileName.replace(/ADMIN.*/, '').replace(/\.txt$/, '');
+        // Remove L###ADMIN## suffix and .txt extension (handles both new and legacy formats)
+        const baseFileName = fullFileName.replace(/(L\d{3})?ADMIN.*/, '').replace(/\.txt$/, '');
         
         if (confirm('You are about to delete ALL combination filter records for file: "' + baseFileName + '".\n\n' +
                    'This will remove:\n' +
