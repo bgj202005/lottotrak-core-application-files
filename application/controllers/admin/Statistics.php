@@ -1926,6 +1926,9 @@ class Statistics extends Admin_Controller {
 						$new_range, $w_start, $c_start, $blnduplicate
 					);
 					
+					// Reload last_drawn to get the updated h_w_c value from database
+					$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);
+					
 					// Calculate H-W-C win statistics when recalculation occurs
 					// Calculate counts from the actual hot/warm/cold arrays, not from non-existent properties
 					$hot_count = count(explode(',', $strhots));
@@ -2020,6 +2023,9 @@ class Statistics extends Admin_Controller {
 				$new_range, $w_start, $c_start, $blnduplicate
 			);
 			
+			// Reload last_drawn to get the updated h_w_c value from database
+			$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);
+			
 			// Calculate H-W-C win statistics for new H-W-C setup
 			// Calculate counts from the actual hot/warm/cold arrays, not from non-existent properties
 			$hot_count = count(explode(',', $strhots));
@@ -2095,7 +2101,7 @@ class Statistics extends Admin_Controller {
 			if(empty($hwc_history['draw_id_last'])) $hwc_history['draw_id_last']=$this->data['lottery']->last_drawn['id']; // Last Draw ID
 			$hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  				// Remove the last comma
 			$hwc_history['h_w_c_last_10'] = substr($hwc_history['h_w_c_last_10'], 0, -1);
-			$this->data['lottery']->last_hwc = $hwc_history['h_w_c_last_1'];
+			$this->data['lottery']->last_hwc = $this->data['lottery']->last_drawn['h_w_c'];
 			// Iterate Top H - W - C's from Range
 			$hwc_totals = explode(',',$hwc_history['h_w_c_range']);							
 			foreach($hwc_totals as $heat)
@@ -2148,7 +2154,7 @@ class Statistics extends Admin_Controller {
 				$hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  				// Remove the last comma
 				$hwc_history['h_w_c_last_10'] = substr($hwc_history['h_w_c_last_10'], 0, -1);
 			}
-			$this->data['lottery']->last_hwc = $hwc_history['h_w_c_last_1'];
+			$this->data['lottery']->last_hwc = $this->data['lottery']->last_drawn['h_w_c'];
 			$hwc_totals = explode(',',$hwc_history['h_w_c_range']); 		// Strip off the h-w-c to the right of the ','
 			foreach($hwc_totals as $heat)
 			{
@@ -3020,6 +3026,9 @@ class Statistics extends Admin_Controller {
 	 $_pd_xtra_drws = (!is_null($h_w_c) ? $h_w_c['extra_draws']    : (isset($lotto->extra_draws)    ? $lotto->extra_draws    : 0));
 	 $this->statistics_m->hwc_store_draw_patterns(
 	 	$tbl, $drawn, $_pd_xtra_inc, $_pd_xtra_drws, $new_range, $w_start, $c_start, $blnduplicate);
+	 
+	 // Reload last_drawn to get the updated h_w_c value from database
+	 $lotto->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl);
 
 	 if (!$skip_history) { // history section - skipped when called from calculate() for performance
 	 if (!$hwc_history) // Problem with calculating H-W-C's over range
@@ -3030,7 +3039,7 @@ class Statistics extends Admin_Controller {
 	 //if($hwc_history['position']!=$pos_last) $hwc_history['position_last']=$pos_last; 
 	 $hwc_history['h_w_c_range'] = substr($hwc_history['h_w_c_range'], 0, -1);  				// Remove the last comma
 	 $hwc_history['h_w_c_last_10'] = substr($hwc_history['h_w_c_last_10'], 0, -1);
-	 $this->data['lottery']->last_hwc = $hwc_history['h_w_c_last_1'];
+	 $this->data['lottery']->last_hwc = $lotto->last_drawn['h_w_c'];
 	$hwc_totals = explode(',',$hwc_history['h_w_c_range']); 		// Strip off the h-w-c to the right of the ','
 	foreach($hwc_totals as $heat)
 	{
