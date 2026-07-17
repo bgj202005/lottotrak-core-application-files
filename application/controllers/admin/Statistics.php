@@ -1937,6 +1937,33 @@ class Statistics extends Admin_Controller {
 					$this->calculate_hwc_wins($id, $new_range, $this->data['lottery']->prediction_pool, 
 						$hot_count, $warm_count, $cold_count,
 						$this->data['lottery']->extra_included, $this->data['lottery']->extra_draws);
+					
+					// Regenerate predictions after range change
+					$this->load->model('Predictions_m', 'predictions_m');
+					$h_w_c_after = $this->statistics_m->h_w_c_exists($id);
+					if(!is_null($h_w_c_after)) {
+						$stored_option  = isset($h_w_c_after['hwc_option'])  ? (int)$h_w_c_after['hwc_option']  : 1;
+						$stored_select  = isset($h_w_c_after['hwc_select'])  ? (int)$h_w_c_after['hwc_select']  : 1;
+						$pool_size      = isset($h_w_c_after['prediction_pool']) ? (int)$h_w_c_after['prediction_pool'] : 18;
+						$h_w_c_groups   = $this->predictions_m->get_h_w_c_range_with_rank($id);
+						$group_patterns = array_keys($h_w_c_groups);
+						if(!empty($group_patterns)) {
+							if($stored_option === 2) {
+								$idx = $stored_select - 1;
+								$pattern = isset($group_patterns[$idx]) ? $group_patterns[$idx] : $group_patterns[0];
+							} else {
+								$pattern = $group_patterns[0]; // Top ranked
+							}
+							// Generate predictions for the NEXT draw from current H-W-C data
+							$generated = $this->predictions_m->hwc_only($id, $pool_size, $pattern);
+							if($generated) {
+								$_r_opt_lbl  = ($stored_option === 2) ? 'Manual Selected' : 'Top Ranked';
+								$_r_disp_lbl = isset($h_w_c_groups[$pattern]) ? $h_w_c_groups[$pattern] : $pattern;
+								$generated_encoded = $_r_opt_lbl . ' — ' . $_r_disp_lbl . '|' . $generated;
+								$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated_encoded, null);
+							}
+						}
+					}
 				}
 				else  
 				{
@@ -2255,6 +2282,12 @@ class Statistics extends Admin_Controller {
 		$examine_date = $this->statistics_m->lottery_return_date($table, $range+1, $xtra); 	// Please note: This an off by 1 error. It has to go +1 draw back 
 		if(!$examine_date) return false;													// to iterate for the given range
 		
+		// Get the actual draw ID for this date to properly track position in iteration
+		$where_extra = (!$xtra ? ' AND extra <> "0"' : '');
+		$query = $this->db->query('SELECT id FROM '.$table.' WHERE draw_date = "'.$examine_date.'"'.$where_extra.' ORDER BY draw_date DESC, id DESC LIMIT 1');
+		$start_row = $query->row();
+		$examine_id = $start_row->id;
+		
 		$heats = explode(",",$this->statistics_m->hwc_heats[$picks]); 						// break the heat h-w-c in an array
 		$heats = array_flip($heats);								  						// reverse the values as associative keys
 		foreach($heats as $level => $value)
@@ -2291,8 +2324,11 @@ class Statistics extends Admin_Controller {
 				array_push($lows, $c[0]);
 			}
 			
-			// NOW get the next draw AFTER the H-W-C calculation date
-			$fd = $this->statistics_m->hwc_next_draw($table, $examine_date); // return the full with draw date, ball 1 ... ball n + extra
+			// NOW get the next draw AFTER the current draw ID (not just date)
+			$where_extra = (!$xtra ? ' AND extra <> "0"' : '');
+			$query = $this->db->query('SELECT * FROM '.$table.' WHERE id > '.$examine_id.$where_extra.' ORDER BY id ASC LIMIT 1');
+			$fd = $query->row_array();
+			
 			if($fd)	// next draw returned?
 			{
 				$next_drawn = $this->statistics_m->only_picks($picks, $fd);
@@ -2303,6 +2339,7 @@ class Statistics extends Admin_Controller {
 				$c_pos = $this->statistics_m->positions($next_drawn,$lows,$c_pos,$bn,$xtra,$dup); 		// Pass the hot positional value array, compare the current drawn numbers with the average numbers 
 				
 				$examine_date = $fd['draw_date'];	// Move to next date for next iteration
+				$examine_id = $fd['id'];			// Move to next ID for next iteration
 			}
 			else
 			{
@@ -2311,12 +2348,15 @@ class Statistics extends Admin_Controller {
 			$h = 0; $w = 0; $c = 0;
 			foreach($next_drawn as $temp)
 			{
+				$temp = (string)$temp; // Ensure string comparison for in_array()
 				if(in_array($temp, $highs)) $h++;
 				if(in_array($temp, $averages)) $w++;
 				if(in_array($temp, $lows)) $c++;
 			}
 			$lvl = (string)$h.'-'.$w.'-'.$c;
-			if(array_key_exists($lvl, $heats)) $heats[$lvl]++; 
+			if(array_key_exists($lvl, $heats)) {
+				$heats[$lvl]++;
+			}
 			$row++;
 		} 
 		while($row<=$range);
@@ -2330,6 +2370,13 @@ class Statistics extends Admin_Controller {
 		// next, do the last 10 draws
 		$examine_date = $this->statistics_m->lottery_return_date($table, 11, $xtra);	// Please note: This an off by 1 error. It has to go 11 draws 
 		if(!$examine_date) return false;												// back to interate for 10 draws.
+		
+		// Get the actual draw ID for this date to properly track position in iteration
+		$where_extra = (!$xtra ? ' AND extra <> "0"' : '');
+		$query = $this->db->query('SELECT id FROM '.$table.' WHERE draw_date = "'.$examine_date.'"'.$where_extra.' ORDER BY draw_date DESC, id DESC LIMIT 1');
+		$start_row = $query->row();
+		$examine_id = $start_row->id;
+		
 		foreach($heats as $level => $value)
 		{
 			$heats[$level] = 0;		// Will be used as counters and zero out the values
@@ -2338,7 +2385,7 @@ class Statistics extends Admin_Controller {
 		do
 		{
 			// Calculate H-W-C BEFORE getting the next draw
-			$str_h_w_c = $this->statistics_m->h_w_c_calculate($table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $examine_date);
+			$str_h_w_c = $this->statistics_m->h_w_c_calculate($table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $examine_date, $dup);
 			$str_hots = $this->statistics_m->hots($str_h_w_c);
 			$str_warms = $this->statistics_m->warms($str_h_w_c);
 			$str_colds = $this->statistics_m->colds($str_h_w_c);
@@ -2364,12 +2411,16 @@ class Statistics extends Admin_Controller {
 				array_push($lows, $c[0]);
 			}
 			
-			// NOW get the next draw AFTER the H-W-C calculation
-			$fd = $this->statistics_m->hwc_next_draw($table, $examine_date); // return the full with draw date, ball 1 ... ball n + extra
+			// NOW get the next draw AFTER the current draw ID (not just date)
+			$where_extra = (!$xtra ? ' AND extra <> "0"' : '');
+			$query = $this->db->query('SELECT * FROM '.$table.' WHERE id > '.$examine_id.$where_extra.' ORDER BY id ASC LIMIT 1');
+			$fd = $query->row_array();
+			
 			if($fd)	// next draw returned?
 			{
 				$next_drawn = $this->statistics_m->only_picks($picks, $fd);
 				$examine_date = $fd['draw_date'];	// Move to next date for next iteration
+				$examine_id = $fd['id'];			// Move to next ID for next iteration
 			}
 			else
 			{
@@ -2378,6 +2429,7 @@ class Statistics extends Admin_Controller {
 			$h = 0; $w = 0; $c = 0;
 			foreach($next_drawn as $temp)
 			{
+				$temp = (string)$temp; // Ensure string comparison for in_array()
 				if(in_array($temp, $highs)) $h++;
 				if(in_array($temp, $averages)) $w++;
 				if(in_array($temp, $lows)) $c++;
