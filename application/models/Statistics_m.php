@@ -619,7 +619,9 @@ class Statistics_m extends MY_Model
 		$sum = 0;
 		do
 		{
-			$sum = $sum + intval($row_last['ball'.$b]);	
+			if(array_key_exists('ball'.$b, $row_last)) {
+				$sum = $sum + intval($row_last['ball'.$b]);
+			}
 			$b++;	
 		} 
 		while($b<=$drawn);
@@ -647,8 +649,12 @@ class Statistics_m extends MY_Model
 		$current = array();
 		$previous = array();
 		do {
-			$current['ball'.$b] = $row_last['ball'.$b];
-			$previous['ball'.$b] = $row_previous['ball'.$b];
+			if(array_key_exists('ball'.$b, $row_last)) {
+				$current['ball'.$b] = $row_last['ball'.$b];
+			}
+			if(array_key_exists('ball'.$b, $row_previous)) {
+				$previous['ball'.$b] = $row_previous['ball'.$b];
+			}
 			$b++;
 		} while($b<=$drawn);
 		$duplicates = array_intersect($current, $previous); // Compare for the simularites
@@ -699,13 +705,13 @@ class Statistics_m extends MY_Model
 		if (isset($draw))
 		{
 			$s = $draw->ball1.' '.$draw->ball2.' '.$draw->ball3;	// Build the first 3 numbers
-			if($drawn>3) $s .= ' '.$draw->ball4;
-			if($drawn>4) $s .= ' '.$draw->ball5;
-			if($drawn>5) $s .= ' '.$draw->ball6;
-			if($drawn>6) $s .= ' '.$draw->ball7;
-			if($drawn>7) $s .= ' '.$draw->ball8;
-			if($drawn>9) $s .= ' '.$draw->ball9;
-			if($extra) $s .= ' + '.$draw->extra;
+			if($drawn>3 && isset($draw->ball4)) $s .= ' '.$draw->ball4;
+			if($drawn>4 && isset($draw->ball5)) $s .= ' '.$draw->ball5;
+			if($drawn>5 && isset($draw->ball6)) $s .= ' '.$draw->ball6;
+			if($drawn>6 && isset($draw->ball7)) $s .= ' '.$draw->ball7;
+			if($drawn>7 && isset($draw->ball8)) $s .= ' '.$draw->ball8;
+			if($drawn>8 && isset($draw->ball9)) $s .= ' '.$draw->ball9;
+			if($extra && isset($draw->extra)) $s .= ' + '.$draw->extra;
 		}
 		else return 'NA';
 	return $s;	// Return Drawn Numbers in 'N1 N2 N3 ... + Extra' Format	

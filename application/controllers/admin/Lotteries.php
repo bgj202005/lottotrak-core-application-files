@@ -756,7 +756,16 @@ class Lotteries extends Admin_Controller {
 		];
 
 		// Retrieve the lottery table name for the database
-		$table = $this->session->userdata('table_name'); 
+		$table = $this->session->userdata('table_name');
+		
+		// CRITICAL: Refresh last_draw from database to ensure we have current state
+		// This prevents issues where session has old data after table truncation
+		$lottery = $this->lotteries_m->get($id);
+		if ($lottery) {
+			$current_last_draw = $this->lotteries_m->last_draw_db($lottery->lottery_name);
+			$this->session->set_userdata('last_draw', $current_last_draw);
+			log_message('info', "Refreshed last_draw from database: " . ($current_last_draw === 'nodraws' ? 'nodraws' : 'has draws'));
+		} 
 		// Enhanced server compatibility headers and settings
 		header('Content-type: text/html; charset=utf-8');
 		header("Cache-Control: no-cache, must-revalidate");
@@ -782,6 +791,15 @@ class Lotteries extends Admin_Controller {
 		
 		if (!empty($this->session->userdata('new_file_name')))
 		{
+			// CRITICAL: Ensure table structure is ready BEFORE any processing
+			// Add h_w_c column if it doesn't exist (must be done before pre-scan)
+			$col_check = $this->db->query("SHOW COLUMNS FROM `{$table}` LIKE 'h_w_c'");
+			if ($col_check->num_rows() === 0)
+			{
+				$this->db->query("ALTER TABLE `{$table}` ADD COLUMN `h_w_c` VARCHAR(20) NULL DEFAULT NULL");
+				log_message('info', "Added h_w_c column to {$table} before import");
+			}
+			
 			// OPTIMIZATION: Pre-scan CSV to identify only records that need importing
 			$file_data = fopen(self::FILE_PATH.$this->session->userdata('new_file_name'), 'r');
 			if (!$file_data) {
@@ -810,7 +828,12 @@ class Lotteries extends Admin_Controller {
     		$firstdate = $this->session->userdata('firstdate');
     		$firstdate_timestamp = strtotime($firstdate);
 			$ld = $this->session->userdata('last_draw');
-			$last_draw_timestamp = (is_object($ld) ? strtotime($ld->draw_date) : 0);
+			// Handle 'nodraws' case or when last_draw is invalid
+			if ($ld === 'nodraws' || $ld === FALSE || !is_object($ld)) {
+				$last_draw_timestamp = 0; // No previous draws, import everything after firstdate
+			} else {
+				$last_draw_timestamp = strtotime($ld->draw_date);
+			}
 			
 			// PHASE 1: Pre-scan CSV to collect only records that need importing
 			$records_to_import = array();
@@ -853,7 +876,16 @@ class Lotteries extends Admin_Controller {
 				}
 				
 				// Quick check if this draw already exists in database
-				$draw_exists = (!$unix_date ? FALSE : $this->lotteries_m->lotto_draw_exists($table, $this->lotteries_m->drawn_only($temp_row), $lottery_props->extra_ball, date('Y-m-d', $unix_date)));
+				$draw_exists = FALSE;
+				if ($unix_date) {
+					try {
+						$draw_exists = $this->lotteries_m->lotto_draw_exists($table, $this->lotteries_m->drawn_only($temp_row), $lottery_props->extra_ball, date('Y-m-d', $unix_date));
+					} catch (Exception $e) {
+						// If error checking existence, assume it doesn't exist and try to import
+						log_message('error', "Error checking draw existence: " . $e->getMessage());
+						$draw_exists = FALSE;
+					}
+				}
 				
 				if ($draw_exists) {
 					$already_imported++;
@@ -870,18 +902,15 @@ class Lotteries extends Admin_Controller {
 			
 			// If no records to process, exit early
 			if (empty($records_to_import)) {
+				log_message('info', "No new records to import for table: {$table}. Total CSV: {$total_csv_records}, Skipped: {$skipped_records}, Already imported: {$already_imported}, Last draw timestamp: {$last_draw_timestamp}, Firstdate timestamp: {$firstdate_timestamp}");
 				echo json_encode(array('exit' => TRUE));
 				return;
 			}
 			
+			log_message('info', "Import process starting for table: {$table}. Records to import: " . count($records_to_import));
+			
 			// PHASE 2: Process only the records that need importing
-
-			// Ensure the h_w_c column exists in the draw table before inserting rows.
-			$col_check = $this->db->query("SHOW COLUMNS FROM `{$table}` LIKE 'h_w_c'");
-			if ($col_check->num_rows() === 0)
-			{
-				$this->db->query("ALTER TABLE `{$table}` ADD COLUMN `h_w_c` VARCHAR(20) NULL DEFAULT NULL");
-			}
+			// Note: h_w_c column already added at the start of this function
 
 			foreach ($records_to_import as $row_index => $row) {
 				$csv_date = (strpos($row[0], '-')) ? explode('-', $row[0]) : explode('/', $row[0]);
@@ -2040,6 +2069,34 @@ class Lotteries extends Admin_Controller {
 	private function clear_historical_prediction_data($lottery_id) {
 		try {
 			$deleted_count = 0;
+			
+			// Get the lottery details to access the table name
+			$lottery = $this->lotteries_m->get($lottery_id);
+			if ($lottery) {
+				$table_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+				
+				// IMPORTANT: Truncate the actual draw data table
+				if ($this->db->table_exists($table_name)) {
+					$this->db->truncate($table_name);
+					log_message('info', "Truncated draw data table: $table_name for lottery_id=$lottery_id");
+					
+					// CRITICAL: Update table structure to match current lottery configuration
+					// This ensures the table has the correct number of ball columns after truncation
+					$this->lotteries_m->update_lotto_table_fields(
+						$table_name, 
+						$lottery->balls_drawn, 
+						$lottery->extra_ball
+					);
+					log_message('info', "Updated table structure for $table_name: {$lottery->balls_drawn} balls, extra_ball={$lottery->extra_ball}");
+					
+					// Update lottery profile to reflect no draws
+					$update_data = array(
+						'lastdate' => NULL
+					);
+					$this->db->where('id', $lottery_id);
+					$this->db->update('lottery_profiles', $update_data);
+				}
+			}
 			
 			// Clear from lottery_followers table
 			$this->db->where('lottery_id', $lottery_id);

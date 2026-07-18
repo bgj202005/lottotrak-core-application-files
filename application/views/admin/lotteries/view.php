@@ -131,13 +131,13 @@
 								<td><?= $draw->ball1; ?></td>
 								<td><?= $draw->ball2; ?></td>
 								<td><?= $draw->ball3; ?></td>
-								<?php if (intval($lottery->balls_drawn)>=4): ?><td><?= $draw->ball4; ?></td><?php endif; ?>
-								<?php if (intval($lottery->balls_drawn)>=5): ?><td><?= $draw->ball5; ?></td><?php endif; ?>
-								<?php if (intval($lottery->balls_drawn)>=6): ?><td><?= $draw->ball6; ?></td><?php endif; ?>
-								<?php if (intval($lottery->balls_drawn)>=7): ?><td><?= $draw->ball7; ?></td><?php endif; ?>
-								<?php if (intval($lottery->balls_drawn)>=8): ?><td><?= $draw->ball8; ?></td><?php endif; ?>
-								<?php if (intval($lottery->balls_drawn)==9): ?><td><?= $draw->ball9; ?></td><?php endif; ?>			
-								<?php if (intval($lottery->extra_ball)==1): ?><td><?= $draw->extra; ?><?php endif; ?></td>
+								<?php if (intval($lottery->balls_drawn)>=4): ?><td><?= isset($draw->ball4) ? $draw->ball4 : ''; ?></td><?php endif; ?>
+								<?php if (intval($lottery->balls_drawn)>=5): ?><td><?= isset($draw->ball5) ? $draw->ball5 : ''; ?></td><?php endif; ?>
+								<?php if (intval($lottery->balls_drawn)>=6): ?><td><?= isset($draw->ball6) ? $draw->ball6 : ''; ?></td><?php endif; ?>
+								<?php if (intval($lottery->balls_drawn)>=7): ?><td><?= isset($draw->ball7) ? $draw->ball7 : ''; ?></td><?php endif; ?>
+								<?php if (intval($lottery->balls_drawn)>=8): ?><td><?= isset($draw->ball8) ? $draw->ball8 : ''; ?></td><?php endif; ?>
+								<?php if (intval($lottery->balls_drawn)==9): ?><td><?= isset($draw->ball9) ? $draw->ball9 : ''; ?></td><?php endif; ?>			
+								<?php if (intval($lottery->extra_ball)==1): ?><td><?= isset($draw->extra) ? $draw->extra : ''; ?><?php endif; ?></td>
 					<?php endif; ?>
 					</tr>
 						<?php  endforeach; ?>

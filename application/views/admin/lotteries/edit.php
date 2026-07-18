@@ -429,28 +429,19 @@
 						{ 
 							echo "<div class='recent-draw-date card-subtitle mb-3 text-dark'>".date('l, M d, Y',strtotime(str_replace('/','-',$lastdraw->draw_date)))."</div>";
 							$c = intval($lottery->balls_drawn);
-							$s = $lastdraw->ball1." ".$lastdraw->ball2." ".$lastdraw->ball3;
-							switch($c)
-							{
-								case 4:
-									$s .= " ".$lastdraw->ball4;
-									break;
-								case 5:
-									$s .= " ".$lastdraw->ball4." ".$lastdraw->ball5;
-									break;
-								case 6:
-									$s .= " ".$lastdraw->ball4." ".$lastdraw->ball5." ".$lastdraw->ball6;
-									break;
-								case 7:
-									$s .= " ".$lastdraw->ball4." ".$lastdraw->ball5." ".$lastdraw->ball6." ".$lastdraw->ball7;
-									break;
-								case 8:
-									$s .= " ".$lastdraw->ball4." ".$lastdraw->ball5." ".$lastdraw->ball6." ".$lastdraw->ball7." ".$lastdraw->ball8;
-									break;
-								case 9:
-									$s .= " ".$lastdraw->ball4." ".$lastdraw->ball5." ".$lastdraw->ball6." ".$lastdraw->ball7." ".$lastdraw->ball8." ".$lastdraw->ball9;
-									break;
-							}				
+							// Build ball string dynamically with isset checks
+							$balls = array();
+							if(isset($lastdraw->ball1)) $balls[] = $lastdraw->ball1;
+							if(isset($lastdraw->ball2)) $balls[] = $lastdraw->ball2;
+							if(isset($lastdraw->ball3)) $balls[] = $lastdraw->ball3;
+							if(isset($lastdraw->ball4)) $balls[] = $lastdraw->ball4;
+							if(isset($lastdraw->ball5)) $balls[] = $lastdraw->ball5;
+							if(isset($lastdraw->ball6)) $balls[] = $lastdraw->ball6;
+							if(isset($lastdraw->ball7)) $balls[] = $lastdraw->ball7;
+							if(isset($lastdraw->ball8)) $balls[] = $lastdraw->ball8;
+							if(isset($lastdraw->ball9)) $balls[] = $lastdraw->ball9;
+							
+							$s = implode(' ', $balls);
 							if (isset($lastdraw->extra)) $s .= " + ".$lastdraw->extra;
 							echo "<div class='recent-draw-numbers card-subtitle mb-2 text-danger'>$s</div>";
 						} ?>

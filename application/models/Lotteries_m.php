@@ -462,6 +462,7 @@ class Lotteries_m extends MY_Model
 		unset($fields['range_draw']);	// Don't Require
 		unset($fields['repeat_decade']);// Don't Require
 		unset($fields['repeat_last']);	// Don't Require
+		unset($fields['h_w_c']);		// Don't count h_w_c column in ball count
 
 		if($extra&&isset($fields['extra'])) unset($fields['extra']);
 		elseif(!$extra&&(isset($fields['extra']))) $this->dbforge->drop_column($lotto_tbl, 'extra');
@@ -477,18 +478,33 @@ class Lotteries_m extends MY_Model
 		$field_count = count($fields);
 		if($balls_drawn!=$field_count)
 		{
-			$last_ball = intval(substr(array_key_last($fields), 4));	// Returns the last key in array, strip the 'ball' prefix (4 chars) and return the numeric suffix as an integer
+			// Ensure we have ball fields to work with
+			if($field_count > 0) {
+				$last_key = array_key_last($fields);
+				// Verify the last key is a ball field before processing
+				if(strpos($last_key, 'ball') === 0) {
+					$last_ball = intval(substr($last_key, 4));	// Returns the last key in array, strip the 'ball' prefix (4 chars) and return the numeric suffix as an integer
+				} else {
+					// If no ball fields found, default to balls_drawn
+					$last_ball = $balls_drawn;
+				}
+			} else {
+				$last_ball = $balls_drawn;
+			}
+			
 			if($balls_drawn<$field_count)	
 			{
 				
 				$ball_diff = $field_count-$balls_drawn;						// Calculate the balls to be removed, whereas, the field count is larger than the balls drawn
-				// We need to drop some columns
+				// We need to drop some columns - but never drop ball0 or negative
 				do
 				{
-					$this->dbforge->drop_column($lotto_tbl, 'ball'.$last_ball);
+					if($last_ball > 0) {  // Safety check to prevent dropping ball0 or negative ball numbers
+						$this->dbforge->drop_column($lotto_tbl, 'ball'.$last_ball);
+					}
 					$last_ball--;
 					$ball_diff--;
-				} while($ball_diff>0);	
+				} while($ball_diff>0 && $last_ball > 0);	
 			}
 			else // $balls_drawn>$field_count
 			{
