@@ -389,7 +389,7 @@
                                     <div class="filter-item">
                                         <strong style="color: #495057;">Trends:</strong>
                                         <span style="color: #212529;">
-                                            <?php echo !empty($filter->trends) ? htmlspecialchars($filter->trends) : 'Not Applied'; ?>
+                                            <?php echo (isset($filter->trends) && $filter->trends !== '') ? htmlspecialchars($filter->trends) : 'Not Applied'; ?>
                                         </span>
                                     </div>
                                     
@@ -397,7 +397,7 @@
                                     <div class="filter-item">
                                         <strong style="color: #495057;">Winning Sums:</strong>
                                         <span style="color: #212529;">
-                                            <?php echo !empty($filter->winning_sums) ? htmlspecialchars($filter->winning_sums) : 'Not Applied'; ?>
+                                            <?php echo (isset($filter->winning_sums) && $filter->winning_sums !== '') ? htmlspecialchars($filter->winning_sums) : 'Not Applied'; ?>
                                         </span>
                                     </div>
                                     
@@ -405,7 +405,7 @@
                                     <div class="filter-item">
                                         <strong style="color: #495057;">Digit Sums:</strong>
                                         <span style="color: #212529;">
-                                            <?php echo !empty($filter->winning_digits) ? htmlspecialchars($filter->winning_digits) : 'Not Applied'; ?>
+                                            <?php echo (isset($filter->winning_digits) && $filter->winning_digits !== '') ? htmlspecialchars($filter->winning_digits) : 'Not Applied'; ?>
                                         </span>
                                     </div>
                                     
@@ -413,7 +413,7 @@
                                     <div class="filter-item">
                                         <strong style="color: #495057;">Repeaters:</strong>
                                         <span style="color: #212529;">
-                                            <?php echo !empty($filter->repeaters) ? htmlspecialchars($filter->repeaters) : 'Not Applied'; ?>
+                                            <?php echo (isset($filter->repeaters) && $filter->repeaters !== '') ? htmlspecialchars($filter->repeaters) : 'Not Applied'; ?>
                                         </span>
                                     </div>
                                     
@@ -421,7 +421,7 @@
                                     <div class="filter-item">
                                         <strong style="color: #495057;">Consecutives:</strong>
                                         <span style="color: #212529;">
-                                            <?php echo !empty($filter->consecutives) ? htmlspecialchars($filter->consecutives) : 'Not Applied'; ?>
+                                            <?php echo (isset($filter->consecutives) && $filter->consecutives !== '') ? htmlspecialchars($filter->consecutives) : 'Not Applied'; ?>
                                         </span>
                                     </div>
                                     
@@ -429,7 +429,7 @@
                                     <div class="filter-item">
                                         <strong style="color: #495057;">Odd/Even:</strong>
                                         <span style="color: #212529;">
-                                            <?php echo !empty($filter->parity) ? htmlspecialchars($filter->parity) : 'Not Applied'; ?>
+                                            <?php echo (isset($filter->parity) && $filter->parity !== '') ? htmlspecialchars($filter->parity) : 'Not Applied'; ?>
                                         </span>
                                     </div>
                                     
@@ -437,7 +437,7 @@
                                     <div class="filter-item">
                                         <strong style="color: #495057;">Decades:</strong>
                                         <span style="color: #212529;">
-                                            <?php echo !empty($filter->decades) ? htmlspecialchars($filter->decades) : 'Not Applied'; ?>
+                                            <?php echo (isset($filter->decades) && $filter->decades !== '') ? htmlspecialchars($filter->decades) : 'Not Applied'; ?>
                                         </span>
                                     </div>
                                     
@@ -445,7 +445,7 @@
                                     <div class="filter-item">
                                         <strong style="color: #495057;">Last Digits:</strong>
                                         <span style="color: #212529;">
-                                            <?php echo !empty($filter->last_digits) ? htmlspecialchars($filter->last_digits) : 'Not Applied'; ?>
+                                            <?php echo (isset($filter->last_digits) && $filter->last_digits !== '') ? htmlspecialchars($filter->last_digits) : 'Not Applied'; ?>
                                         </span>
                                     </div>
                                     
@@ -453,7 +453,7 @@
                                     <div class="filter-item">
                                         <strong style="color: #495057;">Adjacent:</strong>
                                         <span style="color: #212529;">
-                                            <?php echo !empty($filter->adjacents) ? htmlspecialchars($filter->adjacents) : 'Not Applied'; ?>
+                                            <?php echo (isset($filter->adjacents) && $filter->adjacents !== '') ? htmlspecialchars($filter->adjacents) : 'Not Applied'; ?>
                                         </span>
                                     </div>
                                     
