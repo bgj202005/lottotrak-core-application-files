@@ -1237,7 +1237,7 @@ tr:has(.result-bonus-win) {
 /* Table responsive wrapper */
 .table-responsive {
     border: none;
-    overflow-x: auto !important;
+    overflow-x: visible;
     overflow-y: visible;
     -webkit-overflow-scrolling: touch;
     width: 100%;
@@ -1245,7 +1245,14 @@ tr:has(.result-bonus-win) {
     display: block;
 }
 
-/* Ensure table triggers scrollbar */
+/* Enable horizontal scrollbar for tablet and mobile only */
+@media (max-width: 992px) {
+    .table-responsive {
+        overflow-x: auto !important;
+    }
+}
+
+/* Ensure table triggers scrollbar on smaller screens */
 .table-responsive::-webkit-scrollbar {
     height: 12px;
 }
@@ -1265,8 +1272,15 @@ tr:has(.result-bonus-win) {
 }
 
 #combinationTicketsTable {
-    min-width: 1250px;
     table-layout: fixed;
+    width: 100%;
+}
+
+/* Apply min-width only for tablet and mobile to trigger scrollbar */
+@media (max-width: 992px) {
+    #combinationTicketsTable {
+        min-width: 1250px;
+    }
 }
 
 /* Table header styling */
