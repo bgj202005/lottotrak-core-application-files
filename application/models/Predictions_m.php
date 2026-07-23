@@ -1989,6 +1989,24 @@ class Predictions_m extends MY_Model
 	}
 	
 	/**
+	 * Generate prediction using followers data ONLY (without H-W-C).
+	 * This is used for the statistics/followers page where we want predictions
+	 * based solely on follower patterns, not H-W-C classification.
+	 *
+	 * @param  integer $lottery_id          Lottery ID
+	 * @param  integer $combination_size    Number of balls to pick (balls_drawn)
+	 * @param  string  $follower_type       "after_ball" or "position"
+	 * @param  string  $follower_select     Ball number or position number
+	 * @return string|false                 Comma-separated string of selected numbers, or FALSE if data not found or invalid.
+	 */
+	public function followers_only_prediction($lottery_id, $combination_size, $follower_type, $follower_select)
+	{
+		// Use the exact same logic as Prediction Futures by calling the existing followers_only() method
+		// This ensures predictions are identical between Followers statistics page and Prediction Futures
+		return $this->followers_only($lottery_id, $combination_size, $follower_type, $follower_select);
+	}
+	
+	/**
 	 * Optimized parsing of H-W-C followers data
 	 */
 	private function parse_hwc_followers_data($followers_row, $nonfollowers_row, $follower_type, $follower_select) {

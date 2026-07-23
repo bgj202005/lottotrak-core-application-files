@@ -6032,6 +6032,71 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	}
 
 	/**
+	 * Save follower prediction settings and generated numbers to lottery_followers table.
+	 * Pass $prev_numbers = null to leave prev_lottery_numbers untouched.
+	 *
+	 * @param  integer      $lottery_id
+	 * @param  string       $follower_type       "after_ball" or "position"
+	 * @param  string       $ball_points         selected ball value (after_ball mode)
+	 * @param  string       $position_points     selected position value (position mode)
+	 * @param  string       $lottery_numbers     comma-separated generated numbers
+	 * @param  string|null  $prev_numbers        previous numbers (null = don't overwrite)
+	 * @return void
+	 */
+	public function followers_prediction_save($lottery_id, $follower_type, $ball_points, $position_points, $lottery_numbers, $prev_numbers = null)
+	{
+		$existing = $this->followers_exists($lottery_id);
+
+		$data = array(
+			'follower_type'   => $follower_type,
+			'ball_points'     => $ball_points,
+			'position_points' => $position_points,
+			'lottery_numbers' => $lottery_numbers,
+		);
+
+		if (!is_null($prev_numbers)) {
+			$data['prev_lottery_numbers'] = $prev_numbers;
+		}
+
+		if ($existing) {
+			$this->db->where('lottery_id', $lottery_id);
+			$this->db->update('lottery_followers', $data);
+		}
+		
+		// Clear cache after update
+		$cache_key = $this->generate_cache_key('followers', $lottery_id);
+		$this->cache->delete($cache_key);
+	}
+
+	/**
+	 * Copy lottery_numbers → prev_lottery_numbers in the lottery_followers record.
+	 * Called on import / manual draw entry (same pattern as hwc_snapshot_predictions).
+	 *
+	 * @param  integer $lottery_id
+	 * @return void
+	 */
+	public function followers_prediction_snapshot($lottery_id)
+	{
+		$row = $this->followers_exists($lottery_id);
+		if (empty($row) || empty($row['lottery_numbers'])) {
+			return;
+		}
+		// Encode follower_type|ball_points|position_points|lottery_numbers
+		$follower_type   = isset($row['follower_type'])   ? $row['follower_type']   : 'after_ball';
+		$ball_points     = isset($row['ball_points'])     ? $row['ball_points']     : '';
+		$position_points = isset($row['position_points']) ? $row['position_points'] : '';
+		$prev_encoded    = $follower_type . '|' . $ball_points . '|' . $position_points . '|' . $row['lottery_numbers'];
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update('lottery_followers', array(
+			'prev_lottery_numbers' => $prev_encoded,
+		));
+		
+		// Clear cache after update
+		$cache_key = $this->generate_cache_key('followers', $lottery_id);
+		$this->cache->delete($cache_key);
+	}
+
+	/**
 	 * Ensure the prev_wins column exists in lottery_friends (adds it if missing).
 	 * Shared by friends_snapshot() and friends_prev_snapshot().
 	 */

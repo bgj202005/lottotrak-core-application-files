@@ -85,6 +85,35 @@
 	.prev-ball-section.active {
 		display: block;
 	}
+	/* Prediction styles */
+	.pred-ball {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		background: #28a745;
+		color: #fff;
+		border-radius: 50%;
+		width: 40px;
+		height: 40px;
+		font-weight: bold;
+		font-size: 0.95em;
+		margin: 3px;
+	}
+	.option-panel {
+		background: #f8f9fa;
+		border: 1px solid #dee2e6;
+		border-radius: 6px;
+		padding: 12px 16px;
+		margin-bottom: 12px;
+	}
+	.pred-panel {
+		background: #d4edda;
+		border-left: 4px solid #28a745;
+		border-radius: 4px;
+		padding: 14px 18px;
+		margin-bottom: 16px;
+		text-align: center;
+	}
 </style>
 
 <h2><?php echo 'View Followers for: '.$lottery->lottery_name; ?></h2>
@@ -92,6 +121,10 @@
 	   $b = 1; 
 	   ?>	
 	<h5 style = "text-align:left"><?php echo anchor('admin/statistics', 'Back to Statistics Dashboard', 'title="Back to Statistics"'); ?></h5>
+	
+	<?php if(!empty($follower_message)): ?>
+	<div class="alert alert-success"><?=htmlspecialchars($follower_message);?></div>
+	<?php endif; ?>
 	
 	<?php if($lottery->out_of_range): ?>
 	<div class="container">
@@ -204,6 +237,93 @@
 								</li>			
 							</ul>
 						</div>
+						
+						<!-- PREDICTION PANELS INSIDE CARD -->
+						<div style="padding: 20px; border-bottom: 1px solid #dee2e6;">
+							<!-- Prediction Number Pool Panel -->
+							<div class="option-panel">
+								<strong>Prediction Number Pool: <?=htmlspecialchars($prediction_pool);?></strong>
+								<div style="color: #6c757d; font-size: 0.9em; margin-top: 5px;">
+									This number pool is set in the <a href="<?=base_url('admin/statistics/h_w_c/'.$lottery->id);?>">H-W-C view</a> and is read-only here.
+								</div>
+							</div>
+							
+							<!-- Option Settings Panel -->
+							<div class="option-panel">
+								<strong>Prediction Option:</strong>
+								<?php
+								$frm_attr = array('id' => 'frm_followers', 'style' => 'display:inline;');
+							// Build form action URL with current range and checkbox states preserved
+							$form_url = 'admin/statistics/followers/' . $lottery->id . '/' . $lottery->last_drawn['range'];
+							if (!empty($lottery->extra_included)) $form_url .= '/extra';
+							if (!empty($lottery->extra_draws)) $form_url .= '/draws';
+							echo form_open(base_url($form_url), $frm_attr);
+								?>
+								<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px;">
+
+									<!-- After Ball radio + dropdown -->
+									<div class="form-check form-check-inline" style="margin:0;">
+										<input class="form-check-input" type="radio" name="follower_type" id="ft_after_ball" value="after_ball"
+											<?=($saved_follower_type !== 'position' ? 'checked' : '');?>
+											onchange="document.getElementById('ball_pts_sel').style.display='inline-block'; document.getElementById('pos_pts_sel').style.display='none';">
+										<label class="form-check-label" for="ft_after_ball" style="white-space:nowrap;">After Ball</label>
+									</div>
+									<select name="ball_points" id="ball_pts_sel" class="form-control" style="width:auto; min-width:110px; <?=($saved_follower_type === 'position' ? 'display:none;' : 'display:inline-block;');?>">
+										<?php if(!empty($ball_points_options)): foreach($ball_points_options as $val => $lbl): ?>
+										<option value="<?=htmlspecialchars($val);?>" <?=($saved_ball_points === (string)$val ? 'selected' : '');?>><?=htmlspecialchars($lbl);?></option>
+										<?php endforeach; endif; ?>
+									</select>
+
+									<!-- Position radio + dropdown -->
+									<div class="form-check form-check-inline" style="margin:0;">
+										<input class="form-check-input" type="radio" name="follower_type" id="ft_position" value="position"
+											<?=($saved_follower_type === 'position' ? 'checked' : '');?>
+											onchange="document.getElementById('ball_pts_sel').style.display='none'; document.getElementById('pos_pts_sel').style.display='inline-block';">
+										<label class="form-check-label" for="ft_position" style="white-space:nowrap;">Position</label>
+									</div>
+									<select name="position_points" id="pos_pts_sel" class="form-control" style="width:auto; min-width:110px; <?=($saved_follower_type === 'position' ? 'display:inline-block;' : 'display:none;');?>">
+										<?php if(!empty($position_points_options)): foreach($position_points_options as $val => $lbl): ?>
+										<option value="<?=htmlspecialchars($val);?>" <?=($saved_position_points === (string)$val ? 'selected' : '');?>><?=htmlspecialchars($lbl);?></option>
+										<?php endforeach; endif; ?>
+									</select>
+
+									<!-- Submit -->
+									<?php $btn_attr = array('class' => 'btn btn-danger');
+									echo form_submit('change_follower_options', 'Change Follower Options', $btn_attr);
+									echo form_close(); ?>
+								</div>
+							</div>
+
+							<!-- Predicted Numbers for the Next Draw -->
+							<?php if(!empty($lottery_numbers)):
+								$fl_label = ($saved_follower_type === 'position')
+									? 'Position ' . htmlspecialchars($saved_position_points)
+									: 'After Ball ' . htmlspecialchars($saved_ball_points);
+								// Next draw date label
+								$draw_label = '';
+								if(!empty($next_draw_date)) {
+									$draw_label = date('D, M j, Y', strtotime(str_replace('/', '-', $next_draw_date)));
+								}
+							?>
+							<div class="pred-panel">
+								<strong>Predicted Numbers for the Next Draw<?=($draw_label ? ' &mdash; ' . $draw_label : '');?></strong>
+								<div class="text-muted" style="font-size:0.85em; margin: 4px 0 10px;">
+									(<?=$fl_label;?>)
+								</div>
+								<div style="display:flex; flex-wrap:wrap; justify-content:center;">
+									<?php foreach(explode(',', $lottery_numbers) as $num): ?>
+									<span class="pred-ball"><?=trim(htmlspecialchars($num));?></span>
+									<?php endforeach; ?>
+								</div>
+							</div>
+							<?php elseif(empty($lottery_numbers)): ?>
+							<div class="alert alert-info" style="margin-bottom: 0;">
+								No prediction has been generated yet. Select a follower option above and click <strong>Change Follower Options</strong>.
+							</div>
+							<?php endif; ?>
+						</div>
+						<!-- END PREDICTION PANELS -->
+						
 						<div class="tab-content" id="myTabContent">
 							<?php $b = 1;			   
 							$cd = intval($max);						  // This is the maximum ball drawn without an extra ball

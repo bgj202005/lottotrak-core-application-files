@@ -807,6 +807,16 @@ class Statistics extends Admin_Controller {
 			return;
 		}
 		
+		// Load model dependencies for prediction functionality
+		$this->load->model('Predictions_m', 'predictions_m');
+		$this->load->model('Lottery_statistics_m', 'lottery_statistics_m');
+		$this->load->model('History_m', 'history_m');
+		
+		// Get prediction pool from H-W-C settings
+		$hwc_check = $this->statistics_m->h_w_c_exists($id);
+		$prediction_pool = isset($hwc_check['prediction_pool']) ? (int) $hwc_check['prediction_pool'] : 18;
+		$this->data['prediction_pool'] = $prediction_pool;
+		
 		// Retrieve the lottery ta ble name for the database
 		$tbl_name = $this->lotteries_m->lotto_table_convert($this->data['lottery']->lottery_name);
 		$blnduplicate = ($this->data['lottery']->duplicate_extra_ball ? TRUE : FALSE);
@@ -860,18 +870,16 @@ class Statistics extends Admin_Controller {
 		$this->data['prev_nonfollowers_data'] = $prev_nonfollowers_data;
 		
 		// Initialize settings - handle independent extra_included and extra_draws parameters
-			$url_extra_included = ($this->uri->segment(6)=='extra') ? 1 : 0;
-			$url_extra_draws = ($this->uri->segment(6)=='draws') ? 1 : 0;
+		// Check all possible segment positions (6, 7, 8) for extra and draws flags
+		$has_extra_param = ($this->uri->segment(6) == 'extra' || $this->uri->segment(7) == 'extra' || $this->uri->segment(8) == 'extra');
+		$has_draws_param = ($this->uri->segment(6) == 'draws' || $this->uri->segment(7) == 'draws' || $this->uri->segment(8) == 'draws');
+		$url_extra_included = $has_extra_param ? 1 : 0;
+		$url_extra_draws = $has_draws_param ? 1 : 0;
+		$has_param_segments = ($has_extra_param || $has_draws_param);
+		
 		// Don't set lottery object values yet - determine source first (URL vs Database)
 		$outofrange = FALSE;						// default is not out of range for the prize pool
 		$blnEX = false;								// Extra Bonus Ball / Draws flag are no change or update
-		
-
-		
-		// Determine if we have actual parameter segments (extra/draws), not just range or lottery_id
-		$has_extra_param = ($this->uri->segment(6) == 'extra' || $this->uri->segment(7) == 'extra' || $this->uri->segment(8) == 'extra');
-		$has_draws_param = ($this->uri->segment(6) == 'draws' || $this->uri->segment(7) == 'draws' || $this->uri->segment(8) == 'draws');
-		$has_param_segments = ($has_extra_param || $has_draws_param);
 
 		
 		// Session-based preference management: restore user's last checkbox settings when returning from stats dashboard
@@ -1408,6 +1416,155 @@ class Statistics extends Admin_Controller {
 				'exists' => false
 			);
 			$this->data['current_draw_numbers'] = $current_draw_numbers;
+		}
+		
+		// ============================================================
+		// FOLLOWERS-ONLY PREDICTION HANDLING
+		// ============================================================
+		
+		// Build ball and position points options using the full followers points chain
+		$p_group = $this->statistics_m->prize_group_profile($id);
+		$p_group = $this->statistics_m->prizes_only($p_group, $this->data['lottery']->extra_ball);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_prizegroup($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->extra_ball, $p_group);
+		$extra_included_f  = isset($followers_check['extra_included']) ? (int) $followers_check['extra_included'] : 0;
+		$follower_wins     = explode('>', $followers_check['wins']);
+		$follow_poswins    = explode('>', $followers_check['positions']);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addwins($this->data['lottery']->last_drawn, $drawn, $extra_included_f, $p_group, $follower_wins, $follow_poswins);
+		$this->data['lottery']->last_drawn = $this->history_m->last_draw_addpoints($this->data['lottery']->last_drawn, $drawn, $extra_included_f, $this->data['lottery']->duplicate_extra_ball);
+
+		$ball_points_raw = $this->predictions_m->get_sorted_ball_points($this->data['lottery']->last_drawn, $drawn, $this->data['lottery']->duplicate_extra_ball);
+		$ball_points_options = [];
+		foreach ($ball_points_raw as $label) {
+			if (strpos($label, '+') === 0) {
+				$value = substr($label, 0, strpos($label, ' '));
+			} else {
+				$value = strtok($label, ' ');
+			}
+			$ball_points_options[$value] = $label;
+		}
+		$this->data['ball_points_options'] = $ball_points_options;
+
+		$position_points_raw = $this->lottery_statistics_m->get_sorted_position_points($this->data['lottery']->last_drawn, $drawn);
+		$position_points_options = [];
+		foreach ($position_points_raw as $label) {
+			if (strpos($label, '+') === 0) {
+				$value = substr($label, 0, strpos($label, ' '));
+			} else {
+				$value = strtok($label, ' ');
+			}
+			$position_points_options[$value] = $label;
+		}
+		$this->data['position_points_options'] = $position_points_options;
+
+		// Handle "Change Follower Options" form submission
+		if (!empty($this->input->post(NULL, true)) && $this->input->post('change_follower_options')) {
+
+			// Capture current URL state to preserve extra/draws checkboxes
+			$current_range = $this->uri->segment(5) ? $this->uri->segment(5) : $this->data['lottery']->last_drawn['range'];
+			$has_extra = ($this->uri->segment(6) == 'extra' || $this->uri->segment(7) == 'extra' || $this->uri->segment(8) == 'extra');
+			$has_draws = ($this->uri->segment(6) == 'draws' || $this->uri->segment(7) == 'draws' || $this->uri->segment(8) == 'draws');
+			
+			// Build redirect URL with preserved state
+			$redirect_url = 'admin/statistics/followers/' . $id . '/' . $current_range;
+			if ($has_extra) $redirect_url .= '/extra';
+			if ($has_draws) $redirect_url .= '/draws';
+
+			$follower_type   = $this->input->post('follower_type', true);
+			$ball_points     = $this->input->post('ball_points', true);
+			$position_points = $this->input->post('position_points', true);
+
+			// Normalise follower_type
+			$follower_type = ($follower_type === 'position') ? 'position' : 'after_ball';
+
+			// Determine which follower_select to use
+			$follower_select = ($follower_type === 'position') ? $position_points : $ball_points;
+			$follower_select = trim((string) $follower_select);
+
+			if (empty($follower_select)) {
+				$this->session->set_flashdata('message', 'Please select a valid follower option.');
+				redirect($redirect_url);
+				return;
+			}
+
+			// Generate the prediction using followers-only logic with prediction pool
+			$generated = $this->predictions_m->followers_only_prediction($id, $prediction_pool, $follower_type, $follower_select);
+
+			$lottery_numbers = $generated ? $generated : '';
+
+			if (!$generated) {
+				$this->session->set_flashdata('message', 'The selected follower combination did not produce any predictions. Please try different settings.');
+			}
+
+			$this->statistics_m->followers_prediction_save(
+				$id,
+				$follower_type,
+				$ball_points,
+				$position_points,
+				$lottery_numbers,
+				null   // preserve prev_lottery_numbers; only cleared on lottery profile changes
+			);
+
+			$this->session->set_flashdata('follower_message', 'Prediction updated with ' . ($follower_type === 'position' ? 'Position ' . $follower_select : 'After Ball ' . $follower_select));
+			redirect($redirect_url);
+			return;
+		}
+
+		// Load saved prediction record from lottery_followers table
+		$followers_record = $this->statistics_m->followers_exists($id);
+
+		$this->data['saved_follower_type']     = $followers_record && isset($followers_record['follower_type'])   ? $followers_record['follower_type']   : 'after_ball';
+		$this->data['saved_ball_points']       = $followers_record && isset($followers_record['ball_points'])     ? $followers_record['ball_points']     : '';
+		$this->data['saved_position_points']   = $followers_record && isset($followers_record['position_points']) ? $followers_record['position_points'] : '';
+		$this->data['lottery_numbers']         = $followers_record && isset($followers_record['lottery_numbers']) ? $followers_record['lottery_numbers'] : '';
+		$this->data['prev_lottery_numbers']    = $followers_record && isset($followers_record['prev_lottery_numbers']) ? $followers_record['prev_lottery_numbers'] : '';
+
+		// Auto-refresh: if the saved ball/position is no longer in the current draw's options
+		// (stale after a new draw import), regenerate the prediction with the top-ranked option.
+		if ($followers_record && !empty($this->data['lottery_numbers'])) {
+			$_curr_type = $this->data['saved_follower_type'];
+			$_stale = false;
+			if ($_curr_type === 'position') {
+				$_stale = !empty($this->data['saved_position_points'])
+					&& !array_key_exists($this->data['saved_position_points'], $position_points_options);
+			} else {
+				$_stale = !empty($this->data['saved_ball_points'])
+					&& !array_key_exists($this->data['saved_ball_points'], $ball_points_options);
+			}
+
+			if ($_stale) {
+				$_new_ball = !empty($ball_points_options)     ? (string) array_key_first($ball_points_options)     : $this->data['saved_ball_points'];
+				$_new_pos  = !empty($position_points_options) ? (string) array_key_first($position_points_options) : $this->data['saved_position_points'];
+				$_follower_select = ($_curr_type === 'position') ? $_new_pos : $_new_ball;
+
+				$_generated = $this->predictions_m->followers_only_prediction(
+					$id, $prediction_pool, $_curr_type, $_follower_select
+				);
+				$_new_numbers = $_generated ?: $this->data['lottery_numbers'];
+
+				// Save updated ball/position and regenerated numbers; keep prev_lottery_numbers intact
+				$this->statistics_m->followers_prediction_save(
+					$id,
+					$_curr_type,
+					$_new_ball,
+					$_new_pos,
+					$_new_numbers,
+					null   // null = leave prev_lottery_numbers unchanged
+				);
+
+				$this->data['saved_ball_points']     = $_new_ball;
+				$this->data['saved_position_points'] = $_new_pos;
+				$this->data['lottery_numbers']       = $_new_numbers;
+			}
+		}
+
+		// Next draw date
+		$ld  = $this->data['lottery']->last_drawn['draw_date'];
+		$day = $this->lotteries_m->return_day($ld);
+		$this->data['next_draw_date'] = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
+
+		// Flash messages
+		if ($this->session->flashdata('follower_message')) {
+			$this->data['follower_message'] = $this->session->flashdata('follower_message');
 		}
 		
 		$this->data['current'] = $this->uri->segment(2); 				// Sets the Admins Menu Highlighted
@@ -3584,7 +3741,72 @@ class Statistics extends Admin_Controller {
 			);
 			$this->statistics_m->nonfollower_data_save($nonfollowers, FALSE);
 		}
+		
+		// Auto-regenerate predictions after ReCalc if settings exist
+		$this->auto_regenerate_followers_prediction($id);
+		
 		unset($prizes);			// Remove the $prize array - Free up memory 
+	}
+
+	/**
+	 * Auto-regenerate followers prediction after ReCalc using existing settings
+	 * Only regenerates if prediction settings were previously saved
+	 * 
+	 * @param integer $id Lottery ID
+	 * @return void
+	 */
+	private function auto_regenerate_followers_prediction($id)
+	{
+		// Check if there are saved prediction settings
+		$followers_record = $this->statistics_m->followers_exists($id);
+		
+		if (!$followers_record || empty($followers_record['follower_type'])) {
+			// No prediction settings saved, nothing to regenerate
+			return;
+		}
+		
+		$saved_type = $followers_record['follower_type'];
+		$saved_ball_points = isset($followers_record['ball_points']) ? $followers_record['ball_points'] : '';
+		$saved_position_points = isset($followers_record['position_points']) ? $followers_record['position_points'] : '';
+		
+		// Determine which selection to use
+		$follower_select = ($saved_type === 'position') ? $saved_position_points : $saved_ball_points;
+		
+		if (empty($follower_select)) {
+			// No valid selection saved, nothing to regenerate
+			return;
+		}
+		
+		// Load required models if not already loaded
+		if (!isset($this->predictions_m)) {
+			$this->load->model('Predictions_m', 'predictions_m');
+		}
+		
+		// Get prediction pool from H-W-C settings
+		$hwc_check = $this->statistics_m->h_w_c_exists($id);
+		$prediction_pool = isset($hwc_check['prediction_pool']) ? (int) $hwc_check['prediction_pool'] : 18;
+		
+		// Generate new prediction using existing settings
+		$generated = $this->predictions_m->followers_only_prediction(
+			$id, 
+			$prediction_pool, 
+			$saved_type, 
+			$follower_select
+		);
+		
+		if ($generated) {
+			// Save the regenerated prediction (keep prev_lottery_numbers unchanged)
+			$this->statistics_m->followers_prediction_save(
+				$id,
+				$saved_type,
+				$saved_ball_points,
+				$saved_position_points,
+				$generated,
+				null   // null = leave prev_lottery_numbers unchanged
+			);
+			
+			log_message('info', "Auto-regenerated followers prediction for lottery_id={$id} using {$saved_type}={$follower_select}");
+		}
 	}
 
 	/**
