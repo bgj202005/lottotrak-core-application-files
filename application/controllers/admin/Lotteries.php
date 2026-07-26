@@ -1044,6 +1044,38 @@ class Lotteries extends Admin_Controller {
 					}
 				}
 
+				// Regenerate H-W-C predictions BEFORE snapshot to ensure they're current
+				// This prevents corrupted/stale predictions from being copied to prev_h_w_c_predictions
+				if ($processed_count > 0) {
+					$this->load->model('admin/Statistics_m', 'statistics_m');
+					$this->load->model('admin/Predictions_m', 'predictions_m');
+					
+					$h_w_c_current = $this->statistics_m->h_w_c_exists($id);
+					if(!is_null($h_w_c_current)) {
+						$stored_option  = isset($h_w_c_current['hwc_option'])  ? (int)$h_w_c_current['hwc_option']  : 1;
+						$stored_select  = isset($h_w_c_current['hwc_select'])  ? (int)$h_w_c_current['hwc_select']  : 1;
+						$pool_size      = isset($h_w_c_current['prediction_pool']) ? (int)$h_w_c_current['prediction_pool'] : 18;
+						$h_w_c_groups   = $this->predictions_m->get_h_w_c_range_with_rank($id);
+						$group_patterns = array_keys($h_w_c_groups);
+						if(!empty($group_patterns)) {
+							if($stored_option === 2) {
+								$idx = $stored_select - 1;
+								$pattern = isset($group_patterns[$idx]) ? $group_patterns[$idx] : $group_patterns[0];
+							} else {
+								$pattern = $group_patterns[0]; // Top ranked
+							}
+							// Generate predictions for the imported draw from current H-W-C data
+							$generated = $this->predictions_m->hwc_only($id, $pool_size, $pattern);
+							if($generated) {
+								$_r_opt_lbl  = ($stored_option === 2) ? 'Manual Selected' : 'Top Ranked';
+								$_r_disp_lbl = isset($h_w_c_groups[$pattern]) ? $h_w_c_groups[$pattern] : $pattern;
+								$generated_encoded = $_r_opt_lbl . ' — ' . $_r_disp_lbl . '|' . $generated;
+								$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated_encoded, null);
+							}
+						}
+					}
+				}
+
 				// Snapshot current hwc_predictions → prev_h_w_c_predictions so history
 				// page can highlight which balls were predicted before this new draw
 				if ($processed_count > 0) {
@@ -1568,6 +1600,36 @@ class Lotteries extends Admin_Controller {
 					
 					// Update lastdate field in lottery_profiles with the new draw date
 					$this->lotteries_m->update_lastdraw($id, $draw['draw_date']);
+
+					// Regenerate H-W-C predictions BEFORE snapshot to ensure they're current
+					// This prevents corrupted/stale predictions from being copied to prev_h_w_c_predictions
+					$this->load->model('admin/Statistics_m', 'statistics_m');
+					$this->load->model('admin/Predictions_m', 'predictions_m');
+					
+					$h_w_c_current = $this->statistics_m->h_w_c_exists($id);
+					if(!is_null($h_w_c_current)) {
+						$stored_option  = isset($h_w_c_current['hwc_option'])  ? (int)$h_w_c_current['hwc_option']  : 1;
+						$stored_select  = isset($h_w_c_current['hwc_select'])  ? (int)$h_w_c_current['hwc_select']  : 1;
+						$pool_size      = isset($h_w_c_current['prediction_pool']) ? (int)$h_w_c_current['prediction_pool'] : 18;
+						$h_w_c_groups   = $this->predictions_m->get_h_w_c_range_with_rank($id);
+						$group_patterns = array_keys($h_w_c_groups);
+						if(!empty($group_patterns)) {
+							if($stored_option === 2) {
+								$idx = $stored_select - 1;
+								$pattern = isset($group_patterns[$idx]) ? $group_patterns[$idx] : $group_patterns[0];
+							} else {
+								$pattern = $group_patterns[0]; // Top ranked
+							}
+							// Generate predictions for the manually entered draw from current H-W-C data
+							$generated = $this->predictions_m->hwc_only($id, $pool_size, $pattern);
+							if($generated) {
+								$_r_opt_lbl  = ($stored_option === 2) ? 'Manual Selected' : 'Top Ranked';
+								$_r_disp_lbl = isset($h_w_c_groups[$pattern]) ? $h_w_c_groups[$pattern] : $pattern;
+								$generated_encoded = $_r_opt_lbl . ' — ' . $_r_disp_lbl . '|' . $generated;
+								$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated_encoded, null);
+							}
+						}
+					}
 
 					// Snapshot current hwc_predictions → prev_h_w_c_predictions so history
 					// page can show which balls were predicted before this new draw
