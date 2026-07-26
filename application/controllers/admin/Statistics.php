@@ -4635,6 +4635,9 @@ class Statistics extends Admin_Controller {
 
 		// Build H-W-C group dropdown (ranked list)
 		$this->data['h_w_c_group'] = $this->predictions_m->get_h_w_c_range_with_rank($id);
+		
+		// Get array of H-W-C combinations indexed by rank (for rank-based lookup)
+		$h_w_c_by_rank = array_keys($this->data['h_w_c_group']);
 
 		// Build ball and position points options using the full followers points chain
 		$p_group = $this->statistics_m->prize_group_profile($id);
@@ -4685,6 +4688,15 @@ class Statistics extends Admin_Controller {
 				$posted_h_w_c = !empty($h_w_c_group_keys) ? $h_w_c_group_keys[0] : '';
 			}
 
+			// Calculate the rank (1-based) of the selected H-W-C combination
+			$selected_rank = 1;  // Default to rank 1
+			if (!empty($posted_h_w_c)) {
+				$rank_position = array_search($posted_h_w_c, $h_w_c_group_keys);
+				if ($rank_position !== false) {
+					$selected_rank = $rank_position + 1;  // Convert 0-based index to 1-based rank
+				}
+			}
+
 			// Normalise follower_type
 			$follower_type = ($follower_type === 'position') ? 'position' : 'after_ball';
 
@@ -4714,7 +4726,8 @@ class Statistics extends Admin_Controller {
 				$ball_points,
 				$position_points,
 				$lottery_numbers,
-				null   // preserve prev_lottery_numbers; only cleared on lottery profile changes
+				null,          // preserve prev_lottery_numbers; only cleared on lottery profile changes
+				$selected_rank // save the rank
 			);
 
 			$this->session->set_flashdata('hwc_follower_message', 'Prediction updated with H-W-C (' . $posted_h_w_c . ') + ' . ($follower_type === 'position' ? 'Position ' . $follower_select : 'After Ball ' . $follower_select));
@@ -4724,6 +4737,38 @@ class Statistics extends Admin_Controller {
 
 		// Load saved prediction record
 		$hwc_followers_record = $this->statistics_m->hwc_followers_exists($id);
+
+		// Rank-based persistence: if a rank was saved, ensure we're using the combination at that rank
+		// This preserves the administrator's rank selection even after ReCalc changes rankings
+		$current_h_w_c_group = '';
+		$current_rank = 1;  // Default to Rank #1
+		
+		if ($hwc_followers_record && !empty($hwc_followers_record['h_w_c_rank'])) {
+			// Use the saved rank to get the current combination at that rank
+			$saved_rank = (int) $hwc_followers_record['h_w_c_rank'];
+			$current_rank = $saved_rank;
+			
+			// Get the combination that is currently at the saved rank (0-based index = rank - 1)
+			$rank_index = $saved_rank - 1;
+			if (isset($h_w_c_by_rank[$rank_index])) {
+				$current_h_w_c_group = $h_w_c_by_rank[$rank_index];
+			} else {
+				// If saved rank doesn't exist (e.g., rankings changed dramatically), default to Rank #1
+				$current_h_w_c_group = !empty($h_w_c_by_rank) ? $h_w_c_by_rank[0] : '';
+				$current_rank = 1;
+			}
+		} elseif ($hwc_followers_record && !empty($hwc_followers_record['h_w_c_group'])) {
+			// Legacy: if no rank was saved, use the saved combination and calculate its current rank
+			$current_h_w_c_group = $hwc_followers_record['h_w_c_group'];
+			$rank_position = array_search($current_h_w_c_group, $h_w_c_by_rank);
+			if ($rank_position !== false) {
+				$current_rank = $rank_position + 1;
+			}
+		} else {
+			// No saved record: default to Rank #1
+			$current_h_w_c_group = !empty($h_w_c_by_rank) ? $h_w_c_by_rank[0] : '';
+			$current_rank = 1;
+		}
 
 		// Pass H-W-C settings (range, extra_included, extra_draws) — read-only display
 		$hwc_settings = $this->statistics_m->h_w_c_exists($id);
@@ -4742,7 +4787,8 @@ class Statistics extends Admin_Controller {
 		);
 
 		$this->data['hwc_followers_record']    = $hwc_followers_record;
-		$this->data['saved_h_w_c_group']       = $hwc_followers_record ? $hwc_followers_record['h_w_c_group']     : '';
+		$this->data['saved_h_w_c_group']       = $current_h_w_c_group;  // Use rank-based current group
+		$this->data['saved_h_w_c_rank']        = $current_rank;         // Pass rank to view for display
 		$this->data['saved_follower_type']     = $hwc_followers_record ? $hwc_followers_record['follower_type']   : 'after_ball';
 		$this->data['saved_ball_points']       = $hwc_followers_record ? $hwc_followers_record['ball_points']     : '';
 		$this->data['saved_position_points']   = $hwc_followers_record ? $hwc_followers_record['position_points'] : '';
@@ -4767,20 +4813,22 @@ class Statistics extends Admin_Controller {
 				$_new_pos  = !empty($position_points_options) ? (string) array_key_first($position_points_options) : $this->data['saved_position_points'];
 				$_follower_select = ($_curr_type === 'position') ? $_new_pos : $_new_ball;
 
+				// Use the current H-W-C group (which is already rank-based)
 				$_generated = $this->predictions_m->hwc_followers(
-					$id, $pool_size, $hwc_followers_record['h_w_c_group'], $_curr_type, $_follower_select
+					$id, $pool_size, $current_h_w_c_group, $_curr_type, $_follower_select
 				);
 				$_new_numbers = $_generated ?: $this->data['lottery_numbers'];
 
-				// Save updated ball/position and regenerated numbers; keep prev_lottery_numbers intact
+				// Save updated ball/position and regenerated numbers; preserve the rank
 				$this->statistics_m->hwc_followers_save(
 					$id,
-					$hwc_followers_record['h_w_c_group'],
+					$current_h_w_c_group,
 					$_curr_type,
 					$_new_ball,
 					$_new_pos,
 					$_new_numbers,
-					null   // null = leave prev_lottery_numbers unchanged
+					null,          // null = leave prev_lottery_numbers unchanged
+					$current_rank  // preserve the rank
 				);
 
 				$this->data['saved_ball_points']     = $_new_ball;

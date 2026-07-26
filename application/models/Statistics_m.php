@@ -5981,7 +5981,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	 * @param  string|null  $prev_numbers        previous numbers (null = don't overwrite)
 	 * @return void
 	 */
-	public function hwc_followers_save($lottery_id, $h_w_c_group, $follower_type, $ball_points, $position_points, $lottery_numbers, $prev_numbers = null)
+	public function hwc_followers_save($lottery_id, $h_w_c_group, $follower_type, $ball_points, $position_points, $lottery_numbers, $prev_numbers = null, $h_w_c_rank = null)
 	{
 		$existing = $this->hwc_followers_exists($lottery_id);
 
@@ -5993,6 +5993,14 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			'position_points' => $position_points,
 			'lottery_numbers' => $lottery_numbers,
 		);
+
+		// Store the rank if provided, otherwise default to 1
+		if (!is_null($h_w_c_rank)) {
+			$data['h_w_c_rank'] = (int) $h_w_c_rank;
+		} elseif (!$existing) {
+			// For new records, default to rank 1
+			$data['h_w_c_rank'] = 1;
+		}
 
 		if (!is_null($prev_numbers)) {
 			$data['prev_lottery_numbers'] = $prev_numbers;
