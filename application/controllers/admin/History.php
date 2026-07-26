@@ -982,6 +982,9 @@ class History extends Admin_Controller {
 		}
 		$this->data['prev_followers_data'] = $prev_followers_data;
 		$this->data['prev_nonfollowers_data'] = $prev_nonfollowers_data;
+		
+		// Pass prev_lottery_numbers for Followers Previous Predicted Winners display
+		$this->data['prev_lottery_numbers'] = ($followers && isset($followers['prev_lottery_numbers'])) ? $followers['prev_lottery_numbers'] : null;
 
 		// Fetch the previous draw using prev_draw_id from the followers table
 		$prev_draw_data = null;

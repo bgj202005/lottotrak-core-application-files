@@ -1143,6 +1143,96 @@ elseif($is_extra):
 							</ul>
 						</div>
 						<?php endif; ?>
+						
+						<!-- Followers Previous Predicted Winners -->
+						<?php if(!empty($prev_lottery_numbers)): 
+							// Parse encoded prev_lottery_numbers: follower_type|ball_points|position_points|numbers
+							$prev_parts = explode('|', $prev_lottery_numbers);
+							if (count($prev_parts) === 4) {
+								// Encoded format with metadata
+								$prev_follower_type = $prev_parts[0];
+								$prev_ball_points = $prev_parts[1];
+								$prev_position_points = $prev_parts[2];
+								$prev_numbers_str = $prev_parts[3];
+							} else {
+								// Legacy format - just numbers
+								$prev_follower_type = 'after_ball';
+								$prev_ball_points = '';
+								$prev_position_points = '';
+								$prev_numbers_str = $prev_lottery_numbers;
+							}
+							$prev_numbers = explode(',', $prev_numbers_str);
+							
+							// Build subtitle based on follower type
+							$prev_subtitle = '';
+							if ($prev_follower_type === 'after_ball' && !empty($prev_ball_points)) {
+								$prev_subtitle = 'After Ball ' . htmlspecialchars($prev_ball_points);
+							} elseif ($prev_follower_type === 'position' && !empty($prev_position_points)) {
+								$prev_subtitle = 'Position ' . htmlspecialchars($prev_position_points);
+							}
+							
+							// Get current draw numbers for comparison
+							$current_main_balls = array();
+							$current_extra_ball = null;
+							if (isset($lottery->last_drawn)) {
+								for ($i = 1; $i <= $lottery->balls_drawn; $i++) {
+									$ball_key = 'ball' . $i;
+									if (isset($lottery->last_drawn[$ball_key])) {
+										$current_main_balls[] = $lottery->last_drawn[$ball_key];
+									}
+								}
+								if ($lottery->extra_ball && isset($lottery->last_drawn['extra'])) {
+									$current_extra_ball = $lottery->last_drawn['extra'];
+								}
+							}
+						?>
+						<div style="background-color: #e8f5e9; border-left: 4px solid #4caf50; padding: 15px; margin: 30px 20px 20px 20px; border-radius: 4px;">
+							<h5 style="color: #2e7d32; margin-bottom: 10px;">
+								<i class="fa fa-chart-line"></i> Followers Previous Predicted Winners
+								<?php if(!empty($prev_subtitle)): ?>
+									<span style="font-size: 0.85em; font-weight: normal; color: #555;">(<?=$prev_subtitle;?>)</span>
+								<?php endif; ?>
+							</h5>
+							<div style="margin-top: 10px;">
+								<?php foreach ($prev_numbers as $num): 
+									$num = trim($num);
+									if (empty($num)) continue;
+									
+									// Determine ball color based on match type
+									$ball_color = '#28a745'; // Default green (not drawn)
+									$ball_title = 'Not drawn in current draw';
+									
+									if (in_array($num, $current_main_balls)) {
+										$ball_color = '#FFD700'; // Gold - main ball match
+										$ball_title = 'Main ball match';
+									} elseif ($current_extra_ball && $num == $current_extra_ball) {
+										$ball_color = '#1565C0'; // Blue - bonus/extra ball match
+										$ball_title = 'Bonus/Extra ball match';
+									}
+								?>
+								<span class="badge" style="
+									background-color: <?=$ball_color;?>;
+									color: #ffffff;
+									font-size: 16px;
+									font-weight: bold;
+									padding: 8px 12px;
+									margin: 3px;
+									border-radius: 50%;
+									display: inline-block;
+									min-width: 40px;
+									text-align: center;
+									box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+								" title="<?=$ball_title;?>"><?=htmlspecialchars($num);?></span>
+								<?php endforeach; ?>
+							</div>
+							<div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #c8e6c9; font-size: 0.9em; color: #555;">
+								<strong>Legend:</strong>
+								<span style="color: #FFD700; font-weight: bold;">●</span> Main ball match &nbsp;
+								<span style="color: #1565C0; font-weight: bold;">●</span> Bonus/Extra ball match &nbsp;
+								<span style="color: #28a745; font-weight: bold;">●</span> Not drawn
+							</div>
+						</div>
+						<?php endif; ?>
 					</div>
 				</div>
 			</div>

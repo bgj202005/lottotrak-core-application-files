@@ -3777,16 +3777,23 @@ class Statistics extends Admin_Controller {
 			return;
 		}
 		
-		// Load required models if not already loaded
+		// STEP 1: Take snapshot of current prediction before generating new one
+		// This moves lottery_numbers to prev_lottery_numbers with metadata
+		if (!empty($followers_record['lottery_numbers'])) {
+			$this->statistics_m->followers_prediction_snapshot($id);
+			log_message('info', "Took snapshot of followers prediction for lottery_id={$id}");
+		}
+		
+		// STEP 2: Load required models if not already loaded
 		if (!isset($this->predictions_m)) {
 			$this->load->model('Predictions_m', 'predictions_m');
 		}
 		
-		// Get prediction pool from H-W-C settings
+		// STEP 3: Get prediction pool from H-W-C settings
 		$hwc_check = $this->statistics_m->h_w_c_exists($id);
 		$prediction_pool = isset($hwc_check['prediction_pool']) ? (int) $hwc_check['prediction_pool'] : 18;
 		
-		// Generate new prediction using existing settings
+		// STEP 4: Generate new prediction using existing settings
 		$generated = $this->predictions_m->followers_only_prediction(
 			$id, 
 			$prediction_pool, 
@@ -3795,14 +3802,15 @@ class Statistics extends Admin_Controller {
 		);
 		
 		if ($generated) {
-			// Save the regenerated prediction (keep prev_lottery_numbers unchanged)
+			// STEP 5: Save the regenerated prediction
+			// prev_lottery_numbers is already set by snapshot, so pass null to preserve it
 			$this->statistics_m->followers_prediction_save(
 				$id,
 				$saved_type,
 				$saved_ball_points,
 				$saved_position_points,
 				$generated,
-				null   // null = leave prev_lottery_numbers unchanged
+				null   // null = leave prev_lottery_numbers unchanged (already set by snapshot)
 			);
 			
 			log_message('info', "Auto-regenerated followers prediction for lottery_id={$id} using {$saved_type}={$follower_select}");
