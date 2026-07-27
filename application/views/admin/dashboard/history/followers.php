@@ -1233,12 +1233,149 @@ elseif($is_extra):
 							</div>
 						</div>
 						<?php endif; ?>
+						
+						<!-- Followers Win Statistics -->
+						<?php if(isset($followers_win_stats)): ?>
+	<?php
+	// Build ordered prize columns (highest to lowest) filtered by valid categories
+	$followers_prize_cols = array();
+	$valid_cats = isset($lottery->valid_prize_categories) ? $lottery->valid_prize_categories : array();
+	$balls_drawn = isset($lottery->balls_drawn) ? intval($lottery->balls_drawn) : 9;
+	$has_extra = !empty($lottery->extra_ball);
+	
+	// Start from balls_drawn down to 1, interleaving extra ball prizes by prize hierarchy
+	for($i = $balls_drawn; $i >= 1; $i--) {
+		$col = $i.'_win';
+		// Add current number without extra
+		if(in_array($col, $valid_cats)) {
+			$followers_prize_cols[] = array('key' => $col, 'label' => $i, 'title' => $i.' Number'.($i > 1 ? 's' : ''));
+		}
+		// Add next lower number WITH extra (higher prize than next lower without extra)
+		if($i > 1 && $has_extra) {
+			$col_lower_extra = ($i-1).'_win_extra';
+			if(in_array($col_lower_extra, $valid_cats)) {
+				$followers_prize_cols[] = array('key' => $col_lower_extra, 'label' => ($i-1).'+', 'title' => ($i-1).' Number'.($i > 2 ? 's' : '').' + Extra');
+			}
+		}
+	}
+	// Add 1 number alone if not already added (when i=1 in loop, we don't add 0+)
+	// Note: It's already added in the loop when i=1
+	// Add extra-only at the end (lowest prize)
+	if($has_extra && in_array('extra', $valid_cats)) {
+		$followers_prize_cols[] = array('key' => 'extra', 'label' => '+', 'title' => 'Extra Ball Only');
+	}
+	
+	// Calculate draw count
+	$draw_count = 0;
+	if($followers_win_stats['startdate'] && $followers_win_stats['lastdate']) {
+		$start = new DateTime($followers_win_stats['startdate']);
+		$end = new DateTime($followers_win_stats['lastdate']);
+		$diff_days = $start->diff($end)->days;
+		// Rough estimate based on draw days per week
+		$draws_per_week = 0;
+		if($lottery->monday) $draws_per_week++;
+		if($lottery->tuesday) $draws_per_week++;
+		if($lottery->wednesday) $draws_per_week++;
+		if($lottery->thursday) $draws_per_week++;
+		if($lottery->friday) $draws_per_week++;
+		if($lottery->saturday) $draws_per_week++;
+		if($lottery->sunday) $draws_per_week++;
+		$draw_count = ($draws_per_week > 0) ? max(1, round(($diff_days / 7) * $draws_per_week)) : 1;
+	}
+	?>
+	<style>
+		.followers-win-stats-table { font-size: 0.80em; table-layout: fixed; width: 100%; margin-bottom: 0; background-color: white; }
+		.followers-win-stats-table th { font-size: 0.80em; font-weight: bold; white-space: nowrap; padding: 0.3rem 0.2rem; text-align: center; }
+		.followers-win-stats-table td { padding: 0.25rem 0.2rem; text-align: center; white-space: nowrap; }
+		.followers-win-record-col { width: 22px !important; font-size: 0.80em; white-space: nowrap; }
+		.followers-win-total-col { width: 46px !important; font-size: 0.80em; white-space: nowrap; }
+		@media (max-width: 992px) {
+			.followers-win-stats-table { font-size: 0.74em; table-layout: auto; width: auto; min-width: 600px; }
+			.followers-win-stats-table th { font-size: 0.74em; padding: 0.25rem 0.15rem; }
+			.followers-win-stats-table td { padding: 0.2rem 0.15rem; }
+			.followers-win-record-col { width: 20px !important; font-size: 0.74em; }
+			.followers-win-total-col { width: 42px !important; font-size: 0.74em; }
+		}
+		@media (max-width: 576px) {
+			.followers-win-stats-table { font-size: 0.68em; min-width: 500px; }
+			.followers-win-stats-table th { font-size: 0.68em; padding: 0.2rem 0.1rem; }
+			.followers-win-stats-table td { padding: 0.18rem 0.1rem; }
+			.followers-win-record-col { width: 18px !important; font-size: 0.68em; }
+			.followers-win-total-col { width: 38px !important; font-size: 0.68em; }
+		}
+	</style>
+	<div style="margin: 20px; padding: 18px; background-color: #e3f2fd; border-left: 4px solid #1976d2; border-radius: 4px;">
+		<div style="text-align: center; margin-bottom: 15px;">
+			<strong style="color: #000000; font-size: 1.1em;">
+				<i class="fa fa-trophy"></i> Followers Prediction Win Records
+							</strong>
+						</div>
+						<div style="margin-bottom: 10px; text-align: center; font-size: 0.9em; color: #666;">
+							<?php if($followers_win_stats['startdate'] || $followers_win_stats['lastdate']): ?>
+								<strong>Start:</strong> <?php echo $followers_win_stats['startdate'] ? date('M j, Y', strtotime($followers_win_stats['startdate'])) : date('M j, Y', strtotime($lottery->next_draw_date)); ?>
+								&nbsp;&nbsp;|
+								<?php if($followers_win_stats['lastdate']): ?>
+									<strong>Last Draw:</strong> <?php echo date('M j, Y', strtotime($followers_win_stats['lastdate'])); ?> (<?php echo $draw_count; ?> draw<?php echo $draw_count != 1 ? 's' : ''; ?>)
+								<?php else: ?>
+									<strong>Last Draw:</strong> None yet
+								<?php endif; ?>
+							<?php else: ?>
+								<strong>Start:</strong> <?php echo date('M j, Y', strtotime($lottery->next_draw_date)); ?> &nbsp;|&nbsp; <strong>Last Draw:</strong> None yet
+							<?php endif; ?>
+							<button type="button" class="btn btn-sm btn-danger" onclick="resetFollowersWinStats(<?php echo $lottery->id; ?>)" 
+								style="margin-left: 15px;">
+								<i class="fa fa-undo"></i> Reset
+							</button>
+						</div>
+						<div class="table-responsive" style="overflow-x: auto;">
+							<table class="table table-bordered table-striped followers-win-stats-table">
+								<thead>
+									<tr>
+										<th colspan="<?php echo count($followers_prize_cols) + 1; ?>" class="text-center" style="background-color: #f4f4f4;">
+											<strong>Win Record</strong>
+										</th>
+									</tr>
+									<tr>
+										<?php foreach($followers_prize_cols as $col): ?>
+											<th class="text-center followers-win-record-col" style="background-color: #e8f5e8;" title="<?php echo htmlspecialchars($col['title']); ?>"><?php echo htmlspecialchars($col['label']); ?></th>
+										<?php endforeach; ?>
+										<th class="text-center followers-win-total-col" style="background-color: #d4edda; font-weight: bold;" title="Total Winners">Total</th>
+									</tr>
+								</thead>
+								<tbody>
+									<tr>
+										<?php foreach($followers_prize_cols as $col): ?>
+											<td class="text-center"><?php echo number_format($followers_win_stats[$col['key']]); ?></td>
+										<?php endforeach; ?>
+										<td class="text-center" style="background-color: #bbdefb; font-weight: bold;"><?php echo number_format($followers_win_stats['total_winners']); ?></td>
+								</table>
+							</div>
+						</div>
+						<?php endif; ?>
+						
 					</div>
 				</div>
 			</div>
 		</div>
 	</section>
 <script>
+// Reset Followers Win Statistics
+function resetFollowersWinStats(lotteryId) {
+	if(confirm('WARNING: This will clear all Followers prediction win records and reset the statistics.\n\nThe new start date will be set to the next draw date.\n\nAre you sure you want to continue?')) {
+		$.ajax({
+			url: '<?php echo site_url("admin/history/reset_followers_win_stats"); ?>',
+			type: 'POST',
+			data: { lottery_id: lotteryId },
+			success: function(response) {
+				location.reload();
+			},
+			error: function() {
+				alert('Error resetting win statistics. Please try again.');
+			}
+		});
+	}
+}
+
 (function() {
 	if (!window._bestPointsBalls || !window._bestPointsBalls.length) return;
 	// Highlight the nav tab(s) whose text matches a best-ball number

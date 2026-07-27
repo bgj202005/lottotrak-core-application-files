@@ -409,6 +409,127 @@
 	</div>
 	<?php endif; ?>
 
+	<!-- H-W-C + Followers Win Statistics -->
+	<?php if(isset($hwcf_win_stats)): ?>
+	<?php
+	// Build ordered prize columns (highest to lowest) filtered by valid categories
+	$hwcf_prize_cols = array();
+	$valid_cats = isset($lottery->valid_prize_categories) ? $lottery->valid_prize_categories : array();
+	$balls_drawn = isset($lottery->balls_drawn) ? intval($lottery->balls_drawn) : 9;
+	$has_extra = !empty($lottery->extra_ball);
+	
+	// Start from balls_drawn down to 1, interleaving extra ball prizes by prize hierarchy
+	for($i = $balls_drawn; $i >= 1; $i--) {
+		$col = $i.'_win';
+		// Add current number without extra
+		if(in_array($col, $valid_cats)) {
+			$hwcf_prize_cols[] = array('key' => $col, 'label' => $i, 'title' => $i.' Number'.($i > 1 ? 's' : ''));
+		}
+		// Add next lower number WITH extra (higher prize than next lower without extra)
+		if($i > 1 && $has_extra) {
+			$col_lower_extra = ($i-1).'_win_extra';
+			if(in_array($col_lower_extra, $valid_cats)) {
+				$hwcf_prize_cols[] = array('key' => $col_lower_extra, 'label' => ($i-1).'+', 'title' => ($i-1).' Number'.($i > 2 ? 's' : '').' + Extra');
+			}
+		}
+	}
+	// Add 1 number alone if not already added (when i=1 in loop, we don't add 0+)
+	// Note: It's already added in the loop when i=1
+	// Add extra-only at the end (lowest prize)
+	if($has_extra && in_array('extra', $valid_cats)) {
+		$hwcf_prize_cols[] = array('key' => 'extra', 'label' => '+', 'title' => 'Extra Ball Only');
+	}
+	
+	// Calculate draw count
+	$draw_count = 0;
+	if($hwcf_win_stats['startdate'] && $hwcf_win_stats['lastdate']) {
+		$start = new DateTime($hwcf_win_stats['startdate']);
+		$end = new DateTime($hwcf_win_stats['lastdate']);
+		$diff_days = $start->diff($end)->days;
+		// Rough estimate based on draw days per week
+		$draws_per_week = 0;
+		if($lottery->monday) $draws_per_week++;
+		if($lottery->tuesday) $draws_per_week++;
+		if($lottery->wednesday) $draws_per_week++;
+		if($lottery->thursday) $draws_per_week++;
+		if($lottery->friday) $draws_per_week++;
+		if($lottery->saturday) $draws_per_week++;
+		if($lottery->sunday) $draws_per_week++;
+		$draw_count = ($draws_per_week > 0) ? max(1, round(($diff_days / 7) * $draws_per_week)) : 1;
+	}
+	?>
+	<style>
+		.hwcf-win-stats-table { font-size: 0.80em; table-layout: fixed; width: 100%; margin-bottom: 0; background-color: white; }
+		.hwcf-win-stats-table th { font-size: 0.80em; font-weight: bold; white-space: nowrap; padding: 0.3rem 0.2rem; text-align: center; }
+		.hwcf-win-stats-table td { padding: 0.25rem 0.2rem; text-align: center; white-space: nowrap; }
+		.hwcf-win-record-col { width: 22px !important; font-size: 0.80em; white-space: nowrap; }
+		.hwcf-win-total-col { width: 46px !important; font-size: 0.80em; white-space: nowrap; }
+		@media (max-width: 992px) {
+			.hwcf-win-stats-table { font-size: 0.74em; table-layout: auto; width: auto; min-width: 600px; }
+			.hwcf-win-stats-table th { font-size: 0.74em; padding: 0.25rem 0.15rem; }
+			.hwcf-win-stats-table td { padding: 0.2rem 0.15rem; }
+			.hwcf-win-record-col { width: 20px !important; font-size: 0.74em; }
+			.hwcf-win-total-col { width: 42px !important; font-size: 0.74em; }
+		}
+		@media (max-width: 576px) {
+			.hwcf-win-stats-table { font-size: 0.68em; min-width: 500px; }
+			.hwcf-win-stats-table th { font-size: 0.68em; padding: 0.2rem 0.1rem; }
+			.hwcf-win-stats-table td { padding: 0.18rem 0.1rem; }
+			.hwcf-win-record-col { width: 18px !important; font-size: 0.68em; }
+			.hwcf-win-total-col { width: 38px !important; font-size: 0.68em; }
+		}
+	</style>
+	<div style="margin: 20px 0; padding: 18px; background-color: #f3e5f5; border-left: 4px solid #7b1fa2; border-radius: 4px;">
+		<div style="text-align: center; margin-bottom: 15px;">
+			<strong style="color: #000000; font-size: 1.1em;">
+				<i class="fa fa-trophy"></i> H-W-C + Followers Prediction Win Records
+			</strong>
+		</div>
+		<div style="margin-bottom: 10px; text-align: center; font-size: 0.9em; color: #666;">
+			<?php if($hwcf_win_stats['startdate'] || $hwcf_win_stats['lastdate']): ?>
+				<strong>Start:</strong> <?php echo $hwcf_win_stats['startdate'] ? date('M j, Y', strtotime($hwcf_win_stats['startdate'])) : date('M j, Y', strtotime($lottery->next_draw_date)); ?>
+				&nbsp;&nbsp;|
+				<?php if($hwcf_win_stats['lastdate']): ?>
+					<strong>Last Draw:</strong> <?php echo date('M j, Y', strtotime($hwcf_win_stats['lastdate'])); ?> (<?php echo $draw_count; ?> draw<?php echo $draw_count != 1 ? 's' : ''; ?>)
+				<?php else: ?>
+					<strong>Last Draw:</strong> None yet
+				<?php endif; ?>
+			<?php else: ?>
+				<strong>Start:</strong> <?php echo date('M j, Y', strtotime($lottery->next_draw_date)); ?> &nbsp;|&nbsp; <strong>Last Draw:</strong> None yet
+			<?php endif; ?>
+			<button type="button" class="btn btn-sm btn-danger" onclick="resetHWCFWinStats(<?php echo $lottery->id; ?>)" 
+				style="margin-left: 15px;">
+				<i class="fa fa-undo"></i> Reset
+			</button>
+		</div>
+		<div class="table-responsive" style="overflow-x: auto;">
+			<table class="table table-bordered table-striped hwcf-win-stats-table">
+				<thead>
+					<tr>
+						<th colspan="<?php echo count($hwcf_prize_cols) + 1; ?>" class="text-center" style="background-color: #f4f4f4;">
+							<strong>Win Record</strong>
+						</th>
+					</tr>
+					<tr>
+						<?php foreach($hwcf_prize_cols as $col): ?>
+							<th class="text-center hwcf-win-record-col" style="background-color: #e8f5e8;" title="<?php echo htmlspecialchars($col['title']); ?>"><?php echo htmlspecialchars($col['label']); ?></th>
+						<?php endforeach; ?>
+						<th class="text-center hwcf-win-total-col" style="background-color: #d4edda; font-weight: bold;" title="Total Winners">Total</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<?php foreach($hwcf_prize_cols as $col): ?>
+							<td class="text-center"><?php echo number_format($hwcf_win_stats[$col['key']]); ?></td>
+						<?php endforeach; ?>
+						<td class="text-center" style="background-color: #e1bee7; font-weight: bold;"><?php echo number_format($hwcf_win_stats['total_winners']); ?></td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</div>
+	<?php endif; ?>
+
 </div><!-- /container-fluid -->
 
 </div><!-- /card -->
@@ -418,6 +539,23 @@
 </section>
 
 <script>
+// Reset H-W-C + Followers Win Statistics
+function resetHWCFWinStats(lotteryId) {
+	if(confirm('WARNING: This will clear all H-W-C + Followers prediction win records and reset the statistics.\n\nThe new start date will be set to the next draw date.\n\nAre you sure you want to continue?')) {
+		$.ajax({
+			url: '<?php echo site_url("admin/history/reset_hwcf_win_stats"); ?>',
+			type: 'POST',
+			data: { lottery_id: lotteryId },
+			success: function(response) {
+				location.reload();
+			},
+			error: function() {
+				alert('Error resetting win statistics. Please try again.');
+			}
+		});
+	}
+}
+
 $(document).ready(function() {
 	// Rotate chevron icon when row expands/collapses
 	$('.hwcf-row').on('click', function() {

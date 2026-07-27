@@ -442,7 +442,17 @@ class History extends Admin_Controller {
 			$this->session->set_flashdata('message', 'There is an INTERNAL error with this lottery. '.$tbl_name.' Does not exist. Create the Lottery Database now.');
 			redirect('admin/statistics');
 		}
-		$this->data['lottery']->last_drawn = (array) $this->lotteries_m->last_draw_db($tbl_name);	// Retrieve the last drawn numbers and draw date
+		$last_drawn = $this->lotteries_m->last_draw_db($tbl_name);
+		$ld = $last_drawn->draw_date;				// Return last draw date
+		$day = $this->lotteries_m->return_day($ld);	// Returns the day of draw, Saturday, Sunday, etc.
+		$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
+		$this->data['lottery']->last_drawn = (array) $last_drawn;	// Retrieve the last drawn numbers and draw date
+		
+		// Get prize group profile and set valid prize categories for filtering
+		$p_group = $this->statistics_m->prize_group_profile($id);
+		$p_group = $this->statistics_m->prizes_only($p_group, $this->data['lottery']->extra_ball);
+		$this->data['lottery']->valid_prize_categories = array_keys($p_group);
+		
 		$h_w_c = $this->statistics_m->h_w_c_exists($id);
 		if(!is_null($h_w_c))	// Existing HWC?
 		{
@@ -713,6 +723,33 @@ class History extends Admin_Controller {
 		// Pass lottery draws count and range for labelling
 		$this->data['hwc_balls_drawn'] = $drawn;
 		$this->data['hwc_range'] = isset($h_w_c['range']) ? $h_w_c['range'] : 100;
+		
+		// Fetch H-W-C win statistics
+		$hwc_win_stats = array(
+			'startdate' => isset($h_w_c['startdate']) ? $h_w_c['startdate'] : null,
+			'lastdate' => isset($h_w_c['lastdate']) ? $h_w_c['lastdate'] : null,
+			'extra' => isset($h_w_c['extra']) ? intval($h_w_c['extra']) : 0,
+			'1_win' => isset($h_w_c['1_win']) ? intval($h_w_c['1_win']) : 0,
+			'1_win_extra' => isset($h_w_c['1_win_extra']) ? intval($h_w_c['1_win_extra']) : 0,
+			'2_win' => isset($h_w_c['2_win']) ? intval($h_w_c['2_win']) : 0,
+			'2_win_extra' => isset($h_w_c['2_win_extra']) ? intval($h_w_c['2_win_extra']) : 0,
+			'3_win' => isset($h_w_c['3_win']) ? intval($h_w_c['3_win']) : 0,
+			'3_win_extra' => isset($h_w_c['3_win_extra']) ? intval($h_w_c['3_win_extra']) : 0,
+			'4_win' => isset($h_w_c['4_win']) ? intval($h_w_c['4_win']) : 0,
+			'4_win_extra' => isset($h_w_c['4_win_extra']) ? intval($h_w_c['4_win_extra']) : 0,
+			'5_win' => isset($h_w_c['5_win']) ? intval($h_w_c['5_win']) : 0,
+			'5_win_extra' => isset($h_w_c['5_win_extra']) ? intval($h_w_c['5_win_extra']) : 0,
+			'6_win' => isset($h_w_c['6_win']) ? intval($h_w_c['6_win']) : 0,
+			'6_win_extra' => isset($h_w_c['6_win_extra']) ? intval($h_w_c['6_win_extra']) : 0,
+			'7_win' => isset($h_w_c['7_win']) ? intval($h_w_c['7_win']) : 0,
+			'7_win_extra' => isset($h_w_c['7_win_extra']) ? intval($h_w_c['7_win_extra']) : 0,
+			'8_win' => isset($h_w_c['8_win']) ? intval($h_w_c['8_win']) : 0,
+			'8_win_extra' => isset($h_w_c['8_win_extra']) ? intval($h_w_c['8_win_extra']) : 0,
+			'9_win' => isset($h_w_c['9_win']) ? intval($h_w_c['9_win']) : 0,
+			'9_win_extra' => isset($h_w_c['9_win_extra']) ? intval($h_w_c['9_win_extra']) : 0,
+			'total_winners' => isset($h_w_c['total_winners']) ? intval($h_w_c['total_winners']) : 0
+		);
+		$this->data['hwc_win_stats'] = $hwc_win_stats;
 		
 		// Load the view
 		$this->data['current'] = $this->uri->segment(2); // Sets the Statistics menu
@@ -1028,6 +1065,33 @@ class History extends Admin_Controller {
 			$this->data['prev_draw'] = array('exists' => false);
 		}
 		$this->data['current_draw_numbers'] = $current_draw_numbers;
+
+		// Fetch Followers win statistics
+		$followers_win_stats = array(
+			'startdate' => isset($followers['startdate']) ? $followers['startdate'] : null,
+			'lastdate' => isset($followers['lastdate']) ? $followers['lastdate'] : null,
+			'extra' => isset($followers['extra']) ? intval($followers['extra']) : 0,
+			'1_win' => isset($followers['1_win']) ? intval($followers['1_win']) : 0,
+			'1_win_extra' => isset($followers['1_win_extra']) ? intval($followers['1_win_extra']) : 0,
+			'2_win' => isset($followers['2_win']) ? intval($followers['2_win']) : 0,
+			'2_win_extra' => isset($followers['2_win_extra']) ? intval($followers['2_win_extra']) : 0,
+			'3_win' => isset($followers['3_win']) ? intval($followers['3_win']) : 0,
+			'3_win_extra' => isset($followers['3_win_extra']) ? intval($followers['3_win_extra']) : 0,
+			'4_win' => isset($followers['4_win']) ? intval($followers['4_win']) : 0,
+			'4_win_extra' => isset($followers['4_win_extra']) ? intval($followers['4_win_extra']) : 0,
+			'5_win' => isset($followers['5_win']) ? intval($followers['5_win']) : 0,
+			'5_win_extra' => isset($followers['5_win_extra']) ? intval($followers['5_win_extra']) : 0,
+			'6_win' => isset($followers['6_win']) ? intval($followers['6_win']) : 0,
+			'6_win_extra' => isset($followers['6_win_extra']) ? intval($followers['6_win_extra']) : 0,
+			'7_win' => isset($followers['7_win']) ? intval($followers['7_win']) : 0,
+			'7_win_extra' => isset($followers['7_win_extra']) ? intval($followers['7_win_extra']) : 0,
+			'8_win' => isset($followers['8_win']) ? intval($followers['8_win']) : 0,
+			'8_win_extra' => isset($followers['8_win_extra']) ? intval($followers['8_win_extra']) : 0,
+			'9_win' => isset($followers['9_win']) ? intval($followers['9_win']) : 0,
+			'9_win_extra' => isset($followers['9_win_extra']) ? intval($followers['9_win_extra']) : 0,
+			'total_winners' => isset($followers['total_winners']) ? intval($followers['total_winners']) : 0
+		);
+		$this->data['followers_win_stats'] = $followers_win_stats;
 
 		$this->data['current'] = $this->uri->segment(2); 				// Sets the Admins Menu Highlighted
 		$this->session->set_userdata('uri', 'admin/'.$this->data['current'].'/followers'.($id ? '/'.$id : ''));
@@ -1747,7 +1811,17 @@ class History extends Admin_Controller {
 
 		$range = min(500, intval($h_w_c['range']));
 
-		$this->data['lottery']->last_drawn  = (array) $this->lotteries_m->last_draw_db($tbl_name);
+		$last_drawn = $this->lotteries_m->last_draw_db($tbl_name);
+		$ld = $last_drawn->draw_date;				// Return last draw date
+		$day = $this->lotteries_m->return_day($ld);	// Returns the day of draw, Saturday, Sunday, etc.
+		$this->data['lottery']->next_draw_date = $this->lotteries_m->next_date($this->data['lottery'], $day, $ld);
+		$this->data['lottery']->last_drawn  = (array) $last_drawn;
+		
+		// Get prize group profile and set valid prize categories for filtering
+		$p_group = $this->statistics_m->prize_group_profile($id);
+		$p_group = $this->statistics_m->prizes_only($p_group, $this->data['lottery']->extra_ball);
+		$this->data['lottery']->valid_prize_categories = array_keys($p_group);
+		
 		$this->data['lottery']->last_drawn['range'] = $range;
 		$this->data['lottery']->extra_included = $h_w_c['extra_included'];
 		$this->data['lottery']->extra_draws    = $h_w_c['extra_draws'];
@@ -1870,6 +1944,33 @@ class History extends Admin_Controller {
 			$this->data['hwcf_saved_position_points'] = ($hwcf_record && !empty($hwcf_record['position_points']))  ? $hwcf_record['position_points']  : '';
 		}
 		$this->data['hwcf_saved_h_w_c_group'] = ($hwcf_record && !empty($hwcf_record['h_w_c_group'])) ? $hwcf_record['h_w_c_group'] : '';
+
+		// Fetch H-W-C + Followers win statistics
+		$hwcf_win_stats = array(
+			'startdate' => ($hwcf_record && isset($hwcf_record['startdate'])) ? $hwcf_record['startdate'] : null,
+			'lastdate' => ($hwcf_record && isset($hwcf_record['lastdate'])) ? $hwcf_record['lastdate'] : null,
+			'extra' => ($hwcf_record && isset($hwcf_record['extra'])) ? intval($hwcf_record['extra']) : 0,
+			'1_win' => ($hwcf_record && isset($hwcf_record['1_win'])) ? intval($hwcf_record['1_win']) : 0,
+			'1_win_extra' => ($hwcf_record && isset($hwcf_record['1_win_extra'])) ? intval($hwcf_record['1_win_extra']) : 0,
+			'2_win' => ($hwcf_record && isset($hwcf_record['2_win'])) ? intval($hwcf_record['2_win']) : 0,
+			'2_win_extra' => ($hwcf_record && isset($hwcf_record['2_win_extra'])) ? intval($hwcf_record['2_win_extra']) : 0,
+			'3_win' => ($hwcf_record && isset($hwcf_record['3_win'])) ? intval($hwcf_record['3_win']) : 0,
+			'3_win_extra' => ($hwcf_record && isset($hwcf_record['3_win_extra'])) ? intval($hwcf_record['3_win_extra']) : 0,
+			'4_win' => ($hwcf_record && isset($hwcf_record['4_win'])) ? intval($hwcf_record['4_win']) : 0,
+			'4_win_extra' => ($hwcf_record && isset($hwcf_record['4_win_extra'])) ? intval($hwcf_record['4_win_extra']) : 0,
+			'5_win' => ($hwcf_record && isset($hwcf_record['5_win'])) ? intval($hwcf_record['5_win']) : 0,
+			'5_win_extra' => ($hwcf_record && isset($hwcf_record['5_win_extra'])) ? intval($hwcf_record['5_win_extra']) : 0,
+			'6_win' => ($hwcf_record && isset($hwcf_record['6_win'])) ? intval($hwcf_record['6_win']) : 0,
+			'6_win_extra' => ($hwcf_record && isset($hwcf_record['6_win_extra'])) ? intval($hwcf_record['6_win_extra']) : 0,
+			'7_win' => ($hwcf_record && isset($hwcf_record['7_win'])) ? intval($hwcf_record['7_win']) : 0,
+			'7_win_extra' => ($hwcf_record && isset($hwcf_record['7_win_extra'])) ? intval($hwcf_record['7_win_extra']) : 0,
+			'8_win' => ($hwcf_record && isset($hwcf_record['8_win'])) ? intval($hwcf_record['8_win']) : 0,
+			'8_win_extra' => ($hwcf_record && isset($hwcf_record['8_win_extra'])) ? intval($hwcf_record['8_win_extra']) : 0,
+			'9_win' => ($hwcf_record && isset($hwcf_record['9_win'])) ? intval($hwcf_record['9_win']) : 0,
+			'9_win_extra' => ($hwcf_record && isset($hwcf_record['9_win_extra'])) ? intval($hwcf_record['9_win_extra']) : 0,
+			'total_winners' => ($hwcf_record && isset($hwcf_record['total_winners'])) ? intval($hwcf_record['total_winners']) : 0
+		);
+		$this->data['hwcf_win_stats'] = $hwcf_win_stats;
 
 		$this->data['current'] = $this->uri->segment(2);
 		$this->session->set_userdata('uri', 'admin/' . $this->data['current']);
@@ -2103,5 +2204,140 @@ class History extends Admin_Controller {
 		});
 		
 		return $winners;
+	}
+	
+	/**
+	 * Reset H-W-C win statistics
+	 * 
+	 * @return JSON response
+	 */
+	public function reset_hwc_win_stats()
+	{
+		$lottery_id = $this->input->post('lottery_id');
+		
+		if(!$lottery_id) {
+			echo json_encode(array('success' => false, 'message' => 'Invalid lottery ID'));
+			return;
+		}
+		
+		// Get next draw date
+		$lottery = $this->lotteries_m->get($lottery_id);
+		$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+		$last_drawn = $this->lotteries_m->last_draw_db($tbl_name);
+		$ld = $last_drawn->draw_date;
+		$day = $this->lotteries_m->return_day($ld);
+		$next_draw_date = $this->lotteries_m->next_date($lottery, $day, $ld);
+		
+		// Reset all win statistics fields
+		$data = array(
+			'startdate' => $next_draw_date,
+			'lastdate' => NULL,
+			'extra' => 0,
+			'1_win' => 0, '1_win_extra' => 0,
+			'2_win' => 0, '2_win_extra' => 0,
+			'3_win' => 0, '3_win_extra' => 0,
+			'4_win' => 0, '4_win_extra' => 0,
+			'5_win' => 0, '5_win_extra' => 0,
+			'6_win' => 0, '6_win_extra' => 0,
+			'7_win' => 0, '7_win_extra' => 0,
+			'8_win' => 0, '8_win_extra' => 0,
+			'9_win' => 0, '9_win_extra' => 0,
+			'total_winners' => 0
+		);
+		
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update('lottery_h_w_c', $data);
+		
+		echo json_encode(array('success' => true, 'message' => 'H-W-C win statistics reset successfully'));
+	}
+	
+	/**
+	 * Reset Followers win statistics
+	 * 
+	 * @return JSON response
+	 */
+	public function reset_followers_win_stats()
+	{
+		$lottery_id = $this->input->post('lottery_id');
+		
+		if(!$lottery_id) {
+			echo json_encode(array('success' => false, 'message' => 'Invalid lottery ID'));
+			return;
+		}
+		
+		// Get next draw date
+		$lottery = $this->lotteries_m->get($lottery_id);
+		$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+		$last_drawn = $this->lotteries_m->last_draw_db($tbl_name);
+		$ld = $last_drawn->draw_date;
+		$day = $this->lotteries_m->return_day($ld);
+		$next_draw_date = $this->lotteries_m->next_date($lottery, $day, $ld);
+		
+		// Reset all win statistics fields
+		$data = array(
+			'startdate' => $next_draw_date,
+			'lastdate' => NULL,
+			'extra' => 0,
+			'1_win' => 0, '1_win_extra' => 0,
+			'2_win' => 0, '2_win_extra' => 0,
+			'3_win' => 0, '3_win_extra' => 0,
+			'4_win' => 0, '4_win_extra' => 0,
+			'5_win' => 0, '5_win_extra' => 0,
+			'6_win' => 0, '6_win_extra' => 0,
+			'7_win' => 0, '7_win_extra' => 0,
+			'8_win' => 0, '8_win_extra' => 0,
+			'9_win' => 0, '9_win_extra' => 0,
+			'total_winners' => 0
+		);
+		
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update('lottery_followers', $data);
+		
+		echo json_encode(array('success' => true, 'message' => 'Followers win statistics reset successfully'));
+	}
+	
+	/**
+	 * Reset H-W-C + Followers win statistics
+	 * 
+	 * @return JSON response
+	 */
+	public function reset_hwcf_win_stats()
+	{
+		$lottery_id = $this->input->post('lottery_id');
+		
+		if(!$lottery_id) {
+			echo json_encode(array('success' => false, 'message' => 'Invalid lottery ID'));
+			return;
+		}
+		
+		// Get next draw date
+		$lottery = $this->lotteries_m->get($lottery_id);
+		$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+		$last_drawn = $this->lotteries_m->last_draw_db($tbl_name);
+		$ld = $last_drawn->draw_date;
+		$day = $this->lotteries_m->return_day($ld);
+		$next_draw_date = $this->lotteries_m->next_date($lottery, $day, $ld);
+		
+		// Reset all win statistics fields
+		$data = array(
+			'startdate' => $next_draw_date,
+			'lastdate' => NULL,
+			'extra' => 0,
+			'1_win' => 0, '1_win_extra' => 0,
+			'2_win' => 0, '2_win_extra' => 0,
+			'3_win' => 0, '3_win_extra' => 0,
+			'4_win' => 0, '4_win_extra' => 0,
+			'5_win' => 0, '5_win_extra' => 0,
+			'6_win' => 0, '6_win_extra' => 0,
+			'7_win' => 0, '7_win_extra' => 0,
+			'8_win' => 0, '8_win_extra' => 0,
+			'9_win' => 0, '9_win_extra' => 0,
+			'total_winners' => 0
+		);
+		
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update('lottery_h_w_c_followers', $data);
+		
+		echo json_encode(array('success' => true, 'message' => 'H-W-C + Followers win statistics reset successfully'));
 	}
 }	
