@@ -44,6 +44,17 @@
 		color:steelblue; 
 	}
 	
+	/* Mobile responsive adjustments */
+	@media (max-width: 768px) {
+		.col-8, .col-4 {
+			flex: 0 0 100%;
+			max-width: 100%;
+		}
+		.col-4 > div {
+			margin-left: 0 !important;
+		}
+	}
+	
 </style>
 	<h2><?php echo 'View Friends for: '.$lottery->lottery_name; ?></h2>	
 	<?php $max = $lottery->maximum_ball; 
@@ -103,26 +114,28 @@
 					</div>
 				</div>
 				<div class="col-4">
-					<div class="dropdown" style = "margin-left: 50px; margin-bottom: 2em;">
-						<button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-							Draw Range
-						</button>
-						<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-							<?php $interval = (integer) $lottery->last_drawn['interval'];
-							if(!$interval) : 
-								$sel_range = $lottery->last_drawn['range']; ?>
-								<a class="dropdown-item active" href="<?=base_url('admin/statistics/friends/'.$lottery->id)?>">All Draws (<?=$sel_range;?>) </a>
-							<?php else:
-								$sel_range = (integer) $lottery->last_drawn['sel_range']; // Selected a different range from the complete range of draws?
-								for($i = 1; $i <= $interval; $i++):
-									$step = $i * 100;	// in multiples of 100
-									if($i!=$interval): ?>
-										<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?> " href="<?=base_url('admin/statistics/friends/'.$lottery->id.'/'.$step);?>">Last <?=$step;?></a>
-									<?php else : ?>
-										<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?> " href="<?=base_url('admin/statistics/friends/'.$lottery->id.'/'.$lottery->last_drawn['all']);?>">All Draws (<?=$lottery->last_drawn['all'];?>)</a>
-									<?php endif;
-								endfor; ?> 
-								<?php endif;?>
+					<div style="margin-left: 15px; margin-bottom: 2em;">
+						<div class="dropdown" style="margin-bottom: 1em;">
+							<button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+								Draw Range
+							</button>
+							<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+								<?php $interval = (integer) $lottery->last_drawn['interval'];
+								if(!$interval) : 
+									$sel_range = $lottery->last_drawn['range']; ?>
+									<a class="dropdown-item active" href="<?=base_url('admin/statistics/friends/'.$lottery->id)?>">All Draws (<?=$sel_range;?>) </a>
+								<?php else:
+									$sel_range = (integer) $lottery->last_drawn['sel_range']; // Selected a different range from the complete range of draws?
+									for($i = 1; $i <= $interval; $i++):
+										$step = $i * 100;	// in multiples of 100
+										if($i!=$interval): ?>
+											<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?> " href="<?=base_url('admin/statistics/friends/'.$lottery->id.'/'.$step);?>">Last <?=$step;?></a>
+										<?php else : ?>
+											<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?> " href="<?=base_url('admin/statistics/friends/'.$lottery->id.'/'.$lottery->last_drawn['all']);?>">All Draws (<?=$lottery->last_drawn['all'];?>)</a>
+										<?php endif;
+									endfor; ?> 
+									<?php endif;?>
+							</div>
 						</div>
 						<div class="form-check" style="margin-top: 10px;">
 						<?php 
@@ -136,7 +149,7 @@
 							echo form_label('Extra (Bonus) Ball Included?', 'extra_lb', $extra);
 						?>
 						</div>
-						<div class="form-check" style="margin-top: 10px;">
+						<div class="form-check" style="margin-top: 10px; margin-bottom: 20px;">
 						<?php
 							$js = "location.href='".base_url()."admin/statistics/friends/".$lottery->id."/".(!$interval ? $sel_range : ($sel_range*100))."/draws'";
 							$attr = array(
@@ -147,7 +160,32 @@
 							echo form_checkbox('extra_draws', '1', set_checkbox('extra_draws', '1', (!empty($lottery->extra_draws))), $attr);
 							echo form_label('Extra Draw(s) Included?', 'extra_draw_lb', $extra); 
 						?>
-						</div>		
+						</div>
+						
+						<!-- Last Draw Tile -->
+						<div style="background: #f8f9fa; border: 1px solid #adb5bd; border-radius: 6px; padding: 8px 12px; width: 80%; max-width: 100%;">
+							<div style="font-weight: bold; color: #343a40; margin-bottom: 4px; font-size: 0.95em;">
+								<i class="fa fa-calendar" aria-hidden="true"></i> Last Draw
+							</div>
+							<div style="color:#555; font-size:0.85em; margin-bottom:4px;">
+								<?php if(!empty($lottery->last_drawn['draw_date'])): ?>
+									<?=date('D, M j, Y', strtotime(str_replace('/', '-', $lottery->last_drawn['draw_date'])));?>
+								<?php else: ?>
+									<span class="text-muted">N/A</span>
+								<?php endif; ?>
+							</div>
+							<div style="display:flex; flex-wrap:wrap; align-items:center; gap:3px;">
+								<?php for($__i = 1; $__i <= $lottery->balls_drawn; $__i++): ?>
+									<?php if(!empty($lottery->last_drawn['ball'.$__i])): ?>
+									<span class="badge badge-dark" style="font-size:0.85em; padding:4px 5px;"><?=(int)$lottery->last_drawn['ball'.$__i];?></span>
+									<?php endif; ?>
+								<?php endfor; ?>
+								<?php if($lottery->extra_ball && !empty($lottery->last_drawn['extra'])): ?>
+									<span style="margin:0 2px; color:#888; font-size:0.85em;">+</span>
+									<span class="badge badge-secondary" style="font-size:0.85em; padding:4px 5px;"><?=(int)$lottery->last_drawn['extra'];?></span>
+								<?php endif; ?>
+							</div>
+						</div>
 					</div>
 				</div>
 			</div>
