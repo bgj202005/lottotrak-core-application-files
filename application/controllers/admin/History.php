@@ -2213,6 +2213,8 @@ class History extends Admin_Controller {
 	 */
 	public function reset_hwc_win_stats()
 	{
+		header('Content-Type: application/json');
+		
 		$lottery_id = $this->input->post('lottery_id');
 		
 		if(!$lottery_id) {
@@ -2220,35 +2222,53 @@ class History extends Admin_Controller {
 			return;
 		}
 		
-		// Get next draw date
-		$lottery = $this->lotteries_m->get($lottery_id);
-		$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
-		$last_drawn = $this->lotteries_m->last_draw_db($tbl_name);
-		$ld = $last_drawn->draw_date;
-		$day = $this->lotteries_m->return_day($ld);
-		$next_draw_date = $this->lotteries_m->next_date($lottery, $day, $ld);
-		
-		// Reset all win statistics fields
-		$data = array(
-			'startdate' => $next_draw_date,
-			'lastdate' => NULL,
-			'extra' => 0,
-			'1_win' => 0, '1_win_extra' => 0,
-			'2_win' => 0, '2_win_extra' => 0,
-			'3_win' => 0, '3_win_extra' => 0,
-			'4_win' => 0, '4_win_extra' => 0,
-			'5_win' => 0, '5_win_extra' => 0,
-			'6_win' => 0, '6_win_extra' => 0,
-			'7_win' => 0, '7_win_extra' => 0,
-			'8_win' => 0, '8_win_extra' => 0,
-			'9_win' => 0, '9_win_extra' => 0,
-			'total_winners' => 0
-		);
-		
-		$this->db->where('lottery_id', $lottery_id);
-		$this->db->update('lottery_h_w_c', $data);
-		
-		echo json_encode(array('success' => true, 'message' => 'H-W-C win statistics reset successfully'));
+		try {
+			// Get next draw date
+			$lottery = $this->lotteries_m->get($lottery_id);
+			if(!$lottery) {
+				echo json_encode(array('success' => false, 'message' => 'Lottery not found'));
+				return;
+			}
+			
+			$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+			$last_drawn = $this->lotteries_m->last_draw_db($tbl_name);
+			$ld = $last_drawn->draw_date;
+			$day = $this->lotteries_m->return_day($ld);
+			$next_draw_date = $this->lotteries_m->next_date($lottery, $day, $ld);
+			
+			// Convert to MySQL DATE format (Y-m-d)
+			$next_draw_date_sql = date('Y-m-d', strtotime($next_draw_date));
+			
+			// Reset all win statistics fields
+			$data = array(
+				'startdate' => $next_draw_date_sql,
+				'lastdate' => NULL,
+				'extra' => 0,
+				'1_win' => 0, '1_win_extra' => 0,
+				'2_win' => 0, '2_win_extra' => 0,
+				'3_win' => 0, '3_win_extra' => 0,
+				'4_win' => 0, '4_win_extra' => 0,
+				'5_win' => 0, '5_win_extra' => 0,
+				'6_win' => 0, '6_win_extra' => 0,
+				'7_win' => 0, '7_win_extra' => 0,
+				'8_win' => 0, '8_win_extra' => 0,
+				'9_win' => 0, '9_win_extra' => 0,
+				'total_winners' => 0
+			);
+			
+			$this->db->where('lottery_id', $lottery_id);
+			$result = $this->db->update('lottery_h_w_c', $data);
+			
+			if($result) {
+				// Clear the cache for H-W-C data
+				$this->statistics_m->clear_cache('h_w_c');
+				echo json_encode(array('success' => true, 'message' => 'H-W-C win statistics reset successfully'));
+			} else {
+				echo json_encode(array('success' => false, 'message' => 'Database update failed'));
+			}
+		} catch (Exception $e) {
+			echo json_encode(array('success' => false, 'message' => 'Error: ' . $e->getMessage()));
+		}
 	}
 	
 	/**
@@ -2258,6 +2278,8 @@ class History extends Admin_Controller {
 	 */
 	public function reset_followers_win_stats()
 	{
+		header('Content-Type: application/json');
+		
 		$lottery_id = $this->input->post('lottery_id');
 		
 		if(!$lottery_id) {
@@ -2265,35 +2287,53 @@ class History extends Admin_Controller {
 			return;
 		}
 		
-		// Get next draw date
-		$lottery = $this->lotteries_m->get($lottery_id);
-		$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
-		$last_drawn = $this->lotteries_m->last_draw_db($tbl_name);
-		$ld = $last_drawn->draw_date;
-		$day = $this->lotteries_m->return_day($ld);
-		$next_draw_date = $this->lotteries_m->next_date($lottery, $day, $ld);
-		
-		// Reset all win statistics fields
-		$data = array(
-			'startdate' => $next_draw_date,
-			'lastdate' => NULL,
-			'extra' => 0,
-			'1_win' => 0, '1_win_extra' => 0,
-			'2_win' => 0, '2_win_extra' => 0,
-			'3_win' => 0, '3_win_extra' => 0,
-			'4_win' => 0, '4_win_extra' => 0,
-			'5_win' => 0, '5_win_extra' => 0,
-			'6_win' => 0, '6_win_extra' => 0,
-			'7_win' => 0, '7_win_extra' => 0,
-			'8_win' => 0, '8_win_extra' => 0,
-			'9_win' => 0, '9_win_extra' => 0,
-			'total_winners' => 0
-		);
-		
-		$this->db->where('lottery_id', $lottery_id);
-		$this->db->update('lottery_followers', $data);
-		
-		echo json_encode(array('success' => true, 'message' => 'Followers win statistics reset successfully'));
+		try {
+			// Get next draw date
+			$lottery = $this->lotteries_m->get($lottery_id);
+			if(!$lottery) {
+				echo json_encode(array('success' => false, 'message' => 'Lottery not found'));
+				return;
+			}
+			
+			$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+			$last_drawn = $this->lotteries_m->last_draw_db($tbl_name);
+			$ld = $last_drawn->draw_date;
+			$day = $this->lotteries_m->return_day($ld);
+			$next_draw_date = $this->lotteries_m->next_date($lottery, $day, $ld);
+			
+			// Convert to MySQL DATE format (Y-m-d)
+			$next_draw_date_sql = date('Y-m-d', strtotime($next_draw_date));
+			
+			// Reset all win statistics fields
+			$data = array(
+				'startdate' => $next_draw_date_sql,
+				'lastdate' => NULL,
+				'extra' => 0,
+				'1_win' => 0, '1_win_extra' => 0,
+				'2_win' => 0, '2_win_extra' => 0,
+				'3_win' => 0, '3_win_extra' => 0,
+				'4_win' => 0, '4_win_extra' => 0,
+				'5_win' => 0, '5_win_extra' => 0,
+				'6_win' => 0, '6_win_extra' => 0,
+				'7_win' => 0, '7_win_extra' => 0,
+				'8_win' => 0, '8_win_extra' => 0,
+				'9_win' => 0, '9_win_extra' => 0,
+				'total_winners' => 0
+			);
+			
+			$this->db->where('lottery_id', $lottery_id);
+			$result = $this->db->update('lottery_followers', $data);
+			
+			if($result) {
+				// Clear the cache for followers data
+				$this->statistics_m->clear_cache('followers');
+				echo json_encode(array('success' => true, 'message' => 'Followers win statistics reset successfully'));
+			} else {
+				echo json_encode(array('success' => false, 'message' => 'Database update failed'));
+			}
+		} catch (Exception $e) {
+			echo json_encode(array('success' => false, 'message' => 'Error: ' . $e->getMessage()));
+		}
 	}
 	
 	/**
@@ -2303,6 +2343,8 @@ class History extends Admin_Controller {
 	 */
 	public function reset_hwcf_win_stats()
 	{
+		header('Content-Type: application/json');
+		
 		$lottery_id = $this->input->post('lottery_id');
 		
 		if(!$lottery_id) {
@@ -2310,34 +2352,50 @@ class History extends Admin_Controller {
 			return;
 		}
 		
-		// Get next draw date
-		$lottery = $this->lotteries_m->get($lottery_id);
-		$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
-		$last_drawn = $this->lotteries_m->last_draw_db($tbl_name);
-		$ld = $last_drawn->draw_date;
-		$day = $this->lotteries_m->return_day($ld);
-		$next_draw_date = $this->lotteries_m->next_date($lottery, $day, $ld);
-		
-		// Reset all win statistics fields
-		$data = array(
-			'startdate' => $next_draw_date,
-			'lastdate' => NULL,
-			'extra' => 0,
-			'1_win' => 0, '1_win_extra' => 0,
-			'2_win' => 0, '2_win_extra' => 0,
-			'3_win' => 0, '3_win_extra' => 0,
-			'4_win' => 0, '4_win_extra' => 0,
-			'5_win' => 0, '5_win_extra' => 0,
-			'6_win' => 0, '6_win_extra' => 0,
-			'7_win' => 0, '7_win_extra' => 0,
-			'8_win' => 0, '8_win_extra' => 0,
-			'9_win' => 0, '9_win_extra' => 0,
-			'total_winners' => 0
-		);
-		
-		$this->db->where('lottery_id', $lottery_id);
-		$this->db->update('lottery_h_w_c_followers', $data);
-		
-		echo json_encode(array('success' => true, 'message' => 'H-W-C + Followers win statistics reset successfully'));
+		try {
+			// Get next draw date
+			$lottery = $this->lotteries_m->get($lottery_id);
+			if(!$lottery) {
+				echo json_encode(array('success' => false, 'message' => 'Lottery not found'));
+				return;
+			}
+			
+			$tbl_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+			$last_drawn = $this->lotteries_m->last_draw_db($tbl_name);
+			$ld = $last_drawn->draw_date;
+			$day = $this->lotteries_m->return_day($ld);
+			$next_draw_date = $this->lotteries_m->next_date($lottery, $day, $ld);
+			
+			// Convert to MySQL DATE format (Y-m-d)
+			$next_draw_date_sql = date('Y-m-d', strtotime($next_draw_date));
+			
+			// Reset all win statistics fields
+			$data = array(
+				'startdate' => $next_draw_date_sql,
+				'lastdate' => NULL,
+				'extra' => 0,
+				'1_win' => 0, '1_win_extra' => 0,
+				'2_win' => 0, '2_win_extra' => 0,
+				'3_win' => 0, '3_win_extra' => 0,
+				'4_win' => 0, '4_win_extra' => 0,
+				'5_win' => 0, '5_win_extra' => 0,
+				'6_win' => 0, '6_win_extra' => 0,
+				'7_win' => 0, '7_win_extra' => 0,
+				'8_win' => 0, '8_win_extra' => 0,
+				'9_win' => 0, '9_win_extra' => 0,
+				'total_winners' => 0
+			);
+			
+			$this->db->where('lottery_id', $lottery_id);
+			$result = $this->db->update('lottery_h_w_c_followers', $data);
+			
+			if($result) {
+				echo json_encode(array('success' => true, 'message' => 'H-W-C + Followers win statistics reset successfully'));
+			} else {
+				echo json_encode(array('success' => false, 'message' => 'Database update failed'));
+			}
+		} catch (Exception $e) {
+			echo json_encode(array('success' => false, 'message' => 'Error: ' . $e->getMessage()));
+		}
 	}
 }	

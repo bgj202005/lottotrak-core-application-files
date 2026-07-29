@@ -487,15 +487,15 @@
 		</div>
 		<div style="margin-bottom: 10px; text-align: center; font-size: 0.9em; color: #666;">
 			<?php if($hwcf_win_stats['startdate'] || $hwcf_win_stats['lastdate']): ?>
-				<strong>Start:</strong> <?php echo $hwcf_win_stats['startdate'] ? date('M j, Y', strtotime($hwcf_win_stats['startdate'])) : date('M j, Y', strtotime($lottery->next_draw_date)); ?>
+				<strong><?php echo ($hwcf_win_stats['lastdate'] || $hwcf_win_stats['total_winners'] > 0) ? 'Start:' : 'Starting Date:'; ?></strong> <?php echo $hwcf_win_stats['startdate'] ? date('l F j, Y', strtotime($hwcf_win_stats['startdate'])) : date('l F j, Y', strtotime($lottery->next_draw_date)); ?>
 				&nbsp;&nbsp;|
 				<?php if($hwcf_win_stats['lastdate']): ?>
-					<strong>Last Draw:</strong> <?php echo date('M j, Y', strtotime($hwcf_win_stats['lastdate'])); ?> (<?php echo $draw_count; ?> draw<?php echo $draw_count != 1 ? 's' : ''; ?>)
+					<strong>Last Draw Date:</strong> <?php echo date('l F j, Y', strtotime($hwcf_win_stats['lastdate'])); ?> (<?php echo $draw_count; ?> draw<?php echo $draw_count != 1 ? 's' : ''; ?>)
 				<?php else: ?>
-					<strong>Last Draw:</strong> None yet
+					<strong>Last Draw Date:</strong> None yet
 				<?php endif; ?>
 			<?php else: ?>
-				<strong>Start:</strong> <?php echo date('M j, Y', strtotime($lottery->next_draw_date)); ?> &nbsp;|&nbsp; <strong>Last Draw:</strong> None yet
+				<strong>Starting Date:</strong> <?php echo date('l F j, Y', strtotime($lottery->next_draw_date)); ?> &nbsp;|&nbsp; <strong>Last Draw Date:</strong> None yet
 			<?php endif; ?>
 			<button type="button" class="btn btn-sm btn-danger" onclick="resetHWCFWinStats(<?php echo $lottery->id; ?>)" 
 				style="margin-left: 15px;">
@@ -546,11 +546,19 @@ function resetHWCFWinStats(lotteryId) {
 			url: '<?php echo site_url("admin/history/reset_hwcf_win_stats"); ?>',
 			type: 'POST',
 			data: { lottery_id: lotteryId },
+			dataType: 'json',
 			success: function(response) {
-				location.reload();
+				if(response.success) {
+					alert(response.message || 'H-W-C + Followers win statistics reset successfully');
+					location.reload();
+				} else {
+					alert(response.message || 'Error resetting win statistics. Please try again.');
+				}
 			},
-			error: function() {
-				alert('Error resetting win statistics. Please try again.');
+			error: function(xhr, status, error) {
+				console.log('AJAX Error:', status, error);
+				console.log('Response:', xhr.responseText);
+				alert('Error resetting win statistics. Check console for details.\n\nStatus: ' + status + '\nError: ' + error);
 			}
 		});
 	}
