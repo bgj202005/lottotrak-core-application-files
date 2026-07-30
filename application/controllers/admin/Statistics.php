@@ -4799,6 +4799,7 @@ class Statistics extends Admin_Controller {
 		$this->data['saved_position_points']   = $hwc_followers_record ? $hwc_followers_record['position_points'] : '';
 		$this->data['lottery_numbers']         = $hwc_followers_record ? $hwc_followers_record['lottery_numbers'] : '';
 		$this->data['prev_lottery_numbers']    = $hwc_followers_record ? $hwc_followers_record['prev_lottery_numbers'] : '';
+		$this->data['prediction_pool']         = $pool_size;
 
 		// Auto-refresh: if the saved ball/position is no longer in the current draw's options
 		// (stale after a new draw import), regenerate the prediction with the top-ranked option.

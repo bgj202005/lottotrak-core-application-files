@@ -167,6 +167,14 @@
 
 	</div>
 
+	<!-- Prediction Number Pool Panel -->
+	<div class="option-panel">
+		<strong>Prediction Number Pool: <?=htmlspecialchars($prediction_pool);?></strong>
+		<div style="color: #6c757d; font-size: 0.9em; margin-top: 5px;">
+			This number pool is set in the <a href="<?=base_url('admin/statistics/h_w_c/'.$lottery->id);?>">H-W-C view</a> and is read-only here.
+		</div>
+	</div>
+
 	<!-- Option Settings Panel -->
 	<div class="option-panel">
 		<strong>Prediction Option:</strong>
