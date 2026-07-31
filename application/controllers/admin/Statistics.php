@@ -3594,8 +3594,9 @@ class Statistics extends Admin_Controller {
 			$this->statistics_m->follower_data_save($followers, TRUE);
 			log_message('info', "recalc_followers: Saved followers data to database for lottery_id={$id}");
 			
-			// Update cumulative win statistics in lottery_followers table
-			$this->statistics_m->update_followers_cumulative_wins($id);
+			// NOTE: update_followers_cumulative_wins() is DISABLED to prevent interference with real-time win tracking
+			// Real win statistics are updated automatically during import via check_and_update_followers_wins()
+			// $this->statistics_m->update_followers_cumulative_wins($id);
 			
 			/** NEW included nonfollower Data Save **/
 			$nonfollowers = array(
@@ -4349,8 +4350,9 @@ class Statistics extends Admin_Controller {
 			
 			if ($wins_string !== FALSE) {
 				// Success - wins string has been calculated and saved to database
-				// Now update the cumulative wins in lottery_h_w_c table
-				$this->statistics_m->update_hwc_cumulative_wins($lottery_id, $wins_string);
+				// NOTE: update_hwc_cumulative_wins() is DISABLED to prevent interference with real-time win tracking
+				// Real win statistics are updated automatically during import via check_and_update_hwc_wins()
+				// $this->statistics_m->update_hwc_cumulative_wins($lottery_id, $wins_string);
 				return TRUE;
 			} else {
 				// Log error or handle failure case

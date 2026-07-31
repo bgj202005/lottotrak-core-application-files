@@ -5964,6 +5964,30 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$this->cache->delete($cache_key);
 	}
 
+	/**
+	 * Check Followers predictions against the latest draw and update win statistics.
+	 * Called during import to track real-time wins.
+	 *
+	 * @param  integer $lottery_id
+	 * @return void
+	 */
+	public function followers_snapshot($lottery_id)
+	{
+		// Bypass cache — read directly from DB
+		$query = $this->db->where('lottery_id', $lottery_id)
+		        ->limit(1)
+		        ->get('lottery_followers');
+		$row = $query->row_array();
+		if (empty($row) || empty($row['lottery_followers'])) {
+			return; // Nothing to check
+		}
+		
+		// Check if the current predictions won against the latest draw
+		if (!empty($row['lottery_followers'])) {
+			$this->check_and_update_followers_wins($lottery_id, $row['lottery_followers']);
+		}
+	}
+
 	// -----------------------------------------------------------------------
 	// H-W-C + Followers combined prediction record (lottery_h_w_c_followers)
 	// -----------------------------------------------------------------------
@@ -9761,6 +9785,13 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			return FALSE;
 		}
 		
+		// H-W-C predictions are encoded as "label|numbers" (e.g., "Top Ranked — 4-2-0 (50) - Rank #1|1,2,3,4,5,6>7")
+		// Extract just the numbers part after the "|" separator
+		if (strpos($predictions, '|') !== false) {
+			$parts = explode('|', $predictions);
+			$predictions = isset($parts[1]) ? $parts[1] : $predictions;
+		}
+		
 		// Load lottery data
 		$this->load->model('lotteries_m');
 		$lottery = $this->lotteries_m->get($lottery_id);
@@ -9820,19 +9851,25 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 		}
 		
-		// If there's a win, update the database
+		// Get current H-W-C record
+		$hwc = $this->h_w_c_exists($lottery_id);
+		if (is_null($hwc)) {
+			return FALSE;
+		}
+		
+		// Always update lastdate for every draw checked
+		$update_data = array(
+			'lastdate' => $latest_draw->draw_date
+		);
+		
+		// Set startdate only if it's NULL (first draw checked)
+		if (empty($hwc['startdate'])) {
+			$update_data['startdate'] = $latest_draw->draw_date;
+		}
+		
+		// If there's a win, add win counters to update data
 		if (!is_null($win_field)) {
-			// Get current H-W-C record
-			$hwc = $this->h_w_c_exists($lottery_id);
-			if (is_null($hwc)) {
-				return FALSE;
-			}
-			
-			// Prepare update data
-			$update_data = array(
-				'lastdate' => $latest_draw->draw_date,
-				$win_field => intval($hwc[$win_field]) + 1
-			);
+			$update_data[$win_field] = intval($hwc[$win_field]) + 1;
 			
 			// Recalculate total_winners
 			$total = 0;
@@ -9850,20 +9887,17 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 			$update_data['total_winners'] = $total;
 			
-			// Set startdate only if it's NULL (first win)
-			if (empty($hwc['startdate'])) {
-				$update_data['startdate'] = $latest_draw->draw_date;
-			}
-			
-			// Update lottery_h_w_c table
-			$this->db->where('lottery_id', $lottery_id);
-			$this->db->update('lottery_h_w_c', $update_data);
-			
 			log_message('info', "H-W-C Win: lottery_id=$lottery_id, {$win_field}=+1, total={$update_data['total_winners']}, draw_date={$latest_draw->draw_date}");
-			return TRUE;
 		}
 		
-		return FALSE; // No win
+		// Update lottery_h_w_c table (always update lastdate, optionally update win counters)
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update('lottery_h_w_c', $update_data);
+		
+		// Clear cache after update
+		$this->clear_cache('h_w_c');
+		
+		return TRUE;
 	}
 
 	/**
@@ -9938,19 +9972,25 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 		}
 		
-		// If there's a win, update the database
+		// Get current followers record
+		$followers = $this->followers_exists($lottery_id);
+		if (is_null($followers)) {
+			return FALSE;
+		}
+		
+		// Always update lastdate for every draw checked
+		$update_data = array(
+			'lastdate' => $latest_draw->draw_date
+		);
+		
+		// Set startdate only if it's NULL (first draw checked)
+		if (empty($followers['startdate'])) {
+			$update_data['startdate'] = $latest_draw->draw_date;
+		}
+		
+		// If there's a win, add win counters to update data
 		if (!is_null($win_field)) {
-			// Get current followers record
-			$followers = $this->followers_exists($lottery_id);
-			if (is_null($followers)) {
-				return FALSE;
-			}
-			
-			// Prepare update data
-			$update_data = array(
-				'lastdate' => $latest_draw->draw_date,
-				$win_field => intval($followers[$win_field]) + 1
-			);
+			$update_data[$win_field] = intval($followers[$win_field]) + 1;
 			
 			// Recalculate total_winners
 			$total = 0;
@@ -9968,20 +10008,17 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 			$update_data['total_winners'] = $total;
 			
-			// Set startdate only if it's NULL (first win)
-			if (empty($followers['startdate'])) {
-				$update_data['startdate'] = $latest_draw->draw_date;
-			}
-			
-			// Update lottery_followers table
-			$this->db->where('lottery_id', $lottery_id);
-			$this->db->update('lottery_followers', $update_data);
-			
 			log_message('info', "Followers Win: lottery_id=$lottery_id, {$win_field}=+1, total={$update_data['total_winners']}, draw_date={$latest_draw->draw_date}");
-			return TRUE;
 		}
 		
-		return FALSE; // No win
+		// Update lottery_followers table (always update lastdate, optionally update win counters)
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update('lottery_followers', $update_data);
+		
+		// Clear cache after update
+		$this->clear_cache('followers');
+		
+		return TRUE;
 	}
 
 	/**
@@ -10056,19 +10093,25 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 		}
 		
-		// If there's a win, update the database
+		// Get current H-W-C + Followers record
+		$hwcf = $this->hwc_followers_exists($lottery_id);
+		if (is_null($hwcf)) {
+			return FALSE;
+		}
+		
+		// Always update lastdate for every draw checked
+		$update_data = array(
+			'lastdate' => $latest_draw->draw_date
+		);
+		
+		// Set startdate only if it's NULL (first draw checked)
+		if (empty($hwcf['startdate'])) {
+			$update_data['startdate'] = $latest_draw->draw_date;
+		}
+		
+		// If there's a win, add win counters to update data
 		if (!is_null($win_field)) {
-			// Get current H-W-C + Followers record
-			$hwcf = $this->hwc_followers_exists($lottery_id);
-			if (is_null($hwcf)) {
-				return FALSE;
-			}
-			
-			// Prepare update data
-			$update_data = array(
-				'lastdate' => $latest_draw->draw_date,
-				$win_field => intval($hwcf[$win_field]) + 1
-			);
+			$update_data[$win_field] = intval($hwcf[$win_field]) + 1;
 			
 			// Recalculate total_winners
 			$total = 0;
@@ -10086,20 +10129,14 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 			$update_data['total_winners'] = $total;
 			
-			// Set startdate only if it's NULL (first win)
-			if (empty($hwcf['startdate'])) {
-				$update_data['startdate'] = $latest_draw->draw_date;
-			}
-			
-			// Update lottery_h_w_c_followers table
-			$this->db->where('lottery_id', $lottery_id);
-			$this->db->update('lottery_h_w_c_followers', $update_data);
-			
 			log_message('info', "H-W-C+Followers Win: lottery_id=$lottery_id, {$win_field}=+1, total={$update_data['total_winners']}, draw_date={$latest_draw->draw_date}");
-			return TRUE;
 		}
 		
-		return FALSE; // No win
+		// Update lottery_h_w_c_followers table (always update lastdate, optionally update win counters)
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update('lottery_h_w_c_followers', $update_data);
+		
+		return TRUE;
 	}
 
 	/**

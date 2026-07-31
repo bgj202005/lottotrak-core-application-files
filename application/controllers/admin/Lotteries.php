@@ -1031,10 +1031,14 @@ class Lotteries extends Admin_Controller {
 				unset($draw_data);		// Remove Current Draw Date for next iteration
 			}
 			
+			log_message('debug', "Import loop completed, checking draw_data status");
+			
 			if (isset($draw_data)) {
+				log_message('debug', "Import: draw_data is SET, echoing final data");
 				echo json_encode($draw_data);
 				unset($draw_data);
 			} elseif(!isset($draw_data)) { // No more data to process
+				log_message('debug', "Import: draw_data is NOT SET, entering completion block");
 				// Import completed successfully - update lastdate field in lottery_profiles
 				$table_name = $this->session->userdata('table_name');
 				if ($table_name) {
@@ -1047,8 +1051,8 @@ class Lotteries extends Admin_Controller {
 				// Regenerate H-W-C predictions BEFORE snapshot to ensure they're current
 				// This prevents corrupted/stale predictions from being copied to prev_h_w_c_predictions
 				if ($processed_count > 0) {
-					$this->load->model('admin/Statistics_m', 'statistics_m');
-					$this->load->model('admin/Predictions_m', 'predictions_m');
+					$this->load->model('Statistics_m', 'statistics_m');
+					$this->load->model('Predictions_m', 'predictions_m');
 					
 					$h_w_c_current = $this->statistics_m->h_w_c_exists($id);
 					if(!is_null($h_w_c_current)) {
@@ -1080,6 +1084,7 @@ class Lotteries extends Admin_Controller {
 				// page can highlight which balls were predicted before this new draw
 				if ($processed_count > 0) {
 					$this->statistics_m->hwc_snapshot_predictions($id);
+					$this->statistics_m->followers_snapshot($id);
 					$this->statistics_m->hwc_followers_snapshot($id);
 				}
 				$this->session->unset_userdata(array('new_file_name', 'table_name', 'last_draw', 'balls_drawn', 'extra_ball', 'minimum_ball', 
