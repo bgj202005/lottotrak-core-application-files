@@ -1702,12 +1702,9 @@ class Statistics_m extends MY_Model
 			// Before updating, save current data as previous data
 			$current = $this->db->where('lottery_id', $data['lottery_id'])->get('lottery_followers')->row_array();
 			if ($current) {
-				// Check if current predictions won against the latest draw BEFORE updating
-				if (!empty($current['lottery_followers']) && isset($current['draw_id']) && $current['draw_id'] > 0) {
-					// The current lottery_followers was the prediction for the draw that just got imported
-					// Compare it against the latest draw to check for wins
-					$this->check_and_update_followers_wins($data['lottery_id'], $current['lottery_followers']);
-				}
+				// NOTE: Win tracking is now handled by followers_snapshot() during import only.
+				// Removed check_and_update_followers_wins() call here to prevent double-counting
+				// when Calculate/Recalc are run before or after import.
 				
 				// Only save as previous if current data is valid (not empty and draw_id > 0)
 				// After a reset, lottery_followers is '' and draw_id is 0, which shouldn't be saved as "previous"
@@ -9834,9 +9831,17 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$main_matches = count(array_intersect($pred_main, $drawn_main));
 		
 		// Check extra ball match
+		// For lotteries with ">" separator: check if pred_extra matches drawn_extra
+		// For non-independent extra ball lotteries: check if drawn_extra is in pred_main array
 		$extra_match = false;
-		if (!is_null($pred_extra) && !is_null($drawn_extra) && $pred_extra == $drawn_extra) {
-			$extra_match = true;
+		if (!is_null($drawn_extra)) {
+			if (!is_null($pred_extra)) {
+				// Independent extra ball lottery with ">" separator
+				$extra_match = ($pred_extra == $drawn_extra);
+			} else {
+				// Non-independent extra ball lottery - check if drawn extra is in predicted main numbers
+				$extra_match = in_array($drawn_extra, $pred_main);
+			}
 		}
 		
 		// Determine which win field to increment
@@ -9857,9 +9862,16 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			return FALSE;
 		}
 		
-		// Always update lastdate for every draw checked
+		// Check if we've already processed this draw
+		if (!empty($hwc['lastdate']) && $hwc['lastdate'] === $latest_draw->draw_date) {
+			// Already processed this draw, don't increment counters again
+			return TRUE;
+		}
+		
+		// Always update lastdate and increment total_winners (draw count) for every NEW draw checked
 		$update_data = array(
-			'lastdate' => $latest_draw->draw_date
+			'lastdate' => $latest_draw->draw_date,
+			'total_winners' => intval($hwc['total_winners']) + 1
 		);
 		
 		// Set startdate only if it's NULL (first draw checked)
@@ -9870,24 +9882,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		// If there's a win, add win counters to update data
 		if (!is_null($win_field)) {
 			$update_data[$win_field] = intval($hwc[$win_field]) + 1;
-			
-			// Recalculate total_winners
-			$total = 0;
-			$prize_fields = array('extra', '1_win', '1_win_extra', '2_win', '2_win_extra', 
-				'3_win', '3_win_extra', '4_win', '4_win_extra', '5_win', '5_win_extra', 
-				'6_win', '6_win_extra', '7_win', '7_win_extra', '8_win', '8_win_extra', 
-				'9_win', '9_win_extra');
-			
-			foreach ($prize_fields as $field) {
-				if ($field == $win_field) {
-					$total += $update_data[$win_field];
-				} else {
-					$total += intval($hwc[$field]);
-				}
-			}
-			$update_data['total_winners'] = $total;
-			
-			log_message('info', "H-W-C Win: lottery_id=$lottery_id, {$win_field}=+1, total={$update_data['total_winners']}, draw_date={$latest_draw->draw_date}");
+			log_message('info', "H-W-C Win: lottery_id=$lottery_id, {$win_field}=+1, draws={$update_data['total_winners']}, draw_date={$latest_draw->draw_date}");
 		}
 		
 		// Update lottery_h_w_c table (always update lastdate, optionally update win counters)
@@ -9955,9 +9950,17 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$main_matches = count(array_intersect($pred_main, $drawn_main));
 		
 		// Check extra ball match
+		// For lotteries with ">" separator: check if pred_extra matches drawn_extra
+		// For non-independent extra ball lotteries: check if drawn_extra is in pred_main array
 		$extra_match = false;
-		if (!is_null($pred_extra) && !is_null($drawn_extra) && $pred_extra == $drawn_extra) {
-			$extra_match = true;
+		if (!is_null($drawn_extra)) {
+			if (!is_null($pred_extra)) {
+				// Independent extra ball lottery with ">" separator
+				$extra_match = ($pred_extra == $drawn_extra);
+			} else {
+				// Non-independent extra ball lottery - check if drawn extra is in predicted main numbers
+				$extra_match = in_array($drawn_extra, $pred_main);
+			}
 		}
 		
 		// Determine which win field to increment
@@ -9978,9 +9981,16 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			return FALSE;
 		}
 		
-		// Always update lastdate for every draw checked
+		// Check if we've already processed this draw
+		if (!empty($followers['lastdate']) && $followers['lastdate'] === $latest_draw->draw_date) {
+			// Already processed this draw, don't increment counters again
+			return TRUE;
+		}
+		
+		// Always update lastdate and increment total_winners (draw count) for every NEW draw checked
 		$update_data = array(
-			'lastdate' => $latest_draw->draw_date
+			'lastdate' => $latest_draw->draw_date,
+			'total_winners' => intval($followers['total_winners']) + 1
 		);
 		
 		// Set startdate only if it's NULL (first draw checked)
@@ -9991,24 +10001,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		// If there's a win, add win counters to update data
 		if (!is_null($win_field)) {
 			$update_data[$win_field] = intval($followers[$win_field]) + 1;
-			
-			// Recalculate total_winners
-			$total = 0;
-			$prize_fields = array('extra', '1_win', '1_win_extra', '2_win', '2_win_extra', 
-				'3_win', '3_win_extra', '4_win', '4_win_extra', '5_win', '5_win_extra', 
-				'6_win', '6_win_extra', '7_win', '7_win_extra', '8_win', '8_win_extra', 
-				'9_win', '9_win_extra');
-			
-			foreach ($prize_fields as $field) {
-				if ($field == $win_field) {
-					$total += $update_data[$win_field];
-				} else {
-					$total += intval($followers[$field]);
-				}
-			}
-			$update_data['total_winners'] = $total;
-			
-			log_message('info', "Followers Win: lottery_id=$lottery_id, {$win_field}=+1, total={$update_data['total_winners']}, draw_date={$latest_draw->draw_date}");
+			log_message('info', "Followers Win: lottery_id=$lottery_id, {$win_field}=+1, draws={$update_data['total_winners']}, draw_date={$latest_draw->draw_date}");
 		}
 		
 		// Update lottery_followers table (always update lastdate, optionally update win counters)
@@ -10076,9 +10069,17 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$main_matches = count(array_intersect($pred_main, $drawn_main));
 		
 		// Check extra ball match
+		// For lotteries with ">" separator: check if pred_extra matches drawn_extra
+		// For non-independent extra ball lotteries: check if drawn_extra is in pred_main array
 		$extra_match = false;
-		if (!is_null($pred_extra) && !is_null($drawn_extra) && $pred_extra == $drawn_extra) {
-			$extra_match = true;
+		if (!is_null($drawn_extra)) {
+			if (!is_null($pred_extra)) {
+				// Independent extra ball lottery with ">" separator
+				$extra_match = ($pred_extra == $drawn_extra);
+			} else {
+				// Non-independent extra ball lottery - check if drawn extra is in predicted main numbers
+				$extra_match = in_array($drawn_extra, $pred_main);
+			}
 		}
 		
 		// Determine which win field to increment
@@ -10099,9 +10100,16 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			return FALSE;
 		}
 		
-		// Always update lastdate for every draw checked
+		// Check if we've already processed this draw
+		if (!empty($hwcf['lastdate']) && $hwcf['lastdate'] === $latest_draw->draw_date) {
+			// Already processed this draw, don't increment counters again
+			return TRUE;
+		}
+		
+		// Always update lastdate and increment total_winners (draw count) for every NEW draw checked
 		$update_data = array(
-			'lastdate' => $latest_draw->draw_date
+			'lastdate' => $latest_draw->draw_date,
+			'total_winners' => intval($hwcf['total_winners']) + 1
 		);
 		
 		// Set startdate only if it's NULL (first draw checked)
@@ -10112,24 +10120,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		// If there's a win, add win counters to update data
 		if (!is_null($win_field)) {
 			$update_data[$win_field] = intval($hwcf[$win_field]) + 1;
-			
-			// Recalculate total_winners
-			$total = 0;
-			$prize_fields = array('extra', '1_win', '1_win_extra', '2_win', '2_win_extra', 
-				'3_win', '3_win_extra', '4_win', '4_win_extra', '5_win', '5_win_extra', 
-				'6_win', '6_win_extra', '7_win', '7_win_extra', '8_win', '8_win_extra', 
-				'9_win', '9_win_extra');
-			
-			foreach ($prize_fields as $field) {
-				if ($field == $win_field) {
-					$total += $update_data[$win_field];
-				} else {
-					$total += intval($hwcf[$field]);
-				}
-			}
-			$update_data['total_winners'] = $total;
-			
-			log_message('info', "H-W-C+Followers Win: lottery_id=$lottery_id, {$win_field}=+1, total={$update_data['total_winners']}, draw_date={$latest_draw->draw_date}");
+			log_message('info', "H-W-C+Followers Win: lottery_id=$lottery_id, {$win_field}=+1, draws={$update_data['total_winners']}, draw_date={$latest_draw->draw_date}");
 		}
 		
 		// Update lottery_h_w_c_followers table (always update lastdate, optionally update win counters)
