@@ -1054,6 +1054,7 @@ class Lotteries extends Admin_Controller {
 					$this->load->model('Statistics_m', 'statistics_m');
 					$this->load->model('Predictions_m', 'predictions_m');
 					
+					// Regenerate H-W-C predictions
 					$h_w_c_current = $this->statistics_m->h_w_c_exists($id);
 					if(!is_null($h_w_c_current)) {
 						$stored_option  = isset($h_w_c_current['hwc_option'])  ? (int)$h_w_c_current['hwc_option']  : 1;
@@ -1078,6 +1079,25 @@ class Lotteries extends Admin_Controller {
 							}
 						}
 					}
+					
+					// Regenerate Followers predictions if settings exist
+					$followers_current = $this->statistics_m->followers_exists($id);
+					if(!is_null($followers_current) && !empty($followers_current['follower_type'])) {
+						$saved_type = $followers_current['follower_type'];
+						$saved_ball_points = isset($followers_current['ball_points']) ? $followers_current['ball_points'] : '';
+						$saved_position_points = isset($followers_current['position_points']) ? $followers_current['position_points'] : '';
+						$follower_select = ($saved_type === 'position') ? $saved_position_points : $saved_ball_points;
+						
+						if (!empty($follower_select)) {
+							$hwc_check = $this->statistics_m->h_w_c_exists($id);
+							$prediction_pool = isset($hwc_check['prediction_pool']) ? (int) $hwc_check['prediction_pool'] : 18;
+							
+							$generated = $this->predictions_m->followers_only_prediction($id, $prediction_pool, $saved_type, $follower_select);
+							if($generated) {
+								$this->statistics_m->followers_prediction_save($id, $saved_type, $saved_ball_points, $saved_position_points, $generated, null);
+							}
+						}
+					}
 				}
 
 				// Snapshot current hwc_predictions → prev_h_w_c_predictions so history
@@ -1085,6 +1105,7 @@ class Lotteries extends Admin_Controller {
 				if ($processed_count > 0) {
 					$this->statistics_m->hwc_snapshot_predictions($id);
 					$this->statistics_m->followers_snapshot($id);
+					$this->statistics_m->followers_prediction_snapshot($id);
 					$this->statistics_m->hwc_followers_snapshot($id);
 				}
 				$this->session->unset_userdata(array('new_file_name', 'table_name', 'last_draw', 'balls_drawn', 'extra_ball', 'minimum_ball', 
