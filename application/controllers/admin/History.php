@@ -2455,6 +2455,10 @@ class History extends Admin_Controller {
 		$followers_data['prev_draw_id'] = NULL;
 		$this->db->where('lottery_id', $lottery_id);
 		$result2 = $this->db->update('lottery_followers', $followers_data);
+		
+		// Reset H-W-C + Followers
+		$this->db->where('lottery_id', $lottery_id);
+		$result3 = $this->db->update('lottery_h_w_c_followers', $data);
 			
 			if($result1 && $result2 && $result3) {
 				// Clear all caches
