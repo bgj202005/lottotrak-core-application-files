@@ -1266,22 +1266,8 @@ elseif($is_extra):
 	}
 	
 	// Calculate draw count
-	$draw_count = 0;
-	if($followers_win_stats['startdate'] && $followers_win_stats['lastdate']) {
-		$start = new DateTime($followers_win_stats['startdate']);
-		$end = new DateTime($followers_win_stats['lastdate']);
-		$diff_days = $start->diff($end)->days;
-		// Rough estimate based on draw days per week
-		$draws_per_week = 0;
-		if($lottery->monday) $draws_per_week++;
-		if($lottery->tuesday) $draws_per_week++;
-		if($lottery->wednesday) $draws_per_week++;
-		if($lottery->thursday) $draws_per_week++;
-		if($lottery->friday) $draws_per_week++;
-		if($lottery->saturday) $draws_per_week++;
-		if($lottery->sunday) $draws_per_week++;
-		$draw_count = ($draws_per_week > 0) ? max(1, round(($diff_days / 7) * $draws_per_week)) : 1;
-	}
+	// Use the actual draw count from total_winners field (which tracks exact number of draws checked)
+	$draw_count = isset($followers_win_stats['total_winners']) ? intval($followers_win_stats['total_winners']) : 0;
 	?>
 	<style>
 		.followers-win-stats-table { font-size: 0.80em; table-layout: fixed; width: 100%; margin-bottom: 0; background-color: white; }
