@@ -1734,8 +1734,25 @@ class Statistics_m extends MY_Model
 			log_message('error', "  prev_draw_id value: " . (isset($updated['prev_draw_id']) ? $updated['prev_draw_id'] : 'NOT SET'));
 			log_message('error', "  prev_draw_id falsy? " . (!$updated['prev_draw_id'] ? 'YES' : 'NO'));
 			
+			$need_populate = false;
 			if ($updated && (empty($updated['prev_lottery_followers']) || !$updated['prev_draw_id'])) {
-				// prev_* are NULL/empty, try to populate from previous draw
+				$need_populate = true;
+				log_message('error', "Lottery {$data['lottery_id']}: prev_* fields are empty");
+			} elseif ($updated && $updated['prev_draw_id']) {
+				// Validate that prev_draw_id still exists in the database
+				$this->load->model('lotteries_m');
+				$lottery = $this->lotteries_m->get($data['lottery_id']);
+				if ($lottery) {
+					$table_name = $lottery->table_name;
+					$draw_exists = $this->db->where('id', $updated['prev_draw_id'])->get($table_name)->row();
+					if (!$draw_exists) {
+						$need_populate = true;
+						log_message('error', "Lottery {$data['lottery_id']}: prev_draw_id {$updated['prev_draw_id']} no longer exists");
+					}
+				}
+			}
+			
+			if ($need_populate) {
 				log_message('error', "Lottery {$data['lottery_id']}: TRIGGERING auto-populate from previous draw");
 				$this->populate_previous_followers_from_draw($data['lottery_id'], $updated);
 			} else {
@@ -5975,13 +5992,28 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		        ->limit(1)
 		        ->get('lottery_followers');
 		$row = $query->row_array();
-		if (empty($row) || empty($row['lottery_followers'])) {
-			return; // Nothing to check
+		if (empty($row)) {
+			return; // No followers record exists
 		}
 		
-		// Check if the current predictions won against the latest draw
-		if (!empty($row['lottery_followers'])) {
-			$this->check_and_update_followers_wins($lottery_id, $row['lottery_followers']);
+		// Check if the current predictions won against the latest draw (if lottery_numbers exists)
+		if (!empty($row['lottery_numbers'])) {
+			$this->check_and_update_followers_wins($lottery_id, $row['lottery_numbers']);
+		}
+		
+		// Snapshot current lottery_followers and draw_id to prev_* fields for history display
+		// Only snapshot if current data is valid (not empty and draw_id > 0)
+		if (!empty($row['lottery_followers']) && isset($row['draw_id']) && $row['draw_id'] > 0) {
+			$update_data = array(
+				'prev_lottery_followers' => $row['lottery_followers'],
+				'prev_draw_id' => $row['draw_id']
+			);
+			$this->db->where('lottery_id', $lottery_id);
+			$this->db->update('lottery_followers', $update_data);
+			
+			// Clear cache after update
+			$cache_key = $this->generate_cache_key('followers', $lottery_id);
+			$this->cache->delete($cache_key);
 		}
 	}
 
@@ -9856,9 +9888,12 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 		}
 		
-		// Get current H-W-C record
-		$hwc = $this->h_w_c_exists($lottery_id);
-		if (is_null($hwc)) {
+		// Get current H-W-C record - BYPASS cache to get fresh lastdate/counters
+		$query = $this->db->where('lottery_id', $lottery_id)
+		        ->limit(1)
+		        ->get('lottery_h_w_c');
+		$hwc = $query->row_array();
+		if (empty($hwc)) {
 			return FALSE;
 		}
 		
@@ -9975,9 +10010,12 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 		}
 		
-		// Get current followers record
-		$followers = $this->followers_exists($lottery_id);
-		if (is_null($followers)) {
+		// Get current Followers record - BYPASS cache to get fresh lastdate/counters
+		$query = $this->db->where('lottery_id', $lottery_id)
+		        ->limit(1)
+		        ->get('lottery_followers');
+		$followers = $query->row_array();
+		if (empty($followers)) {
 			return FALSE;
 		}
 		
@@ -10094,9 +10132,12 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 		}
 		
-		// Get current H-W-C + Followers record
-		$hwcf = $this->hwc_followers_exists($lottery_id);
-		if (is_null($hwcf)) {
+		// Get current H-W-C + Followers record - BYPASS cache to get fresh lastdate/counters
+		$query = $this->db->where('lottery_id', $lottery_id)
+		        ->limit(1)
+		        ->get('lottery_h_w_c_followers');
+		$hwcf = $query->row_array();
+		if (empty($hwcf)) {
 			return FALSE;
 		}
 		
@@ -10126,6 +10167,9 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		// Update lottery_h_w_c_followers table (always update lastdate, optionally update win counters)
 		$this->db->where('lottery_id', $lottery_id);
 		$this->db->update('lottery_h_w_c_followers', $update_data);
+		
+		// Clear cache after update
+		$this->clear_cache('hwc_followers');
 		
 		return TRUE;
 	}

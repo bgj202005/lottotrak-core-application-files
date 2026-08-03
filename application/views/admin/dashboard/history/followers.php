@@ -1312,7 +1312,7 @@ elseif($is_extra):
 						</div>
 						<div style="margin-bottom: 10px; text-align: center; font-size: 0.9em; color: #666;">
 							<?php if($followers_win_stats['startdate'] || $followers_win_stats['lastdate']): ?>
-								<strong><?php echo ($followers_win_stats['lastdate'] || $followers_win_stats['total_winners'] > 0) ? 'Start:' : 'Starting Date:'; ?></strong> <?php echo $followers_win_stats['startdate'] ? date('l F j, Y', strtotime($followers_win_stats['startdate'])) : date('l F j, Y', strtotime($lottery->next_draw_date)); ?>
+								<strong>Start Date:</strong> <?php echo $followers_win_stats['startdate'] ? date('l F j, Y', strtotime($followers_win_stats['startdate'])) : date('l F j, Y', strtotime($lottery->next_draw_date)); ?>
 								&nbsp;&nbsp;|
 								<?php if($followers_win_stats['lastdate']): ?>
 									<strong>Last Draw Date:</strong> <?php echo date('l F j, Y', strtotime($followers_win_stats['lastdate'])); ?> (<?php echo $draw_count; ?> draw<?php echo $draw_count != 1 ? 's' : ''; ?>)
@@ -1320,12 +1320,8 @@ elseif($is_extra):
 									<strong>Last Draw Date:</strong> None yet
 								<?php endif; ?>
 							<?php else: ?>
-								<strong>Starting Date:</strong> <?php echo date('l F j, Y', strtotime($lottery->next_draw_date)); ?> &nbsp;|&nbsp; <strong>Last Draw Date:</strong> None yet
+								<strong>Start Date:</strong> <?php echo date('l F j, Y', strtotime($lottery->next_draw_date)); ?> &nbsp;|&nbsp; <strong>Last Draw Date:</strong> None yet
 							<?php endif; ?>
-							<button type="button" class="btn btn-sm btn-danger" onclick="resetFollowersWinStats(<?php echo $lottery->id; ?>)" 
-								style="margin-left: 15px;">
-								<i class="fa fa-undo"></i> Reset
-							</button>
 						</div>
 						<div class="table-responsive" style="overflow-x: auto;">
 							<table class="table table-bordered table-striped followers-win-stats-table">
@@ -1359,31 +1355,6 @@ elseif($is_extra):
 		</div>
 	</section>
 <script>
-// Reset Followers Win Statistics
-function resetFollowersWinStats(lotteryId) {
-	if(confirm('WARNING: This will clear all Followers prediction win records and reset the statistics.\n\nThe new start date will be set to the next draw date.\n\nAre you sure you want to continue?')) {
-		$.ajax({
-			url: '<?php echo site_url("admin/history/reset_followers_win_stats"); ?>',
-			type: 'POST',
-			data: { lottery_id: lotteryId },
-			dataType: 'json',
-			success: function(response) {
-				if(response.success) {
-					alert(response.message || 'Followers win statistics reset successfully');
-					location.reload();
-				} else {
-					alert(response.message || 'Error resetting win statistics. Please try again.');
-				}
-			},
-			error: function(xhr, status, error) {
-				console.log('AJAX Error:', status, error);
-				console.log('Response:', xhr.responseText);
-				alert('Error resetting win statistics. Check console for details.\n\nStatus: ' + status + '\nError: ' + error);
-			}
-		});
-	}
-}
-
 (function() {
 	if (!window._bestPointsBalls || !window._bestPointsBalls.length) return;
 	// Highlight the nav tab(s) whose text matches a best-ball number

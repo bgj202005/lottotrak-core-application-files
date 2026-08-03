@@ -989,6 +989,84 @@ class Lotteries extends Admin_Controller {
 				$draw_data += ['success' => TRUE];
 				$processed_count++; // Increment batch counter
 				
+				// REAL-TIME PREDICTION REGENERATION AND WIN TRACKING
+				// After each draw is successfully inserted, regenerate predictions and check wins
+				// This ensures win tracking happens for EVERY draw, not just the last one
+				if (!isset($this->statistics_m)) {
+					$this->load->model('Statistics_m', 'statistics_m');
+				}
+				if (!isset($this->predictions_m)) {
+					$this->load->model('Predictions_m', 'predictions_m');
+				}
+				
+				// Regenerate H-W-C predictions for this draw
+				$h_w_c_current = $this->statistics_m->h_w_c_exists($id);
+				if(!is_null($h_w_c_current)) {
+					$stored_option  = isset($h_w_c_current['hwc_option'])  ? (int)$h_w_c_current['hwc_option']  : 1;
+					$stored_select  = isset($h_w_c_current['hwc_select'])  ? (int)$h_w_c_current['hwc_select']  : 1;
+					$pool_size      = isset($h_w_c_current['prediction_pool']) ? (int)$h_w_c_current['prediction_pool'] : 18;
+					$h_w_c_groups   = $this->predictions_m->get_h_w_c_range_with_rank($id);
+					$group_patterns = array_keys($h_w_c_groups);
+					if(!empty($group_patterns)) {
+						if($stored_option === 2) {
+							$idx = $stored_select - 1;
+							$pattern = isset($group_patterns[$idx]) ? $group_patterns[$idx] : $group_patterns[0];
+						} else {
+							$pattern = $group_patterns[0]; // Top ranked
+						}
+						$generated = $this->predictions_m->hwc_only($id, $pool_size, $pattern);
+						if($generated) {
+							$_r_opt_lbl  = ($stored_option === 2) ? 'Manual Selected' : 'Top Ranked';
+							$_r_disp_lbl = isset($h_w_c_groups[$pattern]) ? $h_w_c_groups[$pattern] : $pattern;
+							$generated_encoded = $_r_opt_lbl . ' — ' . $_r_disp_lbl . '|' . $generated;
+							$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated_encoded, null);
+						}
+					}
+				}
+				
+				// Regenerate Followers predictions for this draw
+				$followers_current = $this->statistics_m->followers_exists($id);
+				if(!is_null($followers_current) && !empty($followers_current['follower_type'])) {
+					$saved_type = $followers_current['follower_type'];
+					$saved_ball_points = isset($followers_current['ball_points']) ? $followers_current['ball_points'] : '';
+					$saved_position_points = isset($followers_current['position_points']) ? $followers_current['position_points'] : '';
+					$follower_select = ($saved_type === 'position') ? $saved_position_points : $saved_ball_points;
+					
+					if (!empty($follower_select)) {
+						$hwc_check = $this->statistics_m->h_w_c_exists($id);
+						$prediction_pool = isset($hwc_check['prediction_pool']) ? (int) $hwc_check['prediction_pool'] : 18;
+						$generated = $this->predictions_m->followers_only_prediction($id, $prediction_pool, $saved_type, $follower_select);
+						if($generated) {
+							$this->statistics_m->followers_prediction_save($id, $saved_type, $saved_ball_points, $saved_position_points, $generated, null);
+						}
+					}
+				}
+				
+				// Regenerate H-W-C + Followers predictions for this draw
+				$hwcf_current = $this->statistics_m->hwc_followers_exists($id);
+				if(!is_null($hwcf_current) && !empty($hwcf_current['h_w_c_group'])) {
+					$saved_hwc_group = $hwcf_current['h_w_c_group'];
+					$saved_type = isset($hwcf_current['follower_type']) ? $hwcf_current['follower_type'] : '';
+					$saved_ball_points = isset($hwcf_current['ball_points']) ? $hwcf_current['ball_points'] : '';
+					$saved_position_points = isset($hwcf_current['position_points']) ? $hwcf_current['position_points'] : '';
+					$follower_select = ($saved_type === 'position') ? $saved_position_points : $saved_ball_points;
+					
+					if (!empty($follower_select)) {
+						$hwc_check = $this->statistics_m->h_w_c_exists($id);
+						$prediction_pool = isset($hwc_check['prediction_pool']) ? (int) $hwc_check['prediction_pool'] : 18;
+						$generated = $this->predictions_m->hwc_followers($id, $prediction_pool, $saved_hwc_group, $saved_type, $follower_select);
+						if($generated) {
+							$this->statistics_m->hwc_followers_save($id, $saved_hwc_group, $saved_type, $saved_ball_points, $saved_position_points, $generated, null);
+						}
+					}
+				}
+				
+				// Now snapshot and check wins for this draw
+				$this->statistics_m->hwc_snapshot_predictions($id);
+				$this->statistics_m->followers_snapshot($id);
+				$this->statistics_m->followers_prediction_snapshot($id);
+				$this->statistics_m->hwc_followers_snapshot($id);
+				
 				// Batch processing for server stability
 				if ($processed_count % $batch_size == 0) {
 					// Refresh database connection to prevent timeout
@@ -1048,66 +1126,10 @@ class Lotteries extends Admin_Controller {
 					}
 				}
 
-				// Regenerate H-W-C predictions BEFORE snapshot to ensure they're current
-				// This prevents corrupted/stale predictions from being copied to prev_h_w_c_predictions
-				if ($processed_count > 0) {
-					$this->load->model('Statistics_m', 'statistics_m');
-					$this->load->model('Predictions_m', 'predictions_m');
-					
-					// Regenerate H-W-C predictions
-					$h_w_c_current = $this->statistics_m->h_w_c_exists($id);
-					if(!is_null($h_w_c_current)) {
-						$stored_option  = isset($h_w_c_current['hwc_option'])  ? (int)$h_w_c_current['hwc_option']  : 1;
-						$stored_select  = isset($h_w_c_current['hwc_select'])  ? (int)$h_w_c_current['hwc_select']  : 1;
-						$pool_size      = isset($h_w_c_current['prediction_pool']) ? (int)$h_w_c_current['prediction_pool'] : 18;
-						$h_w_c_groups   = $this->predictions_m->get_h_w_c_range_with_rank($id);
-						$group_patterns = array_keys($h_w_c_groups);
-						if(!empty($group_patterns)) {
-							if($stored_option === 2) {
-								$idx = $stored_select - 1;
-								$pattern = isset($group_patterns[$idx]) ? $group_patterns[$idx] : $group_patterns[0];
-							} else {
-								$pattern = $group_patterns[0]; // Top ranked
-							}
-							// Generate predictions for the imported draw from current H-W-C data
-							$generated = $this->predictions_m->hwc_only($id, $pool_size, $pattern);
-							if($generated) {
-								$_r_opt_lbl  = ($stored_option === 2) ? 'Manual Selected' : 'Top Ranked';
-								$_r_disp_lbl = isset($h_w_c_groups[$pattern]) ? $h_w_c_groups[$pattern] : $pattern;
-								$generated_encoded = $_r_opt_lbl . ' — ' . $_r_disp_lbl . '|' . $generated;
-								$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated_encoded, null);
-							}
-						}
-					}
-					
-					// Regenerate Followers predictions if settings exist
-					$followers_current = $this->statistics_m->followers_exists($id);
-					if(!is_null($followers_current) && !empty($followers_current['follower_type'])) {
-						$saved_type = $followers_current['follower_type'];
-						$saved_ball_points = isset($followers_current['ball_points']) ? $followers_current['ball_points'] : '';
-						$saved_position_points = isset($followers_current['position_points']) ? $followers_current['position_points'] : '';
-						$follower_select = ($saved_type === 'position') ? $saved_position_points : $saved_ball_points;
-						
-						if (!empty($follower_select)) {
-							$hwc_check = $this->statistics_m->h_w_c_exists($id);
-							$prediction_pool = isset($hwc_check['prediction_pool']) ? (int) $hwc_check['prediction_pool'] : 18;
-							
-							$generated = $this->predictions_m->followers_only_prediction($id, $prediction_pool, $saved_type, $follower_select);
-							if($generated) {
-								$this->statistics_m->followers_prediction_save($id, $saved_type, $saved_ball_points, $saved_position_points, $generated, null);
-							}
-						}
-					}
-				}
-
-				// Snapshot current hwc_predictions → prev_h_w_c_predictions so history
-				// page can highlight which balls were predicted before this new draw
-				if ($processed_count > 0) {
-					$this->statistics_m->hwc_snapshot_predictions($id);
-					$this->statistics_m->followers_snapshot($id);
-					$this->statistics_m->followers_prediction_snapshot($id);
-					$this->statistics_m->hwc_followers_snapshot($id);
-				}
+				// NOTE: Prediction regeneration and win tracking now happens inside the import loop
+				// after each individual draw is imported, not in batch after all draws.
+				// This ensures win statistics are updated for EVERY draw, not just the last one.
+				
 				$this->session->unset_userdata(array('new_file_name', 'table_name', 'last_draw', 'balls_drawn', 'extra_ball', 'minimum_ball', 
 							'maximum_ball', 'minimum_ball', 'minimum_extra_ball', 'maximum_extra_ball', 'duplicate_extra', 'allow_zero_extra', 'elim'));
 			unset($lottery_props);					
@@ -1629,8 +1651,8 @@ class Lotteries extends Admin_Controller {
 
 					// Regenerate H-W-C predictions BEFORE snapshot to ensure they're current
 					// This prevents corrupted/stale predictions from being copied to prev_h_w_c_predictions
-					$this->load->model('admin/Statistics_m', 'statistics_m');
-					$this->load->model('admin/Predictions_m', 'predictions_m');
+$this->load->model('Statistics_m', 'statistics_m');
+				$this->load->model('Predictions_m', 'predictions_m');
 					
 					$h_w_c_current = $this->statistics_m->h_w_c_exists($id);
 					if(!is_null($h_w_c_current)) {

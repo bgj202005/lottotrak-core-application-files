@@ -2262,6 +2262,7 @@ class History extends Admin_Controller {
 			if($result) {
 				// Clear the cache for H-W-C data
 				$this->statistics_m->clear_cache('h_w_c');
+				$this->statistics_m->clear_cache('lottery_h_w_c');
 				echo json_encode(array('success' => true, 'message' => 'H-W-C win statistics reset successfully'));
 			} else {
 				echo json_encode(array('success' => false, 'message' => 'Database update failed'));
@@ -2305,11 +2306,13 @@ class History extends Admin_Controller {
 			$next_draw_date_sql = date('Y-m-d', strtotime($next_draw_date));
 			
 			// Reset all win statistics fields
-			$data = array(
-				'startdate' => $next_draw_date_sql,
-				'lastdate' => NULL,
-				'extra' => 0,
-				'1_win' => 0, '1_win_extra' => 0,
+			// startdate is set to NULL and will be populated when first draw is processed
+		// ALSO clear prev_* fields so they'll be repopulated on next Calculate/Recalc
+		$data = array(
+			'startdate' => NULL,
+			'lastdate' => NULL,
+			'prev_lottery_followers' => NULL,
+			'prev_draw_id' => NULL,
 				'2_win' => 0, '2_win_extra' => 0,
 				'3_win' => 0, '3_win_extra' => 0,
 				'4_win' => 0, '4_win_extra' => 0,
@@ -2325,6 +2328,10 @@ class History extends Admin_Controller {
 			$result = $this->db->update('lottery_followers', $data);
 			
 			if($result) {
+				// Clear the cache for Followers data
+				$this->statistics_m->clear_cache('followers');
+				$this->statistics_m->clear_cache('lottery_followers');
+				$this->statistics_m->clear_cache('lottery_followers');
 				// Clear the cache for followers data
 				$this->statistics_m->clear_cache('followers');
 				echo json_encode(array('success' => true, 'message' => 'Followers win statistics reset successfully'));
@@ -2370,8 +2377,9 @@ class History extends Admin_Controller {
 			$next_draw_date_sql = date('Y-m-d', strtotime($next_draw_date));
 			
 			// Reset all win statistics fields
+			// startdate is set to NULL and will be populated when first draw is processed
 			$data = array(
-				'startdate' => $next_draw_date_sql,
+				'startdate' => NULL,
 				'lastdate' => NULL,
 				'extra' => 0,
 				'1_win' => 0, '1_win_extra' => 0,
@@ -2390,7 +2398,74 @@ class History extends Admin_Controller {
 			$result = $this->db->update('lottery_h_w_c_followers', $data);
 			
 			if($result) {
+				// Clear the cache for H-W-C + Followers data
+				$this->statistics_m->clear_cache('hwc_followers');
+				$this->statistics_m->clear_cache('lottery_h_w_c_followers');
 				echo json_encode(array('success' => true, 'message' => 'H-W-C + Followers win statistics reset successfully'));
+			} else {
+				echo json_encode(array('success' => false, 'message' => 'Database update failed'));
+			}
+		} catch (Exception $e) {
+			echo json_encode(array('success' => false, 'message' => 'Error: ' . $e->getMessage()));
+		}
+	}
+	
+	/**
+	 * Reset all win statistics (H-W-C, Followers, H-W-C+Followers) at once
+	 * 
+	 * @return JSON response
+	 */
+	public function reset_all_win_stats()
+	{
+		header('Content-Type: application/json');
+		
+		$lottery_id = $this->input->post('lottery_id');
+		
+		if(!$lottery_id) {
+			echo json_encode(array('success' => false, 'message' => 'Invalid lottery ID'));
+			return;
+		}
+		
+		try {
+			// Reset all win statistics fields for all 3 tables
+			// startdate is set to NULL and will be populated when first draw is processed
+			$data = array(
+				'startdate' => NULL,
+				'lastdate' => NULL,
+				'extra' => 0,
+				'1_win' => 0, '1_win_extra' => 0,
+				'2_win' => 0, '2_win_extra' => 0,
+				'3_win' => 0, '3_win_extra' => 0,
+				'4_win' => 0, '4_win_extra' => 0,
+				'5_win' => 0, '5_win_extra' => 0,
+				'6_win' => 0, '6_win_extra' => 0,
+				'7_win' => 0, '7_win_extra' => 0,
+				'8_win' => 0, '8_win_extra' => 0,
+				'9_win' => 0, '9_win_extra' => 0,
+				'total_winners' => 0
+			);
+			
+			// Reset H-W-C
+			$this->db->where('lottery_id', $lottery_id);
+			$result1 = $this->db->update('lottery_h_w_c', $data);
+			
+		// Reset Followers (with additional prev_* fields)
+		$followers_data = $data;
+		$followers_data['prev_lottery_followers'] = NULL;
+		$followers_data['prev_draw_id'] = NULL;
+		$this->db->where('lottery_id', $lottery_id);
+		$result2 = $this->db->update('lottery_followers', $followers_data);
+			
+			if($result1 && $result2 && $result3) {
+				// Clear all caches
+				$this->statistics_m->clear_cache('h_w_c');
+				$this->statistics_m->clear_cache('lottery_h_w_c');
+				$this->statistics_m->clear_cache('followers');
+				$this->statistics_m->clear_cache('lottery_followers');
+				$this->statistics_m->clear_cache('hwc_followers');
+				$this->statistics_m->clear_cache('lottery_h_w_c_followers');
+				
+				echo json_encode(array('success' => true, 'message' => 'All win statistics (H-W-C, Followers, and H-W-C + Followers) reset successfully'));
 			} else {
 				echo json_encode(array('success' => false, 'message' => 'Database update failed'));
 			}
