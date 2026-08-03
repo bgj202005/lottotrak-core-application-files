@@ -60,7 +60,11 @@
 		<td style = "text-align:center;"><?php echo $history->btn_followers('admin/history/followers/'.$lottery->id, !$lottery->min_draws_met || $lottery->needs_followers_recalc, $lottery->required_draws, $lottery->needs_followers_recalc); ?></td>
 		<td style = "text-align:center;"><?php echo $history->btn_hwc_followers('admin/history/hwc_followers/'.$lottery->id, !$lottery->min_draws_met || $lottery->needs_hwc_recalc || $lottery->needs_followers_recalc, $lottery->required_draws, $lottery->needs_hwc_recalc || $lottery->needs_followers_recalc); ?></td>
 		<td style = "text-align:center;">
-			<button type="button" class="btn btn-sm btn-danger" onclick="resetAllWinStats(<?php echo $lottery->id; ?>)" title="Reset all win statistics">
+			<button type="button" 
+				class="btn btn-sm <?php echo !$lottery->min_draws_met ? 'btn-secondary' : 'btn-danger'; ?>" 
+				onclick="resetAllWinStats(<?php echo $lottery->id; ?>)" 
+				title="<?php echo !$lottery->min_draws_met ? 'Minimum of ' . $lottery->required_draws . ' draws not met. Cannot reset.' : 'Reset all win statistics'; ?>"
+				<?php echo !$lottery->min_draws_met ? 'disabled' : ''; ?>>
 				<i class="fa fa-undo"></i> Reset Win Records
 			</button>
 		</td>
