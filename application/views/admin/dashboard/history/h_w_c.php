@@ -2108,7 +2108,7 @@
 								<strong>Start Date:</strong> <?php echo $hwc_win_stats['startdate'] ? date('l F j, Y', strtotime($hwc_win_stats['startdate'])) : date('l F j, Y', strtotime($lottery->next_draw_date)); ?>
 								&nbsp;&nbsp;|
 								<?php if($hwc_win_stats['lastdate']): ?>
-									<strong>Last Draw Date:</strong> <?php echo date('l F j, Y', strtotime($hwc_win_stats['lastdate'])); ?> (<?php echo $hwc_win_stats['total_winners']; ?> draw<?php echo $hwc_win_stats['total_winners'] != 1 ? 's' : ''; ?>)
+									<strong>Last Draw Date:</strong> <?php echo date('l F j, Y', strtotime($hwc_win_stats['lastdate'])); ?> (<?php echo $draw_count; ?> draw<?php echo $draw_count != 1 ? 's' : ''; ?>)
 								<?php else: ?>
 									<strong>Last Draw Date:</strong> None yet
 								<?php endif; ?>
