@@ -9883,6 +9883,19 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 		}
 		
+		// Validate win_field against valid prize categories
+		if (!is_null($win_field)) {
+			$p_group = $this->prize_group_profile($lottery_id);
+			$p_group = $this->prizes_only($p_group, $lottery->extra_ball);
+			$valid_prize_categories = array_keys($p_group);
+			
+			// If this prize category doesn't exist for this lottery, don't count it
+			if (!in_array($win_field, $valid_prize_categories)) {
+				log_message('info', "H-W-C: Skipping invalid prize category {$win_field} for lottery_id=$lottery_id (main_matches=$main_matches, extra_match=" . ($extra_match ? 'true' : 'false') . ")");
+				$win_field = null; // Don't increment this category
+			}
+		}
+		
 		// Get current H-W-C record - BYPASS cache to get fresh lastdate/counters
 		$query = $this->db->where('lottery_id', $lottery_id)
 		        ->limit(1)
@@ -10005,6 +10018,19 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 		}
 		
+		// Validate win_field against valid prize categories
+		if (!is_null($win_field)) {
+			$p_group = $this->prize_group_profile($lottery_id);
+			$p_group = $this->prizes_only($p_group, $lottery->extra_ball);
+			$valid_prize_categories = array_keys($p_group);
+			
+			// If this prize category doesn't exist for this lottery, don't count it
+			if (!in_array($win_field, $valid_prize_categories)) {
+				log_message('info', "Followers: Skipping invalid prize category {$win_field} for lottery_id=$lottery_id (main_matches=$main_matches, extra_match=" . ($extra_match ? 'true' : 'false') . ")");
+				$win_field = null; // Don't increment this category
+			}
+		}
+		
 		// Get current Followers record - BYPASS cache to get fresh lastdate/counters
 		$query = $this->db->where('lottery_id', $lottery_id)
 		        ->limit(1)
@@ -10124,6 +10150,19 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 				$win_field = $main_matches . '_win_extra';
 			} else {
 				$win_field = $main_matches . '_win';
+			}
+		}
+		
+		// Validate win_field against valid prize categories
+		if (!is_null($win_field)) {
+			$p_group = $this->prize_group_profile($lottery_id);
+			$p_group = $this->prizes_only($p_group, $lottery->extra_ball);
+			$valid_prize_categories = array_keys($p_group);
+			
+			// If this prize category doesn't exist for this lottery, don't count it
+			if (!in_array($win_field, $valid_prize_categories)) {
+				log_message('info', "H-W-C+Followers: Skipping invalid prize category {$win_field} for lottery_id=$lottery_id (main_matches=$main_matches, extra_match=" . ($extra_match ? 'true' : 'false') . ")");
+				$win_field = null; // Don't increment this category
 			}
 		}
 		

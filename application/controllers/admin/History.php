@@ -453,6 +453,9 @@ class History extends Admin_Controller {
 		$p_group = $this->statistics_m->prizes_only($p_group, $this->data['lottery']->extra_ball);
 		$this->data['lottery']->valid_prize_categories = array_keys($p_group);
 		
+		// DEBUG: Log valid prize categories
+		log_message('error', "H-W-C valid_prize_categories for lottery_id=$id: " . print_r($this->data['lottery']->valid_prize_categories, true));
+		
 		$h_w_c = $this->statistics_m->h_w_c_exists($id);
 		if(!is_null($h_w_c))	// Existing HWC?
 		{
@@ -724,30 +727,36 @@ class History extends Admin_Controller {
 		$this->data['hwc_balls_drawn'] = $drawn;
 		$this->data['hwc_range'] = isset($h_w_c['range']) ? $h_w_c['range'] : 100;
 		
-		// Fetch H-W-C win statistics
+		// Fetch H-W-C win statistics DIRECTLY from database (bypass cache to ensure fresh data)
+		$hwc_win_query = $this->db->where('lottery_id', $id)->limit(1)->get('lottery_h_w_c');
+		$hwc_win_data = $hwc_win_query->row_array();
+		
+		// DEBUG: Log the raw database query result
+		log_message('error', "H-W-C Win Data for lottery_id=$id: " . print_r($hwc_win_data, true));
+		
 		$hwc_win_stats = array(
-			'startdate' => isset($h_w_c['startdate']) ? $h_w_c['startdate'] : null,
-			'lastdate' => isset($h_w_c['lastdate']) ? $h_w_c['lastdate'] : null,
-			'extra' => isset($h_w_c['extra']) ? intval($h_w_c['extra']) : 0,
-			'1_win' => isset($h_w_c['1_win']) ? intval($h_w_c['1_win']) : 0,
-			'1_win_extra' => isset($h_w_c['1_win_extra']) ? intval($h_w_c['1_win_extra']) : 0,
-			'2_win' => isset($h_w_c['2_win']) ? intval($h_w_c['2_win']) : 0,
-			'2_win_extra' => isset($h_w_c['2_win_extra']) ? intval($h_w_c['2_win_extra']) : 0,
-			'3_win' => isset($h_w_c['3_win']) ? intval($h_w_c['3_win']) : 0,
-			'3_win_extra' => isset($h_w_c['3_win_extra']) ? intval($h_w_c['3_win_extra']) : 0,
-			'4_win' => isset($h_w_c['4_win']) ? intval($h_w_c['4_win']) : 0,
-			'4_win_extra' => isset($h_w_c['4_win_extra']) ? intval($h_w_c['4_win_extra']) : 0,
-			'5_win' => isset($h_w_c['5_win']) ? intval($h_w_c['5_win']) : 0,
-			'5_win_extra' => isset($h_w_c['5_win_extra']) ? intval($h_w_c['5_win_extra']) : 0,
-			'6_win' => isset($h_w_c['6_win']) ? intval($h_w_c['6_win']) : 0,
-			'6_win_extra' => isset($h_w_c['6_win_extra']) ? intval($h_w_c['6_win_extra']) : 0,
-			'7_win' => isset($h_w_c['7_win']) ? intval($h_w_c['7_win']) : 0,
-			'7_win_extra' => isset($h_w_c['7_win_extra']) ? intval($h_w_c['7_win_extra']) : 0,
-			'8_win' => isset($h_w_c['8_win']) ? intval($h_w_c['8_win']) : 0,
-			'8_win_extra' => isset($h_w_c['8_win_extra']) ? intval($h_w_c['8_win_extra']) : 0,
-			'9_win' => isset($h_w_c['9_win']) ? intval($h_w_c['9_win']) : 0,
-			'9_win_extra' => isset($h_w_c['9_win_extra']) ? intval($h_w_c['9_win_extra']) : 0,
-			'total_winners' => isset($h_w_c['total_winners']) ? intval($h_w_c['total_winners']) : 0
+			'startdate' => isset($hwc_win_data['startdate']) ? $hwc_win_data['startdate'] : null,
+			'lastdate' => isset($hwc_win_data['lastdate']) ? $hwc_win_data['lastdate'] : null,
+			'extra' => isset($hwc_win_data['extra']) ? intval($hwc_win_data['extra']) : 0,
+			'1_win' => isset($hwc_win_data['1_win']) ? intval($hwc_win_data['1_win']) : 0,
+			'1_win_extra' => isset($hwc_win_data['1_win_extra']) ? intval($hwc_win_data['1_win_extra']) : 0,
+			'2_win' => isset($hwc_win_data['2_win']) ? intval($hwc_win_data['2_win']) : 0,
+			'2_win_extra' => isset($hwc_win_data['2_win_extra']) ? intval($hwc_win_data['2_win_extra']) : 0,
+			'3_win' => isset($hwc_win_data['3_win']) ? intval($hwc_win_data['3_win']) : 0,
+			'3_win_extra' => isset($hwc_win_data['3_win_extra']) ? intval($hwc_win_data['3_win_extra']) : 0,
+			'4_win' => isset($hwc_win_data['4_win']) ? intval($hwc_win_data['4_win']) : 0,
+			'4_win_extra' => isset($hwc_win_data['4_win_extra']) ? intval($hwc_win_data['4_win_extra']) : 0,
+			'5_win' => isset($hwc_win_data['5_win']) ? intval($hwc_win_data['5_win']) : 0,
+			'5_win_extra' => isset($hwc_win_data['5_win_extra']) ? intval($hwc_win_data['5_win_extra']) : 0,
+			'6_win' => isset($hwc_win_data['6_win']) ? intval($hwc_win_data['6_win']) : 0,
+			'6_win_extra' => isset($hwc_win_data['6_win_extra']) ? intval($hwc_win_data['6_win_extra']) : 0,
+			'7_win' => isset($hwc_win_data['7_win']) ? intval($hwc_win_data['7_win']) : 0,
+			'7_win_extra' => isset($hwc_win_data['7_win_extra']) ? intval($hwc_win_data['7_win_extra']) : 0,
+			'8_win' => isset($hwc_win_data['8_win']) ? intval($hwc_win_data['8_win']) : 0,
+			'8_win_extra' => isset($hwc_win_data['8_win_extra']) ? intval($hwc_win_data['8_win_extra']) : 0,
+			'9_win' => isset($hwc_win_data['9_win']) ? intval($hwc_win_data['9_win']) : 0,
+			'9_win_extra' => isset($hwc_win_data['9_win_extra']) ? intval($hwc_win_data['9_win_extra']) : 0,
+			'total_winners' => isset($hwc_win_data['total_winners']) ? intval($hwc_win_data['total_winners']) : 0
 		);
 		$this->data['hwc_win_stats'] = $hwc_win_stats;
 		
@@ -1066,30 +1075,33 @@ class History extends Admin_Controller {
 		}
 		$this->data['current_draw_numbers'] = $current_draw_numbers;
 
-		// Fetch Followers win statistics
+		// Fetch Followers win statistics DIRECTLY from database (bypass cache to ensure fresh data)
+		$followers_win_query = $this->db->where('lottery_id', $id)->limit(1)->get('lottery_followers');
+		$followers_win_data = $followers_win_query->row_array();
+		
 		$followers_win_stats = array(
-			'startdate' => isset($followers['startdate']) ? $followers['startdate'] : null,
-			'lastdate' => isset($followers['lastdate']) ? $followers['lastdate'] : null,
-			'extra' => isset($followers['extra']) ? intval($followers['extra']) : 0,
-			'1_win' => isset($followers['1_win']) ? intval($followers['1_win']) : 0,
-			'1_win_extra' => isset($followers['1_win_extra']) ? intval($followers['1_win_extra']) : 0,
-			'2_win' => isset($followers['2_win']) ? intval($followers['2_win']) : 0,
-			'2_win_extra' => isset($followers['2_win_extra']) ? intval($followers['2_win_extra']) : 0,
-			'3_win' => isset($followers['3_win']) ? intval($followers['3_win']) : 0,
-			'3_win_extra' => isset($followers['3_win_extra']) ? intval($followers['3_win_extra']) : 0,
-			'4_win' => isset($followers['4_win']) ? intval($followers['4_win']) : 0,
-			'4_win_extra' => isset($followers['4_win_extra']) ? intval($followers['4_win_extra']) : 0,
-			'5_win' => isset($followers['5_win']) ? intval($followers['5_win']) : 0,
-			'5_win_extra' => isset($followers['5_win_extra']) ? intval($followers['5_win_extra']) : 0,
-			'6_win' => isset($followers['6_win']) ? intval($followers['6_win']) : 0,
-			'6_win_extra' => isset($followers['6_win_extra']) ? intval($followers['6_win_extra']) : 0,
-			'7_win' => isset($followers['7_win']) ? intval($followers['7_win']) : 0,
-			'7_win_extra' => isset($followers['7_win_extra']) ? intval($followers['7_win_extra']) : 0,
-			'8_win' => isset($followers['8_win']) ? intval($followers['8_win']) : 0,
-			'8_win_extra' => isset($followers['8_win_extra']) ? intval($followers['8_win_extra']) : 0,
-			'9_win' => isset($followers['9_win']) ? intval($followers['9_win']) : 0,
-			'9_win_extra' => isset($followers['9_win_extra']) ? intval($followers['9_win_extra']) : 0,
-			'total_winners' => isset($followers['total_winners']) ? intval($followers['total_winners']) : 0
+			'startdate' => isset($followers_win_data['startdate']) ? $followers_win_data['startdate'] : null,
+			'lastdate' => isset($followers_win_data['lastdate']) ? $followers_win_data['lastdate'] : null,
+			'extra' => isset($followers_win_data['extra']) ? intval($followers_win_data['extra']) : 0,
+			'1_win' => isset($followers_win_data['1_win']) ? intval($followers_win_data['1_win']) : 0,
+			'1_win_extra' => isset($followers_win_data['1_win_extra']) ? intval($followers_win_data['1_win_extra']) : 0,
+			'2_win' => isset($followers_win_data['2_win']) ? intval($followers_win_data['2_win']) : 0,
+			'2_win_extra' => isset($followers_win_data['2_win_extra']) ? intval($followers_win_data['2_win_extra']) : 0,
+			'3_win' => isset($followers_win_data['3_win']) ? intval($followers_win_data['3_win']) : 0,
+			'3_win_extra' => isset($followers_win_data['3_win_extra']) ? intval($followers_win_data['3_win_extra']) : 0,
+			'4_win' => isset($followers_win_data['4_win']) ? intval($followers_win_data['4_win']) : 0,
+			'4_win_extra' => isset($followers_win_data['4_win_extra']) ? intval($followers_win_data['4_win_extra']) : 0,
+			'5_win' => isset($followers_win_data['5_win']) ? intval($followers_win_data['5_win']) : 0,
+			'5_win_extra' => isset($followers_win_data['5_win_extra']) ? intval($followers_win_data['5_win_extra']) : 0,
+			'6_win' => isset($followers_win_data['6_win']) ? intval($followers_win_data['6_win']) : 0,
+			'6_win_extra' => isset($followers_win_data['6_win_extra']) ? intval($followers_win_data['6_win_extra']) : 0,
+			'7_win' => isset($followers_win_data['7_win']) ? intval($followers_win_data['7_win']) : 0,
+			'7_win_extra' => isset($followers_win_data['7_win_extra']) ? intval($followers_win_data['7_win_extra']) : 0,
+			'8_win' => isset($followers_win_data['8_win']) ? intval($followers_win_data['8_win']) : 0,
+			'8_win_extra' => isset($followers_win_data['8_win_extra']) ? intval($followers_win_data['8_win_extra']) : 0,
+			'9_win' => isset($followers_win_data['9_win']) ? intval($followers_win_data['9_win']) : 0,
+			'9_win_extra' => isset($followers_win_data['9_win_extra']) ? intval($followers_win_data['9_win_extra']) : 0,
+			'total_winners' => isset($followers_win_data['total_winners']) ? intval($followers_win_data['total_winners']) : 0
 		);
 		$this->data['followers_win_stats'] = $followers_win_stats;
 
@@ -1822,6 +1834,9 @@ class History extends Admin_Controller {
 		$p_group = $this->statistics_m->prizes_only($p_group, $this->data['lottery']->extra_ball);
 		$this->data['lottery']->valid_prize_categories = array_keys($p_group);
 		
+		// DEBUG: Log valid prize categories
+		log_message('error', "H-W-C+F valid_prize_categories for lottery_id=$id: " . print_r($this->data['lottery']->valid_prize_categories, true));
+		
 		$this->data['lottery']->last_drawn['range'] = $range;
 		$this->data['lottery']->extra_included = $h_w_c['extra_included'];
 		$this->data['lottery']->extra_draws    = $h_w_c['extra_draws'];
@@ -1945,30 +1960,36 @@ class History extends Admin_Controller {
 		}
 		$this->data['hwcf_saved_h_w_c_group'] = ($hwcf_record && !empty($hwcf_record['h_w_c_group'])) ? $hwcf_record['h_w_c_group'] : '';
 
-		// Fetch H-W-C + Followers win statistics
+		// Fetch H-W-C + Followers win statistics DIRECTLY from database (bypass cache to ensure fresh data)
+		$hwcf_win_query = $this->db->where('lottery_id', $id)->limit(1)->get('lottery_h_w_c_followers');
+		$hwcf_win_data = $hwcf_win_query->row_array();
+		
+		// DEBUG: Log the raw database query result
+		log_message('error', "H-W-C+F Win Data for lottery_id=$id: " . print_r($hwcf_win_data, true));
+		
 		$hwcf_win_stats = array(
-			'startdate' => ($hwcf_record && isset($hwcf_record['startdate'])) ? $hwcf_record['startdate'] : null,
-			'lastdate' => ($hwcf_record && isset($hwcf_record['lastdate'])) ? $hwcf_record['lastdate'] : null,
-			'extra' => ($hwcf_record && isset($hwcf_record['extra'])) ? intval($hwcf_record['extra']) : 0,
-			'1_win' => ($hwcf_record && isset($hwcf_record['1_win'])) ? intval($hwcf_record['1_win']) : 0,
-			'1_win_extra' => ($hwcf_record && isset($hwcf_record['1_win_extra'])) ? intval($hwcf_record['1_win_extra']) : 0,
-			'2_win' => ($hwcf_record && isset($hwcf_record['2_win'])) ? intval($hwcf_record['2_win']) : 0,
-			'2_win_extra' => ($hwcf_record && isset($hwcf_record['2_win_extra'])) ? intval($hwcf_record['2_win_extra']) : 0,
-			'3_win' => ($hwcf_record && isset($hwcf_record['3_win'])) ? intval($hwcf_record['3_win']) : 0,
-			'3_win_extra' => ($hwcf_record && isset($hwcf_record['3_win_extra'])) ? intval($hwcf_record['3_win_extra']) : 0,
-			'4_win' => ($hwcf_record && isset($hwcf_record['4_win'])) ? intval($hwcf_record['4_win']) : 0,
-			'4_win_extra' => ($hwcf_record && isset($hwcf_record['4_win_extra'])) ? intval($hwcf_record['4_win_extra']) : 0,
-			'5_win' => ($hwcf_record && isset($hwcf_record['5_win'])) ? intval($hwcf_record['5_win']) : 0,
-			'5_win_extra' => ($hwcf_record && isset($hwcf_record['5_win_extra'])) ? intval($hwcf_record['5_win_extra']) : 0,
-			'6_win' => ($hwcf_record && isset($hwcf_record['6_win'])) ? intval($hwcf_record['6_win']) : 0,
-			'6_win_extra' => ($hwcf_record && isset($hwcf_record['6_win_extra'])) ? intval($hwcf_record['6_win_extra']) : 0,
-			'7_win' => ($hwcf_record && isset($hwcf_record['7_win'])) ? intval($hwcf_record['7_win']) : 0,
-			'7_win_extra' => ($hwcf_record && isset($hwcf_record['7_win_extra'])) ? intval($hwcf_record['7_win_extra']) : 0,
-			'8_win' => ($hwcf_record && isset($hwcf_record['8_win'])) ? intval($hwcf_record['8_win']) : 0,
-			'8_win_extra' => ($hwcf_record && isset($hwcf_record['8_win_extra'])) ? intval($hwcf_record['8_win_extra']) : 0,
-			'9_win' => ($hwcf_record && isset($hwcf_record['9_win'])) ? intval($hwcf_record['9_win']) : 0,
-			'9_win_extra' => ($hwcf_record && isset($hwcf_record['9_win_extra'])) ? intval($hwcf_record['9_win_extra']) : 0,
-			'total_winners' => ($hwcf_record && isset($hwcf_record['total_winners'])) ? intval($hwcf_record['total_winners']) : 0
+			'startdate' => isset($hwcf_win_data['startdate']) ? $hwcf_win_data['startdate'] : null,
+			'lastdate' => isset($hwcf_win_data['lastdate']) ? $hwcf_win_data['lastdate'] : null,
+			'extra' => isset($hwcf_win_data['extra']) ? intval($hwcf_win_data['extra']) : 0,
+			'1_win' => isset($hwcf_win_data['1_win']) ? intval($hwcf_win_data['1_win']) : 0,
+			'1_win_extra' => isset($hwcf_win_data['1_win_extra']) ? intval($hwcf_win_data['1_win_extra']) : 0,
+			'2_win' => isset($hwcf_win_data['2_win']) ? intval($hwcf_win_data['2_win']) : 0,
+			'2_win_extra' => isset($hwcf_win_data['2_win_extra']) ? intval($hwcf_win_data['2_win_extra']) : 0,
+			'3_win' => isset($hwcf_win_data['3_win']) ? intval($hwcf_win_data['3_win']) : 0,
+			'3_win_extra' => isset($hwcf_win_data['3_win_extra']) ? intval($hwcf_win_data['3_win_extra']) : 0,
+			'4_win' => isset($hwcf_win_data['4_win']) ? intval($hwcf_win_data['4_win']) : 0,
+			'4_win_extra' => isset($hwcf_win_data['4_win_extra']) ? intval($hwcf_win_data['4_win_extra']) : 0,
+			'5_win' => isset($hwcf_win_data['5_win']) ? intval($hwcf_win_data['5_win']) : 0,
+			'5_win_extra' => isset($hwcf_win_data['5_win_extra']) ? intval($hwcf_win_data['5_win_extra']) : 0,
+			'6_win' => isset($hwcf_win_data['6_win']) ? intval($hwcf_win_data['6_win']) : 0,
+			'6_win_extra' => isset($hwcf_win_data['6_win_extra']) ? intval($hwcf_win_data['6_win_extra']) : 0,
+			'7_win' => isset($hwcf_win_data['7_win']) ? intval($hwcf_win_data['7_win']) : 0,
+			'7_win_extra' => isset($hwcf_win_data['7_win_extra']) ? intval($hwcf_win_data['7_win_extra']) : 0,
+			'8_win' => isset($hwcf_win_data['8_win']) ? intval($hwcf_win_data['8_win']) : 0,
+			'8_win_extra' => isset($hwcf_win_data['8_win_extra']) ? intval($hwcf_win_data['8_win_extra']) : 0,
+			'9_win' => isset($hwcf_win_data['9_win']) ? intval($hwcf_win_data['9_win']) : 0,
+			'9_win_extra' => isset($hwcf_win_data['9_win_extra']) ? intval($hwcf_win_data['9_win_extra']) : 0,
+			'total_winners' => isset($hwcf_win_data['total_winners']) ? intval($hwcf_win_data['total_winners']) : 0
 		);
 		$this->data['hwcf_win_stats'] = $hwcf_win_stats;
 
