@@ -1743,12 +1743,7 @@ class Statistics_m extends MY_Model
 				$this->load->model('lotteries_m');
 				$lottery = $this->lotteries_m->get($data['lottery_id']);
 				if ($lottery) {
-					$table_name = $lottery->table_name;
-					$draw_exists = $this->db->where('id', $updated['prev_draw_id'])->get($table_name)->row();
-					if (!$draw_exists) {
-						$need_populate = true;
-						log_message('error', "Lottery {$data['lottery_id']}: prev_draw_id {$updated['prev_draw_id']} no longer exists");
-					}
+				$table_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
 				}
 			}
 			
