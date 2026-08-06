@@ -9883,16 +9883,28 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 		}
 		
-		// Validate win_field against valid prize categories
+		// Validate win_field against valid prize categories and apply fallback logic
 		if (!is_null($win_field)) {
 			$p_group = $this->prize_group_profile($lottery_id);
 			$p_group = $this->prizes_only($p_group, $lottery->extra_ball);
 			$valid_prize_categories = array_keys($p_group);
 			
-			// If this prize category doesn't exist for this lottery, don't count it
+			// If this prize category doesn't exist, try fallback (only 1 prize per draw)
 			if (!in_array($win_field, $valid_prize_categories)) {
-				log_message('info', "H-W-C: Skipping invalid prize category {$win_field} for lottery_id=$lottery_id (main_matches=$main_matches, extra_match=" . ($extra_match ? 'true' : 'false') . ")");
-				$win_field = null; // Don't increment this category
+				// If it was X_win_extra and not valid, fall back to X_win
+				if (strpos($win_field, '_win_extra') !== false && $main_matches > 0) {
+					$fallback_field = $main_matches . '_win';
+					if (in_array($fallback_field, $valid_prize_categories)) {
+						log_message('info', "H-W-C: Prize category {$win_field} not valid, using fallback {$fallback_field} for lottery_id=$lottery_id");
+						$win_field = $fallback_field;
+					} else {
+						log_message('info', "H-W-C: Prize categories {$win_field} and {$fallback_field} not valid for lottery_id=$lottery_id, no prize counted");
+						$win_field = null;
+					}
+				} else {
+					log_message('info', "H-W-C: Prize category {$win_field} not valid for lottery_id=$lottery_id, no prize counted");
+					$win_field = null;
+				}
 			}
 		}
 		
@@ -10018,16 +10030,28 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 		}
 		
-		// Validate win_field against valid prize categories
+		// Validate win_field against valid prize categories and apply fallback logic
 		if (!is_null($win_field)) {
 			$p_group = $this->prize_group_profile($lottery_id);
 			$p_group = $this->prizes_only($p_group, $lottery->extra_ball);
 			$valid_prize_categories = array_keys($p_group);
 			
-			// If this prize category doesn't exist for this lottery, don't count it
+			// If this prize category doesn't exist, try fallback (only 1 prize per draw)
 			if (!in_array($win_field, $valid_prize_categories)) {
-				log_message('info', "Followers: Skipping invalid prize category {$win_field} for lottery_id=$lottery_id (main_matches=$main_matches, extra_match=" . ($extra_match ? 'true' : 'false') . ")");
-				$win_field = null; // Don't increment this category
+				// If it was X_win_extra and not valid, fall back to X_win
+				if (strpos($win_field, '_win_extra') !== false && $main_matches > 0) {
+					$fallback_field = $main_matches . '_win';
+					if (in_array($fallback_field, $valid_prize_categories)) {
+						log_message('info', "Followers: Prize category {$win_field} not valid, using fallback {$fallback_field} for lottery_id=$lottery_id");
+						$win_field = $fallback_field;
+					} else {
+						log_message('info', "Followers: Prize categories {$win_field} and {$fallback_field} not valid for lottery_id=$lottery_id, no prize counted");
+						$win_field = null;
+					}
+				} else {
+					log_message('info', "Followers: Prize category {$win_field} not valid for lottery_id=$lottery_id, no prize counted");
+					$win_field = null;
+				}
 			}
 		}
 		
@@ -10153,16 +10177,28 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			}
 		}
 		
-		// Validate win_field against valid prize categories
+		// Validate win_field against valid prize categories and apply fallback logic
 		if (!is_null($win_field)) {
 			$p_group = $this->prize_group_profile($lottery_id);
 			$p_group = $this->prizes_only($p_group, $lottery->extra_ball);
 			$valid_prize_categories = array_keys($p_group);
 			
-			// If this prize category doesn't exist for this lottery, don't count it
+			// If this prize category doesn't exist, try fallback (only 1 prize per draw)
 			if (!in_array($win_field, $valid_prize_categories)) {
-				log_message('info', "H-W-C+Followers: Skipping invalid prize category {$win_field} for lottery_id=$lottery_id (main_matches=$main_matches, extra_match=" . ($extra_match ? 'true' : 'false') . ")");
-				$win_field = null; // Don't increment this category
+				// If it was X_win_extra and not valid, fall back to X_win
+				if (strpos($win_field, '_win_extra') !== false && $main_matches > 0) {
+					$fallback_field = $main_matches . '_win';
+					if (in_array($fallback_field, $valid_prize_categories)) {
+						log_message('info', "H-W-C+Followers: Prize category {$win_field} not valid, using fallback {$fallback_field} for lottery_id=$lottery_id");
+						$win_field = $fallback_field;
+					} else {
+						log_message('info', "H-W-C+Followers: Prize categories {$win_field} and {$fallback_field} not valid for lottery_id=$lottery_id, no prize counted");
+						$win_field = null;
+					}
+				} else {
+					log_message('info', "H-W-C+Followers: Prize category {$win_field} not valid for lottery_id=$lottery_id, no prize counted");
+					$win_field = null;
+				}
 			}
 		}
 		
