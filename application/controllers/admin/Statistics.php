@@ -1623,8 +1623,20 @@ class Statistics extends Admin_Controller {
 		$old_range = $friends['range'];
 		if(!$new_range) $new_range = $old_range;	// Database Range
 		$sel_range = 1;								// All Defaults
-		$this->data['lottery']->extra_included = ($this->data['lottery']->extra_ball ? 1 : 0); // Default to lottery's extra ball setting
-		$this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
+		
+		// CRITICAL FIX: Initialize extra_included/extra_draws from existing friends record if available
+		// Only default to extra_ball value if no friends record exists yet
+		if (!is_null($friends) && isset($friends['extra_included'])) {
+			$this->data['lottery']->extra_included = $friends['extra_included'];
+		} else {
+			$this->data['lottery']->extra_included = ($this->data['lottery']->extra_ball ? 1 : 0);
+		}
+		if (!is_null($friends) && isset($friends['extra_draws'])) {
+			$this->data['lottery']->extra_draws = $friends['extra_draws'];
+		} else {
+			$this->data['lottery']->extra_draws = 0;
+		}
+		
 		if(!is_null($friends)&&(!is_null($nonfriends)))
 		{
 			$change = FALSE;  // Default is no change
@@ -2704,6 +2716,17 @@ class Statistics extends Admin_Controller {
 					// Read saved checkbox state from database instead of defaulting to 0  
 					$saved_extra_draws = $this->statistics_m->extra_draws($id, FALSE, 'lottery_followers');
 					$this->data['lottery']->extra_draws = $saved_extra_draws ? 1 : 0;
+				}
+				
+				// CRITICAL FIX: Also preserve extra_included/extra_draws settings from lottery_friends table
+				// This ensures the friends calculation respects the user's checkbox settings
+				if(!isset($this->data['lottery']->friends_extra_included)) {
+					$saved_friends_extra_included = $this->statistics_m->extra_included($id, FALSE, 'lottery_friends');
+					$this->data['lottery']->friends_extra_included = $saved_friends_extra_included ? 1 : 0;
+				}
+				if(!isset($this->data['lottery']->friends_extra_draws)) {
+					$saved_friends_extra_draws = $this->statistics_m->extra_draws($id, FALSE, 'lottery_friends');
+					$this->data['lottery']->friends_extra_draws = $saved_friends_extra_draws ? 1 : 0;
 				}
 				
 				// Verified the Draw Statistics have been completed
@@ -3958,25 +3981,39 @@ class Statistics extends Admin_Controller {
 			$new_range = ($all<100 ? $all : 100);
 			$relatives = $this->statistics_m->create_friend_array();
 			$nonrelatives = $this->statistics_m->create_nonfriend_array();
-			$extra_included_default = ($lotto->extra_ball ? 1 : 0);
-			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $extra_included_default, 0, $new_range, '', $blnduplicate);
+			
+			// CRITICAL FIX: Preserve existing extra_included/extra_draws settings if a friends record exists
+			// Only default to extra_ball value if this is truly the first run (friends is null)
+			// Also check for friends_extra_included property set by recalc() function
+			$extra_included_default = ($friends_exists && isset($friends['extra_included'])) 
+				? $friends['extra_included'] 
+				: (isset($lotto->friends_extra_included) 
+					? $lotto->friends_extra_included 
+					: ($lotto->extra_ball ? 1 : 0));
+			$extra_draws_default = ($friends_exists && isset($friends['extra_draws'])) 
+				? $friends['extra_draws'] 
+				: (isset($lotto->friends_extra_draws) 
+					? $lotto->friends_extra_draws 
+					: 0);
+			
+			$str_friends = $this->statistics_m->friends_calculate($tbl_name, $drawn, $max_ball, $extra_included_default, $extra_draws_default, $new_range, '', $blnduplicate);
 			$associate = explode('+', $str_friends); // The '+' is the separator
 			$str_friends = $associate[0];			 // separated the friends
 			$str_nonfriends = $associate[1]; 		 // from the non friends
-			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $extra_included_default, 0, $new_range, '', $blnduplicate);
+			$this->statistics_m->friends_hits($str_friends, $str_nonfriends, $tbl_name, $drawn, $max_ball, $extra_included_default, $extra_draws_default, $new_range, '', $blnduplicate);
 			$fr_stats = $this->statistics_m->combine_friends_string($relatives, $str_friends, $max_ball);
 			$nfr_stats = $this->statistics_m->combine_nonfriends_string($nonrelatives);
 			
 			// Build and cache matrix for first run
-			$matrix = $this->statistics_m->build_friends_matrix($tbl_name, $drawn, $max_ball, $extra_included_default, 0, $new_range, $blnduplicate);
+			$matrix = $this->statistics_m->build_friends_matrix($tbl_name, $drawn, $max_ball, $extra_included_default, $extra_draws_default, $new_range, $blnduplicate);
 			
 			$friends = array(
 				'range'				=> $new_range,
 				'lottery_friends'	=> $str_friends,
 				'friendship_matrix'	=> json_encode($matrix),
 				'wins'				=> $fr_stats,
-				'extra_included'	=> ($lotto->extra_ball ? 1 : 0),
-				'extra_draws'		=> 0,
+				'extra_included'	=> $extra_included_default,
+				'extra_draws'		=> $extra_draws_default,
 				'draw_id'			=> $lotto->last_drawn['id'],
 				'lottery_id'		=> $id
 			);
@@ -4025,13 +4062,23 @@ class Statistics extends Admin_Controller {
 		}
 
 		try {
+			// CRITICAL FIX: Read current extra_included setting from database instead of hardcoding to true
+			// This preserves the user's checkbox preference
+			$existing_followers = $this->statistics_m->followers_exists($id);
+			$extra_included = (is_array($existing_followers) && isset($existing_followers['extra_included'])) 
+				? $existing_followers['extra_included'] 
+				: 1; // Default to 1 only if no existing record
+			$extra_draws = (is_array($existing_followers) && isset($existing_followers['extra_draws'])) 
+				? $existing_followers['extra_draws'] 
+				: 0; // Default to 0
+			
 			// Calculate follower wins using the enhanced algorithm
 			$result = $this->statistics_m->calculate_independent_extra_follower_wins(
 				$table_name, 
 				$id, 
 				$range, 
-				true, // extra_included
-				false // extra_draws
+				$extra_included, // Use saved value instead of hardcoded true
+				$extra_draws // Use saved value instead of hardcoded false
 			);
 
 			// Check for errors (insufficient draws)
@@ -4248,13 +4295,23 @@ class Statistics extends Admin_Controller {
 	private function calculate_enhanced_follower_wins($id, $range, $lotto, $table_name)
 	{
 		try {
+			// CRITICAL FIX: Read current extra_included setting from database instead of hardcoding to true
+			// This preserves the user's checkbox preference
+			$existing_followers = $this->statistics_m->followers_exists($id);
+			$extra_included = (is_array($existing_followers) && isset($existing_followers['extra_included'])) 
+				? $existing_followers['extra_included'] 
+				: 1; // Default to 1 only if no existing record
+			$extra_draws = (is_array($existing_followers) && isset($existing_followers['extra_draws'])) 
+				? $existing_followers['extra_draws'] 
+				: 0; // Default to 0
+			
 			// Use the enhanced algorithm for independent extra ball lotteries
 			$result = $this->statistics_m->calculate_independent_extra_follower_wins(
 				$table_name, 
 				$id, 
 				$range, 
-				true, // extra_included
-				false // extra_draws
+				$extra_included, // Use saved value instead of hardcoded true
+				$extra_draws // Use saved value instead of hardcoded false
 			);
 
 			// Check for errors (insufficient draws)
