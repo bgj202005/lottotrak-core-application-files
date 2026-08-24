@@ -9,6 +9,9 @@ class Combination_filters_m extends MY_Model
 {
     protected $_table_name = 'lottery_combination_filters';
     protected $_order_by = 'id';
+    
+    // Cache for overdue numbers to prevent repeated database queries
+    private $overdue_numbers_cache = [];
 
     /**
      * Save combination filter data to lottery_combination_filters table
@@ -1746,6 +1749,11 @@ class Combination_filters_m extends MY_Model
      */
     private function get_overdue_numbers($lottery_id)
     {
+        // Check cache first to avoid repeated database queries
+        if (isset($this->overdue_numbers_cache[$lottery_id])) {
+            return $this->overdue_numbers_cache[$lottery_id];
+        }
+        
         // Load statistics model if not already loaded
         if (!isset($this->statistics_m)) {
             $this->load->model('Statistics_m', 'statistics_m');
@@ -1782,6 +1790,9 @@ class Combination_filters_m extends MY_Model
                 }
             }
         }
+        
+        // Cache the result for future use
+        $this->overdue_numbers_cache[$lottery_id] = $overdue_numbers;
         
         return $overdue_numbers;
     }

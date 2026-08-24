@@ -1030,6 +1030,7 @@ class Predictions extends Admin_Controller {
 			$this->data['selected_last_digits'] = isset($restore_data['last_digits']) ? $restore_data['last_digits'] : '';
 			$this->data['selected_number_range'] = isset($restore_data['number_range']) ? $restore_data['number_range'] : '';
 			$this->data['selected_adjacents'] = isset($restore_data['adjacents']) ? $restore_data['adjacents'] : '';
+			$this->data['selected_overdues'] = isset($restore_data['overdues']) ? $restore_data['overdues'] : '';
 		} else {
 			// Use defaults when no timeout restore data
 			$this->data['selected_h_w_c_group'] = 'ALL';
@@ -5677,7 +5678,8 @@ class Predictions extends Admin_Controller {
 					'decades' => $this->input->post('decades', TRUE),
 					'last_digits' => $this->input->post('last_digits', TRUE),
 					'number_range' => $this->input->post('number_range', TRUE),
-					'adjacents' => $this->input->post('adjacents', TRUE)
+					'adjacents' => $this->input->post('adjacents', TRUE),
+					'overdues' => $this->input->post('overdues', TRUE)
 				];
 				$this->session->set_userdata('timeout_form_data', $timeout_form_data);
 			}
