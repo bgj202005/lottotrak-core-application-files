@@ -580,7 +580,7 @@ class Combination_filters_m extends MY_Model
             'selected_winning_sums', 'selected_winning_digits', 'selected_repeaters',
             'selected_consecutives', 'selected_parity', 'selected_decades',
             'selected_last_digits', 'selected_number_range', 'selected_adjacents',
-            'selected_extra_ball'
+            'selected_extra_ball', 'selected_overdues'
         ];
         
         foreach ($filter_keys as $key) {
@@ -738,6 +738,45 @@ class Combination_filters_m extends MY_Model
                     }
                     
                     if ($hot_count !== $expected_hot || $warm_count !== $expected_warm || $cold_count !== $expected_cold) {
+                        return false;
+                    }
+                }
+            }
+        }
+        
+        // 2.5. OVERDUES FILTER - After H-W-C, before parity (moderate selectivity)
+        if (isset($filter_select['selected_overdues']) && $filter_select['selected_overdues'] !== 'ALL') {
+            $expected_overdue_count = (int)$filter_select['selected_overdues'];
+            $lottery_id = $filter_select['lottery_id'] ?? null;
+            
+            if ($lottery_id) {
+                // Load statistics model if not already loaded
+                if (!isset($this->statistics_m)) {
+                    $this->load->model('Statistics_m', 'statistics_m');
+                }
+                
+                // Get overdue numbers for this lottery
+                $overdue_numbers = $this->get_overdue_numbers($lottery_id);
+                
+                // Count how many numbers in the combination are overdue
+                $combo_numbers = array_values($main_numbers);
+                $overdue_count = 0;
+                
+                foreach ($combo_numbers as $number) {
+                    if (in_array($number, $overdue_numbers)) {
+                        $overdue_count++;
+                    }
+                }
+                
+                // Apply filter based on expected count
+                if ($expected_overdue_count === 0) {
+                    // 0 = Filter out combinations with ANY overdue numbers
+                    if ($overdue_count > 0) {
+                        return false;
+                    }
+                } else {
+                    // 1, 2, or 3 = Filter ONLY combinations with exactly that many overdue numbers
+                    if ($overdue_count !== $expected_overdue_count) {
                         return false;
                     }
                 }
@@ -1696,5 +1735,54 @@ class Combination_filters_m extends MY_Model
         }
         
         return $combo_numbers;
+    }
+    
+    /**
+     * Get overdue numbers for a lottery
+     * A number is overdue if draw_skips > draw_average
+     * 
+     * @param int $lottery_id Lottery ID
+     * @return array Array of overdue numbers
+     */
+    private function get_overdue_numbers($lottery_id)
+    {
+        // Load statistics model if not already loaded
+        if (!isset($this->statistics_m)) {
+            $this->load->model('Statistics_m', 'statistics_m');
+        }
+        
+        // Get H-W-C data which contains the overdue field
+        $h_w_c_data = $this->statistics_m->h_w_c_exists($lottery_id);
+        
+        if (!$h_w_c_data || empty($h_w_c_data['overdue'])) {
+            return [];
+        }
+        
+        // Parse the overdue field
+        // Format: 15=7|6,49=10|6,42=13|6
+        // Where 15 is the number, 7 is draw skips, 6 is draw average
+        $overdue_numbers = [];
+        $overdue_data = explode(',', $h_w_c_data['overdue']);
+        
+        foreach ($overdue_data as $entry) {
+            if (strpos($entry, '=') !== false) {
+                list($number, $stats) = explode('=', $entry, 2);
+                $number = (int)trim($number);
+                
+                // Parse the stats: draw_skips|draw_average
+                if (strpos($stats, '|') !== false) {
+                    list($draw_skips, $draw_average) = explode('|', $stats, 2);
+                    $draw_skips = (int)$draw_skips;
+                    $draw_average = (int)$draw_average;
+                    
+                    // A number is overdue if draw_skips > draw_average
+                    if ($draw_skips > $draw_average) {
+                        $overdue_numbers[] = $number;
+                    }
+                }
+            }
+        }
+        
+        return $overdue_numbers;
     }
 }

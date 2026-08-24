@@ -1163,49 +1163,53 @@
 									
 									<!-- Table responsive container -->
 									<div class="table-responsive" style="overflow-x: auto; overflow-y: visible; max-width: 100%;">
-										<table class="table table-bordered<?php echo (isset($is_independent_extra_ball) && $is_independent_extra_ball) ? ' with-extra-ball' : ''; ?>" id="futures-filter-table" style="white-space: nowrap; margin: 0; width: 100%; max-width: 100%;">
+										<table class="table table-bordered<?php echo (isset($is_independent_extra_ball) && $is_independent_extra_ball) ? ' with-extra-ball' : ''; ?>" id="futures-filter-table" style="white-space: nowrap; margin: 0; width: auto; table-layout: auto;">
 											<thead>
 												<tr>
-													<th>H-W-C</th>
+													<th style="width: 1%; white-space: nowrap;">H-W-C</th>
 													<?php if (isset($is_independent_extra_ball) && $is_independent_extra_ball): ?>
-													<th>Extra Ball</th>
+													<th style="width: 1%; white-space: nowrap;">Extra Ball</th>
 													<?php endif; ?>
-													<th>After Ball</th>
-													<th>Position</th>
-													<th>Friends</th>
-													<th>Trends</th>
-													<th>Sums</th>
-													<th>Digit Sums</th>
-													<th>Repeaters</th>
-													<th>Consecutives</th>
-													<th>Odd/Even</th>
-													<th>Decades</th>
-													<th>Last</th>
-													<th>Range</th>
-													<th>Adjacent</th>
+													<th colspan="2" class="text-center" style="white-space: nowrap;">Followers</th>
+													<th style="width: 1%; white-space: nowrap;">Friends</th>
+													<th style="width: 1%; white-space: nowrap;">Trends</th>
+													<th style="width: 1%; white-space: nowrap;">Sums</th>
+													<th style="width: 1%; white-space: nowrap;">Digit Sums</th>
+												</tr>
+												<tr>
+													<th style="width: 1%;"></th>
+													<?php if (isset($is_independent_extra_ball) && $is_independent_extra_ball): ?>
+													<th style="width: 1%;"></th>
+													<?php endif; ?>
+													<th style="width: 1%; white-space: nowrap;">After Ball</th>
+													<th style="width: 1%; white-space: nowrap;">Position</th>
+													<th style="width: 1%;"></th>
+													<th style="width: 1%;"></th>
+													<th style="width: 1%;"></th>
+													<th style="width: 1%;"></th>
 												</tr>
 											</thead>
 											<tbody>
 												<tr>
-													<td data-label="H-W-C Selection">
+													<td data-label="H-W-C Selection" style="width: auto; padding: 5px; max-width: 220px;">
 														<?php 
 														$hwc_disabled = isset($disable_hwc_dropdown) && $disable_hwc_dropdown ? ' disabled' : '';
 														?>
-														<?= form_dropdown('h_w_c_group', $h_w_c_group, isset($selected_h_w_c_group) ? $selected_h_w_c_group : '', 'class="form-control" id="h_w_c_group"' . $hwc_disabled) ?>
+														<?= form_dropdown('h_w_c_group', $h_w_c_group, isset($selected_h_w_c_group) ? $selected_h_w_c_group : '', 'class="form-control" id="h_w_c_group" style="width: 100%; padding: 4px 8px; box-sizing: border-box;"' . $hwc_disabled) ?>
 													</td>
 													<?php if (isset($is_independent_extra_ball) && $is_independent_extra_ball): ?>
-													<td data-label="Extra Ball Filter">
+													<td data-label="Extra Ball Filter" style="width: auto; padding: 5px;">
 														<?php 
 														$extra_ball_options = ['ALL' => 'ALL'];
 														foreach ($extra_ball_occurrences as $occurrence) {
 															$extra_ball_options[$occurrence['value']] = $occurrence['display'];
 														}
 														?>
-														<?= form_dropdown('extra_ball_filter', $extra_ball_options, isset($selected_extra_ball) ? $selected_extra_ball : 'ALL', 'class="form-control" id="extra_ball_filter"') ?>
+														<?= form_dropdown('extra_ball_filter', $extra_ball_options, isset($selected_extra_ball) ? $selected_extra_ball : 'ALL', 'class="form-control" id="extra_ball_filter" style="width: 100%; padding: 4px 8px; box-sizing: border-box;"') ?>
 													</td>
 													<?php endif; ?>
-													<td data-label="After Ball">
-														<div class="d-flex align-items-center" style="gap:0.4em;">
+													<td data-label="After Ball" style="width: auto; padding: 8px; text-align: center;">
+														<div class="d-flex align-items-center justify-content-center" style="gap:0.5em;">
 															<?php 
 															$followers_disabled = isset($disable_followers_controls) && $disable_followers_controls;
 															$radio_disabled = $followers_disabled ? ['disabled' => true] : [];
@@ -1217,21 +1221,21 @@
 																	'value' => 'after_ball',
 																	'checked' => (isset($selected_followers_type) && $selected_followers_type == 'after_ball')
 																], $radio_disabled)); ?>
-															<?= form_dropdown('ball_points', isset($ball_points_options) ? $ball_points_options : [], isset($selected_ball_points) ? $selected_ball_points : '', 'class="form-control" id="ball_points"' . $dropdown_disabled) ?>
+															<?= form_dropdown('ball_points', isset($ball_points_options) ? $ball_points_options : [], isset($selected_ball_points) ? $selected_ball_points : '', 'class="form-control" id="ball_points" style="flex: 1; min-width: 120px; max-width: 95%; padding: 6px 10px; box-sizing: border-box;"' . $dropdown_disabled) ?>
 														</div>
 													</td>
-													<td data-label="Position">
-														<div class="d-flex align-items-center" style="gap:0.4em;">
+													<td data-label="Position" style="width: auto; padding: 8px; text-align: center;">
+														<div class="d-flex align-items-center justify-content-center" style="gap:0.5em;">
 															<?= form_radio(array_merge([
 																'name' => 'followers_type',
 																'id' => 'position_radio',
 																'value' => 'position',
 																'checked' => (isset($selected_followers_type) && $selected_followers_type == 'position')
 															], $radio_disabled)); ?>
-															<?= form_dropdown('position_points', isset($position_points_options) ? $position_points_options : [], isset($selected_position_points) ? $selected_position_points : '', 'class="form-control" id="position_points"' . $dropdown_disabled) ?>
+															<?= form_dropdown('position_points', isset($position_points_options) ? $position_points_options : [], isset($selected_position_points) ? $selected_position_points : '', 'class="form-control" id="position_points" style="flex: 1; min-width: 120px; max-width: 95%; padding: 6px 10px; box-sizing: border-box;"' . $dropdown_disabled) ?>
 														</div>
 													</td>
-													<td data-label="Friends">
+													<td data-label="Friends" style="width: auto; padding: 5px;">
 														<?= form_dropdown('friends_select', 
 															isset($friends_dropdown_options) ? $friends_dropdown_options : [
 																'all' => 'ALL',
@@ -1240,37 +1244,69 @@
 																'2' => '2-Way'
 															], 
 															isset($selected_friends) ? $selected_friends : '', 
-															'class="form-control" id="friends"') ?>
+															'class="form-control" id="friends" style="width: 100%; padding: 4px 8px; box-sizing: border-box;"') ?>
 													</td>
-													<td data-label="Trends">
-														<?= form_dropdown('trends', isset($lottery->trends) ? $lottery->trends : [], isset($selected_trends) ? $selected_trends : '', 'class="form-control"') ?>
+													<td data-label="Trends" style="width: auto; padding: 5px;">
+														<?= form_dropdown('trends', isset($lottery->trends) ? $lottery->trends : [], isset($selected_trends) ? $selected_trends : '', 'class="form-control" style="width: 100%; padding: 4px 8px; box-sizing: border-box;"') ?>
 													</td>
-													<td data-label="Sums">
-														<?= form_dropdown('winning_sums', isset($lottery->winning_sums) ? $lottery->winning_sums : [], isset($selected_winning_sums) ? $selected_winning_sums : '', 'class="form-control"') ?>
+													<td data-label="Sums" style="width: auto; padding: 5px;">
+														<?= form_dropdown('winning_sums', isset($lottery->winning_sums) ? $lottery->winning_sums : [], isset($selected_winning_sums) ? $selected_winning_sums : '', 'class="form-control" style="width: 100%; padding: 4px 8px; box-sizing: border-box;"') ?>
 													</td>
-													<td data-label="Digit Sums">
-														<?= form_dropdown('winning_digits', isset($lottery->winning_digits) ? $lottery->winning_digits : [], isset($selected_winning_digits) ? $selected_winning_digits : '', 'class="form-control"') ?>
+													<td data-label="Digit Sums" style="width: auto; padding: 5px;">
+														<?= form_dropdown('winning_digits', isset($lottery->winning_digits) ? $lottery->winning_digits : [], isset($selected_winning_digits) ? $selected_winning_digits : '', 'class="form-control" style="width: 100%; padding: 4px 8px; box-sizing: border-box;"') ?>
 													</td>
-													<td data-label="Repeaters">
-														<?= form_dropdown('repeaters', isset($lottery->repeaters) ? $lottery->repeaters : [],  isset($selected_repeaters) ? $selected_repeaters : '', 'class="form-control"') ?>
+												</tr>
+											</tbody>
+										</table>
+										
+										<!-- Second Row Table -->
+										<table class="table table-bordered<?php echo (isset($is_independent_extra_ball) && $is_independent_extra_ball) ? ' with-extra-ball' : ''; ?>" style="white-space: nowrap; margin: 0; width: auto; table-layout: auto;">
+											<thead>
+												<tr>
+													<th style="width: 1%; white-space: nowrap;">Overdues</th>
+													<th style="width: 1%; white-space: nowrap;">Repeaters</th>
+													<th style="width: 1%; white-space: nowrap;">Consecutives</th>
+													<th style="width: 1%; white-space: nowrap;">Odd/Even</th>
+													<th style="width: 1%; white-space: nowrap;">Decades</th>
+													<th style="width: 1%; white-space: nowrap;">Last</th>
+													<th style="width: 1%; white-space: nowrap;">Range</th>
+													<th style="width: 1%; white-space: nowrap;">Adjacent</th>
+												</tr>
+											</thead>
+											<tbody>
+												<tr>
+													<td data-label="Overdues" style="width: 1%; white-space: nowrap;">
+														<?php 
+														$overdues_options = [
+															'ALL' => 'ALL',
+															'0' => '0',
+															'1' => '1',
+															'2' => '2',
+															'3' => '3'
+														];
+														?>
+														<?= form_dropdown('overdues', $overdues_options, isset($selected_overdues) ? $selected_overdues : 'ALL', 'class="form-control" id="overdues" style="width: auto;"') ?>
 													</td>
-													<td data-label="Consecutives">
-														<?= form_dropdown('consecutives', isset($lottery->consecutives) ? $lottery->consecutives : [], isset($selected_consecutives) ? $selected_consecutives : '', 'class="form-control"') ?>
+													<td data-label="Repeaters" style="width: 1%; white-space: nowrap;">
+														<?= form_dropdown('repeaters', isset($lottery->repeaters) ? $lottery->repeaters : [],  isset($selected_repeaters) ? $selected_repeaters : '', 'class="form-control" style="width: auto;"') ?>
 													</td>
-													<td data-label="Odd/Even">
-														<?= form_dropdown('parity', isset($lottery->parity) ? $lottery->parity : [], isset($selected_parity) ? $selected_parity : '', 'class="form-control"') ?>
+													<td data-label="Consecutives" style="width: 1%; white-space: nowrap;">
+														<?= form_dropdown('consecutives', isset($lottery->consecutives) ? $lottery->consecutives : [], isset($selected_consecutives) ? $selected_consecutives : '', 'class="form-control" style="width: auto;"') ?>
 													</td>
-													<td data-label="Decades">
-														<?= form_dropdown('decades', isset($lottery->decades) ? $lottery->decades : [], isset($selected_decades) ? $selected_decades : '', 'class="form-control"') ?>
+													<td data-label="Odd/Even" style="width: 1%; white-space: nowrap;">
+														<?= form_dropdown('parity', isset($lottery->parity) ? $lottery->parity : [], isset($selected_parity) ? $selected_parity : '', 'class="form-control" style="width: auto;"') ?>
 													</td>
-													<td data-label="Last">
-														<?= form_dropdown('last_digits', isset($lottery->last_digits) ? $lottery->last_digits : [], isset($selected_last_digits) ? $selected_last_digits : '', 'class="form-control"') ?>
+													<td data-label="Decades" style="width: 1%; white-space: nowrap;">
+														<?= form_dropdown('decades', isset($lottery->decades) ? $lottery->decades : [], isset($selected_decades) ? $selected_decades : '', 'class="form-control" style="width: auto;"') ?>
 													</td>
-													<td data-label="Range">
-														<?= form_dropdown('number_range', isset($lottery->number_range) ? $lottery->number_range : [], isset($selected_number_range) ? $selected_number_range : '', 'class="form-control"') ?>
+													<td data-label="Last" style="width: 1%; white-space: nowrap;">
+														<?= form_dropdown('last_digits', isset($lottery->last_digits) ? $lottery->last_digits : [], isset($selected_last_digits) ? $selected_last_digits : '', 'class="form-control" style="width: auto;"') ?>
 													</td>
-													<td data-label="Adjacent">
-														<?= form_dropdown('adjacents', isset($lottery->adjacents) ? $lottery->adjacents : [], isset($selected_adjacents) ? $selected_adjacents : '', 'class="form-control"') ?>
+													<td data-label="Range" style="width: 1%; white-space: nowrap;">
+														<?= form_dropdown('number_range', isset($lottery->number_range) ? $lottery->number_range : [], isset($selected_number_range) ? $selected_number_range : '', 'class="form-control" style="width: auto;"') ?>
+													</td>
+													<td data-label="Adjacent" style="width: 1%; white-space: nowrap;">
+														<?= form_dropdown('adjacents', isset($lottery->adjacents) ? $lottery->adjacents : [], isset($selected_adjacents) ? $selected_adjacents : '', 'class="form-control" style="width: auto;"') ?>
 													</td>
 												</tr>
 											</tbody>
