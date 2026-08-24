@@ -11,8 +11,8 @@ class Migration_Add_overdues_to_combination_filters extends CI_Migration {
 				'type'			=> 'VARCHAR',
 				'constraint'	=> '10',
 				'null'			=> TRUE,
-				'default'		=> 'ALL',
-				'after'			=> 'adjacents',
+				'default'		=> NULL,
+				'after'			=> 'winning_digits',
 				'comment'		=> 'Overdues filter: ALL, 0, 1, 2, or 3'
 			)
 		));

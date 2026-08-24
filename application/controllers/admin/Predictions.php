@@ -2044,6 +2044,7 @@ class Predictions extends Admin_Controller {
 				$selected_last_digits = $this->input->post('last_digits', TRUE);
 				$selected_number_range = $this->input->post('number_range', TRUE);
 				$selected_adjacents = $this->input->post('adjacents', TRUE);
+				$selected_overdues = $this->input->post('overdues', TRUE);
 				// If combination table is posted and not in session, set and lock it
 				if ($this->input->post('wheeling')) {
 					$futures_form['selected_wheeling'] = $this->input->post('wheeling');
@@ -2752,6 +2753,7 @@ class Predictions extends Admin_Controller {
 				$this->data['selected_last_digits'] = $futures_form['selected_last_digits']; 		// last digits setting
 				$this->data['selected_number_range'] = $futures_form['selected_number_range'];		// number range setting
 				$this->data['selected_adjacents'] = $futures_form['selected_adjacents'];				// adjacents setting
+				$this->data['selected_overdues'] = $futures_form['selected_overdues'];				// overdues setting
 			}
 			
 			$number_array = $this->session->userdata('futures_number_array');
