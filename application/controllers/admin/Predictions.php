@@ -1053,7 +1053,7 @@ class Predictions extends Admin_Controller {
 			$this->data['selected_last_digits'] = '';
 			$this->data['selected_number_range'] = '';
 			$this->data['selected_adjacents'] = '';
-			$this->data['selected_overdues'] = 'ALL';
+			$this->data['selected_overdues'] = '';
 		}
     	
 		$this->data['position_points_options'] = $position_points_options;
@@ -1669,7 +1669,7 @@ class Predictions extends Admin_Controller {
 		$this->data['selected_last_digits'] = '';
 		$this->data['selected_number_range'] = '';
 		$this->data['selected_adjacents'] = '';
-		$this->data['selected_overdues'] = 'ALL';
+		$this->data['selected_overdues'] = '';
 		// Get lottery highlights and historical data for filters
 		$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
 		$this->data['lottery']->trends = $this->predictions_m->get_trends($this->data['lottery']->highlights['trends']);
@@ -2841,7 +2841,7 @@ class Predictions extends Admin_Controller {
 					'selected_last_digits' => $futures_form['selected_last_digits'],
 					'selected_number_range' => $futures_form['selected_number_range'],
 					'selected_adjacents' => $futures_form['selected_adjacents'],
-					'selected_overdues' => isset($futures_form['selected_overdues']) ? $futures_form['selected_overdues'] : 'ALL',
+					'selected_overdues' => $futures_form['selected_overdues'],
 					'selected_extra_ball' => isset($futures_form['selected_extra_ball']) ? $futures_form['selected_extra_ball'] : 'ALL',
 					'selected_h_w_c_group' => $futures_form['selected_h_w_c_group'],
 					'selected_hwc' => $futures_form['selected_hwc'],
@@ -3084,7 +3084,7 @@ class Predictions extends Admin_Controller {
 			'selected_last_digits' => $session_data['selected_last_digits'],
 			'selected_number_range' => $session_data['selected_number_range'],
 			'selected_adjacents' => $session_data['selected_adjacents'],
-			'selected_overdues' => isset($session_data['selected_overdues']) ? $session_data['selected_overdues'] : 'ALL',
+			'selected_overdues' => $session_data['selected_overdues'],
 			'selected_h_w_c_group' => $session_data['selected_h_w_c_group'],
 			'selected_hwc' => $session_data['selected_hwc'],
 			'selected_extra_ball' => $session_data['selected_extra_ball'],
@@ -3198,7 +3198,7 @@ class Predictions extends Admin_Controller {
 			'last_digits' => $session_data['selected_last_digits'],
 			'number_range' => $session_data['selected_number_range'],
 			'adjacents' => $session_data['selected_adjacents'],
-			'overdues' => isset($session_data['selected_overdues']) ? $session_data['selected_overdues'] : 'ALL',
+			'overdues' => $session_data['selected_overdues'],
 			'user' => 1, // Admin role (1 = admin, 0 = member)
 			'user_id' => $current_user_id,
 			'member_id' => 0, // Default for admin
@@ -3705,7 +3705,7 @@ class Predictions extends Admin_Controller {
 		$this->data['selected_last_digits'] = $saved_settings['last_digits'] ?? '';
 		$this->data['selected_number_range'] = $saved_settings['number_range'] ?? '';
 		$this->data['selected_adjacents'] = $saved_settings['adjacents'] ?? '';
-		$this->data['selected_overdues'] = $saved_settings['overdues'] ?? 'ALL';
+		$this->data['selected_overdues'] = $saved_settings['overdues'] ?? '';
 		
 		// Store session data for consistency (using the processed values with fallbacks)
 		$session_data = [
@@ -3729,7 +3729,7 @@ class Predictions extends Admin_Controller {
 			'selected_last_digits' => $saved_settings['last_digits'] ?? '',
 			'selected_number_range' => $saved_settings['number_range'] ?? '',
 			'selected_adjacents' => $saved_settings['adjacents'] ?? '',
-			'selected_overdues' => $saved_settings['overdues'] ?? 'ALL',
+			'selected_overdues' => $saved_settings['overdues'] ?? '',
 			'selected_combo_id' => $record_id,
 		];
 		
@@ -3953,7 +3953,7 @@ class Predictions extends Admin_Controller {
 		$this->data['selected_last_digits'] = $saved_settings['last_digits'];
 		$this->data['selected_number_range'] = $saved_settings['number_range'];
 		$this->data['selected_adjacents'] = $saved_settings['adjacents'];
-		$this->data['selected_overdues'] = $saved_settings['overdues'] ?? 'ALL';
+		$this->data['selected_overdues'] = $saved_settings['overdues'];
 		
 		// Store session data
 		$this->data['selected_number_range'] = $saved_settings['number_range'];
@@ -3989,7 +3989,7 @@ class Predictions extends Admin_Controller {
 			'selected_last_digits' => $saved_settings['last_digits'],
 			'selected_number_range' => $saved_settings['number_range'],
 			'selected_adjacents' => $saved_settings['adjacents'],
-			'selected_overdues' => $saved_settings['overdues'] ?? 'ALL',
+			'selected_overdues' => $saved_settings['overdues'],
 			'selected_combo_id' => $record_id,
 		];
 		$this->session->set_userdata('futures_form', $session_data);
@@ -4046,7 +4046,7 @@ class Predictions extends Admin_Controller {
 		$this->data['selected_last_digits'] = $saved_settings['last_digits'] ?? '';
 		$this->data['selected_number_range'] = $saved_settings['number_range'] ?? '';
 		$this->data['selected_adjacents'] = $saved_settings['adjacents'] ?? '';
-		$this->data['selected_overdues'] = $saved_settings['overdues'] ?? 'ALL';
+		$this->data['selected_overdues'] = $saved_settings['overdues'] ?? '';
 		
 		// Get next draw date (for display purposes only)
 		$ld = $this->data['lottery']->last_drawn['draw_date'];
@@ -4162,7 +4162,7 @@ class Predictions extends Admin_Controller {
 			'selected_last_digits' => $saved_settings['last_digits'],
 			'selected_number_range' => $saved_settings['number_range'],
 			'selected_adjacents' => $saved_settings['adjacents'],
-			'selected_overdues' => $saved_settings['overdues'] ?? 'ALL',
+			'selected_overdues' => $saved_settings['overdues'],
 			'selected_extra_ball' => $saved_settings['extra_balls'],
 			'selected_h_w_c_group' => $saved_settings['h_w_c_group'],
 			'selected_hwc' => (bool)$saved_settings['hwc'],
