@@ -408,7 +408,7 @@
 	#futures-filter-table.with-extra-ball th:nth-child(12) { width: 6%; }  /* Decades */
 	#futures-filter-table.with-extra-ball th:nth-child(13) { width: 5%; }  /* Last */
 	#futures-filter-table.with-extra-ball th:nth-child(14) { width: 6%; }  /* Range */
-	#futures-filter-table.with-extra-ball th:nth-child(15) { width: 6%; }  /* Adjacent */
+	#futures-filter-table.with-extra-ball th:nth-child(15) { width: 6%; }  /* Adjacent Consecutives */
 	
 	/* Special compact styling for extra ball tables */
 	#futures-filter-table.with-extra-ball select {
@@ -444,7 +444,7 @@
 	#futures-filter-table:not(.with-extra-ball) th:nth-child(11) { width: 7%; }  /* Decades */
 	#futures-filter-table:not(.with-extra-ball) th:nth-child(12) { width: 6%; }  /* Last */
 	#futures-filter-table:not(.with-extra-ball) th:nth-child(13) { width: 7%; }  /* Range */
-	#futures-filter-table:not(.with-extra-ball) th:nth-child(14) { width: 7%; }  /* Adjacent */
+	#futures-filter-table:not(.with-extra-ball) th:nth-child(14) { width: 7%; }  /* Adjacent Consecutives */
 	
 	/* Make sure dropdown menus stay within the green border */
 	.table-section .table-responsive {
@@ -1270,7 +1270,7 @@
 													<th style="width: 1%; white-space: nowrap;">Decades</th>
 													<th style="width: 1%; white-space: nowrap;">Last</th>
 													<th style="width: 1%; white-space: nowrap;">Range</th>
-													<th style="width: 1%; white-space: nowrap;">Adjacent</th>
+													<th style="width: 1%; white-space: nowrap;">Adjacent Consecutives</th>
 												</tr>
 											</thead>
 											<tbody>
@@ -1305,7 +1305,7 @@
 													<td data-label="Range" style="width: 1%; white-space: nowrap;">
 														<?= form_dropdown('number_range', isset($lottery->number_range) ? $lottery->number_range : [], isset($selected_number_range) ? $selected_number_range : '', 'class="form-control" style="width: auto;"') ?>
 													</td>
-													<td data-label="Adjacent" style="width: 1%; white-space: nowrap;">
+													<td data-label="Adjacent Consecutives" style="width: 1%; white-space: nowrap;">
 														<?= form_dropdown('adjacents', isset($lottery->adjacents) ? $lottery->adjacents : [], isset($selected_adjacents) ? $selected_adjacents : '', 'class="form-control" style="width: auto;"') ?>
 													</td>
 												</tr>

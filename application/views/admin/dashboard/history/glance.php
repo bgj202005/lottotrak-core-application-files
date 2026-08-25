@@ -536,64 +536,52 @@ $b = 1;
 															<i class="ion ion-ios-refresh-empty"></i>
 														</p>
 														<p class="d-flex flex-column text-right">
-															<span class="text-muted">AVERAGE ADJACENT COUNT BETWEEN BALLS</span>
+															<span class="text-muted">ADJACENT CONSECUTIVES</span>
 														</p>
 													</div>
-													<?php $adjacents_history = $lottery->last_drawn['adjacents']; // Total Sums
-													$adjacents_string = explode("|", $adjacents_history);
-													$adjacents = explode(",", $adjacents_string[0]); // These are number of sums with the occurrences. e.g. 152=3, .
-													$s = '';
-													$ball_start = 1; // First Ball position
-													$ball_next = 2;	// Second Ball position
-													foreach ($adjacents as $c => $a) :
-														$adj = explode('=', $a);
-														$s .= 'Adjacent difference for Ball <strong>' . $ball_start . '</strong> and Ball <strong>' . $ball_next . '</strong> is <strong>' . $adj[1] . "</strong>.<br />";
-														$ball_start++;
-														$ball_next++;
-													endforeach;
-													echo "<style='display: inline'>" . $s . "</style>";
-													$s = '';
-													if ($adjacents_string[1] == "0-0") : $s .= "There is currently <strong>NO</strong> Maximum Adjacent numbers that 
-														has occurred over this range.";
-													else :
-														$top = explode('=', $adjacents_string[1]);
-
-														switch ($top[0]):
-															case 2:
-																$ball_start = 2;
-																$ball_next = 3;
-																break;
-															case 3:
-																$ball_start = 3;
-																$ball_next = 4;
-																break;
-															case 4:
-																$ball_start = 4;
-																$ball_next = 5;
-																break;
-															case 5:
-																$ball_start = 5;
-																$ball_next = 6;
-																break;
-															case 6:
-																$ball_start = 6;
-																$ball_next = 7;
-																break;
-															case 7:
-																$ball_start = 7;
-																$ball_next = 8;
-																break;
-															case 8:
-																$ball_start = 8;
-																$ball_next = 9;
-																break;
-															default:
-																$ball_start = 1;
-																$ball_next = 2;
-														endswitch;
-														$s = "<br /><p>The Top difference between numbers happened<br />between <strong> Ball " . $ball_start . "</strong> and <strong> Ball " . $ball_next . "</strong> with a difference of <strong>" . $top[1] . "</strong>.</p>";
-													endif;
-													echo "<style='display: inline'>" . $s . "</style>";
+													<?php 
+													// Get adjacent consecutives data from highlights
+													$adjacents_data = isset($lottery->highlights['adjacents']) ? $lottery->highlights['adjacents'] : '';
+													if (!empty($adjacents_data)) {
+														// Parse the adjacents data format: "1=5,2=3,3=7|max_info"
+														$parts = explode('|', $adjacents_data);
+														$main_part = isset($parts[0]) ? $parts[0] : '';
+														
+														if ($main_part) {
+															$pairs = explode(',', $main_part);
+															$adjacents_stats = [];
+															
+															foreach ($pairs as $pair) {
+																$kv = explode('=', $pair);
+																if (count($kv) == 2) {
+																	$adj_num = (int)trim($kv[0]);
+																	$total = (int)trim($kv[1]);
+																	if ($total > 0) {
+																		$adjacents_stats[] = [
+																			'adj_num' => $adj_num,
+																			'next_num' => $adj_num + 1,
+																			'total' => $total
+																		];
+																	}
+																}
+															}
+															
+															// Sort by total descending to show most frequent first
+															usort($adjacents_stats, function($a, $b) {
+																return $b['total'] <=> $a['total'];
+															});
+															
+															// Display the statistics
+															echo '<br />';
+															foreach ($adjacents_stats as $stat) {
+																echo 'Ball <strong>' . $stat['adj_num'] . '</strong> & Ball <strong>' . $stat['next_num'] . '</strong> occurred <strong>' . $stat['total'] . '</strong> times.<br />';
+															}
+														} else {
+															echo '<br />No adjacent consecutives data available.<br />';
+														}
+													} else {
+														echo '<br />No adjacent consecutives data available.<br />';
+													}
 													?>
 												</h5>
 											</div>

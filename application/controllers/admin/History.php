@@ -139,6 +139,10 @@ class History extends Admin_Controller {
 			$this->session->set_flashdata('message', $highlight_check['message']);
 			redirect('admin/history');
 		}
+		
+		// Load lottery highlights for display
+		$this->load->model('predictions_m');
+		$this->data['lottery']->highlights = $this->predictions_m->get_lottery_highlights($id);
 
 		$all = $this->lotteries_m->db_row_count($tbl_name); // Return the total number of draws for this lottery
 		
