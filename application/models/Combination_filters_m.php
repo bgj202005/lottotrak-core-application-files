@@ -891,19 +891,35 @@ class Combination_filters_m extends MY_Model
             }
         }
         
-        // 11. ADJACENTS FILTER
+        // 11. ADJACENTS FILTER (Adjacent Consecutives)
+        // Filter by specific ball position pairs that must be consecutive
+        // Value represents position pair: 1 = Ball 1 & Ball 2, 2 = Ball 2 & Ball 3, etc.
         if (!empty($filter_select['selected_adjacents']) && $filter_select['selected_adjacents'] !== 'ALL') {
-            $adjacent_count = 0;
             $sorted_main = $main_numbers_values;
             sort($sorted_main);
-            for ($i = 0; $i < count($sorted_main) - 1; $i++) {
-                if ($sorted_main[$i + 1] - $sorted_main[$i] == 1) {
-                    $adjacent_count++;
+            
+            // Get the selected position pair(s)
+            $selected_positions = explode(',', $filter_select['selected_adjacents']);
+            $has_valid_pair = false;
+            
+            // Check if any of the selected position pairs are consecutive
+            foreach ($selected_positions as $pos) {
+                $pos = (int)$pos;
+                // Position 1 means check Ball 1 & Ball 2 (indices 0 and 1)
+                // Position 2 means check Ball 2 & Ball 3 (indices 1 and 2), etc.
+                $index = $pos - 1;
+                
+                if ($index >= 0 && $index < count($sorted_main) - 1) {
+                    // Check if this specific position pair is consecutive
+                    if ($sorted_main[$index + 1] - $sorted_main[$index] == 1) {
+                        $has_valid_pair = true;
+                        break;
+                    }
                 }
             }
             
-            $allowed_adjacents = explode(',', $filter_select['selected_adjacents']);
-            if (!in_array($adjacent_count, $allowed_adjacents)) {
+            // Filter passes only if at least one selected position pair is consecutive
+            if (!$has_valid_pair) {
                 return false;
             }
         }
