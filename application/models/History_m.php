@@ -108,6 +108,8 @@ class History_m extends MY_Model
     {
         $up = 0;
         $down = 0;
+        $dd = '';
+        $lt = '';
         $total = count($draws);
          foreach($draws as $count => $draw)
         {
@@ -343,7 +345,11 @@ class History_m extends MY_Model
             for($c = 1; $c < $pick; $c++)  // Iterate through adjacent ball positions
             {
                 $diff = intval($draw['ball'.($c+1)]) - intval($draw['ball'.$c]);
-                $adjacents[$c-1] += $diff;  // Use zero-based indexing for array
+                
+                // Count only when the difference is exactly 1 (consecutive numbers)
+                if($diff == 1) {
+                    $adjacents[$c-1] = $adjacents[$c-1] + 1;  // Increment count for this position
+                }
                 
                 // Track the largest difference and its position across all draws
                 if($lg_diff < $diff) 
@@ -357,11 +363,11 @@ class History_m extends MY_Model
         $adj_text = '';
         unset($draws);
         
-        // Calculate averages and build output string
+        // Build output string with counts of consecutive occurrences
         for($c = 1; $c < $pick; $c++)
         {
-            $average = round(($adjacents[$c-1] / $processed_draws)); // Average difference for this position
-            $adj_text .= $c.'='.$average.',';
+            $count = $adjacents[$c-1]; // Count of times this position had consecutive numbers
+            $adj_text .= $c.'='.$count.',';
         }
         
         $adj_text = substr_replace($adj_text, '|', -1);    // Replace last ',' with '|'
