@@ -11,7 +11,7 @@ class Migration_Add_Prediction_Pool_Lottery_H_w_c extends CI_Migration {
                 'type' => 'INT',
                 'constraint' => '11',
                 'unsigned' => TRUE,
-                'default' => 18,
+                'default' => 1,
                 'null' => FALSE,
                 'after' => 'c_count'
             )
