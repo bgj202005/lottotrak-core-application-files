@@ -1855,6 +1855,7 @@ class Statistics extends Admin_Controller {
 				$this->data['lottery']->W = $warms;  				// Number of Warms Distributed e.g 18 Colds
 				$this->data['lottery']->C = $colds; 				// Number of Colds Distributed e.g 16 Colds
 				$this->data['lottery']->prediction_pool = isset($h_w_c['prediction_pool']) ? $h_w_c['prediction_pool'] : 18; // Default prediction pool
+				$this->data['lottery']->prediction_extras = isset($h_w_c['prediction_extras']) ? $h_w_c['prediction_extras'] : 1; // Default prediction extras
 			}
 			else
 			{
@@ -1946,6 +1947,36 @@ class Statistics extends Admin_Controller {
 					}
 				}
 				
+				// Handle prediction extra pool changes (for independent extra ball lotteries)
+				$extra_pool_button_pressed = $this->input->post('change_extra_pool');
+				if($extra_pool_button_pressed || $this->input->post('prediction_extras')) {
+					$extra_pool_form = $this->input->post('prediction_extras');
+					$original_extra_pool = $this->input->post('original_prediction_extras');
+					
+					// Get current value for fallback
+					$current_extra_pool_value = isset($h_w_c['prediction_extras']) ? $h_w_c['prediction_extras'] : 1;
+					
+					// Only proceed if there's an actual change and form value is valid
+					if($extra_pool_form && $extra_pool_form != $original_extra_pool) {
+						$min_extra_pool = 1; // Minimum is 1
+						$max_extra_pool = isset($this->data['lottery']->maximum_extra_ball) ? $this->data['lottery']->maximum_extra_ball : 10;
+						
+						// Validate extra pool range
+						if($extra_pool_form >= $min_extra_pool && $extra_pool_form <= $max_extra_pool) {
+							$this->data['lottery']->prediction_extras = $extra_pool_form;
+							$this->session->set_flashdata('extra_pool_message', "The Prediction Extra Pool has changed from $original_extra_pool to $extra_pool_form");
+							$blnheat = TRUE; // Trigger recalculation
+							$this->session->set_userdata('extra_pool_redirect_needed', true); // Flag for redirect after save
+						} else {
+							$this->session->set_flashdata('error_message', "The Prediction Extra Pool value must be between $min_extra_pool and $max_extra_pool");
+							$this->data['lottery']->prediction_extras = $current_extra_pool_value; // Keep current value on error
+						}
+					} else {
+						// No change made, keep current value
+						$this->data['lottery']->prediction_extras = $current_extra_pool_value;
+					}
+				}
+				
 				// Ensure values are set when buttons are pressed but no changes occur
 				if(!$heat_button_pressed) {
 					$w_start = intval($hots + 1);
@@ -1957,6 +1988,10 @@ class Statistics extends Admin_Controller {
 				
 				if(!$pool_button_pressed) {
 					$this->data['lottery']->prediction_pool = isset($h_w_c['prediction_pool']) ? $h_w_c['prediction_pool'] : 18;
+				}
+				
+				if(!$extra_pool_button_pressed) {
+					$this->data['lottery']->prediction_extras = isset($h_w_c['prediction_extras']) ? $h_w_c['prediction_extras'] : 1;
 				}
 				
 				// Ensure w_start and c_start are always set when pool button is pressed but heat button is not
@@ -2081,7 +2116,8 @@ class Statistics extends Admin_Controller {
 						'h_count'			=> 	$this->data['lottery']->H,
 						'w_count'			=> 	$this->data['lottery']->W,
 						'c_count'			=> 	$this->data['lottery']->C,
-						'prediction_pool'	=> 	$this->data['lottery']->prediction_pool
+						'prediction_pool'	=> 	$this->data['lottery']->prediction_pool,
+						'prediction_extras'	=> 	isset($this->data['lottery']->prediction_extras) ? $this->data['lottery']->prediction_extras : 1
 					);
 					$this->statistics_m->hwc_data_save($hwc, TRUE);
 

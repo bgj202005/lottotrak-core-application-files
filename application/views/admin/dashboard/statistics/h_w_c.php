@@ -144,6 +144,9 @@
 					<?php if($this->session->flashdata('pool_message')): ?>
 						<div class="alert alert-success" style="margin: 15px;"><?=$this->session->flashdata('pool_message');?></div>
 					<?php endif; ?>
+					<?php if($this->session->flashdata('extra_pool_message')): ?>
+						<div class="alert alert-success" style="margin: 15px;"><?=$this->session->flashdata('extra_pool_message');?></div>
+					<?php endif; ?>
 					<?php if($this->session->flashdata('error_message')): ?>
 						<div class="alert alert-danger" style="margin: 15px;"><?=$this->session->flashdata('error_message');?></div>
 					<?php endif; ?>
@@ -312,6 +315,38 @@
 								echo form_submit("change_pool", "Change Number Pool", $attr);
 								echo form_close(); ?>
 							</div>
+
+							<?php if($lottery->duplicate_extra_ball && $lottery->extra_ball): ?>
+							<!-- Row 2a col 1: Prediction Extra Pool spinner (only for independent extra ball lotteries) -->
+							<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px;">
+								<?php
+								$min_extra_pool = 1;
+								$max_extra_pool = isset($lottery->maximum_extra_ball) ? $lottery->maximum_extra_ball : 10;
+								$current_extra_pool = isset($lottery->prediction_extras) ? $lottery->prediction_extras : 1;
+								echo form_label("Prediction Extra Pool:", "id => 'lb_extrapool'");
+								$extra_pool_details = array( 'name'  => 'prediction_extras_spinner',
+													'id'    => 'prediction_extras_spinner',
+													'value' => $current_extra_pool,
+													'min'   => $min_extra_pool,
+													'max'   => $max_extra_pool,
+													'step'  => '1',
+													'style' => 'width:4em; height:30px;'
+								);
+								echo form_input($extra_pool_details); ?>
+							</div>
+							<!-- Row 2a col 2: Change Extra Pool button -->
+							<div class="hwc-btn-cell">
+								<?php $frm_attr = array('id' => 'frmextrapool_submit', 'style' => 'display:inline-block;');
+								echo form_open(base_url('admin/statistics/h_w_c/'.$lottery->id), $frm_attr);
+								?><input type="hidden" name="prediction_extras" id="prediction_extras_hidden" value="">
+								<input type="hidden" name="original_prediction_extras" value="<?php echo $current_extra_pool; ?>">
+								<input type="hidden" name="change_extra_pool" id="change_extra_pool_hidden" value="">
+								<?php
+								$attr = array('class' => 'btn btn-info');
+								echo form_submit("change_extra_pool", "Change Extra Pool", $attr);
+								echo form_close(); ?>
+							</div>
+							<?php endif; ?>
 
 							<!-- Row 3 col 1: H-W-C Prediction Option radios (with top separator) -->
 							<div style="border-top: 1px solid #dee2e6; padding-top: 12px; margin-top: 4px; text-align: left;">
@@ -579,6 +614,12 @@
 		$('#prediction_pool_hidden').val(poolValue);
 	}
 
+	// Function to update prediction extras hidden field when button is clicked
+	function updateExtraPoolValue() {
+		var extraPoolValue = $('#prediction_extras_spinner').val();
+		$('#prediction_extras_hidden').val(extraPoolValue);
+	}
+
 	$(document).ready(function(){
     	$('#frmheat_submit').on('submit', function(e){
         	e.preventDefault();
@@ -615,6 +656,25 @@
 				this.submit();
 			}
     	});
+
+    	<?php if($lottery->duplicate_extra_ball && $lottery->extra_ball): ?>
+    	$('#frmextrapool_submit').on('submit', function(e){
+        	e.preventDefault();
+        	var extraPoolValue = parseInt($('#prediction_extras_spinner').val());
+			var minExtraPool = 1;
+			var maxExtraPool = <?=isset($lottery->maximum_extra_ball) ? $lottery->maximum_extra_ball : 10;?>;
+			if(extraPoolValue < minExtraPool || extraPoolValue > maxExtraPool) {
+				$('#error').html("<h3 class='bg-warning' style = 'margin: 15px; text-align:center;'>The Prediction Extra Pool value <strong>"+extraPoolValue+"</strong> must be between "+minExtraPool+" and "+maxExtraPool+". Please Re-enter value.");
+			}
+			else {
+				// Update hidden field with current value before submit
+				updateExtraPoolValue();
+				$('#change_extra_pool_hidden').val('Change Extra Pool'); // Set button value
+				$('#error').html("");
+				this.submit();
+			}
+    	});
+    	<?php endif; ?>
 	});
 	
 	// H-W-C Option radio buttons: show/hide manual select dropdown
@@ -654,4 +714,10 @@
     	min: <?=$lottery->balls_drawn;?>,
     	max: <?=intval($lottery->maximum_ball / 2);?>
     });
+	<?php if($lottery->duplicate_extra_ball && $lottery->extra_ball): ?>
+	$("#prediction_extras_spinner").spinner({
+    	min: 1,
+    	max: <?=isset($lottery->maximum_extra_ball) ? $lottery->maximum_extra_ball : 10;?>
+    });
+	<?php endif; ?>
 </script>

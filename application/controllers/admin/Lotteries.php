@@ -989,9 +989,9 @@ class Lotteries extends Admin_Controller {
 				$draw_data += ['success' => TRUE];
 				$processed_count++; // Increment batch counter
 				
-				// REAL-TIME PREDICTION REGENERATION AND WIN TRACKING
-				// After each draw is successfully inserted, regenerate predictions and check wins
-				// This ensures win tracking happens for EVERY draw, not just the last one
+				// REAL-TIME PREDICTION SNAPSHOT, WIN TRACKING, AND REGENERATION
+				// After each draw is successfully inserted:
+				// STEP 1: First snapshot existing predictions and check wins for this draw
 				if (!isset($this->statistics_m)) {
 					$this->load->model('Statistics_m', 'statistics_m');
 				}
@@ -999,6 +999,13 @@ class Lotteries extends Admin_Controller {
 					$this->load->model('Predictions_m', 'predictions_m');
 				}
 				
+				// Snapshot and check wins against the newly inserted draw FIRST
+				$this->statistics_m->hwc_snapshot_predictions($id);
+				$this->statistics_m->followers_snapshot($id);
+				$this->statistics_m->followers_prediction_snapshot($id);
+				$this->statistics_m->hwc_followers_snapshot($id);
+				
+				// STEP 2: Regenerate predictions for the NEXT draw
 				// Regenerate H-W-C predictions for this draw
 				$h_w_c_current = $this->statistics_m->h_w_c_exists($id);
 				if(!is_null($h_w_c_current)) {
@@ -1060,12 +1067,6 @@ class Lotteries extends Admin_Controller {
 						}
 					}
 				}
-				
-				// Now snapshot and check wins for this draw
-				$this->statistics_m->hwc_snapshot_predictions($id);
-				$this->statistics_m->followers_snapshot($id);
-				$this->statistics_m->followers_prediction_snapshot($id);
-				$this->statistics_m->hwc_followers_snapshot($id);
 				
 				// Batch processing for server stability
 				if ($processed_count % $batch_size == 0) {

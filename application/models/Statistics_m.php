@@ -6153,7 +6153,11 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	 */
 	public function followers_prediction_snapshot($lottery_id)
 	{
-		$row = $this->followers_exists($lottery_id);
+		// Bypass cache — read directly from DB so we always get the live lottery_followers record
+		$query = $this->db->where('lottery_id', $lottery_id)
+		                  ->limit(1)
+		                  ->get('lottery_followers');
+		$row = $query->row_array();
 		if (empty($row) || empty($row['lottery_numbers'])) {
 			return;
 		}
