@@ -1495,13 +1495,23 @@ class Statistics extends Admin_Controller {
 				$this->session->set_flashdata('message', 'The selected follower combination did not produce any predictions. Please try different settings.');
 			}
 
+			// Generate extra ball predictions for independent / duplicate extra ball lotteries
+			$extra_numbers_str = '';
+			if(!empty($this->data['lottery']->duplicate_extra_ball) && !empty($this->data['lottery']->extra_ball)) {
+				$hwc_check = $this->statistics_m->h_w_c_exists($id);
+				$extra_pool = isset($hwc_check['prediction_extras']) ? (int)$hwc_check['prediction_extras'] : 1;
+				$generated_extra = $this->predictions_m->hwc_extra($id, $extra_pool);
+				$extra_numbers_str = $generated_extra ? $generated_extra : '';
+			}
+
 			$this->statistics_m->followers_prediction_save(
 				$id,
 				$follower_type,
 				$ball_points,
 				$position_points,
 				$lottery_numbers,
-				null   // preserve prev_lottery_numbers; only cleared on lottery profile changes
+				null,   // preserve prev_lottery_numbers; only cleared on lottery profile changes
+				$extra_numbers_str
 			);
 
 			$this->session->set_flashdata('follower_message', 'Prediction updated with ' . ($follower_type === 'position' ? 'Position ' . $follower_select : 'After Ball ' . $follower_select));
@@ -1517,6 +1527,7 @@ class Statistics extends Admin_Controller {
 		$this->data['saved_position_points']   = $followers_record && isset($followers_record['position_points']) ? $followers_record['position_points'] : '';
 		$this->data['lottery_numbers']         = $followers_record && isset($followers_record['lottery_numbers']) ? $followers_record['lottery_numbers'] : '';
 		$this->data['prev_lottery_numbers']    = $followers_record && isset($followers_record['prev_lottery_numbers']) ? $followers_record['prev_lottery_numbers'] : '';
+		$this->data['extra_numbers']           = $followers_record && isset($followers_record['extra_numbers']) ? $followers_record['extra_numbers'] : '';
 
 		// Auto-refresh: if the saved ball/position is no longer in the current draw's options
 		// (stale after a new draw import), regenerate the prediction with the top-ranked option.
@@ -1541,6 +1552,15 @@ class Statistics extends Admin_Controller {
 				);
 				$_new_numbers = $_generated ?: $this->data['lottery_numbers'];
 
+				// Generate extra ball predictions for independent / duplicate extra ball lotteries
+				$_extra_numbers = '';
+				if(!empty($this->data['lottery']->duplicate_extra_ball) && !empty($this->data['lottery']->extra_ball)) {
+					$_hwc_check = $this->statistics_m->h_w_c_exists($id);
+					$_extra_pool = isset($_hwc_check['prediction_extras']) ? (int)$_hwc_check['prediction_extras'] : 1;
+					$_gen_extra = $this->predictions_m->hwc_extra($id, $_extra_pool);
+					$_extra_numbers = $_gen_extra ? $_gen_extra : '';
+				}
+
 				// Save updated ball/position and regenerated numbers; keep prev_lottery_numbers intact
 				$this->statistics_m->followers_prediction_save(
 					$id,
@@ -1548,7 +1568,8 @@ class Statistics extends Admin_Controller {
 					$_new_ball,
 					$_new_pos,
 					$_new_numbers,
-					null   // null = leave prev_lottery_numbers unchanged
+					null,   // null = leave prev_lottery_numbers unchanged
+					$_extra_numbers
 				);
 
 				$this->data['saved_ball_points']     = $_new_ball;
@@ -2031,6 +2052,13 @@ class Statistics extends Admin_Controller {
 					} else {
 						$hwc_predictions_str = '';
 					}
+					// Generate the extra ball predictions for independent / duplicate extra ball lotteries
+					$extra_predictions_str = '';
+					if(!empty($this->data['lottery']->duplicate_extra_ball) && !empty($this->data['lottery']->extra_ball)) {
+						$extra_pool = isset($h_w_c['prediction_extras']) ? (int)$h_w_c['prediction_extras'] : 1;
+						$generated_extra = $this->predictions_m->hwc_extra($id, $extra_pool);
+						$extra_predictions_str = $generated_extra ? $generated_extra : '';
+					}
 					// Build label and encode as "label|numbers" so the snapshot carries the full context.
 					// Both options show the ranked group detail (e.g. "4-2-0 (50) - Rank #1").
 					$_opt_lbl  = ($posted_option === 2) ? 'Manual Selected' : 'Top Ranked';
@@ -2040,7 +2068,7 @@ class Statistics extends Admin_Controller {
 						: '';
 					// Preserve prev_h_w_c_predictions — only cleared when the lottery profile
 					// itself changes (critical parameters). Pass null to leave it untouched.
-					$this->statistics_m->hwc_save_predictions($id, $posted_option, $posted_select, $hwc_predictions_encoded, null);
+					$this->statistics_m->hwc_save_predictions($id, $posted_option, $posted_select, $hwc_predictions_encoded, null, $extra_predictions_str);
 					$this->session->set_flashdata('hwc_prediction_message', 'Generating Numbers for the next draw');
 					redirect('admin/statistics/h_w_c/' . $id);
 					return;
@@ -2165,7 +2193,14 @@ class Statistics extends Admin_Controller {
 								$_r_opt_lbl  = ($stored_option === 2) ? 'Manual Selected' : 'Top Ranked';
 								$_r_disp_lbl = isset($h_w_c_groups[$pattern]) ? $h_w_c_groups[$pattern] : $pattern;
 								$generated_encoded = $_r_opt_lbl . ' — ' . $_r_disp_lbl . '|' . $generated;
-								$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated_encoded, null);
+								// Generate extra ball predictions for independent / duplicate extra ball lotteries
+								$extra_predictions_str = '';
+								if(!empty($this->data['lottery']->duplicate_extra_ball) && !empty($this->data['lottery']->extra_ball)) {
+									$extra_pool = isset($h_w_c_after['prediction_extras']) ? (int)$h_w_c_after['prediction_extras'] : 1;
+									$generated_extra = $this->predictions_m->hwc_extra($id, $extra_pool);
+									$extra_predictions_str = $generated_extra ? $generated_extra : '';
+								}
+								$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated_encoded, null, $extra_predictions_str);
 							}
 						}
 					}
@@ -2452,6 +2487,8 @@ class Statistics extends Admin_Controller {
 		$this->data['hwc_select']      = isset($h_w_c_current['hwc_select'])      ? (int)$h_w_c_current['hwc_select']      : 1;
 		// hwc_predictions may be encoded as "label|numbers" — pass raw; view parses it.
 		$this->data['hwc_predictions'] = isset($h_w_c_current['hwc_predictions']) ? $h_w_c_current['hwc_predictions']      : '';
+		// Extra ball predictions for independent / duplicate extra ball lotteries
+		$this->data['hwc_extra_predictions'] = isset($h_w_c_current['hwc_extra_predictions']) ? $h_w_c_current['hwc_extra_predictions'] : '';
 		$this->data['h_w_c_group']     = $this->predictions_m->get_h_w_c_range_with_rank($id);
 		
 		$this->data['subview']  = 'admin/dashboard/statistics/h_w_c';
@@ -3885,13 +3922,21 @@ class Statistics extends Admin_Controller {
 		if ($generated) {
 			// STEP 5: Save the regenerated prediction
 			// prev_lottery_numbers is already set by snapshot, so pass null to preserve it
+			// Generate extra ball predictions for independent / duplicate extra ball lotteries
+			$extra_numbers_str = '';
+			if(!empty($this->data['lottery']->duplicate_extra_ball) && !empty($this->data['lottery']->extra_ball)) {
+				$extra_pool = isset($hwc_check['prediction_extras']) ? (int)$hwc_check['prediction_extras'] : 1;
+				$generated_extra = $this->predictions_m->hwc_extra($id, $extra_pool);
+				$extra_numbers_str = $generated_extra ? $generated_extra : '';
+			}
 			$this->statistics_m->followers_prediction_save(
 				$id,
 				$saved_type,
 				$saved_ball_points,
 				$saved_position_points,
 				$generated,
-				null   // null = leave prev_lottery_numbers unchanged (already set by snapshot)
+				null,   // null = leave prev_lottery_numbers unchanged (already set by snapshot)
+				$extra_numbers_str
 			);
 			
 			log_message('info', "Auto-regenerated followers prediction for lottery_id={$id} using {$saved_type}={$follower_select}");
@@ -4837,6 +4882,15 @@ class Statistics extends Admin_Controller {
 				$this->session->set_flashdata('message', 'The selected H-W-C group and follower combination did not produce any predictions. Please try different settings.');
 			}
 
+			// Generate extra ball predictions for independent / duplicate extra ball lotteries
+			$extra_numbers_str = '';
+			if(!empty($this->data['lottery']->duplicate_extra_ball) && !empty($this->data['lottery']->extra_ball)) {
+				$hwc_check = $this->statistics_m->h_w_c_exists($id);
+				$extra_pool = isset($hwc_check['prediction_extras']) ? (int)$hwc_check['prediction_extras'] : 1;
+				$generated_extra = $this->predictions_m->hwc_extra($id, $extra_pool);
+				$extra_numbers_str = $generated_extra ? $generated_extra : '';
+			}
+
 			$this->statistics_m->hwc_followers_save(
 				$id,
 				$posted_h_w_c,
@@ -4845,7 +4899,8 @@ class Statistics extends Admin_Controller {
 				$position_points,
 				$lottery_numbers,
 				null,          // preserve prev_lottery_numbers; only cleared on lottery profile changes
-				$selected_rank // save the rank
+				$selected_rank, // save the rank
+				$extra_numbers_str
 			);
 
 			$this->session->set_flashdata('hwc_follower_message', 'Prediction updated with H-W-C (' . $posted_h_w_c . ') + ' . ($follower_type === 'position' ? 'Position ' . $follower_select : 'After Ball ' . $follower_select));
@@ -4912,6 +4967,7 @@ class Statistics extends Admin_Controller {
 		$this->data['saved_position_points']   = $hwc_followers_record ? $hwc_followers_record['position_points'] : '';
 		$this->data['lottery_numbers']         = $hwc_followers_record ? $hwc_followers_record['lottery_numbers'] : '';
 		$this->data['prev_lottery_numbers']    = $hwc_followers_record ? $hwc_followers_record['prev_lottery_numbers'] : '';
+		$this->data['extra_numbers']           = ($hwc_followers_record && isset($hwc_followers_record['extra_numbers'])) ? $hwc_followers_record['extra_numbers'] : '';
 		$this->data['prediction_pool']         = $pool_size;
 
 		// Auto-refresh: if the saved ball/position is no longer in the current draw's options
@@ -4938,6 +4994,15 @@ class Statistics extends Admin_Controller {
 				);
 				$_new_numbers = $_generated ?: $this->data['lottery_numbers'];
 
+				// Generate extra ball predictions for independent / duplicate extra ball lotteries
+				$_extra_numbers = '';
+				if(!empty($this->data['lottery']->duplicate_extra_ball) && !empty($this->data['lottery']->extra_ball)) {
+					$_hwc_check = $this->statistics_m->h_w_c_exists($id);
+					$_extra_pool = isset($_hwc_check['prediction_extras']) ? (int)$_hwc_check['prediction_extras'] : 1;
+					$_gen_extra = $this->predictions_m->hwc_extra($id, $_extra_pool);
+					$_extra_numbers = $_gen_extra ? $_gen_extra : '';
+				}
+
 				// Save updated ball/position and regenerated numbers; preserve the rank
 				$this->statistics_m->hwc_followers_save(
 					$id,
@@ -4947,7 +5012,8 @@ class Statistics extends Admin_Controller {
 					$_new_pos,
 					$_new_numbers,
 					null,          // null = leave prev_lottery_numbers unchanged
-					$current_rank  // preserve the rank
+					$current_rank, // preserve the rank
+					$_extra_numbers
 				);
 
 				$this->data['saved_ball_points']     = $_new_ball;

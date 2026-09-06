@@ -1234,6 +1234,45 @@ elseif($is_extra):
 						</div>
 						<?php endif; ?>
 						
+						<!-- Extra Ball Winners Tile (independent / duplicate extra ball lotteries only) -->
+						<?php if(!empty($lottery->duplicate_extra_ball) && !empty($lottery->extra_ball) && !empty($prev_extra_numbers)):
+							$drawn_extra_val = (isset($lottery->last_drawn['extra']) && intval($lottery->last_drawn['extra']) > 0) ? (string) intval($lottery->last_drawn['extra']) : '';
+						?>
+						<div style="background-color: #e3f2fd; border-left: 4px solid #1565C0; padding: 15px; margin: 0 20px 20px 20px; border-radius: 4px;">
+							<h5 style="color: #0d47a1; margin-bottom: 10px;">
+								<i class="fa fa-star"></i> Extra Ball Winners
+							</h5>
+							<div style="margin-top: 10px;">
+								<?php foreach (explode(',', $prev_extra_numbers) as $num): 
+									$num = trim($num);
+									if ($num === '') continue;
+									$is_winner = ($drawn_extra_val !== '' && $num === $drawn_extra_val);
+									$ball_color = $is_winner ? '#1565C0' : '#90a4ae';
+									$ball_title = $is_winner ? 'Extra Ball Winner!' : 'Not drawn';
+								?>
+								<span class="badge" style="
+									background-color: <?=$ball_color;?>;
+									color: #ffffff;
+									font-size: 16px;
+									font-weight: bold;
+									padding: 8px 12px;
+									margin: 3px;
+									border-radius: 50%;
+									display: inline-block;
+									min-width: 40px;
+									text-align: center;
+									box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+								" title="<?=$ball_title;?>"><?=htmlspecialchars($num);?></span>
+								<?php endforeach; ?>
+							</div>
+							<div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #bbdefb; font-size: 0.9em; color: #555;">
+								<strong>Legend:</strong>
+								<span style="color: #1565C0; font-weight: bold;">●</span> Extra ball match &nbsp;
+								<span style="color: #90a4ae; font-weight: bold;">●</span> Not drawn
+							</div>
+						</div>
+						<?php endif; ?>
+						
 						<!-- Followers Win Statistics -->
 						<?php if(isset($followers_win_stats)): ?>
 	<?php

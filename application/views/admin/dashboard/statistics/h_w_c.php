@@ -415,6 +415,18 @@
 						</div>
 						</div>
 						<?php endif; ?>
+
+						<!-- Extra Predictions Tile (independent / duplicate extra ball lotteries only) -->
+						<?php if(!empty($lottery->duplicate_extra_ball) && !empty($lottery->extra_ball) && !empty($hwc_extra_predictions)): ?>
+						<div style="margin: 15px; padding: 12px 15px; background-color: #e3f2fd; border-left: 4px solid #1565C0; border-radius: 4px; text-align: center;">
+							<strong>Extra Ball Predictions for the Next Draw</strong><br>
+							<div style="margin-top: 8px; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;">
+								<?php foreach(explode(',', $hwc_extra_predictions) as $num): ?>
+								<span style="display:inline-flex; align-items:center; justify-content:center; background:#1565C0; color:#fff; border-radius:50%; width:38px; height:38px; font-weight:bold; font-size:0.95em;"><?=trim($num);?></span>
+								<?php endforeach; ?>
+							</div>
+						</div>
+						<?php endif; ?>
 						
 						<div class="container" id="content" style = "margin:20px;">
 							<div class = "row justify-content-center">

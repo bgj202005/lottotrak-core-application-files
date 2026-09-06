@@ -1393,6 +1393,108 @@ class Predictions_m extends MY_Model
 		return implode(',', $selected);
 	}
 	/**
+	 * Generate extra ball predictions for independent / duplicate extra ball lotteries.
+	 * Ranks the E-section position counts in lottery_h_w_c_stats.position, then maps each
+	 * position to the ball at that row of the dupextra list (like main H-W-C positions index
+	 * into the ordered hots/warms/colds lists). Falls back to top dupextra occurrence counts
+	 * when no E section exists (pre-recalc data).
+	 *
+	 * @param  integer $lottery_id		Lottery identifier
+	 * @param  integer $extra_pool		Number of extra ball predictions to generate (prediction_extras)
+	 * @return string|FALSE				Comma-separated extra ball numbers or FALSE if unavailable
+	 */
+	public function hwc_extra($lottery_id, $extra_pool)
+	{
+		$extra_pool = (int) $extra_pool;
+		if ($extra_pool <= 0) return FALSE;
+
+		// Load lottery profile for the extra ball range
+		$this->load->model('lotteries_m');
+		$lottery = $this->lotteries_m->get($lottery_id);
+		if (!$lottery || empty($lottery->duplicate_extra_ball) || empty($lottery->extra_ball)) {
+			return FALSE; // Only for independent / duplicate extra ball lotteries
+		}
+
+		$min_extra = (!empty($lottery->minimum_extra_ball) ? (int) $lottery->minimum_extra_ball : 1);
+		$max_extra = (!empty($lottery->maximum_extra_ball) ? (int) $lottery->maximum_extra_ball : 0);
+		if ($max_extra < $min_extra) return FALSE;
+
+		// The dupextra ordered ball list (sorted by occurrence desc) — positions index into this list,
+		// exactly like main H-W-C positions index into the ordered hots/warms/colds lists.
+		$row_hwc = $this->db->select('dupextra')
+			->get_where('lottery_h_w_c', array('lottery_id' => $lottery_id), 1)
+			->row_array();
+		$dup_balls = array();  // row index => ball value, in stored (count desc) order
+		$dup_counts = array(); // ball value => count (used by fallback)
+		if ($row_hwc && !empty($row_hwc['dupextra'])) {
+			foreach (explode(',', $row_hwc['dupextra']) as $pair) {
+				$kv = explode('=', $pair);
+				if (count($kv) == 2) {
+					$num = (int) trim($kv[0]);
+					if ($num >= $min_extra && $num <= $max_extra) {
+						$dup_balls[] = $num;
+						$dup_counts[$num] = (int) trim($kv[1]);
+					}
+				}
+			}
+		}
+
+		// 1. Rank the E-section positions by count, then map each position to the ball
+		// at that row of the dupextra list (position 1 -> 2nd row, etc.)
+		$row_stats = $this->db->select('position')
+			->get_where('lottery_h_w_c_stats', array('lottery_id' => $lottery_id), 1)
+			->row_array();
+
+		$selected = array();
+		if (!empty($dup_balls) && $row_stats && !empty($row_stats['position'])) {
+			$parts = explode('|', $row_stats['position']);
+			if (isset($parts[3]) && strpos($parts[3], 'E>') === 0) {
+				$e_pairs = explode(',', substr($parts[3], 2));
+				$ranked = array();
+				foreach ($e_pairs as $pair) {
+					$kv = explode('=', $pair);
+					if (count($kv) == 2) {
+						$ranked[] = array('pos' => (int) trim($kv[0]), 'count' => (int) trim($kv[1]));
+					}
+				}
+				usort($ranked, function($a, $b) {
+					if ($b['count'] !== $a['count']) return $b['count'] - $a['count']; // Higher count first
+					return $a['pos'] - $b['pos']; // Tiebreak: lowest position index first
+				});
+				foreach ($ranked as $entry) {
+					if (!isset($dup_balls[$entry['pos']])) continue; // Position beyond dupextra list
+					$extra_ball = $dup_balls[$entry['pos']];
+					if (!in_array($extra_ball, $selected)) {
+						$selected[] = $extra_ball;
+						if (count($selected) >= $extra_pool) break;
+					}
+				}
+			}
+		}
+
+		// 2. Fallback: top dupextra occurrence counts when no E section exists (pre-recalc data)
+		if (count($selected) < $extra_pool && !empty($dup_counts)) {
+			$dup_ranked = array();
+			foreach ($dup_counts as $num => $count) {
+				$dup_ranked[] = array('num' => $num, 'count' => $count);
+			}
+			usort($dup_ranked, function($a, $b) {
+				if ($b['count'] !== $a['count']) return $b['count'] - $a['count'];
+				return $a['num'] - $b['num'];
+			});
+			foreach ($dup_ranked as $entry) {
+				if (!in_array($entry['num'], $selected)) {
+					$selected[] = $entry['num'];
+					if (count($selected) >= $extra_pool) break;
+				}
+			}
+		}
+
+		if (empty($selected)) return FALSE;
+		sort($selected, SORT_NUMERIC); // Present in ascending ball order
+		return implode(',', $selected);
+	}
+	/**
 	 * PHASE 2 ENHANCED: Optimized selection with intelligent win rate sorting
 	 * Uses position statistics to select best-performing positions instead of just highest occurrence
 	 */

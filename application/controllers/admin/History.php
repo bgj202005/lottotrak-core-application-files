@@ -809,6 +809,10 @@ class History extends Admin_Controller {
 		$this->data['visitors'] = $this->maintenance_m->active_visitors();	// Active Visitors excluding users and admins	 
 		// Pass H-W-C previous predictions for "Winners from Previous Draw" display
 		$this->data['prev_hwc_predictions'] = isset($h_w_c['prev_h_w_c_predictions']) ? $h_w_c['prev_h_w_c_predictions'] : '';
+		// Extra ball predictions snapshot for independent / duplicate extra ball lotteries
+		$this->data['prev_hwc_extra_predictions'] = isset($h_w_c['prev_hwc_extra_predictions']) ? $h_w_c['prev_hwc_extra_predictions'] : '';
+		$this->data['extra_hits'] = isset($h_w_c['extra_hits']) ? (int) $h_w_c['extra_hits'] : 0;
+		$this->data['extra_checked'] = isset($h_w_c['extra_checked']) ? (int) $h_w_c['extra_checked'] : 0;
 		$this->data['hwc_option']  = isset($h_w_c['hwc_option'])  ? (int)$h_w_c['hwc_option']  : 1;
 		$this->data['hwc_select']  = isset($h_w_c['hwc_select'])  ? (int)$h_w_c['hwc_select']  : 1;
 		$this->data['h_w_c_group'] = $this->predictions_m->get_h_w_c_range_with_rank($id);
@@ -1071,6 +1075,8 @@ class History extends Admin_Controller {
 		
 		// Pass prev_lottery_numbers for Followers Previous Predicted Winners display
 		$this->data['prev_lottery_numbers'] = ($followers && isset($followers['prev_lottery_numbers'])) ? $followers['prev_lottery_numbers'] : null;
+		// Extra ball predictions snapshot for independent / duplicate extra ball lotteries
+		$this->data['prev_extra_numbers'] = ($followers && isset($followers['prev_extra_numbers'])) ? $followers['prev_extra_numbers'] : '';
 
 		// Fetch the previous draw using prev_draw_id from the followers table
 		$prev_draw_data = null;
@@ -1999,6 +2005,8 @@ class History extends Admin_Controller {
 			$this->data['hwcf_saved_position_points'] = ($hwcf_record && !empty($hwcf_record['position_points']))  ? $hwcf_record['position_points']  : '';
 		}
 		$this->data['hwcf_saved_h_w_c_group'] = ($hwcf_record && !empty($hwcf_record['h_w_c_group'])) ? $hwcf_record['h_w_c_group'] : '';
+		// Extra ball predictions snapshot for independent / duplicate extra ball lotteries
+		$this->data['hwcf_prev_extra_numbers'] = ($hwcf_record && isset($hwcf_record['prev_extra_numbers'])) ? $hwcf_record['prev_extra_numbers'] : '';
 
 		// Fetch H-W-C + Followers win statistics DIRECTLY from database (bypass cache to ensure fresh data)
 		$hwcf_win_query = $this->db->where('lottery_id', $id)->limit(1)->get('lottery_h_w_c_followers');

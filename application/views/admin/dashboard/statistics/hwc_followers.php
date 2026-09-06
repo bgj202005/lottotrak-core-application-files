@@ -252,6 +252,17 @@
 			<?php endforeach; ?>
 		</div>
 	</div>
+	<!-- Extra Ball Predictions Tile (independent / duplicate extra ball lotteries only) -->
+	<?php if(!empty($lottery->duplicate_extra_ball) && !empty($lottery->extra_ball) && !empty($extra_numbers)): ?>
+	<div class="pred-panel" style="background-color: #e3f2fd; border-left: 4px solid #1565C0;">
+		<strong>Extra Ball Predictions for the Next Draw<?=($draw_label ? ' &mdash; ' . $draw_label : '');?></strong>
+		<div style="display:flex; flex-wrap:wrap; justify-content:center; margin-top: 8px;">
+			<?php foreach(explode(',', $extra_numbers) as $num): ?>
+			<span class="pred-ball" style="background:#1565C0; color:#fff;"><?=trim(htmlspecialchars($num));?></span>
+			<?php endforeach; ?>
+		</div>
+	</div>
+	<?php endif; ?>
 	<?php elseif(empty($lottery_numbers)): ?>
 	<div class="alert alert-info">
 		No prediction has been generated yet. Select an H-W-C group and follower option above and click <strong>Change H-W-C + Follower Options</strong>.

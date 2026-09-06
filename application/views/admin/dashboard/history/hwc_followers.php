@@ -409,6 +409,33 @@
 	</div>
 	<?php endif; ?>
 
+	<!-- Extra Ball Winners Tile (independent / duplicate extra ball lotteries only) -->
+	<?php if(!empty($lottery->duplicate_extra_ball) && !empty($lottery->extra_ball) && !empty($hwcf_prev_extra_numbers)):
+		$_drawn_extra_val = (isset($lottery->last_drawn['extra']) && intval($lottery->last_drawn['extra']) > 0) ? (string) intval($lottery->last_drawn['extra']) : '';
+	?>
+	<div class="mt-4" style="padding:14px 18px; background-color:#e3f2fd; border-left:4px solid #1565C0; border-radius:4px; text-align:center;">
+		<strong>Extra Ball Winners</strong>
+		<div style="margin-top:10px; display:flex; flex-wrap:wrap; justify-content:center; gap:8px;">
+			<?php foreach(explode(',', $hwcf_prev_extra_numbers) as $_eball):
+				$_eball = (string) trim($_eball);
+				if($_eball === '') continue;
+				$_is_winner = ($_drawn_extra_val !== '' && $_eball === $_drawn_extra_val);
+				if($_is_winner):
+					$_bg = '#1565C0'; $_color = '#fff'; $_border = 'border:2px solid #0d47a1;'; $_title = 'Extra Ball Winner!';
+				else:
+					$_bg = '#90a4ae'; $_color = '#fff'; $_border = ''; $_title = '';
+				endif;
+			?>
+			<div title="<?=$_title;?>" style="display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:50%; background-color:<?=$_bg;?>; color:<?=$_color;?>; font-weight:bold; font-size:14px; box-shadow:0 2px 4px rgba(0,0,0,0.25); <?=$_border;?>"><?=$_eball;?></div>
+			<?php endforeach; ?>
+		</div>
+		<p style="margin-top:8px; font-size:0.85em; color:#555;">
+			<span style="display:inline-block; width:14px; height:14px; background:#1565C0; border-radius:50%; border:1px solid #0d47a1; vertical-align:middle;"></span> Blue = extra ball match &nbsp;
+			<span style="display:inline-block; width:14px; height:14px; background:#90a4ae; border-radius:50%; vertical-align:middle;"></span> Grey = not drawn
+		</p>
+	</div>
+	<?php endif; ?>
+
 	<!-- H-W-C + Followers Win Statistics -->
 	<?php if(isset($hwcf_win_stats)): ?>
 	<?php

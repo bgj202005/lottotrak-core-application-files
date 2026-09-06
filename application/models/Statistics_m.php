@@ -5919,9 +5919,10 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	* @param	integer	$option			1 = Top Ranked, 2 = Manual Selected
 	* @param	integer	$select			Rank index (1-based) of the selected H-W-C group
 	* @param	string	$predictions	Comma-separated generated numbers
+	* @param	string	$extra_predictions	Comma-separated generated extra ball numbers (independent extra lotteries)
 	* @return   none
 	*/
-	public function hwc_save_predictions($lottery_id, $option, $select, $predictions, $prev_predictions = null)	{
+	public function hwc_save_predictions($lottery_id, $option, $select, $predictions, $prev_predictions = null, $extra_predictions = null)	{
 		$update = array(
 			'hwc_option'      => (int) $option,
 			'hwc_select'      => (int) $select,
@@ -5930,6 +5931,10 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		// When $prev_predictions is passed (even as empty string), update that field too
 		if (!is_null($prev_predictions)) {
 			$update['prev_h_w_c_predictions'] = $prev_predictions;
+		}
+		// When $extra_predictions is passed (even as empty string), update extra predictions field too
+		if (!is_null($extra_predictions)) {
+			$update['hwc_extra_predictions'] = $extra_predictions;
 		}
 		$this->db->where('lottery_id', $lottery_id);
 		$this->db->update('lottery_h_w_c', $update);
@@ -5964,10 +5969,30 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			$this->check_and_update_hwc_wins($lottery_id, $row['hwc_predictions']);
 		}
 		
-		$this->db->where('lottery_id', $lottery_id);
-		$this->db->update('lottery_h_w_c', array(
+		$update_data = array(
 			'prev_h_w_c_predictions' => $row['hwc_predictions'],
-		));
+		);
+		// Snapshot the extra ball predictions as well (independent / duplicate extra ball lotteries)
+		if (array_key_exists('hwc_extra_predictions', $row)) {
+			$update_data['prev_hwc_extra_predictions'] = $row['hwc_extra_predictions'];
+			// Hit record: was the drawn extra ball inside the predicted extra pool?
+			if (!empty($row['hwc_extra_predictions'])) {
+				$this->load->model('lotteries_m');
+				$lottery = $this->lotteries_m->get($lottery_id);
+				if ($lottery && !empty($lottery->duplicate_extra_ball) && !empty($lottery->extra_ball)) {
+					$tbl = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+					$latest = $this->lotteries_m->last_draw_db($tbl);
+					$drawn_extra = (is_object($latest) && isset($latest->extra)) ? intval($latest->extra) : 0;
+					if ($drawn_extra > 0) {
+						$pred_extras = array_map('intval', explode(',', $row['hwc_extra_predictions']));
+						$update_data['extra_checked'] = intval(isset($row['extra_checked']) ? $row['extra_checked'] : 0) + 1;
+						$update_data['extra_hits'] = intval(isset($row['extra_hits']) ? $row['extra_hits'] : 0) + (in_array($drawn_extra, $pred_extras) ? 1 : 0);
+					}
+				}
+			}
+		}
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update('lottery_h_w_c', $update_data);
 		// Clear cache so history page reads the fresh row
 		$cache_key = $this->generate_cache_key('h_w_c', $lottery_id);
 		$this->cache->delete($cache_key);
@@ -6043,7 +6068,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	 * @param  string|null  $prev_numbers        previous numbers (null = don't overwrite)
 	 * @return void
 	 */
-	public function hwc_followers_save($lottery_id, $h_w_c_group, $follower_type, $ball_points, $position_points, $lottery_numbers, $prev_numbers = null, $h_w_c_rank = null)
+	public function hwc_followers_save($lottery_id, $h_w_c_group, $follower_type, $ball_points, $position_points, $lottery_numbers, $prev_numbers = null, $h_w_c_rank = null, $extra_numbers = null)
 	{
 		$existing = $this->hwc_followers_exists($lottery_id);
 
@@ -6066,6 +6091,10 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 
 		if (!is_null($prev_numbers)) {
 			$data['prev_lottery_numbers'] = $prev_numbers;
+		}
+		// Extra ball predictions for independent / duplicate extra ball lotteries
+		if (!is_null($extra_numbers)) {
+			$data['extra_numbers'] = $extra_numbers;
 		}
 
 		if ($existing) {
@@ -6101,10 +6130,15 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$ball_points     = isset($row['ball_points'])     ? $row['ball_points']     : '';
 		$position_points = isset($row['position_points']) ? $row['position_points'] : '';
 		$prev_encoded    = $follower_type . '|' . $ball_points . '|' . $position_points . '|' . $row['lottery_numbers'];
-		$this->db->where('lottery_id', $lottery_id);
-		$this->db->update('lottery_h_w_c_followers', array(
+		$update_data = array(
 			'prev_lottery_numbers' => $prev_encoded,
-		));
+		);
+		// Snapshot the extra ball predictions as well (independent / duplicate extra ball lotteries)
+		if (array_key_exists('extra_numbers', $row)) {
+			$update_data['prev_extra_numbers'] = $row['extra_numbers'];
+		}
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update('lottery_h_w_c_followers', $update_data);
 	}
 
 	/**
@@ -6119,7 +6153,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	 * @param  string|null  $prev_numbers        previous numbers (null = don't overwrite)
 	 * @return void
 	 */
-	public function followers_prediction_save($lottery_id, $follower_type, $ball_points, $position_points, $lottery_numbers, $prev_numbers = null)
+	public function followers_prediction_save($lottery_id, $follower_type, $ball_points, $position_points, $lottery_numbers, $prev_numbers = null, $extra_numbers = null)
 	{
 		$existing = $this->followers_exists($lottery_id);
 
@@ -6132,6 +6166,10 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 
 		if (!is_null($prev_numbers)) {
 			$data['prev_lottery_numbers'] = $prev_numbers;
+		}
+		// Extra ball predictions for independent / duplicate extra ball lotteries
+		if (!is_null($extra_numbers)) {
+			$data['extra_numbers'] = $extra_numbers;
 		}
 
 		if ($existing) {
@@ -6166,10 +6204,15 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$ball_points     = isset($row['ball_points'])     ? $row['ball_points']     : '';
 		$position_points = isset($row['position_points']) ? $row['position_points'] : '';
 		$prev_encoded    = $follower_type . '|' . $ball_points . '|' . $position_points . '|' . $row['lottery_numbers'];
-		$this->db->where('lottery_id', $lottery_id);
-		$this->db->update('lottery_followers', array(
+		$update_data = array(
 			'prev_lottery_numbers' => $prev_encoded,
-		));
+		);
+		// Snapshot the extra ball predictions as well (independent / duplicate extra ball lotteries)
+		if (array_key_exists('extra_numbers', $row)) {
+			$update_data['prev_extra_numbers'] = $row['extra_numbers'];
+		}
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update('lottery_followers', $update_data);
 		
 		// Clear cache after update
 		$cache_key = $this->generate_cache_key('followers', $lottery_id);

@@ -1026,7 +1026,14 @@ class Lotteries extends Admin_Controller {
 							$_r_opt_lbl  = ($stored_option === 2) ? 'Manual Selected' : 'Top Ranked';
 							$_r_disp_lbl = isset($h_w_c_groups[$pattern]) ? $h_w_c_groups[$pattern] : $pattern;
 							$generated_encoded = $_r_opt_lbl . ' — ' . $_r_disp_lbl . '|' . $generated;
-							$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated_encoded, null);
+							// Generate extra ball predictions for independent / duplicate extra ball lotteries
+							$extra_predictions_str = '';
+							if(!empty($lottery_props->duplicate) && !empty($lottery_props->extra_ball)) {
+								$extra_pool = isset($h_w_c_current['prediction_extras']) ? (int)$h_w_c_current['prediction_extras'] : 1;
+								$generated_extra = $this->predictions_m->hwc_extra($id, $extra_pool);
+								$extra_predictions_str = $generated_extra ? $generated_extra : '';
+							}
+							$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated_encoded, null, $extra_predictions_str);
 						}
 					}
 				}
@@ -1044,7 +1051,14 @@ class Lotteries extends Admin_Controller {
 						$prediction_pool = isset($hwc_check['prediction_pool']) ? (int) $hwc_check['prediction_pool'] : 18;
 						$generated = $this->predictions_m->followers_only_prediction($id, $prediction_pool, $saved_type, $follower_select);
 						if($generated) {
-							$this->statistics_m->followers_prediction_save($id, $saved_type, $saved_ball_points, $saved_position_points, $generated, null);
+							// Generate extra ball predictions for independent / duplicate extra ball lotteries
+							$extra_numbers_str = '';
+							if(!empty($lottery_props->duplicate) && !empty($lottery_props->extra_ball)) {
+								$extra_pool = isset($hwc_check['prediction_extras']) ? (int)$hwc_check['prediction_extras'] : 1;
+								$generated_extra = $this->predictions_m->hwc_extra($id, $extra_pool);
+								$extra_numbers_str = $generated_extra ? $generated_extra : '';
+							}
+							$this->statistics_m->followers_prediction_save($id, $saved_type, $saved_ball_points, $saved_position_points, $generated, null, $extra_numbers_str);
 						}
 					}
 				}
@@ -1063,7 +1077,14 @@ class Lotteries extends Admin_Controller {
 						$prediction_pool = isset($hwc_check['prediction_pool']) ? (int) $hwc_check['prediction_pool'] : 18;
 						$generated = $this->predictions_m->hwc_followers($id, $prediction_pool, $saved_hwc_group, $saved_type, $follower_select);
 						if($generated) {
-							$this->statistics_m->hwc_followers_save($id, $saved_hwc_group, $saved_type, $saved_ball_points, $saved_position_points, $generated, null);
+							// Generate extra ball predictions for independent / duplicate extra ball lotteries
+							$extra_numbers_str = '';
+							if(!empty($lottery_props->duplicate) && !empty($lottery_props->extra_ball)) {
+								$extra_pool = isset($hwc_check['prediction_extras']) ? (int)$hwc_check['prediction_extras'] : 1;
+								$generated_extra = $this->predictions_m->hwc_extra($id, $extra_pool);
+								$extra_numbers_str = $generated_extra ? $generated_extra : '';
+							}
+							$this->statistics_m->hwc_followers_save($id, $saved_hwc_group, $saved_type, $saved_ball_points, $saved_position_points, $generated, null, null, $extra_numbers_str);
 						}
 					}
 				}
@@ -1675,7 +1696,14 @@ $this->load->model('Statistics_m', 'statistics_m');
 								$_r_opt_lbl  = ($stored_option === 2) ? 'Manual Selected' : 'Top Ranked';
 								$_r_disp_lbl = isset($h_w_c_groups[$pattern]) ? $h_w_c_groups[$pattern] : $pattern;
 								$generated_encoded = $_r_opt_lbl . ' — ' . $_r_disp_lbl . '|' . $generated;
-								$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated_encoded, null);
+								// Generate extra ball predictions for independent / duplicate extra ball lotteries
+								$extra_predictions_str = '';
+								if(!empty($this->data['lottery']->duplicate_extra_ball) && !empty($this->data['lottery']->extra_ball)) {
+									$extra_pool = isset($h_w_c_current['prediction_extras']) ? (int)$h_w_c_current['prediction_extras'] : 1;
+									$generated_extra = $this->predictions_m->hwc_extra($id, $extra_pool);
+									$extra_predictions_str = $generated_extra ? $generated_extra : '';
+								}
+								$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated_encoded, null, $extra_predictions_str);
 							}
 						}
 					}
