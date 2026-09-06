@@ -1126,6 +1126,31 @@
 										</table>
 									</div>
 									<?php endif; ?>
+									
+									<!-- Extra Ball Positions Table (independent / duplicate extra ball lotteries only) -->
+									<?php if($lottery->duplicate_extra_ball && isset($lottery->extra_pos_last) && !empty($lottery->extra_pos_last)) : ?>
+									<div class="extra-table-wrapper">
+										<table class="table pos">
+											<thead>
+												<tr>
+													<th class="text-center" colspan="2">Last Extra Ball Positions</th>
+												</tr>
+												<tr>
+													<th class="text-center">Position</th>
+													<th class="text-center">Count</th>
+												</tr>
+											</thead>
+											<tbody>
+												<?php foreach($lottery->extra_pos_last as $position => $count):
+														echo "<tr>";
+														echo "<td class='text-center'>".$position."</td>";
+														echo "<td class='text-center'>".$count."</td>";
+														echo "</tr>";
+												endforeach; ?>
+											</tbody>
+										</table>
+									</div>
+									<?php endif; ?>
 								</div>
 							</div>
 						</div>
@@ -1342,6 +1367,31 @@
 														echo "<tr class='table-success'>";
 															echo "<td class='text-center'>".$ball."</td>";
 															echo "<td class='text-center'>".$count."</td>";
+														echo "</tr>";
+												endforeach; ?>
+											</tbody>
+										</table>
+									</div>
+									<?php endif; ?>
+									
+									<!-- Extra Ball Positions Table (independent / duplicate extra ball lotteries only) -->
+									<?php if($lottery->duplicate_extra_ball && isset($lottery->extra_pos) && !empty($lottery->extra_pos)) : ?>
+									<div class="extra-table-wrapper">
+										<table class="table pos">
+											<thead>
+												<tr>
+													<th class="text-center" colspan="2">Future Extra Ball Positions</th>
+												</tr>
+												<tr>
+													<th class="text-center">Position</th>
+													<th class="text-center">Count</th>
+												</tr>
+											</thead>
+											<tbody>
+												<?php foreach($lottery->extra_pos as $position => $count):
+														echo "<tr>";
+														echo "<td class='text-center'>".$position."</td>";
+														echo "<td class='text-center'>".$count."</td>";
 														echo "</tr>";
 												endforeach; ?>
 											</tbody>
@@ -1620,6 +1670,31 @@
 														echo "<tr class='table-success'>";
 															echo "<td class='text-center'>".$ball."</td>";
 															echo "<td class='text-center'>".$count."</td>";
+														echo "</tr>";
+												endforeach; ?>
+											</tbody>
+										</table>
+									</div>
+									<?php endif; ?>
+									
+									<!-- Extra Ball Positions Table (independent / duplicate extra ball lotteries only) -->
+									<?php if($lottery->duplicate_extra_ball && isset($lottery->extra_pos) && !empty($lottery->extra_pos)) : ?>
+									<div class="extra-table-wrapper">
+										<table class="table pos">
+											<thead>
+												<tr>
+													<th class="text-center" colspan="2">Future Extra Ball Positions</th>
+												</tr>
+												<tr>
+													<th class="text-center">Position</th>
+													<th class="text-center">Count</th>
+												</tr>
+											</thead>
+											<tbody>
+												<?php foreach($lottery->extra_pos as $position => $count):
+														echo "<tr>";
+														echo "<td class='text-center'>".$position."</td>";
+														echo "<td class='text-center'>".$count."</td>";
 														echo "</tr>";
 												endforeach; ?>
 											</tbody>

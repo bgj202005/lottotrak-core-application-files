@@ -2324,7 +2324,7 @@ class Statistics extends Admin_Controller {
  		if(is_null($hwc_history)) // Correct Lottery & Range?
 		{
 			$hwc_history = $this->h_w_c_history($id, $tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, $blnduplicate);
-			$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl_name, $drawn, $this->data['lottery']->extra_included, $blnduplicate, $strhots_last, $strwarms_last, $strcolds_last, $hwc_history['position']);
+			$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl_name, $drawn, $this->data['lottery']->extra_included, $blnduplicate, $strhots_last, $strwarms_last, $strcolds_last, $hwc_history['position'], intval($this->data['lottery']->minimum_extra_ball));
 			if (!$hwc_history) // Problem with calculating H-W-C's over range
 			{
 				$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$new_range.' Draws.');
@@ -2376,7 +2376,7 @@ class Statistics extends Admin_Controller {
 			{
 				// Recalculation is nesessary
 				$hwc_history = $this->h_w_c_history($id, $tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, $blnduplicate);
-				$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl_name, $drawn, $this->data['lottery']->extra_included, $blnduplicate, $strhots_last, $strwarms_last, $strcolds_last, $hwc_history['position']);
+				$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl_name, $drawn, $this->data['lottery']->extra_included, $blnduplicate, $strhots_last, $strwarms_last, $strcolds_last, $hwc_history['position'], intval($this->data['lottery']->minimum_extra_ball));
 				if (!$hwc_history) // Problem with calculating H-W-C's over range
 				{
 					$this->session->set_flashdata('message', 'There is a problem with the H (Hots) - W (Warms) - C (Colds) over the last '.$$new_range.' Draws.');
@@ -2483,7 +2483,17 @@ class Statistics extends Admin_Controller {
 		$w_pos = new SplFixedArray($w_cnt); // Declare the warm positions
 			$w_pos = array_fill(0, $w_cnt, 0); // Zeroed array
 		$c_pos = new SplFixedArray($c_cnt); // Declare the colds positions
-			$c_pos = array_fill(0, $c_cnt, 0); // Zeroed array		
+			$c_pos = array_fill(0, $c_cnt, 0); // Zeroed array
+		// Independent / duplicate extra ball lotteries track the extra ball positions separately (E section)
+		$e_pos = NULL;
+		$min_extra = 1;
+		$max_extra = 0;
+		if($dup)
+		{
+			$min_extra = (!empty($this->data['lottery']->minimum_extra_ball) ? intval($this->data['lottery']->minimum_extra_ball) : 1);
+			$max_extra = (!empty($this->data['lottery']->maximum_extra_ball) ? intval($this->data['lottery']->maximum_extra_ball) : 0);
+			if($max_extra>=$min_extra) $e_pos = array_fill(0, ($max_extra-$min_extra+1), 0); // Zeroed extra ball positions array
+		}
 		$examine_date = $this->statistics_m->lottery_return_date($table, $range+1, $xtra); 	// Please note: This an off by 1 error. It has to go +1 draw back 
 		if(!$examine_date) return false;													// to iterate for the given range
 		
@@ -2542,6 +2552,14 @@ class Statistics extends Admin_Controller {
 				$h_pos = $this->statistics_m->positions($next_drawn,$highs,$h_pos,$bn,$xtra,$dup); 		// Pass the hot positional value array, compare the current drawn numbers with the high numbers 
 				$w_pos = $this->statistics_m->positions($next_drawn,$averages,$w_pos,$bn,$xtra,$dup); 	// Pass the hot positional value array, compare the current drawn numbers with the average numbers 
 				$c_pos = $this->statistics_m->positions($next_drawn,$lows,$c_pos,$bn,$xtra,$dup); 		// Pass the hot positional value array, compare the current drawn numbers with the average numbers 
+				
+				// Count the extra ball position for independent / duplicate extra ball lotteries (E section)
+				// Respects extra_draws setting: when extra draws (extra=0) are excluded, skip draws with no extra ball
+				if(!is_null($e_pos)&&isset($fd['extra'])&&($xtra||intval($fd['extra'])!=0))
+				{
+					$extra_val = intval($fd['extra']);
+					if(($extra_val>=$min_extra)&&($extra_val<=$max_extra)) $e_pos[$extra_val-$min_extra]++;
+				}
 				
 				$examine_date = $fd['draw_date'];	// Move to next date for next iteration
 				$examine_id = $fd['id'];			// Move to next ID for next iteration
@@ -2649,7 +2667,7 @@ class Statistics extends Admin_Controller {
 		{
 			$totals['h_w_c_last_10'] .= $hwc.'='.$tot.',';
 		}
-		$str_positions = $this->statistics_m->positIon_string($h_pos, $w_pos, $c_pos); 			// Generate the formatted string
+		$str_positions = $this->statistics_m->positIon_string($h_pos, $w_pos, $c_pos, $e_pos); 		// Generate the formatted string (includes E section for independent extra ball lotteries)
 		$totals['position'] = $str_positions; 										   			// Add a new position elemnt to the totals
 	return $totals;
 	}
@@ -3126,7 +3144,7 @@ class Statistics extends Admin_Controller {
 				if (!$skip_history) {
 				// Update history stats
 				$hwc_history = $this->h_w_c_history($id, $tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
-				$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl, $drawn, $lotto->extra_included, $blnduplicate, $strhots_last, $strwarms_last, $strcolds_last, $hwc_history['position']);
+				$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl, $drawn, $lotto->extra_included, $blnduplicate, $strhots_last, $strwarms_last, $strcolds_last, $hwc_history['position'], intval($lotto->minimum_extra_ball));
 				
 				// Save the updated position counts to database
 				$hwc_h_data = array(
@@ -3210,7 +3228,7 @@ class Statistics extends Admin_Controller {
 		$pos_last = $this->statistics_m->position_copylasts($id);
 		// Recalculation is nesessary
 		$hwc_history = $this->h_w_c_history($id, $tbl, $drawn, $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, $w_start, $c_start, $blnduplicate);
-	 	$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl, $drawn, $this->data['lottery']->extra_included, $blnduplicate, $h_w_c['hots_last'], $h_w_c['warms_last'], $h_w_c['colds_last'], $hwc_history['position']);
+	 	$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl, $drawn, $this->data['lottery']->extra_included, $blnduplicate, $h_w_c['hots_last'], $h_w_c['warms_last'], $h_w_c['colds_last'], $hwc_history['position'], intval($this->data['lottery']->minimum_extra_ball));
 		} // end !$skip_history (full recalc)
 	 }
 	 else 
@@ -3285,7 +3303,7 @@ class Statistics extends Admin_Controller {
 		 // Recalculation is nesessary
 		$pos_last = $this->statistics_m->position_copylasts($id);	
 		$hwc_history = $this->h_w_c_history($id, $tbl, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, $w_start, $c_start, $blnduplicate);
-	 	$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl, $drawn, $this->data['lottery']->extra_included, $blnduplicate, $strhots_last, $strwarms_last, $strcolds_last, $hwc_history['position']);
+	 	$hwc_history['position_last'] = $this->statistics_m->positions_before_last($tbl, $drawn, $this->data['lottery']->extra_included, $blnduplicate, $strhots_last, $strwarms_last, $strcolds_last, $hwc_history['position'], intval($this->data['lottery']->minimum_extra_ball));
 		} // end !$skip_history (new init)
 	 }
 	 // Store per-draw H-W-C patterns in draw table so stats view matches h_w_c history page exactly.

@@ -6671,13 +6671,15 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	}
 	/** 
 	* Returns the formatted stroing of hots, warms, colds. Positions with a count of 0 are eliminated and will be decoded as such.
+	* For independent / duplicate extra ball lotteries, an additional E section is concatenated at the end: |E>0=count,1=count,...
 	* 
 	* @param 	array	$h				Hot Numbers array
 	* @param  	array	$w				Warm Numbers array
 	* @param	array	$c				Cold Numbers array
+	* @param	array	$e				Extra Ball Positions array (independent extra lotteries only), NULL = no E section
 	* @return	string	$str_positions	Returns the formated string
 	*/
-	public function position_string($h, $w, $c)
+	public function position_string($h, $w, $c, $e = NULL)
 	{
 		$str_positions = 'H>';
 
@@ -6701,10 +6703,89 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			$str_positions .= $position.'='.$count.','; 
 		}
 		$str_positions = substr($str_positions,0,-1); // Remove last ','
+		// Concatenate the independent / duplicate extra ball positions at the end of the string
+		if(!is_null($e))
+		{
+			$str_positions .= '|E>';
+			foreach($e as $position => $count)
+			{
+				$str_positions .= $position.'='.$count.',';
+			}
+			$str_positions = substr($str_positions,0,-1); // Remove last ','
+		}
 	return $str_positions; // formatted string returned
 	}
 	/** 
+	* Extract the E section (independent / duplicate extra ball positions) from a position string.
+	* Position strings may be: H>...|W>...|C>... or H>...|W>...|C>...|E>...
+	* 
+	* @param 	string	$position_str	Full position string
+	* @return	string	$e_section		The E section without the E> prefix (e.g. "0=22,1=15,2=16"), or empty string
+	*/
+	public function position_extract_extra($position_str)
+	{
+		if(empty($position_str)) return '';
+		$parts = explode('|', $position_str);
+		if(isset($parts[3]) && strpos($parts[3], 'E>') === 0)
+		{
+			return substr($parts[3], 2); // Strip the E> prefix
+		}
+	return '';
+	}
+	/** 
+	* Strip the E section from a position string, returning only H|W|C sections.
+	* 
+	* @param 	string	$position_str	Full position string
+	* @return	string	$hwc_only		Position string without the E section
+	*/
+	public function position_strip_extra($position_str)
+	{
+		if(empty($position_str)) return $position_str;
+		$parts = explode('|', $position_str);
+		if(isset($parts[3]) && strpos($parts[3], 'E>') === 0)
+		{
+			return implode('|', array_slice($parts, 0, 3)); // Keep only H, W, C sections
+		}
+	return $position_str;
+	}
+	/** 
+	* Increment the E section position count for a drawn extra ball.
+	* Used by hwc_addpoints to update extra ball positions on import of a new draw.
+	* 
+	* @param 	string	$position_str	Full position string (with or without E section)
+	* @param 	integer	$extra_val		The drawn extra ball value
+	* @param 	integer	$min_extra		Minimum extra ball value (positions are 0-based offsets from this)
+	* @return	string	$updated		Updated position string with incremented E section
+	*/
+	public function position_increment_extra($position_str, $extra_val, $min_extra = 1)
+	{
+		if($min_extra < 1) $min_extra = 1;
+		$e_section = $this->position_extract_extra($position_str);
+		if(empty($e_section)) return $position_str; // No E section to increment
+		$hwc_part = $this->position_strip_extra($position_str);
+		$ep_totals = [];
+		foreach(explode(',', $e_section) as $pair)
+		{
+			if(strpos($pair, '=')===FALSE) continue;
+			list($key, $value) = explode('=', $pair);
+			$ep_totals[$key] = $value;
+		}
+		$e_index = intval($extra_val) - $min_extra;
+		if(isset($ep_totals[$e_index]))
+		{
+			$ep_totals[$e_index]++;
+		}
+		$hwc_part .= '|E>';
+		foreach($ep_totals as $key => $value)
+		{
+			$hwc_part .= $key.'='.$value.',';
+		}
+		$hwc_part = substr($hwc_part, 0, -1); // Remove last ','
+	return $hwc_part;
+	}
+	/** 
 	* Returns the formatted string of hot positions, warm positions, and cold positions from the draw before the last draw
+	* For independent / duplicate extra ball lotteries, the E section (extra ball positions) is passed through unchanged (range-based counts).
 	* 
 	* @param 	string	$table			Name of the lottery (actual table name)
 	* @param  	integer	$max			Maximum number of balls drawn
@@ -6714,20 +6795,24 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	* @param  	string	$middles		Warm numbers and counts from the previous draw (number = count, number = count, etc)
 	* @param  	string	$lows			Cold numbers and counts	from the previous draw (number = count, number = count, etc)
 	* @param  	string	$current		Current positions string (h>|,w>|,c>|)
+	* @param  	integer	$min_extra		Minimum extra ball value (independent extra lotteries), default 1
 	* @return	string	$_previous		Returns the formated string for the draw before the last draw. This will be returned as position_last
 	* in hwc_history['position_last']
 	*/
-	public function positions_before_last($table, $max, $xtra, $dup, $highs, $middles, $lows, $current)
+	public function positions_before_last($table, $max, $xtra, $dup, $highs, $middles, $lows, $current, $min_extra = 1)
 	{
+		if($min_extra < 1) $min_extra = 1; // Extra ball positions are always 0-based from a minimum of 1
 		$pv = $this->db_row($table);  	 // Get the most recent drawn numbers
 		if (!$pv) return '';  // No draws exist in the table
 		$pv = (array)$pv; 	 		   	  // Convert the object to an array
 		$prev_drawn = $this->only_picks($max, $pv); // Get the numbers drawn only
+		$last_extra = 0; 				  // Independent extra ball value of the most recent draw
 		if($xtra&&!$dup) // If the extra ball is included
 		{
 			$extra = $pv['extra']; 	// Get the extra ball
 			$prev_drawn[] = $extra; 	// Add the extra ball to the drawn numbers
 		}
+		if($dup&&isset($pv['extra'])) $last_extra = intval($pv['extra']); // Capture the independent extra ball before unset
 		unset($pv); // Remove the previous draw from memory
 		// 1. remove the separator
 		$positions = explode('|', $current); // Split the current positions into hot, warm and cold
@@ -6828,6 +6913,33 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			$_previous .= $key.'='.$value.',';
 		}
 		$_previous = substr($_previous, 0, -1); // Remove the last comma
+		// 8. For independent / duplicate extra ball lotteries, append the E section (extra ball positions).
+		// The E counts are built over the range via position increments in h_w_c_history() (Range 100 = 100 draws
+		// counted, one per iteration), NOT via cumulative hwc_addpoints mutation. Decrementing here would drop the
+		// last draw's own extra ball count and make the E totals short by one draw (e.g. 99 instead of 100).
+		// position_last therefore receives the same E section unchanged; the Last Draw / Future Draw tabs flip
+		// between position_last and position, both range-based for the extra ball positions.
+		if($dup&&isset($positions[3]))
+		{
+			$extra_positions = ltrim($positions[3], 'E>'); // Trim off E> from the extra positions
+			if(!empty($extra_positions))
+			{
+				$ep = explode(',', $extra_positions); // Split the extra positions
+				$ep_totals = [];
+				foreach($ep as $e)
+				{
+					if(strpos($e, '=')===FALSE) continue; // Skip malformed entries
+					list($key, $value) = explode('=', $e);
+					$ep_totals[$key] = $value;
+				}
+				$_previous .= '|E>';
+				foreach($ep_totals as $key => $value)
+				{
+					$_previous .= $key.'='.$value.',';
+				}
+				$_previous = substr($_previous, 0, -1); // Remove the last comma
+			}
+		}
 	return $_previous; // Return the formatted string for the previous draw positions
 	}
 

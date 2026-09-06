@@ -685,6 +685,42 @@ class History extends Admin_Controller {
 					$c = substr(strstr($cold_pos, '='), 1); // Strip off to the left of the equal sign count
 					$this->data['lottery']->colds_pos[$n.'c'] = $c; 
 				}
+				// Parse the independent / duplicate extra ball positions (E section), concatenated at the end of the position strings
+				if($dup)
+				{
+					$min_extra = (!empty($this->data['lottery']->minimum_extra_ball) ? intval($this->data['lottery']->minimum_extra_ball) : 1);
+					$this->data['lottery']->min_extra = $min_extra; // Used by the view to highlight the last drawn extra position
+					// Extra positions from the last draw (position_last)
+					if(isset($heat_position_last[3]))
+					{
+						$extrapos_last = explode(">", $heat_position_last[3]); 	// Extra
+						if(isset($extrapos_last[1]))
+						{
+							$extra_hits_last = explode(",", $extrapos_last[1]);
+							foreach($extra_hits_last as $extra_pos)
+							{
+								$n = strstr($extra_pos, '=', TRUE); // Strip off the count to the right of the equal sign
+								$c = substr(strstr($extra_pos, '='), 1); // Strip off the position to the left of the equal sign
+								if($n!==FALSE&&$n!=='') $this->data['lottery']->extra_pos_last[$n] = $c;
+							}
+						}
+					}
+					// Extra positions for the next draw (position)
+					if(isset($heat_position[3]))
+					{
+						$extrapos = explode(">", $heat_position[3]); 	// Extra
+						if(isset($extrapos[1]))
+						{
+							$extra_hits = explode(",", $extrapos[1]);
+							foreach($extra_hits as $extra_pos)
+							{
+								$n = strstr($extra_pos, '=', TRUE); // Strip off the count to the right of the equal sign
+								$c = substr(strstr($extra_pos, '='), 1); // Strip off the position to the left of the equal sign
+								if($n!==FALSE&&$n!=='') $this->data['lottery']->extra_pos[$n] = $c;
+							}
+						}
+					}
+				}
 			}
 			else
 			{
