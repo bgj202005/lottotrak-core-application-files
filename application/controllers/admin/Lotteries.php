@@ -1050,15 +1050,16 @@ class Lotteries extends Admin_Controller {
 						$hwc_check = $this->statistics_m->h_w_c_exists($id);
 						$prediction_pool = isset($hwc_check['prediction_pool']) ? (int) $hwc_check['prediction_pool'] : 18;
 						$generated = $this->predictions_m->followers_only_prediction($id, $prediction_pool, $saved_type, $follower_select);
-						if($generated) {
-							// Generate extra ball predictions for independent / duplicate extra ball lotteries
-							$extra_numbers_str = '';
-							if(!empty($lottery_props->duplicate) && !empty($lottery_props->extra_ball)) {
-								$extra_pool = isset($hwc_check['prediction_extras']) ? (int)$hwc_check['prediction_extras'] : 1;
-								$generated_extra = $this->predictions_m->hwc_extra($id, $extra_pool);
-								$extra_numbers_str = $generated_extra ? $generated_extra : '';
-							}
-							$this->statistics_m->followers_prediction_save($id, $saved_type, $saved_ball_points, $saved_position_points, $generated, null, $extra_numbers_str);
+						// Generate extra ball predictions independently of the main result — the extra ball
+						// pool is small enough (e.g. 1-7) that it can succeed even when the main pool cannot
+						$extra_numbers_str = '';
+						if(!empty($lottery_props->duplicate) && !empty($lottery_props->extra_ball)) {
+							$extra_pool = isset($hwc_check['prediction_extras']) ? (int)$hwc_check['prediction_extras'] : 1;
+							$generated_extra = $this->predictions_m->followers_extra_prediction($id, $extra_pool, $saved_type, $follower_select);
+							$extra_numbers_str = $generated_extra ? $generated_extra : '';
+						}
+						if ($generated || $extra_numbers_str !== '') {
+							$this->statistics_m->followers_prediction_save($id, $saved_type, $saved_ball_points, $saved_position_points, $generated ? $generated : $followers_current['lottery_numbers'], null, $extra_numbers_str);
 						}
 					}
 				}
@@ -1708,9 +1709,36 @@ $this->load->model('Statistics_m', 'statistics_m');
 						}
 					}
 
+					// Regenerate Followers predictions BEFORE snapshot to ensure they're current
+					$followers_current = $this->statistics_m->followers_exists($id);
+					if(!is_null($followers_current) && !empty($followers_current['follower_type'])) {
+						$saved_type = $followers_current['follower_type'];
+						$saved_ball_points = isset($followers_current['ball_points']) ? $followers_current['ball_points'] : '';
+						$saved_position_points = isset($followers_current['position_points']) ? $followers_current['position_points'] : '';
+						$follower_select = ($saved_type === 'position') ? $saved_position_points : $saved_ball_points;
+						if (!empty($follower_select)) {
+							$f_hwc_check = $this->statistics_m->h_w_c_exists($id);
+							$f_prediction_pool = isset($f_hwc_check['prediction_pool']) ? (int) $f_hwc_check['prediction_pool'] : 18;
+							$f_generated = $this->predictions_m->followers_only_prediction($id, $f_prediction_pool, $saved_type, $follower_select);
+							// Generate extra ball predictions independently of the main result — the extra ball
+							// pool is small enough (e.g. 1-7) that it can succeed even when the main pool cannot
+							$f_extra_numbers_str = '';
+							if(!empty($this->data['lottery']->duplicate_extra_ball) && !empty($this->data['lottery']->extra_ball)) {
+								$f_extra_pool = isset($f_hwc_check['prediction_extras']) ? (int)$f_hwc_check['prediction_extras'] : 1;
+								$f_generated_extra = $this->predictions_m->followers_extra_prediction($id, $f_extra_pool, $saved_type, $follower_select);
+								$f_extra_numbers_str = $f_generated_extra ? $f_generated_extra : '';
+							}
+							if ($f_generated || $f_extra_numbers_str !== '') {
+								$this->statistics_m->followers_prediction_save($id, $saved_type, $saved_ball_points, $saved_position_points, $f_generated ? $f_generated : $followers_current['lottery_numbers'], null, $f_extra_numbers_str);
+							}
+						}
+					}
+
 					// Snapshot current hwc_predictions → prev_h_w_c_predictions so history
 					// page can show which balls were predicted before this new draw
 					$this->statistics_m->hwc_snapshot_predictions($id);
+					$this->statistics_m->followers_snapshot($id);
+					$this->statistics_m->followers_prediction_snapshot($id);
 					$this->statistics_m->hwc_followers_snapshot($id);
 				} 
 				else

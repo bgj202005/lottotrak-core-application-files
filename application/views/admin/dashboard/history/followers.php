@@ -1185,6 +1185,9 @@ elseif($is_extra):
 									$current_extra_ball = $lottery->last_drawn['extra'];
 								}
 							}
+							// For independent / duplicate extra ball lotteries, the extra ball is predicted
+							// separately (Extra Ball Winners tile) and is not part of the main prediction
+							if (!empty($lottery->duplicate_extra_ball)) $current_extra_ball = null;
 						?>
 						<div style="background-color: #e8f5e9; border-left: 4px solid #4caf50; padding: 15px; margin: 30px 20px 20px 20px; border-radius: 4px;">
 							<h5 style="color: #2e7d32; margin-bottom: 10px;">

@@ -6018,7 +6018,8 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		
 		// Check if the current predictions won against the latest draw (if lottery_numbers exists)
 		if (!empty($row['lottery_numbers'])) {
-			$this->check_and_update_followers_wins($lottery_id, $row['lottery_numbers']);
+			$extra_preds = isset($row['extra_numbers']) ? $row['extra_numbers'] : null;
+			$this->check_and_update_followers_wins($lottery_id, $row['lottery_numbers'], $extra_preds);
 		}
 		
 		// Snapshot current lottery_followers and draw_id to prev_* fields for history display
@@ -10112,11 +10113,12 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	/**
 	 * Check Followers predictions against the latest draw and update win statistics
 	 * 
-	 * @param int $lottery_id Lottery ID
-	 * @param string $predictions Prediction string (format varies by lottery)
+	 * @param int    $lottery_id         Lottery ID
+	 * @param string $predictions        Main ball prediction string
+	 * @param string $extra_predictions  Comma-separated extra ball predictions (independent / duplicate extra ball lotteries)
 	 * @return boolean Success/failure
 	 */
-	private function check_and_update_followers_wins($lottery_id, $predictions)
+	private function check_and_update_followers_wins($lottery_id, $predictions, $extra_predictions = null)
 	{
 		if (empty($predictions)) {
 			return FALSE;
@@ -10136,12 +10138,12 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			return FALSE;
 		}
 		
-		// Parse predictions string (format: "1,2,3,4,5,6" or "1,2,3,4,5,6>7" with extra ball)
+		// Parse predictions string (format: "1,2,3,4,5,6" or legacy "1,2,3,4,5,6>7" with extra ball)
 		$pred_extra = null;
 		$pred_main = array();
 		
 		if (strpos($predictions, '>') !== false) {
-			// Has extra ball separator
+			// Legacy embedded extra ball separator
 			$parts = explode('>', $predictions);
 			$pred_main = array_map('intval', explode(',', $parts[0]));
 			$pred_extra = isset($parts[1]) ? intval($parts[1]) : null;
@@ -10164,13 +10166,18 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$main_matches = count(array_intersect($pred_main, $drawn_main));
 		
 		// Check extra ball match
-		// For lotteries with ">" separator: check if pred_extra matches drawn_extra
-		// For non-independent extra ball lotteries: check if drawn_extra is in pred_main array
 		$extra_match = false;
-		if (!is_null($drawn_extra)) {
-			if (!is_null($pred_extra)) {
-				// Independent extra ball lottery with ">" separator
-				$extra_match = ($pred_extra == $drawn_extra);
+		if (!is_null($drawn_extra) && $drawn_extra > 0) {
+			if (!empty($lottery->duplicate_extra_ball) && !empty($lottery->extra_ball)) {
+				// Independent extra ball lottery: check the drawn extra against the separately
+				// predicted extra ball pool (Prediction Extra Pool), not embedded in main numbers
+				if (!empty($extra_predictions)) {
+					$pred_extra_list = array_map('intval', explode(',', $extra_predictions));
+					$extra_match = in_array($drawn_extra, $pred_extra_list);
+				} elseif (!is_null($pred_extra)) {
+					// Legacy embedded format fallback
+					$extra_match = ($pred_extra == $drawn_extra);
+				}
 			} else {
 				// Non-independent extra ball lottery - check if drawn extra is in predicted main numbers
 				$extra_match = in_array($drawn_extra, $pred_main);

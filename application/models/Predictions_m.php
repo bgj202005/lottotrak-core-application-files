@@ -1853,8 +1853,10 @@ class Predictions_m extends MY_Model
 				return FALSE;
 			}
 			
-			// Parse and cache the groups data
-			$groups = $this->parse_followers_groups_optimized($selected_followers, $selected_nonfollowers);
+			// Parse and cache the groups data. Non-followers are re-weighted by their overall
+			// Hot/Warm/Cold draw frequency so a ball with a strong overall track record can still
+			// compete for a slot even though it never followed this specific trigger.
+			$groups = $this->parse_followers_groups_optimized($selected_followers, $selected_nonfollowers, $this->get_overall_ball_frequency($lottery_id));
 			$followers_cache[$cache_key] = $groups;
 			
 			// Prevent memory bloat - keep only last 10 entries
@@ -1881,16 +1883,129 @@ class Predictions_m extends MY_Model
 		// Optimized selection algorithm
 		$selected = $this->select_followers_numbers_optimized($groups, $combination_size);
 		
+		// TEMP DEBUG — remove after diagnosing ball 5 issue
+		log_message('error', "TEMPDBG selected=" . implode(',', $selected));
+		
 		$elapsed = microtime(true) - $start_time;
 		log_message('info', "Followers generation completed in " . round($elapsed * 1000, 2) . "ms for lottery $lottery_id");
 		
 		return implode(',', $selected);
 	}
+
+	/**
+	 * Wrapper for followers_extra_only() — kept for naming symmetry with followers_only_prediction().
+	 */
+	public function followers_extra_prediction($lottery_id, $extra_pool, $follower_type, $follower_select)
+	{
+		return $this->followers_extra_only($lottery_id, $extra_pool, $follower_type, $follower_select);
+	}
+
+	/**
+	 * Generate extra ball predictions for independent / duplicate extra ball lotteries, scoped to the
+	 * selected follower trigger (After Ball / Position). Uses the extra-ball follower/non-follower data
+	 * stored alongside the main-ball data (format "main=count|...#extra=count|...") for that same trigger,
+	 * instead of the aggregate dupextra ranking used by hwc_extra(). Capped to $extra_pool numbers and
+	 * independent of whether the main-ball prediction had enough numbers to generate.
+	 *
+	 * @param  integer $lottery_id
+	 * @param  integer $extra_pool		Number of extra ball predictions to generate (prediction_extras)
+	 * @param  string  $type			'after_ball' or 'position'
+	 * @param  string  $select			Selected ball value (after_ball, may be prefixed '+') or position number
+	 * @return string|FALSE				Comma-separated extra ball numbers or FALSE if unavailable
+	 */
+	public function followers_extra_only($lottery_id, $extra_pool, $type, $select)
+	{
+		$extra_pool = (int) $extra_pool;
+		if ($extra_pool <= 0) return FALSE;
+
+		$followers_row = $this->statistics_m->followers_exists($lottery_id);
+		$nonfollowers_row = $this->statistics_m->nonfollowers_exists($lottery_id);
+		if (!$followers_row) return FALSE;
+
+		$followers_field = $followers_row['lottery_followers'];
+		$nonfollowers_field = $nonfollowers_row ? $nonfollowers_row['lottery_nonfollowers'] : '';
+
+		$select = trim($select);
+		if ($type === 'after_ball' && strpos($select, '+') === 0) {
+			$select = substr($select, 1);
+		}
+
+		$followers_groups = explode(',', $followers_field);
+		$nonfollowers_groups = $nonfollowers_field ? explode(',', $nonfollowers_field) : [];
+
+		$selected_group = '';
+		$selected_nf_group = '';
+
+		if ($type === 'position') {
+			$position = (int) $select;
+			if (isset($followers_groups[$position - 1])) {
+				$group = $followers_groups[$position - 1];
+				$selected_group = substr($group, strpos($group, '>') + 1);
+			}
+			if (isset($nonfollowers_groups[$position - 1])) {
+				$group = $nonfollowers_groups[$position - 1];
+				$selected_nf_group = substr($group, strpos($group, '>') + 1);
+			}
+		} else {
+			$search_prefix = $select . '>';
+			foreach ($followers_groups as $group) {
+				if (strpos($group, $search_prefix) === 0) {
+					$selected_group = substr($group, strlen($search_prefix));
+					break;
+				}
+			}
+			foreach ($nonfollowers_groups as $group) {
+				if (strpos($group, $search_prefix) === 0) {
+					$selected_nf_group = substr($group, strlen($search_prefix));
+					break;
+				}
+			}
+		}
+
+		if ($selected_group === '') return FALSE;
+
+		// Isolate the extra-ball segment after the '#' separator; the main-ball segment is not used here
+		$extra_followers = '';
+		if (strpos($selected_group, '#') !== false) {
+			list(, $extra_followers) = explode('#', $selected_group, 2);
+		}
+		$extra_nonfollowers = '';
+		if (strpos($selected_nf_group, '#') !== false) {
+			list(, $extra_nonfollowers) = explode('#', $selected_nf_group, 2);
+		}
+
+		if ($extra_followers === '' && $extra_nonfollowers === '') return FALSE; // Not an independent extra ball lottery
+
+		$groups = $this->parse_followers_groups_optimized($extra_followers, $extra_nonfollowers);
+
+		$total = 0;
+		foreach ($groups as $nums) $total += count($nums);
+		if ($total == 0) return FALSE;
+
+		// Flat rank by weight (groups are already krsorted highest-first): fill from the top
+		// weight tier down, only reaching into lower tiers (including non-followers) when the
+		// higher tiers don't already cover the pool. Unlike select_followers_numbers_optimized()
+		// (used for the large main-ball pool), this must NOT force a pick from every group.
+		$flat = array();
+		foreach ($groups as $nums) {
+			foreach ($nums as $num) $flat[] = $num;
+		}
+		$selected = array_slice($flat, 0, min($extra_pool, $total));
+
+		return implode(',', $selected);
+	}
 	
 	/**
-	 * Optimized parsing of followers groups
+	 * Optimized parsing of followers groups. Non-followers are weighted by their overall
+	 * Hot/Warm/Cold draw frequency (if provided) instead of a flat 0, so a ball that never
+	 * followed this trigger but has still been drawn often overall lands in a real weight tier
+	 * and can compete fairly against genuine followers for a slot.
+	 *
+	 * @param string     $selected_followers    "num=count|num=count|..."
+	 * @param string     $selected_nonfollowers "num|num|..."
+	 * @param array|null $overall_frequency     ball => overall draw count map, or null/empty to keep weight 0
 	 */
-	private function parse_followers_groups_optimized($selected_followers, $selected_nonfollowers) {
+	private function parse_followers_groups_optimized($selected_followers, $selected_nonfollowers, $overall_frequency = null) {
 		// Parse followers into dynamic groups by weight
 		$follower_numbers = explode('|', $selected_followers);
 		$groups = [];
@@ -1911,23 +2026,82 @@ class Predictions_m extends MY_Model
 			}
 		}
 		
-		// Parse non-followers group (0 group)
+		// Parse non-followers group, re-weighted by overall draw frequency where available
 		if (!empty($selected_nonfollowers)) {
 			$nonfollower_numbers = array_filter(array_map('trim', explode('|', $selected_nonfollowers)));
-			$groups[0] = array_filter($nonfollower_numbers, function($num) {
-				return $num !== '' && $num !== '0' && is_numeric($num) && intval($num) > 0;
-			});
+			foreach ($nonfollower_numbers as $num) {
+				if ($num === '' || $num === '0' || !is_numeric($num) || intval($num) <= 0) continue;
+				$weight = (!empty($overall_frequency) && isset($overall_frequency[$num])) ? (int) $overall_frequency[$num] : 0;
+				if (!isset($groups[$weight])) {
+					$groups[$weight] = [];
+				}
+				$groups[$weight][] = $num;
+			}
 		}
 		
 		// Sort groups by weight descending (so highest group first)
 		krsort($groups);
 		return $groups;
 	}
+
+	/**
+	 * Return a ball => overall draw frequency map (combined Hot/Warm/Cold counts) for the lottery.
+	 * Used to re-weight non-followers against genuine followers in parse_followers_groups_optimized().
+	 */
+	private function get_overall_ball_frequency($lottery_id) {
+		$hwc = $this->statistics_m->h_w_c_exists($lottery_id);
+		if (!$hwc) return array();
+		$freq = array();
+		foreach (array('hots', 'warms', 'colds') as $field) {
+			if (empty($hwc[$field])) continue;
+			foreach (explode(',', $hwc[$field]) as $pair) {
+				$kv = explode('=', $pair);
+				if (count($kv) == 2) {
+					$freq[trim($kv[0])] = (int) trim($kv[1]);
+				}
+			}
+		}
+		return $freq;
+	}
 	
 	/**
-	 * Optimized selection of numbers from followers groups
+	 * Optimized selection of numbers from followers groups.
+	 * Non-followers re-weighted with a positive overall draw frequency (see get_overall_ball_frequency())
+	 * already sit in real weight tiers here and compete normally alongside genuine followers — a strong
+	 * overall performer can win a slot even when followers are plentiful. The weight-0 tier (truly zero:
+	 * never followed this trigger AND never drawn at all in the range) is used only as a last resort to
+	 * fill remaining slots when the weighted tiers can't fill the pool on their own.
 	 */
 	private function select_followers_numbers_optimized($groups, $combination_size) {
+		$nonfollower_group = isset($groups[0]) ? $groups[0] : [];
+		$follower_groups = $groups;
+		unset($follower_groups[0]);
+
+		$follower_total = 0;
+		foreach ($follower_groups as $nums) $follower_total += count($nums);
+
+		if ($follower_total >= $combination_size) {
+			// Enough weighted candidates on their own — never touch the zero-history tier
+			return $this->distribute_and_select_groups($follower_groups, $combination_size);
+		}
+
+		// Not enough weighted candidates — use all of them, then fill the remainder from the zero-history tier
+		$selected = $this->distribute_and_select_groups($follower_groups, $follower_total);
+		$remaining = $combination_size - count($selected);
+		if ($remaining > 0 && !empty($nonfollower_group)) {
+			$selected = array_merge($selected, array_slice(array_values($nonfollower_group), 0, $remaining));
+		}
+
+		return $selected;
+	}
+
+	/**
+	 * Distributes $combination_size picks proportionally across weight groups, guaranteeing at
+	 * least one pick per group where possible. Operates on whichever groups are passed in.
+	 */
+	private function distribute_and_select_groups($groups, $combination_size) {
+		if ($combination_size <= 0 || empty($groups)) return [];
+
 		$total_numbers = 0;
 		foreach ($groups as $nums) {
 			$total_numbers += count($nums);
@@ -1946,7 +2120,6 @@ class Predictions_m extends MY_Model
 			}
 		}
 		
-		// Distribute remaining picks proportionally with optimized calculation
 		// Distribute remaining picks proportionally with optimized calculation
 		if ($remaining > 0) {
 			foreach ($groups as $weight => $nums) {
@@ -1970,7 +2143,7 @@ class Predictions_m extends MY_Model
 				
 				// If no progress was made, we've exhausted all available numbers
 				if (!$progress_made) {
-					log_message('error', "followers_only: Insufficient follower numbers - needed $combination_size, available " . ($combination_size - $remaining));
+					log_message('error', "followers_only: Insufficient numbers to distribute - needed $combination_size, available " . ($combination_size - $remaining));
 					break;
 				}
 			}

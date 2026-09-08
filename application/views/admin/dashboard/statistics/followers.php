@@ -295,7 +295,7 @@
 							</div>
 
 							<!-- Predicted Numbers for the Next Draw -->
-							<?php if(!empty($lottery_numbers)):
+							<?php
 								$fl_label = ($saved_follower_type === 'position')
 									? 'Position ' . htmlspecialchars($saved_position_points)
 									: 'After Ball ' . htmlspecialchars($saved_ball_points);
@@ -305,6 +305,7 @@
 									$draw_label = date('D, M j, Y', strtotime(str_replace('/', '-', $next_draw_date)));
 								}
 							?>
+							<?php if(!empty($lottery_numbers)): ?>
 							<div class="pred-panel">
 								<strong>Predicted Numbers for the Next Draw<?=($draw_label ? ' &mdash; ' . $draw_label : '');?></strong>
 								<div class="text-muted" style="font-size:0.85em; margin: 4px 0 10px;">
@@ -316,21 +317,27 @@
 									<?php endforeach; ?>
 								</div>
 							</div>
-							<!-- Extra Ball Predictions Tile (independent / duplicate extra ball lotteries only) -->
-							<?php if(!empty($lottery->duplicate_extra_ball) && !empty($lottery->extra_ball) && !empty($extra_numbers)): ?>
-							<div class="pred-panel" style="background-color: #e3f2fd; border-left: 4px solid #1565C0;">
-								<strong>Extra Ball Predictions for the Next Draw<?=($draw_label ? ' &mdash; ' . $draw_label : '');?></strong>
-								<div style="display:flex; flex-wrap:wrap; justify-content:center; margin-top: 8px;">
-									<?php foreach(explode(',', $extra_numbers) as $num): ?>
-									<span class="pred-ball" style="background:#1565C0; color:#fff;"><?=trim(htmlspecialchars($num));?></span>
-									<?php endforeach; ?>
-								</div>
-							</div>
-							<?php endif; ?>
-							<?php elseif(empty($lottery_numbers)): ?>
+							<?php else: ?>
 							<div class="alert alert-info" style="margin-bottom: 0;">
 								No prediction has been generated yet. Select a follower option above and click <strong>Change Follower Options</strong>.
 							</div>
+							<?php endif; ?>
+							<!-- Extra Ball Predictions Tile (independent / duplicate extra ball lotteries only) -->
+							<?php if(!empty($lottery->duplicate_extra_ball) && !empty($lottery->extra_ball)): ?>
+								<?php if(!empty($extra_numbers)): ?>
+								<div class="pred-panel" style="background-color: #e3f2fd; border-left: 4px solid #1565C0;">
+									<strong>Extra Ball Predictions for the Next Draw<?=($draw_label ? ' &mdash; ' . $draw_label : '');?></strong>
+									<div style="display:flex; flex-wrap:wrap; justify-content:center; margin-top: 8px;">
+										<?php foreach(explode(',', $extra_numbers) as $num): ?>
+										<span class="pred-ball" style="background:#1565C0; color:#fff;"><?=trim(htmlspecialchars($num));?></span>
+										<?php endforeach; ?>
+									</div>
+								</div>
+								<?php else: ?>
+								<div class="alert alert-info" style="margin-bottom: 0;">
+									No Extra Balls are being predicted. Select a follower option above and click <strong>Change Follower Options</strong>.
+								</div>
+								<?php endif; ?>
 							<?php endif; ?>
 						</div>
 						<!-- END PREDICTION PANELS -->
