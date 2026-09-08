@@ -144,7 +144,27 @@
 								<div class="col-md-6">
 									<div class="bg-white card followers mb-4 shadow-sm">
 										<div class="p-4">
-											<h4 class="mb-1">Draw Range: <?=$lottery->last_drawn['range'];?> Draws</h4>
+											<div style="font-weight: bold; color: #343a40; margin-bottom: 4px; font-size: 0.95em;">
+												<i class="fa fa-calendar" aria-hidden="true"></i> Last Draw
+											</div>
+											<div style="color:#555; font-size:0.85em; margin-bottom:4px;">
+												<?php if(!empty($lottery->last_drawn['draw_date'])): ?>
+													<?=date('D, M j, Y', strtotime(str_replace('/', '-', $lottery->last_drawn['draw_date'])));?>
+												<?php else: ?>
+													<span class="text-muted">N/A</span>
+												<?php endif; ?>
+											</div>
+											<div style="display:flex; flex-wrap:wrap; align-items:center; gap:3px;">
+												<?php for($__i = 1; $__i <= $lottery->balls_drawn; $__i++): ?>
+													<?php if(!empty($lottery->last_drawn['ball'.$__i])): ?>
+													<span class="badge badge-dark" style="font-size:0.85em; padding:4px 5px;"><?=(int)$lottery->last_drawn['ball'.$__i];?></span>
+													<?php endif; ?>
+												<?php endfor; ?>
+												<?php if($lottery->extra_ball && !empty($lottery->last_drawn['extra'])): ?>
+													<span style="margin:0 2px; color:#888; font-size:0.85em;">+</span>
+													<span class="badge badge-secondary" style="font-size:0.85em; padding:4px 5px;"><?=(int)$lottery->last_drawn['extra'];?></span>
+												<?php endif; ?>
+											</div>
 										</div>
 									</div>
 										<div class="bg-white card followers mb-4 shadow-sm">
@@ -158,6 +178,11 @@
 										</div>
 									</div>
 									<div class="col-md-6">
+										<div class="bg-white card followers mb-4 shadow-sm">
+											<div class="p-4">
+												<h4 class="mb-1">Draw Range: <?=$lottery->last_drawn['range'];?> Draws</h4>
+											</div>
+										</div>
 										<div class="bg-white card followers mb-4 shadow-sm">
 											<div class="p-4">
 												<h4 class="mb-1">

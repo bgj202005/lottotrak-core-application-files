@@ -388,7 +388,33 @@ $b = 1;
 								</div>
 								<!-- /.col-md-6 -->
 								<div class="col-lg-6 mt-4 glance-col">
+									<!-- Last Draw Tile -->
 									<div class="card glance-top">
+										<div class="card-body" style="padding: 10px 16px;">
+											<div style="font-weight: bold; color: #343a40; margin-bottom: 4px; font-size: 0.95em;">
+												<i class="fa fa-calendar" aria-hidden="true"></i> Last Draw
+											</div>
+											<div style="color:#555; font-size:0.85em; margin-bottom:4px;">
+												<?php if(!empty($lottery->last_drawn['draw_date'])): ?>
+													<?=date('D, M j, Y', strtotime(str_replace('/', '-', $lottery->last_drawn['draw_date'])));?>
+												<?php else: ?>
+													<span class="text-muted">N/A</span>
+												<?php endif; ?>
+											</div>
+											<div style="display:flex; flex-wrap:wrap; align-items:center; gap:3px;">
+												<?php for($__i = 1; $__i <= $lottery->balls_drawn; $__i++): ?>
+													<?php if(!empty($lottery->last_drawn['ball'.$__i])): ?>
+													<span class="badge badge-dark" style="font-size:0.85em; padding:4px 5px;"><?=(int)$lottery->last_drawn['ball'.$__i];?></span>
+													<?php endif; ?>
+												<?php endfor; ?>
+												<?php if($lottery->extra_ball && !empty($lottery->last_drawn['extra'])): ?>
+													<span style="margin:0 2px; color:#888; font-size:0.85em;">+</span>
+													<span class="badge badge-secondary" style="font-size:0.85em; padding:4px 5px;"><?=(int)$lottery->last_drawn['extra'];?></span>
+												<?php endif; ?>
+											</div>
+										</div>
+									</div>
+									<div class="card mt-4">
 										<div class="card-header border-0">
 											<div class="d-flex justify-content-between">
 												<h3 class="card-title">Repeats and Consecutive Numbers</h3>

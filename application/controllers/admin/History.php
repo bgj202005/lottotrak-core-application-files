@@ -247,6 +247,7 @@ class History extends Admin_Controller {
 		}
 		
 		$sel_range = ($new_range>100 ? $sel_range = intval($new_range / 100) : $sel_range = 1);
+		$this->data['lottery']->last_drawn = (array) $draw_db;			// Seed with the raw last draw row (draw_date, ballN, extra, etc.)
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
 		$this->data['lottery']->last_drawn['range'] = $new_range;
