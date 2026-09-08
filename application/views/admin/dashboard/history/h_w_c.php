@@ -128,28 +128,27 @@
 		}
 	}
 	
-	/* Table container for mobile-friendly layout */
+	/* Table container for mobile-friendly layout — all 6 H-W-C tables sit side by side within
+	   the existing card width via a CSS grid; the card/tile width itself never changes. */
 	.table-container {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 20px;
-		justify-content: flex-start;
-		align-items: flex-start;
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 10px;
+		align-items: start;
 	}
 	
-	/* Table pair wrapper - groups related tables together */
+	/* Table pair wrapper - groups related tables (e.g. Last Hots + Hot Positions) side by side */
 	.table-pair {
 		display: flex;
-		gap: 15px;
-		flex: 1;
-		min-width: 300px;
+		gap: 6px;
+		min-width: 0;
 		align-items: flex-start;
 	}
 	
 	/* Individual table wrapper */
 	.table-wrapper {
-		flex: 1;
-		min-width: 140px;
+		flex: 1 1 0;
+		min-width: 0;
 		display: flex;
 		justify-content: center;
 		align-items: flex-start;
@@ -160,12 +159,9 @@
 		max-width: 100%;
 	}
 	
-	/* Extra ball table - full width when present */
+	/* Extra ball table - shares a grid cell alongside its positions table, side by side */
 	.extra-table-wrapper {
-		flex: 1 1 100%;
-		min-width: 280px;
-		max-width: 400px;
-		margin: 0 auto;
+		min-width: 0;
 		display: flex;
 		justify-content: center;
 		align-items: flex-start;
@@ -176,32 +172,50 @@
 		max-width: 100%;
 	}
 	
-	/* Mobile responsiveness */
-	@media (max-width: 768px) {
-		.table-pair {
-			flex-direction: column;
-			min-width: 100%;
-		}
-		
-		.table-wrapper {
-			flex: 1 1 100%;
-			min-width: 100%;
-		}
-		
-		.extra-table-wrapper {
-			min-width: 100%;
-			max-width: 100%;
-		}
-		
+	/* Compact typography so 6 tables fit side by side without widening the card */
+	.table-container table th,
+	.table-container table td {
+		min-width: 32px;
+		padding: 3px 2px;
+		font-size: 0.83em;
+	}
+	
+	.table-container table thead tr:nth-child(2) th {
+		font-size: 0.78em;
+		padding: 2px;
+	}
+	
+	/* Mobile responsiveness: fewer grid columns as the viewport shrinks, pairs stay together */
+	@media (max-width: 992px) {
 		.table-container {
-			flex-direction: column;
+			grid-template-columns: 1fr; /* one pair (2 tables side by side) per row */
+		}
+		
+		.table-container table th,
+		.table-container table td {
+			min-width: 60px;
+			padding: 5px 3px;
+			font-size: 1.01em;
+		}
+		
+		.table-container table thead tr:nth-child(2) th {
+			font-size: 0.93em;
+			padding: 3px;
 		}
 	}
 	
-	@media (min-width: 769px) and (max-width: 1200px) {
+	@media (max-width: 480px) {
 		.table-pair {
-			flex: 1 1 100%;
-			margin-bottom: 20px;
+			flex-direction: column; /* stack the 2 tables in a pair on very small screens */
+		}
+		
+		.table-wrapper {
+			min-width: 100%;
+		}
+		
+		.table-container table th,
+		.table-container table td {
+			font-size: 1.07em;
 		}
 	}
 	th.datafont{

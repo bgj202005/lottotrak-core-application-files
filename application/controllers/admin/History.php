@@ -475,7 +475,10 @@ class History extends Admin_Controller {
 				$extra_included_setting = $h_w_c['extra_included'];
 				// Pass the correct duplicate_extra_ball flag (not extra_included) to onlydrawn
 				// onlydrawn expects: ($draw_data, $has_extra_ball, $is_duplicate_extra_ball_system)
-				$draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn, $extra_included_setting ? $this->data['lottery']->extra_ball : 0, $dup);
+				// For independent / duplicate extra ball lotteries, the extra ball is a separate pool and
+				// must NEVER be merged into the main-ball match array — otherwise a main ball that shares
+				// the same numeric value as the extra ball gets falsely flagged as a winning match.
+				$draw = $this->history_m->onlydrawn($this->data['lottery']->last_drawn, ($extra_included_setting && !$dup) ? $this->data['lottery']->extra_ball : 0, $dup);
 				$hots = $h_w_c['h_count'];
 				$warms = $h_w_c['w_count'];
 				$colds = $h_w_c['c_count'];
