@@ -1672,11 +1672,18 @@ class Lotteries extends Admin_Controller {
 					// Update lastdate field in lottery_profiles with the new draw date
 					$this->lotteries_m->update_lastdraw($id, $draw['draw_date']);
 
-					// Regenerate H-W-C predictions BEFORE snapshot to ensure they're current
-					// This prevents corrupted/stale predictions from being copied to prev_h_w_c_predictions
 $this->load->model('Statistics_m', 'statistics_m');
 				$this->load->model('Predictions_m', 'predictions_m');
-					
+
+					// Snapshot and check wins against the just-added draw BEFORE regenerating
+					// predictions — otherwise the win check would compare the new draw against
+					// predictions meant for the NEXT draw instead of the ones live at draw time.
+					$this->statistics_m->hwc_snapshot_predictions($id);
+					$this->statistics_m->followers_snapshot($id);
+					$this->statistics_m->followers_prediction_snapshot($id);
+					$this->statistics_m->hwc_followers_snapshot($id);
+
+					// Regenerate H-W-C predictions for the next draw
 					$h_w_c_current = $this->statistics_m->h_w_c_exists($id);
 					if(!is_null($h_w_c_current)) {
 						$stored_option  = isset($h_w_c_current['hwc_option'])  ? (int)$h_w_c_current['hwc_option']  : 1;
@@ -1709,7 +1716,7 @@ $this->load->model('Statistics_m', 'statistics_m');
 						}
 					}
 
-					// Regenerate Followers predictions BEFORE snapshot to ensure they're current
+					// Regenerate Followers predictions for the next draw
 					$followers_current = $this->statistics_m->followers_exists($id);
 					if(!is_null($followers_current) && !empty($followers_current['follower_type'])) {
 						$saved_type = $followers_current['follower_type'];
@@ -1733,13 +1740,6 @@ $this->load->model('Statistics_m', 'statistics_m');
 							}
 						}
 					}
-
-					// Snapshot current hwc_predictions → prev_h_w_c_predictions so history
-					// page can show which balls were predicted before this new draw
-					$this->statistics_m->hwc_snapshot_predictions($id);
-					$this->statistics_m->followers_snapshot($id);
-					$this->statistics_m->followers_prediction_snapshot($id);
-					$this->statistics_m->hwc_followers_snapshot($id);
 				} 
 				else
 				{

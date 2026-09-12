@@ -10004,6 +10004,15 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			$pred_main = array_map('intval', explode(',', $predictions));
 		}
 		
+		// Get current H-W-C record early - needed for hwc_extra_predictions (independent extra ball pool)
+		$query = $this->db->where('lottery_id', $lottery_id)
+		        ->limit(1)
+		        ->get('lottery_h_w_c');
+		$hwc = $query->row_array();
+		if (empty($hwc)) {
+			return FALSE;
+		}
+		
 		// Get actual drawn numbers
 		$drawn_main = array();
 		for ($i = 1; $i <= $lottery->balls_drawn; $i++) {
@@ -10018,11 +10027,14 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$main_matches = count(array_intersect($pred_main, $drawn_main));
 		
 		// Check extra ball match
-		// For lotteries with ">" separator: check if pred_extra matches drawn_extra
-		// For non-independent extra ball lotteries: check if drawn_extra is in pred_main array
+		// Independent extra ball lotteries (duplicate_extra_ball=1) predict the extra ball
+		// separately in hwc_extra_predictions, not embedded with ">" in $predictions
 		$extra_match = false;
 		if (!is_null($drawn_extra)) {
-			if (!is_null($pred_extra)) {
+			if (!empty($lottery->duplicate_extra_ball) && !empty($lottery->extra_ball)) {
+				$extra_pool = !empty($hwc['hwc_extra_predictions']) ? array_map('intval', explode(',', $hwc['hwc_extra_predictions'])) : array();
+				$extra_match = in_array($drawn_extra, $extra_pool);
+			} elseif (!is_null($pred_extra)) {
 				// Independent extra ball lottery with ">" separator
 				$extra_match = ($pred_extra == $drawn_extra);
 			} else {
@@ -10066,15 +10078,6 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 					$win_field = null;
 				}
 			}
-		}
-		
-		// Get current H-W-C record - BYPASS cache to get fresh lastdate/counters
-		$query = $this->db->where('lottery_id', $lottery_id)
-		        ->limit(1)
-		        ->get('lottery_h_w_c');
-		$hwc = $query->row_array();
-		if (empty($hwc)) {
-			return FALSE;
 		}
 		
 		// Check if we've already processed this draw
