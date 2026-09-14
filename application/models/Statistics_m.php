@@ -6840,10 +6840,12 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	* @param  	string	$lows			Cold numbers and counts	from the previous draw (number = count, number = count, etc)
 	* @param  	string	$current		Current positions string (h>|,w>|,c>|)
 	* @param  	integer	$min_extra		Minimum extra ball value (independent extra lotteries), default 1
+	* @param  	integer	$range			Range of draws the E section total must be conserved against (0 = skip conservation)
+	* @param  	boolean	$extra_draws	Whether draws with extra=0 are included when counting the E section window
 	* @return	string	$_previous		Returns the formated string for the draw before the last draw. This will be returned as position_last
 	* in hwc_history['position_last']
 	*/
-	public function positions_before_last($table, $max, $xtra, $dup, $highs, $middles, $lows, $current, $min_extra = 1)
+	public function positions_before_last($table, $max, $xtra, $dup, $highs, $middles, $lows, $current, $min_extra = 1, $range = 0, $extra_draws = 1)
 	{
 		if($min_extra < 1) $min_extra = 1; // Extra ball positions are always 0-based from a minimum of 1
 		$pv = $this->db_row($table);  	 // Get the most recent drawn numbers
@@ -6958,11 +6960,9 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		}
 		$_previous = substr($_previous, 0, -1); // Remove the last comma
 		// 8. For independent / duplicate extra ball lotteries, append the E section (extra ball positions).
-		// The E counts are built over the range via position increments in h_w_c_history() (Range 100 = 100 draws
-		// counted, one per iteration), NOT via cumulative hwc_addpoints mutation. Decrementing here would drop the
-		// last draw's own extra ball count and make the E totals short by one draw (e.g. 99 instead of 100).
-		// position_last therefore receives the same E section unchanged; the Last Draw / Future Draw tabs flip
-		// between position_last and position, both range-based for the extra ball positions.
+		// Sliding window shift: remove the last draw's own extra ball (-1) and add back the extra ball of
+		// the draw that just fell out of the window (+1), so the Last Draw / Future Draw totals both equal
+		// $range while still differing at the two affected positions.
 		if($dup&&isset($positions[3]))
 		{
 			$extra_positions = ltrim($positions[3], 'E>'); // Trim off E> from the extra positions
@@ -6975,6 +6975,30 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 					if(strpos($e, '=')===FALSE) continue; // Skip malformed entries
 					list($key, $value) = explode('=', $e);
 					$ep_totals[$key] = $value;
+				}
+				if($last_extra>0)
+				{
+					$e_index = $last_extra - $min_extra;
+					if(isset($ep_totals[$e_index]))
+					{
+						$ep_totals[$e_index]--; // Decrement the count by 1
+						if($ep_totals[$e_index] < 0) $ep_totals[$e_index] = 0; // Ensure minimum is 0
+					}
+				}
+				if($range>0)
+				{
+					// The draw that falls out of the window is the (range+1)-th most recent qualifying draw
+					$where_extra = ($extra_draws ? '' : ' WHERE extra <> "0"');
+					$dropped = $this->db->query('SELECT extra FROM '.$table.$where_extra.' ORDER BY draw_date DESC, id DESC LIMIT 1 OFFSET '.intval($range))->row();
+					if($dropped && isset($dropped->extra))
+					{
+						$dropped_extra = intval($dropped->extra);
+						$d_index = $dropped_extra - $min_extra;
+						if($dropped_extra>0 && isset($ep_totals[$d_index]))
+						{
+							$ep_totals[$d_index]++; // Add back the draw entering the window
+						}
+					}
 				}
 				$_previous .= '|E>';
 				foreach($ep_totals as $key => $value)
