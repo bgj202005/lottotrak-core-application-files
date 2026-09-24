@@ -547,17 +547,24 @@ class Lotteries extends Admin_Controller {
 			'firstdate' => $this->data['lottery']->firstdate
 		));
 	
+		$csv_filter = '';
 		if (is_array($this->input->post("csv_field")) && count($this->input->post("csv_field"))) {
-			$n = count($this->input->post("csv_field"));
-			$csv_filter = ''; // No Filter Elimination at this point
-			if ($n > 0) // There are currently fields that we can't import into the database
-			{
-				$this->session->set_userdata(array('elim' => $_POST['csv_field']));
-				foreach ($this->input->post("csv_field") as $filter => $key) {
-					$csv_filter .= $key . ',';
-				}
-				$csv_filter = substr($csv_filter, 0, -1);
+			foreach ($this->input->post("csv_field") as $filter => $key) {
+				if (trim($key) !== '') $csv_filter .= trim($key) . ',';
 			}
+			$csv_filter = rtrim($csv_filter, ',');
+		}
+
+		if ($csv_filter !== '') {
+			// New elimination columns were provided this time; use and persist them
+			$this->session->set_userdata(array('elim' => explode(',', $csv_filter)));
+		} else {
+			// No elimination columns provided; fall back to the last saved configuration
+			// instead of wiping it out (this previously caused imports to silently break,
+			// e.g. Canada 649's DRAW DATE column being misread as the PRODUCT column)
+			$previous_columns = (!empty($import_results[0]->columns)) ? rtrim($import_results[0]->columns, ',') : '';
+			$csv_filter = $previous_columns;
+			$this->session->set_userdata(array('elim' => ($previous_columns !== '' ? explode(',', $previous_columns) : array())));
 		}
 	
 		$this->data['message'] = '';  // Create a Message object
