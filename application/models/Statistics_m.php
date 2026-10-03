@@ -1702,10 +1702,6 @@ class Statistics_m extends MY_Model
 			// Before updating, save current data as previous data
 			$current = $this->db->where('lottery_id', $data['lottery_id'])->get('lottery_followers')->row_array();
 			if ($current) {
-				// NOTE: Win tracking is now handled by followers_snapshot() during import only.
-				// Removed check_and_update_followers_wins() call here to prevent double-counting
-				// when Calculate/Recalc are run before or after import.
-				
 				// Only save as previous if current data is valid (not empty and draw_id > 0)
 				// After a reset, lottery_followers is '' and draw_id is 0, which shouldn't be saved as "previous"
 				if (!empty($current['lottery_followers']) && isset($current['draw_id']) && $current['draw_id'] > 0) {
@@ -1734,20 +1730,8 @@ class Statistics_m extends MY_Model
 			log_message('error', "  prev_draw_id value: " . (isset($updated['prev_draw_id']) ? $updated['prev_draw_id'] : 'NOT SET'));
 			log_message('error', "  prev_draw_id falsy? " . (!$updated['prev_draw_id'] ? 'YES' : 'NO'));
 			
-			$need_populate = false;
 			if ($updated && (empty($updated['prev_lottery_followers']) || !$updated['prev_draw_id'])) {
-				$need_populate = true;
-				log_message('error', "Lottery {$data['lottery_id']}: prev_* fields are empty");
-			} elseif ($updated && $updated['prev_draw_id']) {
-				// Validate that prev_draw_id still exists in the database
-				$this->load->model('lotteries_m');
-				$lottery = $this->lotteries_m->get($data['lottery_id']);
-				if ($lottery) {
-				$table_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
-				}
-			}
-			
-			if ($need_populate) {
+				// prev_* are NULL/empty, try to populate from previous draw
 				log_message('error', "Lottery {$data['lottery_id']}: TRIGGERING auto-populate from previous draw");
 				$this->populate_previous_followers_from_draw($data['lottery_id'], $updated);
 			} else {
@@ -5919,10 +5903,9 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	* @param	integer	$option			1 = Top Ranked, 2 = Manual Selected
 	* @param	integer	$select			Rank index (1-based) of the selected H-W-C group
 	* @param	string	$predictions	Comma-separated generated numbers
-	* @param	string	$extra_predictions	Comma-separated generated extra ball numbers (independent extra lotteries)
 	* @return   none
 	*/
-	public function hwc_save_predictions($lottery_id, $option, $select, $predictions, $prev_predictions = null, $extra_predictions = null)	{
+	public function hwc_save_predictions($lottery_id, $option, $select, $predictions, $prev_predictions = null)	{
 		$update = array(
 			'hwc_option'      => (int) $option,
 			'hwc_select'      => (int) $select,
@@ -5931,10 +5914,6 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		// When $prev_predictions is passed (even as empty string), update that field too
 		if (!is_null($prev_predictions)) {
 			$update['prev_h_w_c_predictions'] = $prev_predictions;
-		}
-		// When $extra_predictions is passed (even as empty string), update extra predictions field too
-		if (!is_null($extra_predictions)) {
-			$update['hwc_extra_predictions'] = $extra_predictions;
 		}
 		$this->db->where('lottery_id', $lottery_id);
 		$this->db->update('lottery_h_w_c', $update);
@@ -5962,80 +5941,13 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		if (empty($row) || empty($row['hwc_predictions'])) {
 			return; // Nothing to snapshot
 		}
-		
-		// BEFORE snapshotting, check if the current predictions won against the latest draw
-		// The hwc_predictions field contains predictions for the draw that was just imported
-		if (!empty($row['hwc_predictions'])) {
-			$this->check_and_update_hwc_wins($lottery_id, $row['hwc_predictions']);
-		}
-		
-		$update_data = array(
-			'prev_h_w_c_predictions' => $row['hwc_predictions'],
-		);
-		// Snapshot the extra ball predictions as well (independent / duplicate extra ball lotteries)
-		if (array_key_exists('hwc_extra_predictions', $row)) {
-			$update_data['prev_hwc_extra_predictions'] = $row['hwc_extra_predictions'];
-			// Hit record: was the drawn extra ball inside the predicted extra pool?
-			if (!empty($row['hwc_extra_predictions'])) {
-				$this->load->model('lotteries_m');
-				$lottery = $this->lotteries_m->get($lottery_id);
-				if ($lottery && !empty($lottery->duplicate_extra_ball) && !empty($lottery->extra_ball)) {
-					$tbl = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
-					$latest = $this->lotteries_m->last_draw_db($tbl);
-					$drawn_extra = (is_object($latest) && isset($latest->extra)) ? intval($latest->extra) : 0;
-					if ($drawn_extra > 0) {
-						$pred_extras = array_map('intval', explode(',', $row['hwc_extra_predictions']));
-						$update_data['extra_checked'] = intval(isset($row['extra_checked']) ? $row['extra_checked'] : 0) + 1;
-						$update_data['extra_hits'] = intval(isset($row['extra_hits']) ? $row['extra_hits'] : 0) + (in_array($drawn_extra, $pred_extras) ? 1 : 0);
-					}
-				}
-			}
-		}
 		$this->db->where('lottery_id', $lottery_id);
-		$this->db->update('lottery_h_w_c', $update_data);
+		$this->db->update('lottery_h_w_c', array(
+			'prev_h_w_c_predictions' => $row['hwc_predictions'],
+		));
 		// Clear cache so history page reads the fresh row
 		$cache_key = $this->generate_cache_key('h_w_c', $lottery_id);
 		$this->cache->delete($cache_key);
-	}
-
-	/**
-	 * Check Followers predictions against the latest draw and update win statistics.
-	 * Called during import to track real-time wins.
-	 *
-	 * @param  integer $lottery_id
-	 * @return void
-	 */
-	public function followers_snapshot($lottery_id)
-	{
-		// Bypass cache — read directly from DB
-		$query = $this->db->where('lottery_id', $lottery_id)
-		        ->limit(1)
-		        ->get('lottery_followers');
-		$row = $query->row_array();
-		if (empty($row)) {
-			return; // No followers record exists
-		}
-		
-		// Check if the current predictions won against the latest draw (if lottery_numbers exists)
-		if (!empty($row['lottery_numbers'])) {
-			$extra_preds = isset($row['extra_numbers']) ? $row['extra_numbers'] : null;
-			$this->check_and_update_followers_wins($lottery_id, $row['lottery_numbers'], $extra_preds);
-		}
-		
-		// Snapshot current lottery_followers and draw_id to prev_* fields for history display
-		// Only snapshot if current data is valid (not empty and draw_id > 0)
-		if (!empty($row['lottery_followers']) && isset($row['draw_id']) && $row['draw_id'] > 0) {
-			$update_data = array(
-				'prev_lottery_followers' => $row['lottery_followers'],
-				'prev_draw_id' => $row['draw_id']
-			);
-			$this->db->where('lottery_id', $lottery_id);
-			$this->db->update('lottery_followers', $update_data);
-			
-			// Clear cache after update
-			$cache_key = $this->generate_cache_key('followers', $lottery_id);
-			$this->cache->delete($cache_key);
-		}
 	}
 
 	// -----------------------------------------------------------------------
@@ -6069,7 +5981,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	 * @param  string|null  $prev_numbers        previous numbers (null = don't overwrite)
 	 * @return void
 	 */
-	public function hwc_followers_save($lottery_id, $h_w_c_group, $follower_type, $ball_points, $position_points, $lottery_numbers, $prev_numbers = null, $h_w_c_rank = null, $extra_numbers = null)
+	public function hwc_followers_save($lottery_id, $h_w_c_group, $follower_type, $ball_points, $position_points, $lottery_numbers, $prev_numbers = null)
 	{
 		$existing = $this->hwc_followers_exists($lottery_id);
 
@@ -6082,20 +5994,8 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			'lottery_numbers' => $lottery_numbers,
 		);
 
-		// Store the rank if provided, otherwise default to 1
-		if (!is_null($h_w_c_rank)) {
-			$data['h_w_c_rank'] = (int) $h_w_c_rank;
-		} elseif (!$existing) {
-			// For new records, default to rank 1
-			$data['h_w_c_rank'] = 1;
-		}
-
 		if (!is_null($prev_numbers)) {
 			$data['prev_lottery_numbers'] = $prev_numbers;
-		}
-		// Extra ball predictions for independent / duplicate extra ball lotteries
-		if (!is_null($extra_numbers)) {
-			$data['extra_numbers'] = $extra_numbers;
 		}
 
 		if ($existing) {
@@ -6119,105 +6019,16 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		if (empty($row) || empty($row['lottery_numbers'])) {
 			return;
 		}
-		
-		// Check if current predictions won against the latest draw BEFORE snapshotting
-		if (!empty($row['lottery_numbers'])) {
-			$this->check_and_update_hwcf_wins($lottery_id, $row['lottery_numbers']);
-		}
-		
 		// Encode follower_type|ball_points|position_points|lottery_numbers so the
 		// history page can show exactly which options were active before this draw.
 		$follower_type   = isset($row['follower_type'])   ? $row['follower_type']   : 'after_ball';
 		$ball_points     = isset($row['ball_points'])     ? $row['ball_points']     : '';
 		$position_points = isset($row['position_points']) ? $row['position_points'] : '';
 		$prev_encoded    = $follower_type . '|' . $ball_points . '|' . $position_points . '|' . $row['lottery_numbers'];
-		$update_data = array(
-			'prev_lottery_numbers' => $prev_encoded,
-		);
-		// Snapshot the extra ball predictions as well (independent / duplicate extra ball lotteries)
-		if (array_key_exists('extra_numbers', $row)) {
-			$update_data['prev_extra_numbers'] = $row['extra_numbers'];
-		}
 		$this->db->where('lottery_id', $lottery_id);
-		$this->db->update('lottery_h_w_c_followers', $update_data);
-	}
-
-	/**
-	 * Save follower prediction settings and generated numbers to lottery_followers table.
-	 * Pass $prev_numbers = null to leave prev_lottery_numbers untouched.
-	 *
-	 * @param  integer      $lottery_id
-	 * @param  string       $follower_type       "after_ball" or "position"
-	 * @param  string       $ball_points         selected ball value (after_ball mode)
-	 * @param  string       $position_points     selected position value (position mode)
-	 * @param  string       $lottery_numbers     comma-separated generated numbers
-	 * @param  string|null  $prev_numbers        previous numbers (null = don't overwrite)
-	 * @return void
-	 */
-	public function followers_prediction_save($lottery_id, $follower_type, $ball_points, $position_points, $lottery_numbers, $prev_numbers = null, $extra_numbers = null)
-	{
-		$existing = $this->followers_exists($lottery_id);
-
-		$data = array(
-			'follower_type'   => $follower_type,
-			'ball_points'     => $ball_points,
-			'position_points' => $position_points,
-			'lottery_numbers' => $lottery_numbers,
-		);
-
-		if (!is_null($prev_numbers)) {
-			$data['prev_lottery_numbers'] = $prev_numbers;
-		}
-		// Extra ball predictions for independent / duplicate extra ball lotteries
-		if (!is_null($extra_numbers)) {
-			$data['extra_numbers'] = $extra_numbers;
-		}
-
-		if ($existing) {
-			$this->db->where('lottery_id', $lottery_id);
-			$this->db->update('lottery_followers', $data);
-		}
-		
-		// Clear cache after update
-		$cache_key = $this->generate_cache_key('followers', $lottery_id);
-		$this->cache->delete($cache_key);
-	}
-
-	/**
-	 * Copy lottery_numbers → prev_lottery_numbers in the lottery_followers record.
-	 * Called on import / manual draw entry (same pattern as hwc_snapshot_predictions).
-	 *
-	 * @param  integer $lottery_id
-	 * @return void
-	 */
-	public function followers_prediction_snapshot($lottery_id)
-	{
-		// Bypass cache — read directly from DB so we always get the live lottery_followers record
-		$query = $this->db->where('lottery_id', $lottery_id)
-		                  ->limit(1)
-		                  ->get('lottery_followers');
-		$row = $query->row_array();
-		if (empty($row) || empty($row['lottery_numbers'])) {
-			return;
-		}
-		// Encode follower_type|ball_points|position_points|lottery_numbers
-		$follower_type   = isset($row['follower_type'])   ? $row['follower_type']   : 'after_ball';
-		$ball_points     = isset($row['ball_points'])     ? $row['ball_points']     : '';
-		$position_points = isset($row['position_points']) ? $row['position_points'] : '';
-		$prev_encoded    = $follower_type . '|' . $ball_points . '|' . $position_points . '|' . $row['lottery_numbers'];
-		$update_data = array(
+		$this->db->update('lottery_h_w_c_followers', array(
 			'prev_lottery_numbers' => $prev_encoded,
-		);
-		// Snapshot the extra ball predictions as well (independent / duplicate extra ball lotteries)
-		if (array_key_exists('extra_numbers', $row)) {
-			$update_data['prev_extra_numbers'] = $row['extra_numbers'];
-		}
-		$this->db->where('lottery_id', $lottery_id);
-		$this->db->update('lottery_followers', $update_data);
-		
-		// Clear cache after update
-		$cache_key = $this->generate_cache_key('followers', $lottery_id);
-		$this->cache->delete($cache_key);
+		));
 	}
 
 	/**
@@ -6715,15 +6526,13 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	}
 	/** 
 	* Returns the formatted stroing of hots, warms, colds. Positions with a count of 0 are eliminated and will be decoded as such.
-	* For independent / duplicate extra ball lotteries, an additional E section is concatenated at the end: |E>0=count,1=count,...
 	* 
 	* @param 	array	$h				Hot Numbers array
 	* @param  	array	$w				Warm Numbers array
 	* @param	array	$c				Cold Numbers array
-	* @param	array	$e				Extra Ball Positions array (independent extra lotteries only), NULL = no E section
 	* @return	string	$str_positions	Returns the formated string
 	*/
-	public function position_string($h, $w, $c, $e = NULL)
+	public function position_string($h, $w, $c)
 	{
 		$str_positions = 'H>';
 
@@ -6747,89 +6556,10 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			$str_positions .= $position.'='.$count.','; 
 		}
 		$str_positions = substr($str_positions,0,-1); // Remove last ','
-		// Concatenate the independent / duplicate extra ball positions at the end of the string
-		if(!is_null($e))
-		{
-			$str_positions .= '|E>';
-			foreach($e as $position => $count)
-			{
-				$str_positions .= $position.'='.$count.',';
-			}
-			$str_positions = substr($str_positions,0,-1); // Remove last ','
-		}
 	return $str_positions; // formatted string returned
 	}
 	/** 
-	* Extract the E section (independent / duplicate extra ball positions) from a position string.
-	* Position strings may be: H>...|W>...|C>... or H>...|W>...|C>...|E>...
-	* 
-	* @param 	string	$position_str	Full position string
-	* @return	string	$e_section		The E section without the E> prefix (e.g. "0=22,1=15,2=16"), or empty string
-	*/
-	public function position_extract_extra($position_str)
-	{
-		if(empty($position_str)) return '';
-		$parts = explode('|', $position_str);
-		if(isset($parts[3]) && strpos($parts[3], 'E>') === 0)
-		{
-			return substr($parts[3], 2); // Strip the E> prefix
-		}
-	return '';
-	}
-	/** 
-	* Strip the E section from a position string, returning only H|W|C sections.
-	* 
-	* @param 	string	$position_str	Full position string
-	* @return	string	$hwc_only		Position string without the E section
-	*/
-	public function position_strip_extra($position_str)
-	{
-		if(empty($position_str)) return $position_str;
-		$parts = explode('|', $position_str);
-		if(isset($parts[3]) && strpos($parts[3], 'E>') === 0)
-		{
-			return implode('|', array_slice($parts, 0, 3)); // Keep only H, W, C sections
-		}
-	return $position_str;
-	}
-	/** 
-	* Increment the E section position count for a drawn extra ball.
-	* Used by hwc_addpoints to update extra ball positions on import of a new draw.
-	* 
-	* @param 	string	$position_str	Full position string (with or without E section)
-	* @param 	integer	$extra_val		The drawn extra ball value
-	* @param 	integer	$min_extra		Minimum extra ball value (positions are 0-based offsets from this)
-	* @return	string	$updated		Updated position string with incremented E section
-	*/
-	public function position_increment_extra($position_str, $extra_val, $min_extra = 1)
-	{
-		if($min_extra < 1) $min_extra = 1;
-		$e_section = $this->position_extract_extra($position_str);
-		if(empty($e_section)) return $position_str; // No E section to increment
-		$hwc_part = $this->position_strip_extra($position_str);
-		$ep_totals = [];
-		foreach(explode(',', $e_section) as $pair)
-		{
-			if(strpos($pair, '=')===FALSE) continue;
-			list($key, $value) = explode('=', $pair);
-			$ep_totals[$key] = $value;
-		}
-		$e_index = intval($extra_val) - $min_extra;
-		if(isset($ep_totals[$e_index]))
-		{
-			$ep_totals[$e_index]++;
-		}
-		$hwc_part .= '|E>';
-		foreach($ep_totals as $key => $value)
-		{
-			$hwc_part .= $key.'='.$value.',';
-		}
-		$hwc_part = substr($hwc_part, 0, -1); // Remove last ','
-	return $hwc_part;
-	}
-	/** 
 	* Returns the formatted string of hot positions, warm positions, and cold positions from the draw before the last draw
-	* For independent / duplicate extra ball lotteries, the E section (extra ball positions) is passed through unchanged (range-based counts).
 	* 
 	* @param 	string	$table			Name of the lottery (actual table name)
 	* @param  	integer	$max			Maximum number of balls drawn
@@ -6839,26 +6569,20 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	* @param  	string	$middles		Warm numbers and counts from the previous draw (number = count, number = count, etc)
 	* @param  	string	$lows			Cold numbers and counts	from the previous draw (number = count, number = count, etc)
 	* @param  	string	$current		Current positions string (h>|,w>|,c>|)
-	* @param  	integer	$min_extra		Minimum extra ball value (independent extra lotteries), default 1
-	* @param  	integer	$range			Range of draws the E section total must be conserved against (0 = skip conservation)
-	* @param  	boolean	$extra_draws	Whether draws with extra=0 are included when counting the E section window
 	* @return	string	$_previous		Returns the formated string for the draw before the last draw. This will be returned as position_last
 	* in hwc_history['position_last']
 	*/
-	public function positions_before_last($table, $max, $xtra, $dup, $highs, $middles, $lows, $current, $min_extra = 1, $range = 0, $extra_draws = 1)
+	public function positions_before_last($table, $max, $xtra, $dup, $highs, $middles, $lows, $current)
 	{
-		if($min_extra < 1) $min_extra = 1; // Extra ball positions are always 0-based from a minimum of 1
 		$pv = $this->db_row($table);  	 // Get the most recent drawn numbers
 		if (!$pv) return '';  // No draws exist in the table
 		$pv = (array)$pv; 	 		   	  // Convert the object to an array
 		$prev_drawn = $this->only_picks($max, $pv); // Get the numbers drawn only
-		$last_extra = 0; 				  // Independent extra ball value of the most recent draw
 		if($xtra&&!$dup) // If the extra ball is included
 		{
 			$extra = $pv['extra']; 	// Get the extra ball
 			$prev_drawn[] = $extra; 	// Add the extra ball to the drawn numbers
 		}
-		if($dup&&isset($pv['extra'])) $last_extra = intval($pv['extra']); // Capture the independent extra ball before unset
 		unset($pv); // Remove the previous draw from memory
 		// 1. remove the separator
 		$positions = explode('|', $current); // Split the current positions into hot, warm and cold
@@ -6959,55 +6683,6 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			$_previous .= $key.'='.$value.',';
 		}
 		$_previous = substr($_previous, 0, -1); // Remove the last comma
-		// 8. For independent / duplicate extra ball lotteries, append the E section (extra ball positions).
-		// Sliding window shift: remove the last draw's own extra ball (-1) and add back the extra ball of
-		// the draw that just fell out of the window (+1), so the Last Draw / Future Draw totals both equal
-		// $range while still differing at the two affected positions.
-		if($dup&&isset($positions[3]))
-		{
-			$extra_positions = ltrim($positions[3], 'E>'); // Trim off E> from the extra positions
-			if(!empty($extra_positions))
-			{
-				$ep = explode(',', $extra_positions); // Split the extra positions
-				$ep_totals = [];
-				foreach($ep as $e)
-				{
-					if(strpos($e, '=')===FALSE) continue; // Skip malformed entries
-					list($key, $value) = explode('=', $e);
-					$ep_totals[$key] = $value;
-				}
-				if($last_extra>0)
-				{
-					$e_index = $last_extra - $min_extra;
-					if(isset($ep_totals[$e_index]))
-					{
-						$ep_totals[$e_index]--; // Decrement the count by 1
-						if($ep_totals[$e_index] < 0) $ep_totals[$e_index] = 0; // Ensure minimum is 0
-					}
-				}
-				if($range>0)
-				{
-					// The draw that falls out of the window is the (range+1)-th most recent qualifying draw
-					$where_extra = ($extra_draws ? '' : ' WHERE extra <> "0"');
-					$dropped = $this->db->query('SELECT extra FROM '.$table.$where_extra.' ORDER BY draw_date DESC, id DESC LIMIT 1 OFFSET '.intval($range))->row();
-					if($dropped && isset($dropped->extra))
-					{
-						$dropped_extra = intval($dropped->extra);
-						$d_index = $dropped_extra - $min_extra;
-						if($dropped_extra>0 && isset($ep_totals[$d_index]))
-						{
-							$ep_totals[$d_index]++; // Add back the draw entering the window
-						}
-					}
-				}
-				$_previous .= '|E>';
-				foreach($ep_totals as $key => $value)
-				{
-					$_previous .= $key.'='.$value.',';
-				}
-				$_previous = substr($_previous, 0, -1); // Remove the last comma
-			}
-		}
 	return $_previous; // Return the formatted string for the previous draw positions
 	}
 
@@ -9853,787 +9528,6 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			);
 			return $this->db->insert('lottery_h_w_c_stats', $data);
 		}
-	}
-
-	/**
-	 * Update cumulative H-W-C win statistics in lottery_h_w_c table
-	 * Parses wins_string from lottery_h_w_c_stats and updates the main table
-	 * 
-	 * @param int $lottery_id Lottery ID
-	 * @param string $wins_string The formatted wins string
-	 * @return boolean Success/failure
-	 */
-	public function update_hwc_cumulative_wins($lottery_id, $wins_string)
-	{
-		// Parse wins_string to get total counts per category
-		$totals = $this->parse_wins_string_totals($wins_string);
-		
-		if ($totals === FALSE) {
-			log_message('error', "update_hwc_cumulative_wins: Failed to parse wins_string for lottery_id=$lottery_id");
-			return FALSE;
-		}
-		
-		// Get current H-W-C record
-		$hwc = $this->h_w_c_exists($lottery_id);
-		if (is_null($hwc)) {
-			log_message('error', "update_hwc_cumulative_wins: No H-W-C record found for lottery_id=$lottery_id");
-			return FALSE;
-		}
-		
-		// Get lottery and table info
-		$this->load->model('lotteries_m');
-		$lottery = $this->lotteries_m->get($lottery_id);
-		if (!$lottery) {
-			return FALSE;
-		}
-		
-		$table_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
-		$last_draw = $this->lotteries_m->last_draw_db($table_name);
-		if (!$last_draw) {
-			return FALSE;
-		}
-		
-		// Prepare update data
-		$update_data = array(
-			'lastdate' => $last_draw->draw_date,
-			'extra' => isset($totals['extra']) ? $totals['extra'] : 0,
-			'1_win' => isset($totals['1_win']) ? $totals['1_win'] : 0,
-			'1_win_extra' => isset($totals['1_win_extra']) ? $totals['1_win_extra'] : 0,
-			'2_win' => isset($totals['2_win']) ? $totals['2_win'] : 0,
-			'2_win_extra' => isset($totals['2_win_extra']) ? $totals['2_win_extra'] : 0,
-			'3_win' => isset($totals['3_win']) ? $totals['3_win'] : 0,
-			'3_win_extra' => isset($totals['3_win_extra']) ? $totals['3_win_extra'] : 0,
-			'4_win' => isset($totals['4_win']) ? $totals['4_win'] : 0,
-			'4_win_extra' => isset($totals['4_win_extra']) ? $totals['4_win_extra'] : 0,
-			'5_win' => isset($totals['5_win']) ? $totals['5_win'] : 0,
-			'5_win_extra' => isset($totals['5_win_extra']) ? $totals['5_win_extra'] : 0,
-			'6_win' => isset($totals['6_win']) ? $totals['6_win'] : 0,
-			'6_win_extra' => isset($totals['6_win_extra']) ? $totals['6_win_extra'] : 0,
-			'7_win' => isset($totals['7_win']) ? $totals['7_win'] : 0,
-			'7_win_extra' => isset($totals['7_win_extra']) ? $totals['7_win_extra'] : 0,
-			'8_win' => isset($totals['8_win']) ? $totals['8_win'] : 0,
-			'8_win_extra' => isset($totals['8_win_extra']) ? $totals['8_win_extra'] : 0,
-			'9_win' => isset($totals['9_win']) ? $totals['9_win'] : 0,
-			'9_win_extra' => isset($totals['9_win_extra']) ? $totals['9_win_extra'] : 0,
-			'total_winners' => array_sum($totals)
-		);
-		
-		// Set startdate only if it's NULL (first time)
-		if (empty($hwc['startdate'])) {
-			$update_data['startdate'] = $last_draw->draw_date;
-		}
-		
-		// Update lottery_h_w_c table
-		$this->db->where('lottery_id', $lottery_id);
-		$result = $this->db->update('lottery_h_w_c', $update_data);
-		
-		if ($result) {
-			log_message('info', "update_hwc_cumulative_wins: Updated cumulative wins for lottery_id=$lottery_id, total_winners={$update_data['total_winners']}");
-		}
-		
-		return $result;
-	}
-
-	/**
-	 * Parse wins_string and calculate totals for each category
-	 * 
-	 * @param string $wins_string Formatted wins string (pattern1:val1,val2|pattern2:val1,val2)
-	 * @return array|false Array of totals by category or FALSE on error
-	 */
-	private function parse_wins_string_totals($wins_string)
-	{
-		if (empty($wins_string)) {
-			return array(); // Return empty array for empty wins
-		}
-		
-		$totals = array();
-		
-		// wins_string format: "6-0-0:1,0,0,0,0,0,0|5-1-0:0,1,0,0,0,0,0|..." 
-		// Each section is pattern:category_values
-		$patterns = explode('|', $wins_string);
-		
-		// Category names in order (must match format_win_statistics order)
-		$categories = array('extra', '1_win', '1_win_extra', '2_win', '2_win_extra', 
-			'3_win', '3_win_extra', '4_win', '4_win_extra', '5_win', '5_win_extra', 
-			'6_win', '6_win_extra', '7_win', '7_win_extra', '8_win', '8_win_extra', 
-			'9_win', '9_win_extra');
-		
-		foreach ($patterns as $pattern_data) {
-			if (empty($pattern_data)) continue;
-			
-			$parts = explode(':', $pattern_data);
-			if (count($parts) != 2) continue;
-			
-			$values = explode(',', $parts[1]);
-			
-			foreach ($values as $index => $value) {
-				if (isset($categories[$index])) {
-					$category = $categories[$index];
-					if (!isset($totals[$category])) {
-						$totals[$category] = 0;
-					}
-					$totals[$category] += intval($value);
-				}
-			}
-		}
-		
-		return $totals;
-	}
-
-	/**
-	 * Check H-W-C predictions against the latest draw and update win statistics
-	 * 
-	 * @param int $lottery_id Lottery ID
-	 * @param string $predictions Prediction string (e.g., "1,2,3,4,5,6" or "1,2,3,4,5,6>7")
-	 * @return boolean Success/failure
-	 */
-	private function check_and_update_hwc_wins($lottery_id, $predictions)
-	{
-		if (empty($predictions)) {
-			return FALSE;
-		}
-		
-		// H-W-C predictions are encoded as "label|numbers" (e.g., "Top Ranked — 4-2-0 (50) - Rank #1|1,2,3,4,5,6>7")
-		// Extract just the numbers part after the "|" separator
-		if (strpos($predictions, '|') !== false) {
-			$parts = explode('|', $predictions);
-			$predictions = isset($parts[1]) ? $parts[1] : $predictions;
-		}
-		
-		// Load lottery data
-		$this->load->model('lotteries_m');
-		$lottery = $this->lotteries_m->get($lottery_id);
-		if (!$lottery) {
-			return FALSE;
-		}
-		
-		// Get the latest draw
-		$table_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
-		$latest_draw = $this->lotteries_m->last_draw_db($table_name);
-		if (!$latest_draw) {
-			return FALSE;
-		}
-		
-		// Parse predictions string (format: "1,2,3,4,5,6" or "1,2,3,4,5,6>7" with extra ball)
-		$pred_extra = null;
-		$pred_main = array();
-		
-		if (strpos($predictions, '>') !== false) {
-			// Has extra ball separator
-			$parts = explode('>', $predictions);
-			$pred_main = array_map('intval', explode(',', $parts[0]));
-			$pred_extra = isset($parts[1]) ? intval($parts[1]) : null;
-		} else {
-			// No extra ball or extra included in main balls
-			$pred_main = array_map('intval', explode(',', $predictions));
-		}
-		
-		// Get current H-W-C record early - needed for hwc_extra_predictions (independent extra ball pool)
-		$query = $this->db->where('lottery_id', $lottery_id)
-		        ->limit(1)
-		        ->get('lottery_h_w_c');
-		$hwc = $query->row_array();
-		if (empty($hwc)) {
-			return FALSE;
-		}
-		
-		// Get actual drawn numbers
-		$drawn_main = array();
-		for ($i = 1; $i <= $lottery->balls_drawn; $i++) {
-			$ball_prop = "ball{$i}";
-			if (isset($latest_draw->$ball_prop)) {
-				$drawn_main[] = intval($latest_draw->$ball_prop);
-			}
-		}
-		$drawn_extra = isset($latest_draw->extra) ? intval($latest_draw->extra) : null;
-		
-		// Count main ball matches
-		$main_matches = count(array_intersect($pred_main, $drawn_main));
-		
-		// Check extra ball match
-		// Independent extra ball lotteries (duplicate_extra_ball=1) predict the extra ball
-		// separately in hwc_extra_predictions, not embedded with ">" in $predictions
-		$extra_match = false;
-		if (!is_null($drawn_extra)) {
-			if (!empty($lottery->duplicate_extra_ball) && !empty($lottery->extra_ball)) {
-				$extra_pool = !empty($hwc['hwc_extra_predictions']) ? array_map('intval', explode(',', $hwc['hwc_extra_predictions'])) : array();
-				$extra_match = in_array($drawn_extra, $extra_pool);
-			} elseif (!is_null($pred_extra)) {
-				// Independent extra ball lottery with ">" separator
-				$extra_match = ($pred_extra == $drawn_extra);
-			} else {
-				// Non-independent extra ball lottery - check if drawn extra is in predicted main numbers
-				$extra_match = in_array($drawn_extra, $pred_main);
-			}
-		}
-		
-		// Determine which win field to increment
-		$win_field = null;
-		if ($main_matches == 0 && $extra_match) {
-			$win_field = 'extra'; // Only extra ball matched
-		} elseif ($main_matches > 0) {
-			if ($extra_match) {
-				$win_field = $main_matches . '_win_extra';
-			} else {
-				$win_field = $main_matches . '_win';
-			}
-		}
-		
-		// Validate win_field against valid prize categories and apply fallback logic
-		if (!is_null($win_field)) {
-			$p_group = $this->prize_group_profile($lottery_id);
-			$p_group = $this->prizes_only($p_group, $lottery->extra_ball);
-			$valid_prize_categories = array_keys($p_group);
-			
-			// If this prize category doesn't exist, try fallback (only 1 prize per draw)
-			if (!in_array($win_field, $valid_prize_categories)) {
-				// If it was X_win_extra and not valid, fall back to X_win
-				if (strpos($win_field, '_win_extra') !== false && $main_matches > 0) {
-					$fallback_field = $main_matches . '_win';
-					if (in_array($fallback_field, $valid_prize_categories)) {
-						log_message('info', "H-W-C: Prize category {$win_field} not valid, using fallback {$fallback_field} for lottery_id=$lottery_id");
-						$win_field = $fallback_field;
-					} else {
-						log_message('info', "H-W-C: Prize categories {$win_field} and {$fallback_field} not valid for lottery_id=$lottery_id, no prize counted");
-						$win_field = null;
-					}
-				} else {
-					log_message('info', "H-W-C: Prize category {$win_field} not valid for lottery_id=$lottery_id, no prize counted");
-					$win_field = null;
-				}
-			}
-		}
-		
-		// Check if we've already processed this draw
-		if (!empty($hwc['lastdate']) && $hwc['lastdate'] === $latest_draw->draw_date) {
-			// Already processed this draw, don't increment counters again
-			return TRUE;
-		}
-		
-		// Always update lastdate and increment total_winners (draw count) for every NEW draw checked
-		$update_data = array(
-			'lastdate' => $latest_draw->draw_date,
-			'total_winners' => intval($hwc['total_winners']) + 1
-		);
-		
-		// Set startdate only if it's NULL (first draw checked)
-		if (empty($hwc['startdate'])) {
-			$update_data['startdate'] = $latest_draw->draw_date;
-		}
-		
-		// If there's a win, add win counters to update data
-		if (!is_null($win_field)) {
-			$update_data[$win_field] = intval($hwc[$win_field]) + 1;
-			log_message('info', "H-W-C Win: lottery_id=$lottery_id, {$win_field}=+1, draws={$update_data['total_winners']}, draw_date={$latest_draw->draw_date}");
-		}
-		
-		// Update lottery_h_w_c table (always update lastdate, optionally update win counters)
-		$this->db->where('lottery_id', $lottery_id);
-		$this->db->update('lottery_h_w_c', $update_data);
-		
-		// Clear cache after update
-		$this->clear_cache('h_w_c');
-		
-		return TRUE;
-	}
-
-	/**
-	 * Check Followers predictions against the latest draw and update win statistics
-	 * 
-	 * @param int    $lottery_id         Lottery ID
-	 * @param string $predictions        Main ball prediction string
-	 * @param string $extra_predictions  Comma-separated extra ball predictions (independent / duplicate extra ball lotteries)
-	 * @return boolean Success/failure
-	 */
-	private function check_and_update_followers_wins($lottery_id, $predictions, $extra_predictions = null)
-	{
-		if (empty($predictions)) {
-			return FALSE;
-		}
-		
-		// Load lottery data
-		$this->load->model('lotteries_m');
-		$lottery = $this->lotteries_m->get($lottery_id);
-		if (!$lottery) {
-			return FALSE;
-		}
-		
-		// Get the latest draw
-		$table_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
-		$latest_draw = $this->lotteries_m->last_draw_db($table_name);
-		if (!$latest_draw) {
-			return FALSE;
-		}
-		
-		// Parse predictions string (format: "1,2,3,4,5,6" or legacy "1,2,3,4,5,6>7" with extra ball)
-		$pred_extra = null;
-		$pred_main = array();
-		
-		if (strpos($predictions, '>') !== false) {
-			// Legacy embedded extra ball separator
-			$parts = explode('>', $predictions);
-			$pred_main = array_map('intval', explode(',', $parts[0]));
-			$pred_extra = isset($parts[1]) ? intval($parts[1]) : null;
-		} else {
-			// No extra ball or extra included in main balls
-			$pred_main = array_map('intval', explode(',', $predictions));
-		}
-		
-		// Get actual drawn numbers
-		$drawn_main = array();
-		for ($i = 1; $i <= $lottery->balls_drawn; $i++) {
-			$ball_prop = "ball{$i}";
-			if (isset($latest_draw->$ball_prop)) {
-				$drawn_main[] = intval($latest_draw->$ball_prop);
-			}
-		}
-		$drawn_extra = isset($latest_draw->extra) ? intval($latest_draw->extra) : null;
-		
-		// Count main ball matches
-		$main_matches = count(array_intersect($pred_main, $drawn_main));
-		
-		// Check extra ball match
-		$extra_match = false;
-		if (!is_null($drawn_extra) && $drawn_extra > 0) {
-			if (!empty($lottery->duplicate_extra_ball) && !empty($lottery->extra_ball)) {
-				// Independent extra ball lottery: check the drawn extra against the separately
-				// predicted extra ball pool (Prediction Extra Pool), not embedded in main numbers
-				if (!empty($extra_predictions)) {
-					$pred_extra_list = array_map('intval', explode(',', $extra_predictions));
-					$extra_match = in_array($drawn_extra, $pred_extra_list);
-				} elseif (!is_null($pred_extra)) {
-					// Legacy embedded format fallback
-					$extra_match = ($pred_extra == $drawn_extra);
-				}
-			} else {
-				// Non-independent extra ball lottery - check if drawn extra is in predicted main numbers
-				$extra_match = in_array($drawn_extra, $pred_main);
-			}
-		}
-		
-		// Determine which win field to increment
-		$win_field = null;
-		if ($main_matches == 0 && $extra_match) {
-			$win_field = 'extra'; // Only extra ball matched
-		} elseif ($main_matches > 0) {
-			if ($extra_match) {
-				$win_field = $main_matches . '_win_extra';
-			} else {
-				$win_field = $main_matches . '_win';
-			}
-		}
-		
-		// Validate win_field against valid prize categories and apply fallback logic
-		if (!is_null($win_field)) {
-			$p_group = $this->prize_group_profile($lottery_id);
-			$p_group = $this->prizes_only($p_group, $lottery->extra_ball);
-			$valid_prize_categories = array_keys($p_group);
-			
-			// If this prize category doesn't exist, try fallback (only 1 prize per draw)
-			if (!in_array($win_field, $valid_prize_categories)) {
-				// If it was X_win_extra and not valid, fall back to X_win
-				if (strpos($win_field, '_win_extra') !== false && $main_matches > 0) {
-					$fallback_field = $main_matches . '_win';
-					if (in_array($fallback_field, $valid_prize_categories)) {
-						log_message('info', "Followers: Prize category {$win_field} not valid, using fallback {$fallback_field} for lottery_id=$lottery_id");
-						$win_field = $fallback_field;
-					} else {
-						log_message('info', "Followers: Prize categories {$win_field} and {$fallback_field} not valid for lottery_id=$lottery_id, no prize counted");
-						$win_field = null;
-					}
-				} else {
-					log_message('info', "Followers: Prize category {$win_field} not valid for lottery_id=$lottery_id, no prize counted");
-					$win_field = null;
-				}
-			}
-		}
-		
-		// Get current Followers record - BYPASS cache to get fresh lastdate/counters
-		$query = $this->db->where('lottery_id', $lottery_id)
-		        ->limit(1)
-		        ->get('lottery_followers');
-		$followers = $query->row_array();
-		if (empty($followers)) {
-			return FALSE;
-		}
-		
-		// Check if we've already processed this draw
-		if (!empty($followers['lastdate']) && $followers['lastdate'] === $latest_draw->draw_date) {
-			// Already processed this draw, don't increment counters again
-			return TRUE;
-		}
-		
-		// Always update lastdate and increment total_winners (draw count) for every NEW draw checked
-		$update_data = array(
-			'lastdate' => $latest_draw->draw_date,
-			'total_winners' => intval($followers['total_winners']) + 1
-		);
-		
-		// Set startdate only if it's NULL (first draw checked)
-		if (empty($followers['startdate'])) {
-			$update_data['startdate'] = $latest_draw->draw_date;
-		}
-		
-		// If there's a win, add win counters to update data
-		if (!is_null($win_field)) {
-			$update_data[$win_field] = intval($followers[$win_field]) + 1;
-			log_message('info', "Followers Win: lottery_id=$lottery_id, {$win_field}=+1, draws={$update_data['total_winners']}, draw_date={$latest_draw->draw_date}");
-		}
-		
-		// Update lottery_followers table (always update lastdate, optionally update win counters)
-		$this->db->where('lottery_id', $lottery_id);
-		$this->db->update('lottery_followers', $update_data);
-		
-		// Clear cache after update
-		$this->clear_cache('followers');
-		
-		return TRUE;
-	}
-
-	/**
-	 * Check H-W-C + Followers predictions against the latest draw and update win statistics
-	 * 
-	 * @param int $lottery_id Lottery ID
-	 * @param string $predictions Prediction string
-	 * @return boolean Success/failure
-	 */
-	private function check_and_update_hwcf_wins($lottery_id, $predictions)
-	{
-		if (empty($predictions)) {
-			return FALSE;
-		}
-		
-		// Load lottery data
-		$this->load->model('lotteries_m');
-		$lottery = $this->lotteries_m->get($lottery_id);
-		if (!$lottery) {
-			return FALSE;
-		}
-		
-		// Get the latest draw
-		$table_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
-		$latest_draw = $this->lotteries_m->last_draw_db($table_name);
-		if (!$latest_draw) {
-			return FALSE;
-		}
-		
-		// Parse predictions string (format: "1,2,3,4,5,6" or "1,2,3,4,5,6>7" with extra ball)
-		$pred_extra = null;
-		$pred_main = array();
-		
-		if (strpos($predictions, '>') !== false) {
-			// Has extra ball separator
-			$parts = explode('>', $predictions);
-			$pred_main = array_map('intval', explode(',', $parts[0]));
-			$pred_extra = isset($parts[1]) ? intval($parts[1]) : null;
-		} else {
-			// No extra ball or extra included in main balls
-			$pred_main = array_map('intval', explode(',', $predictions));
-		}
-		
-		// Get actual drawn numbers
-		$drawn_main = array();
-		for ($i = 1; $i <= $lottery->balls_drawn; $i++) {
-			$ball_prop = "ball{$i}";
-			if (isset($latest_draw->$ball_prop)) {
-				$drawn_main[] = intval($latest_draw->$ball_prop);
-			}
-		}
-		$drawn_extra = isset($latest_draw->extra) ? intval($latest_draw->extra) : null;
-		
-		// Count main ball matches
-		$main_matches = count(array_intersect($pred_main, $drawn_main));
-		
-		// Check extra ball match
-		// For lotteries with ">" separator: check if pred_extra matches drawn_extra
-		// For non-independent extra ball lotteries: check if drawn_extra is in pred_main array
-		$extra_match = false;
-		if (!is_null($drawn_extra)) {
-			if (!is_null($pred_extra)) {
-				// Independent extra ball lottery with ">" separator
-				$extra_match = ($pred_extra == $drawn_extra);
-			} else {
-				// Non-independent extra ball lottery - check if drawn extra is in predicted main numbers
-				$extra_match = in_array($drawn_extra, $pred_main);
-			}
-		}
-		
-		// Determine which win field to increment
-		$win_field = null;
-		if ($main_matches == 0 && $extra_match) {
-			$win_field = 'extra'; // Only extra ball matched
-		} elseif ($main_matches > 0) {
-			if ($extra_match) {
-				$win_field = $main_matches . '_win_extra';
-			} else {
-				$win_field = $main_matches . '_win';
-			}
-		}
-		
-		// Validate win_field against valid prize categories and apply fallback logic
-		if (!is_null($win_field)) {
-			$p_group = $this->prize_group_profile($lottery_id);
-			$p_group = $this->prizes_only($p_group, $lottery->extra_ball);
-			$valid_prize_categories = array_keys($p_group);
-			
-			// If this prize category doesn't exist, try fallback (only 1 prize per draw)
-			if (!in_array($win_field, $valid_prize_categories)) {
-				// If it was X_win_extra and not valid, fall back to X_win
-				if (strpos($win_field, '_win_extra') !== false && $main_matches > 0) {
-					$fallback_field = $main_matches . '_win';
-					if (in_array($fallback_field, $valid_prize_categories)) {
-						log_message('info', "H-W-C+Followers: Prize category {$win_field} not valid, using fallback {$fallback_field} for lottery_id=$lottery_id");
-						$win_field = $fallback_field;
-					} else {
-						log_message('info', "H-W-C+Followers: Prize categories {$win_field} and {$fallback_field} not valid for lottery_id=$lottery_id, no prize counted");
-						$win_field = null;
-					}
-				} else {
-					log_message('info', "H-W-C+Followers: Prize category {$win_field} not valid for lottery_id=$lottery_id, no prize counted");
-					$win_field = null;
-				}
-			}
-		}
-		
-		// Get current H-W-C + Followers record - BYPASS cache to get fresh lastdate/counters
-		$query = $this->db->where('lottery_id', $lottery_id)
-		        ->limit(1)
-		        ->get('lottery_h_w_c_followers');
-		$hwcf = $query->row_array();
-		if (empty($hwcf)) {
-			return FALSE;
-		}
-		
-		// Check if we've already processed this draw
-		if (!empty($hwcf['lastdate']) && $hwcf['lastdate'] === $latest_draw->draw_date) {
-			// Already processed this draw, don't increment counters again
-			return TRUE;
-		}
-		
-		// Always update lastdate and increment total_winners (draw count) for every NEW draw checked
-		$update_data = array(
-			'lastdate' => $latest_draw->draw_date,
-			'total_winners' => intval($hwcf['total_winners']) + 1
-		);
-		
-		// Set startdate only if it's NULL (first draw checked)
-		if (empty($hwcf['startdate'])) {
-			$update_data['startdate'] = $latest_draw->draw_date;
-		}
-		
-		// If there's a win, add win counters to update data
-		if (!is_null($win_field)) {
-			$update_data[$win_field] = intval($hwcf[$win_field]) + 1;
-			log_message('info', "H-W-C+Followers Win: lottery_id=$lottery_id, {$win_field}=+1, draws={$update_data['total_winners']}, draw_date={$latest_draw->draw_date}");
-		}
-		
-		// Update lottery_h_w_c_followers table (always update lastdate, optionally update win counters)
-		$this->db->where('lottery_id', $lottery_id);
-		$this->db->update('lottery_h_w_c_followers', $update_data);
-		
-		// Clear cache after update
-		$this->clear_cache('hwc_followers');
-		
-		return TRUE;
-	}
-
-	/**
-	 * Update cumulative Followers win statistics in lottery_followers table
-	 * Parses wins (prizes) string from lottery_followers and updates cumulative fields
-	 * 
-	 * @param int $lottery_id Lottery ID
-	 * @return boolean Success/failure
-	 */
-	public function update_followers_cumulative_wins($lottery_id)
-	{
-		// Get current followers record
-		$followers = $this->followers_exists($lottery_id);
-		if (is_null($followers)) {
-			log_message('error', "update_followers_cumulative_wins: No followers record found for lottery_id=$lottery_id");
-			return FALSE;
-		}
-		
-		// Parse wins/prizes string to get total counts per category
-		$totals = $this->parse_followers_prize_string_totals($followers['wins']);
-		
-		if ($totals === FALSE) {
-			log_message('error', "update_followers_cumulative_wins: Failed to parse wins string for lottery_id=$lottery_id");
-			return FALSE;
-		}
-		
-		// Get lottery and table info
-		$this->load->model('lotteries_m');
-		$lottery = $this->lotteries_m->get($lottery_id);
-		if (!$lottery) {
-			return FALSE;
-		}
-		
-		$table_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
-		$last_draw = $this->lotteries_m->last_draw_db($table_name);
-		if (!$last_draw) {
-			return FALSE;
-		}
-		
-		// Prepare update data
-		$update_data = array(
-			'lastdate' => $last_draw->draw_date,
-			'extra' => isset($totals['extra']) ? $totals['extra'] : 0,
-			'1_win' => isset($totals['1_win']) ? $totals['1_win'] : 0,
-			'1_win_extra' => isset($totals['1_win_extra']) ? $totals['1_win_extra'] : 0,
-			'2_win' => isset($totals['2_win']) ? $totals['2_win'] : 0,
-			'2_win_extra' => isset($totals['2_win_extra']) ? $totals['2_win_extra'] : 0,
-			'3_win' => isset($totals['3_win']) ? $totals['3_win'] : 0,
-			'3_win_extra' => isset($totals['3_win_extra']) ? $totals['3_win_extra'] : 0,
-			'4_win' => isset($totals['4_win']) ? $totals['4_win'] : 0,
-			'4_win_extra' => isset($totals['4_win_extra']) ? $totals['4_win_extra'] : 0,
-			'5_win' => isset($totals['5_win']) ? $totals['5_win'] : 0,
-			'5_win_extra' => isset($totals['5_win_extra']) ? $totals['5_win_extra'] : 0,
-			'6_win' => isset($totals['6_win']) ? $totals['6_win'] : 0,
-			'6_win_extra' => isset($totals['6_win_extra']) ? $totals['6_win_extra'] : 0,
-			'7_win' => isset($totals['7_win']) ? $totals['7_win'] : 0,
-			'7_win_extra' => isset($totals['7_win_extra']) ? $totals['7_win_extra'] : 0,
-			'8_win' => isset($totals['8_win']) ? $totals['8_win'] : 0,
-			'8_win_extra' => isset($totals['8_win_extra']) ? $totals['8_win_extra'] : 0,
-			'9_win' => isset($totals['9_win']) ? $totals['9_win'] : 0,
-			'9_win_extra' => isset($totals['9_win_extra']) ? $totals['9_win_extra'] : 0,
-			'total_winners' => array_sum($totals)
-		);
-		
-		// Set startdate only if it's NULL (first time)
-		if (empty($followers['startdate'])) {
-			$update_data['startdate'] = $last_draw->draw_date;
-		}
-		
-		// Update lottery_followers table
-		$this->db->where('lottery_id', $lottery_id);
-		$result = $this->db->update('lottery_followers', $update_data);
-		
-		if ($result) {
-			log_message('info', "update_followers_cumulative_wins: Updated cumulative wins for lottery_id=$lottery_id, total_winners={$update_data['total_winners']}");
-		}
-		
-		return $result;
-	}
-
-	/**
-	 * Parse followers prize string and calculate totals for each category
-	 * 
-	 * @param string $prize_string Followers prize string (val1,val2,val3>val1,val2,val3>...)
-	 * @return array|false Array of totals by category or FALSE on error
-	 */
-	private function parse_followers_prize_string_totals($prize_string)
-	{
-		if (empty($prize_string)) {
-			return array(); // Return empty array for empty prizes
-		}
-		
-		$totals = array();
-		
-		// prize_string format: "val1,val2,val3,val4,val5,val6,val7>val1,val2,val3..." 
-		// Each section is one ball's prize counts separated by ">"
-		$ball_sections = explode('>', $prize_string);
-		
-		// Category names in order (matches the prize profile structure)
-		$categories = array('extra', '1_win', '1_win_extra', '2_win', '2_win_extra', 
-			'3_win', '3_win_extra', '4_win', '4_win_extra', '5_win', '5_win_extra', 
-			'6_win', '6_win_extra', '7_win', '7_win_extra', '8_win', '8_win_extra', 
-			'9_win', '9_win_extra');
-		
-		foreach ($ball_sections as $ball_data) {
-			if (empty($ball_data)) continue;
-			
-			$values = explode(',', $ball_data);
-			
-			foreach ($values as $index => $value) {
-				if (isset($categories[$index])) {
-					$category = $categories[$index];
-					if (!isset($totals[$category])) {
-						$totals[$category] = 0;
-					}
-					$totals[$category] += intval($value);
-				}
-			}
-		}
-		
-		return $totals;
-	}
-
-	/**
-	 * Update cumulative H-W-C + Followers win statistics in lottery_h_w_c_followers table
-	 * Uses the same structure as followers for parsing wins
-	 * 
-	 * @param int $lottery_id Lottery ID
-	 * @return boolean Success/failure
-	 */
-	public function update_hwcf_cumulative_wins($lottery_id)
-	{
-		// Get current H-W-C + Followers record
-		$hwcf = $this->hwc_followers_exists($lottery_id);
-		if (is_null($hwcf)) {
-			log_message('error', "update_hwcf_cumulative_wins: No H-W-C+Followers record found for lottery_id=$lottery_id");
-			return FALSE;
-		}
-		
-		// Parse wins/prizes string (same format as followers)
-		$totals = $this->parse_followers_prize_string_totals($hwcf['wins']);
-		
-		if ($totals === FALSE) {
-			log_message('error', "update_hwcf_cumulative_wins: Failed to parse wins string for lottery_id=$lottery_id");
-			return FALSE;
-		}
-		
-		// Get lottery and table info
-		$this->load->model('lotteries_m');
-		$lottery = $this->lotteries_m->get($lottery_id);
-		if (!$lottery) {
-			return FALSE;
-		}
-		
-		$table_name = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
-		$last_draw = $this->lotteries_m->last_draw_db($table_name);
-		if (!$last_draw) {
-			return FALSE;
-		}
-		
-		// Prepare update data
-		$update_data = array(
-			'lastdate' => $last_draw->draw_date,
-			'extra' => isset($totals['extra']) ? $totals['extra'] : 0,
-			'1_win' => isset($totals['1_win']) ? $totals['1_win'] : 0,
-			'1_win_extra' => isset($totals['1_win_extra']) ? $totals['1_win_extra'] : 0,
-			'2_win' => isset($totals['2_win']) ? $totals['2_win'] : 0,
-			'2_win_extra' => isset($totals['2_win_extra']) ? $totals['2_win_extra'] : 0,
-			'3_win' => isset($totals['3_win']) ? $totals['3_win'] : 0,
-			'3_win_extra' => isset($totals['3_win_extra']) ? $totals['3_win_extra'] : 0,
-			'4_win' => isset($totals['4_win']) ? $totals['4_win'] : 0,
-			'4_win_extra' => isset($totals['4_win_extra']) ? $totals['4_win_extra'] : 0,
-			'5_win' => isset($totals['5_win']) ? $totals['5_win'] : 0,
-			'5_win_extra' => isset($totals['5_win_extra']) ? $totals['5_win_extra'] : 0,
-			'6_win' => isset($totals['6_win']) ? $totals['6_win'] : 0,
-			'6_win_extra' => isset($totals['6_win_extra']) ? $totals['6_win_extra'] : 0,
-			'7_win' => isset($totals['7_win']) ? $totals['7_win'] : 0,
-			'7_win_extra' => isset($totals['7_win_extra']) ? $totals['7_win_extra'] : 0,
-			'8_win' => isset($totals['8_win']) ? $totals['8_win'] : 0,
-			'8_win_extra' => isset($totals['8_win_extra']) ? $totals['8_win_extra'] : 0,
-			'9_win' => isset($totals['9_win']) ? $totals['9_win'] : 0,
-			'9_win_extra' => isset($totals['9_win_extra']) ? $totals['9_win_extra'] : 0,
-			'total_winners' => array_sum($totals)
-		);
-		
-		// Set startdate only if it's NULL (first time)
-		if (empty($hwcf['startdate'])) {
-			$update_data['startdate'] = $last_draw->draw_date;
-		}
-		
-		// Update lottery_h_w_c_followers table
-		$this->db->where('lottery_id', $lottery_id);
-		$result = $this->db->update('lottery_h_w_c_followers', $update_data);
-		
-		if ($result) {
-			log_message('info', "update_hwcf_cumulative_wins: Updated cumulative wins for lottery_id=$lottery_id, total_winners={$update_data['total_winners']}");
-		}
-		
-		return $result;
 	}
 
 	/**
