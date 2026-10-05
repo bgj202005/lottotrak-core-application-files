@@ -4384,24 +4384,27 @@ class Statistics_m extends MY_Model
 	}
 
 	/**
-	 * Checks the previous range of draws, that there is an minimum of 100 draws available
-	 * 
+	 * Checks whether there are enough qualifying draws available to calculate the followers/prizes.
+	 *
+	 * The actual calculation (complete_recalculation) gracefully degrades and only needs a small
+	 * absolute minimum of qualifying draws to produce a meaningful result (splitting what's
+	 * available into a "build followers" half and a "test prizes" half) - it does NOT require a
+	 * strict 2x the requested range. This mirrors that same minimum here so valid small-range
+	 * selections (e.g. 50 or 100 draws) are not incorrectly rejected as "out of range".
+	 *
 	 * @param 	string	$tbl		Name of Lottery table
 	 * @param 	integer $r			Current set range of draws
-* 	 * @param 	boolean $dr			Extra Ball, True (include) False (do not include)
-	 * @return	boolean				Error flag, TRUE (range exceeeded), FALSE (in range - OK)
+	 * @param 	boolean $dr			Extra Draws, True (include) False (do not include)
+	 * @return	boolean				Error flag, TRUE (not enough draws), FALSE (in range - OK)
 	 */
 	private function inrange($tbl, $r, $dr)
 	{
- 		$original_r = $r;
- 		$r = $r * 2; 		// The range must be twice the range of draws 
-		//$r = $r - 100;	// The range will be a minimum of 100 draws 
-		// for the follower totals and then the wins of those followers
+		$absolute_minimum_draws = 10; // Matches complete_recalculation()'s own minimum requirement
 		$where = (!$dr ? ' WHERE `extra` <> "0" ' : '');
-		$query = $this->db->query('SELECT `draw_date` FROM '.$tbl.$where.' ORDER BY `draw_date` DESC LIMIT '.$r.';');
+		$query = $this->db->query('SELECT COUNT(*) AS cnt FROM '.$tbl.$where.';');
 		if (!$query) return TRUE;	// Draw Database Does not Exist, error = TRUE
-		$total = $query->num_rows();
-		$result = ($total < $r ? TRUE : FALSE); // Fixed logic: error if we have FEWER draws than needed
+		$total = (int) $query->row()->cnt;
+		$result = ($total < $absolute_minimum_draws ? TRUE : FALSE);
 		
 	return $result;
 	}

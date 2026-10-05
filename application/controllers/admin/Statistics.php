@@ -1041,7 +1041,7 @@ class Statistics extends Admin_Controller {
 
 			// 2. If exist, check the database for the latest draw range from 100 to all draws for the change in the range
 			// Use same range logic as recalc_followers method for consistency
-			$range = $this->get_current_range($id, $tbl_name);
+			$range = $this->get_current_range($id, $tbl_name, $this->data['lottery']->extra_draws);
 			if($range>100) $sel_range = intval($range / 100);
 			if($range!=0)	
 			{
@@ -1053,8 +1053,9 @@ class Statistics extends Admin_Controller {
 					$max = $this->data['lottery']->maximum_ball;
 					$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
 					
-					// Ensure range doesn't exceed available draws
-					$total_draws = $this->lotteries_m->db_row_count($tbl_name);
+					// Ensure range doesn't exceed the draws that actually qualify given the
+					// current extra_draws setting (main draws only vs. all draws)
+					$total_draws = $this->lotteries_m->qualifying_draw_count($tbl_name, $this->data['lottery']->extra_draws);
 					if($range > $total_draws) {
 						$range = $total_draws;
 					}
@@ -1141,7 +1142,8 @@ class Statistics extends Admin_Controller {
 			}
 			else
 			{
-				$range = $all;
+				// No qualifying draws for the current extra_draws setting - use that (filtered) count
+				$range = $this->lotteries_m->qualifying_draw_count($tbl_name, $this->data['lottery']->extra_draws);
 			}
 		}
 		else // 3. If does not exist, calculate for the given draw range, return results and save to follower table
@@ -1185,7 +1187,7 @@ class Statistics extends Admin_Controller {
 
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $this->data['lottery']->extra_included);
 			// Get range using same logic as recalc_followers method for consistency
-			$range = $this->get_current_range($id, $tbl_name);
+			$range = $this->get_current_range($id, $tbl_name, $this->data['lottery']->extra_draws);
 			$max = $this->data['lottery']->maximum_ball;
 			$mx_extra = ($blnduplicate ? $this->data['lottery']->maximum_extra_ball : $max);
 			
@@ -1397,6 +1399,23 @@ class Statistics extends Admin_Controller {
 			}
 		}
 		unset($prizes);													// Remove this array, free up memory
+
+		// Recalculate the Draw Range dropdown totals using the FINAL resolved extra_draws state.
+		// $all/$interval were originally seeded from the unfiltered table count before the
+		// extra_draws checkbox state was known; without this, the dropdown and "out of range"
+		// check would use the wrong total (e.g. all 1606 draws instead of the 50 main draws
+		// when "Extra Draw(s) Included?" is unchecked).
+		$all = $this->lotteries_m->qualifying_draw_count($tbl_name, $this->data['lottery']->extra_draws);
+		if($all>100)
+		{
+			$interval = intval($all / 100);
+			if(!$interval) $interval = 1;
+		}
+		else
+		{
+			$interval = 0;
+		}
+
 		$this->data['lottery']->out_of_range = $outofrange; 			// Is there enough draws to calculate the prizes?
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
@@ -3675,7 +3694,7 @@ class Statistics extends Admin_Controller {
 			$old_range = $followers['range'];
 			
 			// **CRITICAL FIX**: Use current range from URL/parameters, NOT old database range
-			$current_range = $this->get_current_range($id, $tbl);
+			$current_range = $this->get_current_range($id, $tbl, $recalc_extra_draws);
 			$range = $current_range; // Force use of current range for parameter changes
 			
 			$include_extra_position = $recalc_extra_included; // Use current checkbox state
@@ -3816,7 +3835,7 @@ class Statistics extends Admin_Controller {
 			$positions = $this->statistics_m->create_positions_prize_array($p_group, $drawn, $recalc_extra_included);
 			
 			// **CRITICAL FIX**: Use current range from URL/parameters for new records too  
-			$current_range = $this->get_current_range($id, $tbl);
+			$current_range = $this->get_current_range($id, $tbl, $recalc_extra_draws);
 			$range = $current_range; // Use current range, not just default logic
 			
 			$outofrange = $this->statistics_m->followers_prizes($tbl, $lotto->last_drawn, $drawn, $recalc_extra_included, $recalc_extra_draws, $range, $max, '', $blnduplicate, $mx_extra);
@@ -4707,7 +4726,7 @@ class Statistics extends Admin_Controller {
 		// **CRITICAL**: Check if calculation parameters have changed - this forces FULL RECALC
 		$current_extra_included = isset($lotto->extra_included) ? $lotto->extra_included : 0;
 		$current_extra_draws = isset($lotto->extra_draws) ? $lotto->extra_draws : 0;
-		$current_range = $this->get_current_range($lottery_id, $tbl); // Get range from URL or default
+		$current_range = $this->get_current_range($lottery_id, $tbl, $current_extra_draws); // Get range from URL or default
 		
 		$existing_extra_included = isset($existing_followers['extra_included']) ? $existing_followers['extra_included'] : 0;
 		$existing_extra_draws = isset($existing_followers['extra_draws']) ? $existing_followers['extra_draws'] : 0;
@@ -4750,32 +4769,46 @@ class Statistics extends Admin_Controller {
 	
 	/**
 	 * Get the current range from URL parameters or use default
-	 * 
-	 * @param	integer	$lottery_id		Lottery ID
-	 * @param	string	$tbl			Lottery table name  
+	 *
+	 * The range can never exceed the number of draws that actually qualify for the current
+	 * "Extra Draw(s) Included?" setting: only "main" draws (rows where `extra` is populated)
+	 * when extra draws are excluded, or every draw in the table when extra draws are included.
+	 *
+	 * @param	integer			$lottery_id		Lottery ID
+	 * @param	string			$tbl			Lottery table name
+	 * @param	boolean|null	$extra_draws	Whether extra draws are included. When omitted,
+	 *                                          falls back to $this->data['lottery']->extra_draws.
 	 * @return	integer	Current range value
 	 */
-	private function get_current_range($lottery_id, $tbl)
+	private function get_current_range($lottery_id, $tbl, $extra_draws = null)
 	{
+		if ($extra_draws === null) {
+			$extra_draws = isset($this->data['lottery']->extra_draws) ? $this->data['lottery']->extra_draws : 0;
+		}
+
+		// Number of draws that actually qualify for calculations given the extra_draws setting
+		$qualifying_total = $this->lotteries_m->qualifying_draw_count($tbl, $extra_draws);
+
 		// URL structure: /admin/statistics/followers/{lottery_id}/{range}/{extra}/{draws}
 		// So segment(5) should be the range
 		$url_range = $this->uri->segment(5);
 		
-		if ($url_range && is_numeric($url_range) && $url_range >= 50 && $url_range <= 1000) {
-			return intval($url_range);
+		if ($url_range && is_numeric($url_range) && $url_range >= 10 && $url_range != $lottery_id) {
+			// Never request more draws than actually qualify (e.g. "All Draws" link using the
+			// unfiltered total, or a stale value selected before the checkbox state changed)
+			return min(intval($url_range), $qualifying_total);
 		}
 		
 		// Fallback: look through all segments for numeric range value  
 		$uri_segments = $this->uri->segment_array();
 		foreach ($uri_segments as $segment) {
-			if (is_numeric($segment) && $segment >= 50 && $segment <= 1000 && $segment != $lottery_id) {
-				return intval($segment);
+			if (is_numeric($segment) && $segment >= 10 && $segment != $lottery_id) {
+				return min(intval($segment), $qualifying_total);
 			}
 		}
 		
 		// Default range logic
-		$all = $this->lotteries_m->db_row_count($tbl);
-		return ($all < 100 ? $all : 100);
+		return ($qualifying_total < 100 ? $qualifying_total : 100);
 	}
 	
 	/**

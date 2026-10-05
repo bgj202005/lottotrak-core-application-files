@@ -690,6 +690,28 @@ class Lotteries_m extends MY_Model
 	}
 
 	/**
+	 * Returns the number of draws that qualify for statistics calculations (Followers, Friends, H-W-C, etc.)
+	 * based on whether "Extra Draw(s)" are included.
+	 *
+	 * When extra draws are NOT included, only "main" draws count - rows where the `extra` column
+	 * is populated (not '0'). When extra draws ARE included, every row in the table counts.
+	 *
+	 * @param	string	$table			Lottery table name
+	 * @param	boolean	$extra_draws	Whether extra draws are included (TRUE = count all rows)
+	 * @return	integer					Qualifying draw count
+	 */
+	public function qualifying_draw_count($table, $extra_draws = FALSE)
+	{
+		if ($extra_draws)
+		{
+			return $this->db_row_count($table);
+		}
+
+		$this->db->where("extra !=", '0');
+		return (int) $this->db->count_all_results($table);
+	}
+
+	/**
 	 * Returns True (for range OK), or False (Out of Bounds Error) in ranges of Lottery Numbers (e.i. 1 to 49), if the extra is included, do a range check also.
 	 * 
 	 * @param       object	$range_values	array of objects of range values for lottery parameters 	
