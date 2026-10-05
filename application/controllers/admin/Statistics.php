@@ -2581,6 +2581,10 @@ class Statistics extends Admin_Controller {
 	 */
 	public function h_w_c_history($id, $table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $dup)
 	{
+		// The Draw Range (e.g. 50/100/200) is the LIVE classification window shown on the page;
+		// the historical backtest here needs half of it for the window and half to tally against,
+		// so it always has draws left to validate (25 of 50, 50 of 100, 100 of 200 standard).
+		$range = max(1, intdiv($range, 2));
 		$scale = $this->statistics_m->hwc_size($id);
 		$h_cnt = intval($scale['h_count']); // integer count only
 		$w_cnt = intval($scale['w_count']);	// integer count only

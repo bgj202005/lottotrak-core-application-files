@@ -6287,6 +6287,10 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	 */
 	public function hwc_store_draw_patterns($table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $dup)
 	{
+		// The Draw Range (e.g. 50/100/200) is the LIVE classification window shown on the page;
+		// each per-draw label here needs half of it for the window and half to classify against,
+		// so every draw outside the initial window gets a label (25 of 50, 50 of 100, 100 of 200).
+		$range = max(1, intdiv($range, 2));
 		// Optimised: single SELECT + PHP sliding-window + one batched UPDATE.
 		// Replaces ~200 queries (100 h_w_c_calculate + 100 UPDATE) with just 2.
 		//

@@ -182,7 +182,7 @@
 									<div class="p-2">	
 										<div class="form-check">
 										<?php 
-											$js = "location.href='".base_url()."admin/statistics/h_w_c/".$lottery->id."/".(!$interval ? $sel_range : ($sel_range*100))."/extra'";
+											$js = "location.href='".base_url()."admin/statistics/h_w_c/".$lottery->id."/".(!$interval ? $lottery->last_drawn['range'] : ($sel_range*100))."/extra'";
 											$attr = array(
 												'onClick' 	=> "$js", 
 												'class'		=> "form-check-input",
@@ -197,7 +197,7 @@
 									<div class="p-3">
 										<div class="form-check" style = "margin-top:-8px;">
 										<?php
-											$js = "location.href='".base_url()."admin/statistics/h_w_c/".$lottery->id."/".(!$interval ? $sel_range : ($sel_range*100))."/draws'";
+											$js = "location.href='".base_url()."admin/statistics/h_w_c/".$lottery->id."/".(!$interval ? $lottery->last_drawn['range'] : ($sel_range*100))."/draws'";
 											$attr = array(
 												'onClick' 	=> "$js", 
 												'class'		=> "form-check-input",
@@ -588,7 +588,7 @@
 								<table style = "max-width: 130px;" class="table table-striped table-sm">
 									<thead>
 									<tr>
-											<th colspan = "2" class = "datafont">Last <?=$sel_range*100; ?> Draws</th>
+											<th colspan = "2" class = "datafont">Last <?=($interval ? $sel_range*100 : $lottery->last_drawn['range']); ?> Draws</th>
 									</tr>	
 									<tr>
 											<th class = "datafont">H - W - C</th>
