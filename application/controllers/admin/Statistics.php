@@ -190,6 +190,11 @@ class Statistics extends Admin_Controller {
 			$new_range = $this->uri->segment(6,0); // Return segment range
 		}
 		$all = $this->lotteries_m->db_row_count($tbl_name); // Return the total number of draws for this lottery
+		// Trends of Draws (Extra Draws Removed) checked -> only count draws with a valid extra ball
+		if ($this->data['trend'] && intval($this->data['lottery']->extra_ball) == 1) {
+			$_qualifying = $this->statistics_m->lottery_rows_noextra($tbl_name, TRUE);
+			if ($_qualifying !== FALSE && $_qualifying !== NULL) $all = $_qualifying;
+		}
 		if($all>100)
 		{
 			$interval = intval($all / 100); // Create the drop down in multiples of 100 and typecast to an integer value (truncates the floating point portion)
@@ -199,8 +204,10 @@ class Statistics extends Admin_Controller {
 		{
 			$interval = 0;
 		}
-		$old_range = (!is_null($this->session->userdata('range')) ? $this->session->userdata('range') : 100); // Default will be 100 previous draws
+		// Dynamic threshold: 50 once the 50-draw minimum is reached, then 100 (standard) once draws hit 100.
+		$old_range = (!is_null($this->session->userdata('range')) ? $this->session->userdata('range') : (($all < 100) ? min(50, $all) : 100));
 		if(!$new_range) $new_range = $old_range;	// Database Range
+		if($new_range > $all || $new_range < min(50, $all)) $new_range = (($all < 100) ? min(50, $all) : 100);
 		$sel_range = 1;								// All Defaults
 		if($new_range>100) $sel_range = intval($new_range / 100);
 		// Check to see if the actual table exists in the db?
@@ -238,7 +245,38 @@ class Statistics extends Admin_Controller {
 		$this->data['sel_range'] = $sel_range;		// What was selected for the range in the previous page
 		$this->data['range'] = $new_range;
 		$this->data['all'] = $all;
-		$this->data['statistics'] = $this->statistics_m->get_lottery_stats_cached($id);
+		// AVERAGE STATISTICS: computed live (not the Calculate-time cache) so it respects the
+		// Trends of Draws (Extra Draws Removed) checkbox; any column needing more draws than
+		// are currently qualified shows a dash instead of a misleading partial average.
+		$_exclude_extra = ($this->data['trend'] ? true : false);
+		$_stat_ranges = array(
+			'sum_10' => 10, 'sum_100' => 100, 'sum_200' => 200, 'sum_300' => 300, 'sum_400' => 400, 'sum_500' => 500,
+			'digits_10' => 10, 'digits_100' => 100,
+			'odd_10' => 10, 'even_10' => 10, 'odd_100' => 100, 'even_100' => 100,
+			'range_10' => 10, 'range_100' => 100,
+			'repeat_decade_10' => 10, 'repeat_decade_100' => 100,
+			'repeat_last_10' => 10, 'repeat_last_100' => 100
+		);
+		$_stats = new stdClass();
+		foreach ($_stat_ranges as $_field => $_need) {
+			if ($all < $_need) { $_stats->$_field = '-'; continue; }
+			if (strpos($_field, 'sum_') === 0) {
+				$_stats->$_field = $this->statistics_m->lottery_average_sum($tbl_name, $_need, $_exclude_extra);
+			} elseif (strpos($_field, 'digits_') === 0) {
+				$_stats->$_field = $this->statistics_m->lottery_average_sumdigits($tbl_name, $_need, $_exclude_extra);
+			} elseif (strpos($_field, 'odd_') === 0) {
+				$_stats->$_field = $this->statistics_m->lottery_average_odds($tbl_name, $_need, $_exclude_extra);
+			} elseif (strpos($_field, 'even_') === 0) {
+				$_stats->$_field = $this->statistics_m->lottery_average_evens($tbl_name, $_need, $_exclude_extra);
+			} elseif (strpos($_field, 'range_') === 0) {
+				$_stats->$_field = $this->statistics_m->lottery_average_range($tbl_name, $_need, $_exclude_extra);
+			} elseif (strpos($_field, 'repeat_decade_') === 0) {
+				$_stats->$_field = $this->statistics_m->lottery_average_decade($tbl_name, $_need, $_exclude_extra);
+			} elseif (strpos($_field, 'repeat_last_') === 0) {
+				$_stats->$_field = $this->statistics_m->lottery_average_last($tbl_name, $_need, $_exclude_extra);
+			}
+		}
+		$this->data['statistics'] = $_stats;
 		$this->data['evensodds'] = $this->statistics_m->evensodds_sum_cached($tbl_name, $this->data['trend']);
 		$this->data['current'] = $this->uri->segment(2); // Sets the Admins Menu Highlighted
 		$this->session->set_userdata('range', $new_range);

@@ -765,14 +765,15 @@ class Statistics_m extends MY_Model
 	 * @param 	integer	$range		Number of the number of draws to calculate from the latest draw
 	 * @return	integer $ave_sum	Returns the Average sum of the drawn numbers		
 	 */
-	public function lottery_average_sum($tbl, $range = 10)
+	public function lottery_average_sum($tbl, $range = 10, $exclude_extra = false)
 	{
 		$this->db->reset_query();	// Clear any previous queries that are cached
 		
 		$ave_sum = 0;
 
+		$where = ($exclude_extra ? " WHERE extra <> '0'" : "");
 		$sql = "SELECT `sum_draw` as sum FROM `".$tbl;
-		$sql .= "` ORDER BY draw_date DESC ";
+		$sql .= "`".$where." ORDER BY draw_date DESC ";
 		$sql .= "LIMIT ".$range;
 		$query = $this->db->query($sql);
 		if(!$query) return FALSE;
@@ -792,11 +793,12 @@ class Statistics_m extends MY_Model
 	 * @param 	integer $range				Range from 10 to the limit of the draws
 	 * @return	integer $ave_sumdigits		Returns the average sum of the digits for the draw range		
 	 */
-	public function lottery_average_sumdigits($tbl, $range = 10)
+	public function lottery_average_sumdigits($tbl, $range = 10, $exclude_extra = false)
 	{
 		$sum = 0; // Initialize to total sum to 0
 		
 		$this->db->reset_query();	// Clear any previous queries that are cached
+		if ($exclude_extra) $this->db->where("extra <>", '0');
 		$query = $this->db->select('*')
 				->order_by('draw_date DESC')
 				->limit($range)
@@ -820,14 +822,15 @@ class Statistics_m extends MY_Model
 	 * @param 	integer $range		Range of Draws to Calculate, 10, 100, 500, etc.
 	 * @return	integer $evens		Returns the even number of drawn numbers on average		
 	 */
-	public function lottery_average_evens($tbl, $range = 10)
+	public function lottery_average_evens($tbl, $range = 10, $exclude_extra = false)
 	{
 		$this->db->reset_query();	// Clear any previous queries that are cached
+		$where = ($exclude_extra ? " WHERE extra <> '0'" : "");
 		$sql = "SELECT AVG(`even`) as `average_evens`";
 		$sql .=	" FROM (";
   		$sql .=	"select `even`";
   		$sql .= " FROM `".$tbl;
-  		$sql .=  "` ORDER BY draw_date DESC LIMIT ".$range;
+  		$sql .=  "`".$where." ORDER BY draw_date DESC LIMIT ".$range;
 		$sql .= ") evens";
 
 		$query = $this->db->query($sql);
@@ -844,13 +847,14 @@ class Statistics_m extends MY_Model
 	 * @param 	integer $range		Range of Draws to Calculate, 10, 100, 500, etc.
 	 * @return	integer $odds		Returns the odd number of drawn numbers on average			
 	 */
-	public function lottery_average_odds($tbl, $range = 10)
+	public function lottery_average_odds($tbl, $range = 10, $exclude_extra = false)
 	{
+		$where = ($exclude_extra ? " WHERE extra <> '0'" : "");
 		$sql = "SELECT AVG(`odd`) as `average_odds`";
 		$sql .=	" FROM (";
   		$sql .=	"select `odd`";
   		$sql .= " FROM `".$tbl;
-  		$sql .=  "` ORDER BY draw_date DESC LIMIT ".$range;
+  		$sql .=  "`".$where." ORDER BY draw_date DESC LIMIT ".$range;
 		$sql .= ") odds";
 
 		$query = $this->db->query($sql);
@@ -867,15 +871,16 @@ class Statistics_m extends MY_Model
 	 * @param 	integer $range		Range of Draws to Calculate, 10, 100, 500, etc.
 	 * @return	integer $range		Returns the range of drawn numbers		
 	 */
-	public function lottery_average_range($tbl, $range = 10)
+	public function lottery_average_range($tbl, $range = 10, $exclude_extra = false)
 	{
 		$this->db->reset_query();	// Clear any previous queries that are cached
 		
+		$where = ($exclude_extra ? " WHERE extra <> '0'" : "");
 		$sql = "SELECT AVG(`range_draw`) as `average_range`";
 		$sql .=	" FROM (";
   		$sql .=	"select `range_draw`";
   		$sql .= " FROM `".$tbl;
-  		$sql .=  "` ORDER BY draw_date DESC LIMIT ".$range;
+  		$sql .=  "`".$where." ORDER BY draw_date DESC LIMIT ".$range;
 		$sql .= ") average_range";
 
 		$query = $this->db->query($sql);
@@ -893,14 +898,15 @@ class Statistics_m extends MY_Model
 	 * @param 	integer $range		Range of Draws to Calculate, 10, 100, 500, etc.
 	 * @return	integer $dec_ave	Returns the average maximum number of decades during a range
 	 **/	
-	public function lottery_average_decade($tbl, $range = 10)
+	public function lottery_average_decade($tbl, $range = 10, $exclude_extra = false)
 	{
 		$this->db->reset_query();	// Clear any previous queries that are cached
+		$where = ($exclude_extra ? " WHERE extra <> '0'" : "");
 		$sql = "SELECT AVG(`repeat_decade`) as `average_decade`";
 		$sql .=	" FROM (";
   		$sql .=	"select `repeat_decade`";
   		$sql .= " FROM `".$tbl;
-  		$sql .=  "` ORDER BY draw_date DESC LIMIT ".$range;
+  		$sql .=  "`".$where." ORDER BY draw_date DESC LIMIT ".$range;
 		$sql .= ") average_decade";
 
 		$query = $this->db->query($sql);
@@ -917,14 +923,15 @@ class Statistics_m extends MY_Model
 	 * @param 	integer $range		Range of Draws to Calculate, 10, 100, 500, etc.
 	 * @return	integer $last_ave	Returns the average maximum same last drawn digits for a given range
 	 **/
-	public function lottery_average_last($tbl, $range = 10)
+	public function lottery_average_last($tbl, $range = 10, $exclude_extra = false)
 	{
 		$this->db->reset_query();	// Clear any previous queries that are cached
+		$where = ($exclude_extra ? " WHERE extra <> '0'" : "");
 		$sql = "SELECT AVG(`repeat_last`) as `average_last`";
 		$sql .=	" FROM (";
   		$sql .=	"select `repeat_last`";
   		$sql .= " FROM `".$tbl;
-  		$sql .=  "` ORDER BY draw_date DESC LIMIT ".$range;
+  		$sql .=  "`".$where." ORDER BY draw_date DESC LIMIT ".$range;
 		$sql .= ") average_last";
 
 		$query = $this->db->query($sql);
@@ -5400,7 +5407,8 @@ class Statistics_m extends MY_Model
 	 */
 	public function evensodds_sum($tbl, $tod)
 	{	
-		$query = $this->db->query('SELECT odd, even, count(*) as count from '.$tbl.' group by odd, even');
+		$ex_d = (!empty($tod) ? "WHERE extra <> '0' " : " ");
+		$query = $this->db->query('SELECT odd, even, count(*) as count from '.$tbl.' '.$ex_d.'group by odd, even');
 		$all = $query->result(); // Retrieve the total result from the query
 		$total = 0;
 		foreach($all as $parity)
