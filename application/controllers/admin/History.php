@@ -740,7 +740,9 @@ class History extends Admin_Controller {
 		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
 		else $this->data['message'] = '';
 		//Don't forget to include the last drawn h-w-c
-		$this->data['lottery']->hwc = explode('-',$hwc_history['h_w_c_last_1']);
+		// h_w_c_last_1 can be blank until a full ReCalc (not just Calculate) has run; fall back to 0-0-0
+		$hwc_last_parts = explode('-', $hwc_history['h_w_c_last_1']);
+		$this->data['lottery']->hwc = (count($hwc_last_parts) >= 3) ? $hwc_last_parts : array('0', '0', '0');
 		
 		// For display purposes, always show the extra ball if the lottery has one
 		// The $draw array (used for H-W-C matching/asterisks) respects extra_included setting

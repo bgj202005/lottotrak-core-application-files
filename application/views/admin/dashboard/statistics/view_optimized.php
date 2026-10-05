@@ -137,16 +137,18 @@
 			</button>
 			<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
 			<?php if(!$interval) : ?>
-				<a class="dropdown-item active" href="<?=base_url('admin/statistics/view_draws/'.$lottery->id.'/'.$trend.'/'.$all)?>">All Draws (<?=$range;?>) </a>
+				<?php if($all > 50 && $all < 100): ?>
+					<a class="dropdown-item <?php if($range==50) echo 'active'; ?>" href="<?=base_url('admin/statistics/view_draws/'.$lottery->id.'/'.$trend.'/50')?>">50 Draws</a>
+				<?php endif; ?>
+				<a class="dropdown-item <?php if($range==$all) echo 'active'; ?>" href="<?=base_url('admin/statistics/view_draws/'.$lottery->id.'/'.$trend.'/'.$all)?>">All Draws (<?=$all;?>) </a>
 			<?php else:
 				for($i = 1; $i <= $interval; $i++):
 					$step = $i * 100;	// in multiples of 100
-					if($i!=$interval): ?>
-						<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?>" href="<?=base_url('admin/statistics/view_draws/'.$lottery->id.'/'.$trend.'/'.$step);?>">Last <?=$step;?></a>
-					<?php else : ?>
-						<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?>" href="<?=base_url('admin/statistics/view_draws/'.$lottery->id.'/'.$trend.'/'.$all);?>">All Draws (<?=$all;?>)</a>
+					if($step < $all): ?>
+						<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?>" href="<?=base_url('admin/statistics/view_draws/'.$lottery->id.'/'.$trend.'/'.$step);?>"><?=$step;?> Draws</a>
 					<?php endif;
-				endfor; ?> 
+				endfor; ?>
+				<a class="dropdown-item <?php if($sel_range==$interval) echo 'active'; ?>" href="<?=base_url('admin/statistics/view_draws/'.$lottery->id.'/'.$trend.'/'.$all);?>">All Draws (<?=$all;?>)</a>
 				<?php endif;?>
 			</div>
 		</div>

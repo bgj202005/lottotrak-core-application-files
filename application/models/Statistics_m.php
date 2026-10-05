@@ -1888,6 +1888,7 @@ class Statistics_m extends MY_Model
 		if (!$oldest_draw) {
 			// Not enough draws for sliding window, fall back to full recalc
 			return array(
+				'success' => false,
 				'followers' => '',
 				'outofrange' => true
 			);
@@ -1917,6 +1918,7 @@ class Statistics_m extends MY_Model
 		$outofrange = $this->followers_prizes($name, $ldn, $max, $bonus, $draws, $range, $lottery_max, '', $duple, $mx_extra);
 		
 		return array(
+			'success' => true,
 			'followers' => $followers_string,
 			'outofrange' => $outofrange
 		);
@@ -5632,7 +5634,10 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	 */
 	public function hots($str_heat)
 	{
-		$str = substr($str_heat, 0, strpos($str_heat, ">"));
+		$str_pos = strpos($str_heat, ">");
+		// No warm boundary reached yet (too few distinct balls in range) - everything found so far is hot
+		if($str_pos === FALSE) return $str_heat;
+		$str = substr($str_heat, 0, $str_pos);
 	return $str;	// Return the hots only without the '>'
 	}
 	/**
@@ -5642,11 +5647,10 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	 */
 	public function colds($str_heat)
 	{
-		$str_len = strlen($str_heat);
 		$str_pos = strpos($str_heat, "<");
-		$str_diff = $str_pos-$str_len; // should be negative
-		$str = substr($str_heat, $str_diff);
-	return substr($str, 1);	// Return the hots only without the '>'
+		// No cold boundary reached yet (too few distinct balls in range) - there is no cold group
+		if($str_pos === FALSE) return '';
+	return substr($str_heat, $str_pos + 1);	// Return the colds only without the '<'
 	}
 
 	/**
@@ -5669,9 +5673,12 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	{
 		$str_full = ' ' . $str_full;
 		$ini = strpos($str_full, $start);
-		if ($ini == 0) return '';
+		if ($ini === FALSE || $ini == 0) return '';
 		$ini += strlen($start);
-		$len = strpos($str_full, $end, $ini) - $ini;
+		$end_pos = strpos($str_full, $end, $ini);
+		// No cold boundary reached yet (too few distinct balls in range) - everything remaining is warm
+		if ($end_pos === FALSE) return substr($str_full, $ini);
+		$len = $end_pos - $ini;
 	return substr($str_full, $ini, $len);
 	}
 	/**
@@ -5700,6 +5707,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		foreach($arr_hots as $ahot)
 		{
  			$heat = explode('=', $ahot);
+			if(!isset($heat[1]) || $heat[0]==='' || intval($heat[1])===0) continue; // Skip empty/malformed entries or zero occurrences (avoids div-by-zero)
 			$due = intval(round(($range / $heat[1]))); // Round to nearest whole number
 			if($max>=3)
 			{
@@ -5754,6 +5762,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		foreach($arr_warms as $awarm)
 		{
 			$heat = explode('=', $awarm);
+			if(!isset($heat[1]) || $heat[0]==='' || intval($heat[1])===0) continue; // Skip empty/malformed entries or zero occurrences (avoids div-by-zero)
 			$due = intval(round(($range / $heat[1]))); // Round to nearest whole number
 			if($max>=3)
 			{
@@ -5808,6 +5817,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		foreach($arr_colds as $acold)
 		{
 			$heat = explode('=', $acold);
+			if(!isset($heat[1]) || $heat[0]==='' || intval($heat[1])===0) continue; // Skip empty/malformed entries or zero occurrences (avoids div-by-zero)
 			$due = intval(round(($range / $heat[1]))); // Round to nearest whole number
 			if($max>=3)
 			{
@@ -5947,6 +5957,72 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		));
 		// Clear cache so history page reads the fresh row
 		$cache_key = $this->generate_cache_key('h_w_c', $lottery_id);
+		$this->cache->delete($cache_key);
+	}
+
+	/**
+	* Save only the followers prediction fields (follower_type, ball_points, position_points,
+	* lottery_numbers, extra_numbers) for a lottery without overwriting any other fields in
+	* lottery_followers.
+	*
+	* @param	integer	$lottery_id			Lottery ID
+	* @param	string	$follower_type		'after_ball' or 'position'
+	* @param	string	$ball_points		Selected ball value the prediction is based on
+	* @param	string	$position_points	Selected position value the prediction is based on
+	* @param	string	$lottery_numbers	Comma-separated generated numbers
+	* @param	string|null	$prev_lottery_numbers	Pass null to leave unchanged, otherwise overwrite
+	* @param	string|null	$extra_numbers		Comma-separated extra ball predictions, null = leave unchanged
+	* @return   none
+	*/
+	public function followers_prediction_save($lottery_id, $follower_type, $ball_points, $position_points, $lottery_numbers, $prev_lottery_numbers = null, $extra_numbers = null)
+	{
+		$update = array(
+			'follower_type'   => $follower_type,
+			'ball_points'     => $ball_points,
+			'position_points' => $position_points,
+			'lottery_numbers' => $lottery_numbers,
+		);
+		// When passed (even as empty string), update that field too; null = leave untouched
+		if (!is_null($prev_lottery_numbers)) {
+			$update['prev_lottery_numbers'] = $prev_lottery_numbers;
+		}
+		if (!is_null($extra_numbers)) {
+			$update['extra_numbers'] = $extra_numbers;
+		}
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update('lottery_followers', $update);
+		// Clear cache so the new predictions are picked up on next read
+		$cache_key = $this->generate_cache_key('followers', $lottery_id);
+		$this->cache->delete($cache_key);
+	}
+
+	/**
+	* Copy the current lottery_numbers / extra_numbers into prev_lottery_numbers / prev_extra_numbers.
+	* Called before regenerating a followers-only prediction (e.g. during ReCalc) so the history
+	* page can show which numbers were predicted before the latest draw.
+	* Does nothing if lottery_numbers is empty.
+	*
+	* @param	integer $lottery_id
+	* @return   void
+	*/
+	public function followers_prediction_snapshot($lottery_id)
+	{
+		// Bypass cache — read directly from DB so we always get the live lottery_numbers value
+		$query = $this->db->where('lottery_id', $lottery_id)
+		        ->limit(1)
+		        ->get('lottery_followers');
+		$row = $query->row_array();
+		if (empty($row) || empty($row['lottery_numbers'])) {
+			return; // Nothing to snapshot
+		}
+		$update = array('prev_lottery_numbers' => $row['lottery_numbers']);
+		if (isset($row['extra_numbers'])) {
+			$update['prev_extra_numbers'] = $row['extra_numbers'];
+		}
+		$this->db->where('lottery_id', $lottery_id);
+		$this->db->update('lottery_followers', $update);
+		// Clear cache so history page reads the fresh row
+		$cache_key = $this->generate_cache_key('followers', $lottery_id);
 		$this->cache->delete($cache_key);
 	}
 
@@ -6166,6 +6242,8 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$this->db->reset_query();
 		if (!$exist) 
 		{
+			// 'wins' is NOT NULL with no default; the win totals are computed later by calculate_hwc_wins()
+			if(!isset($data['wins'])) $data['wins'] = '';
 			$this->db->set($data);		// Set the query with the key / value pairs
 			$this->db->insert('lottery_h_w_c_stats');
 		}
@@ -6225,21 +6303,24 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$draws = array_reverse($res->result_array());
 		$total = count($draws);
 
-		// Need at least range+1 rows: range for the initial window + ≥1 to classify
-		if ($total <= $range) return false;
+		// Need at least 2 rows: 1 to seed the window + >=1 to classify. Cap the window to
+		// what's actually available so draws still get labeled when the stored/requested
+		// range meets or exceeds the total draw count (e.g. a new lottery under 100 draws).
+		if ($total <= 1) return false;
+		$effective_range = min($range, $total - 1);
 
-		// Build initial ball-count window from draws[0..range-1]
+		// Build initial ball-count window from draws[0..effective_range-1]
 		$ball_count    = [];  // ball_number => frequency in current window
 		$ball_idx_list = [];  // ball_number => [draw_index, ...] oldest-first
 
-		for ($i = 0; $i < $range; $i++) {
+		for ($i = 0; $i < $effective_range; $i++) {
 			$this->_hwc_window_add($draws[$i], $i, $picks, $bn, $dup, $ball_count, $ball_idx_list);
 		}
 
 		$updates = [];
 
-		// Classify draws[range..total-1]
-		for ($i = $range; $i < $total; $i++) {
+		// Classify draws[effective_range..total-1]
+		for ($i = $effective_range; $i < $total; $i++) {
 			$draw   = $draws[$i];
 			$sorted = $this->_hwc_window_sort($ball_count, $ball_idx_list, $draws);
 
@@ -6258,7 +6339,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 
 			// Slide: add current draw to window, remove the oldest draw from window
 			$this->_hwc_window_add($draw, $i, $picks, $bn, $dup, $ball_count, $ball_idx_list);
-			$this->_hwc_window_remove($draws[$i - $range], $i - $range, $picks, $bn, $dup, $ball_count, $ball_idx_list);
+			$this->_hwc_window_remove($draws[$i - $effective_range], $i - $effective_range, $picks, $bn, $dup, $ball_count, $ball_idx_list);
 		}
 
 		// One batched UPDATE for all classified draws
@@ -6466,9 +6547,15 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		$query = $this->db->query("SELECT draw_id FROM lottery_friends WHERE draw_id='".$ref."' AND lottery_id='".$lt_id."'");
 		$friends_exists = ($query && $query->num_rows() > 0);
 		
+		// Check lottery_h_w_c_stats table (Last H-W-C / Last 10 / position history) - Calculate()
+		// updates lottery_h_w_c.draw_id but intentionally skips this history table for performance,
+		// so it must be checked separately or the full history recalc never runs via ReCalc.
+		$query = $this->db->query("SELECT draw_id FROM lottery_h_w_c_stats WHERE draw_id='".$ref."' AND lottery_id='".$lt_id."' AND h_w_c_last_1 <> ''");
+		$hwc_stats_exists = ($query && $query->num_rows() > 0);
+		
 		// Return TRUE if ANY table is missing the record (needs update)
-		// Return FALSE only if ALL three tables have the record (up to date)
-		return !($hwc_exists && $followers_exists && $friends_exists);
+		// Return FALSE only if ALL tables have the record (up to date)
+		return !($hwc_exists && $followers_exists && $friends_exists && $hwc_stats_exists);
 	}
 	/** 
 	* Returns the number of hots, warms, colds in the group as the h_count, w_count and c_count
@@ -6516,7 +6603,8 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		{
 			if($heat==$ball) 
 			{
-				$position_array[$pos]++;			// Update the counter for that position
+				// Guard against $heat_array holding more entries than $position_array was sized for
+				if(array_key_exists($pos, $position_array)) $position_array[$pos]++;			// Update the counter for that position
 				break;
 			}
 		}		

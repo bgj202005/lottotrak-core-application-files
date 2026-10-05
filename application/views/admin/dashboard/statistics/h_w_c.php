@@ -159,20 +159,23 @@
 										</button>
 											<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
 												<?php $interval = (integer) $lottery->last_drawn['interval'];
-												if(!$interval) : 
-													$sel_range = $lottery->last_drawn['range']; ?>
-													<a class="dropdown-item active" href="<?=base_url('admin/statistics/h_w_c/'.$lottery->id)?>">All Draws (<?=$lottery->last_drawn['range'];?>) </a>
+												$_all = (integer) $lottery->last_drawn['all'];
+												$_cur_range = (integer) $lottery->last_drawn['range'];
+												$sel_range = (integer) $lottery->last_drawn['sel_range']; // Selected a different range from the complete range of draws?
+												if(!$interval) :
+													if($_all > 50 && $_all < 100): ?>
+														<a class="dropdown-item <?php if($_cur_range==50) echo 'active'; ?>" href="<?=base_url('admin/statistics/h_w_c/'.$lottery->id.'/50')?>">50 Draws</a>
+													<?php endif; ?>
+													<a class="dropdown-item <?php if($_cur_range==$_all) echo 'active'; ?>" href="<?=base_url('admin/statistics/h_w_c/'.$lottery->id.'/'.$_all)?>">All Draws (<?=$_all;?>) </a>
 												<?php else:
-													$sel_range = (integer) $lottery->last_drawn['sel_range']; // Selected a different range from the complete range of draws?
 													for($i = 1; $i <= $interval; $i++):
 														$step = $i * 100;	// in multiples of 100
-														if($i!=$interval): ?>
-															<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?>" href="<?=base_url('admin/statistics/h_w_c/'.$lottery->id.'/'.$step);?>">Last <?=$step;?></a>
-														<?php else : ?>
-															<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?>" href="<?=base_url('admin/statistics/h_w_c/'.$lottery->id.'/'.$lottery->last_drawn['all']);?>">All Draws (<?=$lottery->last_drawn['all'];?>)</a>
+														if($step < $_all): ?>
+															<a class="dropdown-item <?php if($i==$sel_range) echo 'active'; ?>" href="<?=base_url('admin/statistics/h_w_c/'.$lottery->id.'/'.$step);?>"><?=$step;?> Draws</a>
 														<?php endif;
-													endfor; ?> 
-													<?php endif;?>
+													endfor; ?>
+													<a class="dropdown-item <?php if($sel_range==$interval) echo 'active'; ?>" href="<?=base_url('admin/statistics/h_w_c/'.$lottery->id.'/'.$lottery->last_drawn['all']);?>">All Draws (<?=$lottery->last_drawn['all'];?>)</a>
+												<?php endif;?>
 											</div>
 										</div>
 									</div>

@@ -1851,6 +1851,13 @@ class Statistics extends Admin_Controller {
 			redirect('admin/statistics');
 		}
 		$all = $this->lotteries_m->db_row_count($tbl_name); // Return the total number of draws for this lottery
+		// When Extra Draw(s) Included is OFF, only draws with a valid extra ball count toward the range/threshold
+		$_hwc_extra_draws = (!is_null($hwc_check) && isset($hwc_check['extra_draws'])) ? intval($hwc_check['extra_draws']) : 0;
+		if ($this->uri->segment(6) == 'draws') $_hwc_extra_draws = $_hwc_extra_draws ? 0 : 1; // reflect pending toggle
+		if ($_hwc_extra_draws == 0 && intval($this->data['lottery']->extra_ball) == 1) {
+			$_qualifying = $this->statistics_m->lottery_rows_noextra($tbl_name, TRUE);
+			if ($_qualifying !== FALSE && $_qualifying !== NULL && $_qualifying > 0) $all = $_qualifying;
+		}
 		if($all>100)
 		{
 			$interval = intval($all / 100); // Create the drop down in multiples of 100 and typecast to an integer value (truncates the floating point portion)
@@ -1867,6 +1874,9 @@ class Statistics extends Admin_Controller {
 			$new_range = $this->uri->segment(5,0); 					// Return segment range
 			$old_range = $h_w_c['range'];
 			if(!$new_range) $new_range = $old_range;				// Database Range
+			// Dynamic threshold: 50 once the 50-draw minimum is reached, then 100 (standard) once draws hit 100.
+			$auto_range = ($all < 100) ? min(50, $all) : 100;
+			if($new_range > $all || $new_range < min(50, $all)) $new_range = $auto_range;
 			$hots = $h_w_c['h_count'];
 			$warms = $h_w_c['w_count'];
 			$colds = $h_w_c['c_count'];
@@ -2230,7 +2240,8 @@ class Statistics extends Admin_Controller {
 			$this->data['lottery']->extra_included = 0; // No Extra Ball as part of the calculation
 			$this->data['lottery']->extra_draws = 0; 	// No Bonus Draws included in the friend calculation
 			$blnduplicate = ($this->data['lottery']->duplicate_extra_ball ? TRUE : FALSE); // Lotteries that ONLY have the extra ball up to a given number
-			$new_range = ($all<100 ? $all : 100);
+			// Dynamic threshold: 50 once the 50-draw minimum is reached, then 100 (standard) once draws hit 100.
+			$new_range = ($all < 100) ? min(50, $all) : 100;
 			$heat = explode('-', $this->statistics_m->hwc_defaults[$max_ball]); 	// Break out the H-W-C into a new array
 			$w_start = intval($heat[0]+1);							// Warms
 			$this->data['lottery']->H = $heat[0];  					// Number of Hots Distributed e.g. 16 Hots
@@ -3106,6 +3117,10 @@ class Statistics extends Admin_Controller {
 	 if(!is_null($h_w_c) && !empty($h_w_c['hots']) && $h_w_c['draw_id'] > 0)	// Existing HWC with data?
 	 {
 		$new_range = $h_w_c['range'];
+		// Dynamic threshold: 50 once the 50-draw minimum is reached, then 100 (standard) once draws hit 100.
+		$_auto_range = ($all < 100) ? min(50, $all) : 100;
+		$_range_clamped = ($new_range > $all || $new_range < min(50, $all));
+		if ($_range_clamped) $new_range = $_auto_range;
 		$hots = $h_w_c['h_count'];
 		$warms = $h_w_c['w_count'];
 		$colds = $h_w_c['c_count'];
@@ -3115,8 +3130,9 @@ class Statistics extends Admin_Controller {
 		$lotto->W = $warms;  						// Number of Warms Distributed e.g 18 Colds
 		$lotto->C = $colds; 						// Number of Colds Distributed e.g 16 Colds
 		
-		// Check if we can use sliding window (same settings, only one new draw)
+		// Check if we can use sliding window (same settings, only one new draw, and range wasn't just adjusted)
 		$can_slide = (
+			!$_range_clamped &&
 			$h_w_c['extra_included'] == (isset($lotto->extra_included) ? $lotto->extra_included : $h_w_c['extra_included']) &&
 			$h_w_c['extra_draws'] == (isset($lotto->extra_draws) ? $lotto->extra_draws : $h_w_c['extra_draws']) &&
 			$h_w_c['draw_id'] == ($lotto->last_drawn['id'] - 1)  // Exactly one draw behind
@@ -3209,6 +3225,9 @@ class Statistics extends Admin_Controller {
 	 if (!$use_sliding_window && !is_null($h_w_c))	// Existing HWC?
 	 {
 		$new_range = $h_w_c['range'];
+		// Dynamic threshold: 50 once the 50-draw minimum is reached, then 100 (standard) once draws hit 100.
+		$_auto_range2 = ($all < 100) ? min(50, $all) : 100;
+		if ($new_range > $all || $new_range < min(50, $all)) $new_range = $_auto_range2;
 		$hots = $h_w_c['h_count'];
 		$warms = $h_w_c['w_count'];
 		$colds = $h_w_c['c_count'];
@@ -3283,7 +3302,8 @@ class Statistics extends Admin_Controller {
 			 $this->data['lottery']->extra_draws = $saved_extra_draws ? 1 : 0;
 		 }
 		 // For new-init: if extra_draws=0, $all was already adjusted above to qualifying count
-		 $new_range = ($all<100 ? $all : 100);
+		 // Dynamic threshold: 50 once the 50-draw minimum is reached, then 100 (standard) once draws hit 100.
+		 $new_range = ($all < 100) ? min(50, $all) : 100;
 		 $heat = explode('-', $this->statistics_m->hwc_defaults[$max_ball]); 	// Break out the H-W-C into a new array
 		 $w_start = intval($heat[0]+1);					// Warms
 		 $this->data['lottery']->H = $heat[0];  						// Number of Hots Distributed e.g. 16 Hots
