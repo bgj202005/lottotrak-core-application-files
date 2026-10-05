@@ -69,13 +69,14 @@ class Statistics extends Admin_Controller {
 			$lottery->sum_last = $this->statistics_m->sum_last($tbl_name, $lottery->balls_drawn);
 			$lottery->repeaters = $this->statistics_m->repeaters($tbl_name, $lottery->balls_drawn);
 			
-			// Check if followers need recalculation (after reset)
-			$followers_check = $this->statistics_m->followers_exists($lottery->id);
-			$lottery->needs_recalc = (is_null($followers_check) || empty($followers_check['lottery_followers']));
-			
-			// Check if H-W-C needs recalculation (after reset)
-			$hwc_check = $this->statistics_m->h_w_c_exists($lottery->id);
-			$lottery->needs_hwc_recalc = (is_null($hwc_check) || empty($hwc_check['hots']) || empty($hwc_check['warms']) || empty($hwc_check['colds']) || $hwc_check['draw_id'] == 0);
+			// "ReCalc Required" badge must use the SAME authoritative, uncached DB check as recalc()
+			// itself (recalc_update() queries live, not through the 2-hour file cache used by
+			// followers_exists()/h_w_c_exists()). Behind multiple app servers/workers in production,
+			// a cache ->delete() on the worker that ran ReCalc never reaches the other workers'
+			// local cache files, so this page kept showing stale "ReCalc Required" after a real ReCalc.
+			$draw_id_for_check = $this->statistics_m->last_id($tbl_name);
+			$lottery->needs_recalc = $draw_id_for_check ? $this->statistics_m->recalc_update($lottery->id, $draw_id_for_check) : true;
+			$lottery->needs_hwc_recalc = $lottery->needs_recalc;
 		}
 
 		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
@@ -3523,15 +3524,10 @@ class Statistics extends Admin_Controller {
 		$tbl = $this->lotteries_m->lotto_table_convert($lotto->lottery_name);
 		$blnduplicate = ($lotto->duplicate_extra_ball ? TRUE : FALSE);
 		
-		// Check if recalculation is actually needed
-		$recalc_status = $this->check_recalc_needed($id, $lotto, $tbl);
-		if ($recalc_status['skip_recalc']) {
-			$this->session->set_flashdata('message', $recalc_status['message']);
-			redirect('admin/statistics');
-			return;
-		}
-		
-
+		// NOTE: no internal "is recalc needed" re-check here. The only caller, recalc(), already
+		// made that authoritative decision via the uncached recalc_update(); re-checking here via
+		// check_recalc_needed() (which reads the cached followers_exists()) could see stale cached
+		// data on a different app server/worker and wrongly abort the whole recalc chain with exit.
 		
 		$drawn = $lotto->balls_drawn;		// Get the number of balls drawn for this lottory, Pick 5, Pick 6, Pick 7, etc.
 		$low = $lotto->minimum_ball;		// Regular Drawn Low ball e.g. ball 1

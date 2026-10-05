@@ -59,15 +59,14 @@ class History extends Admin_Controller {
 			// Check if minimum draw requirement is met
 			$lottery->min_draws_met = ($lottery->draw_count >= $lottery->required_draws);
 			
-			// Check if data needs recalculation
-			$followers_check = $this->statistics_m->followers_exists($lottery->id);
-			$lottery->needs_followers_recalc = (is_null($followers_check) || empty($followers_check['lottery_followers']));
-			
-			$hwc_check = $this->statistics_m->h_w_c_exists($lottery->id);
-			$lottery->needs_hwc_recalc = (is_null($hwc_check) || empty($hwc_check['hots']) || empty($hwc_check['warms']) || empty($hwc_check['colds']) || $hwc_check['draw_id'] == 0);
-			
-			$friends_check = $this->statistics_m->friends_exists($lottery->id);
-			$lottery->needs_friends_recalc = (is_null($friends_check) || empty($friends_check['lottery_friends']));
+			// "Needs recalc" badges must use the SAME authoritative, uncached DB check as recalc()
+			// itself, not the 2-hour file cache behind followers_exists()/h_w_c_exists()/friends_exists()
+			// (a cache ->delete() on one app server/worker never reaches other workers' local cache files).
+			$draw_id_for_check = $this->statistics_m->last_id($tbl_name);
+			$needs_recalc = $draw_id_for_check ? $this->statistics_m->recalc_update($lottery->id, $draw_id_for_check) : true;
+			$lottery->needs_followers_recalc = $needs_recalc;
+			$lottery->needs_hwc_recalc = $needs_recalc;
+			$lottery->needs_friends_recalc = $needs_recalc;
 			
 			$c = $this->statistics_m->lottery_rows($tbl_name);
 			if($c>100) $c = 100;
