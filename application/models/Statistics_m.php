@@ -954,6 +954,7 @@ class Statistics_m extends MY_Model
 		
 		return $this->get_cached($cache_key, function() use ($id) {
 			$query = $this->db->where('lottery_id', $id)
+			        ->order_by('id', 'DESC')
 			        ->limit(1, 0)
 			        ->get('lottery_followers');
 			return $query->row_array();
@@ -972,6 +973,7 @@ class Statistics_m extends MY_Model
 		
 		return $this->get_cached($cache_key, function() use ($id) {
 			$query = $this->db->where('lottery_id', $id)
+			        ->order_by('id', 'DESC')
 			        ->limit(1, 0)
 			        ->get('lottery_nonfollowers');
 			return $query->row_array();
@@ -1698,6 +1700,13 @@ class Statistics_m extends MY_Model
 	public function follower_data_save($data, $exist = FALSE)
 	{
 		log_message('error', "follower_data_save CALLED - lottery_id: {$data['lottery_id']}, exist: " . ($exist ? 'TRUE' : 'FALSE'));
+		
+		// Guard against duplicate rows: $exist may be derived from a stale cached followers_exists()
+		// read, so re-check the live DB directly regardless of what the caller believes.
+		if (!$exist) {
+			$row_count = $this->db->where('lottery_id', $data['lottery_id'])->count_all_results('lottery_followers');
+			if ($row_count > 0) $exist = TRUE;
+		}
 		
 		if (!$exist) 
 		{
@@ -2982,6 +2991,13 @@ class Statistics_m extends MY_Model
 	*/
 	public function nonfollower_data_save($data, $exist = FALSE)
 	{
+		// Guard against duplicate rows: $exist may be derived from a stale cached nonfollowers_exists()
+		// read, so re-check the live DB directly regardless of what the caller believes.
+		if (!$exist) {
+			$row_count = $this->db->where('lottery_id', $data['lottery_id'])->count_all_results('lottery_nonfollowers');
+			if ($row_count > 0) $exist = TRUE;
+		}
+		
 		if (!$exist) 
 		{
 			$this->db->set($data);		// Set the query with the key / value pairs
