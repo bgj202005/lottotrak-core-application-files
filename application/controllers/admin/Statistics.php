@@ -2169,10 +2169,16 @@ class Statistics extends Admin_Controller {
 			$strhots_last = ""; // Initialize last draw hots
 			$strwarms_last = ""; // Initialize last draw warms
 			$strcolds_last = ""; // Initialize last draw colds
+			// Tracks whether range/heat recalculation ran below, so predictions can be regenerated
+			// AFTER h_w_c_range self-heals further down (calculate_hwc_wins() temporarily overwrites
+			// h_w_c_range with a bogus single value; regenerating predictions here used to read that
+			// corrupted data before it got repaired, showing "No wins" until the next page request).
+			$_hwc_range_recalculated = FALSE;
 			if($new_range!=0)	
 			{
 				if(intval($old_range)!=(intval($new_range))||($blnheat)) // Any Change in Selection of the Draws? then update ... e.i. 200 draws in db and 300 in query url
 				{
+					$_hwc_range_recalculated = TRUE;
 					// A change has occurred, return the last draw date
 					$last_draw = $this->statistics_m->hwc_DrawBeforeLast($tbl_name); // Reuqirements havd changed
 					$draw_id_last = $h_w_c['draw_id_last']; // Default to existing value
@@ -2240,40 +2246,8 @@ class Statistics extends Admin_Controller {
 					$this->calculate_hwc_wins($id, $new_range, $this->data['lottery']->prediction_pool, 
 						$hot_count, $warm_count, $cold_count,
 						$this->data['lottery']->extra_included, $this->data['lottery']->extra_draws);
-					
-					// Regenerate predictions after range change
-					$this->load->model('Predictions_m', 'predictions_m');
-					$h_w_c_after = $this->statistics_m->h_w_c_exists($id);
-					if(!is_null($h_w_c_after)) {
-						$stored_option  = isset($h_w_c_after['hwc_option'])  ? (int)$h_w_c_after['hwc_option']  : 1;
-						$stored_select  = isset($h_w_c_after['hwc_select'])  ? (int)$h_w_c_after['hwc_select']  : 1;
-						$pool_size      = isset($h_w_c_after['prediction_pool']) ? (int)$h_w_c_after['prediction_pool'] : 18;
-						$h_w_c_groups   = $this->predictions_m->get_h_w_c_range_with_rank($id);
-						$group_patterns = array_keys($h_w_c_groups);
-						if(!empty($group_patterns)) {
-							if($stored_option === 2) {
-								$idx = $stored_select - 1;
-								$pattern = isset($group_patterns[$idx]) ? $group_patterns[$idx] : $group_patterns[0];
-							} else {
-								$pattern = $group_patterns[0]; // Top ranked
-							}
-							// Generate predictions for the NEXT draw from current H-W-C data
-							$generated = $this->predictions_m->hwc_only($id, $pool_size, $pattern);
-							if($generated) {
-								$_r_opt_lbl  = ($stored_option === 2) ? 'Manual Selected' : 'Top Ranked';
-								$_r_disp_lbl = isset($h_w_c_groups[$pattern]) ? $h_w_c_groups[$pattern] : $pattern;
-								$generated_encoded = $_r_opt_lbl . ' — ' . $_r_disp_lbl . '|' . $generated;
-								// Generate extra ball predictions for independent / duplicate extra ball lotteries
-								$extra_predictions_str = '';
-								if(!empty($this->data['lottery']->duplicate_extra_ball) && !empty($this->data['lottery']->extra_ball)) {
-									$extra_pool = isset($h_w_c_after['prediction_extras']) ? (int)$h_w_c_after['prediction_extras'] : 1;
-									$generated_extra = $this->predictions_m->hwc_extra($id, $extra_pool);
-									$extra_predictions_str = $generated_extra ? $generated_extra : '';
-								}
-								$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated_encoded, null, $extra_predictions_str);
-							}
-						}
-					}
+					// NOTE: predictions are regenerated further below, AFTER h_w_c_range self-heals
+					// (calculate_hwc_wins() above temporarily overwrites it with a bogus single value).
 				}
 				else  
 				{
@@ -2523,6 +2497,44 @@ class Statistics extends Admin_Controller {
 			$this->statistics_m->hwc_history_save($hwc_h_data, TRUE); // Update existing lottery H W C Record
 		}
 		unset($hwc_history); // Remove this temporary holding place for historic h-w-c's
+
+		// Regenerate predictions after a range/heat change, now that h_w_c_range is guaranteed
+		// to hold the correctly rebuilt pattern distribution (not the bogus value calculate_hwc_wins()
+		// writes), so Top Ranked / Manual Selected shows the real rank instead of "No wins".
+		if(!empty($_hwc_range_recalculated)) {
+			$this->load->model('Predictions_m', 'predictions_m');
+			$h_w_c_after = $this->statistics_m->h_w_c_exists($id);
+			if(!is_null($h_w_c_after)) {
+				$stored_option  = isset($h_w_c_after['hwc_option'])  ? (int)$h_w_c_after['hwc_option']  : 1;
+				$stored_select  = isset($h_w_c_after['hwc_select'])  ? (int)$h_w_c_after['hwc_select']  : 1;
+				$pool_size      = isset($h_w_c_after['prediction_pool']) ? (int)$h_w_c_after['prediction_pool'] : 18;
+				$h_w_c_groups   = $this->predictions_m->get_h_w_c_range_with_rank($id);
+				$group_patterns = array_keys($h_w_c_groups);
+				if(!empty($group_patterns)) {
+					if($stored_option === 2) {
+						$idx = $stored_select - 1;
+						$pattern = isset($group_patterns[$idx]) ? $group_patterns[$idx] : $group_patterns[0];
+					} else {
+						$pattern = $group_patterns[0]; // Top ranked
+					}
+					// Generate predictions for the NEXT draw from current H-W-C data
+					$generated = $this->predictions_m->hwc_only($id, $pool_size, $pattern);
+					if($generated) {
+						$_r_opt_lbl  = ($stored_option === 2) ? 'Manual Selected' : 'Top Ranked';
+						$_r_disp_lbl = isset($h_w_c_groups[$pattern]) ? $h_w_c_groups[$pattern] : $pattern;
+						$generated_encoded = $_r_opt_lbl . ' — ' . $_r_disp_lbl . '|' . $generated;
+						// Generate extra ball predictions for independent / duplicate extra ball lotteries
+						$extra_predictions_str = '';
+						if(!empty($this->data['lottery']->duplicate_extra_ball) && !empty($this->data['lottery']->extra_ball)) {
+							$extra_pool = isset($h_w_c_after['prediction_extras']) ? (int)$h_w_c_after['prediction_extras'] : 1;
+							$generated_extra = $this->predictions_m->hwc_extra($id, $extra_pool);
+							$extra_predictions_str = $generated_extra ? $generated_extra : '';
+						}
+						$this->statistics_m->hwc_save_predictions($id, $stored_option, $stored_select, $generated_encoded, null, $extra_predictions_str);
+					}
+				}
+			}
+		}
 		$this->data['lottery']->last_drawn['interval'] = $interval;		// Record the interval here (for the dropdown)
 		$this->data['lottery']->last_drawn['sel_range'] = $sel_range;	// What was selected for the range in the previous page
 		$this->data['lottery']->last_drawn['range'] = $new_range;
