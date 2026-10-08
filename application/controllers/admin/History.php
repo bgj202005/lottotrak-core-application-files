@@ -739,9 +739,23 @@ class History extends Admin_Controller {
 		if ($this->session->flashdata('message')) $this->data['message'] = $this->session->flashdata('message');
 		else $this->data['message'] = '';
 		//Don't forget to include the last drawn h-w-c
-		// h_w_c_last_1 can be blank until a full ReCalc (not just Calculate) has run; fall back to 0-0-0
-		$hwc_last_parts = explode('-', $hwc_history['h_w_c_last_1']);
-		$this->data['lottery']->hwc = (count($hwc_last_parts) >= 3) ? $hwc_last_parts : array('0', '0', '0');
+		// Derive the H-W-C triple from the SAME asterisk-marked hots_last/warms_last/colds_last
+		// entries used to paint the red backgrounds (not the separately stored h_w_c_last_1 /
+		// per-draw h_w_c column), so the badge always agrees with what's highlighted below.
+		// Exclude the extra/bonus ball match (shown in blue, not red) from the counts.
+		$_last_extra = isset($this->data['lottery']->last_drawn['extra']) ? intval($this->data['lottery']->last_drawn['extra']) : 0;
+		$_count_starred = function($arr) use ($_last_extra) {
+			$n = 0;
+			foreach ($arr as $ball => $count) {
+				if (substr($ball, -1) === '*' && intval(rtrim($ball, '*')) !== $_last_extra) $n++;
+			}
+			return $n;
+		};
+		$this->data['lottery']->hwc = array(
+			$_count_starred($this->data['lottery']->hots_last),
+			$_count_starred($this->data['lottery']->warms_last),
+			$_count_starred($this->data['lottery']->colds_last)
+		);
 		
 		// For display purposes, always show the extra ball if the lottery has one
 		// The $draw array (used for H-W-C matching/asterisks) respects extra_included setting
