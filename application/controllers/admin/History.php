@@ -786,6 +786,13 @@ class History extends Admin_Controller {
 		$this->data['hwc_balls_drawn'] = $drawn;
 		$this->data['hwc_range'] = isset($h_w_c['range']) ? $h_w_c['range'] : 100;
 		
+		// Self-heal: win-tracking normally runs at import time, but if it ever falls behind
+		// (e.g. lastdate predates the actual last draw), check it here too. Idempotent — guarded
+		// internally by comparing lastdate to the latest draw, so safe to call on every page view.
+		if (!empty($h_w_c['hwc_predictions'])) {
+			$this->statistics_m->check_and_update_hwc_wins($id, $h_w_c['hwc_predictions']);
+		}
+		
 		// Fetch H-W-C win statistics DIRECTLY from database (bypass cache to ensure fresh data)
 		$hwc_win_query = $this->db->where('lottery_id', $id)->limit(1)->get('lottery_h_w_c');
 		$hwc_win_data = $hwc_win_query->row_array();
@@ -1140,6 +1147,14 @@ class History extends Admin_Controller {
 		}
 		$this->data['current_draw_numbers'] = $current_draw_numbers;
 
+		// Self-heal: win-tracking normally runs at import time, but if it ever falls behind
+		// (e.g. lastdate predates the actual last draw), check it here too. Idempotent — guarded
+		// internally by comparing lastdate to the latest draw, so safe to call on every page view.
+		if (!empty($followers['lottery_numbers'])) {
+			$extra_preds = isset($followers['extra_numbers']) ? $followers['extra_numbers'] : null;
+			$this->statistics_m->check_and_update_followers_wins($id, $followers['lottery_numbers'], $extra_preds);
+		}
+		
 		// Fetch Followers win statistics DIRECTLY from database (bypass cache to ensure fresh data)
 		$followers_win_query = $this->db->where('lottery_id', $id)->limit(1)->get('lottery_followers');
 		$followers_win_data = $followers_win_query->row_array();
@@ -2027,6 +2042,13 @@ class History extends Admin_Controller {
 		// Extra ball predictions snapshot for independent / duplicate extra ball lotteries
 		$this->data['hwcf_prev_extra_numbers'] = ($hwcf_record && isset($hwcf_record['prev_extra_numbers'])) ? $hwcf_record['prev_extra_numbers'] : '';
 
+		// Self-heal: win-tracking normally runs at import time, but if it ever falls behind
+		// (e.g. lastdate predates the actual last draw), check it here too. Idempotent — guarded
+		// internally by comparing lastdate to the latest draw, so safe to call on every page view.
+		if (!empty($hwcf_record['lottery_numbers'])) {
+			$this->statistics_m->check_and_update_hwcf_wins($id, $hwcf_record['lottery_numbers']);
+		}
+		
 		// Fetch H-W-C + Followers win statistics DIRECTLY from database (bypass cache to ensure fresh data)
 		$hwcf_win_query = $this->db->where('lottery_id', $id)->limit(1)->get('lottery_h_w_c_followers');
 		$hwcf_win_data = $hwcf_win_query->row_array();
