@@ -2594,10 +2594,11 @@ class Statistics extends Admin_Controller {
 	 */
 	public function h_w_c_history($id, $table, $picks, $bn, $xtra, $range, $w_bound, $c_bound, $dup)
 	{
-		// The Draw Range (e.g. 50/100/200) is the LIVE classification window shown on the page;
-		// the historical backtest here needs half of it for the window and half to tally against,
-		// so it always has draws left to validate (25 of 50, 50 of 100, 100 of 200 standard).
-		$range = max(1, intdiv($range, 2));
+		// $range must stay the FULL window here — $w_bound/$c_bound are boundary thresholds
+		// computed by the caller for that same full range. Halving $range previously desynced
+		// the window size from the thresholds, causing the Last 10 / Last Range tally tables to
+		// classify draws (including the latest one) differently than the live H-W-C snapshot and
+		// the per-draw h_w_c column, so the latest draw's own pattern showed a count of 0.
 		$scale = $this->statistics_m->hwc_size($id);
 		$h_cnt = intval($scale['h_count']); // integer count only
 		$w_cnt = intval($scale['w_count']);	// integer count only
