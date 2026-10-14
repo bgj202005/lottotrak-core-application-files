@@ -1492,7 +1492,7 @@ class Statistics_m extends MY_Model
 		{
 			do
 			{
-				if ($num==$curr['ball'.$i])   
+				if (isset($curr['ball'.$i]) && $num==$curr['ball'.$i])   
 				{
 					$found = TRUE;
 					break;		// exit loop
