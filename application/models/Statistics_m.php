@@ -3937,6 +3937,16 @@ class Statistics_m extends MY_Model
 		// Query historical draws
 		$sql = "SELECT ".$s." FROM ".$name." WHERE id <> '".$ldn['id']."'".$w." ORDER BY draw_date DESC LIMIT ".$dbl_range;
 		$query = $this->db->query($sql);
+		
+		// ADAPTIVE FIX: When fewer qualifying draws exist than the ideal range*2 window (e.g. a
+		// lottery whose draw range has only just met the minimum, such as LottoMax at ~54 draws),
+		// $range_ptr would never reach the fixed $range threshold below, so positional wins would
+		// stay at all zeros forever. Mirror complete_recalculation()'s adaptive phase split: build
+		// followers over roughly the first half of what's actually available, then start counting
+		// wins over the second half - the same approach that already works for the per-ball wins.
+		$available_rows = $query->num_rows();
+		$effective_threshold = ($available_rows >= $dbl_range) ? $range : max(1, intdiv($available_rows, 2) + 1);
+		
 		$row = $query->first_row('array');
 		
 		// Ensure 'extra' key exists in row arrays to prevent undefined index errors
@@ -3988,7 +3998,7 @@ class Statistics_m extends MY_Model
 				}
 				
 				// Step 2: Check for prize wins in second range
-				if($range_ptr >= (int)$range) {
+				if($range_ptr >= $effective_threshold) {
 					// Use appropriate ball range: extra ball range for position E, main ball range for others
 					$ball_range = ($position_key === 'E') ? $mx_ex : 49; // Use mx_ex for extra, 49 for main balls
 					$nonfollowlist = $this->non_followers($followlist, $ball_range);
