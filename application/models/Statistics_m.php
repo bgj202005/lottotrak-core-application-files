@@ -6097,9 +6097,11 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	 * @param  string       $position_points     selected position value (position mode)
 	 * @param  string       $lottery_numbers     comma-separated generated numbers
 	 * @param  string|null  $prev_numbers        previous numbers (null = don't overwrite)
+	 * @param  integer|null $h_w_c_rank          rank (1-based) of the selected H-W-C combination (null = don't overwrite)
+	 * @param  string|null  $extra_numbers       comma-separated extra ball predictions (null = don't overwrite)
 	 * @return void
 	 */
-	public function hwc_followers_save($lottery_id, $h_w_c_group, $follower_type, $ball_points, $position_points, $lottery_numbers, $prev_numbers = null)
+	public function hwc_followers_save($lottery_id, $h_w_c_group, $follower_type, $ball_points, $position_points, $lottery_numbers, $prev_numbers = null, $h_w_c_rank = null, $extra_numbers = null)
 	{
 		$existing = $this->hwc_followers_exists($lottery_id);
 
@@ -6114,6 +6116,14 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 
 		if (!is_null($prev_numbers)) {
 			$data['prev_lottery_numbers'] = $prev_numbers;
+		}
+
+		if (!is_null($h_w_c_rank)) {
+			$data['h_w_c_rank'] = (int) $h_w_c_rank;
+		}
+
+		if (!is_null($extra_numbers)) {
+			$data['extra_numbers'] = $extra_numbers;
 		}
 
 		if ($existing) {
