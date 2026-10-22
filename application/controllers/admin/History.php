@@ -758,7 +758,9 @@ class History extends Admin_Controller {
 		// entries used to paint the red backgrounds (not the separately stored h_w_c_last_1 /
 		// per-draw h_w_c column), so the badge always agrees with what's highlighted below.
 		// Exclude the extra/bonus ball match (shown in blue, not red) from the counts.
-		$_last_extra = isset($this->data['lottery']->last_drawn['extra']) ? intval($this->data['lottery']->last_drawn['extra']) : 0;
+		// Independent / duplicate extra ball lotteries never merge the extra into the main match list,
+		// so a main ball sharing the extra's number is a genuine main hit and must be counted.
+		$_last_extra = (!$dup && isset($this->data['lottery']->last_drawn['extra'])) ? intval($this->data['lottery']->last_drawn['extra']) : 0;
 		$_count_starred = function($arr) use ($_last_extra) {
 			$n = 0;
 			foreach ($arr as $ball => $count) {

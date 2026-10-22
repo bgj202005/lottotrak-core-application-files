@@ -760,7 +760,7 @@
 											$xtr = FALSE;
 											foreach($lottery->draw as $count => $drawn):
 												echo $drawn." ";
-												if($xtr) $extra_ball = $drawn; // capture the extra / bonus ball
+												if($xtr && !$lottery->duplicate_extra_ball) $extra_ball = $drawn; // capture the shared-pool extra / bonus ball; an independent extra ball never collides with main balls
 												$mx++;
 												if(($mx>$lottery->balls_drawn)&&($lottery->extra_ball)&&(!$xtr)):
 													echo " + ";
