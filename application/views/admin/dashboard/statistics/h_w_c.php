@@ -324,7 +324,8 @@
 							<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px;">
 								<?php
 								$min_extra_pool = 1;
-								$max_extra_pool = isset($lottery->maximum_extra_ball) ? $lottery->maximum_extra_ball : 10;
+								$extra_minimum = !empty($lottery->minimum_extra_ball) ? (int)$lottery->minimum_extra_ball : 1;
+								$max_extra_pool = (int)$lottery->maximum_extra_ball - $extra_minimum + 1;
 								$current_extra_pool = isset($lottery->prediction_extras) ? $lottery->prediction_extras : 1;
 								echo form_label("Prediction Extra Pool:", "id => 'lb_extrapool'");
 								$extra_pool_details = array( 'name'  => 'prediction_extras_spinner',
@@ -732,7 +733,7 @@
 	<?php if($lottery->duplicate_extra_ball && $lottery->extra_ball): ?>
 	$("#prediction_extras_spinner").spinner({
     	min: 1,
-    	max: <?=isset($lottery->maximum_extra_ball) ? $lottery->maximum_extra_ball : 10;?>
+		max: <?=$max_extra_pool;?>
     });
 	<?php endif; ?>
 </script>

@@ -5605,28 +5605,14 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	 */
 	public function hwc_duple_extra($lotto_tbl, $bonus = 0, $draws = 0, $range = 0, $last = '')
 	{
-		// Build query
-		$sql_range = ($range ? ' ORDER BY draw_date DESC LIMIT '.$range : ' ORDER BY draw_date DESC');
-		$sql_date = '';
-		$sql_draws = '';
-		if (!empty($last)&&($draws)&&(!$bonus))
-		{
-			$sql_date = ' WHERE draw_date <= "'.$last.'"';
-		}
-		if(!empty($last)&&(!$draws))
-		{
-			$sql_draws = ' WHERE extra <> "0"';
-			$sql_date = ' AND draw_date <= "'.$last.'"';
-		}
-		//$sql_date = (!empty($last) ? ' WHERE draw_date <= "'.$last.'"' : '');
-		elseif(empty($last)&&(!$draws))
-		{
-			$sql_draws = ' WHERE extra <> "0"';
-		}
-
-			$sql = 'SELECT ball_drawn, count(*) as heat 
-				FROM ((SELECT extra as ball_drawn FROM '.$lotto_tbl.$sql_draws.$sql_date.$sql_range.')';
-				$sql .= ') as hwc
+		$where = array();
+		if (!$draws) $where[] = 'extra <> 0';
+		if (!empty($last)) $where[] = 'draw_date <= '.$this->db->escape($last);
+		$sql_where = $where ? ' WHERE '.implode(' AND ', $where) : '';
+		$sql_range = ' ORDER BY draw_date DESC, id DESC'.($range ? ' LIMIT '.(int)$range : '');
+			$sql = 'SELECT ball_drawn, count(*) as heat
+				FROM (SELECT extra as ball_drawn FROM '.$lotto_tbl.$sql_where.$sql_range.') as hwc
+				WHERE ball_drawn <> 0
 				GROUP BY ball_drawn
 				ORDER BY heat DESC, CAST(ball_drawn AS UNSIGNED) ASC;';
 			$query = $this->db->query($sql);
@@ -5637,6 +5623,102 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 				$xtra_string .= $xtra->ball_drawn.'='.$xtra->heat.",";
 			}
 	return substr($xtra_string, 0, -1);	// Return the extra string without the last comma in the string	
+	}
+
+	/**
+	 * Complete the extra pool, ordered by occurrences descending, then ball ascending.
+	 * Zero-occurrence balls must retain a rank so every valid hit can be counted.
+	 */
+	public function hwc_extra_ranking($occurrences, $minimum, $maximum)
+	{
+		if ($maximum < $minimum) throw new InvalidArgumentException('Invalid extra-ball pool.');
+		$counts = array_fill_keys(range($minimum, $maximum), 0);
+		foreach (explode(',', (string)$occurrences) as $pair) {
+			$parts = explode('=', $pair);
+			if (count($parts) === 2 && array_key_exists((int)$parts[0], $counts)) {
+				$counts[(int)$parts[0]] = (int)$parts[1];
+			}
+		}
+		uksort($counts, function($a, $b) use ($counts) {
+			return ($counts[$b] <=> $counts[$a]) ?: ($a <=> $b);
+		});
+		return $counts;
+	}
+
+	/**
+	 * Count each hit at its rank BEFORE that draw, using a trailing $range window.
+	 * Last excludes the latest outcome; Future includes it. Only full training
+	 * windows are scored, and extra=0 consumes a window slot only with extra_draws.
+	 */
+	public function hwc_extra_position_history($table, $minimum, $maximum, $range, $extra_draws)
+	{
+		$range = (int)$range;
+		if ($range < 1 || $maximum < $minimum) {
+			throw new InvalidArgumentException('Invalid extra-ball range or history window.');
+		}
+		$where = $extra_draws ? '' : ' WHERE extra <> 0';
+		$rows = $this->db->query('SELECT id, draw_date, extra FROM '.$table.$where.
+			' ORDER BY draw_date DESC, id DESC LIMIT '.(2 * $range + 1))->result_array();
+		$rows = array_reverse($rows);
+		$size = count($rows);
+		$totals = array(
+			'position' => array_fill(0, $maximum - $minimum + 1, 0),
+			'position_last' => array_fill(0, $maximum - $minimum + 1, 0)
+		);
+		$counts = array_fill_keys(range($minimum, $maximum), 0);
+		for ($i = 0; $i < min($range, $size); $i++) {
+			$ball = (int)$rows[$i]['extra'];
+			if ($ball !== 0 && !isset($counts[$ball])) {
+				throw new UnexpectedValueException('Extra ball outside the configured pool in '.$table.' draw '.$rows[$i]['id']);
+			}
+			if (isset($counts[$ball])) $counts[$ball]++;
+		}
+		for ($i = $range; $i < $size; $i++) {
+			$ball = (int)$rows[$i]['extra'];
+			if ($ball !== 0 && ($ball < $minimum || $ball > $maximum)) {
+				throw new UnexpectedValueException('Extra ball outside the configured pool in '.$table.' draw '.$rows[$i]['id']);
+			}
+			if ($ball !== 0) {
+				$pairs = array();
+				foreach ($counts as $number => $count) $pairs[] = $number.'='.$count;
+				$ranking = array_keys($this->hwc_extra_ranking(implode(',', $pairs), $minimum, $maximum));
+				$position = array_search($ball, $ranking, true);
+				if ($i >= $size - $range) $totals['position'][$position]++;
+				if ($i >= $size - $range - 1 && $i < $size - 1) $totals['position_last'][$position]++;
+			}
+			$expired = (int)$rows[$i - $range]['extra'];
+			if (isset($counts[$expired])) $counts[$expired]--;
+			if (isset($counts[$ball])) $counts[$ball]++;
+		}
+		return $totals;
+	}
+
+	/**
+	 * Repair legacy/missing E sections without replacing main-ball history or snapshots.
+	 */
+	public function refresh_hwc_extra_positions($lottery, $hwc, $history)
+	{
+		if (!$history || empty($lottery->duplicate_extra_ball) || empty($lottery->extra_ball)) return $history;
+		$minimum = !empty($lottery->minimum_extra_ball) ? (int)$lottery->minimum_extra_ball : 1;
+		$table = $this->lotteries_m->lotto_table_convert($lottery->lottery_name);
+		$totals = $this->hwc_extra_position_history($table, $minimum, (int)$lottery->maximum_extra_ball,
+			$hwc['range'], $hwc['extra_draws']);
+		$changes = array();
+		foreach ($totals as $field => $counts) {
+			$pairs = array();
+			foreach ($counts as $position => $count) $pairs[] = $position.'='.$count;
+			$sections = explode('|', (string)$history[$field]);
+			$updated = implode('|', array_slice($sections, 0, 3)).'|E>'.implode(',', $pairs);
+			if ($updated !== $history[$field]) {
+				$changes[$field] = $updated;
+				$history[$field] = $updated;
+			}
+		}
+		if ($changes) {
+			$changes['lottery_id'] = $lottery->id;
+			$this->hwc_history_save($changes, TRUE);
+		}
+		return $history;
 	}
 	/**
 	 * Return the added only list of followers after the current draw
@@ -7138,7 +7220,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	* @param	array	$c				Cold Numbers array
 	* @return	string	$str_positions	Returns the formated string
 	*/
-	public function position_string($h, $w, $c)
+	public function position_string($h, $w, $c, $e = NULL)
 	{
 		$str_positions = 'H>';
 
@@ -7162,6 +7244,11 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			$str_positions .= $position.'='.$count.','; 
 		}
 		$str_positions = substr($str_positions,0,-1); // Remove last ','
+		if ($e !== NULL) {
+			$pairs = array();
+			foreach ($e as $position => $count) $pairs[] = $position.'='.$count;
+			$str_positions .= '|E>'.implode(',', $pairs);
+		}
 	return $str_positions; // formatted string returned
 	}
 	/** 
@@ -7178,7 +7265,7 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 	* @return	string	$_previous		Returns the formated string for the draw before the last draw. This will be returned as position_last
 	* in hwc_history['position_last']
 	*/
-	public function positions_before_last($table, $max, $xtra, $dup, $highs, $middles, $lows, $current)
+	public function positions_before_last($table, $max, $xtra, $dup, $highs, $middles, $lows, $current, $min_extra = 1, $range = 100, $extra_draws = 0)
 	{
 		$pv = $this->db_row($table);  	 // Get the most recent drawn numbers
 		if (!$pv) return '';  // No draws exist in the table
@@ -7289,6 +7376,14 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 			$_previous .= $key.'='.$value.',';
 		}
 		$_previous = substr($_previous, 0, -1); // Remove the last comma
+		if ($dup && isset($positions[3]) && strpos($positions[3], 'E>') === 0) {
+			$pool_size = count(explode(',', substr($positions[3], 2)));
+			$totals = $this->hwc_extra_position_history($table, $min_extra ?: 1,
+				($min_extra ?: 1) + $pool_size - 1, $range, $extra_draws);
+			$pairs = array();
+			foreach ($totals['position_last'] as $position => $count) $pairs[] = $position.'='.$count;
+			$_previous .= '|E>'.implode(',', $pairs);
+		}
 	return $_previous; // Return the formatted string for the previous draw positions
 	}
 

@@ -95,24 +95,24 @@
 		<td style = "text-align:center;"><?=$lottery->repeaters; ?></td>
 		<td style = "text-align:center;"><?php echo $statistics->btn_stat('admin/statistics/view_draws/'.$lottery->id, $lottery->draw_count == 0); ?></td>
 		<?php if(!$lottery->min_draws_met): ?>
-		<td colspan="4" style="text-align:center; vertical-align:top; padding:8px;">
+		<td colspan="4" class="hwc-group" style="text-align:center; vertical-align:top; padding:8px;">
 			<span style="color: #d9534f; font-weight: bold; font-size:1.25em;">
 				<?=$lottery->draws_remaining;?> Draws left to reach the minimum of <?=$lottery->required_draws;?> draws for the next prediction. 
 				The Earliest prediction draw date is <?=$lottery->next_prediction_date;?>.
 			</span>
 		</td>
 		<?php elseif($lottery->needs_recalc): ?>
-		<td colspan="4" style="text-align:center; vertical-align:top; padding:8px;">
+		<td colspan="4" class="hwc-group" style="text-align:center; vertical-align:top; padding:8px;">
 			<span style="color: #d9534f; font-weight: bold; font-size:0.875em;">ReCalc Required</span>
 		</td>
 		<?php else: ?>
-		<td style = "text-align:center;"><?php echo $statistics->btn_hwc('admin/statistics/h_w_c/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><?php echo $statistics->btn_followers('admin/statistics/followers/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><?php echo $statistics->btn_friends('admin/statistics/friends/'.$lottery->id); ?></td>
-		<td style = "text-align:center;"><?php echo $statistics->btn_hwc_followers('admin/statistics/hwc_followers/'.$lottery->id); ?></td>
+		<td class="hwc-group" style = "text-align:center;"><?php echo $statistics->btn_hwc('admin/statistics/h_w_c/'.$lottery->id); ?></td>
+		<td class="hwc-group" style = "text-align:center;"><?php echo $statistics->btn_followers('admin/statistics/followers/'.$lottery->id); ?></td>
+		<td class="hwc-group" style = "text-align:center;"><?php echo $statistics->btn_friends('admin/statistics/friends/'.$lottery->id); ?></td>
+		<td class="hwc-group" style = "text-align:center;"><?php echo $statistics->btn_hwc_followers('admin/statistics/hwc_followers/'.$lottery->id); ?></td>
 		<?php endif; ?>
 		<td style = "text-align:center;"><?php echo $statistics->btn_calculate('admin/statistics/calculate/'.$lottery->id, $lottery->draw_count == 0); ?></td>
-		<td style = "text-align:center;"><input type="checkbox" name="recalc" value="<?=$lottery->id;?>" class="recalc<?=$lottery->id;?>" id="recalc" <?=(!$lottery->min_draws_met ? 'disabled' : '');?> >
+		<td style = "text-align:center;"><input type="checkbox" name="recalc" value="<?=$lottery->id;?>" class="recalc<?=$lottery->id;?>" id="recalc" <?=(!$lottery->min_draws_met ? 'disabled' : '');?> ></td>
 		<td style = "text-align:center;">
 			<button type="button" class="btn btn-sm btn-warning reset-followers" 
 					data-lottery-id="<?=$lottery->id;?>"
@@ -227,25 +227,16 @@ function resetFollowerStatistics(lotteryId, lotteryName) {
 				
 				// Update UI to show ReCalc Required - replace the 3 icon cells with colspan cell
 				var row = $('button[data-lottery-id="' + lotteryId + '"]').closest('tr');
-				var allCells = row.find('td');
+				// Collapse only the four H-W-C group cells (found by class, never by column index).
+				// A row already collapsed server-side or by a previous reset has a single colspan cell: leave it.
+				var groupCells = row.find('td.hwc-group');
+				if (groupCells.length > 1) {
+					groupCells.slice(1).remove();
+					groupCells.first().attr('colspan', '4')
+						.css({'text-align': 'center', 'vertical-align': 'top', 'padding': '8px'})
+						.html('<span style="color: #d9534f; font-weight: bold; font-size:0.875em;">ReCalc Required</span>');
+				}
 				
-// Find the H-W-C, Followers, Friends cells
-			// Columns: 0=Logo, 1=Lottery, 2=State, 3=Country, 4=Date, 5=Drawn, 6=Sum100, 7=SumLD, 8=Repeaters, 9=Stats, 10=HWC, 11=Followers, 12=Friends
-			var hwcCell = allCells.eq(10);      // H-W-C column
-			var followersCell = allCells.eq(11); // Followers column
-			var friendsCell = allCells.eq(12);   // Friends column
-				
-			// Check if already showing ReCalc Required message (colspan will be undefined or not '3')
-			if (!hwcCell.attr('colspan') || hwcCell.attr('colspan') != '3') {
-				// Remove Followers and Friends cells immediately
-				if (followersCell.length > 0) followersCell.remove();
-				if (friendsCell.length > 0) friendsCell.remove();
-				// Update H-W-C cell to span 3 columns with ReCalc Required message
-				hwcCell.attr('colspan', '3');
-				hwcCell.css({'text-align': 'center', 'vertical-align': 'top', 'padding': '8px'});
-				hwcCell.html('<span style="color: #d9534f; font-weight: bold; font-size:0.875em;">ReCalc Required</span>');
-			}
-			
 			setTimeout(function() {
 				$('#message').fadeOut();
 			}, 5000);

@@ -465,6 +465,9 @@ class History extends Admin_Controller {
 		{
 			$range = $h_w_c['range'];
 			$hwc_history = $this->statistics_m->hwc_history_exists($id);
+			if ($dup && $hwc_history) {
+				$hwc_history = $this->statistics_m->refresh_hwc_extra_positions($this->data['lottery'], $h_w_c, $hwc_history);
+			}
 			if(!is_null($hwc_history)) // Correct Lottery & Range?
 			{
 				$draw = array(); 		// Temporary draw array
@@ -505,6 +508,18 @@ class History extends Admin_Controller {
 				if(!empty($strdupextra)) {
 					$dupextra = explode(",", $strdupextra);
 					$dupextra_last = explode(",", $strdupextra_last);
+				}
+				if ($dup) {
+					$minimum = !empty($this->data['lottery']->minimum_extra_ball) ? (int)$this->data['lottery']->minimum_extra_ball : 1;
+					$maximum = (int)$this->data['lottery']->maximum_extra_ball;
+					$dupextra = array();
+					$dupextra_last = array();
+					foreach ($this->statistics_m->hwc_extra_ranking($strdupextra, $minimum, $maximum) as $ball => $count) {
+						$dupextra[] = $ball.'='.$count;
+					}
+					foreach ($this->statistics_m->hwc_extra_ranking($strdupextra_last, $minimum, $maximum) as $ball => $count) {
+						$dupextra_last[] = $ball.'='.$count;
+					}
 				}
 				// Iterate Hots from last draw
 				$pos = 0;
@@ -608,7 +623,7 @@ class History extends Admin_Controller {
 					}
 					$pos++;
 				}
-				if (!empty($strdupextra)) // Only if there is the duplicate extra in this lottery?
+				if (!empty($dupextra)) // Only if there is the duplicate extra in this lottery?
 				{
 					// Iterate Extra Numbers that can have duplicates of the main balls
 					foreach($dupextra as $all_dupextra)
@@ -618,7 +633,7 @@ class History extends Admin_Controller {
 						$this->data['lottery']->dupextra[$n] = $c; 
 					}
 				}
-				if (!empty($strdupextra_last)) // Only if there is the duplicate extra in this lottery?	
+				if (!empty($dupextra_last)) // Only if there is the duplicate extra in this lottery?
 				{	
 					foreach($dupextra_last as $all_dupextra_last)
 					{

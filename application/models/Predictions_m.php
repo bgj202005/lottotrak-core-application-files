@@ -1396,8 +1396,7 @@ class Predictions_m extends MY_Model
 	 * Generate extra ball predictions for independent / duplicate extra ball lotteries.
 	 * Ranks the E-section position counts in lottery_h_w_c_stats.position, then maps each
 	 * position to the ball at that row of the dupextra list (like main H-W-C positions index
-	 * into the ordered hots/warms/colds lists). Falls back to top dupextra occurrence counts
-	 * when no E section exists (pre-recalc data).
+	 * into the ordered hots/warms/colds lists). Repairs legacy E sections before selection.
 	 *
 	 * @param  integer $lottery_id		Lottery identifier
 	 * @param  integer $extra_pool		Number of extra ball predictions to generate (prediction_extras)
@@ -1405,8 +1404,11 @@ class Predictions_m extends MY_Model
 	 */
 	public function hwc_extra($lottery_id, $extra_pool)
 	{
-		$extra_pool = (int) $extra_pool;
-		if ($extra_pool <= 0) return FALSE;
+		$extra_pool = filter_var($extra_pool, FILTER_VALIDATE_INT, array('options' => array('min_range' => 1)));
+		if ($extra_pool === FALSE) {
+			log_message('error', 'Invalid H-W-C extra prediction count for lottery '.$lottery_id);
+			return FALSE;
+		}
 
 		// Load lottery profile for the extra ball range
 		$this->load->model('lotteries_m');
@@ -1417,33 +1419,29 @@ class Predictions_m extends MY_Model
 
 		$min_extra = (!empty($lottery->minimum_extra_ball) ? (int) $lottery->minimum_extra_ball : 1);
 		$max_extra = (!empty($lottery->maximum_extra_ball) ? (int) $lottery->maximum_extra_ball : 0);
-		if ($max_extra < $min_extra) return FALSE;
+		if ($max_extra < $min_extra || $extra_pool > $max_extra - $min_extra + 1) {
+			log_message('error', 'Invalid H-W-C extra prediction pool for lottery '.$lottery_id);
+			return FALSE;
+		}
+		$this->load->model('statistics_m');
 
 		// The dupextra ordered ball list (sorted by occurrence desc) — positions index into this list,
 		// exactly like main H-W-C positions index into the ordered hots/warms/colds lists.
-		$row_hwc = $this->db->select('dupextra')
+		$row_hwc = $this->db
 			->get_where('lottery_h_w_c', array('lottery_id' => $lottery_id), 1)
 			->row_array();
-		$dup_balls = array();  // row index => ball value, in stored (count desc) order
-		$dup_counts = array(); // ball value => count (used by fallback)
-		if ($row_hwc && !empty($row_hwc['dupextra'])) {
-			foreach (explode(',', $row_hwc['dupextra']) as $pair) {
-				$kv = explode('=', $pair);
-				if (count($kv) == 2) {
-					$num = (int) trim($kv[0]);
-					if ($num >= $min_extra && $num <= $max_extra) {
-						$dup_balls[] = $num;
-						$dup_counts[$num] = (int) trim($kv[1]);
-					}
-				}
-			}
+		if (!$row_hwc) {
+			log_message('error', 'Missing H-W-C configuration for extra predictions, lottery '.$lottery_id);
+			return FALSE;
 		}
+		$dup_balls = array_keys($this->statistics_m->hwc_extra_ranking($row_hwc['dupextra'], $min_extra, $max_extra));
 
 		// 1. Rank the E-section positions by count, then map each position to the ball
 		// at that row of the dupextra list (position 1 -> 2nd row, etc.)
-		$row_stats = $this->db->select('position')
+		$row_stats = $this->db
 			->get_where('lottery_h_w_c_stats', array('lottery_id' => $lottery_id), 1)
 			->row_array();
+		$row_stats = $this->statistics_m->refresh_hwc_extra_positions($lottery, $row_hwc, $row_stats);
 
 		$selected = array();
 		if (!empty($dup_balls) && $row_stats && !empty($row_stats['position'])) {
@@ -1456,6 +1454,10 @@ class Predictions_m extends MY_Model
 					if (count($kv) == 2) {
 						$ranked[] = array('pos' => (int) trim($kv[0]), 'count' => (int) trim($kv[1]));
 					}
+				}
+				if (array_sum(array_column($ranked, 'count')) === 0) {
+					log_message('error', 'No scored H-W-C extra history for lottery '.$lottery_id);
+					return FALSE;
 				}
 				usort($ranked, function($a, $b) {
 					if ($b['count'] !== $a['count']) return $b['count'] - $a['count']; // Higher count first
@@ -1472,25 +1474,10 @@ class Predictions_m extends MY_Model
 			}
 		}
 
-		// 2. Fallback: top dupextra occurrence counts when no E section exists (pre-recalc data)
-		if (count($selected) < $extra_pool && !empty($dup_counts)) {
-			$dup_ranked = array();
-			foreach ($dup_counts as $num => $count) {
-				$dup_ranked[] = array('num' => $num, 'count' => $count);
-			}
-			usort($dup_ranked, function($a, $b) {
-				if ($b['count'] !== $a['count']) return $b['count'] - $a['count'];
-				return $a['num'] - $b['num'];
-			});
-			foreach ($dup_ranked as $entry) {
-				if (!in_array($entry['num'], $selected)) {
-					$selected[] = $entry['num'];
-					if (count($selected) >= $extra_pool) break;
-				}
-			}
+		if (count($selected) !== $extra_pool) {
+			log_message('error', 'Incomplete H-W-C extra position history for lottery '.$lottery_id);
+			return FALSE;
 		}
-
-		if (empty($selected)) return FALSE;
 		sort($selected, SORT_NUMERIC); // Present in ascending ball order
 		return implode(',', $selected);
 	}

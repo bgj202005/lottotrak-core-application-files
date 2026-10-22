@@ -2050,10 +2050,11 @@ class Statistics extends Admin_Controller {
 					// Only proceed if there's an actual change and form value is valid
 					if($extra_pool_form && $extra_pool_form != $original_extra_pool) {
 						$min_extra_pool = 1; // Minimum is 1
-						$max_extra_pool = isset($this->data['lottery']->maximum_extra_ball) ? $this->data['lottery']->maximum_extra_ball : 10;
+						$extra_minimum = !empty($this->data['lottery']->minimum_extra_ball) ? (int)$this->data['lottery']->minimum_extra_ball : 1;
+						$max_extra_pool = (int)$this->data['lottery']->maximum_extra_ball - $extra_minimum + 1;
 						
 						// Validate extra pool range
-						if($extra_pool_form >= $min_extra_pool && $extra_pool_form <= $max_extra_pool) {
+						if(ctype_digit((string)$extra_pool_form) && $extra_pool_form >= $min_extra_pool && $extra_pool_form <= $max_extra_pool) {
 							$this->data['lottery']->prediction_extras = $extra_pool_form;
 							$this->session->set_flashdata('extra_pool_message', "The Prediction Extra Pool has changed from $original_extra_pool to $extra_pool_form");
 							$blnheat = TRUE; // Trigger recalculation
@@ -2609,7 +2610,7 @@ class Statistics extends Admin_Controller {
 			$w_pos = array_fill(0, $w_cnt, 0); // Zeroed array
 		$c_pos = new SplFixedArray($c_cnt); // Declare the colds positions
 			$c_pos = array_fill(0, $c_cnt, 0); // Zeroed array
-		// Independent / duplicate extra ball lotteries track the extra ball positions separately (E section)
+		// Independent extra positions use pre-draw ranks, not ball values.
 		$e_pos = NULL;
 		$min_extra = 1;
 		$max_extra = 0;
@@ -2617,7 +2618,8 @@ class Statistics extends Admin_Controller {
 		{
 			$min_extra = (!empty($this->data['lottery']->minimum_extra_ball) ? intval($this->data['lottery']->minimum_extra_ball) : 1);
 			$max_extra = (!empty($this->data['lottery']->maximum_extra_ball) ? intval($this->data['lottery']->maximum_extra_ball) : 0);
-			if($max_extra>=$min_extra) $e_pos = array_fill(0, ($max_extra-$min_extra+1), 0); // Zeroed extra ball positions array
+			$extra_positions = $this->statistics_m->hwc_extra_position_history($table, $min_extra, $max_extra, $range, $xtra);
+			$e_pos = $extra_positions['position'];
 		}
 		$examine_date = $this->statistics_m->lottery_return_date($table, $range+1, $xtra); 	// Please note: This an off by 1 error. It has to go +1 draw back 
 		if(!$examine_date) return false;													// to iterate for the given range
@@ -2677,14 +2679,6 @@ class Statistics extends Admin_Controller {
 				$h_pos = $this->statistics_m->positions($next_drawn,$highs,$h_pos,$bn,$xtra,$dup); 		// Pass the hot positional value array, compare the current drawn numbers with the high numbers 
 				$w_pos = $this->statistics_m->positions($next_drawn,$averages,$w_pos,$bn,$xtra,$dup); 	// Pass the hot positional value array, compare the current drawn numbers with the average numbers 
 				$c_pos = $this->statistics_m->positions($next_drawn,$lows,$c_pos,$bn,$xtra,$dup); 		// Pass the hot positional value array, compare the current drawn numbers with the average numbers 
-				
-				// Count the extra ball position for independent / duplicate extra ball lotteries (E section)
-				// Respects extra_draws setting: when extra draws (extra=0) are excluded, skip draws with no extra ball
-				if(!is_null($e_pos)&&isset($fd['extra'])&&($xtra||intval($fd['extra'])!=0))
-				{
-					$extra_val = intval($fd['extra']);
-					if(($extra_val>=$min_extra)&&($extra_val<=$max_extra)) $e_pos[$extra_val-$min_extra]++;
-				}
 				
 				$examine_date = $fd['draw_date'];	// Move to next date for next iteration
 				$examine_id = $fd['id'];			// Move to next ID for next iteration

@@ -1162,6 +1162,7 @@
 														echo "</tr>";
 												endforeach; ?>
 											</tbody>
+											<caption>Zero-based pre-draw rank hits. Excludes the latest result; uses up to <?=$lottery->last_drawn['range'];?> earlier results with full training windows.</caption>
 										</table>
 									</div>
 									<?php endif; ?>
@@ -1409,6 +1410,7 @@
 														echo "</tr>";
 												endforeach; ?>
 											</tbody>
+											<caption>Zero-based pre-draw rank hits, including the latest result. Map selected positions to rows of Future Extra Ball, starting at 0.</caption>
 										</table>
 									</div>
 									<?php endif; ?>
@@ -1712,6 +1714,7 @@
 														echo "</tr>";
 												endforeach; ?>
 											</tbody>
+											<caption>Zero-based pre-draw rank hits, including the latest result. Map selected positions to rows of Future Extra Ball, starting at 0.</caption>
 										</table>
 									</div>
 									<?php endif; ?>

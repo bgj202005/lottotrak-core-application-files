@@ -1,7 +1,7 @@
 # H-W-C Position Win Tracking Enhancement
 
 ## Overview
-This enhancement adds pattern-specific position win tracking to the H-W-C Winners system, creating a self-learning prediction mechanism that improves over time by analyzing which positions within each temperature category (Hot/Warm/Cold) historically produce winning numbers for each H-W-C pattern.
+This enhancement adds pattern-specific position win tracking to the H-W-C Winners system, analyzing which positions within each temperature category (Hot/Warm/Cold) historically produced winning numbers for each H-W-C pattern. Historical rankings alone do not demonstrate predictive improvement.
 
 ## Problem Statement
 The original H-W-C Winners system used simple sequential position selection:
@@ -17,11 +17,36 @@ Track position performance per pattern:
 - Calculate win rate: `wins / selections` for each position
 - Select positions by win rate instead of sequential order
 
-## Expected Benefits
-- **15-30% improvement** in prediction win rates
-- Self-learning system that adapts to actual statistical behavior
-- Pattern-specific optimization (different patterns favor different positions)
-- No user intervention required - system learns automatically
+## Interpretation
+Historical position rankings describe past results; they do not establish improved
+odds for independent, fair lottery draws. Any claimed improvement requires an
+out-of-sample, walk-forward comparison with equally sized random selections.
+
+### Independent extra-ball positions
+
+- Extra positions are zero-based row indexes in the occurrence-ranked extra-ball
+  list, not `ball - minimum_extra_ball`. Ties use ball number ascending, and
+  unobserved legal balls remain in the list with zero occurrences.
+- Each result contributes one hit at its rank computed from the **preceding**
+  configured range of draws, never including the result being scored.
+- `E>` in `position` covers the latest range of scored outcomes; `position_last`
+  covers the preceding range, excluding the latest outcome. Both total 100 for a
+  100-draw window when 201 eligible draws with valid extras are available.
+  Insufficient training history or included draws with `extra=0` reduce totals.
+- Extra Draws Included controls whether draws with no extra consume a window
+  slot. They never produce an extra-ball hit.
+- History and prediction generation repair legacy/missing `E>` sections in place,
+  preserving main-ball sections and saved prediction snapshots.
+- Prediction Extra Pool selects exactly that many distinct balls by descending
+  positional hits, with lower position first on ties, mapped to the current
+  extra-ball list. Existing saved predictions are not retroactively replaced;
+  regenerate predictions to apply the corrected ranking.
+- For a fair 1-7 extra-ball pool, two distinct selections cover 2/7 (28.57%) of
+  outcomes, regardless of the historical method. This is pool coverage, not a
+  single ticket's win probability or a profitability claim.
+
+Regression check (from the repository root):
+`php application\tests\hwc_extra_positions_test.php`.
 
 ## Implementation Details
 
