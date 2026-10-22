@@ -45,9 +45,6 @@ out-of-sample, walk-forward comparison with equally sized random selections.
   outcomes, regardless of the historical method. This is pool coverage, not a
   single ticket's win probability or a profitability claim.
 
-Regression check (from the repository root):
-`php application\tests\hwc_extra_positions_test.php`.
-
 ## Implementation Details
 
 ### 1. Database Storage
