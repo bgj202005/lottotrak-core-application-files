@@ -1193,7 +1193,7 @@ elseif($is_extra):
 							<h5 style="color: #2e7d32; margin-bottom: 10px;">
 								<i class="fa fa-chart-line"></i> Followers Previous Predicted Winners
 								<?php if(!empty($prev_subtitle)): ?>
-									<span style="font-size: 0.85em; font-weight: normal; color: #555;">(<?=$prev_subtitle;?>)</span>
+									<span style="font-size: 0.85em; font-weight: normal; color: #999;">(<?=$prev_subtitle;?>)</span>
 								<?php endif; ?>
 							</h5>
 							<div style="margin-top: 10px;">

@@ -6139,7 +6139,12 @@ public function hwc_DrawBeforeLast($lotto_tbl)
 		// Check predictions against the latest draw BEFORE snapshotting (same draw they were made for)
 		$extra_preds = isset($row['extra_numbers']) ? $row['extra_numbers'] : null;
 		$this->check_and_update_followers_wins($lottery_id, $row['lottery_numbers'], $extra_preds);
-		$update = array('prev_lottery_numbers' => $row['lottery_numbers']);
+		// Encode follower_type|ball_points|position_points|lottery_numbers so the history page
+		// can show which trigger (e.g. "After Ball 49") the previous prediction was based on.
+		$follower_type   = !empty($row['follower_type']) ? $row['follower_type'] : 'after_ball';
+		$ball_points     = isset($row['ball_points'])     ? $row['ball_points']     : '';
+		$position_points = isset($row['position_points']) ? $row['position_points'] : '';
+		$update = array('prev_lottery_numbers' => $follower_type . '|' . $ball_points . '|' . $position_points . '|' . $row['lottery_numbers']);
 		if (isset($row['extra_numbers'])) {
 			$update['prev_extra_numbers'] = $row['extra_numbers'];
 		}
