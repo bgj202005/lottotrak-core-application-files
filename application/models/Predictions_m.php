@@ -1840,10 +1840,20 @@ class Predictions_m extends MY_Model
 				return FALSE;
 			}
 			
-			// Parse and cache the groups data. Non-followers are re-weighted by their overall
-			// Hot/Warm/Cold draw frequency so a ball with a strong overall track record can still
-			// compete for a slot even though it never followed this specific trigger.
-			$groups = $this->parse_followers_groups_optimized($selected_followers, $selected_nonfollowers, $this->get_overall_ball_frequency($lottery_id));
+			// Independent extra ball data follows a '#' separator; only the main ball data is used here
+			$hash_pos = strpos($selected_followers, '#');
+			if ($hash_pos !== false) {
+				$selected_followers = substr($selected_followers, 0, $hash_pos);
+			}
+			$hash_pos = strpos($selected_nonfollowers, '#');
+			if ($hash_pos !== false) {
+				$selected_nonfollowers = substr($selected_nonfollowers, 0, $hash_pos);
+			}
+			
+			// The candidate pool is followers AND non-followers of this ball/position — nothing else
+			// (no H-W-C pool). Non-followers sit in the weight-0 tier and are included in the
+			// proportional spread across tiers.
+			$groups = $this->parse_followers_groups_optimized($selected_followers, $selected_nonfollowers);
 			$followers_cache[$cache_key] = $groups;
 			
 			// Prevent memory bloat - keep only last 10 entries
@@ -1860,18 +1870,13 @@ class Predictions_m extends MY_Model
 			$total_numbers += count($nums);
 		}
 		
-		if ($total_numbers == 0 || $total_numbers < $combination_size) {
-			if ($total_numbers < $combination_size) {
-				log_message('error', "followers_only: Insufficient follower numbers for lottery $lottery_id - need $combination_size, have $total_numbers");
-			}
+		if ($total_numbers == 0) {
 			return FALSE;
 		}
 		
-		// Optimized selection algorithm
-		$selected = $this->select_followers_numbers_optimized($groups, $combination_size);
-		
-		// TEMP DEBUG — remove after diagnosing ball 5 issue
-		log_message('error', "TEMPDBG selected=" . implode(',', $selected));
+		// Fewer candidates (followers + non-followers) than the prediction pool: predict all of them.
+		// More candidates than the pool: trim to the pool size with a proportional spread across tiers.
+		$selected = $this->select_followers_numbers_optimized($groups, min($combination_size, $total_numbers));
 		
 		$elapsed = microtime(true) - $start_time;
 		log_message('info', "Followers generation completed in " . round($elapsed * 1000, 2) . "ms for lottery $lottery_id");
@@ -2032,59 +2037,18 @@ class Predictions_m extends MY_Model
 	}
 
 	/**
-	 * Return a ball => overall draw frequency map (combined Hot/Warm/Cold counts) for the lottery.
-	 * Used to re-weight non-followers against genuine followers in parse_followers_groups_optimized().
-	 */
-	private function get_overall_ball_frequency($lottery_id) {
-		$hwc = $this->statistics_m->h_w_c_exists($lottery_id);
-		if (!$hwc) return array();
-		$freq = array();
-		foreach (array('hots', 'warms', 'colds') as $field) {
-			if (empty($hwc[$field])) continue;
-			foreach (explode(',', $hwc[$field]) as $pair) {
-				$kv = explode('=', $pair);
-				if (count($kv) == 2) {
-					$freq[trim($kv[0])] = (int) trim($kv[1]);
-				}
-			}
-		}
-		return $freq;
-	}
-	
-	/**
-	 * Optimized selection of numbers from followers groups.
-	 * Non-followers re-weighted with a positive overall draw frequency (see get_overall_ball_frequency())
-	 * already sit in real weight tiers here and compete normally alongside genuine followers — a strong
-	 * overall performer can win a slot even when followers are plentiful. The weight-0 tier (truly zero:
-	 * never followed this trigger AND never drawn at all in the range) is used only as a last resort to
-	 * fill remaining slots when the weighted tiers can't fill the pool on their own.
+	 * Select numbers proportionally across all weight tiers, including the weight-0 non-follower tier.
+	 * Callers cap $combination_size at the total number of candidates, so every follower and
+	 * non-follower is included when there are fewer than the pool size.
 	 */
 	private function select_followers_numbers_optimized($groups, $combination_size) {
-		$nonfollower_group = isset($groups[0]) ? $groups[0] : [];
-		$follower_groups = $groups;
-		unset($follower_groups[0]);
-
-		$follower_total = 0;
-		foreach ($follower_groups as $nums) $follower_total += count($nums);
-
-		if ($follower_total >= $combination_size) {
-			// Enough weighted candidates on their own — never touch the zero-history tier
-			return $this->distribute_and_select_groups($follower_groups, $combination_size);
-		}
-
-		// Not enough weighted candidates — use all of them, then fill the remainder from the zero-history tier
-		$selected = $this->distribute_and_select_groups($follower_groups, $follower_total);
-		$remaining = $combination_size - count($selected);
-		if ($remaining > 0 && !empty($nonfollower_group)) {
-			$selected = array_merge($selected, array_slice(array_values($nonfollower_group), 0, $remaining));
-		}
-
-		return $selected;
+		return $this->distribute_and_select_groups($groups, $combination_size);
 	}
 
 	/**
 	 * Distributes $combination_size picks proportionally across weight groups, guaranteeing at
-	 * least one pick per group where possible. Operates on whichever groups are passed in.
+	 * least one pick per group where possible, then interleaves the tiers round-robin in the
+	 * returned list. Operates on whichever groups are passed in.
 	 */
 	private function distribute_and_select_groups($groups, $combination_size) {
 		if ($combination_size <= 0 || empty($groups)) return [];
@@ -2136,13 +2100,26 @@ class Predictions_m extends MY_Model
 			}
 		}
 		
-		// Select numbers from each group (first N) - optimized selection
-		$selected = [];
+		// Take the first N picks from each group, then interleave the groups round-robin
+		// (one from each tier in turn, cycling) so the final list spreads the tiers through
+		// the output rather than running strictly from highest draw count to lowest.
+		$group_picks = [];
 		foreach ($groups as $weight => $nums) {
 			if ($picks[$weight] > 0) {
-				$selected_from_group = array_slice($nums, 0, $picks[$weight]);
-				$selected = array_merge($selected, $selected_from_group);
+				$group_picks[] = array_slice($nums, 0, $picks[$weight]);
 			}
+		}
+		$selected = [];
+		$index = 0;
+		while (count($group_picks) > 0) {
+			foreach ($group_picks as $g => $nums) {
+				if (isset($nums[$index])) {
+					$selected[] = $nums[$index];
+				} else {
+					unset($group_picks[$g]);
+				}
+			}
+			$index++;
 		}
 		
 		// Final safety check - if not enough numbers, fill from any remaining
@@ -2163,11 +2140,11 @@ class Predictions_m extends MY_Model
 	 * Generates a set of numbers using the combined H-W-C and Followers method for a given lottery.
 	 * 
 	 * This method first calculates the H-W-C split (e.g. 4 hots, 3 warms, 3 colds for 10 numbers).
-	 * For each group, it selects numbers by highest position count, but only includes numbers that are
+	 * For each group, it selects numbers by highest win rate / position count, but ONLY numbers that are
 	 * present in the followers/non-followers list for the selected ball (e.g. after 34).
-	 * If a number from the H-W-C group is not found in the followers/non-followers, it is skipped.
-	 * The process continues for hots, warms, and colds until the required total is reached.
-	 * If not enough numbers are found, the remaining are filled from the followers/non-followers list.
+	 * If a heat group quota cannot be met, the shortfall is filled from the rest of the
+	 * followers/non-followers list. Only when that entire list is smaller than the prediction pool
+	 * is the remainder topped up from the H-W-C pool.
 	 *
 	 * @param int    $lottery_id        The lottery ID.
 	 * @param int    $combination_size  The total number of numbers to select.
@@ -2317,6 +2294,16 @@ class Predictions_m extends MY_Model
 			return FALSE;
 		}
 		
+		// Independent extra ball data follows a '#' separator; only the main ball data is used here
+		$hash_pos = strpos($selected_followers, '#');
+		if ($hash_pos !== false) {
+			$selected_followers = substr($selected_followers, 0, $hash_pos);
+		}
+		$hash_pos = strpos($selected_nonfollowers, '#');
+		if ($hash_pos !== false) {
+			$selected_nonfollowers = substr($selected_nonfollowers, 0, $hash_pos);
+		}
+		
 		// Parse into usable format
 		return $this->parse_followers_groups_optimized($selected_followers, $selected_nonfollowers);
 	}
@@ -2341,7 +2328,7 @@ class Predictions_m extends MY_Model
 		$c_positions = $hwc_data['c_positions'];
 		$position_stats = isset($hwc_data['position_stats']) ? $hwc_data['position_stats'] : null;
 		
-		// PHASE 2: Select from each H-W-C group using intelligent selection, then filter by followers
+		// PHASE 2: Select from each H-W-C group, restricted to the followers list of the trigger ball
 		$selected = [];
 		
 		// Select hots that are in followers
@@ -2356,7 +2343,8 @@ class Predictions_m extends MY_Model
 		$selected_colds = $this->select_hwc_filtered_by_followers($c_positions, $colds, $c_total, $follower_lookup, 'cold', $position_stats);
 		$selected = array_merge($selected, $selected_colds);
 		
-		// If not enough numbers, fill from followers data
+		// If heat-group quotas couldn't be met with followers, fill from the rest of the followers list
+		// (any heat group) before ever touching the H-W-C pool
 		if (count($selected) < $combination_size) {
 			$remaining = $combination_size - count($selected);
 			foreach ($followers_data as $nums) {
@@ -2370,36 +2358,56 @@ class Predictions_m extends MY_Model
 			}
 		}
 		
+		// Last resort: the entire followers list is exhausted and is still smaller than the pool,
+		// so top up from the H-W-C pool (hots, then warms, then colds, highest position count first)
+		if (count($selected) < $combination_size) {
+			$hwc_fallback = [
+				['positions' => $h_positions, 'numbers' => $hots],
+				['positions' => $w_positions, 'numbers' => $warms],
+				['positions' => $c_positions, 'numbers' => $colds],
+			];
+			foreach ($hwc_fallback as $group) {
+				$positions = $group['positions'];
+				arsort($positions);
+				foreach ($positions as $pos => $count) {
+					if (!isset($group['numbers'][$pos])) continue;
+					$num = $group['numbers'][$pos];
+					if (!in_array($num, $selected)) {
+						$selected[] = $num;
+						if (count($selected) >= $combination_size) break 2;
+					}
+				}
+			}
+		}
+		
 		return $selected;
 	}
 	
 	/**
-	 * PHASE 2 ENHANCED: Helper method to select H-W-C numbers filtered by followers with intelligent win rate sorting
+	 * PHASE 2 ENHANCED: Select H-W-C numbers for one heat group, restricted to the followers list
+	 * (followers + non-followers of the trigger ball). Numbers outside that list are never selected
+	 * here — any shortfall is handled by the caller, which fills from the remaining followers list
+	 * first and only falls back to the H-W-C pool when the followers list itself is exhausted.
 	 */
 	private function select_hwc_filtered_by_followers($positions, $numbers, $limit, $follower_lookup, $temperature = '', $position_stats = null) {
 		if ($limit <= 0) return [];
 		
-		// Build array of positions with their performance data
+		// Build array of positions with their performance data, followers list only
 		$position_data = [];
 		foreach ($positions as $pos => $count) {
-			if (isset($numbers[$pos])) {
+			if (isset($numbers[$pos]) && isset($follower_lookup[$numbers[$pos]])) {
 				$position_data[] = [
 					'position' => $pos,
 					'number' => $numbers[$pos],
 					'count' => $count,
-					'win_rate' => $this->get_position_win_rate_predictions($pos, $temperature, $position_stats),
-					'is_follower' => isset($follower_lookup[$numbers[$pos]])
+					'win_rate' => $this->get_position_win_rate_predictions($pos, $temperature, $position_stats)
 				];
 			}
 		}
 		
-		// PHASE 2: Sort by follower status first, then by win rate, then by count
+		// Sort by win rate, then by count
 		usort($position_data, function($a, $b) {
-			// Primary: Followers first
-			if ($a['is_follower'] != $b['is_follower']) {
-				return $b['is_follower'] - $a['is_follower'];
-			}
-			// Secondary: win_rate descending (higher is better)
+			// Primary: win_rate descending (higher is better)
 			if ($b['win_rate'] != $a['win_rate']) {
 				return $b['win_rate'] <=> $a['win_rate'];
 			}
@@ -2407,27 +2415,13 @@ class Predictions_m extends MY_Model
 			return $b['count'] <=> $a['count'];
 		});
 		
-		// Select followers first, then non-followers if quota is not yet reached
 		$selected = [];
 		$selected_lookup = [];
-		
-		// First pass: followers only
 		foreach ($position_data as $data) {
-			if ($data['is_follower'] && !isset($selected_lookup[$data['number']])) {
+			if (!isset($selected_lookup[$data['number']])) {
 				$selected[] = $data['number'];
 				$selected_lookup[$data['number']] = true;
 				if (count($selected) >= $limit) break;
-			}
-		}
-		
-		// Second pass: fill remaining quota from non-followers in same heat group
-		if (count($selected) < $limit) {
-			foreach ($position_data as $data) {
-				if (!$data['is_follower'] && !isset($selected_lookup[$data['number']])) {
-					$selected[] = $data['number'];
-					$selected_lookup[$data['number']] = true;
-					if (count($selected) >= $limit) break;
-				}
 			}
 		}
 		
