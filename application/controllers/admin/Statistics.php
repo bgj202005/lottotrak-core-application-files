@@ -3947,9 +3947,53 @@ class Statistics extends Admin_Controller {
 		}
 		
 		// Auto-regenerate predictions after ReCalc if settings exist
-		$this->auto_regenerate_followers_prediction($id);
+		$this->auto_regenerate_followers_prediction($id, $lotto);
 		
 		unset($prizes);			// Remove the $prize array - Free up memory 
+	}
+
+	/**
+	 * Build the After Ball / Position trigger options (value => label, sorted by points) for the
+	 * latest draw. Mirrors the dropdowns on the followers statistics page so ReCalc can tell
+	 * whether a saved trigger still exists in the newest draw.
+	 *
+	 * @param integer $id    Lottery ID
+	 * @param object  $lotto Lottery profile object with last_drawn (array) populated
+	 * @return array         array(ball_options, position_options)
+	 */
+	private function followers_trigger_options($id, $lotto)
+	{
+		$this->load->model('History_m', 'history_m');
+		$this->load->model('Lottery_statistics_m', 'lottery_statistics_m');
+		if (!isset($this->predictions_m)) {
+			$this->load->model('Predictions_m', 'predictions_m');
+		}
+		
+		$this->statistics_m->clear_follower_cache($id);
+		$followers_check = $this->statistics_m->followers_exists($id);
+		if (!$followers_check || !isset($followers_check['wins']) || !isset($followers_check['positions'])) {
+			return array(array(), array());
+		}
+		
+		$drawn = (int) $lotto->balls_drawn;
+		$p_group = $this->statistics_m->prize_group_profile($id);
+		$p_group = $this->statistics_m->prizes_only($p_group, $lotto->extra_ball);
+		$last_drawn = $this->history_m->last_draw_prizegroup((array) $lotto->last_drawn, $drawn, $lotto->extra_ball, $p_group);
+		$extra_included_f = isset($followers_check['extra_included']) ? (int) $followers_check['extra_included'] : 0;
+		$last_drawn = $this->history_m->last_draw_addwins($last_drawn, $drawn, $extra_included_f, $p_group, explode('>', $followers_check['wins']), explode('>', $followers_check['positions']));
+		$last_drawn = $this->history_m->last_draw_addpoints($last_drawn, $drawn, $extra_included_f, $lotto->duplicate_extra_ball);
+		
+		$ball_options = array();
+		foreach ($this->predictions_m->get_sorted_ball_points($last_drawn, $drawn, $lotto->duplicate_extra_ball) as $label) {
+			$value = (strpos($label, '+') === 0) ? substr($label, 0, strpos($label, ' ')) : strtok($label, ' ');
+			$ball_options[$value] = $label;
+		}
+		$position_options = array();
+		foreach ($this->lottery_statistics_m->get_sorted_position_points($last_drawn, $drawn) as $label) {
+			$value = (strpos($label, '+') === 0) ? substr($label, 0, strpos($label, ' ')) : strtok($label, ' ');
+			$position_options[$value] = $label;
+		}
+		return array($ball_options, $position_options);
 	}
 
 	/**
@@ -3957,9 +4001,10 @@ class Statistics extends Admin_Controller {
 	 * Only regenerates if prediction settings were previously saved
 	 * 
 	 * @param integer $id Lottery ID
+	 * @param object $lotto Lottery Profile Object (last_drawn populated)
 	 * @return void
 	 */
-	private function auto_regenerate_followers_prediction($id)
+	private function auto_regenerate_followers_prediction($id, $lotto)
 	{
 		// Check if there are saved prediction settings
 		$followers_record = $this->statistics_m->followers_exists($id);
@@ -3991,6 +4036,26 @@ class Statistics extends Admin_Controller {
 		// STEP 2: Load required models if not already loaded
 		if (!isset($this->predictions_m)) {
 			$this->load->model('Predictions_m', 'predictions_m');
+		}
+		
+		// STEP 2b: The saved trigger (e.g. After Ball +1) was picked from the PREVIOUS draw. If that
+		// ball / position isn't in the newest draw, move to the top-ranked option of the newest draw
+		// instead of regenerating (or failing to) with a ball that was not drawn. Same rule as the
+		// followers statistics page uses.
+		list($ball_options, $position_options) = $this->followers_trigger_options($id, $lotto);
+		if ($saved_type === 'position') {
+			if (!empty($position_options) && !array_key_exists($saved_position_points, $position_options)) {
+				$saved_position_points = (string) array_key_first($position_options);
+			}
+			$follower_select = $saved_position_points;
+		} else {
+			if (!empty($ball_options) && !array_key_exists($saved_ball_points, $ball_options)) {
+				$saved_ball_points = (string) array_key_first($ball_options);
+			}
+			$follower_select = $saved_ball_points;
+		}
+		if (empty($follower_select)) {
+			return;
 		}
 		
 		// STEP 3: Get prediction pool from H-W-C settings
