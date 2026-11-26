@@ -1931,10 +1931,18 @@ class Statistics extends Admin_Controller {
 		{
 			$new_range = $this->uri->segment(5,0); 					// Return segment range
 			$old_range = $h_w_c['range'];
-			if(!$new_range) $new_range = $old_range;				// Database Range
+			$old_range_is_all = !empty($h_w_c['range_is_all']);
+			if(!$new_range) {
+				// No explicit range segment (e.g. Calculate/ReCalc reload) — if "All Draws" was
+				// previously selected, keep tracking the current (possibly grown) total instead
+				// of replaying the stale number that was "all" at the time it was selected.
+				$new_range = $old_range_is_all ? $all : $old_range;
+			}
+			// Was "All Draws" explicitly selected (its link always passes the current total)?
+			$new_range_is_all = ($new_range == $all);
 			// Dynamic threshold: 50 once the 50-draw minimum is reached, then 100 (standard) once draws hit 100.
 			$auto_range = ($all < 100) ? min(50, $all) : 100;
-			if($new_range > $all || $new_range < min(50, $all)) $new_range = $auto_range;
+			if(!$new_range_is_all && ($new_range > $all || $new_range < min(50, $all))) $new_range = $auto_range;
 			$hots = $h_w_c['h_count'];
 			$warms = $h_w_c['w_count'];
 			$colds = $h_w_c['c_count'];
@@ -2202,6 +2210,7 @@ class Statistics extends Admin_Controller {
 					$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl_name, $drawn, $this->data['lottery']->extra_included, $this->data['lottery']->extra_draws, $new_range, '');
 					$hwc = array(
 						'range'				=> 	$new_range,
+						'range_is_all'		=> 	$new_range_is_all ? 1 : 0,
 						'hots'				=> 	$strhots,
 						'warms'				=> 	$strwarms,
 						'colds'				=> 	$strcolds,
@@ -3186,10 +3195,18 @@ class Statistics extends Admin_Controller {
 	 if(!is_null($h_w_c) && !empty($h_w_c['hots']) && $h_w_c['draw_id'] > 0)	// Existing HWC with data?
 	 {
 		$new_range = $h_w_c['range'];
-		// Dynamic threshold: 50 once the 50-draw minimum is reached, then 100 (standard) once draws hit 100.
-		$_auto_range = ($all < 100) ? min(50, $all) : 100;
-		$_range_clamped = ($new_range > $all || $new_range < min(50, $all));
-		if ($_range_clamped) $new_range = $_auto_range;
+		$_range_is_all = !empty($h_w_c['range_is_all']);
+		if ($_range_is_all) {
+			// "All Draws" must always track the current (growing) total, never a fixed window —
+			// force the full-recalculation path below since sliding window assumes a fixed size.
+			$new_range = $all;
+			$_range_clamped = TRUE;
+		} else {
+			// Dynamic threshold: 50 once the 50-draw minimum is reached, then 100 (standard) once draws hit 100.
+			$_auto_range = ($all < 100) ? min(50, $all) : 100;
+			$_range_clamped = ($new_range > $all || $new_range < min(50, $all));
+			if ($_range_clamped) $new_range = $_auto_range;
+		}
 		$hots = $h_w_c['h_count'];
 		$warms = $h_w_c['w_count'];
 		$colds = $h_w_c['c_count'];
@@ -3234,6 +3251,7 @@ class Statistics extends Admin_Controller {
 				// Save with _last values preserved
 				$hwc = array(
 					'range'				=> $new_range,
+					'range_is_all'		=> $_range_is_all ? 1 : 0,
 					'hots'				=> $strhots,
 					'warms'				=> $strwarms,
 					'colds'				=> $strcolds,
@@ -3296,7 +3314,11 @@ class Statistics extends Admin_Controller {
 		$new_range = $h_w_c['range'];
 		// Dynamic threshold: 50 once the 50-draw minimum is reached, then 100 (standard) once draws hit 100.
 		$_auto_range2 = ($all < 100) ? min(50, $all) : 100;
-		if ($new_range > $all || $new_range < min(50, $all)) $new_range = $_auto_range2;
+		if ($_range_is_all) {
+			$new_range = $all; // Keep tracking the growing total for "All Draws"
+		} elseif ($new_range > $all || $new_range < min(50, $all)) {
+			$new_range = $_auto_range2;
+		}
 		$hots = $h_w_c['h_count'];
 		$warms = $h_w_c['w_count'];
 		$colds = $h_w_c['c_count'];
@@ -3319,6 +3341,7 @@ class Statistics extends Admin_Controller {
 		$stroverdue = $this->statistics_m->overdue($strhots, $strwarms, $strcolds, $tbl, $drawn,  $h_w_c['extra_included'], $h_w_c['extra_draws'], $new_range, '');
 		$hwc = array(
 			'range'				=> $new_range,
+			'range_is_all'		=> $_range_is_all ? 1 : 0,
 			'hots'				=> $strhots,
 			'warms'				=> $strwarms,
 			'colds'				=> $strcolds,
