@@ -78,9 +78,20 @@
 		margin-bottom: 15px;
 		border-radius: 4px;
 	}
+	/* Drawn as a main ball — same background as the blue main-ball badges above */
 	.prev-draw-match {
-		background-color: #fff3cd;
-		border: 2px solid #ffc107;
+		background-color: #007bff;
+		border: 2px solid #0056b3;
+		color: #ffffff;
+		padding: 2px 6px;
+		border-radius: 3px;
+		font-weight: bold;
+	}
+	/* Drawn as the bonus/extra ball — same background as the green extra-ball badge above */
+	.prev-draw-match-extra {
+		background-color: #28a745;
+		border: 2px solid #1e7e34;
+		color: #ffffff;
 		padding: 2px 6px;
 		border-radius: 3px;
 		font-weight: bold;
@@ -873,15 +884,17 @@ elseif($is_extra):
 										endif;
 										
 										// Increment counter - track extra-ball hits separately from main-ball hits
+										$drawn_as_extra = false;
 										if($was_drawn):
 											if(!$has_dual_followers && isset($current_draw_numbers['extra']) && $num == $current_draw_numbers['extra']):
 												$winners_count_as_extra++;
+												$drawn_as_extra = true;
 											else:
 												$winners_count++;
 											endif;
 										endif;
 										
-										$match_class = $was_drawn ? ' class="prev-draw-match"' : '';
+										$match_class = $was_drawn ? ' class="'.($drawn_as_extra ? 'prev-draw-match-extra' : 'prev-draw-match').'"' : '';
 										$s_picks .= 'Number <strong'.$match_class.'>'.$num.'</strong>';
 										$current = next($prev_picks);
 										$sum++;
@@ -919,7 +932,7 @@ elseif($is_extra):
 											$num_e = key($prev_picks_extra);
 											$xwas_drawn = (isset($current_draw_numbers['extra']) && $num_e == $current_draw_numbers['extra']);
 											if($xwas_drawn) $winners_count_extra++;
-											$xmatch_class = $xwas_drawn ? ' class="prev-draw-match"' : '';
+											$xmatch_class = $xwas_drawn ? ' class="prev-draw-match-extra"' : '';
 											$s_picks_e .= 'Number <strong'.$xmatch_class.'>'.$num_e.'</strong>';
 											$xcurrent = next($prev_picks_extra);
 											$sum_e++;
@@ -1017,15 +1030,17 @@ elseif($is_extra):
 													endif;
 													
 // Increment counter - track extra-ball hits separately from main-ball hits
+															$drawn_as_extra = false;
 															if($was_drawn):
 																if(!$has_dual_followers && isset($current_draw_numbers['extra']) && $nf_num == $current_draw_numbers['extra']):
 																$nonfollowers_winners_count_as_extra++;
+																$drawn_as_extra = true;
 															else:
 																$nonfollowers_winners_count++;
 															endif;
 														endif;
 													
-													$match_class = $was_drawn ? ' class="prev-draw-match"' : '';
+													$match_class = $was_drawn ? ' class="'.($drawn_as_extra ? 'prev-draw-match-extra' : 'prev-draw-match').'"' : '';
 													$non_picks .= 'Number: <strong'.$match_class.'>'.$nf_num.'</strong><br />';
 												endforeach;
 												
@@ -1047,7 +1062,7 @@ elseif($is_extra):
 													if(empty($xnf_num)) continue;
 													$xnf_drawn = (isset($current_draw_numbers['extra']) && $xnf_num == $current_draw_numbers['extra']);
 													if($xnf_drawn) $nonfollowers_winners_count_extra++;
-													$xnf_class = $xnf_drawn ? ' class="prev-draw-match"' : '';
+													$xnf_class = $xnf_drawn ? ' class="prev-draw-match-extra"' : '';
 													$extra_non_picks .= 'Number: <strong'.$xnf_class.'>'.$xnf_num.'</strong><br />';
 												endforeach;
 												echo '<p class="card-text">'.$extra_non_picks.'</p>';
@@ -1135,7 +1150,7 @@ elseif($is_extra):
 							<ul class="mb-0 mt-2">
 								<li><strong>Win History Tables:</strong> Prize category wins and position wins for each drawn ball (displayed in the tabs above)</li>
 								<li><strong>Previous Draw Followers:</strong> What the follower predictions were before the previous draw (shown in the blue box above)</li>
-								<li><strong>Yellow Border Highlighting:</strong> Numbers with <span style="background-color: #fff3cd; border: 2px solid #ffc107; padding: 2px 6px; border-radius: 3px;">yellow border</span> were actually drawn on <strong><?=date("l, F j, Y", strtotime(str_replace('/','-',$lottery->last_drawn['draw_date'])));?></strong> (most recent draw)
+								<li><strong>Drawn Number Highlighting:</strong> Numbers with a <span style="background-color: #007bff; border: 2px solid #0056b3; color: #ffffff; padding: 2px 6px; border-radius: 3px;">blue background</span> were drawn as main balls and numbers with a <span style="background-color: #28a745; border: 2px solid #1e7e34; color: #ffffff; padding: 2px 6px; border-radius: 3px;">green background</span> were drawn as the bonus/extra ball on <strong><?=date("l, F j, Y", strtotime(str_replace('/','-',$lottery->last_drawn['draw_date'])));?></strong> (most recent draw) &mdash; matching the colors of the clickable numbers above
 								<?php if($lottery->duplicate_extra_ball): ?>
 								<br><em style="margin-left: 20px; font-size: 0.9em;">Exception: For main ball predictions, numbers are NOT highlighted if they match the extra ball (appear in both main and extra).</em>
 								<?php endif; ?>
